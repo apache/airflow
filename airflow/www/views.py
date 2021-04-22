@@ -2708,7 +2708,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', type=int)
