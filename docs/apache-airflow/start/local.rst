@@ -46,17 +46,18 @@ The installation of Airflow is painless if you are following the instructions be
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
 
 .. code-block:: bash
+    :substitutions:
 
     # airflow needs a home, ~/airflow is the default,
     # but you can lay foundation somewhere else if you prefer
     # (optional)
     export AIRFLOW_HOME=~/airflow
 
-    AIRFLOW_VERSION=2.0.2
+    AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
     # initialize the database
