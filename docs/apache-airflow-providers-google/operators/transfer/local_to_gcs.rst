@@ -33,7 +33,7 @@ Prerequisite Tasks
 
 .. _howto/operator:LocalFilesystemToGCSOperator:
 
-LocalFileSystemToGCSOperator
+LocalFilesystemToGCSOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :class:`~airflow.providers.google.cloud.transfers.local_to_gcs.LocalFilesystemToGCSOperator` allows you to upload
