@@ -32,7 +32,7 @@ Those are the most common arguments that you use when you want to build a custom
 +==========================================+==========================================+==========================================+
 | ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION``                      | ``2.0.2``                                | version of Airflow.                      |
+| ``AIRFLOW_VERSION``                      | :subst-code:`|version|`                  | version of Airflow.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed.                               |
@@ -64,7 +64,7 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                          | 2.0.* installation. In case of building  |
 |                                          |                                          | specific version you want to point it    |
 |                                          |                                          | to specific tag, for example             |
-|                                          |                                          | ``constraints-2.0.2``.                   |
+|                                          |                                          | :subst-code:`constraints-|version|`.     |
 |                                          |                                          | Auto-detected if empty.                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
