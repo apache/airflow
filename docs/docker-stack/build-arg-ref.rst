@@ -127,11 +127,6 @@ for examples of using those arguments.
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps.            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``CASS_DRIVER_BUILD_CONCURRENCY``        | ``8``                                    | Number of processors to use for          |
-|                                          |                                          | cassandra PIP install (speeds up         |
-|                                          |                                          | installing in case cassandra extra is    |
-|                                          |                                          | used).                                   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
