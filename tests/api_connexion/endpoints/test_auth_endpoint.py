@@ -24,9 +24,10 @@ from sqlalchemy import func
 from airflow.models.auth import TokenBlockList
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from airflow.www.security import AUTH_TYPE_MISMATCH_MESSAGE
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
+
+AUTH_TYPE_MISMATCH_MESSAGE = "Authentication type does not match"
 
 OAUTH_PROVIDERS = [
     {
@@ -149,7 +150,7 @@ class TestDBLoginEndpoint(TestLoginEndpoint):
         self.auth_type(AUTH_DB)
         payload = {"username": "tests"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 401
+        assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_db(self):
@@ -185,7 +186,7 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
         self.auth_type(AUTH_LDAP)
         payload = {"username": "tests"}
         response = self.client.post('api/v1/auth/login', json=payload)
-        assert response.status_code == 401
+        assert response.status_code == 400
         assert response.json['detail'] == "{'password': ['Missing data for required field.']}"
 
     def test_auth_type_must_be_ldap(self):
@@ -198,7 +199,7 @@ class TestLDAPLoginEndpoint(TestLoginEndpoint):
 
 class TestOauthAuthorizationEndpoint(TestLoginEndpoint):
     @conf_vars({("webserver", 'base_url'): 'http://localhost:8080'})
-    @mock.patch("airflow.www.security.jwt.encode")
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.encode")
     def test_can_redirect_for_google(self, mock_jwt_encode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_encode.return_value = "state"
@@ -213,7 +214,7 @@ class TestOauthAuthorizationEndpoint(TestLoginEndpoint):
         mock_auth.assert_called_once_with(redirect_uri=redirect_url, state='state')
 
     @conf_vars({("webserver", 'base_url'): 'http://localhost:8080'})
-    @mock.patch("airflow.www.security.jwt.encode")
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.encode")
     def test_can_redirect_for_twitter(self, mock_jwt_encode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_encode.return_value = "state"
@@ -254,10 +255,10 @@ class TestAuthorizeOauth(TestLoginEndpoint):
         }
         mock_twitter_auth_provider.authorize_access_token.return_value = mock.MagicMock()
         response = self.client.get('api/v1/oauth-authorized?provider=twitter&state=state')
-        assert response.status_code == 401
+        assert response.status_code == 400
         assert response.json['detail'] == "State signature is not valid!"
 
-    @mock.patch("airflow.www.security.jwt.decode")
+    @mock.patch("airflow.api_connexion.endpoints.auth_endpoint.jwt.decode")
     def test_successful_authorization(self, mock_jwt_decode):
         self.auth_type(AUTH_OAUTH)
         mock_jwt_decode.return_value = {'some': 'payload'}

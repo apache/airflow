@@ -315,7 +315,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow/www/security.py$|
+          ^airflow/api_connexion/endpoints/auth_endpoint.py$|
           ^airflow/api_connexion/security.py$|
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
