@@ -44,15 +44,10 @@ class MySqlHook(DbApiHook):
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
 
-<<<<<<< HEAD
     :param schema: The MySQL database schema to connect to.
     :type schema: Optional[str]
-    :param connection: The Airflow connection used for MySQL credentials.
+    :param connection: The :ref:`MySQL connection id <howto/connection:mysql>` used for MySQL credentials.
     :type connection: Optional[Dict]
-=======
-    :param mysql_conn_id: :ref:Reference to `mysql connection id<howto/connection:mysql>`.
-    :type mysql_conn_id: str
->>>>>>> add documentation and update docstrings
     """
 
     conn_name_attr = 'mysql_conn_id'

@@ -42,7 +42,7 @@ class S3ToMySqlOperator(BaseOperator):
     :type mysql_extra_options: Optional[str]
     :param aws_conn_id: The S3 connection that contains the credentials to the S3 Bucket.
     :type aws_conn_id: str
-    :param mysql_conn_id: :ref:Reference to `mysql connection id<howto/connection:mysql>`.
+    :param mysql_conn_id: :ref:Reference to `mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     """
 
