@@ -177,7 +177,7 @@ croniter==0.3.37
 cryptography==3.4.7
 curlify==2.2.1
 cx-Oracle==8.1.0
-dask==2021.4.0
+dask==2021.4.1
 datadog==0.41.0
 decorator==5.0.7
 defusedxml==0.7.1
