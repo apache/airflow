@@ -27,8 +27,6 @@ from flask_jwt_extended import (
     get_raw_jwt,
     jwt_refresh_token_required,
     jwt_required,
-    set_access_cookies,
-    unset_jwt_cookies,
 )
 from flask_login import login_user
 from marshmallow import ValidationError
@@ -85,7 +83,7 @@ def auth_login():
     if not user:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
-    return security_manager.create_tokens_and_dump(appbuilder.app, user, auth_schema)
+    return security_manager.create_tokens_and_dump(user, auth_schema)
 
 
 def auth_oauthlogin(provider, register=None):
@@ -168,7 +166,7 @@ def authorize_oauth():
     if user is None:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
-    return security_manager.create_tokens_and_dump(appbuilder.app, user, auth_schema)
+    return security_manager.create_tokens_and_dump(user, auth_schema)
 
 
 def auth_remoteuser():
@@ -184,7 +182,7 @@ def auth_remoteuser():
     if user is None:
         raise Unauthenticated(detail="Invalid login")
     login_user(user, remember=False)
-    return security_manager.create_tokens_and_dump(appbuilder.app, user, auth_schema)
+    return security_manager.create_tokens_and_dump(user, auth_schema)
 
 
 @jwt_refresh_token_required
@@ -192,10 +190,6 @@ def refresh_token():
     """Refresh token"""
     user = get_jwt_identity()
     access_token = create_access_token(identity=user)
-    if 'cookies' in current_app.appbuilder.app.config['JWT_TOKEN_LOCATION']:
-        resp = jsonify({'access_token': ""})  # empty string to comply to spec
-        set_access_cookies(resp, access_token)
-        return resp
     return {'access_token': access_token}
 
 
@@ -231,10 +225,7 @@ def revoke_current_user_token():
         TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
     except IntegrityError:
         pass
-    resp = jsonify({"revoked": True})
-    if 'cookies' in current_app.appbuilder.app.config['JWT_TOKEN_LOCATION']:
-        unset_jwt_cookies(resp)
-    return resp
+    return jsonify({"revoked": True})
 
 
 @jwt_refresh_token_required
@@ -248,7 +239,4 @@ def revoke_current_user_refresh_token():
         TokenBlockList.add_token(jti=raw_jwt['jti'], expiry_delta=raw_jwt['exp'])
     except IntegrityError:
         pass
-    resp = jsonify({"revoked": True})
-    if 'cookies' in current_app.appbuilder.app.config['JWT_TOKEN_LOCATION']:
-        unset_jwt_cookies(resp)
-    return resp
+    return jsonify({"revoked": True})

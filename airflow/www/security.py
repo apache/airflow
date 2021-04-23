@@ -20,18 +20,12 @@ import logging
 import warnings
 from typing import Dict, Optional, Sequence, Set, Tuple
 
-from flask import current_app, g, jsonify
+from flask import current_app, g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import PermissionView, Role, User
-from flask_jwt_extended import (
-    JWTManager,
-    create_access_token,
-    create_refresh_token,
-    set_access_cookies,
-    set_refresh_cookies,
-)
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
@@ -756,15 +750,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         jwt_manager.user_loader_callback_loader(self.load_user_jwt)
         return jwt_manager
 
-    def create_tokens_and_dump(self, app, user, schema):
+    def create_tokens_and_dump(self, user, schema):
         """Creates access and refresh token, return user data alongside tokens"""
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
-        if 'cookies' in app.config['JWT_TOKEN_LOCATION']:
-            resp = schema.dump({'user': user})
-            set_access_cookies(jsonify(resp), access_token)
-            set_refresh_cookies(jsonify(resp), refresh_token)
-            return resp
         return schema.dump({'user': user, 'token': access_token, 'refresh_token': refresh_token})
 
 

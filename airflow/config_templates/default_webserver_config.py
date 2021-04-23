@@ -133,7 +133,7 @@ AUTH_TYPE = AUTH_DB
 # Airflow uses flask_jwt_extended for handling JWT Authentication.
 # Please refer to https://flask-jwt-extended.readthedocs.io/en/3.0.0_release/options/
 # for more configuration options.
-# Note that storing token in query string is not supported
+# Note that storing token in query_string or cookies is not supported
 JWT_TOKEN_LOCATION = ['headers']
 JWT_HEADER_NAME = "Authorization"
 JWT_HEADER_TYPE = 'Bearer'

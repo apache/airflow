@@ -18,7 +18,6 @@ from unittest import mock
 
 import pytest
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
-from flask_jwt_extended.utils import create_access_token, create_refresh_token
 from sqlalchemy import func
 
 from airflow.models.auth import TokenBlockList
@@ -366,46 +365,3 @@ class TestTokenRevokeEndpoint(TestLoginEndpoint):
         )
         total_tokens_in_db = session.query(func.count(TokenBlockList.jti)).scalar()
         assert total_tokens_in_db == 1
-
-
-class TestTokenCanBeStoredInCookies(TestLoginEndpoint):
-    def test_token_stored_in_cookie_in_db_login(self):
-        self.app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-        self.auth_type(AUTH_DB)
-        payload = {"username": "test", "password": "test"}
-        self.client.post('api/v1/auth/login', json=payload)
-
-        assert all(cookie.name != "session" for cookie in self.client.cookie_jar)
-        expected = ['access_token_cookie', 'refresh_token_cookie', 'csrf_access_token', 'csrf_refresh_token']
-        result = [cookie.name for cookie in self.client.cookie_jar]
-        assert sorted(expected) == sorted(result)
-
-    def test_token_not_in_response_if_token_in_cookie(self):
-        self.app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-        self.auth_type(AUTH_DB)
-        payload = {"username": "test", "password": "test"}
-        response = self.client.post('api/v1/auth/login', json=payload)
-        assert not response.json.get('refresh_token')
-        assert not response.json.get('access_token')
-        # Ensure cookie was set
-        assert [cookie.name for cookie in self.client.cookie_jar]
-
-    def test_token_can_view_other_endpoints_if_token_in_cookie(self):
-        self.app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-        self.auth_type(AUTH_DB)
-        user = self.app.appbuilder.sm.find_user(username='test')
-        with self.app.app_context():
-            token = create_access_token(user.id)
-            self.client.set_cookie("localhost", 'access_token_cookie', token)
-            response = self.client.get("/api/v1/pools")
-        assert response.status_code == 200
-
-    def test_refresh_works_for_token_in_cookie(self):
-        self.app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-        self.auth_type(AUTH_DB)
-        user = self.app.appbuilder.sm.find_user(username='test')
-        with self.app.app_context():
-            token = create_refresh_token(user.id)
-            self.client.set_cookie("localhost", 'refresh_token_cookie', token)
-            response = self.client.get("/api/v1/refresh")
-        assert response.status_code == 200
