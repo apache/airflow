@@ -47,7 +47,7 @@ class TokenBlockList(Base, LoggingMixin):
     @provide_session
     def delete_token(cls, token, session=None):
         """Delete a token"""
-        session.query(cls).get(token).delete()
+        session.query(cls).filter(cls.jti == token).delete()
 
     @classmethod
     @provide_session
