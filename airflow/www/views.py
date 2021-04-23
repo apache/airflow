@@ -2043,7 +2043,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        max_date = max(dag_runs, default=None)
+        max_date = max(dag_runs.keys(), default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
