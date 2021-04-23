@@ -140,7 +140,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==16.1.0
 azure-nspkg==3.0.2
-azure-storage-blob==12.8.0
+azure-storage-blob==12.8.1
 azure-storage-common==2.1.0
 azure-storage-file==2.1.0
 backcall==0.2.0
@@ -149,9 +149,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==20.8b1
 blinker==1.4
-boto3==1.17.55
+boto3==1.17.56
 boto==2.49.0
-botocore==1.20.55
+botocore==1.20.56
 bowler==0.9.0
 cachetools==4.2.1
 cassandra-driver==3.20.2
@@ -417,7 +417,7 @@ requests==2.25.1
 responses==0.13.1
 rich==9.2.0
 rsa==4.7.2
-s3transfer==0.4.1
+s3transfer==0.4.2
 sasl==0.2.1
 scrapbook==0.5.0
 semver==2.13.0
