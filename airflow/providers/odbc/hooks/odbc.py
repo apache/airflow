@@ -171,6 +171,8 @@ class OdbcHook(DbApiHook):
                     return True
                 elif val.lower() == 'false':
                     return False
+                else:
+                    return val
             else:
                 return val
 
