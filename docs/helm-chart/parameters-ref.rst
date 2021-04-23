@@ -519,6 +519,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``redis.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``redis.serviceAccount.create``
+     - Create ServiceAccount for redis
+     - ``true``
+   * - ``redis.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``redis.serviceAccount.annotations``
+     - Annotations to add to redis kubernetes service account
+     - ``{}``
    * - ``cleanup.nodeSelector``
      - Node labels for pod assignment
      - ``1``
@@ -528,6 +537,24 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``cleanup.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``cleanup.serviceAccount.create``
+     - Create ServiceAccount for cleanup pods
+     - ``true``
+   * - ``cleanup.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``cleanup.serviceAccount.annotations``
+     - Annotations to add to cleanup cronjob kubernetes service account
+     - ``{}``
+   * - ``jobs.serviceAccount.create``
+     - Create ServiceAccount for jobs pods (create user/migrate database)
+     - ``true``
+   * - ``jobs.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``jobs.serviceAccount.annotations``
+     - Annotations to add to jobs kubernetes service account
+     - ``{}``
    * - ``dags.persistence.*``
      - Dag persistence configuration
      - Please refer to ``values.yaml``

@@ -475,6 +475,9 @@ jobs:
     # If not set and create is true, a name is generated using the release name
     # name:
 
+    # Annotations to add to jobs (migrate database/create user) kubernetes service account.
+    annotations: {}
+
 # Airflow webserver settings
 webserver:
   allowPodLogReading: true
@@ -835,6 +838,9 @@ cleanup:
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
     # name:
+
+    # Annotations to add to cleanup cronjob kubernetes service account.
+    annotations: {}
 
 # Configuration for postgresql subchart
 # Not recommended for production
