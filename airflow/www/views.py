@@ -25,10 +25,10 @@ import socket
 import sys
 import traceback
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -1915,12 +1915,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
         """Returns formatted dag_runs for Tree View"""
         dates = sorted(dag_runs.keys())
-        min_date = min(dates) if dates else None
+        min_date = min(dag_runs, default=None)
 
-        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
-        for ti in tis:
-            task_instances[(ti.task_id, ti.execution_date)] = ti
+        task_instances = {
+            (ti.task_id, ti.execution_date): ti
+            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date)
+        }
 
         expanded = set()
         # The default recursion traces every path so that tree view has full
@@ -2024,14 +2024,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
-        base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', type=int)
         if num_runs is None:
             num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
-        if base_date:
-            base_date = timezone.parse(base_date)
-        else:
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
@@ -2044,14 +2043,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        dates = sorted(dag_runs.keys())
-        max_date = max(dates) if dates else None
-        min_date = min(dates) if dates else None
-
-        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
-        for ti in tis:
-            task_instances[(ti.task_id, ti.execution_date)] = ti
+        max_date = max(dag_runs, default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
@@ -2711,14 +2703,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if root:
             dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
-        base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', type=int)
         if num_runs is None:
             num_runs = conf.getint('webserver', 'default_dag_run_display_number')
 
-        if base_date:
-            base_date = timezone.parse(base_date)
-        else:
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
