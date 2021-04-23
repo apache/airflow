@@ -30,7 +30,7 @@ class Neo4jHook(BaseHook):
 
     Performs a connection to Neo4j and runs the query.
 
-    :param neo4j_conn_id: :ref:Reference to `Neo4j connection id <howto/connection:neo4j>`.
+    :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
     :type neo4j_conn_id: str
     """
 
