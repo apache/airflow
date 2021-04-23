@@ -16,7 +16,7 @@
 # under the License.
 
 from pendulum import from_timestamp
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime, Index, String
 
 from airflow.models.base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -35,7 +35,8 @@ class TokenBlockList(Base, LoggingMixin):
 
     __tablename__ = 'token_blocklist'
     jti = Column(String(50), nullable=False, primary_key=True)
-    expiry_date = Column(DateTime(), nullable=False, index=True)
+    expiry_date = Column(DateTime(), nullable=False)
+    __table_args__ = (Index('idx_expiry_date_token_blocklist', expiry_date),)
 
     @classmethod
     @provide_session
