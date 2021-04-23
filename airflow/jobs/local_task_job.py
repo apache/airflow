@@ -76,6 +76,12 @@ class LocalTaskJob(BaseJob):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.on_kill()
+            self.task_instance.refresh_from_db()
+            if self.task_instance.state not in State.finished:
+                self.task_instance.set_state(State.FAILED)
+            self.task_instance._run_finished_callback(  # pylint: disable=protected-access
+                error="task received sigterm"
+            )
             raise AirflowException("LocalTaskJob received SIGTERM signal")
 
         # pylint: enable=unused-argument
