@@ -119,8 +119,9 @@ jobs:
             "jhtimmins",
             "dstandish",
             "xinbinhuang",
-            "yuqian"
-          ]'), github.actor)
+            "yuqian",
+            "eladkal"
+          ]'), github.event.pull_request.user.login)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
