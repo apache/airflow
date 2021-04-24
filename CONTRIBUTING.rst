@@ -949,7 +949,7 @@ semantic than style
 Don't Use Asserts Outside Tests
 -------------------------------
 
-Our community agreed that to various reasons we **do not use ``assert`` in production code** of Apache Airflow.
+Our community agreed that to various reasons we do not use ``assert`` in production code of Apache Airflow.
 For details check the relevant `mailing list thread <https://lists.apache.org/thread.html/bcf2d23fcd79e21b3aac9f32914e1bf656e05ffbcb8aa282af497a2d%40%3Cdev.airflow.apache.org%3E>`_.
 
 In other words instead of doing:
