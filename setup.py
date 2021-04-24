@@ -198,7 +198,7 @@ amazon = [
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]',
+    'apache-beam>=2.20.0',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
@@ -502,7 +502,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint>=2.7.0',
+    'pylint~=2.7.4',
     'pysftp',
     'pytest~=6.0',
     'pytest-cov',
@@ -756,20 +756,6 @@ PACKAGES_EXCLUDED_FOR_ALL.extend(
     ]
 )
 
-# Those packages are excluded because they break tests and they are not needed to run our test suite.
-# This can be removed as soon as we get non-conflicting
-# requirements for the apache-beam as well.
-#
-# Currently Apache Beam has very narrow and old dependencies for 'mock' package which
-# are required only for our tests.
-# once https://github.com/apache/beam/pull/14328 is solved and new version of apache-beam is released
-# we will be able to remove this exclusion and get rid of `install_remaining_dependencies`
-# function in `scripts/in_container`.
-#
-PACKAGES_EXCLUDED_FOR_CI = [
-    'apache-beam',
-]
-
 
 def is_package_excluded(package: str, exclusion_list: List[str]):
     """
@@ -788,13 +774,7 @@ devel_all = [
     if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
 ]
 
-devel_ci = [
-    package
-    for package in devel_all
-    if not is_package_excluded(
-        package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL
-    )
-]
+devel_ci = devel_all
 
 
 # Those are extras that we have to add for development purposes
