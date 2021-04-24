@@ -50,7 +50,7 @@ class SFTPHook(SSHHook):
     :type sftp_conn_id: str
     """
 
-    conn_name_attr = 'sftp_conn_id'
+    conn_name_attr = 'ftp_conn_id'
     default_conn_name = 'sftp_default'
     conn_type = 'sftp'
     hook_name = 'SFTP'
