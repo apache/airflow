@@ -152,11 +152,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
             self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
 
             table_data = []
-            for dict_row in rows:
-                single_row = []
-                for fields in dict_row['f']:
-                    single_row.append(fields['v'])
-                table_data.append(single_row)
+            table_data = [[fields['v'] for fields in dict_row['f']] for dict_row in rows]
 
             yield table_data
             i += 1
