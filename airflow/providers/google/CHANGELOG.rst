@@ -67,7 +67,7 @@ You can still run this with PIP version <= 20.2.4 and go back to the previous be
 
 .. code-block:: shell
 
-  pip install apache-airflow-providers-google['apache.beam']
+  pip install apache-airflow-providers-google[apache.beam]
 
 or
 
