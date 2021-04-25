@@ -1135,9 +1135,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         will be printed out. In 'CLOUD' mode, a real MLEngine training job
         creation request will be issued.
     :type mode: str
-    :param hyperparameters: Optional HyperparameterSpec dictionary to be used during model training for hyperparameter tuning
-        For further reference, check these:
-        https://cloud.google.com/ai-platform/training/docs/using-hyperparameter-tuning
+    :param hyperparameters: Optional HyperparameterSpec dictionary for hyperparameter tuning.
+        For further reference, check:
         https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#HyperparameterSpec
     :type hyperparameters: Dict
     :param labels: a dictionary containing labels for the job; passed to BigQuery
