@@ -17,6 +17,11 @@
  * under the License.
  */
 
+text.title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
 text.year-label {
   font-size: 16px;
   font-weight: bold;
@@ -24,6 +29,10 @@ text.year-label {
 
 text.day-label {
   font-size: 12px;
+}
+
+text.status-label {
+  font-size: 11px;
 }
 
 path.month {
@@ -37,24 +46,7 @@ rect.day {
   cursor: pointer;
 }
 
-rect.success {
-  fill: green;
-}
-
-rect.running {
-  fill: lime;
-}
-
-rect.failed {
-  fill: red;
-}
-
-rect.no_status {
-  fill: #fff;
-}
-
 .legend-item__swatch {
-  /* Keep in sync with the formatting of rect.no_status */
   background-color: #fff;
   border: 1px solid #ccc;
 }
