@@ -73,7 +73,7 @@ or
 
 .. code-block:: shell
 
-  pip install apache-airflow-providers-apache-beam['google']
+  pip install apache-airflow-providers-apache-beam[google]
 
 But be aware that some ``BigQuery`` operators functionality might not be available in this case.
 
