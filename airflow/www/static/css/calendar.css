@@ -50,11 +50,11 @@ rect.failed {
 }
 
 rect.no_status {
-  fill: #eee;
+  fill: #fff;
 }
 
 .legend-item__swatch {
   /* Keep in sync with the formatting of rect.no_status */
-  background-color: #eee;
+  background-color: #fff;
   border: 1px solid #ccc;
 }
