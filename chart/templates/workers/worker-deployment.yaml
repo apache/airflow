@@ -46,8 +46,13 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
-  {{ if .Values.workers.updateStrategy }}
-{{ toYaml .Values.workers.updateStrategy | indent 2 }}
+  {{- if and $persistence .Values.workers.updateStrategy }}
+  updateStrategy:
+    {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if and (not $persistence) (.Values.workers.strategy) }}
+  strategy:
+    {{- toYaml .Values.workers.strategy | nindent 4 }}
   {{- end }}
   template:
     metadata:

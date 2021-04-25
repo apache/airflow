@@ -31,6 +31,9 @@ class RedshiftHook(AwsBaseHook):
 
     .. seealso::
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :type aws_conn_id: str
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -44,6 +47,10 @@ class RedshiftHook(AwsBaseHook):
 
         :param cluster_identifier: unique identifier of a cluster
         :type cluster_identifier: str
+        :param skip_final_cluster_snapshot: determines cluster snapshot creation
+        :type skip_final_cluster_snapshot: bool
+        :param final_cluster_snapshot_identifier: Optional[str]
+        :type final_cluster_snapshot_identifier: Optional[str]
         """
         try:
             response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)['Clusters']

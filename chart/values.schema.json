@@ -561,8 +561,12 @@
                     "type": "integer"
                 },
                 "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones.",
-                    "type": "object"
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
+                    "type": ["null", "object"]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "type": ["null", "object"]
                 },
                 "keda": {
                     "description": "KEDA configuration.",

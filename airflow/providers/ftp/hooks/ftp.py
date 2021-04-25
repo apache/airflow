@@ -32,6 +32,10 @@ class FTPHook(BaseHook):
     Errors that may occur throughout but should be handled downstream.
     You can specify mode for data transfers in the extra field of your
     connection as ``{"passive": "true"}``.
+
+    :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
+        reference.
+    :type ftp_conn_id: str
     """
 
     conn_name_attr = 'ftp_conn_id'

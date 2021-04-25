@@ -25,7 +25,7 @@ from copy import deepcopy
 from distutils import log
 from os.path import dirname, relpath
 from textwrap import wrap
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from setuptools import Command, Distribution, find_namespace_packages, setup
 from setuptools.command.develop import develop as develop_orig
@@ -669,17 +669,10 @@ EXTRAS_DEPRECATED_ALIASES: Dict[str, str] = {
     'winrm': 'microsoft.winrm',
 }
 
-
-def find_requirements_for_alias(alias_to_look_for: Tuple[str, str]) -> List[str]:
-    """Finds requirements for an alias"""
-    deprecated_extra = alias_to_look_for[0]
-    new_extra = alias_to_look_for[1]
-    if new_extra == '':  # Handle case for crypto
-        return []
-    try:
-        return EXTRAS_REQUIREMENTS[new_extra]
-    except KeyError:  # noqa
-        raise Exception(f"The extra {new_extra} is missing for alias {deprecated_extra}")
+EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: List[str] = [
+    "crypto",
+    "webhdfs",
+]
 
 
 def add_extras_for_all_deprecated_aliases() -> None:
@@ -694,6 +687,20 @@ def add_extras_for_all_deprecated_aliases() -> None:
         if requirements is None:
             raise Exception(f"The extra {extra} is missing for deprecated alias {alias}")
         EXTRAS_REQUIREMENTS[alias] = requirements
+
+
+def add_all_deprecated_provider_packages() -> None:
+    """
+    For deprecated aliases that are providers, we will swap the providers requirements to instead
+    be the provider itself.
+
+    e.g. {"kubernetes": ["kubernetes>=3.0.0, <12.0.0", ...]} becomes
+    {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
+    """
+    for alias, provider in EXTRAS_DEPRECATED_ALIASES.items():
+        if alias in EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS:
+            continue
+        replace_extra_requirement_with_provider_packages(alias, [provider])
 
 
 add_extras_for_all_deprecated_aliases()
@@ -939,6 +946,7 @@ def add_all_provider_packages() -> None:
     add_provider_packages_to_extra_requirements(
         "devel_hadoop", ["apache.hdfs", "apache.hive", "presto", "trino"]
     )
+    add_all_deprecated_provider_packages()
 
 
 class Develop(develop_orig):

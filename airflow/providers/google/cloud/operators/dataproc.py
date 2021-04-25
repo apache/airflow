@@ -438,10 +438,10 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig]
     :param region: The specified region where the dataproc cluster is created.
     :type region: str
-    :parm delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
+    :param delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
         value is true.
     :type delete_on_error: bool
-    :parm use_if_exists: If true use existing cluster
+    :param use_if_exists: If true use existing cluster
     :type use_if_exists: bool
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``DeleteClusterRequest`` requests with the same id, then the second request will be ignored and the

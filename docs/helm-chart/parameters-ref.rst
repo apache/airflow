@@ -280,7 +280,10 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - HostAliases to use in Celery workers
      - ``[]``
    * - ``workers.updateStrategy``
-     - The strategy used to replace old Pods by new ones.
+     - The strategy used to replace old Pods by new ones persistence is enabled.
+     - ``~``
+   * - ``workers.strategy``
+     - The strategy used to replace old Pods by new ones when persistence is not enabled.
      - ``{"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}``
    * - ``scheduler.podDisruptionBudget.enabled``
      - Enable PDB on Airflow scheduler

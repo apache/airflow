@@ -539,11 +539,13 @@ class DagBag(LoggingMixin):
                 return []
             try:
                 # We cant use bulk_write_to_db as we want to capture each error individually
-                SerializedDagModel.write_dag(
+                dag_was_updated = SerializedDagModel.write_dag(
                     dag,
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session,
                 )
+                if dag_was_updated:
+                    self._sync_perm_for_dag(dag, session=session)
                 return []
             except OperationalError:
                 raise
@@ -574,3 +576,31 @@ class DagBag(LoggingMixin):
                 # Only now we are "complete" do we update import_errors - don't want to record errors from
                 # previous failed attempts
                 self.import_errors.update(dict(serialize_errors))
+
+    @provide_session
+    def _sync_perm_for_dag(self, dag, session: Optional[Session] = None):
+        """Sync DAG specific permissions, if necessary"""
+        from flask_appbuilder.security.sqla import models as sqla_models
+
+        from airflow.security.permissions import DAG_PERMS, permission_name_for_dag
+
+        def needs_perm_views(dag_id: str) -> bool:
+            view_menu_name = permission_name_for_dag(dag_id)
+            for permission_name in DAG_PERMS:
+                if not (
+                    session.query(sqla_models.PermissionView)
+                    .join(sqla_models.Permission)
+                    .join(sqla_models.ViewMenu)
+                    .filter(sqla_models.Permission.name == permission_name)
+                    .filter(sqla_models.ViewMenu.name == view_menu_name)
+                    .one_or_none()
+                ):
+                    return True
+            return False
+
+        if dag.access_control or needs_perm_views(dag.dag_id):
+            self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+            from airflow.www.security import ApplessAirflowSecurityManager
+
+            security_manager = ApplessAirflowSecurityManager(session=session)
+            security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)

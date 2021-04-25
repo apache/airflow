@@ -26,7 +26,12 @@ from airflow.hooks.dbapi import DbApiHook
 
 
 class OracleHook(DbApiHook):
-    """Interact with Oracle SQL."""
+    """
+    Interact with Oracle SQL.
+
+    :param oracle_conn_id: The Airflow connection used for Oracle credentials.
+    :type oracle_conn_id: str
+    """
 
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
@@ -53,6 +58,8 @@ class OracleHook(DbApiHook):
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
         see more param detail in
         `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
+
+
         """
         conn = self.get_connection(
             self.oracle_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member

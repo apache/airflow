@@ -445,3 +445,22 @@ label[for="timezone-other"],
   margin-top: 8px;
   overflow-x: auto;
 }
+
+.refresh-actions {
+  justify-content: flex-end;
+  min-width: 225px;
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  right: 10px;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.refresh-actions > .switch-label {
+  margin: 0 10px 0 20px;
+}
+
+.loading-dots.refresh-loading {
+  display: none;
+}

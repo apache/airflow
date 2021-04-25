@@ -30,7 +30,8 @@ class SnowflakeOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SnowflakeOperator`
 
-    :param snowflake_conn_id: reference to specific snowflake connection id
+    :param snowflake_conn_id: Reference to
+        :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,

@@ -74,6 +74,16 @@ class CloudSQLHook(GoogleBaseHook):
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
+
+    :param api_version: This is the version of the api.
+    :type api_version: str
+    :param gcp_conn_id: The Airflow connection used for GCP credentials.
+    :type gcp_conn_id: str
+    :param delegate_to: This performs a task on one host with reference to other hosts.
+    :type delegate_to: Optional[str]
+    :param impersonation_chain: This is the optional service account to impersonate using short term
+        credentials.
+    :type impersonation_chain: Optional[str]
     """
 
     conn_name_attr = 'gcp_conn_id'

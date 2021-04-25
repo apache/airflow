@@ -111,14 +111,6 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
-            conn_id="azure_container_instances_default",
-            conn_type="azure_container_instances",
-            extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }',
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
             conn_id="azure_cosmos_default",
             conn_type="azure_cosmos",
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
@@ -141,6 +133,13 @@ def create_default_connections(session=None):
             conn_id="azure_data_lake_default",
             conn_type="azure_data_lake",
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_default",
+            conn_type="azure",
         ),
         session,
     )

@@ -925,7 +925,7 @@ Documentation
 
 Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
 
-For Helm Chart documentation, see: `/chart/README.md <../chart/README.md>`__
+For Helm Chart documentation, see: `chart/README.md <chart/README.md>`__
 
 Static code checks
 ==================
@@ -945,6 +945,25 @@ Coding style and best practices
 Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
+
+Don't Use Asserts Outside Tests
+-------------------------------
+
+Our community agreed that to various reasons we do not use ``assert`` in production code of Apache Airflow.
+For details check the relevant `mailing list thread <https://lists.apache.org/thread.html/bcf2d23fcd79e21b3aac9f32914e1bf656e05ffbcb8aa282af497a2d%40%3Cdev.airflow.apache.org%3E>`_.
+
+In other words instead of doing:
+
+.. code-block:: python
+
+    assert some_predicate()
+
+you should do:
+
+.. code-block:: python
+
+    if not some_predicate():
+        handle_the_case()
 
 Database Session Handling
 -------------------------

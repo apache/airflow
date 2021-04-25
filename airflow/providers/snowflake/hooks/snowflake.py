@@ -36,6 +36,9 @@ class SnowflakeHook(DbApiHook):
     in the connection or hook instantiation. If used with the S3ToSnowflakeOperator
     add 'aws_access_key_id' and 'aws_secret_access_key' to extra field in the connection.
 
+    :param snowflake_conn_id: Reference to
+        :ref:`Snowflake connection id<howto/connection:snowflake>`
+    :type snowflake_conn_id: str
     :param account: snowflake account name
     :type account: Optional[str]
     :param authenticator: authenticator for Snowflake.

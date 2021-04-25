@@ -71,6 +71,14 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Deprecated PodDefaults and add_xcom_sidecar in airflow.kubernetes.pod_generator
+
+We have moved PodDefaults from `airflow.kubernetes.pod_generator.PodDefaults` to
+`airflow.providers.cncf.kubernetes.utils.xcom_sidecar.PodDefaults` and moved add_xcom_sidecar
+from `airflow.kubernetes.pod_generator.PodGenerator.add_xcom_sidecar`to
+`airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar`.
+This change will allow us to modify the KubernetesPodOperator XCom functionality without requiring airflow upgrades.
+
 ### Removed pod_launcher from core airflow
 
 Moved the pod launcher from `airflow.kubernetes.pod_launcher` to `airflow.providers.cncf.kubernetes.utils.pod_launcher`
@@ -97,6 +105,12 @@ The `default_queue` configuration option has been moved from `[celery]` section 
 ### Default `[kubernetes] enable_tcp_keepalive` is changed to `True`
 
 This allows Airflow to work more reliably with some environments (like Azure) by default.
+
+### `sync-perm` CLI no longer syncs DAG specific permissions by default
+
+The `sync-perm` CLI command will no longer sync DAG specific permissions by default as they are now being handled during
+DAG parsing. If you need or want the old behavior, you can pass `--include-dags` to have `sync-perm` also sync DAG
+specific permissions.
 
 ## Airflow 2.0.1
 

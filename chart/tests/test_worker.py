@@ -96,21 +96,48 @@ class WorkerTest(unittest.TestCase):
         assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
-    def test_workers_update_strategy(self):
+    @parameterized.expand(
+        [
+            (False, None, None),
+            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (True, None, None),
+        ]
+    )
+    def test_workers_update_strategy(self, persistence, update_strategy, expected_update_strategy):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "updateStrategy": {
-                        "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
-                    },
+                    "persistence": {"enabled": persistence},
+                    "updateStrategy": update_strategy,
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "100%" == jmespath.search("spec.strategy.rollingUpdate.maxSurge", docs[0])
-        assert "50%" == jmespath.search("spec.strategy.rollingUpdate.maxUnavailable", docs[0])
+        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+
+    @parameterized.expand(
+        [
+            (True, None, None),
+            (
+                False,
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (False, None, None),
+        ]
+    )
+    def test_workers_strategy(self, persistence, strategy, expected_strategy):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"persistence": {"enabled": persistence}, "strategy": strategy},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert expected_strategy == jmespath.search("spec.strategy", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(

@@ -20,7 +20,7 @@ import random
 import re
 import string
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -416,6 +416,95 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
         assert not mock_kube_client.patch_namespaced_pod.called
         assert pod_ids == {"foobar": {}}
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler')
+    def test_pending_pod_timeout(self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_kube_client = mock_get_kube_client.return_value
+        now = timezone.utcnow()
+        pending_pods = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo60",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=60),
+                    namespace="mynamespace",
+                )
+            ),
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo90",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=90),
+                    namespace="mynamespace",
+                )
+            ),
+        ]
+        mock_kube_client.list_namespaced_pod.return_value.items = pending_pods
+
+        config = {
+            ('kubernetes', 'namespace'): 'mynamespace',
+            ('kubernetes', 'worker_pods_pending_timeout'): '75',
+            ('kubernetes', 'worker_pods_pending_timeout_batch_size'): '5',
+            ('kubernetes', 'kube_client_request_args'): '{"sentinel": "foo"}',
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = "123"
+            executor.start()
+            assert 1 == len(executor.event_scheduler.queue)
+            executor._check_worker_pods_pending_timeout()
+
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            'mynamespace',
+            field_selector='status.phase=Pending',
+            label_selector='airflow-worker=123',
+            limit=5,
+            sentinel='foo',
+        )
+        mock_delete_pod.assert_called_once_with('foo90', 'mynamespace')
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler')
+    def test_pending_pod_timeout_multi_namespace_mode(
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_kube_client = mock_get_kube_client.return_value
+        now = timezone.utcnow()
+        pending_pods = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo90",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=500),
+                    namespace="anothernamespace",
+                )
+            ),
+        ]
+        mock_kube_client.list_pod_for_all_namespaces.return_value.items = pending_pods
+
+        config = {
+            ('kubernetes', 'namespace'): 'mynamespace',
+            ('kubernetes', 'multi_namespace_mode'): 'true',
+            ('kubernetes', 'kube_client_request_args'): '{"sentinel": "foo"}',
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = "123"
+            executor.start()
+            executor._check_worker_pods_pending_timeout()
+
+        mock_kube_client.list_pod_for_all_namespaces.assert_called_once_with(
+            field_selector='status.phase=Pending',
+            label_selector='airflow-worker=123',
+            limit=100,
+            sentinel='foo',
+        )
+        mock_delete_pod.assert_called_once_with('foo90', 'anothernamespace')
 
 
 class TestKubernetesJobWatcher(unittest.TestCase):

@@ -43,6 +43,11 @@ class MySqlHook(DbApiHook):
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
+
+    :param schema: The MySQL database schema to connect to.
+    :type schema: Optional[str]
+    :param connection: The Airflow connection used for MySQL credentials.
+    :type connection: Optional[Dict]
     """
 
     conn_name_attr = 'mysql_conn_id'
