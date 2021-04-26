@@ -248,21 +248,21 @@ class TestCliUsers:
 
     def _import_users_from_file(self, user_list):
         json_file_content = json.dumps(user_list)
-        f = tempfile.NamedTemporaryFile(delete=False)
-        try:
-            f.write(json_file_content.encode())
-            f.flush()
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            try:
+                f.write(json_file_content.encode())
+                f.flush()
 
-            args = self.parser.parse_args(['users', 'import', f.name])
-            user_command.users_import(args)
-        finally:
-            os.remove(f.name)
+                args = self.parser.parse_args(['users', 'import', f.name])
+                user_command.users_import(args)
+            finally:
+                os.remove(f.name)
 
     def _export_users_to_file(self):
-        f = tempfile.NamedTemporaryFile(delete=False)
-        args = self.parser.parse_args(['users', 'export', f.name])
-        user_command.users_export(args)
-        return f.name
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            args = self.parser.parse_args(['users', 'export', f.name])
+            user_command.users_export(args)
+            return f.name
 
     def test_cli_add_user_role(self):
         args = self.parser.parse_args(

@@ -130,12 +130,12 @@ class TestDagBag(unittest.TestCase):
         """
         test that we're able to parse file that contains multi-byte char
         """
-        f = NamedTemporaryFile()
-        f.write('\u3042'.encode())  # write multi-byte char (hiragana)
-        f.flush()
+        with NamedTemporaryFile() as f:
+            f.write('\u3042'.encode())  # write multi-byte char (hiragana)
+            f.flush()
 
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
-        assert [] == dagbag.process_file(f.name)
+            dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+            assert [] == dagbag.process_file(f.name)
 
     def test_zip_skip_log(self):
         """
@@ -285,13 +285,13 @@ class TestDagBag(unittest.TestCase):
         """
         # write source to file
         source = textwrap.dedent(''.join(inspect.getsource(create_dag).splitlines(True)[1:-1]))
-        f = NamedTemporaryFile()
-        f.write(source.encode('utf8'))
-        f.flush()
+        with NamedTemporaryFile() as f:
+            f.write(source.encode('utf8'))
+            f.flush()
 
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
-        found_dags = dagbag.process_file(f.name)
-        return dagbag, found_dags, f.name
+            dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+            found_dags = dagbag.process_file(f.name)
+            return dagbag, found_dags, f.name
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag, should_be_found=True):
         expected_dag_ids = list(map(lambda dag: dag.dag_id, expected_parent_dag.subdags))

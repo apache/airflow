@@ -42,20 +42,15 @@ def scheduler(args):
             "scheduler", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            job.run()
-
-        stdout.close()
-        stderr.close()
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            ctx = daemon.DaemonContext(
+                pidfile=TimeoutPIDLockFile(pid, -1),
+                files_preserve=[handle],
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+            )
+            with ctx:
+                job.run()
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)

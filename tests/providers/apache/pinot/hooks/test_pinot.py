@@ -161,7 +161,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = io.BytesIO(b'')
-        mock_popen.return_value = mock_proc
+        mock_popen.return_value.__enter__.return_value = mock_proc
 
         params = ["foo", "bar", "baz"]
         self.db_hook.run_cli(params)
@@ -176,8 +176,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = io.BytesIO(msg)
-        mock_popen.return_value = mock_proc
-
+        mock_popen.return_value.__enter__.return_value = mock_proc
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
@@ -191,7 +190,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 1
         mock_proc.stdout = io.BytesIO(b'')
-        mock_popen.return_value = mock_proc
+        mock_popen.return_value.__enter__.return_value = mock_proc
 
         self.db_hook.pinot_admin_system_exit = True
         params = ["foo", "bar", "baz"]

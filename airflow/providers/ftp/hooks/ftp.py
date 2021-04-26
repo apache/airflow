@@ -174,6 +174,7 @@ class FTPHook(BaseHook):
         # file-like buffer
         if not callback:
             if is_path:
+                # pylint: disable=consider-using-with
                 output_handle = open(local_full_path_or_buffer, 'wb')
             else:
                 output_handle = local_full_path_or_buffer
@@ -209,6 +210,7 @@ class FTPHook(BaseHook):
         is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
+            # pylint: disable=consider-using-with
             input_handle = open(local_full_path_or_buffer, 'rb')
         else:
             input_handle = local_full_path_or_buffer

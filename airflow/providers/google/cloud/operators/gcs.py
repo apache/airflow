@@ -638,17 +638,17 @@ class GCSFileTransformOperator(BaseOperator):
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
             cmd += [source_file.name, destination_file.name]
-            process = subprocess.Popen(
+            with subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
-            )
-            self.log.info("Process output:")
-            if process.stdout:
-                for line in iter(process.stdout.readline, b''):
-                    self.log.info(line.decode(self.output_encoding).rstrip())
+            ) as process:
+                self.log.info("Process output:")
+                if process.stdout:
+                    for line in iter(process.stdout.readline, b''):
+                        self.log.info(line.decode(self.output_encoding).rstrip())
 
-            process.wait()
-            if process.returncode:
-                raise AirflowException(f"Transform script failed: {process.returncode}")
+                process.wait()
+                if process.returncode:
+                    raise AirflowException(f"Transform script failed: {process.returncode}")
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
@@ -865,17 +865,17 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
                 timespan_start.replace(microsecond=0).isoformat(),
                 timespan_end.replace(microsecond=0).isoformat(),
             ]
-            process = subprocess.Popen(
+            with subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
-            )
-            self.log.info("Process output:")
-            if process.stdout:
-                for line in iter(process.stdout.readline, b''):
-                    self.log.info(line.decode(self.output_encoding).rstrip())
+            ) as process:
+                self.log.info("Process output:")
+                if process.stdout:
+                    for line in iter(process.stdout.readline, b''):
+                        self.log.info(line.decode(self.output_encoding).rstrip())
 
-            process.wait()
-            if process.returncode:
-                raise AirflowException(f"Transform script failed: {process.returncode}")
+                process.wait()
+                if process.returncode:
+                    raise AirflowException(f"Transform script failed: {process.returncode}")
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir)
 

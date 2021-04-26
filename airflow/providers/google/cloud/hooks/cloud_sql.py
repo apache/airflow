@@ -567,6 +567,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             Path(self.cloud_sql_proxy_socket_directory).mkdir(parents=True, exist_ok=True)
             command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
             self.log.info("Running the command: `%s`", " ".join(command_to_run))
+            # pylint: disable=consider-using-with
             self.sql_proxy_process = Popen(command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
             while True:

@@ -41,6 +41,7 @@ def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
         DeprecationWarning,
         stacklevel=2,
     )
+    # pylint: disable=consider-using-with
     return TmpDir(*args, **kwargs)
 
 
@@ -90,6 +91,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
+        # pylint: disable=consider-using-with
         return open(fileloc, mode=mode)
 
 

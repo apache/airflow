@@ -104,17 +104,16 @@ class VerticaToMySqlOperator(BaseOperator):
                 selected_columns = [d.name for d in cursor.description]
 
                 if self.bulk_load:
-                    tmpfile = NamedTemporaryFile("w")
+                    with NamedTemporaryFile("w") as tmpfile:
+                        self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
+                        self.log.info(self.sql)
 
-                    self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
-                    self.log.info(self.sql)
+                        csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
+                        for row in cursor.iterate():
+                            csv_writer.writerow(row)
+                            count += 1
 
-                    csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
-                    for row in cursor.iterate():
-                        csv_writer.writerow(row)
-                        count += 1
-
-                    tmpfile.flush()
+                        tmpfile.flush()
                 else:
                     self.log.info("Selecting rows from Vertica...")
                     self.log.info(self.sql)
