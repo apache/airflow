@@ -32,6 +32,8 @@ class TestSnowflakeHook(unittest.TestCase):
         super().setUp()
 
         self.cur = mock.MagicMock()
+        self.cur.sfqid = "uuid"
+
         self.conn = conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
 
@@ -88,6 +90,10 @@ class TestSnowflakeHook(unittest.TestCase):
             'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
         assert uri_shouldbe == self.db_hook.get_uri()
+
+    def test_get_query_id(self):
+        self.db_hook.run('select * from table')
+        assert self.db_hook.query_id == 'uuid'
 
     def test_get_conn_params(self):
         conn_params_shouldbe = {
