@@ -46,7 +46,7 @@ It first pre-installs them from the right GitHub branch and only after that fina
 done from either local sources or remote location (PIP or GitHub repository).
 
 You can read more details about building, extending and customizing the PROD image in the
-`Latest documentation <https://airflow.apache.org/docs/docker-stack/stable/index.html>`_
+`Latest documentation <https://airflow.apache.org/docs/docker-stack/index.html>`_
 
 
 CI image
