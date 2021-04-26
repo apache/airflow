@@ -2,7 +2,7 @@
 APScheduler==3.6.3
 Authlib==0.15.3
 Babel==2.9.0
-Flask-AppBuilder==3.2.2
+Flask-AppBuilder==3.2.3
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -242,7 +242,7 @@ google-cloud-redis==2.1.0
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
-google-cloud-storage==1.37.1
+google-cloud-storage==1.38.0
 google-cloud-tasks==2.2.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
@@ -337,7 +337,7 @@ parameterized==0.8.1
 paramiko==2.7.2
 parso==0.8.2
 pathspec==0.8.1
-pbr==5.5.1
+pbr==5.6.0
 pdpyras==4.1.4
 pendulum==2.1.2
 pexpect==4.8.0
@@ -489,7 +489,7 @@ websocket-client==0.58.0
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.0
-yandexcloud==0.81.0
+yandexcloud==0.82.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
