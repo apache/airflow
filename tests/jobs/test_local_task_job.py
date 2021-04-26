@@ -613,7 +613,7 @@ class TestLocalTaskJob(unittest.TestCase):
         process = multiprocessing.Process(target=job1.run)
         process.start()
 
-        for _ in range(0, 10):
+        for _ in range(0, 20):
             ti.refresh_from_db()
             if ti.state == State.RUNNING:
                 break
