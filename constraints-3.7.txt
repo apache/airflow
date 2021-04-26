@@ -291,7 +291,7 @@ jwcrypto==0.8
 kombu==4.6.11
 kubernetes==11.0.0
 kylinpy==2.8.4
-lazy-object-proxy==1.4.4
+lazy-object-proxy==1.4.3
 ldap3==2.9
 libcst==0.3.18
 locket==0.2.1
