@@ -52,3 +52,12 @@ class TestToken(unittest.TestCase):
         TokenBlockList.delete_token("token")
         token = TokenBlockList.get_token("token")
         assert token is None
+
+    def test_delete_expired_tokens(self):
+        TokenBlockList.add_token(jti="token", expiry_delta=EXPIRY_DELTA)
+        TokenBlockList.add_token(jti="token2", expiry_delta=EXPIRY_DELTA)
+        assert TokenBlockList.get_token('token')
+        assert TokenBlockList.get_token('token2')
+        TokenBlockList.delete_expired_tokens()
+        assert TokenBlockList.get_token('token') is None
+        assert TokenBlockList.get_token('token2') is None

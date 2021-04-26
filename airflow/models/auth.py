@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from pendulum import from_timestamp
 from sqlalchemy import Column, DateTime, Index, String
 
@@ -58,3 +60,9 @@ class TokenBlockList(Base, LoggingMixin):
         token = cls(jti=jti, expiry_date=from_timestamp(expiry_delta))
         session.add(token)
         session.commit()
+
+    @classmethod
+    @provide_session
+    def delete_expired_tokens(cls, session=None):
+        """Delete all expired tokens"""
+        session.query(cls).filter(cls.expiry_date <= datetime.now()).delete()
