@@ -507,7 +507,6 @@ webserver:
     # Annotations to add to webserver kubernetes service account.
     annotations: {}
 
-
   # Additional network policies as needed
   extraNetworkPolicies: []
 
