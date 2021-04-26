@@ -92,8 +92,7 @@ class TestLocalTaskJob(unittest.TestCase):
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         assert all(check_result_2)
 
-    @patch('os.getpid')
-    def test_localtaskjob_heartbeat(self, mock_pid):
+    def test_localtaskjob_heartbeat(self):
         session = settings.Session()
         dag = DAG('test_localtaskjob_heartbeat', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
@@ -114,19 +113,23 @@ class TestLocalTaskJob(unittest.TestCase):
         session.commit()
 
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        ti.task = op1
+        ti.refresh_from_task(op1)
+        job1.task_runner = StandardTaskRunner(job1)
+        job1.task_runner.process = mock.Mock()
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
 
-        mock_pid.return_value = 1
+        job1.task_runner.process.pid = 1
         ti.state = State.RUNNING
         ti.hostname = get_hostname()
         ti.pid = 1
         session.merge(ti)
         session.commit()
-
+        assert ti.pid != os.getpid()
         job1.heartbeat_callback(session=None)
 
-        mock_pid.return_value = 2
+        job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
 
@@ -559,6 +562,69 @@ class TestLocalTaskJob(unittest.TestCase):
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
 
+    def test_process_sigkill_call_on_failure_callback(self):
+        """
+        Test that ensures that when a task is killed with sigterm
+        on_failure_callback gets executed
+        """
+        # use shared memory value so we can properly track value change even if
+        # it's been updated across processes.
+        failure_callback_called = Value('i', 0)
+        task_terminated_externally = Value('i', 1)
+        shared_mem_lock = Lock()
+
+        def failure_callback(context):
+            with shared_mem_lock:
+                failure_callback_called.value += 1
+            assert context['dag_run'].dag_id == 'test_mark_failure'
+
+        dag = DAG(dag_id='test_mark_failure', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+
+        def task_function(ti):
+            # pylint: disable=unused-argument
+            time.sleep(60)
+            # This should not happen -- the state change should be noticed and the task should get killed
+            with shared_mem_lock:
+                task_terminated_externally.value = 0
+
+        task = PythonOperator(
+            task_id='test_on_failure',
+            python_callable=task_function,
+            on_failure_callback=failure_callback,
+            dag=dag,
+        )
+
+        session = settings.Session()
+
+        dag.clear()
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1.task_runner = StandardTaskRunner(job1)
+
+        settings.engine.dispose()
+        process = multiprocessing.Process(target=job1.run)
+        process.start()
+
+        for _ in range(0, 10):
+            ti.refresh_from_db()
+            if ti.state == State.RUNNING:
+                break
+            time.sleep(0.2)
+        assert ti.state == State.RUNNING
+        os.kill(ti.pid, signal.SIGKILL)
+        process.join(timeout=10)
+        assert failure_callback_called.value == 1
+        assert task_terminated_externally.value == 1
+        assert not process.is_alive()
+
 
 @pytest.fixture()
 def clean_db_helper():
@@ -584,5 +650,5 @@ class TestLocalTaskJobPerformance:
         mock_get_task_runner.return_value.return_code.side_effects = return_codes
 
         job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-        with assert_queries_count(13):
+        with assert_queries_count(15):
             job.run()

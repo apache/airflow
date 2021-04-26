@@ -1072,7 +1072,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
-        self.pid = os.getpid()
         self.end_date = None
         if not test_mode:
             session.merge(self)
@@ -1127,7 +1126,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
-
+        self.pid = os.getpid()
+        session.merge(self)
+        session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
