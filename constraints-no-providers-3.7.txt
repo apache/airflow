@@ -78,7 +78,7 @@ itsdangerous==1.1.0
 jsonschema==3.2.0
 kombu==4.6.11
 kubernetes==11.0.0
-lazy-object-proxy==1.4.3
+lazy-object-proxy==1.4.4
 ldap3==2.9
 locket==0.2.1
 lockfile==0.12.2

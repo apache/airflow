@@ -147,7 +147,7 @@ backcall==0.2.0
 bcrypt==3.2.0
 beautifulsoup4==4.7.1
 billiard==3.6.4.0
-black==20.8b1
+black==21.4b0
 blinker==1.4
 boto3==1.17.57
 boto==2.49.0
@@ -290,7 +290,7 @@ jwcrypto==0.8
 kombu==4.6.11
 kubernetes==11.0.0
 kylinpy==2.8.4
-lazy-object-proxy==1.4.3
+lazy-object-proxy==1.4.4
 ldap3==2.9
 libcst==0.3.18
 lockfile==0.12.2
@@ -472,7 +472,7 @@ tornado==6.1
 tqdm==4.60.0
 traitlets==5.0.5
 trino==0.305.0
-typed-ast==1.4.3
+typed-ast==1.4.2
 typing-extensions==3.7.4.3
 typing-inspect==0.6.0
 tzlocal==2.1
