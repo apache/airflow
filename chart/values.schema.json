@@ -2337,7 +2337,7 @@
                         "branch": {
                             "description": "Git branch",
                             "type": "string",
-                            "default": "v2-0-stable"
+                            "default": "v2-1-stable"
                         },
                         "rev": {
                             "description": "Git revision.",

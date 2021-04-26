@@ -69,8 +69,8 @@ The images are named as follows:
 where:
 
 * ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``,
-  ``v2-0-test``, ``2.0.0``. The ``master``, ``v2-0-test`` labels are
-  built from branches so they change over time. The ````2.*`` labels are built from git tags
+  ``v2-1-test``, ``2.1.0``. The ``master``, ``v2-*-test`` labels are
+  built from branches so they change over time. The ``2.*.*`` labels are built from git tags
   and they are "fixed" once built.
 * ``PYTHON_MAJOR_MINOR_VERSION`` - version of Python used to build the image. Examples: ``3.6``, ``3.7``,
   ``3.8``
@@ -284,8 +284,8 @@ For example:
 
   apache/airflow:master-python3.6                - production "latest" image from current master
   apache/airflow:master-python3.6-ci             - CI "latest" image from current master
-  apache/airflow:v2-0-test-python3.6-ci          - CI "latest" image from current v2-0-test branch
-  apache/airflow:2.0.0-python3.6                 - production image for 2.0.0 release
+  apache/airflow:v2-1-test-python3.6-ci          - CI "latest" image from current v2-1-test branch
+  apache/airflow:2.1.0-python3.6                 - production image for 2.1.0 release
   apache/airflow:python3.6-master                - base Python image for the master branch
 
 You can see DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
@@ -320,10 +320,10 @@ Images built as "Run ID snapshot":
 
 .. code-block:: bash
 
-  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<RUNID>    - for CI images
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<RUNID>       - for production images
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<RUNID> - for production build stage
-  docker.pkg.github.com/apache-airflow/pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base Python images
+  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<RUN_ID>    - for CI images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<RUN_ID>       - for production images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<RUN_ID> - for production build stage
+  docker.pkg.github.com/apache-airflow/python-v2:X.Y-slim-buster-<RUN_ID>  - for base Python images
 
 Latest images (pushed when master merge succeeds):
 
@@ -332,7 +332,7 @@ Latest images (pushed when master merge succeeds):
   docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
   docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-v2:latest       - for production images
   docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  docker.pkg.github.com/apache/airflow/python-<BRANCH>-v1:X.Y-slim-buster - for base Python images
+  docker.pkg.github.com/apache/airflow/python-v2:X.Y-slim-buster - for base Python images
 
 
 Naming convention for GitHub Container Registry
@@ -342,10 +342,10 @@ Images built as "Run ID snapshot":
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<RUNID>                - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<RUNID>                   - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<RUNID>             - for production build stage
-  ghcr.io/apache/airflow-pythonX.Y-<BRANCH>-v2:X.Y-slim-buster-<RUN_ID>  - for base Python images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<RUN_ID>                - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<RUN_ID>                   - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<RUN_ID>             - for production build stage
+  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster-<RUN_ID>  - for base Python images
 
 Latest images (pushed when master merge succeeds):
 
@@ -354,7 +354,7 @@ Latest images (pushed when master merge succeeds):
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  ghcr.io/apache/airflow-python-<BRANCH>-v2:X.Y-slim-buster - for base Python images
+  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster - for base Python images
 
 Note that we never push or pull "release" images to GitHub registry. It is only used for CI builds
 
