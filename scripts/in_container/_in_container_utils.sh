@@ -268,12 +268,6 @@ function install_airflow_from_sdist() {
     pip install "${airflow_package}${extras}"
 }
 
-function install_remaining_dependencies() {
-    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    pip install apache-beam[gcp]
-    group_end
-}
-
 function uninstall_airflow() {
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --

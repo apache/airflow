@@ -382,6 +382,14 @@ def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
         if cross_provider_dependencies.get(provider_package_id)
         else {}
     )
+    provider_yaml_dict = get_provider_yaml(provider_package_id)
+    additional_extras = provider_yaml_dict.get('additional-extras')
+    if additional_extras:
+        for key in additional_extras:
+            if key in extras_dict:
+                extras_dict[key].append(additional_extras[key])
+            else:
+                extras_dict[key] = additional_extras[key]
     return extras_dict
 
 
@@ -1295,11 +1303,11 @@ def convert_to_provider_info(provider_info: Dict[str, Any]) -> Dict[str, Any]:
       This method converts the full provider.yaml schema into the limited version needed at runtime.
     """
     updated_provider_info = deepcopy(provider_info)
-    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers]")
+    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers,additional-extras]")
     return expression.filter(lambda x: True, updated_provider_info)
 
 
-def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
+def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     """
     Retrieves provider info from the provider yaml file. The provider yaml file contains more information
     than provider_info that is used at runtime. This method converts the full provider yaml file into
@@ -1312,6 +1320,18 @@ def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, 
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
         provider_yaml_dict = yaml.load(provider_file, SafeLoader)  # noqa
+    return provider_yaml_dict
+
+
+def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
+    """
+    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
+    than provider_info that is used at runtime. This method converts the full provider yaml file into
+    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    :param provider_package_id: package id to retrieve provider.yaml from
+    :return: provider_info dictionary
+    """
+    provider_yaml_dict = get_provider_yaml(provider_package_id=provider_package_id)
     provider_info = convert_to_provider_info(provider_yaml_dict)
     validate_provider_info_with_2_0_0_schema(provider_info)
     validate_provider_info_with_runtime_schema(provider_info)
