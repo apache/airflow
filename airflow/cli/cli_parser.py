@@ -1560,6 +1560,12 @@ airflow_commands: List[CLICommand] = [
         subcommands=ROLES_COMMANDS,
     ),
     ActionCommand(
+        name='serve-logs',
+        help='Serve logs in a sub-process.',
+        func=lazy_load_command('airflow.cli.commands.serve_logs_command.serve_logs'),
+        args=(),
+    ),
+    ActionCommand(
         name='sync-perm',
         help="Update permissions for existing roles and optionally DAGs",
         func=lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
