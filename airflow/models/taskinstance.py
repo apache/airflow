@@ -1295,11 +1295,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 registered = False
                 try:
                     registered = task_copy.register_in_sensor_service(self, context)
-                except Exception as e:
+                except Exception:  # pylint: disable=broad-except
                     self.log.warning(
-                        "Failed to register in sensor service.Continue to run task in non smart sensor mode."
+                        "Failed to register in sensor service."
+                        " Continue to run task in non smart sensor mode.",
+                        exc_info=True,
                     )
-                    self.log.exception(e, exc_info=True)
 
                 if registered:
                     # Will raise AirflowSmartSensorException to avoid long running execution.
@@ -1348,9 +1349,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         try:
             if task.on_execute_callback:
                 task.on_execute_callback(context)
-        except Exception as exc:  # pylint: disable=broad-except
-            self.log.error("Failed when executing execute callback")
-            self.log.exception(exc)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Failed when executing execute callback")
 
     def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
         """
@@ -1533,9 +1533,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         if email_for_state and task.email:
             try:
                 self.email_alert(error)
-            except Exception as exec2:  # pylint: disable=broad-except
-                self.log.error('Failed to send email to: %s', task.email)
-                self.log.exception(exec2)
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception('Failed to send email to: %s', task.email)
 
         if not test_mode:
             session.merge(self)

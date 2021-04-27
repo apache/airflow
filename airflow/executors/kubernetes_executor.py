@@ -651,15 +651,15 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.event_buffer[key] = state, None
 
     def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
-        tis_to_flush = [ti for ti in tis if not ti.external_executor_id]
-        scheduler_job_ids = [ti.external_executor_id for ti in tis]
+        tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
+        scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
         pod_ids = {
             create_pod_id(
                 dag_id=pod_generator.make_safe_label_value(ti.dag_id),
                 task_id=pod_generator.make_safe_label_value(ti.task_id),
             ): ti
             for ti in tis
-            if ti.external_executor_id
+            if ti.queued_by_job_id
         }
         kube_client: client.CoreV1Api = self.kube_client
         for scheduler_job_id in scheduler_job_ids:

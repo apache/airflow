@@ -99,11 +99,6 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 verify_suffix_versions_for_package_preparation
 
 install_supported_pip_version
-
-# install extra packages missing in devel_ci
-# TODO: remove it when devel_all == devel_ci
-install_remaining_dependencies
-
 import_all_provider_classes
 verify_provider_packages_named_properly
 

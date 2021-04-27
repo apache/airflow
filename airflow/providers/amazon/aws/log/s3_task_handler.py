@@ -120,8 +120,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             log_exists = self.s3_log_exists(remote_loc)
         except Exception as error:  # pylint: disable=broad-except
-            self.log.exception(error)
-            log = f'*** Failed to verify remote log exists {remote_loc}.\n{str(error)}\n'
+            self.log.exception("Failed to verify remote log exists %s.", remote_loc)
+            log = f'*** Failed to verify remote log exists {remote_loc}.\n{error}\n'
 
         if log_exists:
             # If S3 remote file exists, we do not fetch logs from task instance
@@ -184,8 +184,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
                 log = '\n'.join([old_log, log]) if old_log else log
-        except Exception as error:  # pylint: disable=broad-except
-            self.log.exception('Could not verify previous log to append: %s', str(error))
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception('Could not verify previous log to append')
 
         try:
             self.hook.load_string(

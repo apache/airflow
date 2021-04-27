@@ -582,17 +582,17 @@ class DagBag(LoggingMixin):
         """Sync DAG specific permissions, if necessary"""
         from flask_appbuilder.security.sqla import models as sqla_models
 
-        from airflow.security.permissions import DAG_PERMS, permission_name_for_dag
+        from airflow.security.permissions import DAG_PERMS, resource_name_for_dag
 
         def needs_perm_views(dag_id: str) -> bool:
-            view_menu_name = permission_name_for_dag(dag_id)
+            dag_resource_name = resource_name_for_dag(dag_id)
             for permission_name in DAG_PERMS:
                 if not (
                     session.query(sqla_models.PermissionView)
                     .join(sqla_models.Permission)
                     .join(sqla_models.ViewMenu)
                     .filter(sqla_models.Permission.name == permission_name)
-                    .filter(sqla_models.ViewMenu.name == view_menu_name)
+                    .filter(sqla_models.ViewMenu.name == dag_resource_name)
                     .one_or_none()
                 ):
                     return True

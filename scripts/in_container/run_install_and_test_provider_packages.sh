@@ -196,7 +196,6 @@ function discover_all_field_behaviours() {
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
-install_remaining_dependencies
 install_provider_packages
 import_all_provider_classes
 

@@ -659,7 +659,7 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-Airflow 2+:
+### Airflow 2+:
 
 ```shell script
 export DOCKER_REPO=docker.io/apache/airflow
@@ -668,12 +668,23 @@ for python_version in "3.6" "3.7" "3.8"
   export DOCKER_TAG=${VERSION}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
+docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker push apache/airflow:${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
 
+You can also verify that the images are working fine:
 
-Airflow 1.10:
+```shell script
+for python_version in "3.6" "3.7" "3.8"
+(
+  ./scripts/ci/tools/verify_docker_image.sh PROD apache/airflow:${VERSION}-python${python_version}
+)
+```
+
+
+### Airflow 1.10:
 
 ```shell script
 for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
