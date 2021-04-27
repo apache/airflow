@@ -1206,6 +1206,7 @@ class DAG(LoggingMixin):
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
         if include_parentdag and self.is_subdag and self.parent_dag is not None:
+            dag_ids.append(self.parent_dag.dag_id)
             p_dag = self.parent_dag.sub_dag(
                 task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
