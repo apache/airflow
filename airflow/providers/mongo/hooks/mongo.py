@@ -45,7 +45,7 @@ class MongoHook(BaseHook):
     :type mongo: str
     """
 
-    conn_name_attr = 'mongo_conn_id'
+    conn_name_attr = 'conn_id'
     default_conn_name = 'mongo_default'
     conn_type = 'mongo'
     hook_name = 'MongoDB'
