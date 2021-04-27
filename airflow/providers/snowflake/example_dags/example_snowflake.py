@@ -88,10 +88,10 @@ snowflake_op_sql_list = SnowflakeOperator(
 )
 
 snowflake_op_sql_multiple_stmts = SnowflakeOperator(
-    task_id='snowflake_op_sql_multiple_stmts', 
-    dag=dag, 
-    snowflake_conn_id=SNOWFLAKE_CONN_ID, 
-    sql=SNOWFLAKE_MULTIPLE_STMTS
+    task_id='snowflake_op_sql_multiple_stmts',
+    dag=dag,
+    snowflake_conn_id=SNOWFLAKE_CONN_ID,
+    sql=SQL_MULTIPLE_STMTS,
 )
 
 snowflake_op_template_file = SnowflakeOperator(
