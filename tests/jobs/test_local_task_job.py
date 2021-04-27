@@ -550,12 +550,13 @@ class TestLocalTaskJob(unittest.TestCase):
         process = multiprocessing.Process(target=job1.run)
         process.start()
 
-        for _ in range(0, 10):
+        for _ in range(0, 20):
             ti.refresh_from_db()
-            if ti.state == State.RUNNING:
+            if ti.state == State.RUNNING and ti.pid is not None:
                 break
             time.sleep(0.2)
         assert ti.state == State.RUNNING
+        assert ti.pid is not None
         os.kill(ti.pid, signal.SIGTERM)
         process.join(timeout=10)
         assert failure_callback_called.value == 1
@@ -615,10 +616,11 @@ class TestLocalTaskJob(unittest.TestCase):
 
         for _ in range(0, 20):
             ti.refresh_from_db()
-            if ti.state == State.RUNNING:
+            if ti.state == State.RUNNING and ti.pid is not None:
                 break
             time.sleep(0.2)
         assert ti.state == State.RUNNING
+        assert ti.pid is not None
         os.kill(ti.pid, signal.SIGKILL)
         process.join(timeout=10)
         assert failure_callback_called.value == 1
