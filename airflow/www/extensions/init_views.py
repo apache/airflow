@@ -25,6 +25,7 @@ from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
+from airflow.models import TokenBlockList
 from airflow.security import permissions
 from airflow.www.views import lazy_add_provider_discovered_options_to_connection_form
 
@@ -156,6 +157,11 @@ def set_cors_headers_on_response(response):
     return response
 
 
+def delete_expired_tokens():
+    """Function called before first API request"""
+    TokenBlockList.delete_expired_tokens()
+
+
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
     base_path = '/api/v1'
@@ -185,6 +191,7 @@ def init_api_connexion(app: Flask) -> None:
     app.after_request_funcs.setdefault(api_bp.name, []).append(set_cors_headers_on_response)
     app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)
+    app.before_first_request(delete_expired_tokens)
 
 
 def init_api_experimental(app):
