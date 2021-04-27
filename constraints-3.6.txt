@@ -149,9 +149,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.4b0
 blinker==1.4
-boto3==1.17.57
+boto3==1.17.58
 boto==2.49.0
-botocore==1.20.57
+botocore==1.20.58
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.1
@@ -437,7 +437,7 @@ slack-sdk==3.5.0
 smmap==4.0.0
 snakebite-py3==3.0.5
 snowballstemmer==2.1.0
-snowflake-connector-python==2.4.2
+snowflake-connector-python==2.4.3
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.3.0
 soupsieve==2.2.1
