@@ -141,7 +141,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.query_id = None
+        self.query_ids = []
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
@@ -254,8 +254,8 @@ class SnowflakeHook(DbApiHook):
         statements to the sql parameter to get them to execute
         sequentially
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql string to be executed with possibly multiple statements,
+          or a list of sql statements to execute
         :type sql: str or list
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
@@ -263,22 +263,35 @@ class SnowflakeHook(DbApiHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        if isinstance(sql, str):
-            sql = [sql]
+        self.query_ids = []
 
-        with closing(self.get_conn()) as conn:
+        # with self.get_conn() as conn:
+        for x in [1]:
+            conn = self.get_conn()
             self.set_autocommit(conn, autocommit)
 
-            with closing(conn.cursor()) as cur:
-                for sql_statement in sql:
+            if isinstance(sql, str):
+                cursors = conn.execute_string(sql, return_cursors=True)
+                for cur in cursors:
+                    self.query_ids.append(cur.sfqid)
 
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    if parameters:
-                        cur.execute(sql_statement, parameters)
-                    else:
-                        cur.execute(sql_statement)
                     self.log.info("Rows affected: %s", cur.rowcount)
-                    self.query_id = cur.sfqid
+                    self.log.info("Snowflake query id: %s", cur.sfqid)
+                    cur.close()
+
+            elif isinstance(sql, list):
+                self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+                with closing(conn.cursor()) as cur:
+                    for sql_statement in sql:
+
+                        self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+                        if parameters:
+                            cur.execute(sql_statement, parameters)
+                        else:
+                            cur.execute(sql_statement)
+                        self.log.info("Rows affected: %s", cur.rowcount)
+                        self.log.info("Snowflake query id: %s", cur.sfqid)
+                        self.query_ids.append(cur.sfqid)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
