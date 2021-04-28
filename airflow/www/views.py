@@ -25,7 +25,6 @@ import re
 import socket
 import sys
 import traceback
-from _testcapi import raise_exception
 from collections import defaultdict
 from datetime import timedelta
 from json import JSONDecodeError
@@ -54,7 +53,6 @@ from flask import (
     url_for,
 )
 from flask_appbuilder import BaseView, ModelView, expose
-from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
@@ -185,10 +183,10 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 
     drs = (
         session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-            .order_by(desc(DagRun.execution_date))
-            .limit(num_runs)
-            .all()
+        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+        .order_by(desc(DagRun.execution_date))
+        .limit(num_runs)
+        .all()
     )
     dr_choices = []
     dr_state = None
@@ -570,8 +568,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             is_paused_count = dict(
                 all_dags.with_entities(DagModel.is_paused, func.count(DagModel.dag_id))
-                    .group_by(DagModel.is_paused)
-                    .all()
+                .group_by(DagModel.is_paused)
+                .all()
             )
             status_count_active = is_paused_count.get(False, 0)
             status_count_paused = is_paused_count.get(True, 0)
@@ -588,23 +586,23 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             dags = (
                 current_dags.order_by(DagModel.dag_id)
-                    .options(joinedload(DagModel.tags))
-                    .offset(start)
-                    .limit(dags_per_page)
-                    .all()
+                .options(joinedload(DagModel.tags))
+                .offset(start)
+                .limit(dags_per_page)
+                .all()
             )
 
             user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
-                                     permissions.ACTION_CAN_CREATE,
-                                     permissions.RESOURCE_DAG_RUN,
-                                 ) in user_permissions
+                permissions.ACTION_CAN_CREATE,
+                permissions.RESOURCE_DAG_RUN,
+            ) in user_permissions
 
             can_delete_dag = (
-                                 permissions.ACTION_CAN_DELETE,
-                                 permissions.RESOURCE_DAG,
-                             ) in user_permissions
+                permissions.ACTION_CAN_DELETE,
+                permissions.RESOURCE_DAG,
+            ) in user_permissions
 
             for dag in dags:
                 if all_dags_editable:
@@ -742,8 +740,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: disable=comparison-with-callable
         running_dag_run_query_result = (
             session.query(DagRun.dag_id, DagRun.execution_date)
-                .join(DagModel, DagModel.dag_id == DagRun.dag_id)
-                .filter(DagRun.state == State.RUNNING, DagModel.is_active)
+            .join(DagModel, DagModel.dag_id == DagRun.dag_id)
+            .filter(DagRun.state == State.RUNNING, DagModel.is_active)
         )
         # pylint: enable=comparison-with-callable
 
@@ -770,9 +768,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             # pylint: disable=comparison-with-callable
             last_dag_run = (
                 session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-                    .join(DagModel, DagModel.dag_id == DagRun.dag_id)
-                    .filter(DagRun.state != State.RUNNING, DagModel.is_active)
-                    .group_by(DagRun.dag_id)
+                .join(DagModel, DagModel.dag_id == DagRun.dag_id)
+                .filter(DagRun.state != State.RUNNING, DagModel.is_active)
+                .group_by(DagRun.dag_id)
             )
             # pylint: enable=comparison-with-callable
             # pylint: disable=no-member
@@ -919,9 +917,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         states = (
             session.query(TaskInstance.state, sqla.func.count(TaskInstance.dag_id))
-                .filter(TaskInstance.dag_id == dag_id)
-                .group_by(TaskInstance.state)
-                .all()
+            .filter(TaskInstance.dag_id == dag_id)
+            .group_by(TaskInstance.state)
+            .all()
         )
 
         active_runs = models.DagRun.find(dag_id=dag_id, state=State.RUNNING, external_trigger=False)
@@ -1096,12 +1094,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         ti = (
             session.query(models.TaskInstance)
-                .filter(
+            .filter(
                 models.TaskInstance.dag_id == dag_id,
                 models.TaskInstance.task_id == task_id,
                 models.TaskInstance.execution_date == execution_date,
             )
-                .first()
+            .first()
         )
 
         if ti is None:
@@ -1155,12 +1153,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         ti = (
             session.query(models.TaskInstance)
-                .filter(
+            .filter(
                 models.TaskInstance.dag_id == dag_id,
                 models.TaskInstance.task_id == task_id,
                 models.TaskInstance.execution_date == dttm,
             )
-                .first()
+            .first()
         )
 
         num_logs = 0
@@ -1204,12 +1202,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         ti = (
             session.query(models.TaskInstance)
-                .filter(
+            .filter(
                 models.TaskInstance.dag_id == dag_id,
                 models.TaskInstance.task_id == task_id,
                 models.TaskInstance.execution_date == dttm,
             )
-                .first()
+            .first()
         )
 
         if not ti:
@@ -1344,8 +1342,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         xcomlist = (
             session.query(XCom)
-                .filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.execution_date == dttm)
-                .all()
+            .filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.execution_date == dttm)
+            .all()
         )
 
         attributes = []
@@ -1672,9 +1670,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         # pylint: disable=comparison-with-callable
         dags = (
             session.query(DagRun.dag_id, sqla.func.count(DagRun.id))
-                .filter(DagRun.state == State.RUNNING)
-                .filter(DagRun.dag_id.in_(filter_dag_ids))
-                .group_by(DagRun.dag_id)
+            .filter(DagRun.state == State.RUNNING)
+            .filter(DagRun.dag_id.in_(filter_dag_ids))
+            .group_by(DagRun.dag_id)
         )
         # pylint: enable=comparison-with-callable
 
@@ -2038,10 +2036,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         with create_session() as session:
             dag_runs = (
                 session.query(DagRun)
-                    .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-                    .order_by(DagRun.execution_date.desc())
-                    .limit(num_runs)
-                    .all()
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+                .order_by(DagRun.execution_date.desc())
+                .limit(num_runs)
+                .all()
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
@@ -2218,13 +2216,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_instances = dag.get_task_instances(start_date=min_date, end_date=base_date)
         ti_fails = (
             session.query(TaskFail)
-                .filter(
+            .filter(
                 TaskFail.dag_id == dag.dag_id,
                 TaskFail.execution_date >= min_date,
                 TaskFail.execution_date <= base_date,
                 TaskFail.task_id.in_([t.task_id for t in dag.tasks]),
             )
-                .all()
+            .all()
         )
 
         fails_totals = defaultdict(int)
@@ -2539,12 +2537,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 *[
                     (
                         session.query(TaskFail)
-                            .filter(
+                        .filter(
                             TaskFail.dag_id == ti.dag_id,
                             TaskFail.task_id == ti.task_id,
                             TaskFail.execution_date == ti.execution_date,
                         )
-                            .all()
+                        .all()
                     )
                     for ti in tis
                 ]
@@ -2719,10 +2717,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         with create_session() as session:
             dag_runs = (
                 session.query(DagRun)
-                    .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-                    .order_by(DagRun.execution_date.desc())
-                    .limit(num_runs)
-                    .all()
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+                .order_by(DagRun.execution_date.desc())
+                .limit(num_runs)
+                .all()
             )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
@@ -3017,7 +3015,12 @@ class ConnectionModelView(AirflowModelView):
         self.update_redirect()
         return redirect(self.get_redirect())
 
-    @action('mulduplicate', 'Duplicate', 'Are you sure you want to duplicate the selected connections?', single=True)
+    @action(
+        'mulduplicate',
+        'Duplicate',
+        'Are you sure you want to duplicate the selected connections?',
+        single=True,
+    )
     @provide_session
     @auth.has_access(
         [
@@ -3025,14 +3028,15 @@ class ConnectionModelView(AirflowModelView):
         ]
     )
     def action_mulduplicate(self, connections, session=None):
-        """Copy multiple connections"""
-
+        """Duplicate Multiple connections"""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             matches = re.findall(r"_Copy\((\d+)\)", selected_conn.conn_id)
             if matches:
                 # replacing the last _Copy(Num) with _Copy(Num+1)
-                new_conn_id = selected_conn.conn_id.replace(f'_Copy({matches[-1]})', f'_Copy({int(matches[-1]) + 1})')
+                new_conn_id = selected_conn.conn_id.replace(
+                    f'_Copy({matches[-1]})', f'_Copy({int(matches[-1]) + 1})'
+                )
             else:
                 new_conn_id += '_Copy(1)'
 
@@ -3051,12 +3055,12 @@ class ConnectionModelView(AirflowModelView):
             try:
                 session.add(dup_conn)
                 session.commit()
-                flash(f"Connection {new_conn_id} added successfully", "success")
-            except IntegrityError as e:
-                flash(f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint", "warning")
-                session.rollback()
-            except Exception as e:
-                flash(f"Connection {new_conn_id} can't be added, unknown error.", "danger")
+                flash(f"Connection {new_conn_id} added successfully.", "success")
+            except IntegrityError:
+                flash(
+                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    "warning",
+                )
                 session.rollback()
 
         self.update_redirect()
@@ -3900,18 +3904,18 @@ class DagModelView(AirflowModelView):
         """Default filters for model"""
         return (
             super()  # noqa pylint: disable=no-member
-                .get_query()
-                .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
-                .filter(~models.DagModel.is_subdag)
+            .get_query()
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
+            .filter(~models.DagModel.is_subdag)
         )
 
     def get_count_query(self):
         """Default filters for model"""
         return (
             super()  # noqa pylint: disable=no-member
-                .get_count_query()
-                .filter(models.DagModel.is_active)
-                .filter(~models.DagModel.is_subdag)
+            .get_count_query()
+            .filter(models.DagModel.is_active)
+            .filter(~models.DagModel.is_subdag)
         )
 
     @auth.has_access(
