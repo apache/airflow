@@ -77,7 +77,6 @@ try:
     from kubernetes.client.api_client import ApiClient
 
     from airflow.kubernetes.kube_config import KubeConfig
-    from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
     from airflow.kubernetes.pod_generator import PodGenerator
 except ImportError:
     ApiClient = None
@@ -1776,6 +1775,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
+        from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
+
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(
             dag_id=self.dag_id,
