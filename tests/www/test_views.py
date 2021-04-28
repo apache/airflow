@@ -270,6 +270,73 @@ class TestConnectionModelView(TestBase):
         cmv.prefill_form(form=mock_form, pk=1)
 
 
+class TestMultiDuplicateConnectionModelView(TestBase):
+    def setUp(self):
+        super().setUp()
+        conn1 = Connection(
+            conn_id='google_cloud_default',
+            conn_type='Google Cloud',
+            description='Default Google Cloud Connection',
+        )
+
+        # Already copied and modified
+        conn2 = Connection(
+            conn_id='mongodb',
+            conn_type='FTP',
+            description='MongoDB2',
+            host='localhost',
+            schema='airflow',
+            port='5567',
+        )
+
+        conn3 = Connection(
+            conn_id='mysql_connection',
+            conn_type='FTP',
+            description='MongoDB2',
+            host='localhost',
+            schema='airflow',
+            port='3306',
+        )
+
+        conn4 = Connection(
+            conn_id='postgres_connection_Copy(1)',
+            conn_type='FTP',
+            description='Postgres',
+            host='localhost',
+            schema='airflow',
+            port='3306',
+        )
+
+        self.clear_table(Connection)
+        self.session.add_all([conn1, conn2, conn3, conn4])
+        self.session.commit()
+
+    def tearDown(self):
+        self.clear_table(Connection)
+        super().tearDown()
+
+    def test_duplicate_connection(self):
+        """ Test Duplicate multiple connection with suffix"""
+
+        mock_form = mock.Mock()
+        mock_form.data = {"action": "mulduplicate", "rowid": [1, 2, 4]}
+        resp = self.client.post('/connection/action_post', data=mock_form.data, follow_redirects=True)
+
+        expected_result = {
+            'google_cloud_default',
+            'google_cloud_default_Copy(1)',
+            'mongodb',
+            'mongodb_Copy(1)',
+            'mysql_connection',
+            'postgres_connection_Copy(1)',
+            'postgres_connection_Copy(2)'
+        }
+        response = {conn[0].strip() for conn in self.session.query(Connection.conn_id).all()}
+
+        assert resp.status_code == 200
+        assert expected_result == response
+
+
 class TestVariableModelView(TestBase):
     def setUp(self):
         super().setUp()
@@ -285,7 +352,6 @@ class TestVariableModelView(TestBase):
         super().tearDown()
 
     def test_can_handle_error_on_decrypt(self):
-
         # create valid variable
         self.client.post('/variable/add', data=self.variable, follow_redirects=True)
 
@@ -365,7 +431,6 @@ class TestPluginView(TestBase):
         self.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
 
     def test_should_list_entrypoint_plugins_on_page_with_details(self):
-
         mock_plugin = AirflowPlugin()
         mock_plugin.name = "test_plugin"
         mock_plugin.source = EntryPointSource(
@@ -2922,7 +2987,6 @@ class TestTaskRescheduleView(TestBase):
 
 class TestRenderedView(TestBase):
     def setUp(self):
-
         self.default_date = datetime(2020, 3, 1)
         self.dag = DAG(
             "testdag",
@@ -3181,7 +3245,6 @@ class TestExtraLinks(TestBase):
                 return 'https://airflow.apache.org'
 
         class DummyTestOperator(BaseOperator):
-
             operator_extra_links = (
                 RaiseErrorLink(),
                 NoResponseLink(),
