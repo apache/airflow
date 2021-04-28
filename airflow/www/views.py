@@ -3019,7 +3019,7 @@ class ConnectionModelView(AirflowModelView):
         'mulduplicate',
         'Duplicate',
         'Are you sure you want to duplicate the selected connections?',
-        single=True,
+        single=False,
     )
     @provide_session
     @auth.has_access(
