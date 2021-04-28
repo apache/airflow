@@ -226,31 +226,49 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-Airflow 2+:
+### Airflow 2+:
 
 ```shell script
+export VERSION_RC=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
-  export DOCKER_TAG=${VERSION}-python${python_version}
+  export DOCKER_TAG=${VERSION_RC}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+Once this succeeds you should push the "${VERSION_RC}" image:
 
-Airflow 1.10:
+```shell script
+docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
+docker push apache/airflow:${VERSION_RC}
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before the images are pushed.
+
+
+### Airflow 1.10:
 
 ```shell script
 for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
 do
     ./breeze build-image --production-image --python ${python_version} \
-        --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
-    docker push apache/airflow:${VERSION}-python${python_version}
+        --image-tag apache/airflow:${VERSION_RC}-python${python_version} --build-cache-local
+    docker push apache/airflow:${VERSION_RC}-python${python_version}
 done
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
 ```
+
+Once this succeeds you should push the "${VERSION_RC}" image:
+
+```shell script
+docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
+docker push apache/airflow:${VERSION_RC}
+```
+
+
+### Airflow 1.10:
 
 
 ## Prepare Vote email on the Apache Airflow release candidate
@@ -662,26 +680,24 @@ In case you need, you can also build and push the images manually:
 ### Airflow 2+:
 
 ```shell script
+export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
   export DOCKER_TAG=${VERSION}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
+```
+
+Once this succeeds you should push the "${VERSION}" image:
+
+```shell script
 docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
 docker push apache/airflow:${VERSION}
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
-
-You can also verify that the images are working fine:
-
-```shell script
-for python_version in "3.6" "3.7" "3.8"
-(
-  ./scripts/ci/tools/verify_docker_image.sh PROD apache/airflow:${VERSION}-python${python_version}
-)
-```
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before the images are pushed.
 
 
 ### Airflow 1.10:
@@ -693,6 +709,11 @@ do
         --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
     docker push apache/airflow:${VERSION}-python${python_version}
 done
+```
+
+Once this succeeds you should push the "${VERSION}" image:
+
+```shell script
 docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
 docker push apache/airflow:${VERSION}
 ```
