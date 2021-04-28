@@ -1380,7 +1380,7 @@ class TestDag(unittest.TestCase):
         t_2 = DummyOperator(task_id='task', dag=subdag)
         subdag.parent_dag = dag
         subdag.is_subdag = True
-        
+
         session = settings.Session()
         dagrun_1 = dag.create_dagrun(
             run_type=DagRunType.BACKFILL_JOB,
