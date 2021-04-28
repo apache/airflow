@@ -92,7 +92,6 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_success,
 )
-from airflow.cli.commands.provider_command import _remove_rst_syntax
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException, SerializedDagNotFound
 from airflow.executors.executor_loader import ExecutorLoader

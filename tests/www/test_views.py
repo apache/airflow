@@ -45,6 +45,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
