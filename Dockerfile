@@ -193,8 +193,6 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
 RUN bash ./scripts/docker/install_mysql.sh dev
 
-RUN mkdir -p /root/.local/bin
-
 COPY docker-context-files /docker-context-files
 
 RUN if [[ -f /docker-context-files/.pypirc ]]; then \
@@ -202,7 +200,7 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
     fi
 
 # Upgrade to specific PIP version
-RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" && mkdir -p /root/.local/bin
 
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
@@ -294,8 +292,8 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-build-image" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
-  org.apache.airflow.buildImage.buildId=${BUILD_ID} \
-  org.apache.airflow.buildImage.commitSha=${COMMIT_SHA} \
+  org.apache.airflow.build-image.build-id=${BUILD_ID} \
+  org.apache.airflow.build-image.commit-sha=${COMMIT_SHA} \
   org.opencontainers.image.source=${AIRFLOW_IMAGE_REPOSITORY} \
   org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
   org.opencontainers.image.authors="dev@airflow.apache.org" \
@@ -444,13 +442,13 @@ RUN chmod a+x /scripts/docker/install_mysql.sh && \
 COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
 COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
-RUN chmod a+x /entrypoint /clean-logs
-
-RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
-RUN chmod g=u /etc/passwd
+
+RUN chmod a+x /entrypoint /clean-logs && \
+    chmod g=u /etc/passwd && \
+    pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 
 WORKDIR ${AIRFLOW_HOME}
 
@@ -468,8 +466,8 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.gid="${AIRFLOW_GID}" \
-  org.apache.airflow.mainImage.buildId="${BUILD_ID}" \
-  org.apache.airflow.mainImage.commitSha="${COMMIT_SHA}" \
+  org.apache.airflow.main-image.build-id="${BUILD_ID}" \
+  org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \
   org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
   org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
   org.opencontainers.image.authors="dev@airflow.apache.org" \

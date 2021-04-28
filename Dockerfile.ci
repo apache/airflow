@@ -97,9 +97,8 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 # Only copy install_mysql.sh to not invalidate cache on other script changes
 COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
-RUN bash /scripts/docker/install_mysql.sh dev
-
-RUN adduser airflow \
+RUN bash /scripts/docker/install_mysql.sh dev \
+    && adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
@@ -300,7 +299,7 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 # Rather than after setup.py is added.
 COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/
 
-RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache
+RUN yarn --cwd airflow/www install --frozen-lockfile --no-cache && yarn cache clean
 
 # Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
 # This is fine as root user will be able to use those dirs anyway.
@@ -389,8 +388,8 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="0" \
   org.apache.airflow.gid="0" \
-  org.apache.airflow.buildId="${BUILD_ID}" \
-  org.apache.airflow.commitSha="${COMMIT_SHA}" \
+  org.apache.airflow.build-id="${BUILD_ID}" \
+  org.apache.airflow.commit-sha="${COMMIT_SHA}" \
   org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
   org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
   org.opencontainers.image.authors="dev@airflow.apache.org" \
