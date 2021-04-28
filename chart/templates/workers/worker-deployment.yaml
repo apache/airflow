@@ -124,9 +124,6 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-        {{- include "git_sync_container" . | indent 8 }}
-        {{- end }}
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -176,6 +173,9 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
           {{- end }}
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- include "git_sync_container" . | indent 8 }}
+        {{- end }}
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
