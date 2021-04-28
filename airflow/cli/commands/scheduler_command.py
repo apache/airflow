@@ -17,6 +17,8 @@
 
 """Scheduler command"""
 import signal
+from multiprocessing import Process
+from typing import Optional
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -30,6 +32,8 @@ from airflow.utils.cli import process_subdir, setup_locations, setup_logging, si
 @cli_utils.action_logging
 def scheduler(args):
     """Starts Airflow Scheduler"""
+    skip_serve_logs = args.skip_serve_logs
+
     print(settings.HEADER)
     job = SchedulerJob(
         subdir=process_subdir(args.subdir),
@@ -50,9 +54,27 @@ def scheduler(args):
                 stderr=stderr_handle,
             )
             with ctx:
+                sub_proc = _serve_logs(skip_serve_logs)
                 job.run()
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
+        sub_proc = _serve_logs(skip_serve_logs)
         job.run()
+
+    if sub_proc:
+        sub_proc.terminate()
+
+
+def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
+    """Starts serve_logs sub-process"""
+    from airflow.configuration import conf
+    from airflow.utils.serve_logs import serve_logs
+
+    if conf.get("core", "executor") in ["LocalExecutor", "SequentialExecutor"]:
+        if skip_serve_logs is False:
+            sub_proc = Process(target=serve_logs)
+            sub_proc.start()
+            return sub_proc
+    return None

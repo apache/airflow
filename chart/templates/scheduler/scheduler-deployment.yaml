@@ -141,6 +141,12 @@ spec:
                         SchedulerJob.latest_heartbeat.desc()).limit(1).first()
 
                 sys.exit(0 if job.is_alive() else 1)
+          {{- if and $local (not $elasticsearch) }}
+          # Serve logs if we're in local mode and we don't have elasticsearch enabled.
+          ports:
+            - name: worker-logs
+              containerPort: {{ .Values.ports.workerLogs }}
+          {{- end }}
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
           volumeMounts:
@@ -178,29 +184,6 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
-{{- if and $local (not $elasticsearch) }}
-        # Start the sidecar log server if we're in local mode and
-        # we don't have elasticsearch enabled.
-        - name: scheduler-logs
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["serve_logs"]
-          ports:
-            - name: worker-logs
-              containerPort: {{ .Values.ports.workerLogs }}
-          volumeMounts:
-            - name: logs
-              mountPath: {{ template "airflow_logs" . }}
-            - name: config
-              mountPath: {{ template "airflow_config_path" . }}
-              subPath: airflow.cfg
-              readOnly: true
-          envFrom:
-          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
-          env:
-          {{- include "custom_airflow_environment" . | indent 10 }}
-          {{- include "standard_airflow_environment" . | indent 10 }}
-{{- end }}
 {{- if .Values.scheduler.extraContainers }}
 {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
 {{- end }}
