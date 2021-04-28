@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.0
+.....
+
+Latest change: 2021-04-25
+
+================================================================================================  ===========  ==============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================================================
+`7a0d41224 <https://github.com/apache/airflow/commit/7a0d4122459289e0f2db78ad2849d5ba42df4468>`_  2021-04-25   ``Add Connection Documentation to more Providers (#15408)``
+`15e044c7e <https://github.com/apache/airflow/commit/15e044c7e412a85946a8831dd7eb68424d96c164>`_  2021-04-14   ``Undeprecate private_key option in SFTPHook (#15348)``
+`44a6648fd <https://github.com/apache/airflow/commit/44a6648fd7482f61ca59153f0caaf0b019c5b3fd>`_  2021-04-07   ``Add logs to show last modified in SFTP, FTP and Filesystem sensor (#15134)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+================================================================================================  ===========  ==============================================================================
+
 1.1.1
 .....
 
-Latest change: 2021-02-05
+Latest change: 2021-02-27
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
 `10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
 ================================================================================================  ===========  =======================================================================
 

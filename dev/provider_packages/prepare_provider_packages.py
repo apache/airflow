@@ -1396,16 +1396,20 @@ def get_all_changes_for_package(
             if os.path.exists(doc_only_change_file):
                 with open(doc_only_change_file) as f:
                     last_doc_only_hash = f.read().strip()
-                changes_since_last_doc_only_check = subprocess.check_output(
-                    get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
-                    cwd=source_provider_package_path,
-                    universal_newlines=True,
-                )
-                if not changes_since_last_doc_only_check:
-                    print()
-                    print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
-                    # Returns 66 in case of doc-only changes
-                    sys.exit(66)
+                try:
+                    changes_since_last_doc_only_check = subprocess.check_output(
+                        get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
+                        cwd=source_provider_package_path,
+                        universal_newlines=True,
+                    )
+                    if not changes_since_last_doc_only_check:
+                        print()
+                        print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
+                        # Returns 66 in case of doc-only changes
+                        sys.exit(66)
+                except subprocess.CalledProcessError:
+                    # ignore when the commit mentioned as last doc-only change is obsolete
+                    pass
             print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             print()
             print(

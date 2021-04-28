@@ -60,7 +60,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 1.3.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -70,15 +70,6 @@ are in ``airflow.providers.microsoft.azure`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-microsoft-azure``
@@ -144,6 +135,33 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Removes unnecessary AzureContainerInstance connection type (#15514)``
+
+This change removes ``azure_container_instance_default`` connection type and replaces it with the
+``azure_default``. The problem was that AzureContainerInstance was not needed as it was exactly the
+same as the plain "azure" connection, however it's presence caused duplication in the field names
+used in the UI editor for connections and unnecessary warnings generated. This version uses
+plain Azure Hook and connection also for Azure Container Instance. If you already have
+``azure_container_instance_default`` connection created in your DB, it will continue to work, but
+the first time you edit it with the UI you will have to change it's type to ``azure_default``.
+
+Features
+~~~~~~~~
+
+* ``Add dynamic connection fields to Azure Connection (#15159)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+
 
 1.3.0
 .....

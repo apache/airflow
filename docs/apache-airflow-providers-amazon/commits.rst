@@ -28,6 +28,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.4.0
+.....
+
+Latest change: 2021-04-29
+
+================================================================================================  ===========  ==========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================
+`814e471d1 <https://github.com/apache/airflow/commit/814e471d137aad68bd64a21d20736e7b88403f97>`_  2021-04-29   ``Update pre-commit checks (#15583)``
+`bf2b48174 <https://github.com/apache/airflow/commit/bf2b48174a1ccfe398eefba7f04a5cacac421266>`_  2021-04-27   ``Add Connection Documentation for Providers (#15499)``
+`4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``
+`657384615 <https://github.com/apache/airflow/commit/657384615fafc060f9e2ed925017306705770355>`_  2021-04-27   ``Fix 'logging.exception' redundancy (#14823)``
+`d598630cd <https://github.com/apache/airflow/commit/d598630cd7a2e80fd84c499cfcba37ad2b6888f3>`_  2021-04-26   ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
+`71c673e42 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
+`a82de56b9 <https://github.com/apache/airflow/commit/a82de56b9d16713cbba4dee42d6797cc12b59cfe>`_  2021-04-13   ``S3Hook.load_file should accept Path object in addition to str (#15232)``
+`b4770725a <https://github.com/apache/airflow/commit/b4770725a3aa03bd50a0a8c8e01db667bff93862>`_  2021-04-12   ``Add links to new modules for deprecated modules (#15316)``
+`da780fc8b <https://github.com/apache/airflow/commit/da780fc8b1f041b927f1ed06f737113010d58a61>`_  2021-04-12   ``Fixes doc for SQSSensor (#15323)``
+================================================================================================  ===========  ==========================================================================
+
 1.3.0
 .....
 

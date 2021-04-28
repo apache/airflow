@@ -59,7 +59,7 @@ Package apache-airflow-providers-amazon
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 1.3.0
+Release: 1.4.0
 
 Provider package
 ----------------
@@ -69,15 +69,6 @@ are in ``airflow.providers.amazon`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-amazon``
@@ -139,6 +130,24 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``S3Hook.load_file should accept Path object in addition to str (#15232)``
+* ``Add Connection Documentation for Providers (#15499)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+* ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
+* ``Update Docstrings of Modules with Missing Params (#15391)``
+* ``Add links to new modules for deprecated modules (#15316)``
+* ``Fixes doc for SQSSensor (#15323)``
 
 1.3.0
 .....
