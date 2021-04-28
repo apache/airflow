@@ -230,7 +230,7 @@ class TestCliUsers:
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as file:
+        with open(users_filename) as file:
             retrieved_users = json.loads(file.read())
         os.remove(users_filename)
 

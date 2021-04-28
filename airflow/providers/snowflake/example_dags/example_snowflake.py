@@ -123,9 +123,13 @@ slack_report = SnowflakeToSlackOperator(
 
 # [END howto_operator_snowflake_to_slack]
 
-snowflake_op_sql_str >> [
-    snowflake_op_with_params,
-    snowflake_op_sql_list,
-    snowflake_op_template_file,
-    copy_into_table,
-] >> slack_report
+(
+    snowflake_op_sql_str
+    >> [
+        snowflake_op_with_params,
+        snowflake_op_sql_list,
+        snowflake_op_template_file,
+        copy_into_table,
+    ]
+    >> slack_report
+)

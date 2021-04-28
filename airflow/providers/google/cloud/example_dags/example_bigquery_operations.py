@@ -205,10 +205,21 @@ with models.DAG(
 
     create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
-    update_dataset >> create_table >> create_view >> create_materialized_view >> update_table >> [
-        get_dataset_tables,
-        delete_view,
-    ] >> upsert_table >> delete_materialized_view >> delete_table >> delete_dataset
+    (
+        update_dataset
+        >> create_table
+        >> create_view
+        >> create_materialized_view
+        >> update_table
+        >> [
+            get_dataset_tables,
+            delete_view,
+        ]
+        >> upsert_table
+        >> delete_materialized_view
+        >> delete_table
+        >> delete_dataset
+    )
     update_dataset >> create_external_table >> delete_dataset
 
 with models.DAG(

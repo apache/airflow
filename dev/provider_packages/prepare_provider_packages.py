@@ -323,7 +323,7 @@ def get_long_description(provider_package_id: str) -> str:
     readme_file = os.path.join(package_folder, "README.md")
     if not os.path.exists(readme_file):
         return ""
-    with open(readme_file, encoding='utf-8', mode="r") as file:
+    with open(readme_file, encoding='utf-8') as file:
         readme_contents = file.read()
     copying = True
     long_description = ""

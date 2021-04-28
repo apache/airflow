@@ -65,7 +65,7 @@ def mkdirs(path, mode):
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
-ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+ZIP_REGEX = re.compile(fr'((.*\.zip){re.escape(os.sep)})?(.*)')
 
 
 def correct_maybe_zipped(fileloc):
