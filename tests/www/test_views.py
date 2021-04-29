@@ -40,7 +40,7 @@ from parameterized import parameterized
 
 from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.configuration import conf, initialize_config
+from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, TaskInstance
@@ -1198,34 +1198,6 @@ class TestAirflowBaseViews(TestBase):
             )
             self.check_content_in_response(escaped_xss_string, resp)
             self.check_content_not_in_response(xss_string, resp)
-
-
-class TestConfigurationView(TestBase):
-    def setUp(self):
-        super().setUp()
-        with mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"}):
-            initialize_config()
-
-    def test_configuration_do_not_expose_config(self):
-        self.logout()
-        self.login()
-        with conf_vars({('webserver', 'expose_config'): 'False'}):
-            resp = self.client.get('configuration', follow_redirects=True)
-        self.check_content_in_response(
-            [
-                'Airflow Configuration',
-                '# Your Airflow administrator chose not to expose the configuration, '
-                'most likely for security reasons.',
-            ],
-            resp,
-        )
-
-    def test_configuration_expose_config(self):
-        self.logout()
-        self.login()
-        with conf_vars({('webserver', 'expose_config'): 'True'}):
-            resp = self.client.get('configuration', follow_redirects=True)
-        self.check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
 
 
 class TestRedocView(TestBase):
