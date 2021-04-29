@@ -26,9 +26,7 @@ class ConfigmapTest(unittest.TestCase):
     def test_single_annotation(self):
         docs = render_chart(
             values={
-                "airflowConfigAnnotations": {
-                    "key": "value"
-                },
+                "airflowConfigAnnotations": {"key": "value"},
             },
             show_only=["templates/configmaps/configmap.yaml"],
         )
@@ -39,10 +37,7 @@ class ConfigmapTest(unittest.TestCase):
     def test_multiple_annotations(self):
         docs = render_chart(
             values={
-                "airflowConfigAnnotations": {
-                    "key": "value",
-                    "key-two": "value-two"
-                },
+                "airflowConfigAnnotations": {"key": "value", "key-two": "value-two"},
             },
             show_only=["templates/configmaps/configmap.yaml"],
         )
