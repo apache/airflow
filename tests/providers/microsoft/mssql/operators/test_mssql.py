@@ -50,8 +50,7 @@ class TestMsSqlOperator:
     def test_get_hook_default(self, get_connection):
         """
         If :meth:`airflow.models.Connection.get_hook` does not return a hook (e.g. because of an invalid
-        conn type), then :class:`~.MsSqlOperator` (which we expect will raise :class:`~.AirflowException`,
-        then the operator should use :class:`~.MsSqlHook`.
+        conn type), then :class:`~.MsSqlHook` should be used.
         """
         get_connection.return_value.get_hook.side_effect = Mock(side_effect=AirflowException())
 
