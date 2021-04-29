@@ -58,30 +58,33 @@ def app():
     patch_path = "flask_appbuilder.security.manager.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
-        security_manager.add_user(
-            username='test',
-            first_name='test',
-            last_name='test',
-            email='test@fab.org',
-            role=security_manager.find_role('Admin'),
-            password='test',
-        )
-        security_manager.add_user(
-            username='test_user',
-            first_name='test_user',
-            last_name='test_user',
-            email='test_user@fab.org',
-            role=security_manager.find_role('User'),
-            password='test_user',
-        )
-        security_manager.add_user(
-            username='test_viewer',
-            first_name='test_viewer',
-            last_name='test_viewer',
-            email='test_viewer@fab.org',
-            role=security_manager.find_role('Viewer'),
-            password='test_viewer',
-        )
+        if not security_manager.find_user(username='test'):
+            security_manager.add_user(
+                username='test',
+                first_name='test',
+                last_name='test',
+                email='test@fab.org',
+                role=security_manager.find_role('Admin'),
+                password='test',
+            )
+        if not security_manager.find_user(username='test_user'):
+            security_manager.add_user(
+                username='test_user',
+                first_name='test_user',
+                last_name='test_user',
+                email='test_user@fab.org',
+                role=security_manager.find_role('User'),
+                password='test_user',
+            )
+        if not security_manager.find_user(username='test_viewer'):
+            security_manager.add_user(
+                username='test_viewer',
+                first_name='test_viewer',
+                last_name='test_viewer',
+                email='test_viewer@fab.org',
+                role=security_manager.find_role('Viewer'),
+                password='test_viewer',
+            )
 
     yield app
 
@@ -92,6 +95,14 @@ def app():
 def admin_client(app):
     client = app.test_client()
     resp = client.post("/login/", data={"username": "test", "password": "test"})
+    assert resp.status_code == 302
+    yield client
+
+
+@pytest.fixture()
+def viewer_client(app):
+    client = app.test_client()
+    resp = client.post("/login/", data={"username": "test_viewer", "password": "test_viewer"})
     assert resp.status_code == 302
     yield client
 
