@@ -27,7 +27,7 @@ from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(autouse=True, scope="module")
-def configure_for_suite():
+def session():
     settings.configure_orm()
     yield settings.Session
 
@@ -92,16 +92,26 @@ def admin_client(app):
     yield client
 
 
+class Checker:
+    def check_content_in_response(self, text, resp, resp_code=200):
+        resp_html = resp.data.decode('utf-8')
+        assert resp_code == resp.status_code
+        if isinstance(text, list):
+            for line in text:
+                assert line in resp_html
+        else:
+            assert text in resp_html
+
+    def check_content_not_in_response(self, text, resp, resp_code=200):
+        resp_html = resp.data.decode('utf-8')
+        assert resp_code == resp.status_code
+        if isinstance(text, list):
+            for line in text:
+                assert line not in resp_html
+        else:
+            assert text not in resp_html
+
+
 @pytest.fixture(scope="session")
 def checker():
-    class Checker:
-        def check_content_in_response(self, text, resp, resp_code=200):
-            resp_html = resp.data.decode('utf-8')
-            assert resp_code == resp.status_code
-            if isinstance(text, list):
-                for line in text:
-                    assert line in resp_html
-            else:
-                assert text in resp_html
-
     return Checker()

@@ -17,7 +17,6 @@
 # under the License.
 import copy
 import html
-import io
 import json
 import logging.config
 import os
@@ -237,88 +236,6 @@ class TestBase(unittest.TestCase):
             permissions=perms,
         )
         self.login(username=username, password=username)
-
-
-class TestVariableModelView(TestBase):
-    def setUp(self):
-        super().setUp()
-        self.variable = {
-            'key': 'test_key',
-            'val': 'text_val',
-            'description': 'test_description',
-            'is_encrypted': True,
-        }
-
-    def tearDown(self):
-        self.clear_table(models.Variable)
-        super().tearDown()
-
-    def test_can_handle_error_on_decrypt(self):
-
-        # create valid variable
-        self.client.post('/variable/add', data=self.variable, follow_redirects=True)
-
-        # update the variable with a wrong value, given that is encrypted
-        Var = models.Variable  # pylint: disable=invalid-name
-        (
-            self.session.query(Var)
-            .filter(Var.key == self.variable['key'])
-            .update({'val': 'failed_value_not_encrypted'}, synchronize_session=False)
-        )
-        self.session.commit()
-
-        # retrieve Variables page, should not fail and contain the Invalid
-        # label for the variable
-        resp = self.client.get('/variable/list', follow_redirects=True)
-        self.check_content_in_response('<span class="label label-danger">Invalid</span>', resp)
-
-    def test_xss_prevention(self):
-        xss = "/variable/list/<img%20src=''%20onerror='alert(1);'>"
-
-        resp = self.client.get(
-            xss,
-            follow_redirects=True,
-        )
-        assert resp.status_code == 404
-        assert "<img src='' onerror='alert(1);'>" not in resp.data.decode("utf-8")
-
-    def test_import_variables_no_file(self):
-        resp = self.client.post('/variable/varimport', follow_redirects=True)
-        self.check_content_in_response('Missing file or syntax error.', resp)
-
-    def test_import_variables_failed(self):
-        content = '{"str_key": "str_value"}'
-
-        with mock.patch('airflow.models.Variable.set') as set_mock:
-            set_mock.side_effect = UnicodeEncodeError
-            assert self.session.query(models.Variable).count() == 0
-
-            bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
-
-            resp = self.client.post(
-                '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
-            )
-            self.check_content_in_response('1 variable(s) failed to be updated.', resp)
-
-    def test_import_variables_success(self):
-        assert self.session.query(models.Variable).count() == 0
-
-        content = (
-            '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
-        )
-        bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
-
-        resp = self.client.post(
-            '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
-        )
-        self.check_content_in_response('4 variable(s) successfully updated.', resp)
-
-    def test_description_retrieval(self):
-        # create valid variable
-        self.client.post('/variable/add', data=self.variable, follow_redirects=True)
-
-        row = self.session.query(models.Variable.key, models.Variable.description).first()
-        assert row.key == 'test_key' and row.description == 'test_description'
 
 
 class PluginOperator(BaseOperator):
