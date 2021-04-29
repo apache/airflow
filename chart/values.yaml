@@ -886,3 +886,14 @@ dags:
     containerName: git-sync
     uid: 65533
     extraVolumeMounts: []
+
+logs:
+  persistence:
+    # Enable persistent volume for storing logs
+    enabled: false
+    # Volume size for logs
+    size: 100Gi
+    # If using a custom storageClass, pass name here
+    storageClassName:
+    ## the name of an existing PVC to use
+    existingClaim:

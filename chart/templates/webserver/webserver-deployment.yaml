@@ -122,6 +122,10 @@ spec:
             - name: dags
               mountPath: {{ template "airflow_dags_mount_path" . }}
 {{- end }}
+{{- if .Values.logs.persistence.enabled }}
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+{{- end }}
 {{- if .Values.webserver.extraVolumeMounts }}
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
@@ -181,6 +185,11 @@ spec:
         {{- if  .Values.dags.gitSync.sshKeySecret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
+        {{- end }}
+        {{- if .Values.logs.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_logs_volume_claim" . }}
         {{- end }}
 {{- if .Values.webserver.extraVolumes }}
 {{ toYaml .Values.webserver.extraVolumes | indent 8 }}

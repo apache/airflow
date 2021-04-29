@@ -1520,6 +1520,42 @@
                     }
                 }
             }
+        },
+        "logs": {
+            "description": "Logs settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "persistence": {
+                    "description": "Persistence configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volume for storing logs.",
+                            "type": "boolean"
+                        },
+                        "size": {
+                            "description": "Volume size for logs.",
+                            "type": "string"
+                        },
+                        "storageClassName": {
+                            "description": "If using a custom storageClass, pass name here.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            }
         }
     }
 }

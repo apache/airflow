@@ -256,7 +256,11 @@ spec:
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
-{{- if not $persistence }}
+{{- if .Values.logs.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_logs_volume_claim" . }}
+{{- else if not $persistence }}
         - name: logs
           emptyDir: {}
 {{- else }}

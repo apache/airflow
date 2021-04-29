@@ -328,6 +328,14 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{ (printf "%s/logs" .Values.airflowHome) }}
 {{- end }}
 
+{{ define "airflow_logs_volume_claim" -}}
+{{- if .Values.logs.persistence.existingClaim -}}
+{{ .Values.logs.persistence.existingClaim }}
+{{- else -}}
+{{ .Release.Name }}-logs
+{{- end -}}
+{{- end -}}
+
 {{ define "airflow_dags" -}}
 {{- if .Values.dags.gitSync.enabled -}}
 {{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.dags.gitSync.dest .Values.dags.gitSync.subPath ) }}
