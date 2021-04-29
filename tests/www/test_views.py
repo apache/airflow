@@ -243,9 +243,10 @@ class TestAirflowBaseViews(TestBase):
         models.DagBag(include_examples=True).sync_to_db()
         cls.dagbag = models.DagBag(include_examples=True, read_dags_from_db=True)
         cls.app.dag_bag = cls.dagbag
-        init_views.init_api_connexion(cls.app)
-        init_views.init_plugins(cls.app)
-        init_appbuilder_links(cls.app)
+        with cls.app.app_context():
+            init_views.init_api_connexion(cls.app)
+            init_views.init_plugins(cls.app)
+            init_appbuilder_links(cls.app)
 
     def setUp(self):
         super().setUp()
