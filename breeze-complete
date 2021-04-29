@@ -183,6 +183,7 @@ runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-r
 load-default-connections load-example-dags
 use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure
 use-airflow-version:
+cleanup-docker-context-files
 test-type: preserve-volumes dry-run-docker
 "
 

@@ -222,26 +222,26 @@ function build_images::confirm_image_rebuild() {
     fi
 }
 
-function build_images::confirm_non-empty-docker-context-files() {
+function build_images::check_for_docker_context_files() {
     local num_docker_context_files
-    num_docker_context_files=$(find "${AIRFLOW_SOURCES}/docker-context-files/" -type f |\
-        grep -c v "README.md" )
+    local docker_context_files_dir="${AIRFLOW_SOURCES}/docker-context-files/"
+    num_docker_context_files=$(find "${docker_context_files_dir}" -type f | grep -c -v "README.md" || true)
     if [[ ${num_docker_context_files} == "0" ]]; then
-        if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "false" ]]; then
-            >&2 echo
-            >&2 echo "ERROR! You want to install packages from docker-context-files"
-            >&2 echo "       but there are no packages to install in this folder."
-            >&2 echo
+        if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} != "false" ]]; then
+            echo
+            echo "${COLOR_YELLOW}ERROR! You want to install packages from docker-context-files${COLOR_RESET}"
+            echo "${COLOR_YELLOW}       but there are no packages to install in this folder.${COLOR_RESET}"
+            echo
             exit 1
         fi
     else
         if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "false" ]]; then
-            >&2 echo
-            >&2 echo "ERROR! There are some extra files in docker-context-files except README.md"
-            >&2 echo "       And you did not choose --install-from-docker-context-files flag"
-            >&2 echo "       This might result in unnecessary cache invalidation and long build times"
-            >&2 echo "       Exiting now - please remove those files (except README.md) and retry"
-            >&2 echo
+            echo
+            echo "${COLOR_YELLOW}ERROR! There are some extra files in docker-context-files except README.md${COLOR_RESET}"
+            echo "${COLOR_YELLOW}       And you did not choose --install-from-docker-context-files flag${COLOR_RESET}"
+            echo "${COLOR_YELLOW}       This might result in unnecessary cache invalidation and long build times${COLOR_RESET}"
+            echo "${COLOR_YELLOW}       Exiting now - please restart the command with --cleanup-docker-context-files switch${COLOR_RESET}"
+            echo
             exit 2
         fi
     fi
@@ -459,7 +459,7 @@ function build_images::get_docker_image_names() {
 # either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
 # In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
-function build_image::configure_docker_registry() {
+function build_images::configure_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
         local token=""
         if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
@@ -515,7 +515,7 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::configure_docker_registry
+    build_images::configure_docker_registry
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -835,7 +835,7 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
     readonly AIRFLOW_IMAGE
 
-    build_image::configure_docker_registry
+    build_images::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
@@ -1033,7 +1033,7 @@ function build_images::determine_docker_cache_strategy() {
 }
 
 
-function build_image::assert_variable() {
+function build_images::assert_variable() {
     local variable_name="${1}"
     local expected_value="${2}"
     local variable_value=${!variable_name}
@@ -1045,19 +1045,27 @@ function build_image::assert_variable() {
     fi
 }
 
+function build_images::cleanup_dist() {
+    mkdir -pv "${AIRFLOW_SOURCES}/dist"
+    rm -f "${AIRFLOW_SOURCES}/dist/"*.{whl,tar.gz}
+}
+
+
+function build_images::cleanup_docker_context_files() {
+    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
+    rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
+}
+
 function build_images::build_prod_images_from_locally_built_airflow_packages() {
     # We do not install from PyPI
-    build_image::assert_variable INSTALL_FROM_PYPI "false"
+    build_images::assert_variable INSTALL_FROM_PYPI "false"
     # But then we reinstall airflow and providers from prepared packages in the docker context files
-    build_image::assert_variable INSTALL_FROM_DOCKER_CONTEXT_FILES "true"
+    build_images::assert_variable INSTALL_FROM_DOCKER_CONTEXT_FILES "true"
     # But we install everything from scratch to make a "clean" installation in case any dependencies got removed
-    build_image::assert_variable AIRFLOW_PRE_CACHED_PIP_PACKAGES "false"
+    build_images::assert_variable AIRFLOW_PRE_CACHED_PIP_PACKAGES "false"
 
-    # Cleanup dist and docker-context-files folders
-    mkdir -pv "${AIRFLOW_SOURCES}/dist"
-    mkdir -pv "${AIRFLOW_SOURCES}/docker-context-files"
-    rm -f "${AIRFLOW_SOURCES}/dist/"*.{whl,tar.gz}
-    rm -f "${AIRFLOW_SOURCES}/docker-context-files/"*.{whl,tar.gz}
+    build_images::cleanup_dist
+    build_images::cleanup_docker_context_files
 
     # Build necessary provider packages
     runs::run_prepare_provider_packages "${INSTALLED_PROVIDERS[@]}"
