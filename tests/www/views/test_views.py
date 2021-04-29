@@ -20,6 +20,7 @@ from unittest import mock
 import pytest
 
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.www.views import get_safe_url, truncate_task_duration
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -102,3 +103,44 @@ def test_task_start_date_filter(admin_client, checker, url, content):
     # in to FAB) but simply that our UTC conversion was run - i.e. it
     # doesn't blow up!
     checker.check_content_in_response(content, resp)
+
+
+@pytest.mark.parametrize(
+    "test_url, expected_url",
+    [
+        ("", "/home"),
+        ("http://google.com", "/home"),
+        ("36539'%3balert(1)%2f%2f166", "/home"),
+        (
+            "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
+            "/home",
+        ),
+        (
+            "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%test_dag';alert(33)//",
+            "/home",
+        ),
+        (
+            "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
+            "http://localhost:8080/trigger?dag_id=test_dag&origin=%2Ftree%3Fdag_id%3Dtest_dag",
+        ),
+    ],
+)
+@mock.patch("airflow.www.views.url_for")
+def test_get_safe_url(mock_url_for, app, test_url, expected_url):
+    mock_url_for.return_value = "/home"
+    with app.test_request_context(base_url="http://localhost:8080"):
+        assert get_safe_url(test_url) == expected_url
+
+
+@pytest.mark.parametrize(
+    "test_duration, expected_duration",
+    [
+        (0.12345, 0.123),
+        (0.12355, 0.124),
+        (3.12, 3.12),
+        (9.99999, 10.0),
+        (10.01232, 10),
+    ],
+)
+def test_truncate_task_duration(test_duration, expected_duration):
+    assert truncate_task_duration(test_duration) == expected_duration
