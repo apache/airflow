@@ -77,7 +77,10 @@ class OracleHook(DbApiHook):
         elif dsn and service_name and not sid:
             conn_config['dsn'] = cx_Oracle.makedsn(dsn, port, service_name=service_name)
         else:
-            conn_config['dsn'] = conn.host
+            dsn = conn.host
+            if conn.port:
+                dsn += ":" + str(conn.port)
+            conn_config['dsn'] = dsn
 
         if 'encoding' in conn.extra_dejson:
             conn_config['encoding'] = conn.extra_dejson.get('encoding')
