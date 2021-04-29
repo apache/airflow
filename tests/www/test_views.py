@@ -2620,28 +2620,6 @@ class TestDagACLView(TestBase):
         self.check_content_in_response('Redirecting', resp, resp_code=302)
 
 
-class TestTaskInstanceView(TestBase):
-    TI_ENDPOINT = '/taskinstance/list/?_flt_0_execution_date={}'
-
-    def test_start_date_filter(self):
-        resp = self.client.get(self.TI_ENDPOINT.format(self.percent_encode('2018-10-09 22:44:31')))
-        # We aren't checking the logic of the date filter itself (that is built
-        # in to FAB) but simply that our UTC conversion was run - i.e. it
-        # doesn't blow up!
-        self.check_content_in_response('List Task Instance', resp)
-
-
-class TestTaskRescheduleView(TestBase):
-    TI_ENDPOINT = '/taskreschedule/list/?_flt_0_execution_date={}'
-
-    def test_start_date_filter(self):
-        resp = self.client.get(self.TI_ENDPOINT.format(self.percent_encode('2018-10-09 22:44:31')))
-        # We aren't checking the logic of the date filter itself (that is built
-        # in to FAB) but simply that our UTC conversion was run - i.e. it
-        # doesn't blow up!
-        self.check_content_in_response('List Task Reschedule', resp)
-
-
 class TestRenderedView(TestBase):
     def setUp(self):
 

@@ -17,6 +17,8 @@
 # under the License.
 from unittest import mock
 
+import pytest
+
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -78,3 +80,25 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app, checker):
     resp = app.test_client().get('/plugin', follow_redirects=True)
     checker.check_content_not_in_response("test_plugin", resp)
     checker.check_content_in_response("Sign In - Airflow", resp)
+
+
+@pytest.mark.parametrize(
+    "url, content",
+    [
+        (
+            "/taskinstance/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "List Task Instance",
+        ),
+        (
+            "/taskreschedule/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "List Task Reschedule",
+        ),
+    ],
+    ids=["instance", "reschedule"],
+)
+def test_task_start_date_filter(admin_client, checker, url, content):
+    resp = admin_client.get(url)
+    # We aren't checking the logic of the date filter itself (that is built
+    # in to FAB) but simply that our UTC conversion was run - i.e. it
+    # doesn't blow up!
+    checker.check_content_in_response(content, resp)
