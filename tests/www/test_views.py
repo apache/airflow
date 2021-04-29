@@ -51,7 +51,6 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
-from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
@@ -69,7 +68,6 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TemplateWithContext(NamedTuple):
@@ -236,40 +234,6 @@ class TestBase(unittest.TestCase):
             permissions=perms,
         )
         self.login(username=username, password=username)
-
-
-class PluginOperator(BaseOperator):
-    pass
-
-
-class TestPluginView(TestBase):
-    def test_should_list_plugins_on_page_with_details(self):
-        resp = self.client.get('/plugin')
-        self.check_content_in_response("test_plugin", resp)
-        self.check_content_in_response("Airflow Plugins", resp)
-        self.check_content_in_response("source", resp)
-        self.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
-
-    def test_should_list_entrypoint_plugins_on_page_with_details(self):
-
-        mock_plugin = AirflowPlugin()
-        mock_plugin.name = "test_plugin"
-        mock_plugin.source = EntryPointSource(
-            mock.Mock(), mock.Mock(version='1.0.0', metadata={'name': 'test-entrypoint-testpluginview'})
-        )
-        with mock_plugin_manager(plugins=[mock_plugin]):
-            resp = self.client.get('/plugin')
-
-        self.check_content_in_response("test_plugin", resp)
-        self.check_content_in_response("Airflow Plugins", resp)
-        self.check_content_in_response("source", resp)
-        self.check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
-
-    def test_endpoint_should_not_be_unauthenticated(self):
-        self.logout()
-        resp = self.client.get('/plugin', follow_redirects=True)
-        self.check_content_not_in_response("test_plugin", resp)
-        self.check_content_in_response("Sign In - Airflow", resp)
 
 
 class TestPoolModelView(TestBase):
