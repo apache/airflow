@@ -22,7 +22,8 @@ import textwrap
 
 import pytest
 
-from airflow.utils.log.secrets_masker import SecretsMasker
+from airflow.utils.log.secrets_masker import SecretsMasker, should_hide_value_for_key
+from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -128,6 +129,98 @@ class TestSecretsMasker:
             RuntimeError: Cannot connect to user:***
             """
         )
+
+    @pytest.mark.parametrize(
+        ("name", "value", "expected_mask"),
+        [
+            (None, "secret", {"secret"}),
+            ("apikey", "secret", {"secret"}),
+            # the value for "apikey", and "password" should end up masked
+            (None, {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}}, {"secret", "foo"}),
+            (None, ["secret", "other"], {"secret", "other"}),
+            # When the "sensitive value" is a dict, don't mask anything
+            # (Or should this be mask _everything_ under it ?
+            ("api_key", {"other": "innoent"}, set()),
+        ],
+    )
+    def test_mask_secret(self, name, value, expected_mask):
+        filt = SecretsMasker()
+        filt.add_mask(value, name)
+
+        assert filt.patterns == expected_mask
+
+    @pytest.mark.parametrize(
+        ("patterns", "name", "value", "expected"),
+        [
+            ({"secret"}, None, "secret", "***"),
+            (
+                {"secret", "foo"},
+                None,
+                {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}},
+                {"apikey": "***", "other": {"val": "innocent", "password": "***"}},
+            ),
+            ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
+            # We don't mask dict _keys_.
+            ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            (
+                # Since this is a sensitve name, all the values should be redacted!
+                {"secret"},
+                "api_key",
+                {"other": "innoent", "nested": ["x", "y"]},
+                {"other": "***", "nested": ["***", "***"]},
+            ),
+            (
+                # Test that masking still works based on name even when no patterns given
+                set(),
+                'env',
+                {'api_key': 'masked based on key name', 'other': 'foo'},
+                {'api_key': '***', 'other': 'foo'},
+            ),
+        ],
+    )
+    def test_redact(self, patterns, name, value, expected):
+        filt = SecretsMasker()
+        for val in patterns:
+            filt.add_mask(val)
+
+        assert filt.redact(value, name) == expected
+
+
+class TestShouldHideValueForKey:
+    @pytest.mark.parametrize(
+        ("key", "expected_result"),
+        [
+            ('', False),
+            (None, False),
+            ("key", False),
+            ("google_api_key", True),
+            ("GOOGLE_API_KEY", True),
+            ("GOOGLE_APIKEY", True),
+        ],
+    )
+    def test_hiding_defaults(self, key, expected_result):
+        assert expected_result == should_hide_value_for_key(key)
+
+    @pytest.mark.parametrize(
+        ("sensitive_variable_fields", "key", "expected_result"),
+        [
+            ('key', 'TRELLO_KEY', True),
+            ('key', 'TRELLO_API_KEY', True),
+            ('key', 'GITHUB_APIKEY', True),
+            ('key, token', 'TRELLO_TOKEN', True),
+            ('mysecretword, mysensitivekey', 'GITHUB_mysecretword', True),
+            (None, 'TRELLO_API', False),
+            ('token', 'TRELLO_KEY', False),
+            ('token, mysecretword', 'TRELLO_KEY', False),
+        ],
+    )
+    def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
+        from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
+
+        with conf_vars({('core', 'sensitive_var_conn_names'): str(sensitive_variable_fields)}):
+            get_sensitive_variables_fields.cache_clear()
+            assert expected_result == should_hide_value_for_key(key)
+        get_sensitive_variables_fields.cache_clear()
 
 
 class ShortExcFormatter(logging.Formatter):

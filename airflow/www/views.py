@@ -3227,9 +3227,11 @@ class VariableModelView(AirflowModelView):
 
     def hidden_field_formatter(self):
         """Formats hidden fields"""
+        from airflow.utils.log import secrets_masker
+
         key = self.get('key')  # noqa pylint: disable=no-member
         val = self.get('val')  # noqa pylint: disable=no-member
-        if wwwutils.should_hide_value_for_key(key):
+        if secrets_masker.should_hide_value_for_key(key):
             return Markup('*' * 8)
         if val:
             return val
@@ -3243,7 +3245,9 @@ class VariableModelView(AirflowModelView):
     validators_columns = {'key': [validators.DataRequired()]}
 
     def prefill_form(self, form, request_id):  # pylint: disable=unused-argument
-        if wwwutils.should_hide_value_for_key(form.key.data):
+        from airflow.utils.log import secrets_masker
+
+        if secrets_masker.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)

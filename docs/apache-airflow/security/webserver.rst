@@ -38,14 +38,8 @@ set the below:
 Sensitive Variable fields
 -------------------------
 
-By default, Airflow Value of a variable will be hidden if the key contains any words in
-(‘password’, ‘secret’, ‘passwd’, ‘authorization’, ‘api_key’, ‘apikey’, ‘access_token’), but can be configured
-to extend this list by using the following configurations option:
-
-.. code-block:: ini
-
-    [admin]
-    hide_sensitive_variable_fields = comma_separated_sensitive_variable_fields_list
+Variable values that are deemed "sensitive" based on the variable name will be masked in the UI automatically.
+See :ref:`security:mask-sensitive-values` for more details.
 
 .. _web-authentication:
 
