@@ -37,8 +37,6 @@ import jinja2
 import pytest
 from flask import session as flask_session, template_rendered
 from parameterized import parameterized
-from werkzeug.test import Client
-from werkzeug.wrappers import BaseResponse
 
 from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -234,37 +232,6 @@ class TestBase(unittest.TestCase):
             permissions=perms,
         )
         self.login(username=username, password=username)
-
-
-class TestMountPoint(unittest.TestCase):
-    @classmethod
-    @conf_vars({("webserver", "base_url"): "http://localhost/test"})
-    def setUpClass(cls):
-        application.app = None
-        application.appbuilder = None
-        app = application.create_app(testing=True)
-        app.config['WTF_CSRF_ENABLED'] = False
-        cls.client = Client(app, BaseResponse)
-
-    @classmethod
-    def tearDownClass(cls):
-        application.app = None
-        application.appbuilder = None
-
-    def test_mount(self):
-        # Test an endpoint that doesn't need auth!
-        resp = self.client.get('/test/health')
-        assert resp.status_code == 200
-        assert b"healthy" in resp.data
-
-    def test_not_found(self):
-        resp = self.client.get('/', follow_redirects=True)
-        assert resp.status_code == 404
-
-    def test_index(self):
-        resp = self.client.get('/test/')
-        assert resp.status_code == 302
-        assert resp.headers['Location'] == 'http://localhost/test/home'
 
 
 class TestAirflowBaseViews(TestBase):
