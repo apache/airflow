@@ -65,6 +65,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
+from airflow.typing_compat import RePatternType
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -77,13 +78,6 @@ from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
-
-
-# Before Py 3.7, there is no re.Pattern class
-try:
-    from re import Pattern as PatternType  # type: ignore
-except ImportError:
-    PatternType = type(re.compile('', 0))
 
 
 log = logging.getLogger(__name__)
@@ -1444,7 +1438,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: Union[str, PatternType, Iterable[str]],
+        task_ids_or_regex: Union[str, RePatternType, Iterable[str]],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -1472,7 +1466,7 @@ class DAG(LoggingMixin):
         self.task_dict = task_dict
         self._task_group = task_group
 
-        if isinstance(task_ids_or_regex, (str, PatternType)):
+        if isinstance(task_ids_or_regex, (str, RePatternType)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
