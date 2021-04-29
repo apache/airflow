@@ -74,3 +74,16 @@ In this approach, Airflow will log to an existing ``ReadWriteMany`` PVC. You pas
     helm upgrade airflow . \
       --set logs.persistence.enabled=true \
       --set logs.persistence.existingClaim=my-volume-claim
+
+Elasticsearch
+-------------
+
+If your cluster forwards logs to Elasticsearch, you can configure Airflow to retrieve task logs from it.
+See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsearch:logging>` for more details.
+
+.. code-block:: bash
+
+    helm upgrade airflow . \
+      --set elasticsearch.enabled=true \
+      --set elasticsearch.secretName=my-es-secret
+      # Other choices exist. Please refer to values.yaml for details.
