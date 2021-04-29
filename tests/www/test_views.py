@@ -46,7 +46,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.configuration import conf, initialize_config
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, Connection, DagRun, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.serialized_dag import SerializedDagModel
@@ -64,7 +64,7 @@ from airflow.utils.types import DagRunType
 from airflow.www import app as application
 from airflow.www.extensions import init_views
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
-from airflow.www.views import ConnectionModelView, get_safe_url, truncate_task_duration
+from airflow.www.views import get_safe_url, truncate_task_duration
 from tests.test_utils import api_connexion_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -237,37 +237,6 @@ class TestBase(unittest.TestCase):
             permissions=perms,
         )
         self.login(username=username, password=username)
-
-
-class TestConnectionModelView(TestBase):
-    def setUp(self):
-        super().setUp()
-
-        self.connection = {
-            'conn_id': 'test_conn',
-            'conn_type': 'http',
-            'description': 'description',
-            'host': 'localhost',
-            'port': 8080,
-            'username': 'root',
-            'password': 'admin',
-        }
-
-    def tearDown(self):
-        self.clear_table(Connection)
-        super().tearDown()
-
-    def test_create_connection(self):
-        init_views.init_connection_form()
-        resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
-        self.check_content_in_response('Added Row', resp)
-
-    def test_prefill_form_null_extra(self):
-        mock_form = mock.Mock()
-        mock_form.data = {"conn_id": "test", "extra": None}
-
-        cmv = ConnectionModelView()
-        cmv.prefill_form(form=mock_form, pk=1)
 
 
 class TestVariableModelView(TestBase):
