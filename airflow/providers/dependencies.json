@@ -60,9 +60,6 @@
     "google",
     "oracle"
   ],
-  "microsoft.mssql": [
-    "odbc"
-  ],
   "mysql": [
     "amazon",
     "presto",
