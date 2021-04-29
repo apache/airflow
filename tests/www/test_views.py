@@ -1200,22 +1200,6 @@ class TestAirflowBaseViews(TestBase):
             self.check_content_not_in_response(xss_string, resp)
 
 
-class TestRedocView(TestBase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        init_views.init_api_connexion(cls.app)
-
-    def test_should_render_template(self):
-        with self.capture_templates() as templates:
-            resp = self.client.get('redoc')
-            self.check_content_in_response('Redoc', resp)
-
-        assert len(templates) == 1
-        assert templates[0].name == 'airflow/redoc.html'
-        assert templates[0].local_context == {'openapi_spec_url': '/api/v1/openapi.yaml'}
-
-
 class TestLogView(TestBase):
     DAG_ID = 'dag_for_testing_log_view'
     DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
