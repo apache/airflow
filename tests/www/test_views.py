@@ -35,7 +35,7 @@ from urllib.parse import quote_plus
 
 import jinja2
 import pytest
-from flask import Markup, session as flask_session, template_rendered, url_for
+from flask import session as flask_session, template_rendered
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -234,57 +234,6 @@ class TestBase(unittest.TestCase):
             permissions=perms,
         )
         self.login(username=username, password=username)
-
-
-class TestPoolModelView(TestBase):
-    def setUp(self):
-        super().setUp()
-        self.pool = {
-            'pool': 'test-pool',
-            'slots': 777,
-            'description': 'test-pool-description',
-        }
-
-    def tearDown(self):
-        self.clear_table(models.Pool)
-        super().tearDown()
-
-    def test_create_pool_with_same_name(self):
-        # create test pool
-        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
-        self.check_content_in_response('Added Row', resp)
-
-        # create pool with the same name
-        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
-        self.check_content_in_response('Already exists.', resp)
-
-    def test_create_pool_with_empty_name(self):
-        self.pool['pool'] = ''
-        resp = self.client.post('/pool/add', data=self.pool, follow_redirects=True)
-        self.check_content_in_response('This field is required.', resp)
-
-    def test_odd_name(self):
-        self.pool['pool'] = 'test-pool<script></script>'
-        self.session.add(models.Pool(**self.pool))
-        self.session.commit()
-        resp = self.client.get('/pool/list/')
-        self.check_content_in_response('test-pool&lt;script&gt;', resp)
-        self.check_content_not_in_response('test-pool<script>', resp)
-
-    def test_list(self):
-        self.pool['pool'] = 'test-pool'
-        self.session.add(models.Pool(**self.pool))
-        self.session.commit()
-        resp = self.client.get('/pool/list/')
-        # We should see this link
-        with self.app.test_request_context():
-            url = url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='running')
-            used_tag = Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
-
-            url = url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='queued')
-            queued_tag = Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
-        self.check_content_in_response(used_tag, resp)
-        self.check_content_in_response(queued_tag, resp)
 
 
 class TestMountPoint(unittest.TestCase):

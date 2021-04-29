@@ -19,7 +19,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionModelView
