@@ -49,7 +49,7 @@ Note with this option only task logs are persisted, unlike when log persistence 
 Log persistence enabled
 -----------------------
 
-This option will provision a PersistentVolumeClaim with an access mode of ``ReadWriteMany``. Each component of Airflow will
+This option will provision a ``PersistentVolumeClaim`` with an access mode of ``ReadWriteMany``. Each component of Airflow will
 then log onto the same volume.
 
 Not all volume plugins have support for ``ReadWriteMany`` access mode.
