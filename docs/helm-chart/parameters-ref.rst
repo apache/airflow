@@ -480,6 +480,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``dags.gitSync.*``
      - Git sync configuration
      - Please refer to ``values.yaml``
+   * - ``logs.persistence.*``
+     - Log persistence configuration
+     - Please refer to ``values.yaml``
    * - ``multiNamespaceMode``
      - Whether the KubernetesExecutor can launch pods in multiple namespaces
      - ``1``
