@@ -74,11 +74,10 @@ class MsSqlOperator(BaseOperator):
 
     def get_hook(self) -> Optional[Union[MsSqlHook, 'OdbcHook']]:
         """
-        Will retrieve hook as determined by Connection.
+        Will retrieve hook as determined by :meth:`~.Connection.get_hook` if one is defined, and
+        :class:`~.MsSqlHook` otherwise.
 
-        If conn_type is ``'odbc'``, will use
-        :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`.
-        Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` will be used.
+        If the connection's ``conn_type`` is ``'odbc'``, :class:`~.OdbcHook` will be used.
         """
         if not self._hook:
             conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)
