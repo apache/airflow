@@ -78,7 +78,7 @@ class OracleHook(DbApiHook):
             conn_config['dsn'] = cx_Oracle.makedsn(dsn, port, service_name=service_name)
         else:
             dsn = conn.host
-            if conn.port:
+            if conn.port != 1521:
                 dsn += ":" + str(conn.port)
             conn_config['dsn'] = dsn
 
