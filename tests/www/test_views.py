@@ -43,9 +43,6 @@ from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -2616,85 +2613,3 @@ class TestDagACLView(TestBase):
         self.login(username='test_viewer', password='test_viewer')
         resp = self.client.post('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('Redirecting', resp, resp_code=302)
-
-
-class TestRenderedView(TestBase):
-    def setUp(self):
-
-        self.default_date = datetime(2020, 3, 1)
-        self.dag = DAG(
-            "testdag",
-            start_date=self.default_date,
-            user_defined_filters={"hello": lambda name: f'Hello {name}'},
-            user_defined_macros={"fullname": lambda fname, lname: f'{fname} {lname}'},
-        )
-        self.task1 = BashOperator(task_id='task1', bash_command='{{ task_instance_key_str }}', dag=self.dag)
-        self.task2 = BashOperator(
-            task_id='task2', bash_command='echo {{ fullname("Apache", "Airflow") | hello }}', dag=self.dag
-        )
-        SerializedDagModel.write_dag(self.dag)
-        with create_session() as session:
-            session.query(RTIF).delete()
-
-        self.app.dag_bag = mock.MagicMock(**{'get_dag.return_value': self.dag})
-        super().setUp()
-
-    def tearDown(self) -> None:
-        super().tearDown()
-        with create_session() as session:
-            session.query(RTIF).delete()
-
-    def test_rendered_template_view(self):
-        """
-        Test that the Rendered View contains the values from RenderedTaskInstanceFields
-        """
-        assert self.task1.bash_command == '{{ task_instance_key_str }}'
-        ti = TaskInstance(self.task1, self.default_date)
-
-        with create_session() as session:
-            session.add(RTIF(ti))
-
-        url = 'rendered-templates?task_id=task1&dag_id=testdag&execution_date={}'.format(
-            self.percent_encode(self.default_date)
-        )
-
-        resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response("testdag__task1__20200301", resp)
-
-    def test_rendered_template_view_for_unexecuted_tis(self):
-        """
-        Test that the Rendered View is able to show rendered values
-        even for TIs that have not yet executed
-        """
-        assert self.task1.bash_command == '{{ task_instance_key_str }}'
-
-        url = 'rendered-templates?task_id=task1&dag_id=task1&execution_date={}'.format(
-            self.percent_encode(self.default_date)
-        )
-
-        resp = self.client.get(url, follow_redirects=True)
-        self.check_content_in_response("testdag__task1__20200301", resp)
-
-    def test_user_defined_filter_and_macros_raise_error(self):
-        """
-        Test that the Rendered View is able to show rendered values
-        even for TIs that have not yet executed
-        """
-        self.app.dag_bag = mock.MagicMock(
-            **{'get_dag.return_value': SerializedDagModel.get(self.dag.dag_id).dag}
-        )
-        assert self.task2.bash_command == 'echo {{ fullname("Apache", "Airflow") | hello }}'
-
-        url = 'rendered-templates?task_id=task2&dag_id=testdag&execution_date={}'.format(
-            self.percent_encode(self.default_date)
-        )
-
-        resp = self.client.get(url, follow_redirects=True)
-        self.check_content_not_in_response("echo Hello Apache Airflow", resp)
-        self.check_content_in_response(
-            "Webserver does not have access to User-defined Macros or Filters "
-            "when Dag Serialization is enabled. Hence for the task that have not yet "
-            "started running, please use &#39;airflow tasks render&#39; for debugging the "
-            "rendering of template_fields.<br><br>OriginalError: no filter named &#39;hello&#39",
-            resp,
-        )
