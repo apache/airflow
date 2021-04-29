@@ -62,6 +62,9 @@ Some directories in the container are mounted, which means that their contents a
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
+.. _initializing_docker_compose_environment:
+
+
 Initializing Environment
 ========================
 
@@ -73,6 +76,8 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
 
     mkdir ./dags ./logs ./plugins
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
+
+See:ref:`Docker Compose environment variables <docker-compose-env-variables>`
 
 On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 
@@ -185,7 +190,6 @@ Here is a sample ``curl`` command, which sends a request to retrieve a pool list
         --user "airflow:airflow" \
         "${ENDPOINT_URL}/api/v1/pools"
 
-
 Cleaning up
 ===========
 
@@ -207,3 +211,41 @@ What's Next?
 ============
 
 From this point, you can head to the :doc:`/tutorial` section for further examples or the :doc:`/howto/index` section if you're ready to get your hands dirty.
+
+.. _docker-compose-env-variables:
+
+Environment variables supported by Docker Compose
+=================================================
+
++--------------------------------+-----------------------------------------------------+--------------------------+
+|   Variable                     | Description                                         | Default                  |
++================================+=====================================================+==========================+
+| ``AIRFLOW_IMAGE_NAME``         | Airflow Image to use.                               | apache/airflow:|version| |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
+|                                | Override if you want to use use non-default Airflow |                          |
+|                                | UID (for example when you map folders from host,    |                          |
+|                                | it should be set to result of ``id -u`` call. If    |                          |
+|                                | you change it from default 50000, you must set      |                          |
+|                                | ``AIRFLOW_GID`` to ``0``. When it is changed,       |                          |
+|                                | the user with the UID specified is dynamically      |                          |
+|                                | created inside the container and home of the user   |                          |
+|                                | is set to /airflow/home. This is in order to        |                          |
+|                                | achieve OpenShift compatibility. See more in the    |                          |
+|                                | :ref:`Arbitrary Docker User <arbitrary-docker-user>`|                          |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``AIRFLOW_GID``                | Group ID in Airflow containers. It overrides the    | ``50000``                |
+|                                | GID of the user. It is ``50000`` by default but if  |                          |
+|                                | you want to use different UID than default it must  |                          |
+|                                | be set to ``0``.                                    |                          |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``_AIRFLOW_WWW_USER_USERNAME`` | Username for the administrator UI account.          |                          |
+|                                | If this value is specified, admin UI user gets      |                          |
+|                                | created automatically. This is only useful when     |                          |
+|                                | you want to run Airflow for a test-drive and        |                          |
+|                                | want to start a container with embedded development |                          |
+|                                | database.                                           |                          |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``_AIRFLOW_WWW_USER_PASSWORD`` | Password for the administrator UI account.          |                          |
+|                                | Only used when ``_AIRFLOW_WWW_USER_USERNAME`` set.  |                          |
++--------------------------------+-----------------------------------------------------+--------------------------+
