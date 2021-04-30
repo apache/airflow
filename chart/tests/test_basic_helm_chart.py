@@ -24,7 +24,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 30
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -55,13 +55,21 @@ class TestBaseChartTest(unittest.TestCase):
             ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
             ('Service', 'TEST-BASIC-postgresql-headless'),
             ('Service', 'TEST-BASIC-postgresql'),
+            ('Service', 'TEST-BASIC-flower'),
+            ('Service', 'TEST-BASIC-redis'),
             ('Service', 'TEST-BASIC-statsd'),
             ('Service', 'TEST-BASIC-webserver'),
+            ('Service', 'TEST-BASIC-worker'),
+            ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
             ('Deployment', 'TEST-BASIC-webserver'),
             ('StatefulSet', 'TEST-BASIC-postgresql'),
+            ('StatefulSet', 'TEST-BASIC-redis'),
+            ('StatefulSet', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Secret', 'TEST-BASIC-redis-password'),
+            ('Secret', 'TEST-BASIC-broker-url'),
             ('Job', 'TEST-BASIC-create-user'),
             ('Job', 'TEST-BASIC-run-airflow-migrations'),
         ]
