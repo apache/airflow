@@ -2039,6 +2039,118 @@ class BigQueryUpsertTableOperator(BaseOperator):
         )
 
 
+class BigQueryUpdateTableSchemaOperator(BaseOperator):
+    """
+    Update BigQuery Table Schema
+    Updates fields on a table schema based on contents of the supplied schema_fields_updates
+    parameter. The supplied schema does not need to be complete, if the field
+    already exists in the schema you only need to supply keys & values for the
+    items you want to patch, just ensure the "name" key is set.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryUpdateTableSchemaOperator`
+
+    :param schema_fields_updates: a partial schema resource. see
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
+
+    **Example**: ::
+
+        schema_fields_updates=[
+            {"name": "emp_name", "description": "Some New Description"},
+            {"name": "salary", "policyTags": {'names': ['some_new_policy_tag']},},
+            {"name": "departments", "fields": [
+                {"name": "name", "description": "Some New Description"},
+                {"name": "type", "description": "Some New Description"}
+            ]},
+        ]
+
+    :type schema_fields_updates: List[dict]
+    :param include_policy_tags: (Optional) If set to True policy tags will be included in
+        the update request which requires special permissions even if unchanged (default False)
+        see https://cloud.google.com/bigquery/docs/column-level-security#roles
+    :type include_policy_tags: bool
+    :param dataset_id: A dotted
+        ``(<project>.|<project>:)<dataset>`` that indicates which dataset
+        will be updated. (templated)
+    :type dataset_id: str
+    :param table_id: The table ID of the requested table. (templated)
+    :type table_id: str
+    :param project_id: The name of the project where we want to update the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
+    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
+        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :type bigquery_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: str
+    :param location: The location used for the operation.
+    :type location: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
+    """
+
+    template_fields = (
+        'schema_fields_updates',
+        'dataset_id',
+        'table_id',
+        'project_id',
+        'impersonation_chain',
+    )
+    template_fields_renderers = {"schema_fields_updates": "json"}
+    ui_color = BigQueryUIColors.TABLE.value
+
+    @apply_defaults
+    def __init__(
+        self,
+        *,
+        schema_fields_updates: List[Dict[str, Any]],
+        include_policy_tags: Optional[bool] = False,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        self.schema_fields_updates = schema_fields_updates
+        self.include_policy_tags = include_policy_tags
+        self.table_id = table_id
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.impersonation_chain = impersonation_chain
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        return bq_hook.update_table_schema(
+            schema_fields_updates=self.schema_fields_updates,
+            include_policy_tags=self.include_policy_tags,
+            dataset_id=self.dataset_id,
+            table_id=self.table_id,
+            project_id=self.project_id,
+        )
+
+
 # pylint: disable=too-many-arguments
 class BigQueryInsertJobOperator(BaseOperator):
     """

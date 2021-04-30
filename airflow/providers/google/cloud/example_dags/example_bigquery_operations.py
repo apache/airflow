@@ -36,6 +36,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
+    BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
@@ -72,6 +73,18 @@ with models.DAG(
         ],
     )
     # [END howto_operator_bigquery_create_table]
+
+    # [START howto_operator_bigquery_update_table_schema]
+    update_table_schema = BigQueryUpdateTableSchemaOperator(
+        task_id="update_table_schema",
+        dataset_id=DATASET_NAME,
+        table_id="test_table",
+        schema_fields_updates=[
+            {"name": "emp_name", "description": "Name of employee"},
+            {"name": "salary", "description": "Monthly salary in USD"},
+        ],
+    )
+    # [END howto_operator_bigquery_update_table_schema]
 
     # [START howto_operator_bigquery_delete_table]
     delete_table = BigQueryDeleteTableOperator(
@@ -216,6 +229,7 @@ with models.DAG(
             delete_view,
         ]
         >> upsert_table
+        >> update_table_schema
         >> delete_materialized_view
         >> delete_table
         >> delete_dataset
