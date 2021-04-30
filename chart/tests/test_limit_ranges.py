@@ -30,3 +30,7 @@ class LimitRangesTest(unittest.TestCase):
         )
         assert "LimitRange" == jmespath.search("kind", docs[0])
         assert "500m" == jmespath.search("spec.limits[0].max.cpu", docs[0])
+
+    def test_limit_ranges_are_not_added_by_default(self):
+        docs = render_chart(show_only=["templates/limitrange.yaml"])
+        assert docs == []

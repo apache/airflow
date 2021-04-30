@@ -39,3 +39,9 @@ class ResourceQuotaTest(unittest.TestCase):
         )
         assert "ResourceQuota" == jmespath.search("kind", docs[0])
         assert "20" == jmespath.search("spec.hard.replicationcontrollers", docs[0])
+
+    def test_resource_quota_are_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/resourcequota.yaml"],
+        )
+        assert docs == []
