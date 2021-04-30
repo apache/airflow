@@ -205,7 +205,9 @@ class RBACTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+            DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
+            + SERVICE_ACCOUNT_NAME_TUPLES
+            + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         self.assertCountEqual(
             list_of_kind_names_tuples,
