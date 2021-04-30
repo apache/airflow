@@ -226,6 +226,7 @@ data:
   metadataConnection:
     user: postgres
     pass: postgres
+    protocol: postgresql
     host: ~
     port: 5432
     db: postgres
@@ -233,6 +234,7 @@ data:
   resultBackendConnection:
     user: postgres
     pass: postgres
+    protocol: postgresql
     host: ~
     port: 5432
     db: postgres

@@ -435,6 +435,10 @@
                             "description": "The user's password.",
                             "type": "string"
                         },
+                        "protocol": {
+                            "description": "The database protocol.",
+                            "type": "string"
+                        },
                         "host": {
                             "description": "The database host.",
                             "type": [
@@ -467,6 +471,10 @@
                         },
                         "pass": {
                             "description": "The database password.",
+                            "type": "string"
+                        },
+                        "protocol": {
+                            "description": "The database protocol.",
                             "type": "string"
                         },
                         "host": {
