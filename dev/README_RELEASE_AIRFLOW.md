@@ -101,12 +101,31 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Rename the sdist
 
+    **Airflow 2+**:
+
+    ```shell script
+    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
+    mv dist/apache_airflow-${VERSION%rc?}-py3-none-any.whl apache_airflow-${VERSION}-py3-none-any.whl
+    ```
+
+    **Airflow 1.10.x**:
+
     ```shell script
     mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
     mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
     ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
+
+    **Airflow 2+**:
+
+    ```shell script
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py3-none-any.whl
+    ```
+
+    **Airflow 1.10.x**:
 
     ```shell script
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
@@ -115,6 +134,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Tag & Push latest constraints files. This pushes constraints with rc suffix (this is expected)!
+
+    **Airflow 2+**:
+
+    ```shell script
+    git checkout constraints-2-0
+    git tag -s "constraints-${VERSION}"
+    git push origin "constraints-${VERSION}"
+    ```
+
+    **Airflow 1.10.x**:
 
     ```shell script
     git checkout constraints-1-10
@@ -197,31 +226,49 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-Airflow 2+:
+### Airflow 2+:
 
 ```shell script
+export VERSION_RC=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
-  export DOCKER_TAG=${VERSION}-python${python_version}
+  export DOCKER_TAG=${VERSION_RC}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+Once this succeeds you should push the "${VERSION_RC}" image:
 
-Airflow 1.10:
+```shell script
+docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
+docker push apache/airflow:${VERSION_RC}
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before the images are pushed.
+
+
+### Airflow 1.10:
 
 ```shell script
 for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
 do
     ./breeze build-image --production-image --python ${python_version} \
-        --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
-    docker push apache/airflow:${VERSION}-python${python_version}
+        --image-tag apache/airflow:${VERSION_RC}-python${python_version} --build-cache-local
+    docker push apache/airflow:${VERSION_RC}-python${python_version}
 done
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
 ```
+
+Once this succeeds you should push the "${VERSION_RC}" image:
+
+```shell script
+docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
+docker push apache/airflow:${VERSION_RC}
+```
+
+
+### Airflow 1.10:
 
 
 ## Prepare Vote email on the Apache Airflow release candidate
@@ -332,18 +379,27 @@ Or update it if you already checked it out:
 svn update .
 ```
 
+Optionally you can use `check.files.py` script to verify that all expected files are
+present in SVN. This script may help also with verifying installation of the packages.
+
+```shell script
+python check_files.py -v {VERSION} -t airflow -p {PATH_TO_SVN}
+```
+
 ## Licence check
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the sources,
+* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the -source.tar.gz to a folder
+* Unpack the binary (`-bin.tar.gz`) to a folder
 * Enter the folder and run the check (point to the place where you extracted the .jar)
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
 ```
+
+where `.rat-excludes` is the file in the root of Airflow source code.
 
 ## Signature check
 
@@ -621,9 +677,10 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-Airflow 2+:
+### Airflow 2+:
 
 ```shell script
+export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
@@ -632,10 +689,18 @@ for python_version in "3.6" "3.7" "3.8"
 )
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+Once this succeeds you should push the "${VERSION}" image:
+
+```shell script
+docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker push apache/airflow:${VERSION}
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before the images are pushed.
 
 
-Airflow 1.10:
+### Airflow 1.10:
 
 ```shell script
 for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
@@ -644,6 +709,11 @@ do
         --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
     docker push apache/airflow:${VERSION}-python${python_version}
 done
+```
+
+Once this succeeds you should push the "${VERSION}" image:
+
+```shell script
 docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
 docker push apache/airflow:${VERSION}
 ```
@@ -667,7 +737,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package-filter apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --package-filter docker-stack --for-production
     ```
 
 - Now you can preview the documentation.
@@ -679,7 +749,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
 
     ```shell script
-    ./docs/publish_docs.py --package apache-airflow
+    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
