@@ -150,7 +150,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync
-    tag: v3.1.6
+    tag: v3.3.0
     pullPolicy: IfNotPresent
 
 # Environment variables for all airflow containers
