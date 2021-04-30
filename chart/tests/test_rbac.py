@@ -21,7 +21,7 @@ import jmespath
 
 from tests.helm_template_generator import render_chart
 
-CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES = [
+DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ('Secret', 'TEST-RBAC-postgresql'),
     ('Secret', 'TEST-RBAC-airflow-metadata'),
     ('Secret', 'TEST-RBAC-airflow-result-backend'),
@@ -134,7 +134,7 @@ class RBACTest(unittest.TestCase):
 
         self.assertCountEqual(
             list_of_kind_names_tuples,
-            CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES,
+            DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES,
         )
 
     def test_deployments_no_rbac_with_sa(self):
@@ -150,7 +150,7 @@ class RBACTest(unittest.TestCase):
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES + SERVICE_ACCOUNT_NAME_TUPLES
+        real_list_of_kind_names = DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES + SERVICE_ACCOUNT_NAME_TUPLES
         self.assertCountEqual(
             list_of_kind_names_tuples,
             real_list_of_kind_names,
@@ -186,7 +186,7 @@ class RBACTest(unittest.TestCase):
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+        real_list_of_kind_names = DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
         self.assertCountEqual(
             list_of_kind_names_tuples,
             real_list_of_kind_names,
@@ -205,7 +205,7 @@ class RBACTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         real_list_of_kind_names = (
-            CLEANUP_DEPLOYMENT_KIND_NAME_TUPLES + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
+            DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES + SERVICE_ACCOUNT_NAME_TUPLES + RBAC_ENABLED_KIND_NAME_TUPLES
         )
         self.assertCountEqual(
             list_of_kind_names_tuples,
