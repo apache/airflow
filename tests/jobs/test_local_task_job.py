@@ -27,6 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from parameterized import parameterized
 
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowFailException
@@ -499,9 +500,15 @@ class TestLocalTaskJob(unittest.TestCase):
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
 
-    def test_process_kill_call_on_failure_callback(self):
+    @parameterized.expand(
+        [
+            (signal.SIGTERM,),
+            (signal.SIGKILL,),
+        ]
+    )
+    def test_process_kill_calls_on_failure_callback(self, signal_type):
         """
-        Test that ensures that when a task is killed with sigterm
+        Test that ensures that when a task is killed with sigterm or sigkill
         on_failure_callback gets executed
         """
         # use shared memory value so we can properly track value change even if
@@ -557,71 +564,7 @@ class TestLocalTaskJob(unittest.TestCase):
             time.sleep(0.2)
         assert ti.state == State.RUNNING
         assert ti.pid is not None
-        os.kill(ti.pid, signal.SIGTERM)
-        process.join(timeout=10)
-        assert failure_callback_called.value == 1
-        assert task_terminated_externally.value == 1
-        assert not process.is_alive()
-
-    def test_process_sigkill_call_on_failure_callback(self):
-        """
-        Test that ensures that when a task is killed with sigterm
-        on_failure_callback gets executed
-        """
-        # use shared memory value so we can properly track value change even if
-        # it's been updated across processes.
-        failure_callback_called = Value('i', 0)
-        task_terminated_externally = Value('i', 1)
-        shared_mem_lock = Lock()
-
-        def failure_callback(context):
-            with shared_mem_lock:
-                failure_callback_called.value += 1
-            assert context['dag_run'].dag_id == 'test_mark_failure'
-
-        dag = DAG(dag_id='test_mark_failure', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
-
-        def task_function(ti):
-            # pylint: disable=unused-argument
-            time.sleep(60)
-            # This should not happen -- the state change should be noticed and the task should get killed
-            with shared_mem_lock:
-                task_terminated_externally.value = 0
-
-        task = PythonOperator(
-            task_id='test_on_failure',
-            python_callable=task_function,
-            on_failure_callback=failure_callback,
-            dag=dag,
-        )
-
-        session = settings.Session()
-
-        dag.clear()
-        dag.create_dagrun(
-            run_id="test",
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-        )
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
-        ti.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
-        job1.task_runner = StandardTaskRunner(job1)
-
-        settings.engine.dispose()
-        process = multiprocessing.Process(target=job1.run)
-        process.start()
-
-        for _ in range(0, 20):
-            ti.refresh_from_db()
-            if ti.state == State.RUNNING and ti.pid is not None:
-                break
-            time.sleep(0.2)
-        assert ti.state == State.RUNNING
-        assert ti.pid is not None
-        os.kill(ti.pid, signal.SIGKILL)
+        os.kill(ti.pid, signal_type)
         process.join(timeout=10)
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
