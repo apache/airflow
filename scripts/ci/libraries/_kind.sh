@@ -333,7 +333,8 @@ function kind::deploy_airflow_with_helm() {
         --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.default" \
         --set "config.api.enable_experimental_api=true" \
-        --set "config.logging.logging_level=DEBUG"
+        --set "config.logging.logging_level=DEBUG" \
+        --set "executor=KubernetesExecutor"
     echo
     popd > /dev/null 2>&1|| exit 1
 }
