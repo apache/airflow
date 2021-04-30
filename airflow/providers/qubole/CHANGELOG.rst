@@ -25,7 +25,7 @@ Changelog
 Features
 ~~~~~~~~
 
-*  ``Feature add support for include_headers in get_results``
+*  ``Feature add support for include_headers in get_results (#15598)``
 
 
 1.0.2
