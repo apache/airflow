@@ -43,7 +43,8 @@ class TestBaseChartTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         assert list_of_kind_names_tuples == [
-            ('ServiceAccount', 'TEST-BASIC-jobs'),
+            ('ServiceAccount', 'TEST-BASIC-create-user-job'),
+            ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),

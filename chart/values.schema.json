@@ -832,8 +832,8 @@
                 }
             }
         },
-        "jobs": {
-            "description": "Airflow setup jobs settings.",
+        "createUserJob": {
+            "description": "Airflow job to create a user settings.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
@@ -850,7 +850,32 @@
                             "type": "string"
                         },
                         "annotations": {
-                          "description": "Annotations to add to the scheduler kubernetes service account.",
+                          "description": "Annotations to add to the create user job kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "migrateDatabaseJob": {
+            "description": "Airflow job to migrate databases settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the migrate database job kubernetes service account.",
                           "type": "object"
                         }
                     }

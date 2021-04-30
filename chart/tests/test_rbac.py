@@ -69,7 +69,8 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ('ServiceAccount', 'TEST-RBAC-pgbouncer'),
     ('ServiceAccount', 'TEST-RBAC-flower'),
     ('ServiceAccount', 'TEST-RBAC-statsd'),
-    ('ServiceAccount', 'TEST-RBAC-jobs'),
+    ('ServiceAccount', 'TEST-RBAC-create-user-job'),
+    ('ServiceAccount', 'TEST-RBAC-migrate-database-job'),
     ('ServiceAccount', 'TEST-RBAC-redis'),
 ]
 
@@ -81,7 +82,8 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     CUSTOM_FLOWER_NAME,
     CUSTOM_PGBOUNCER_NAME,
     CUSTOM_STATSD_NAME,
-    CUSTOM_JOBS_NAME,
+    CUSTOM_CREATE_USER_JOBS_NAME,
+    CUSTOM_MIGRATE_DATABASE_JOBS_NAME,
     CUSTOM_REDIS_NAME,
 ) = (
     "TestScheduler",
@@ -91,7 +93,8 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     "TestFlower",
     "TestPGBouncer",
     "TestStatsd",
-    "TestJobs",
+    "TestCreateUserJob",
+    "TestMigrateDatabaseJob",
     "TestRedis",
 )
 
@@ -120,7 +123,8 @@ class RBACTest(unittest.TestCase):
                 "webserver": {"serviceAccount": {"create": False}},
                 "workers": {"serviceAccount": {"create": False}},
                 "statsd": {"serviceAccount": {"create": False}},
-                "jobs": {"serviceAccount": {"create": False}},
+                "createUserJob": {"serviceAccount": {"create": False}},
+                "migrateDatabaseJob": {"serviceAccount": {"create": False}},
                 "executor": "CeleryExecutor",  # create worker/flower deployment
                 "flower": {"serviceAccount": {"create": False}},
             },
@@ -178,7 +182,8 @@ class RBACTest(unittest.TestCase):
                         "create": False,
                     },
                 },
-                "jobs": {"serviceAccount": {"create": False}},
+                "createUserJob": {"serviceAccount": {"create": False}},
+                "migrateDatabaseJob": {"serviceAccount": {"create": False}},
             },
         )
         list_of_kind_names_tuples = [
@@ -235,7 +240,8 @@ class RBACTest(unittest.TestCase):
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "jobs": {"serviceAccount": {"name": CUSTOM_JOBS_NAME}},
+                "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
+                "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
             },
         )
         list_of_sa_names = [
@@ -271,7 +277,8 @@ class RBACTest(unittest.TestCase):
                         "name": CUSTOM_PGBOUNCER_NAME,
                     },
                 },
-                "jobs": {"serviceAccount": {"name": CUSTOM_JOBS_NAME}},
+                "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
+                "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
                 "executor": "CeleryExecutor",  # create worker deployment
             },
         )

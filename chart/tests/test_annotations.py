@@ -29,7 +29,8 @@ CUSTOM_ANNOTATION_VALUES = (
     CUSTOM_FLOWER_ANNOTATION,
     CUSTOM_PGBOUNCER_ANNOTATION,
     CUSTOM_STATSD_ANNOTATION,
-    CUSTOM_JOBS_ANNOTATION,
+    CUSTOM_CREATE_USER_JOB_ANNOTATION,
+    CUSTOM_MIGRATE_DATABASE_JOB_ANNOTATION,
     CUSTOM_REDIS_ANNOTATION,
 ) = (
     "scheduler",
@@ -37,9 +38,10 @@ CUSTOM_ANNOTATION_VALUES = (
     "worker",
     "cleanup",
     "flower",
-    "PGBouncer",
+    "pgbouncer",
     "statsd",
-    "jobs",
+    "createuser",
+    "migratedb",
     "redis",
 )
 
@@ -106,10 +108,17 @@ class AnnotationsTest(unittest.TestCase):
                         },
                     },
                 },
-                "jobs": {
+                "createUserJob": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_JOBS_ANNOTATION,
+                            "example": CUSTOM_CREATE_USER_JOB_ANNOTATION,
+                        },
+                    },
+                },
+                "migrateDatabaseJob": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "example": CUSTOM_MIGRATE_DATABASE_JOB_ANNOTATION,
                         },
                     },
                 },

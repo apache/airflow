@@ -464,8 +464,21 @@ scheduler:
   affinity: {}
   tolerations: []
 
-# Airflow migration and create user job settings
-jobs:
+# Airflow create user job settings
+createUserJob:
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to create user kubernetes service account.
+    annotations: {}
+
+# Airflow database migration job settings
+migrateDatabaseJob:
 
   # Create ServiceAccount
   serviceAccount:
@@ -475,7 +488,7 @@ jobs:
     # If not set and create is true, a name is generated using the release name
     # name:
 
-    # Annotations to add to jobs (migrate database/create user) kubernetes service account.
+    # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
 
 # Airflow webserver settings

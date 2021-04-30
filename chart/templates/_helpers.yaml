@@ -447,6 +447,28 @@ Create the name of the statsd service account to use
 {{- end -}}
 
 {{/*
+Create the name of the create user job service account to use
+*/}}
+{{- define "createUserJob.serviceAccountName" -}}
+{{- if .Values.createUserJob.serviceAccount.create -}}
+    {{ default (printf "%s-create-user-job" (include "airflow.fullname" .)) .Values.createUserJob.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.createUserJob.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the migrate database job service account to use
+*/}}
+{{- define "migrateDatabaseJob.serviceAccountName" -}}
+{{- if .Values.migrateDatabaseJob.serviceAccount.create -}}
+    {{ default (printf "%s-migrate-database-job" (include "airflow.fullname" .)) .Values.migrateDatabaseJob.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.migrateDatabaseJob.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the jobs service account to use
 */}}
 {{- define "jobs.serviceAccountName" -}}
