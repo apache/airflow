@@ -125,7 +125,6 @@ class RBACTest(unittest.TestCase):
                 "statsd": {"serviceAccount": {"create": False}},
                 "createUserJob": {"serviceAccount": {"create": False}},
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
-                "executor": "CeleryExecutor",  # create worker/flower deployment
                 "flower": {"serviceAccount": {"create": False}},
             },
         )
@@ -145,7 +144,6 @@ class RBACTest(unittest.TestCase):
                 "fullnameOverride": "TEST-RBAC",
                 "rbac": {"create": False},
                 "cleanup": {"enabled": True},
-                "executor": "CeleryExecutor",  # create worker deployment
                 "pgbouncer": {"enabled": True},
             },
         )
@@ -173,7 +171,6 @@ class RBACTest(unittest.TestCase):
                 "webserver": {"serviceAccount": {"create": False}},
                 "workers": {"serviceAccount": {"create": False}},
                 "flower": {"serviceAccount": {"create": False}},
-                "executor": "CeleryExecutor",  # create worker deployment
                 "statsd": {"serviceAccount": {"create": False}},
                 "redis": {"serviceAccount": {"create": False}},
                 "pgbouncer": {
@@ -202,7 +199,6 @@ class RBACTest(unittest.TestCase):
                 "fullnameOverride": "TEST-RBAC",
                 "cleanup": {"enabled": True},
                 "pgbouncer": {"enabled": True},
-                "executor": "CeleryExecutor",  # create worker deployment
             },
         )
         list_of_kind_names_tuples = [
@@ -231,7 +227,6 @@ class RBACTest(unittest.TestCase):
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "flower": {"serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
-                "executor": "CeleryExecutor",  # create worker deployment
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "pgbouncer": {
@@ -279,7 +274,6 @@ class RBACTest(unittest.TestCase):
                 },
                 "createUserJob": {"serviceAccount": {"name": CUSTOM_CREATE_USER_JOBS_NAME}},
                 "migrateDatabaseJob": {"serviceAccount": {"name": CUSTOM_MIGRATE_DATABASE_JOBS_NAME}},
-                "executor": "CeleryExecutor",  # create worker deployment
             },
         )
         list_of_sa_names_in_objects = []

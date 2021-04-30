@@ -24,7 +24,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 32
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -43,11 +43,14 @@ class TestBaseChartTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         assert list_of_kind_names_tuples == [
+            ('ServiceAccount', 'TEST-BASIC-flower'),
             ('ServiceAccount', 'TEST-BASIC-create-user-job'),
             ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
+            ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
+            ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-postgresql'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
             ('Secret', 'TEST-BASIC-airflow-result-backend'),
@@ -92,7 +95,7 @@ class TestBaseChartTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         assert ('Job', 'TEST-BASIC-create-user') not in list_of_kind_names_tuples
-        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 1 == len(k8s_objects)
+        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 2 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
