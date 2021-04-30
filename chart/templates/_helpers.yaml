@@ -469,17 +469,6 @@ Create the name of the migrate database job service account to use
 {{- end -}}
 
 {{/*
-Create the name of the jobs service account to use
-*/}}
-{{- define "jobs.serviceAccountName" -}}
-{{- if .Values.jobs.serviceAccount.create -}}
-    {{ default (printf "%s-jobs" (include "airflow.fullname" .)) .Values.jobs.serviceAccount.name }}
-{{- else -}}
-    {{ default "default" .Values.jobs.serviceAccount.name }}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Create the name of the worker service account to use
 */}}
 {{- define "worker.serviceAccountName" -}}
