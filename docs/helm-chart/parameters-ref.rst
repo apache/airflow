@@ -546,14 +546,23 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``cleanup.serviceAccount.annotations``
      - Annotations to add to cleanup cronjob kubernetes service account
      - ``{}``
-   * - ``jobs.serviceAccount.create``
-     - Create ServiceAccount for jobs pods (create user/migrate database)
+   * - ``createUserJob.serviceAccount.create``
+     - Create ServiceAccount for create user job
      - ``true``
-   * - ``jobs.serviceAccount.name``
+   * - ``createUserJob.serviceAccount.name``
      - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
      - ``~``
-   * - ``jobs.serviceAccount.annotations``
-     - Annotations to add to jobs kubernetes service account
+   * - ``createUserJob.serviceAccount.annotations``
+     - Annotations to add to createUserJob kubernetes service account
+     - ``{}``
+   * - ``migrateDatabaseJob.serviceAccount.create``
+     - Create ServiceAccount for migrate database job
+     - ``true``
+   * - ``migrateDatabaseJob.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``migrateDatabaseJob.serviceAccount.annotations``
+     - Annotations to add to migrateDatabaseJob kubernetes service account
      - ``{}``
    * - ``dags.persistence.*``
      - Dag persistence configuration
