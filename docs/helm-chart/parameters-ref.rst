@@ -466,13 +466,13 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - Name of existing PgBouncer config secret
      - ``~``
    * - ``pgbouncer.serviceAccount.create``
-     - Create ServiceAccount for pgbouncer
+     - Create ServiceAccount for PgBouncer
      - ``true``
    * - ``pgbouncer.serviceAccount.name``
      - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
      - ``~``
    * - ``pgbouncer.serviceAccount.annotations``
-     - Annotations to add to pgbouncer kubernetes service account
+     - Annotations to add to PgBouncer kubernetes service account
      - ``{}``
    * - ``redis.enabled``
      - Enable the redis provisioned by the chart
@@ -553,7 +553,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
      - ``~``
    * - ``createUserJob.serviceAccount.annotations``
-     - Annotations to add to createUserJob kubernetes service account
+     - Annotations to add to ``createUserJob`` kubernetes service account
      - ``{}``
    * - ``migrateDatabaseJob.serviceAccount.create``
      - Create ServiceAccount for migrate database job
@@ -562,7 +562,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
      - ``~``
    * - ``migrateDatabaseJob.serviceAccount.annotations``
-     - Annotations to add to migrateDatabaseJob kubernetes service account
+     - Annotations to add to ``migrateDatabaseJob`` kubernetes service account
      - ``{}``
    * - ``dags.persistence.*``
      - Dag persistence configuration
