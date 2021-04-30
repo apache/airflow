@@ -217,6 +217,12 @@ From this point, you can head to the :doc:`/tutorial` section for further exampl
 Environment variables supported by Docker Compose
 =================================================
 
+Do not confuse the variable names here with the build arguments set when image is built. The
+``AIRFLOW_UID`` and ``AIRFLOW_GID`` build args default to ``50000`` when the image is built, so they are
+"baked" into the image. On the other hand, the environment variables below can be set when the container
+is running, using - for example - result of ``id -u`` command, which allows to use the dynamic host
+runtime user id which is unknown at the time of building the image.
+
 +--------------------------------+-----------------------------------------------------+--------------------------+
 |   Variable                     | Description                                         | Default                  |
 +================================+=====================================================+==========================+
@@ -228,10 +234,12 @@ Environment variables supported by Docker Compose
 |                                | it should be set to result of ``id -u`` call. If    |                          |
 |                                | you change it from default 50000, you must set      |                          |
 |                                | ``AIRFLOW_GID`` to ``0``. When it is changed,       |                          |
-|                                | the user with the UID specified is dynamically      |                          |
-|                                | created inside the container and home of the user   |                          |
-|                                | is set to /airflow/home. This is in order to        |                          |
-|                                | achieve OpenShift compatibility. See more in the    |                          |
+|                                | a 2nd user with the UID specified is dynamically    |                          |
+|                                | created with ``default`` name inside the container  |                          |
+|                                | and home of the use is set to ``/airflow/home/``    |                          |
+|                                | in order to share Python libraries installed there. |                          |
+|                                | This is in order to achieve the  OpenShift          |                          |
+|                                | compatibility. See more in the                      |                          |
 |                                | :ref:`Arbitrary Docker User <arbitrary-docker-user>`|                          |
 +--------------------------------+-----------------------------------------------------+--------------------------+
 | ``AIRFLOW_GID``                | Group ID in Airflow containers. It overrides the    | ``50000``                |
