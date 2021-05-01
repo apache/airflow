@@ -225,26 +225,25 @@ class PinotAdminHook(BaseHook):
         if verbose:
             self.log.info(" ".join(command))
 
-        sub_process = subprocess.Popen(
+        with subprocess.Popen(
             command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True, env=env
-        )
+        ) as sub_process:
+            stdout = ""
+            if sub_process.stdout:
+                for line in iter(sub_process.stdout.readline, b''):
+                    stdout += line.decode("utf-8")
+                    if verbose:
+                        self.log.info(line.decode("utf-8").strip())
 
-        stdout = ""
-        if sub_process.stdout:
-            for line in iter(sub_process.stdout.readline, b''):
-                stdout += line.decode("utf-8")
-                if verbose:
-                    self.log.info(line.decode("utf-8").strip())
+            sub_process.wait()
 
-        sub_process.wait()
-
-        # As of Pinot v0.1.0, either of "Error: ..." or "Exception caught: ..."
-        # is expected to be in the output messages. See:
-        # https://github.com/apache/incubator-pinot/blob/release-0.1.0/pinot-tools/src/main/java/org/apache/pinot/tools/admin/PinotAdministrator.java#L98-L101
-        if (self.pinot_admin_system_exit and sub_process.returncode) or (
-            "Error" in stdout or "Exception" in stdout
-        ):
-            raise AirflowException(stdout)
+            # As of Pinot v0.1.0, either of "Error: ..." or "Exception caught: ..."
+            # is expected to be in the output messages. See:
+            # https://github.com/apache/incubator-pinot/blob/release-0.1.0/pinot-tools/src/main/java/org/apache/pinot/tools/admin/PinotAdministrator.java#L98-L101
+            if (self.pinot_admin_system_exit and sub_process.returncode) or (
+                "Error" in stdout or "Exception" in stdout
+            ):
+                raise AirflowException(stdout)
 
         return stdout
 

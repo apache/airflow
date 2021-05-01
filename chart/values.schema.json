@@ -3,6 +3,14 @@
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
     "properties": {
+        "fullnameOverride": {
+            "description": "Provide a name to substitute for the full names of resources",
+            "type": "string"
+        },
+        "nameOverride": {
+            "description": "Override the name of the chart",
+            "type": "string"
+        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer"
@@ -154,9 +162,15 @@
             "description": "Extra annotations to apply to all Airflow pods.",
             "type": "object"
         },
-        "rbacEnabled": {
+        "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
-            "type": "boolean"
+            "type": "object",
+            "properties": {
+                "create": {
+                    "description": "Specifies whether RBAC resources should be created.",
+                    "type": "boolean"
+                }
+            }
         },
         "executor": {
             "description": "Airflow executor.",
@@ -435,6 +449,10 @@
                             "description": "The user's password.",
                             "type": "string"
                         },
+                        "protocol": {
+                            "description": "The database protocol.",
+                            "type": "string"
+                        },
                         "host": {
                             "description": "The database host.",
                             "type": [
@@ -467,6 +485,10 @@
                         },
                         "pass": {
                             "description": "The database password.",
+                            "type": "string"
+                        },
+                        "protocol": {
+                            "description": "The database protocol.",
                             "type": "string"
                         },
                         "host": {
@@ -561,8 +583,30 @@
                     "type": "integer"
                 },
                 "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones.",
-                    "type": "object"
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
+                    "type": ["null", "object"]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "type": ["null", "object"]
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the worker kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
                 },
                 "keda": {
                     "description": "KEDA configuration.",
@@ -640,10 +684,6 @@
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean"
                 },
-                "serviceAccountAnnotations": {
-                  "description": "Annotations to add to the worker kubernetes service account.",
-                  "type": "object"
-                },
                 "extraContainers": {
                     "description": "Launch additional containers into workers.",
                     "type": "array"
@@ -709,6 +749,24 @@
                   "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for Mysql 8+ and postgres",
                   "type": "integer"
                 },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the scheduler kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                },
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
@@ -745,10 +803,6 @@
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
                     "type": "boolean"
                 },
-                "serviceAccountAnnotations": {
-                  "description": "Annotations to add to the scheduler kubernetes service account.",
-                  "type": "object"
-                },
                 "extraContainers": {
                     "description": "Launch additional containers into scheduler.",
                     "type": "array"
@@ -775,6 +829,56 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                }
+            }
+        },
+        "createUserJob": {
+            "description": "Airflow job to create a user settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the create user job kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "migrateDatabaseJob": {
+            "description": "Airflow job to migrate databases settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the migrate database job kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
                 }
             }
         },
@@ -836,6 +940,24 @@
                 "replicas": {
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer"
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the webserver kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional network policies as needed.",
@@ -913,10 +1035,6 @@
                         }
                     }
                 },
-                "serviceAccountAnnotations": {
-                  "description": "Annotations to add to the webserver kubernetes service account.",
-                  "type": "object"
-                },
                 "nodeSelector": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "object",
@@ -982,6 +1100,24 @@
                         }
                     }
                 },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the worker kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "object",
@@ -1025,6 +1161,28 @@
                             "type": "object"
                         }
                     }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the worker kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                },
+                "uid": {
+                    "description": "statsd run as user parameter.",
+                    "type": "integer"
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for airflow pods.",
@@ -1154,6 +1312,24 @@
                         }
                     }
                 },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the worker kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "object",
@@ -1168,6 +1344,10 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "uid": {
+                    "description": "pgbouncer run as user parameter.",
+                    "type": "integer"
                 }
             }
         },
@@ -1237,6 +1417,24 @@
                 "affinity": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "object"
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the worker kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
                 },
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
@@ -1358,6 +1556,24 @@
                 "tolerations": {
                     "description": "Select certain nodes for airflow pods.",
                     "type": "array"
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": "string"
+                        },
+                        "annotations": {
+                          "description": "Annotations to add to the cleanup cronjob kubernetes service account.",
+                          "type": "object"
+                        }
+                    }
                 }
             }
         },
@@ -1512,6 +1728,42 @@
                         "knownHosts": {
                             "description": "TODO",
                             "type": ["string", "null"]
+                        }
+                    }
+                }
+            }
+        },
+        "logs": {
+            "description": "Logs settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "persistence": {
+                    "description": "Persistence configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable persistent volume for storing logs.",
+                            "type": "boolean"
+                        },
+                        "size": {
+                            "description": "Volume size for logs.",
+                            "type": "string"
+                        },
+                        "storageClassName": {
+                            "description": "If using a custom storageClass, pass name here.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
                         }
                     }
                 }

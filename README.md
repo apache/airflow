@@ -78,7 +78,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|              | Master version (dev)      | Stable version (2.0.1)   | Previous version (1.10.15) |
+|              | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
 | ------------ | ------------------------- | ------------------------ | -------------------------  |
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
@@ -149,14 +149,7 @@ correct Airflow tag/version/branch and Python versions in the URL.
 
 NOTE!!!
 
-On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-depend on your choice of extras. In order to install Airflow reliably, you might need to either downgrade
-pip to version 20.2.4 `pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3,
-you might need to add option] `--use-deprecated legacy-resolver` to your pip install command.
-While `pip 20.3.3` solved most of the `teething` problems of 20.3, this note will remain here until we
-set `pip 20.3` as official version in our CI pipeline where we are testing the installation as well.
-Due to those constraints, only `pip` installation is currently officially supported.
+Only `pip` installation is currently officially supported.
 
 While they are some successes with using other tools like [poetry](https://python-poetry.org) or
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
@@ -168,15 +161,15 @@ them to appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install apache-airflow==2.0.1 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.7.txt"
+pip install apache-airflow==2.0.2 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==2.0.1 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.0.2 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.7.txt"
 ```
 
 For information on installing provider packages check

@@ -24,7 +24,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 22
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -36,13 +36,19 @@ class TestBaseChartTest(unittest.TestCase):
                     'metadata': 'AA',
                 },
                 'labels': {"TEST-LABEL": "TEST-VALUE"},
+                "fullnameOverride": "TEST-BASIC",
             },
         )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         assert list_of_kind_names_tuples == [
+            ('ServiceAccount', 'TEST-BASIC-flower'),
+            ('ServiceAccount', 'TEST-BASIC-create-user-job'),
+            ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
+            ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
+            ('ServiceAccount', 'TEST-BASIC-statsd'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
             ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-postgresql'),
@@ -55,13 +61,21 @@ class TestBaseChartTest(unittest.TestCase):
             ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
             ('Service', 'TEST-BASIC-postgresql-headless'),
             ('Service', 'TEST-BASIC-postgresql'),
+            ('Service', 'TEST-BASIC-flower'),
+            ('Service', 'TEST-BASIC-redis'),
             ('Service', 'TEST-BASIC-statsd'),
             ('Service', 'TEST-BASIC-webserver'),
+            ('Service', 'TEST-BASIC-worker'),
+            ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
             ('Deployment', 'TEST-BASIC-webserver'),
             ('StatefulSet', 'TEST-BASIC-postgresql'),
+            ('StatefulSet', 'TEST-BASIC-redis'),
+            ('StatefulSet', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Secret', 'TEST-BASIC-redis-password'),
+            ('Secret', 'TEST-BASIC-broker-url'),
             ('Job', 'TEST-BASIC-create-user'),
             ('Job', 'TEST-BASIC-run-airflow-migrations'),
         ]
@@ -81,7 +95,7 @@ class TestBaseChartTest(unittest.TestCase):
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         assert ('Job', 'TEST-BASIC-create-user') not in list_of_kind_names_tuples
-        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 1 == len(k8s_objects)
+        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 2 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(

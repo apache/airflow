@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection Types <connections/ftp>
     Python API <_api/airflow/providers/ftp/index>
 
 .. toctree::

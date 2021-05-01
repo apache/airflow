@@ -46,8 +46,13 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
-  {{ if .Values.workers.updateStrategy }}
-{{ toYaml .Values.workers.updateStrategy | indent 2 }}
+  {{- if and $persistence .Values.workers.updateStrategy }}
+  updateStrategy:
+    {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if and (not $persistence) (.Values.workers.strategy) }}
+  strategy:
+    {{- toYaml .Values.workers.strategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
@@ -84,7 +89,7 @@ spec:
 {{- end }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
-      serviceAccountName: {{ .Release.Name }}-worker
+      serviceAccountName: {{ include "worker.serviceAccountName" . }}
       securityContext:
         runAsUser: {{ .Values.uid }}
         fsGroup: {{ .Values.gid }}
@@ -119,9 +124,6 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-        {{- include "git_sync_container" . | indent 8 }}
-        {{- end }}
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -171,6 +173,9 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
           {{- end }}
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- include "git_sync_container" . | indent 8 }}
+        {{- end }}
 {{- if $persistence }}
         - name: worker-gc
           image: {{ template "airflow_image" . }}
@@ -251,7 +256,11 @@ spec:
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
-{{- if not $persistence }}
+{{- if .Values.logs.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_logs_volume_claim" . }}
+{{- else if not $persistence }}
         - name: logs
           emptyDir: {}
 {{- else }}

@@ -18,34 +18,62 @@
 Executor
 ========
 
-Executors are the mechanism by which task instances get run.
+Executors are the mechanism by which :doc:`task instances </concepts/tasks>` get run. They have a common API and are "pluggable", meaning you can swap executors based on your installation needs.
 
-Airflow has support for various executors. Current used is determined by the ``executor`` option in the ``[core]``
-section of the configuration file. This option should contain the name executor e.g. ``KubernetesExecutor``
-if it is a core executor. If it is to load your own executor, then you should specify the
-full path to the module e.g. ``my_acme_company.executors.MyCustomExecutor``.
+Airflow can only have one executor configured at a time; this is set by the ``executor`` option in the ``[core]``
+section of :doc:`the configuration file </howto/set-config>`.
+
+Built-in executors are referred to by name, for example:
+
+.. code-block:: ini
+
+    [core]
+    executor = KubernetesExecutor
+
+You can also write your own custom executors, and refer to them by their full path:
+
+.. code-block:: ini
+
+    [core]
+    executor = my_company.executors.MyCustomExecutor
 
 .. note::
-    For more information on setting the configuration, see :doc:`../howto/set-config`.
+    For more information on Airflow's configuration, see :doc:`/howto/set-config`.
 
-If you want to check which executor is currently set, you can use ``airflow config get-value core executor`` command as in
-the example below.
+If you want to check which executor is currently set, you can use the ``airflow config get-value core executor`` command:
 
 .. code-block:: bash
 
     $ airflow config get-value core executor
     SequentialExecutor
 
-Supported Backends
-^^^^^^^^^^^^^^^^^^
+
+Executor Types
+--------------
+
+There are two types of executor - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the safest option for execution, but we *strongly recommend* you change this to ``LocalExecutor`` for small, single-machine installations, or one of the remote executors for a multi-machine/cloud installation.
+
+
+**Local Executors**
 
 .. toctree::
     :maxdepth: 1
 
-    sequential
     debug
     local
-    dask
+    sequential
+
+**Remote Executors**
+
+.. toctree::
+    :maxdepth: 1
+
     celery
-    kubernetes
     celery_kubernetes
+    dask
+    kubernetes
+
+
+.. note::
+
+    Something that often confuses new users of Airflow is that they don't need to run a separate ``executor`` process. This is because the executor's logic runs *inside* the ``scheduler`` process - if you're running a scheduler, you're running the executor.

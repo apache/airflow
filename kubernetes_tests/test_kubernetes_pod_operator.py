@@ -34,11 +34,11 @@ from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client
-from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.version import version as airflow_version
 
@@ -105,6 +105,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'hostNetwork': False,
                 'imagePullSecrets': [],
                 'initContainers': [],
+                'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
                 'serviceAccountName': 'default',
@@ -692,7 +693,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
@@ -722,7 +732,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
@@ -754,7 +773,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
@@ -848,7 +876,19 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         expected_dict = {
             'apiVersion': 'v1',
             'kind': 'Pod',
-            'metadata': {'annotations': {}, 'labels': {}, 'name': 'memory-demo', 'namespace': 'mem-example'},
+            'metadata': {
+                'annotations': {},
+                'labels': {
+                    'airflow_version': '2.1.0.dev0',
+                    'dag_id': 'dag',
+                    'execution_date': mock.ANY,
+                    'kubernetes_pod_operator': 'True',
+                    'task_id': mock.ANY,
+                    'try_number': '1',
+                },
+                'name': 'memory-demo',
+                'namespace': 'mem-example',
+            },
             'spec': {
                 'affinity': {},
                 'containers': [
@@ -857,7 +897,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'command': ['stress'],
                         'env': [],
                         'envFrom': [],
-                        'image': 'apache/airflow:stress-2020.07.10-1.0.4',
+                        'image': 'apache/airflow:stress-2021.04.28-1.0.4',
                         'imagePullPolicy': 'IfNotPresent',
                         'name': 'base',
                         'ports': [],
@@ -865,7 +905,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'volumeMounts': [{'mountPath': '/airflow/xcom', 'name': 'xcom'}],
                     },
                     {
-                        'command': ['sh', '-c', 'trap "exit 0" INT; while true; do sleep 30; done;'],
+                        'command': ['sh', '-c', 'trap "exit 0" INT; while true; do sleep 1; done;'],
                         'image': 'alpine',
                         'name': 'airflow-xcom-sidecar',
                         'resources': {'requests': {'cpu': '1m'}},
@@ -875,6 +915,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'hostNetwork': False,
                 'imagePullSecrets': [],
                 'initContainers': [],
+                'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
                 'serviceAccountName': 'default',

@@ -179,9 +179,21 @@
                 <td class="text-center">
                   <div class="btn-group">
                     {% if dag %}
-                      <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_trigger }}">
+                    <div class="dropdown">
+                      <a aria-label="Trigger DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn" data-toggle="dropdown">
                         <span class="material-icons" aria-hidden="true">play_arrow</span>
                       </a>
+                      <ul class="dropdown-menu trigger-dropdown-menu">
+                        <li>
+                          <form method="POST" action="{{ url_for('Airflow.trigger') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                            <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
+                          </form>
+                        </li>
+                        <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">Trigger DAG w/ config</a></li>
+                      </ul>
+                    </div>
                       <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" onclick="postAsForm(this.href); return false" title="Refresh DAG" aria-label="Refresh DAG" class="btn btn-sm btn-default btn-icon-only {{ ' disabled' if not dag.can_edit }}">
                         <span class="material-icons" aria-hidden="true">refresh</span>
                       </a>

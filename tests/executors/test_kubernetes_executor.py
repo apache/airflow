@@ -20,7 +20,7 @@ import random
 import re
 import string
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
@@ -41,6 +41,7 @@ try:
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
+    from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
     from airflow.kubernetes.pod_generator import PodGenerator, datetime_to_label_safe_datestring
     from airflow.utils.state import State
 except ImportError:
@@ -375,21 +376,113 @@ class TestKubernetesExecutor(unittest.TestCase):
         assert executor.event_buffer[key][0] == State.FAILED
         mock_delete_pod.assert_called_once_with('pod_id', 'test-namespace')
 
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods')
+    def test_try_adopt_task_instances(self, mock_adopt_completed_pods, mock_adopt_launched_task):
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "10"
+        ti_key = annotations_to_key(
+            {
+                'dag_id': 'dag',
+                'execution_date': datetime.utcnow().isoformat(),
+                'task_id': 'task',
+                'try_number': '1',
+            }
+        )
+        mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value.items = [pod]
+        executor.kube_client = mock_kube_client
+
+        # First adoption
+        reset_tis = executor.try_adopt_task_instances([mock_ti])
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace='default', label_selector='airflow-worker=1'
+        )
+        mock_adopt_launched_task.assert_called_once_with(mock_kube_client, pod, {ti_key: mock_ti})
+        mock_adopt_completed_pods.assert_called_once()
+        assert reset_tis == [mock_ti]  # assume failure adopting when checking return
+
+        # Second adoption (queued_by_job_id and external_executor_id no longer match)
+        mock_kube_client.reset_mock()
+        mock_adopt_launched_task.reset_mock()
+        mock_adopt_completed_pods.reset_mock()
+
+        mock_ti.queued_by_job_id = "10"  # scheduler_job would have updated this after the first adoption
+        executor.scheduler_job_id = "20"
+        # assume success adopting when checking return, `adopt_launched_task` pops `ti_key` from `pod_ids`
+        mock_adopt_launched_task.side_effect = lambda client, pod, pod_ids: pod_ids.pop(ti_key)
+
+        reset_tis = executor.try_adopt_task_instances([mock_ti])
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace='default', label_selector='airflow-worker=10'
+        )
+        mock_adopt_launched_task.assert_called_once()  # Won't check args this time around as they get mutated
+        mock_adopt_completed_pods.assert_called_once()
+        assert reset_tis == []  # This time our return is empty - no TIs to reset
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods')
+    def test_try_adopt_task_instances_multiple_scheduler_ids(self, mock_adopt_completed_pods):
+        """We try to find pods only once per scheduler id"""
+        executor = self.kubernetes_executor
+        mock_kube_client = mock.MagicMock()
+        executor.kube_client = mock_kube_client
+
+        mock_tis = [
+            mock.MagicMock(queued_by_job_id="10", external_executor_id="1", dag_id="dag", task_id="task"),
+            mock.MagicMock(queued_by_job_id="40", external_executor_id="1", dag_id="dag", task_id="task2"),
+            mock.MagicMock(queued_by_job_id="40", external_executor_id="1", dag_id="dag", task_id="task3"),
+        ]
+
+        executor.try_adopt_task_instances(mock_tis)
+        assert mock_kube_client.list_namespaced_pod.call_count == 2
+        mock_kube_client.list_namespaced_pod.assert_has_calls(
+            [
+                mock.call(namespace='default', label_selector='airflow-worker=10'),
+                mock.call(namespace='default', label_selector='airflow-worker=40'),
+            ],
+            any_order=True,
+        )
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor.adopt_launched_task')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesExecutor._adopt_completed_pods')
+    def test_try_adopt_task_instances_no_matching_pods(
+        self, mock_adopt_completed_pods, mock_adopt_launched_task
+    ):
+        executor = self.kubernetes_executor
+        mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", dag_id="dag", task_id="task")
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value.items = []
+        executor.kube_client = mock_kube_client
+
+        tis_to_flush = executor.try_adopt_task_instances([mock_ti])
+        assert tis_to_flush == [mock_ti]
+        mock_adopt_launched_task.assert_not_called()
+        mock_adopt_completed_pods.assert_called_once()
+
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_adopt_launched_task(self, mock_kube_client):
         executor = self.kubernetes_executor
         executor.scheduler_job_id = "modified"
-        pod_ids = {"dagtask": {}}
+        annotations = {
+            'dag_id': 'dag',
+            'execution_date': datetime.utcnow().isoformat(),
+            'task_id': 'task',
+            'try_number': '1',
+        }
+        ti_key = annotations_to_key(annotations)
         pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="foo", labels={"airflow-worker": "bar", "dag_id": "dag", "task_id": "task"}
-            )
+            metadata=k8s.V1ObjectMeta(name="foo", labels={"airflow-worker": "bar"}, annotations=annotations)
         )
+        pod_ids = {ti_key: {}}
+
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
         assert mock_kube_client.patch_namespaced_pod.call_args[1] == {
             'body': {
                 'metadata': {
-                    'labels': {'airflow-worker': 'modified', 'dag_id': 'dag', 'task_id': 'task'},
+                    'labels': {'airflow-worker': 'modified'},
+                    'annotations': annotations,
                     'name': 'foo',
                 }
             },
@@ -397,6 +490,7 @@ class TestKubernetesExecutor(unittest.TestCase):
             'namespace': None,
         }
         assert pod_ids == {}
+        assert executor.running == {ti_key}
 
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_not_adopt_unassigned_task(self, mock_kube_client):
@@ -410,12 +504,108 @@ class TestKubernetesExecutor(unittest.TestCase):
         pod_ids = {"foobar": {}}
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                name="foo", labels={"airflow-worker": "bar", "dag_id": "dag", "task_id": "task"}
+                name="foo",
+                labels={"airflow-worker": "bar"},
+                annotations={
+                    'dag_id': 'dag',
+                    'execution_date': datetime.utcnow().isoformat(),
+                    'task_id': 'task',
+                    'try_number': '1',
+                },
             )
         )
         executor.adopt_launched_task(mock_kube_client, pod=pod, pod_ids=pod_ids)
         assert not mock_kube_client.patch_namespaced_pod.called
         assert pod_ids == {"foobar": {}}
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler')
+    def test_pending_pod_timeout(self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_kube_client = mock_get_kube_client.return_value
+        now = timezone.utcnow()
+        pending_pods = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo60",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=60),
+                    namespace="mynamespace",
+                )
+            ),
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo90",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=90),
+                    namespace="mynamespace",
+                )
+            ),
+        ]
+        mock_kube_client.list_namespaced_pod.return_value.items = pending_pods
+
+        config = {
+            ('kubernetes', 'namespace'): 'mynamespace',
+            ('kubernetes', 'worker_pods_pending_timeout'): '75',
+            ('kubernetes', 'worker_pods_pending_timeout_batch_size'): '5',
+            ('kubernetes', 'kube_client_request_args'): '{"sentinel": "foo"}',
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = "123"
+            executor.start()
+            assert 1 == len(executor.event_scheduler.queue)
+            executor._check_worker_pods_pending_timeout()
+
+        mock_kube_client.list_namespaced_pod.assert_called_once_with(
+            'mynamespace',
+            field_selector='status.phase=Pending',
+            label_selector='airflow-worker=123',
+            limit=5,
+            sentinel='foo',
+        )
+        mock_delete_pod.assert_called_once_with('foo90', 'mynamespace')
+
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
+    @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler')
+    def test_pending_pod_timeout_multi_namespace_mode(
+        self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        mock_delete_pod = mock_kubescheduler.return_value.delete_pod
+        mock_kube_client = mock_get_kube_client.return_value
+        now = timezone.utcnow()
+        pending_pods = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="foo90",
+                    labels={"airflow-worker": "123"},
+                    creation_timestamp=now - timedelta(seconds=500),
+                    namespace="anothernamespace",
+                )
+            ),
+        ]
+        mock_kube_client.list_pod_for_all_namespaces.return_value.items = pending_pods
+
+        config = {
+            ('kubernetes', 'namespace'): 'mynamespace',
+            ('kubernetes', 'multi_namespace_mode'): 'true',
+            ('kubernetes', 'kube_client_request_args'): '{"sentinel": "foo"}',
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = "123"
+            executor.start()
+            executor._check_worker_pods_pending_timeout()
+
+        mock_kube_client.list_pod_for_all_namespaces.assert_called_once_with(
+            field_selector='status.phase=Pending',
+            label_selector='airflow-worker=123',
+            limit=100,
+            sentinel='foo',
+        )
+        mock_delete_pod.assert_called_once_with('foo90', 'anothernamespace')
 
 
 class TestKubernetesJobWatcher(unittest.TestCase):

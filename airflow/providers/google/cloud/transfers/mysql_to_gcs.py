@@ -37,7 +37,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MySQLToGCSOperator`
 
-    :param mysql_conn_id: Reference to a specific MySQL hook.
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the MySQL server's

@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection types <connections/docker>
     Python API <_api/airflow/providers/docker/index>
 
 .. toctree::

@@ -553,15 +553,7 @@ Airflow dependencies
 
 .. note::
 
-   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-   depend on your choice of extras. In order to install Airflow you might need to either downgrade
-   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
-   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
-
-   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
-   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
-   Due to those constraints, only ``pip`` installation is currently officially supported.
+   Only ``pip`` installation is currently officially supported.
 
    While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -664,7 +656,6 @@ discord                    http
 google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh,trino
 hashicorp                  google
 microsoft.azure            google,oracle
-microsoft.mssql            odbc
 mysql                      amazon,presto,trino,vertica
 opsgenie                   http
 postgres                   amazon
@@ -788,15 +779,7 @@ Pinned constraint files
 
 .. note::
 
-   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-   depend on your choice of extras. In order to install Airflow you might need to either downgrade
-   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
-   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
-
-   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
-   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
-   Due to those constraints, only ``pip`` installation is currently officially supported.
+   Only ``pip`` installation is officially supported.
 
    While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -925,7 +908,7 @@ Documentation
 
 Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
 
-For Helm Chart documentation, see: `/chart/README.md <../chart/README.md>`__
+For Helm Chart documentation, see: `chart/README.md <chart/README.md>`__
 
 Static code checks
 ==================
@@ -945,6 +928,25 @@ Coding style and best practices
 Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
+
+Don't Use Asserts Outside Tests
+-------------------------------
+
+Our community agreed that to various reasons we do not use ``assert`` in production code of Apache Airflow.
+For details check the relevant `mailing list thread <https://lists.apache.org/thread.html/bcf2d23fcd79e21b3aac9f32914e1bf656e05ffbcb8aa282af497a2d%40%3Cdev.airflow.apache.org%3E>`_.
+
+In other words instead of doing:
+
+.. code-block:: python
+
+    assert some_predicate()
+
+you should do:
+
+.. code-block:: python
+
+    if not some_predicate():
+        handle_the_case()
 
 Database Session Handling
 -------------------------

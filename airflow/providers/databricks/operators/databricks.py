@@ -162,7 +162,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         take precedence and override the top level json keys. (templated)
 
         .. seealso::
-            For more information about templating see :ref:`jinja-templating`.
+            For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#runs-submit
     :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
@@ -394,7 +394,7 @@ class DatabricksRunNowOperator(BaseOperator):
         take precedence and override the top level json keys. (templated)
 
         .. seealso::
-            For more information about templating see :ref:`jinja-templating`.
+            For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type json: dict
     :param notebook_params: A dict from keys to values for jobs with notebook task,

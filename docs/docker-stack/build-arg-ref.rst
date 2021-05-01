@@ -32,7 +32,7 @@ Those are the most common arguments that you use when you want to build a custom
 +==========================================+==========================================+==========================================+
 | ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION``                      | ``2.0.1``                                | version of Airflow.                      |
+| ``AIRFLOW_VERSION``                      | :subst-code:`|version|`                  | version of Airflow.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
 |                                          |                                          | installed.                               |
@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``20.2.4``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``21.1``                                 | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -64,7 +64,7 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                          | 2.0.* installation. In case of building  |
 |                                          |                                          | specific version you want to point it    |
 |                                          |                                          | to specific tag, for example             |
-|                                          |                                          | ``constraints-2.0.1``.                   |
+|                                          |                                          | :subst-code:`constraints-|version|`.     |
 |                                          |                                          | Auto-detected if empty.                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
@@ -126,11 +126,6 @@ for examples of using those arguments.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps.            |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``CASS_DRIVER_BUILD_CONCURRENCY``        | ``8``                                    | Number of processors to use for          |
-|                                          |                                          | cassandra PIP install (speeds up         |
-|                                          |                                          | installing in case cassandra extra is    |
-|                                          |                                          | used).                                   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
 |                                          |                                          | The mysql extra is removed from extras   |

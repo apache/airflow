@@ -43,7 +43,7 @@ To deploy Airflow on Docker Compose, you should fetch `docker-compose.yaml <../d
 
 This file contains several service definitions:
 
-- ``airflow-scheduler`` - The :doc:`scheduler </scheduler>` monitors all tasks and DAGs, then triggers the
+- ``airflow-scheduler`` - The :doc:`scheduler </concepts/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-webserver`` - The webserver available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
@@ -52,13 +52,15 @@ This file contains several service definitions:
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
-All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :ref:`architecture`.
+All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :doc:`/concepts/overview`.
 
 Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
 
 - ``./dags`` - you can put your DAG files here.
 - ``./logs`` - contains logs from task execution and scheduler.
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
+
+This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
 Initializing Environment
 ========================
@@ -80,11 +82,11 @@ On **all operating systems**, you need to run database migrations and create the
 
 After initialization is complete, you should see a message like below.
 
-.. code-block:: text
+.. parsed-literal::
 
     airflow-init_1       | Upgrades done
     airflow-init_1       | Admin user airflow created
-    airflow-init_1       | 2.1.0.dev0
+    airflow-init_1       | |version|
     start_airflow-init_1 exited with code 0
 
 The account created has the login ``airflow`` and the password ``airflow``.
@@ -100,16 +102,17 @@ Now you can start all services:
 
 In the second terminal you can check the condition of the containers and make sure that no containers are in unhealthy condition:
 
-.. code-block:: bash
+.. code-block:: text
+    :substitutions:
 
     $ docker ps
-    CONTAINER ID   IMAGE                             COMMAND                  CREATED          STATUS                    PORTS                              NAMES
-    247ebe6cf87a   apache/airflow:master-python3.8   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-worker_1
-    ed9b09fc84b1   apache/airflow:master-python3.8   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-scheduler_1
-    65ac1da2c219   apache/airflow:master-python3.8   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:5555->5555/tcp, 8080/tcp   compose_flower_1
-    7cb1fb603a98   apache/airflow:master-python3.8   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-webserver_1
-    74f3bbe506eb   postgres:13                       "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
-    0bd6576d23cb   redis:latest                      "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
+    CONTAINER ID   IMAGE            |version-spacepad| COMMAND                  CREATED          STATUS                    PORTS                              NAMES
+    247ebe6cf87a   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-worker_1
+    ed9b09fc84b1   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-scheduler_1
+    65ac1da2c219   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:5555->5555/tcp, 8080/tcp   compose_flower_1
+    7cb1fb603a98   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-webserver_1
+    74f3bbe506eb   postgres:13      |version-spacepad| "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
+    0bd6576d23cb   redis:latest     |version-spacepad| "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
 
 Accessing the environment
 =========================
@@ -192,10 +195,13 @@ To stop and delete containers, delete volumes with database data and download im
 
     docker-compose down --volumes --rmi all
 
-Notes
-=====
+FAQ: Frequently asked questions
+===============================
 
-By default, the Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need, you can :doc:`customize and extend it <docker-stack:index>`.
+``ModuleNotFoundError: No module named 'XYZ'``
+----------------------------------------------
+
+The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
 What's Next?
 ============

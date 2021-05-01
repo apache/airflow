@@ -1185,10 +1185,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """@property: type of the task"""
         return self.__class__.__name__
 
-    def add_only_new(self, item_set: Set[str], item: str) -> None:
+    def add_only_new(self, item_set: Set[str], item: str, dag_id: str) -> None:
         """Adds only new items to item set"""
         if item in item_set:
-            self.log.warning('Dependency %s, %s already registered', self, item)
+            self.log.warning('Dependency %s, %s already registered for DAG: %s', self, item, dag_id)
         else:
             item_set.add(item)
 
@@ -1259,13 +1259,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 task.dag = dag
                 task.dag.task_group.add(task)
             if upstream:
-                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
-                self.add_only_new(self._upstream_task_ids, task.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id, self.dag.dag_id)
+                self.add_only_new(self._upstream_task_ids, task.task_id, task.dag.dag_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, task.task_id, self.task_id)
             else:
-                self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
+                self.add_only_new(self._downstream_task_ids, task.task_id, task.dag.dag_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id, self.dag.dag_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, self.task_id, task.task_id)
 

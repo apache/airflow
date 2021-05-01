@@ -66,7 +66,8 @@ class BashSensor(BaseSensorOperator):
                 script_location = tmp_dir + "/" + fname
                 self.log.info("Temporary script location: %s", script_location)
                 self.log.info("Running command: %s", bash_command)
-                resp = Popen(  # pylint: disable=subprocess-popen-preexec-fn
+                # pylint: disable=subprocess-popen-preexec-fn
+                with Popen(
                     ['bash', fname],
                     stdout=PIPE,
                     stderr=STDOUT,
@@ -74,13 +75,12 @@ class BashSensor(BaseSensorOperator):
                     cwd=tmp_dir,
                     env=self.env,
                     preexec_fn=os.setsid,
-                )
+                ) as resp:
+                    self.log.info("Output:")
+                    for line in iter(resp.stdout.readline, b''):
+                        line = line.decode(self.output_encoding).strip()
+                        self.log.info(line)
+                    resp.wait()
+                    self.log.info("Command exited with return code %s", resp.returncode)
 
-                self.log.info("Output:")
-                for line in iter(resp.stdout.readline, b''):
-                    line = line.decode(self.output_encoding).strip()
-                    self.log.info(line)
-                resp.wait()
-                self.log.info("Command exited with return code %s", resp.returncode)
-
-                return not resp.returncode
+                    return not resp.returncode

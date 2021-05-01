@@ -24,7 +24,7 @@ function verify_parameters(){
     echo "Testing if all classes in import packages can be imported"
     echo
 
-    if [[ -z "${INSTALL_AIRFLOW_VERSION=""}" ]]; then
+    if [[ -z "${USE_AIRFLOW_VERSION=""}" ]]; then
         echo
         echo "${COLOR_RED}ERROR: You have to specify airflow version to install.${COLOR_RESET}"
         echo
@@ -46,19 +46,19 @@ function verify_parameters(){
 
 function install_airflow_as_specified() {
     group_start "Install Airflow as specified"
-    if [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
         echo
         echo "Skip installing airflow - only install wheel packages that are present locally"
         echo
         uninstall_airflow_and_providers
-    elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+    elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
         echo "Install airflow from wheel including [${AIRFLOW_EXTRAS}] extras"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
-    elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+    elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
         echo "Install airflow from sdist including [${AIRFLOW_EXTRAS}] extras"
         echo
@@ -69,7 +69,7 @@ function install_airflow_as_specified() {
         echo
         echo "Install airflow from PyPI without extras"
         echo
-        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
+        install_released_airflow_version "${USE_AIRFLOW_VERSION}"
         uninstall_providers
     fi
     group_end
@@ -176,7 +176,7 @@ function discover_all_field_behaviours() {
     group_start "Listing connections with custom behaviours via 'airflow providers behaviours'"
     COLUMNS=180 airflow providers behaviours
 
-    local expected_number_of_connections_with_behaviours=21
+    local expected_number_of_connections_with_behaviours=20
     local actual_number_of_connections_with_behaviours
     actual_number_of_connections_with_behaviours=$(airflow providers behaviours --output table | grep -v "===" | \
         grep -v field_behaviours | grep -cv "^ " | xargs)
@@ -196,7 +196,6 @@ function discover_all_field_behaviours() {
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
-install_remaining_dependencies
 install_provider_packages
 import_all_provider_classes
 

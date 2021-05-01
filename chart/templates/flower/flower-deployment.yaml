@@ -61,6 +61,7 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      serviceAccountName: {{ include "flower.serviceAccountName" . }}
       restartPolicy: Always
       securityContext:
         runAsUser: {{ .Values.uid }}

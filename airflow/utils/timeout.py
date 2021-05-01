@@ -40,13 +40,11 @@ class timeout(LoggingMixin):  # pylint: disable=invalid-name
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.setitimer(signal.ITIMER_REAL, self.seconds)
-        except ValueError as e:
-            self.log.warning("timeout can't be used in the current context")
-            self.log.exception(e)
+        except ValueError:
+            self.log.warning("timeout can't be used in the current context", exc_info=True)
 
     def __exit__(self, type_, value, traceback):
         try:
             signal.setitimer(signal.ITIMER_REAL, 0)
-        except ValueError as e:
-            self.log.warning("timeout can't be used in the current context")
-            self.log.exception(e)
+        except ValueError:
+            self.log.warning("timeout can't be used in the current context", exc_info=True)

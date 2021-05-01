@@ -19,7 +19,6 @@
 import json
 import logging
 import pickle
-from json import JSONDecodeError
 from typing import Any, Iterable, Optional, Union
 
 import pendulum
@@ -62,13 +61,7 @@ class BaseXCom(Base, LoggingMixin):
         Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted
         i.e automatically deserialize Xcom value when loading from DB.
         """
-        try:
-            self.value = self.orm_deserialize_value()
-        except (UnicodeEncodeError, ValueError):
-            # For backward-compatibility.
-            # Preventing errors in webserver
-            # due to XComs mixed with pickled and unpickled.
-            self.value = pickle.loads(self.value)
+        self.value = self.orm_deserialize_value()
 
     def __repr__(self):
         return f'<XCom "{self.key}" ({self.task_id} @ {self.execution_date})>'
@@ -233,32 +226,26 @@ class BaseXCom(Base, LoggingMixin):
             return json.dumps(value).encode('UTF-8')
         except (ValueError, TypeError):
             log.error(
-                "Could not serialize the XCom value into JSON. "
-                "If you are using pickles instead of JSON "
-                "for XCom, then you need to enable pickle "
-                "support for XCom in your airflow config."
+                "Could not serialize the XCom value into JSON."
+                " If you are using pickle instead of JSON for XCom,"
+                " then you need to enable pickle support for XCom"
+                " in your airflow config."
             )
             raise
 
     @staticmethod
     def deserialize_value(result: "XCom") -> Any:
         """Deserialize XCom value from str or pickle object"""
-        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
-        if enable_pickling:
+        if conf.getboolean('core', 'enable_xcom_pickling'):
             try:
                 return pickle.loads(result.value)
             except pickle.UnpicklingError:
                 return json.loads(result.value.decode('UTF-8'))
-        try:
-            return json.loads(result.value.decode('UTF-8'))
-        except JSONDecodeError:
-            log.error(
-                "Could not deserialize the XCom value from JSON. "
-                "If you are using pickles instead of JSON "
-                "for XCom, then you need to enable pickle "
-                "support for XCom in your airflow config."
-            )
-            raise
+        else:
+            try:
+                return json.loads(result.value.decode('UTF-8'))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                return pickle.loads(result.value)
 
     def orm_deserialize_value(self) -> Any:
         """

@@ -31,7 +31,6 @@ from kubernetes.client.rest import ApiException
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client
 from airflow.kubernetes.pod import Port
-from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
@@ -39,6 +38,7 @@ from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import DAG, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
@@ -103,6 +103,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'hostNetwork': False,
                 'imagePullSecrets': [],
                 'initContainers': [],
+                'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
                 'serviceAccountName': 'default',
@@ -583,7 +584,16 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         result = k.execute(context)
         assert result is not None
-        assert k.pod.metadata.labels == {'fizz': 'buzz', 'foo': 'bar'}
+        assert k.pod.metadata.labels == {
+            'fizz': 'buzz',
+            'foo': 'bar',
+            'airflow_version': mock.ANY,
+            'dag_id': 'dag',
+            'execution_date': mock.ANY,
+            'kubernetes_pod_operator': 'True',
+            'task_id': mock.ANY,
+            'try_number': '1',
+        }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 

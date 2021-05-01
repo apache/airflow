@@ -3437,7 +3437,7 @@ class TestSchedulerJob(unittest.TestCase):
         assert detected_files == expected_files
 
     def test_adopt_or_reset_orphaned_tasks_nothing(self):
-        """Try with nothing. """
+        """Try with nothing."""
         self.scheduler_job = SchedulerJob()
         session = settings.Session()
         assert 0 == self.scheduler_job.adopt_or_reset_orphaned_tasks(session=session)
@@ -3497,7 +3497,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.rollback()
 
     def test_reset_orphaned_tasks_nonexistent_dagrun(self):
-        """Make sure a task in an orphaned state is not reset if it has no dagrun. """
+        """Make sure a task in an orphaned state is not reset if it has no dagrun."""
         dag_id = 'test_reset_orphaned_tasks_nonexistent_dagrun'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'

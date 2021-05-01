@@ -93,7 +93,6 @@ CONNECTIONS_LIST = [
     'aws',
     'azure',
     'azure_batch',
-    'azure_container_instances',
     'azure_container_registry',
     'azure_cosmos',
     'azure_data_explorer',
@@ -125,6 +124,7 @@ CONNECTIONS_LIST = [
     'jenkins',
     'jira',
     'kubernetes',
+    'leveldb',
     'livy',
     'mongo',
     'mssql',
@@ -204,7 +204,6 @@ CONNECTION_FORM_WIDGETS = [
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
     'azure',
     'azure_batch',
-    'azure_container_instances',
     'azure_container_registry',
     'azure_cosmos',
     'azure_data_explorer',
