@@ -250,9 +250,10 @@ class QuboleOperator(BaseOperator):
         else:
             self.get_hook().kill(ti)
 
-    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True, include_headers: bool = False) -> str:
+    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True,
+                    include_headers: bool = False) -> str:
         """get_results from Qubole"""
-        return self.get_hook().get_results(ti, fp, inline, delim, fetch,include_headers)
+        return self.get_hook().get_results(ti, fp, inline, delim, fetch, include_headers)
 
     def get_log(self, ti) -> None:
         """get_log from Qubole"""
