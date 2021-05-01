@@ -134,4 +134,12 @@ else
     build_images::build_prod_images
     verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
     push_pull_remove_images::push_prod_images
+    if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
+        # In case of default Python version we also push ":version" and ":latest" tag
+        docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
+            "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+        docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}" "apache/airflow:latest"
+        docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+        docker push "apache/airflow:latest"
+    fi
 fi
