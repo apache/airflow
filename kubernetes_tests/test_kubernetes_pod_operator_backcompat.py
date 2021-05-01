@@ -153,32 +153,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             k8s.V1LocalObjectReference(name=fake_pull_secrets)
         ]
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_delete_even_on_launcher_error(
-        self, mock_client, delete_pod_mock, monitor_pod_mock, start_pod_mock
-    ):  # pylint: disable=unused-argument
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context='default',
-            is_delete_operator_pod=True,
-        )
-        monitor_pod_mock.side_effect = AirflowException('fake failure')
-        with pytest.raises(AirflowException):
-            context = self.create_context(k)
-            k.execute(context=context)
-        assert delete_pod_mock.called
-
     def test_working_pod(self):
         k = KubernetesPodOperator(
             namespace='default',
@@ -650,49 +624,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
         ]
         assert self.expected_pod == actual_pod
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_priority_class_name(
-        self, mock_client, monitor_mock, start_mock
-    ):  # pylint: disable=unused-argument
-        """Test ability to assign priorityClassName to pod"""
-        priority_class_name = "medium-test"
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            priority_class_name=priority_class_name,
-        )
-
-        monitor_mock.return_value = (State.SUCCESS, None)
-        context = self.create_context(k)
-        k.execute(context)
-        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod['spec']['priorityClassName'] = priority_class_name
-        assert self.expected_pod == actual_pod
-
-    def test_pod_name(self):
-        pod_name_too_long = "a" * 221
-        with pytest.raises(AirflowException):
-            KubernetesPodOperator(
-                namespace='default',
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels={"foo": "bar"},
-                name=pod_name_too_long,
-                task_id="task",
-                in_cluster=False,
-                do_xcom_push=False,
-            )
 
 
 # pylint: enable=unused-argument
