@@ -53,7 +53,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:  # pylint: disable=broad-except
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
-                'Please make sure that airflow[aws] is installed and '
+                'Please make sure that apache-airflow[aws] is installed and '
                 'the S3 connection exists. Exception : "%s"',
                 remote_conn_id,
                 e,

@@ -92,7 +92,7 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
 
             mock_error.assert_called_once_with(
                 'Could not create an AwsLogsHook with connection id "%s". Please make '
-                'sure that airflow[aws] is installed and the Cloudwatch '
+                'sure that apache-airflow[aws] is installed and the Cloudwatch '
                 'logs connection exists. Exception: "%s"',
                 'aws_default',
                 ANY,
