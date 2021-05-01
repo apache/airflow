@@ -19,6 +19,12 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Provide a name to substitute for the full names of resources
+fullnameOverride: ""
+
+# Provide a name to substitute for the name of the chart
+nameOverride: ""
+
 # User and group of airflow user
 uid: 50000
 gid: 0
@@ -106,11 +112,13 @@ networkPolicies:
 airflowPodAnnotations: {}
 
 # Enable RBAC (default on most clusters these days)
-rbacEnabled: true
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
 
 # Airflow executor
 # Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
-executor: "KubernetesExecutor"
+executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
@@ -134,7 +142,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: apache/airflow
-    tag: airflow-statsd-exporter-2020.09.05-v0.17.0
+    tag: airflow-statsd-exporter-2021.04.28-v0.17.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -142,15 +150,15 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2020.09.05-1.14.0
+    tag: airflow-pgbouncer-2021.04.28-1.14.0
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2020.09.25-0.5.0
+    tag: airflow-pgbouncer-exporter-2021.04.28-0.5.0
     pullPolicy: IfNotPresent
   gitSync:
-    repository: k8s.gcr.io/git-sync
-    tag: v3.1.6
+    repository: k8s.gcr.io/git-sync/git-sync
+    tag: v3.3.0
     pullPolicy: IfNotPresent
 
 # Environment variables for all airflow containers
@@ -226,6 +234,7 @@ data:
   metadataConnection:
     user: postgres
     pass: postgres
+    protocol: postgresql
     host: ~
     port: 5432
     db: postgres
@@ -233,6 +242,7 @@ data:
   resultBackendConnection:
     user: postgres
     pass: postgres
+    protocol: postgresql
     host: ~
     port: 5432
     db: postgres
@@ -307,6 +317,17 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
   keda:
@@ -360,8 +381,6 @@ workers:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
-  # Annotations to add to worker kubernetes service account.
-  serviceAccountAnnotations: {}
 
   # Launch additional containers into worker.
   extraContainers: []
@@ -397,6 +416,18 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to scheduler kubernetes service account.
+    annotations: {}
+
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -421,9 +452,6 @@ scheduler:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Annotations to add to scheduler kubernetes service account.
-  serviceAccountAnnotations: {}
-
   # Launch additional containers into scheduler.
   extraContainers: []
 
@@ -435,6 +463,33 @@ scheduler:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+# Airflow create user job settings
+createUserJob:
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to create user kubernetes service account.
+    annotations: {}
+
+# Airflow database migration job settings
+migrateDatabaseJob:
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to migrate database job kubernetes service account.
+    annotations: {}
 
 # Airflow webserver settings
 webserver:
@@ -453,6 +508,17 @@ webserver:
 
   # Number of webservers
   replicas: 1
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to webserver kubernetes service account.
+    annotations: {}
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -500,9 +566,6 @@ webserver:
     ## service annotations
     annotations: {}
 
-  # Annotations to add to webserver kubernetes service account.
-  serviceAccountAnnotations: {}
-
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
   affinity: {}
@@ -523,6 +586,17 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # A secret containing the connection
   secretName: ~
 
@@ -541,6 +615,18 @@ flower:
 # Statsd settings
 statsd:
   enabled: true
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -562,10 +648,24 @@ statsd:
   # Additional mappings for statsd exporter.
   extraMappings: []
 
+  uid: 65534
+
 # Pgbouncer settings
 pgbouncer:
   # Enable pgbouncer
   enabled: false
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
 
@@ -636,10 +736,23 @@ pgbouncer:
   affinity: {}
   tolerations: []
 
+  uid: 65534
+
 # Configuration for the redis provisioned by the chart
 redis:
   enabled: true
   terminationGracePeriodSeconds: 600
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
 
   persistence:
     # Enable persistent volumes
@@ -730,6 +843,17 @@ cleanup:
   affinity: {}
   tolerations: []
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to cleanup cronjob kubernetes service account.
+    annotations: {}
+
 # Configuration for postgresql subchart
 # Not recommended for production
 postgresql:
@@ -761,7 +885,6 @@ config:
   logging:
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
     colored_console_log: 'False'
-    logging_level: DEBUG
   metrics:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125
@@ -886,3 +1009,14 @@ dags:
     containerName: git-sync
     uid: 65533
     extraVolumeMounts: []
+
+logs:
+  persistence:
+    # Enable persistent volume for storing logs
+    enabled: false
+    # Volume size for logs
+    size: 100Gi
+    # If using a custom storageClass, pass name here
+    storageClassName:
+    ## the name of an existing PVC to use
+    existingClaim:

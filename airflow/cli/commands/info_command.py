@@ -188,17 +188,17 @@ class AirflowInfo:
     def _get_version(cmd: List[str], grep: Optional[bytes] = None):
         """Return tools version."""
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
+                stdoutdata, _ = proc.communicate()
+                data = [f for f in stdoutdata.split(b"\n") if f]
+                if grep:
+                    data = [line for line in data if grep in line]
+                if len(data) != 1:
+                    return "NOT AVAILABLE"
+                else:
+                    return data[0].decode()
         except OSError:
             return "NOT AVAILABLE"
-        stdoutdata, _ = proc.communicate()
-        data = [f for f in stdoutdata.split(b"\n") if f]
-        if grep:
-            data = [line for line in data if grep in line]
-        if len(data) != 1:
-            return "NOT AVAILABLE"
-        else:
-            return data[0].decode()
 
     @staticmethod
     def _task_logging_handler():

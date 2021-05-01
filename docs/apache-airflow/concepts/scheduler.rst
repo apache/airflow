@@ -56,7 +56,7 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
     **Let’s Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the period.
 
-    You should refer to :doc:`dag-run` for details on scheduling a DAG.
+    You should refer to :doc:`/dag-run` for details on scheduling a DAG.
 
 Triggering DAG with Future Date
 -------------------------------

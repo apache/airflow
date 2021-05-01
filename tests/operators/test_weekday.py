@@ -128,7 +128,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
     @freeze_time("2021-01-25")  # Monday
     def test_branch_follow_true_with_execution_date(self):
-        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_execution_day """
+        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_execution_day"""
 
         branch_op = BranchDayOfWeekOperator(
             task_id="make_choice",

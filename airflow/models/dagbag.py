@@ -316,45 +316,45 @@ class DagBag(LoggingMixin):
 
     def _load_modules_from_zip(self, filepath, safe_mode):
         mods = []
-        current_zip_file = zipfile.ZipFile(filepath)
-        for zip_info in current_zip_file.infolist():
-            head, _ = os.path.split(zip_info.filename)
-            mod_name, ext = os.path.splitext(zip_info.filename)
-            if ext not in [".py", ".pyc"]:
-                continue
-            if head:
-                continue
+        with zipfile.ZipFile(filepath) as current_zip_file:
+            for zip_info in current_zip_file.infolist():
+                head, _ = os.path.split(zip_info.filename)
+                mod_name, ext = os.path.splitext(zip_info.filename)
+                if ext not in [".py", ".pyc"]:
+                    continue
+                if head:
+                    continue
 
-            if mod_name == '__init__':
-                self.log.warning("Found __init__.%s at root of %s", ext, filepath)
+                if mod_name == '__init__':
+                    self.log.warning("Found __init__.%s at root of %s", ext, filepath)
 
-            self.log.debug("Reading %s from %s", zip_info.filename, filepath)
+                self.log.debug("Reading %s from %s", zip_info.filename, filepath)
 
-            if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
-                # todo: create ignore list
-                # Don't want to spam user with skip messages
-                if not self.has_logged:
-                    self.has_logged = True
-                    self.log.info(
-                        "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
-                    )
-                continue
+                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                    # todo: create ignore list
+                    # Don't want to spam user with skip messages
+                    if not self.has_logged:
+                        self.has_logged = True
+                        self.log.info(
+                            "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
+                        )
+                    continue
 
-            if mod_name in sys.modules:
-                del sys.modules[mod_name]
+                if mod_name in sys.modules:
+                    del sys.modules[mod_name]
 
-            try:
-                sys.path.insert(0, filepath)
-                current_module = importlib.import_module(mod_name)
-                mods.append(current_module)
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception("Failed to import: %s", filepath)
-                if self.dagbag_import_error_tracebacks:
-                    self.import_errors[filepath] = traceback.format_exc(
-                        limit=-self.dagbag_import_error_traceback_depth
-                    )
-                else:
-                    self.import_errors[filepath] = str(e)
+                try:
+                    sys.path.insert(0, filepath)
+                    current_module = importlib.import_module(mod_name)
+                    mods.append(current_module)
+                except Exception as e:  # pylint: disable=broad-except
+                    self.log.exception("Failed to import: %s", filepath)
+                    if self.dagbag_import_error_tracebacks:
+                        self.import_errors[filepath] = traceback.format_exc(
+                            limit=-self.dagbag_import_error_traceback_depth
+                        )
+                    else:
+                        self.import_errors[filepath] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
@@ -582,17 +582,17 @@ class DagBag(LoggingMixin):
         """Sync DAG specific permissions, if necessary"""
         from flask_appbuilder.security.sqla import models as sqla_models
 
-        from airflow.security.permissions import DAG_PERMS, permission_name_for_dag
+        from airflow.security.permissions import DAG_PERMS, resource_name_for_dag
 
         def needs_perm_views(dag_id: str) -> bool:
-            view_menu_name = permission_name_for_dag(dag_id)
+            dag_resource_name = resource_name_for_dag(dag_id)
             for permission_name in DAG_PERMS:
                 if not (
                     session.query(sqla_models.PermissionView)
                     .join(sqla_models.Permission)
                     .join(sqla_models.ViewMenu)
                     .filter(sqla_models.Permission.name == permission_name)
-                    .filter(sqla_models.ViewMenu.name == view_menu_name)
+                    .filter(sqla_models.ViewMenu.name == dag_resource_name)
                     .one_or_none()
                 ):
                     return True

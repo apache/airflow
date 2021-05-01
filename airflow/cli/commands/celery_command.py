@@ -156,24 +156,20 @@ def worker(args):
     if args.daemon:
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
 
-        if args.umask:
-            umask = args.umask
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            if args.umask:
+                umask = args.umask
 
-        ctx = daemon.DaemonContext(
-            files_preserve=[handle],
-            umask=int(umask, 8),
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            sub_proc = _serve_logs(skip_serve_logs)
-            worker_instance.run(**options)
-
-        stdout.close()
-        stderr.close()
+            ctx = daemon.DaemonContext(
+                files_preserve=[handle],
+                umask=int(umask, 8),
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+            )
+            with ctx:
+                sub_proc = _serve_logs(skip_serve_logs)
+                worker_instance.run(**options)
     else:
         # Run Celery worker in the same process
         sub_proc = _serve_logs(skip_serve_logs)

@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection Types <connections/slack>
     Python API <_api/airflow/providers/slack/index>
 
 .. toctree::

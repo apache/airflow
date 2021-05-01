@@ -36,8 +36,8 @@ class TableauRefreshWorkbookOperator(BaseOperator):
     :type site_id: Optional[str]
     :param blocking: By default the extract refresh will be blocking means it will wait until it has finished.
     :type blocking: bool
-    :param tableau_conn_id: The Tableau Connection id containing the credentials
-        to authenticate to the Tableau Server.
+    :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
+        containing the credentials to authenticate to the Tableau Server.
     :type tableau_conn_id: str
     """
 

@@ -250,12 +250,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.image_pull_policy = image_pull_policy
         if node_selectors:
             # Node selectors is incorrect based on k8s API
-            warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
-            self.node_selector = node_selectors or {}
+            warnings.warn(
+                "node_selectors is deprecated. Please use node_selector instead.", DeprecationWarning
+            )
+            self.node_selector = node_selectors
         elif node_selector:
-            self.node_selector = node_selector or {}
+            self.node_selector = node_selector
         else:
-            self.node_selector = None
+            self.node_selector = {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
         self.k8s_resources = convert_resources(resources) if resources else {}

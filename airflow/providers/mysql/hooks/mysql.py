@@ -46,7 +46,7 @@ class MySqlHook(DbApiHook):
 
     :param schema: The MySQL database schema to connect to.
     :type schema: Optional[str]
-    :param connection: The Airflow connection used for MySQL credentials.
+    :param connection: The :ref:`MySQL connection id <howto/connection:mysql>` used for MySQL credentials.
     :type connection: Optional[Dict]
     """
 

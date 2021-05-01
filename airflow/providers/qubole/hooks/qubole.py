@@ -202,6 +202,7 @@ class QuboleHook(BaseHook):
             self.log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
+    # pylint: disable=consider-using-with
     def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
         """
         Get results (or just s3 locations) of a command from Qubole and save into a file

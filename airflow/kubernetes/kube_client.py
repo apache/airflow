@@ -15,9 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for kubernetes communication"""
+import logging
 from typing import Optional
 
 from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 try:
     from kubernetes import client, config
@@ -89,12 +92,23 @@ def _enable_tcp_keepalive() -> None:
     tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl')
     tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt')
 
-    socket_options = [
-        (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
-        (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle),
-        (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl),
-        (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt),
-    ]
+    socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+
+    if hasattr(socket, "TCP_KEEPIDLE"):
+        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
+    else:
+        log.warning("Unable to set TCP_KEEPIDLE on this platform")
+
+    if hasattr(socket, "TCP_KEEPINTVL"):
+        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
+    else:
+        log.warning("Unable to set TCP_KEEPINTVL on this platform")
+
+    if hasattr(socket, "TCP_KEEPCNT"):
+        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
+    else:
+        log.warning("Unable to set TCP_KEEPCNT on this platform")
+
     HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options
     HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
 

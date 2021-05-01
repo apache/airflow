@@ -781,6 +781,7 @@ class TestGCSHookUpload(unittest.TestCase):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 
         # generate a 384KiB test file (larger than the minimum 256KiB multipart chunk size)
+        # pylint: disable=consider-using-with
         self.testfile = tempfile.NamedTemporaryFile(delete=False)
         self.testfile.write(b"x" * 393216)
         self.testfile.flush()

@@ -43,7 +43,7 @@ To deploy Airflow on Docker Compose, you should fetch `docker-compose.yaml <../d
 
 This file contains several service definitions:
 
-- ``airflow-scheduler`` - The :doc:`scheduler </scheduler>` monitors all tasks and DAGs, then triggers the
+- ``airflow-scheduler`` - The :doc:`scheduler </concepts/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-webserver`` - The webserver available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
@@ -52,7 +52,7 @@ This file contains several service definitions:
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
 
-All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :ref:`architecture`.
+All these services allow you to run Airflow with :doc:`CeleryExecutor </executor/celery>`. For more information, see :doc:`/concepts/overview`.
 
 Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
 

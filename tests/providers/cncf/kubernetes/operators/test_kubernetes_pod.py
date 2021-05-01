@@ -563,19 +563,22 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
 
         # repeat tests using deprecated parameter
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="name",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context="default",
-            node_selectors=node_selector,
-        )
+        with pytest.warns(
+            DeprecationWarning, match="node_selectors is deprecated. Please use node_selector instead."
+        ):
+            k = KubernetesPodOperator(
+                namespace="default",
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo 10"],
+                labels={"foo": "bar"},
+                name="name",
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
+                cluster_context="default",
+                node_selectors=node_selector,
+            )
 
         pod = k.create_pod_request_obj()
         sanitized_pod = self.sanitize_for_serialization(pod)

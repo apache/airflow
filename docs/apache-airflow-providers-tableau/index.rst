@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection Types <connections/tableau>
     Python API <_api/airflow/providers/tableau/index>
 
 .. toctree::

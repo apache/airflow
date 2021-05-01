@@ -185,6 +185,7 @@ class CassandraToGCSOperator(BaseOperator):
         # Close all sessions and connection associated with this Cassandra cluster
         hook.shutdown_cluster()
 
+    # pylint: disable=consider-using-with
     def _write_local_data_files(self, cursor):
         """
         Takes a cursor, and writes results to a local file.
@@ -211,6 +212,7 @@ class CassandraToGCSOperator(BaseOperator):
 
         return tmp_file_handles
 
+    # pylint: disable=consider-using-with
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a

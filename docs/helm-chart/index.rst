@@ -28,6 +28,7 @@ Helm Chart for Apache Airflow
     quick-start
     airflow-configuration
     manage-dags-files
+    manage-logs
     keda
     external-redis
     using-additional-containers

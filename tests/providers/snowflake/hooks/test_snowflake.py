@@ -32,8 +32,14 @@ class TestSnowflakeHook(unittest.TestCase):
         super().setUp()
 
         self.cur = mock.MagicMock()
+        self.cur2 = mock.MagicMock()
+
+        self.cur.sfqid = 'uuid'
+        self.cur2.sfqid = 'uuid2'
+
         self.conn = conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
+        self.conn.execute_string.return_value = [self.cur, self.cur2]
 
         self.conn.login = 'user'
         self.conn.password = 'pw'
@@ -88,6 +94,19 @@ class TestSnowflakeHook(unittest.TestCase):
             'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
         assert uri_shouldbe == self.db_hook.get_uri()
+
+    def test_single_element_list_calls_execute(self):
+        self.db_hook.run(['select * from table'])
+        self.cur.execute.assert_called()
+        assert self.db_hook.query_ids == ['uuid']
+
+    def test_passed_string_calls_execute_string(self):
+        self.db_hook.run('select * from table; select * from table2')
+
+        assert self.db_hook.query_ids == ['uuid', 'uuid2']
+        self.conn.execute_string.assert_called()
+        self.cur.close.assert_called()
+        self.cur2.close.assert_called()
 
     def test_get_conn_params(self):
         conn_params_shouldbe = {
