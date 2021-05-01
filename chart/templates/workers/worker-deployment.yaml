@@ -127,7 +127,11 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "-c", "airflow celery worker || airflow worker"]
+          {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+          args: [ "bash", "-c", "airflow celery worker" ]
+          {{- else }}
+          args: [ "bash", "-c", "airflow worker" ]
+          {{- end }}
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
           ports:

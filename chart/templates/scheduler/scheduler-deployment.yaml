@@ -150,10 +150,12 @@ spec:
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
           volumeMounts:
+            {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
               mountPath: {{ include "airflow_pod_template_file" . }}/pod_template_file.yaml
               subPath: pod_template_file.yaml
               readOnly: true
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             - name: config

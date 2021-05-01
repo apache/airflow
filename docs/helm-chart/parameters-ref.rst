@@ -83,64 +83,67 @@ The following tables lists the configurable parameters of the Airflow chart and 
      - ``1``
    * - ``defaultAirflowRepository``
      - Fallback docker repository to pull airflow image from
-     - ``1``
+     - ``apache/airflow``
    * - ``defaultAirflowTag``
      - Fallback docker image tag to deploy
-     - ``1``
+     - ``2.0.2``
+   * - ``airflowVersion``
+     - Airflow version (Used to make some decisions based on Airflow Version being deployed)
+     - ``2.0.2``
    * - ``images.airflow.repository``
      - Docker repository to pull image from. Update this to deploy a custom image
-     - ``1``
+     - ``~``
    * - ``images.airflow.tag``
      - Docker image tag to pull image from. Update this to deploy a new custom image tag
-     - ``1``
+     - ``~``
    * - ``images.airflow.pullPolicy``
      - PullPolicy for airflow image
-     - ``1``
+     - ``IfNotPresent``
    * - ``images.flower.repository``
      - Docker repository to pull image from. Update this to deploy a custom image
-     - ``1``
+     - ``~``
    * - ``images.flower.tag``
      - Docker image tag to pull image from. Update this to deploy a new custom image tag
-     - ``1``
+     - ``~``
    * - ``images.flower.pullPolicy``
      - PullPolicy for flower image
-     - ``1``
+     - ``IfNotPresent``
    * - ``images.statsd.repository``
      - Docker repository to pull image from. Update this to deploy a custom image
-     - ``1``
+     - ``apache/airflow``
    * - ``images.statsd.tag``
      - Docker image tag to pull image from. Update this to deploy a new custom image tag
-     - ``1``
+     - ``airflow-statsd-exporter-2021.04.28-v0.17.0``
    * - ``images.statsd.pullPolicy``
      - PullPolicy for statsd-exporter image
-     - ``1``
+     - ``IfNotPresent``
    * - ``images.redis.repository``
      - Docker repository to pull image from. Update this to deploy a custom image
-     - ``1``
+     - ``redis``
    * - ``images.redis.tag``
      - Docker image tag to pull image from. Update this to deploy a new custom image tag
-     - ``1``
+     - ``6-buster``
    * - ``images.redis.pullPolicy``
      - PullPolicy for redis image
-     - ``1``
+     - ``IfNotPresent``
    * - ``images.pgbouncer.repository``
      - Docker repository to pull image from. Update this to deploy a custom image
-     - ``1``
+     - ``apache/airflow``
    * - ``images.pgbouncer.tag``
      - Docker image tag to pull image from. Update this to deploy a new custom image tag
-     - ``1``
+     - ``airflow-pgbouncer-2021.04.28-1.14.0``
    * - ``images.pgbouncer.pullPolicy``
      - PullPolicy for PgBouncer image
-     - ``1``
+     - ``IfNotPresent``
    * - ``images.pgbouncerExporter.repository``
      - Docker repository to pull image from. Update this to deploy a custom image
-     - ``1``
+     - ``apache/airflow``
    * - ``images.pgbouncerExporter.tag``
      - Docker image tag to pull image from. Update this to deploy a new custom image tag
-     - ``1``
+     - ``airflow-pgbouncer-exporter-2021.04.28-0.5.0``
    * - ``images.pgbouncerExporter.pullPolicy``
      - PullPolicy for ``pgbouncer-exporter`` image
-     - ``1``
+     - ``IfNotPresent``
    * - ``env``
      - Environment variables key/values to mount into Airflow pods (deprecated, prefer using ``extraEnv``)
      - ``1``

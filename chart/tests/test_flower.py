@@ -44,6 +44,43 @@ class TestFlower:
             assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
             assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
+        [
+            (
+                "2.0.2",
+                "airflow celery flower",
+            ),
+            (
+                "1.10.14",
+                "airflow flower",
+            ),
+            (
+                "1.9.0",
+                "airflow flower",
+            ),
+            (
+                "2.1.0",
+                "airflow celery flower",
+            ),
+        ],
+    )
+    def test_args_with_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
+            "-c",
+            expected_arg,
+        ]
+
     def test_should_create_flower_deployment_with_authorization(self):
         docs = render_chart(
             values={

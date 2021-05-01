@@ -31,6 +31,10 @@
             "description": "Default airflow tag to deploy.",
             "type": "string"
         },
+        "airflowVersion": {
+            "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
+            "type": "string"
+        },
         "nodeSelector": {
             "description": "Select certain nodes for airflow pods.",
             "type": "object",
@@ -940,6 +944,10 @@
                 "replicas": {
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer"
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones.",
+                    "type": ["null", "object"]
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
