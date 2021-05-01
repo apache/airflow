@@ -264,7 +264,11 @@ cd "${AIRFLOW_REPO_ROOT}"
   --package-filter 'apache-airflow-providers-*'
 ```
 
-for all providers, or if you have just few providers:
+Usually when we release packages we also build documentation for the "documentation-only" packages. This
+means that unless we release just few selected packages or if we need to deliberately skip some packages
+we should release documentation for all provider packages and the above command is the one to use.
+
+If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -276,11 +280,13 @@ cd "${AIRFLOW_REPO_ROOT}"
   ...
 ```
 
-If you have providers as list of provider ids beacuse you just released them you can build them with
+
+If you have providers as list of provider ids becuse you just released them you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
+
 
 - Now you can preview the documentation.
 
@@ -743,10 +749,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*
 
 ## Publish documentation prepared before
 
-Merge the PR that you prepared before with the documentation. If you removed some of the providers
-from the release - remove the versions from the prepared documentation and update stable.txt with the
-previous version for those providers before merging the PR.
-
+Merge the PR that you prepared before with the documentation.
 
 ## Add tags in git
 

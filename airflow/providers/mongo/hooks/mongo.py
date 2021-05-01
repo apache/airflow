@@ -40,8 +40,9 @@ class MongoHook(BaseHook):
     ex.
         {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
 
-    :param conn_id: This is the Airflow connection to use for Mongo credentials.
-    :type conn_id: str
+    :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
+        when connecting to MongoDB.
+    :type mongo: str
     """
 
     conn_name_attr = 'conn_id'

@@ -31,7 +31,8 @@ class SlackAPIOperator(BaseOperator):
     In the future additional Slack API Operators will be derived from this class as well.
     Only one of `slack_conn_id` and `token` is required.
 
-    :param slack_conn_id: Slack connection ID which its password is Slack API token. Optional
+    :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
+        which its password is Slack API token. Optional
     :type slack_conn_id: str
     :param token: Slack API token (https://api.slack.com/web). Optional
     :type token: str

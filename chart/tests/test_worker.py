@@ -183,3 +183,27 @@ class WorkerTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    @parameterized.expand(
+        [
+            ({"enabled": False}, {"emptyDir": {}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            (
+                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistentVolumeClaim": {"claimName": "test-claim"}},
+            ),
+        ]
+    )
+    def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"persistence": {"enabled": False}},
+                "logs": {"persistence": log_persistence_values},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "logs", **expected_volume} == jmespath.search(
+            "spec.template.spec.volumes[1]", docs[0]
+        )

@@ -53,6 +53,10 @@ class PostgresHook(DbApiHook):
     set it to true. The cluster-identifier is extracted from the beginning of
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
+
+    :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
+        reference to a specific postgres database.
+    :type postgres_conn_id: str
     """
 
     conn_name_attr = 'postgres_conn_id'

@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection types <connections/sftp>
     Python API <_api/airflow/providers/sftp/index>
 
 .. toctree::

@@ -464,3 +464,29 @@ label[for="timezone-other"],
 .loading-dots.refresh-loading {
   display: none;
 }
+
+.trigger-dropdown-btn {
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+  border-right-width: 0;
+}
+
+.trigger-dropdown-menu {
+  left: -80px;
+}
+
+.dropdown-form-btn {
+  padding: 3px 20px;
+  line-height: 1.428571429;
+  color: #51504f;
+  background-color: white;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-form-btn:hover,
+.dropdown-form-btn:focus {
+  color: #262626;
+  background-color: #f5f5f5;
+}

@@ -45,7 +45,7 @@ Airflow is tested with:
 * Kubernetes: 1.18.15 1.19.7 1.20.2
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
-running multiple schedulers -- please see: :doc:`/scheduler`. MariaDB is not tested/recommended.
+running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
@@ -56,12 +56,7 @@ tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
 Installation tools
 ''''''''''''''''''
 
-The official way of installing Airflow is with the ``pip`` tool.
-There was a recent (November 2020) change in resolver, so currently only 20.2.4 version is officially
-supported, although you might have a success with 20.3.3+ version (to be confirmed if all initial
-issues from ``pip`` 20.3.0 release have been fixed in 20.3.3). In order to install Airflow you need to
-either downgrade pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-``--use-deprecated legacy-resolver`` to your pip install command.
+Only ``pip`` installation is currently officially supported.
 
 While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
 `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as

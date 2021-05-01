@@ -993,8 +993,9 @@
       default: "False"
     - name: secret_key
       description: |
-        Secret key used to run your flask app
-        It should be as random as possible
+        Secret key used to run your flask app. It should be as random as possible. However, when running
+        more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
+        one of them will error with "CSRF session token is missing".
       version_added: ~
       type: string
       sensitive: true

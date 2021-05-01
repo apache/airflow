@@ -71,6 +71,14 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Deprecated PodDefaults and add_xcom_sidecar in airflow.kubernetes.pod_generator
+
+We have moved PodDefaults from `airflow.kubernetes.pod_generator.PodDefaults` to
+`airflow.providers.cncf.kubernetes.utils.xcom_sidecar.PodDefaults` and moved add_xcom_sidecar
+from `airflow.kubernetes.pod_generator.PodGenerator.add_xcom_sidecar`to
+`airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar`.
+This change will allow us to modify the KubernetesPodOperator XCom functionality without requiring airflow upgrades.
+
 ### Removed pod_launcher from core airflow
 
 Moved the pod launcher from `airflow.kubernetes.pod_launcher` to `airflow.providers.cncf.kubernetes.utils.pod_launcher`
@@ -1786,13 +1794,6 @@ you should use `pip install apache-airflow[apache.atlas]`.
 
 
 NOTE!
-
-On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
-`--use-deprecated legacy-resolver` to your pip install command.
-
 
 If you want to install integration for Microsoft Azure, then instead of
 

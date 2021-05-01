@@ -44,7 +44,7 @@ To insert a Search Ads report use the
     :start-after: [START howto_search_ads_generate_report_operator]
     :end-before: [END howto_search_ads_generate_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator`
 parameters which allows you to dynamically determine values. You can provide report definition using ``
 .json`` file as this operator supports this template extension.
@@ -70,7 +70,7 @@ To wait for a report to be ready for download use
     :start-after: [START howto_search_ads_get_report_operator]
     :end-before: [END howto_search_ads_get_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`
 parameters which allows you to dynamically determine values.
 
@@ -88,7 +88,7 @@ To download a Search Ads report to Google Cloud Storage bucket use the
     :start-after: [START howto_search_ads_getfile_report_operator]
     :end-before: [END howto_search_ads_getfile_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.

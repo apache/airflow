@@ -44,7 +44,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
-from airflow.providers.cncf.kubernetes.utils import pod_launcher
+from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
@@ -250,12 +250,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.image_pull_policy = image_pull_policy
         if node_selectors:
             # Node selectors is incorrect based on k8s API
-            warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
-            self.node_selector = node_selectors or {}
+            warnings.warn(
+                "node_selectors is deprecated. Please use node_selector instead.", DeprecationWarning
+            )
+            self.node_selector = node_selectors
         elif node_selector:
-            self.node_selector = node_selector or {}
+            self.node_selector = node_selector
         else:
-            self.node_selector = None
+            self.node_selector = {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
         self.k8s_resources = convert_resources(resources) if resources else {}
@@ -487,7 +489,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = PodGenerator.add_xcom_sidecar(pod)
+            pod = xcom_sidecar.add_xcom_sidecar(pod)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:

@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -187,3 +188,31 @@ class WebserverDeploymentTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    @parameterized.expand(
+        [
+            ({"enabled": False}, None),
+            ({"enabled": True}, "RELEASE-NAME-logs"),
+            ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
+        ]
+    )
+    def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
+        docs = render_chart(
+            values={"logs": {"persistence": log_persistence_values}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        if expected_claim_name:
+            assert {
+                "name": "logs",
+                "persistentVolumeClaim": {"claimName": expected_claim_name},
+            } == jmespath.search("spec.template.spec.volumes[1]", docs[0])
+            assert {
+                "name": "logs",
+                "mountPath": "/opt/airflow/logs",
+            } == jmespath.search("spec.template.spec.containers[0].volumeMounts[1]", docs[0])
+        else:
+            assert "logs" not in [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert "logs" not in [
+                v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            ]

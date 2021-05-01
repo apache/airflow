@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.providers.odbc.hooks.odbc import OdbcHook
 from airflow.utils.decorators import apply_defaults
+
+if TYPE_CHECKING:
+    from airflow.hooks.dbapi import DbApiHook
 
 
 class MsSqlOperator(BaseOperator):
@@ -68,15 +70,14 @@ class MsSqlOperator(BaseOperator):
         self.parameters = parameters
         self.autocommit = autocommit
         self.database = database
-        self._hook: Optional[Union[MsSqlHook, OdbcHook]] = None
+        self._hook: Optional[Union[MsSqlHook, 'DbApiHook']] = None
 
-    def get_hook(self) -> Optional[Union[MsSqlHook, OdbcHook]]:
+    def get_hook(self) -> Optional[Union[MsSqlHook, 'DbApiHook']]:
         """
-        Will retrieve hook as determined by Connection.
+        Will retrieve hook as determined by :meth:`~.Connection.get_hook` if one is defined, and
+        :class:`~.MsSqlHook` otherwise.
 
-        If conn_type is ``'odbc'``, will use
-        :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`.
-        Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` will be used.
+        For example, if the connection ``conn_type`` is ``'odbc'``, :class:`~.OdbcHook` will be used.
         """
         if not self._hook:
             conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)

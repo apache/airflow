@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
+    Connection Types <connections/snowflake>
     Operators <operators/index>
 
 .. toctree::

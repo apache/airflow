@@ -18,7 +18,7 @@
 #
 
 import warnings
-from typing import Any, Dict
+from typing import Any
 
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.containerinstance.models import ContainerGroup
@@ -36,60 +36,13 @@ class AzureContainerInstanceHook(AzureBaseHook):
     client_id (Application ID) as login, the generated password as password,
     and tenantId and subscriptionId in the extra's field as a json.
 
-    :param azure_conn_id: :ref:`Azure connection id<howto/connection:azure>` of
+    :param conn_id: :ref:`Azure connection id<howto/connection:azure>` of
         a service principal which will be used to start the container instance.
     :type azure_conn_id: str
     """
 
-    conn_name_attr = 'azure_conn_id'
-    default_conn_name = 'azure_default'
-    conn_type = 'azure_container_instances'
-    hook_name = 'Azure Container Instance'
-
-    @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import StringField
-
-        return {
-            "extra__azure__tenantId": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure__subscriptionId": StringField(
-                lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
-            ),
-        }
-
-    @staticmethod
-    def get_ui_field_behaviour() -> Dict:
-        """Returns custom field behaviour"""
-        import json
-
-        return {
-            "hidden_fields": ['schema', 'port', 'host'],
-            "relabeling": {
-                'login': 'Azure Client ID',
-                'password': 'Azure Secret',
-            },
-            "placeholders": {
-                'extra': json.dumps(
-                    {
-                        "key_path": "path to json file for auth",
-                        "key_json": "specifies json dict for auth",
-                    },
-                    indent=1,
-                ),
-                'login': 'client id (token credentials auth)',
-                'password': 'secret (token credentials auth)',
-                'extra__azure__tenantId': 'tenant id (token credentials auth)',
-                'extra__azure__subscriptionId': 'subscription id (token credentials auth)',
-            },
-        }
-
-    def __init__(self, conn_id: str = default_conn_name) -> None:
-        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(sdk_client=ContainerInstanceManagementClient, *args, **kwargs)
         self.connection = self.get_conn()
 
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:

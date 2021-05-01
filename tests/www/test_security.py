@@ -125,7 +125,7 @@ class TestSecurity(unittest.TestCase):
     def _has_dag_perm(self, perm, dag_id, user):
         # if not user:
         #     user = self.user
-        return self.security_manager.has_access(perm, self.security_manager.prefixed_dag_id(dag_id), user)
+        return self.security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
 
     def _create_dag(self, dag_id):
         dag_model = DagModel(dag_id=dag_id)
@@ -581,10 +581,10 @@ class TestSecurity(unittest.TestCase):
         self.security_manager._sync_dag_view_permissions = mock.Mock()
 
         for dag in dags:
-            prefixed_dag_id = self.security_manager.prefixed_dag_id(dag.dag_id)
+            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
             all_perms = self.security_manager.get_all_permissions()
-            assert ('can_read', prefixed_dag_id) not in all_perms
-            assert ('can_edit', prefixed_dag_id) not in all_perms
+            assert ('can_read', dag_resource_name) not in all_perms
+            assert ('can_edit', dag_resource_name) not in all_perms
 
         self.security_manager.create_dag_specific_permissions()
 
@@ -592,13 +592,13 @@ class TestSecurity(unittest.TestCase):
         collect_dags_from_db_mock.assert_called_once_with()
 
         for dag in dags:
-            prefixed_dag_id = self.security_manager.prefixed_dag_id(dag.dag_id)
+            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
             all_perms = self.security_manager.get_all_permissions()
-            assert ('can_read', prefixed_dag_id) in all_perms
-            assert ('can_edit', prefixed_dag_id) in all_perms
+            assert ('can_read', dag_resource_name) in all_perms
+            assert ('can_edit', dag_resource_name) in all_perms
 
         self.security_manager._sync_dag_view_permissions.assert_called_once_with(
-            self.security_manager.prefixed_dag_id('has_access_control'), access_control
+            permissions.resource_name_for_dag('has_access_control'), access_control
         )
 
         del dagbag.dags["has_access_control"]
@@ -638,3 +638,13 @@ class TestSecurity(unittest.TestCase):
             assert isinstance(role, self.security_manager.role_model)
 
         assert 'Admin' in roles
+
+    def test_prefixed_dag_id_is_deprecated(self):
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "`prefixed_dag_id` has been deprecated. "
+                "Please use `airflow.security.permissions.resource_name_for_dag` instead."
+            ),
+        ):
+            self.security_manager.prefixed_dag_id("hello")

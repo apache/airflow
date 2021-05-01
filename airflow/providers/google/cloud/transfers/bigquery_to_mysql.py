@@ -59,7 +59,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param mysql_conn_id: reference to a specific mysql hook
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param database: name of database which overwrite defined one in connection
     :type database: str

@@ -182,14 +182,17 @@ class TestCliDags(unittest.TestCase):
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
         mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
-        mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate.return_value = (b"OUT", b"ERR")
+        mock_popen.return_value.__enter__.return_value = mock_proc
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(['dags', 'show', 'example_bash_operator', '--imgcat'])
             )
         out = temp_stdout.getvalue()
         mock_render_dag.return_value.pipe.assert_called_once_with(format='png')
-        mock_popen.return_value.communicate.assert_called_once_with(b'DOT_DATA')
+        mock_proc.communicate.assert_called_once_with(b'DOT_DATA')
         assert "OUT" in out
         assert "ERR" in out
 

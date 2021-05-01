@@ -17,6 +17,8 @@
 
 
 
+.. _howto/connection:mysql:
+
 MySQL Connection
 ================
 The MySQL connection type provides connection to a MySQL database.

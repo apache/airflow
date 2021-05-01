@@ -135,25 +135,24 @@ class S3FileTransformOperator(BaseOperator):
             f_source.flush()
 
             if self.transform_script is not None:
-                process = subprocess.Popen(
+                with subprocess.Popen(
                     [self.transform_script, f_source.name, f_dest.name, *self.script_args],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     close_fds=True,
-                )
+                ) as process:
+                    self.log.info("Output:")
+                    for line in iter(process.stdout.readline, b''):
+                        self.log.info(line.decode(self.output_encoding).rstrip())
 
-                self.log.info("Output:")
-                for line in iter(process.stdout.readline, b''):
-                    self.log.info(line.decode(self.output_encoding).rstrip())
+                    process.wait()
 
-                process.wait()
-
-                if process.returncode:
-                    raise AirflowException(f"Transform script failed: {process.returncode}")
-                else:
-                    self.log.info(
-                        "Transform script successful. Output temporarily located at %s", f_dest.name
-                    )
+                    if process.returncode:
+                        raise AirflowException(f"Transform script failed: {process.returncode}")
+                    else:
+                        self.log.info(
+                            "Transform script successful. Output temporarily located at %s", f_dest.name
+                        )
 
             self.log.info("Uploading transformed file to S3")
             f_dest.flush()

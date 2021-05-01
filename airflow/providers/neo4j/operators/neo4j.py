@@ -33,7 +33,7 @@ class Neo4jOperator(BaseOperator):
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement, a list of str (sql statements)
     :type sql: str or list[str]
-    :param neo4j_conn_id: reference to a specific Neo4j database
+    :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
     :type neo4j_conn_id: str
     """
 

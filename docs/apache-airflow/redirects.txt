@@ -43,3 +43,8 @@ start.rst start/index.rst
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst python-api-ref.rst
+
+# Concepts
+concepts.rst concepts/index.rst
+smart-sensor.rst concepts/smart-sensors.rst
+scheduler.rst concepts/scheduler.rst
