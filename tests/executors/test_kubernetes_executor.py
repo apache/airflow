@@ -129,15 +129,15 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         pod_id = "my-pod-1"
         namespace = "my-namespace"
 
-        kube_client = mock.MagicMock()
-        mock_kube_client.return_value.delete_namespaced_pod = kube_client
+        mock_delete_namespace = mock.MagicMock()
+        mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
 
         kube_executor = KubernetesExecutor()
         kube_executor.job_id = "test-job-id"
         kube_executor.start()
         kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
 
-        kube_client.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
+        mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
 
     @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
@@ -149,8 +149,8 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         pod_id = "my-pod-1"
         namespace = "my-namespace"
 
-        kube_client = mock.MagicMock()
-        mock_kube_client.return_value.delete_namespaced_pod = kube_client
+        mock_delete_namespace = mock.MagicMock()
+        mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
 
         # ApiException is raised because status is not 404
         mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=400)
@@ -160,7 +160,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
 
         with pytest.raises(ApiException):
             kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
-            kube_client.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
+            mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
 
     @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
@@ -172,8 +172,8 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         pod_id = "my-pod-1"
         namespace = "my-namespace"
 
-        kube_client = mock.MagicMock()
-        mock_kube_client.return_value.delete_namespaced_pod = kube_client
+        mock_delete_namespace = mock.MagicMock()
+        mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
 
         # ApiException not raised because the status is 404
         mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=404)
@@ -182,7 +182,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         kube_executor.start()
 
         kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
-        kube_client.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
+        mock_delete_namespace.assert_called_with(pod_id, namespace, body=mock_client.V1DeleteOptions())
 
 
 class TestKubernetesExecutor(unittest.TestCase):
@@ -206,9 +206,9 @@ class TestKubernetesExecutor(unittest.TestCase):
         # When a quota is exceeded this is the ApiException we get
         response = HTTPResponse(
             body='{"kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure", '
-            '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
-            'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
-            '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}'
+                 '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
+                 'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
+                 '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}'
         )
         response.status = 403
         response.reason = "Forbidden"
