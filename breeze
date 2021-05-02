@@ -1210,6 +1210,12 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --cleanup-docker-context-files)
+            export CLEANUP_DOCKER_CONTEXT_FILES="true"
+            echo "Preserves data volumes when stopping airflow"
+            echo
+            shift
+            ;;
         --no-rbac-ui)
             export DISABLE_RBAC="true"
             echo "When installing Airflow 1.10, RBAC UI will be disabled."
@@ -2618,6 +2624,12 @@ function breeze::flag_build_docker_images() {
         is used in the scheduled run in CI when we rebuild all the images from the scratch
         and run the tests to see if the latest python images do not fail our tests.
 
+--cleanup-docker-context-files
+        Removes whl and tar.gz files created in docker-context-files before running the command.
+        In case there are some files there it unnecessarily increases the context size and
+        makes the COPY . always invalidated - if you happen to have those files when you build your
+        image.
+
 Customization options:
 
 -E, --extras EXTRAS
@@ -3351,6 +3363,11 @@ function breeze::run_build_command() {
         fi
         ;;
     build_image)
+        if [[ ${CLEANUP_DOCKER_CONTEXT_FILES} == "true" ]]; then
+            build_images::cleanup_docker_context_files
+        fi
+        build_images::check_for_docker_context_files
+
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             build_images::prepare_prod_build
             build_images::build_prod_images

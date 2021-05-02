@@ -1368,6 +1368,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           is used in the scheduled run in CI when we rebuild all the images from the scratch
           and run the tests to see if the latest python images do not fail our tests.
 
+  --cleanup-docker-context-files
+          Removes whl and tar.gz files created in docker-context-files before running the command.
+          In case there are some files there it unnecessarily increases the context size and
+          makes the COPY . always invalidated - if you happen to have those files when you build your
+          image.
+
   Customization options:
 
   -E, --extras EXTRAS
@@ -2035,6 +2041,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           is used in the scheduled run in CI when we rebuild all the images from the scratch
           and run the tests to see if the latest python images do not fail our tests.
 
+  --cleanup-docker-context-files
+          Removes whl and tar.gz files created in docker-context-files before running the command.
+          In case there are some files there it unnecessarily increases the context size and
+          makes the COPY . always invalidated - if you happen to have those files when you build your
+          image.
+
   Customization options:
 
   -E, --extras EXTRAS
@@ -2608,6 +2620,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python base image. This should be a rare and manually triggered event. Also this flag
           is used in the scheduled run in CI when we rebuild all the images from the scratch
           and run the tests to see if the latest python images do not fail our tests.
+
+  --cleanup-docker-context-files
+          Removes whl and tar.gz files created in docker-context-files before running the command.
+          In case there are some files there it unnecessarily increases the context size and
+          makes the COPY . always invalidated - if you happen to have those files when you build your
+          image.
 
   Customization options:
 

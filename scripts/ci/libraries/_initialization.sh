@@ -127,6 +127,9 @@ function initialization::initialize_base_variables() {
     # Which means that you do not have to start from scratch
     export PRESERVE_VOLUMES="false"
 
+    # Cleans up docker context files if specified
+    export CLEANUP_DOCKER_CONTEXT_FILES="false"
+
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
