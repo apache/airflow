@@ -143,18 +143,11 @@ class BigQueryToMsSqlOperator(BaseOperator):
                 start_index=i * self.batch_size,
             )
 
-<<<<<<< HEAD
-            if 'rows' in response:
-                rows = response['rows']
-            else:
-                self.log.info('Job Finished successfully')
-=======
             if 'rows' not in response:
                 self.log.info('Job Finished')
->>>>>>> 3cbc56a59c3b22edbca1aa8b6846b8a3e77ca968
                 return
-             
-             rows = response['rows']
+
+            rows = response['rows']
 
             self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
 
