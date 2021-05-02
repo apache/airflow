@@ -65,7 +65,27 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
-    """Interact with BigQuery. This hook uses the Google Cloud connection."""
+    """
+    Interact with BigQuery. This hook uses the Google Cloud connection.
+
+    :param gcp_conn_id: The Airflow connection used for GCP credentials.
+    :type gcp_conn_id: Optional[str]
+    :param delegate_to: This performs a task on one host with reference to other hosts.
+    :type delegate_to: Optional[str]
+    :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
+    :type use_legacy_sql: bool
+    :param location: The location of the BigQuery resource.
+    :type location: Optional[str]
+    :param bigquery_conn_id: The Airflow connection used for BigQuery credentials.
+    :type bigquery_conn_id: Optional[str]
+    :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
+    :type api_resource_configs: Optional[Dict]
+    :param impersonation_chain: This is the optional service account to impersonate using short term
+        credentials.
+    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
+    :param labels: The BigQuery resource label.
+    :type labels: Optional[Dict]
+    """
 
     conn_name_attr = 'gcp_conn_id'
     default_conn_name = 'google_cloud_default'

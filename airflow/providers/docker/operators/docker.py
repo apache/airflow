@@ -107,7 +107,7 @@ class DockerOperator(BaseOperator):
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
     :type xcom_all: bool
-    :param docker_conn_id: ID of the Airflow connection to use
+    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :type docker_conn_id: str
     :param dns: Docker custom DNS servers
     :type dns: list[str]

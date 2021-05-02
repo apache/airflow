@@ -226,31 +226,49 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-Airflow 2+:
+### Airflow 2+:
 
 ```shell script
+export VERSION_RC=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
-  export DOCKER_TAG=${VERSION}-python${python_version}
+  export DOCKER_TAG=${VERSION_RC}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+Once this succeeds you should push the "${VERSION_RC}" image:
 
-Airflow 1.10:
+```shell script
+docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
+docker push apache/airflow:${VERSION_RC}
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before the images are pushed.
+
+
+### Airflow 1.10:
 
 ```shell script
 for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
 do
     ./breeze build-image --production-image --python ${python_version} \
-        --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
-    docker push apache/airflow:${VERSION}-python${python_version}
+        --image-tag apache/airflow:${VERSION_RC}-python${python_version} --build-cache-local
+    docker push apache/airflow:${VERSION_RC}-python${python_version}
 done
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
 ```
+
+Once this succeeds you should push the "${VERSION_RC}" image:
+
+```shell script
+docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
+docker push apache/airflow:${VERSION_RC}
+```
+
+
+### Airflow 1.10:
 
 
 ## Prepare Vote email on the Apache Airflow release candidate
@@ -502,13 +520,13 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
 For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
 ```
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
@@ -659,9 +677,10 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-Airflow 2+:
+### Airflow 2+:
 
 ```shell script
+export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
@@ -670,10 +689,11 @@ for python_version in "3.6" "3.7" "3.8"
 )
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean".
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before the images are pushed.
 
 
-Airflow 1.10:
+### Airflow 1.10:
 
 ```shell script
 for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
@@ -682,6 +702,11 @@ do
         --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
     docker push apache/airflow:${VERSION}-python${python_version}
 done
+```
+
+Once this succeeds you should push the "${VERSION}" image:
+
+```shell script
 docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
 docker push apache/airflow:${VERSION}
 ```
@@ -705,7 +730,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    ./breeze build-docs -- --package-filter apache-airflow --for-production
+    ./breeze build-docs -- --package-filter apache-airflow --package-filter docker-stack --for-production
     ```
 
 - Now you can preview the documentation.
@@ -717,7 +742,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
 
     ```shell script
-    ./docs/publish_docs.py --package apache-airflow
+    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push

@@ -39,9 +39,9 @@ class SparkSubmitOperator(BaseOperator):
     :type application: str
     :param conf: Arbitrary Spark configuration properties (templated)
     :type conf: dict
-    :param conn_id: The connection id as configured in Airflow administration. When an
-                    invalid connection_id is supplied, it will default to yarn.
-    :type conn_id: str
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+        in Airflow administration. When an invalid connection_id is supplied, it will default to yarn.
+    :type spark_conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
                   comma. Files will be placed in the working directory of each executor.
                   For example, serialized objects. (templated)

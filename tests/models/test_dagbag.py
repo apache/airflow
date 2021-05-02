@@ -35,11 +35,13 @@ from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
+from airflow.www.security import ApplessAirflowSecurityManager
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
+from tests.test_utils.permissions import delete_dag_specific_permissions
 
 
 class TestDagBag(unittest.TestCase):
@@ -128,12 +130,12 @@ class TestDagBag(unittest.TestCase):
         """
         test that we're able to parse file that contains multi-byte char
         """
-        f = NamedTemporaryFile()
-        f.write('\u3042'.encode())  # write multi-byte char (hiragana)
-        f.flush()
+        with NamedTemporaryFile() as f:
+            f.write('\u3042'.encode())  # write multi-byte char (hiragana)
+            f.flush()
 
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
-        assert [] == dagbag.process_file(f.name)
+            dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+            assert [] == dagbag.process_file(f.name)
 
     def test_zip_skip_log(self):
         """
@@ -283,13 +285,13 @@ class TestDagBag(unittest.TestCase):
         """
         # write source to file
         source = textwrap.dedent(''.join(inspect.getsource(create_dag).splitlines(True)[1:-1]))
-        f = NamedTemporaryFile()
-        f.write(source.encode('utf8'))
-        f.flush()
+        with NamedTemporaryFile() as f:
+            f.write(source.encode('utf8'))
+            f.flush()
 
-        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
-        found_dags = dagbag.process_file(f.name)
-        return dagbag, found_dags, f.name
+            dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+            found_dags = dagbag.process_file(f.name)
+            return dagbag, found_dags, f.name
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag, should_be_found=True):
         expected_dag_ids = list(map(lambda dag: dag.dag_id, expected_parent_dag.subdags))
@@ -686,6 +688,76 @@ class TestDagBag(unittest.TestCase):
                 mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
             ]
         )
+
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0), as_kwarg="frozen_time")
+    def test_sync_to_db_syncs_dag_specific_perms_on_update(self, frozen_time):
+        """
+        Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
+        new or updated
+        """
+        with create_session() as session:
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False,
+            )
+            mock_sync_perm_for_dag = mock.MagicMock()
+            dagbag._sync_perm_for_dag = mock_sync_perm_for_dag
+
+            def _sync_to_db():
+                mock_sync_perm_for_dag.reset_mock()
+                frozen_time.tick(20)
+                dagbag.sync_to_db(session=session)
+
+            dag = dagbag.dags["test_example_bash_operator"]
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
+
+            # DAG isn't updated
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_not_called()
+
+            # DAG is updated
+            dag.tags = ["new_tag"]
+            _sync_to_db()
+            mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
+
+    @patch("airflow.www.security.ApplessAirflowSecurityManager")
+    def test_sync_perm_for_dag(self, mock_security_manager):
+        """
+        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
+        when DAG specific perm views don't exist already or the DAG has access_control set.
+        """
+        delete_dag_specific_permissions()
+        with create_session() as session:
+            security_manager = ApplessAirflowSecurityManager(session)
+            mock_sync_perm_for_dag = mock_security_manager.return_value.sync_perm_for_dag
+            mock_sync_perm_for_dag.side_effect = security_manager.sync_perm_for_dag
+
+            dagbag = DagBag(
+                dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
+                include_examples=False,
+            )
+            dag = dagbag.dags["test_example_bash_operator"]
+
+            def _sync_perms():
+                mock_sync_perm_for_dag.reset_mock()
+                dagbag._sync_perm_for_dag(dag, session=session)
+
+            # permviews dont exist
+            _sync_perms()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
+
+            # permviews now exist
+            _sync_perms()
+            mock_sync_perm_for_dag.assert_not_called()
+
+            # Always sync if we have access_control
+            dag.access_control = {"Public": {"can_read"}}
+            _sync_perms()
+            mock_sync_perm_for_dag.assert_called_once_with(
+                "test_example_bash_operator", {"Public": {"can_read"}}
+            )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)

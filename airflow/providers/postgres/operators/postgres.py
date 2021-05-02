@@ -30,7 +30,8 @@ class PostgresOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
-    :param postgres_conn_id: reference to a specific postgres database
+    :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
+        reference to a specific postgres database.
     :type postgres_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: False)

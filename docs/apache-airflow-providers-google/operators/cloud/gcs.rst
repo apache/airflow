@@ -155,7 +155,7 @@ It is performed through the
     :end-before: [END howto_operator_gcs_delete_bucket]
 
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator`
 parameters which allows you to dynamically determine values.
 

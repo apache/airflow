@@ -480,5 +480,5 @@ def webserver(args):
                     monitor_gunicorn(gunicorn_master_proc.pid)
 
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
-            monitor_gunicorn(gunicorn_master_proc.pid)
+            with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
+                monitor_gunicorn(gunicorn_master_proc.pid)

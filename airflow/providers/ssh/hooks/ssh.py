@@ -41,9 +41,10 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     ref: https://github.com/paramiko/paramiko
     This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
 
-    :param ssh_conn_id: connection id from airflow Connections from where all the required
-        parameters can be fetched like username, password or key_file.
-        Thought the priority is given to the param passed during init
+    :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
+        Connections from where all the required parameters can be fetched like
+        username, password or key_file. Thought the priority is given to the
+        param passed during init
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str

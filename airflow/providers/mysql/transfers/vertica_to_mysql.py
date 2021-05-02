@@ -40,7 +40,7 @@ class VerticaToMySqlOperator(BaseOperator):
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
     :type mysql_table: str
-    :param mysql_conn_id: source mysql connection
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param mysql_preoperator: sql statement to run against MySQL prior to
         import, typically use to truncate of delete in place of the data
@@ -104,17 +104,16 @@ class VerticaToMySqlOperator(BaseOperator):
                 selected_columns = [d.name for d in cursor.description]
 
                 if self.bulk_load:
-                    tmpfile = NamedTemporaryFile("w")
+                    with NamedTemporaryFile("w") as tmpfile:
+                        self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
+                        self.log.info(self.sql)
 
-                    self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
-                    self.log.info(self.sql)
+                        csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
+                        for row in cursor.iterate():
+                            csv_writer.writerow(row)
+                            count += 1
 
-                    csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
-                    for row in cursor.iterate():
-                        csv_writer.writerow(row)
-                        count += 1
-
-                    tmpfile.flush()
+                        tmpfile.flush()
                 else:
                     self.log.info("Selecting rows from Vertica...")
                     self.log.info(self.sql)

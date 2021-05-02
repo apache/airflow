@@ -35,7 +35,7 @@ class MySqlOperator(BaseOperator):
         Template reference are recognized by str ending in '.sql'
         (templated)
     :type sql: str or list[str]
-    :param mysql_conn_id: reference to a specific mysql database
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
     :type parameters: dict or iterable

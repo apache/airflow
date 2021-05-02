@@ -316,45 +316,45 @@ class DagBag(LoggingMixin):
 
     def _load_modules_from_zip(self, filepath, safe_mode):
         mods = []
-        current_zip_file = zipfile.ZipFile(filepath)
-        for zip_info in current_zip_file.infolist():
-            head, _ = os.path.split(zip_info.filename)
-            mod_name, ext = os.path.splitext(zip_info.filename)
-            if ext not in [".py", ".pyc"]:
-                continue
-            if head:
-                continue
+        with zipfile.ZipFile(filepath) as current_zip_file:
+            for zip_info in current_zip_file.infolist():
+                head, _ = os.path.split(zip_info.filename)
+                mod_name, ext = os.path.splitext(zip_info.filename)
+                if ext not in [".py", ".pyc"]:
+                    continue
+                if head:
+                    continue
 
-            if mod_name == '__init__':
-                self.log.warning("Found __init__.%s at root of %s", ext, filepath)
+                if mod_name == '__init__':
+                    self.log.warning("Found __init__.%s at root of %s", ext, filepath)
 
-            self.log.debug("Reading %s from %s", zip_info.filename, filepath)
+                self.log.debug("Reading %s from %s", zip_info.filename, filepath)
 
-            if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
-                # todo: create ignore list
-                # Don't want to spam user with skip messages
-                if not self.has_logged:
-                    self.has_logged = True
-                    self.log.info(
-                        "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
-                    )
-                continue
+                if not might_contain_dag(zip_info.filename, safe_mode, current_zip_file):
+                    # todo: create ignore list
+                    # Don't want to spam user with skip messages
+                    if not self.has_logged:
+                        self.has_logged = True
+                        self.log.info(
+                            "File %s:%s assumed to contain no DAGs. Skipping.", filepath, zip_info.filename
+                        )
+                    continue
 
-            if mod_name in sys.modules:
-                del sys.modules[mod_name]
+                if mod_name in sys.modules:
+                    del sys.modules[mod_name]
 
-            try:
-                sys.path.insert(0, filepath)
-                current_module = importlib.import_module(mod_name)
-                mods.append(current_module)
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception("Failed to import: %s", filepath)
-                if self.dagbag_import_error_tracebacks:
-                    self.import_errors[filepath] = traceback.format_exc(
-                        limit=-self.dagbag_import_error_traceback_depth
-                    )
-                else:
-                    self.import_errors[filepath] = str(e)
+                try:
+                    sys.path.insert(0, filepath)
+                    current_module = importlib.import_module(mod_name)
+                    mods.append(current_module)
+                except Exception as e:  # pylint: disable=broad-except
+                    self.log.exception("Failed to import: %s", filepath)
+                    if self.dagbag_import_error_tracebacks:
+                        self.import_errors[filepath] = traceback.format_exc(
+                            limit=-self.dagbag_import_error_traceback_depth
+                        )
+                    else:
+                        self.import_errors[filepath] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
@@ -539,11 +539,13 @@ class DagBag(LoggingMixin):
                 return []
             try:
                 # We cant use bulk_write_to_db as we want to capture each error individually
-                SerializedDagModel.write_dag(
+                dag_was_updated = SerializedDagModel.write_dag(
                     dag,
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session,
                 )
+                if dag_was_updated:
+                    self._sync_perm_for_dag(dag, session=session)
                 return []
             except OperationalError:
                 raise
@@ -574,3 +576,31 @@ class DagBag(LoggingMixin):
                 # Only now we are "complete" do we update import_errors - don't want to record errors from
                 # previous failed attempts
                 self.import_errors.update(dict(serialize_errors))
+
+    @provide_session
+    def _sync_perm_for_dag(self, dag, session: Optional[Session] = None):
+        """Sync DAG specific permissions, if necessary"""
+        from flask_appbuilder.security.sqla import models as sqla_models
+
+        from airflow.security.permissions import DAG_PERMS, resource_name_for_dag
+
+        def needs_perm_views(dag_id: str) -> bool:
+            dag_resource_name = resource_name_for_dag(dag_id)
+            for permission_name in DAG_PERMS:
+                if not (
+                    session.query(sqla_models.PermissionView)
+                    .join(sqla_models.Permission)
+                    .join(sqla_models.ViewMenu)
+                    .filter(sqla_models.Permission.name == permission_name)
+                    .filter(sqla_models.ViewMenu.name == dag_resource_name)
+                    .one_or_none()
+                ):
+                    return True
+            return False
+
+        if dag.access_control or needs_perm_views(dag.dag_id):
+            self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+            from airflow.www.security import ApplessAirflowSecurityManager
+
+            security_manager = ApplessAirflowSecurityManager(session=session)
+            security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)

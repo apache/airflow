@@ -235,9 +235,5 @@ What's Next?
 ------------
 
 You have seen how simple it is to write DAGs using the Taskflow API paradigm within Airflow 2.0. Please do
-read the :ref:`Concepts page<concepts>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
-Operators, etc, and the :ref:`concepts:task_decorator` in particular.
-
-More details about the Taskflow API, can be found as part of the Airflow Improvement Proposal
-`AIP-31: "Taskflow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`__
-and specifically within the Concepts guide at :ref:`Concepts - Taskflow API<concepts:task_flow_api>`.
+read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
+Operators, and more. There's also a whole section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.

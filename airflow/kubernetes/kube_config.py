@@ -59,10 +59,18 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # interact with cluster components.
         self.executor_namespace = conf.get(self.kubernetes_section, 'namespace')
 
+        self.worker_pods_pending_timeout = conf.getint(self.kubernetes_section, 'worker_pods_pending_timeout')
+        self.worker_pods_pending_timeout_check_interval = conf.getint(
+            self.kubernetes_section, 'worker_pods_pending_timeout_check_interval'
+        )
+        self.worker_pods_pending_timeout_batch_size = conf.getint(
+            self.kubernetes_section, 'worker_pods_pending_timeout_batch_size'
+        )
+
         kube_client_request_args = conf.get(self.kubernetes_section, 'kube_client_request_args')
         if kube_client_request_args:
             self.kube_client_request_args = json.loads(kube_client_request_args)
-            if self.kube_client_request_args['_request_timeout'] and isinstance(
+            if '_request_timeout' in self.kube_client_request_args and isinstance(
                 self.kube_client_request_args['_request_timeout'], list
             ):
                 self.kube_client_request_args['_request_timeout'] = tuple(

@@ -45,7 +45,7 @@ The actual tasks defined here will run in a different context from
 the context of this script. Different tasks run on different workers
 at different points in time, which means that this script cannot be used
 to cross communicate between tasks. Note that for this
-purpose we have a more advanced feature called :ref:`XComs <concepts:xcom>`.
+purpose we have a more advanced feature called :doc:`/concepts/xcoms`.
 
 People sometimes think of the DAG definition file as a place where they
 can do some actual data processing - that is not the case at all!
@@ -362,8 +362,7 @@ running against it should get it to get triggered and run every day.
 Here's a few things you might want to do next:
 
 .. seealso::
-    - Read the :ref:`Concepts page<concepts>` for detailed explanation
-      of Airflow concepts such as DAGs, Tasks, Operators, etc.
+    - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
     - Take an in-depth tour of the UI - click all the things!
     - Keep reading the docs!
 

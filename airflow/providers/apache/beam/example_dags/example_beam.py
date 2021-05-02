@@ -268,10 +268,14 @@ with models.DAG(
         py_system_site_packages=False,
     )
 
-    [
-        start_python_pipeline_local_direct_runner,
-        start_python_pipeline_direct_runner,
-    ] >> start_python_pipeline_local_flink_runner >> start_python_pipeline_local_spark_runner
+    (
+        [
+            start_python_pipeline_local_direct_runner,
+            start_python_pipeline_direct_runner,
+        ]
+        >> start_python_pipeline_local_flink_runner
+        >> start_python_pipeline_local_spark_runner
+    )
 
 
 with models.DAG(

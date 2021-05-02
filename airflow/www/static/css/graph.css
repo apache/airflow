@@ -166,23 +166,6 @@ g.node.removed rect {
   cursor: move;
 }
 
-.refresh-actions {
-  float: right;
-  display: inline-flex;
-  align-items: center;
-  top: 10px;
-  right: 10px;
-  position: relative;
-}
-
-.refresh-actions > .switch-label {
-  margin: 0 10px 0 20px;
-}
-
-.loading-dots.refresh-loading {
-  display: none;
-}
-
 .legend-item.dag {
   float: left;
   background-color: #e8f7e4;

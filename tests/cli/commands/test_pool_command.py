@@ -114,7 +114,7 @@ class TestCliPools(unittest.TestCase):
         # Export json
         pool_command.pool_export(self.parser.parse_args(['pools', 'export', 'pools_export.json']))
 
-        with open('pools_export.json', mode='r') as file:
+        with open('pools_export.json') as file:
             pool_config_output = json.load(file)
             assert pool_config_input == pool_config_output, "Input and output pool files are not same"
         os.remove('pools_import.json')

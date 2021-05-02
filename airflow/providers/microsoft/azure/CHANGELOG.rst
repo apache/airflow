@@ -19,6 +19,33 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Removes unnecessary AzureContainerInstance connection type (#15514)``
+
+This change removes ``azure_container_instance_default`` connection type and replaces it with the
+``azure_default``. The problem was that AzureContainerInstance was not needed as it was exactly the
+same as the plain "azure" connection, however it's presence caused duplication in the field names
+used in the UI editor for connections and unnecessary warnings generated. This version uses
+plain Azure Hook and connection also for Azure Container Instance. If you already have
+``azure_container_instance_default`` connection created in your DB, it will continue to work, but
+the first time you edit it with the UI you will have to change it's type to ``azure_default``.
+
+Features
+~~~~~~~~
+
+* ``Add dynamic connection fields to Azure Connection (#15159)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+
+
 1.3.0
 .....
 

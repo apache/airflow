@@ -59,7 +59,9 @@ class GitSyncWebserverTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "RELEASE-NAME-webserver" == jmespath.search("spec.template.spec.serviceAccountName", docs[0])
+        assert "RELEASE-NAME-airflow-webserver" == jmespath.search(
+            "spec.template.spec.serviceAccountName", docs[0]
+        )
 
     @parameterized.expand([(True,), (False,)])
     def test_git_sync_with_exclude_webserver(self, exclude_webserver):

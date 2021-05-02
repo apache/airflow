@@ -25,10 +25,10 @@ import socket
 import sys
 import traceback
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Dict, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -73,6 +73,7 @@ from flask_appbuilder.security.views import (
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
+from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
 from sqlalchemy import and_, desc, func, or_, union_all
@@ -92,7 +93,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -1911,56 +1912,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             State.SUCCESS,
         )
 
-    @expose('/tree')
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
-        ]
-    )
-    @gzipped  # pylint: disable=too-many-locals
-    @action_logging  # pylint: disable=too-many-locals
-    def tree(self):
-        """Get Dag as tree."""
-        dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
-            return redirect(url_for('Airflow.index'))
-
-        root = request.args.get('root')
-        if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
-
-        base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs', type=int)
-        if num_runs is None:
-            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
-
-        if base_date:
-            base_date = timezone.parse(base_date)
-        else:
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        with create_session() as session:
-            dag_runs = (
-                session.query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-                .order_by(DagRun.execution_date.desc())
-                .limit(num_runs)
-                .all()
-            )
-        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-
+    def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
+        """Returns formatted dag_runs for Tree View"""
         dates = sorted(dag_runs.keys())
-        max_date = max(dates) if dates else None
-        min_date = min(dates) if dates else None
+        min_date = min(dag_runs, default=None)
 
-        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
-        for ti in tis:
-            task_instances[(ti.task_id, ti.execution_date)] = ti
+        task_instances = {
+            (ti.task_id, ti.execution_date): ti
+            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date)
+        }
 
         expanded = set()
         # The default recursion traces every path so that tree view has full
@@ -2036,11 +1996,54 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 node['extra_links'] = task.extra_links
             return node
 
-        data = {
+        return {
             'name': '[DAG]',
             'children': [recurse_nodes(t, set()) for t in dag.roots],
             'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
+
+    @expose('/tree')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped  # pylint: disable=too-many-locals
+    @action_logging  # pylint: disable=too-many-locals
+    def tree(self):
+        """Get Dag as tree."""
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for('Airflow.index'))
+
+        root = request.args.get('root')
+        if root:
+            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+
+        num_runs = request.args.get('num_runs', type=int)
+        if num_runs is None:
+            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
+
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
+
+        with create_session() as session:
+            dag_runs = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+                .order_by(DagRun.execution_date.desc())
+                .limit(num_runs)
+                .all()
+            )
+        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+
+        max_date = max(dag_runs.keys(), default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
@@ -2056,6 +2059,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             external_log_name = task_log_reader.log_handler.log_name
         else:
             external_log_name = None
+
+        data = self._get_tree_data(dag_runs, dag, base_date)
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -2675,6 +2680,52 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_instances = {ti.task_id: alchemy_to_dict(ti) for ti in dag.get_task_instances(dttm, dttm)}
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
+
+    @expose('/object/tree_data')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def tree_data(self):
+        """Returns tree data"""
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        if not dag:
+            response = jsonify({'error': f"can't find dag {dag_id}"})
+            response.status_code = 404
+            return response
+
+        root = request.args.get('root')
+        if root:
+            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+
+        num_runs = request.args.get('num_runs', type=int)
+        if num_runs is None:
+            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
+
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
+
+        with create_session() as session:
+            dag_runs = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+                .order_by(DagRun.execution_date.desc())
+                .limit(num_runs)
+                .all()
+            )
+        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+
+        tree_data = self._get_tree_data(dag_runs, dag, base_date)
+
+        # avoid spaces to reduce payload size
+        return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
 
 
 class ConfigurationView(AirflowBaseView):

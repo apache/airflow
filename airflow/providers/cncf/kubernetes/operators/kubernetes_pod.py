@@ -44,7 +44,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
-from airflow.providers.cncf.kubernetes.utils import pod_launcher
+from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
@@ -250,12 +250,14 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.image_pull_policy = image_pull_policy
         if node_selectors:
             # Node selectors is incorrect based on k8s API
-            warnings.warn("node_selectors is deprecated. Please use node_selector instead.")
-            self.node_selector = node_selectors or {}
+            warnings.warn(
+                "node_selectors is deprecated. Please use node_selector instead.", DeprecationWarning
+            )
+            self.node_selector = node_selectors
         elif node_selector:
-            self.node_selector = node_selector or {}
+            self.node_selector = node_selector
         else:
-            self.node_selector = None
+            self.node_selector = {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
         self.k8s_resources = convert_resources(resources) if resources else {}
@@ -385,7 +387,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param try_numbers_match: do the try numbers match? Only needed for logging purposes
         :type try_numbers_match: bool
         :param launcher: PodLauncher
-        :param pod_list: list of pods found
+        :param pod: Pod found with matching labels
         """
         if try_numbers_match:
             log_line = f"found a running pod with labels {labels} and the same try_number."
@@ -429,7 +431,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         will supersede all other values.
 
         """
-        self.log.debug("Creating pod for K8sPodOperator task %s", self.task_id)
+        self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
@@ -487,7 +489,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = PodGenerator.add_xcom_sidecar(pod)
+            pod = xcom_sidecar.add_xcom_sidecar(pod)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
@@ -498,18 +500,21 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         :param launcher: pod launcher that will manage launching and monitoring pods
         :return:
         """
-        if not (self.full_pod_spec or self.pod_template_file):
-            # Add Airflow Version to the label
-            # And a label to identify that pod is launched by KubernetesPodOperator
-            self.log.debug("Adding k8spodoperator labels to pod before launch for task %s", self.task_id)
-            self.labels.update(
-                {
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_pod_operator': 'True',
-                }
-            )
-            self.labels.update(labels)
-            self.pod.metadata.labels = self.labels
+        self.log.debug(
+            "Adding KubernetesPodOperator labels to pod before launch for task %s", self.task_id
+        )
+
+        # Merge Pod Identifying labels with labels passed to operator
+        self.pod.metadata.labels.update(labels)
+        # Add Airflow Version to the label
+        # And a label to identify that pod is launched by KubernetesPodOperator
+        self.pod.metadata.labels.update(
+            {
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_pod_operator': 'True',
+            }
+        )
+
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
         try:
             launcher.start_pod(self.pod, startup_timeout=self.startup_timeout_seconds)

@@ -41,7 +41,7 @@ class MySQLToS3Operator(BaseOperator):
     :type s3_bucket: str
     :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :type s3_key: str
-    :param mysql_conn_id: reference to a specific mysql database
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
     :type aws_conn_id: str

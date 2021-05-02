@@ -32,6 +32,17 @@ class HdfsSensor(BaseSensorOperator):
     """
     Waits for a file or folder to land in HDFS
 
+    :param filepath: The route to a stored file.
+    :type filepath: str
+    :param hdfs_conn_id: The Airflow connection used for HDFS credentials.
+    :type hdfs_conn_id: str
+    :param ignored_ext: This is the list of ignored extensions.
+    :type ignored_ext: Optional[List[str]]
+    :param ignore_copying: Shall we ignore?
+    :type ignore_copying: Optional[bool]
+    :param file_size: This is the size of the file.
+    :type file_size: Optional[int]
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HdfsSensor`
