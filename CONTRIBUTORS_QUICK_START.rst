@@ -191,7 +191,7 @@ Install ``jq`` with the following command:
 
 
 Setup Airflow with Breeze
-#####################################
+#########################
 
 
 .. note::
