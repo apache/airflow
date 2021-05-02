@@ -143,20 +143,23 @@ class BigQueryToMsSqlOperator(BaseOperator):
                 start_index=i * self.batch_size,
             )
 
+<<<<<<< HEAD
             if 'rows' in response:
                 rows = response['rows']
             else:
                 self.log.info('Job Finished successfully')
+=======
+            if 'rows' not in response:
+                self.log.info('Job Finished')
+>>>>>>> 3cbc56a59c3b22edbca1aa8b6846b8a3e77ca968
                 return
+             
+             rows = response['rows']
 
             self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
 
             table_data = []
-            for dict_row in rows:
-                single_row = []
-                for fields in dict_row['f']:
-                    single_row.append(fields['v'])
-                table_data.append(single_row)
+            table_data = [[fields['v'] for fields in dict_row['f']] for dict_row in rows]
 
             yield table_data
             i += 1
