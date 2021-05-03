@@ -40,7 +40,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :type azure_data_lake_conn_id: str
     :param azure_data_lake_path: destination path in azure data lake to put the file.
     :type azure_data_lake_path: str
-    :param oracle_conn_id: source Oracle connection.
+    :param oracle_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
     :type oracle_conn_id: str
     :param sql: SQL query to execute against the Oracle database. (templated)
     :type sql: str

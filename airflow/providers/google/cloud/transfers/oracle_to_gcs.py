@@ -36,7 +36,8 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OracleToGCSOperator`
 
-    :param oracle_conn_id: Reference to a specific Oracle hook.
+    :param oracle_conn_id: Reference to a specific
+        :ref:`Oracle hook <howto/connection:oracle>`.
     :type oracle_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the Oracle server's

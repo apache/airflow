@@ -31,7 +31,8 @@ class OracleOperator(BaseOperator):
         Template reference are recognized by str ending in '.sql'
         (templated)
     :type sql: str or list[str]
-    :param oracle_conn_id: reference to a specific Oracle database
+    :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
+        reference to a specific Oracle database.
     :type oracle_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
     :type parameters: dict or iterable

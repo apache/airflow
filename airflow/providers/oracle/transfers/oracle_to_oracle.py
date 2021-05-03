@@ -31,7 +31,7 @@ class OracleToOracleOperator(BaseOperator):
     :type oracle_destination_conn_id: str
     :param destination_table: destination table to insert rows.
     :type destination_table: str
-    :param oracle_source_conn_id: source Oracle connection.
+    :param oracle_source_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
     :type oracle_source_conn_id: str
     :param source_sql: SQL query to execute against the source Oracle
         database. (templated)
