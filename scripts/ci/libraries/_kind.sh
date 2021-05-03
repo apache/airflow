@@ -331,8 +331,7 @@ function kind::deploy_airflow_with_helm() {
         --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
         --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
-        --set "config.api.auth_backend=airflow.api.auth.backend.default" \
-        --set "config.api.enable_experimental_api=true" \
+        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
         --set "executor=KubernetesExecutor"
     echo
