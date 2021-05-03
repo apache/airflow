@@ -137,7 +137,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image_pull_secrets=fake_pull_secrets,
             cluster_context='default',
         )
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context=context)
         assert start_mock.call_args[0][0].spec.image_pull_secrets == [
@@ -469,7 +469,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             configmaps=[configmap],
         )
         # THEN
-        mock_monitor.return_value = (State.SUCCESS, None)
+        mock_monitor.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context)
         assert mock_start.call_args[0][0].spec.containers[0].env_from == [
@@ -497,7 +497,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context)
         assert start_mock.call_args[0][0].spec.containers[0].env_from == [

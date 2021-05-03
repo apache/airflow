@@ -133,7 +133,7 @@ class PodLauncher(LoggingMixin):
 
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
         """
-        Monitors a pod and returns the final state
+        Monitors a pod and returns the final state, pod and xcom result
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
