@@ -3031,14 +3031,14 @@ class ConnectionModelView(AirflowModelView):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
-            matches = re.findall(r"_Copy\((\d+)\)", selected_conn.conn_id)
+            matches = re.findall(r"_copy(\d+)$", selected_conn.conn_id)
             if matches:
                 # replacing the last _Copy(Num) with _Copy(Num+1)
                 new_conn_id = selected_conn.conn_id.replace(
-                    f'_Copy({matches[-1]})', f'_Copy({int(matches[-1]) + 1})'
+                    f'_copy{matches[-1]}', f'_copy{int(matches[-1]) + 1}'
                 )
             else:
-                new_conn_id += '_Copy(1)'
+                new_conn_id += '_copy1'
 
             dup_conn = Connection(
                 new_conn_id,
