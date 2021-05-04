@@ -97,6 +97,7 @@ from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, Task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
@@ -3910,12 +3911,14 @@ class DagModelView(AirflowModelView):
 class DagDependenciesView(AirflowBaseView):
     """View to show dependencies between DAGs"""
 
-    refresh_interval = conf.getint(
-        "webserver",
-        "dag_dependencies_refresh_interval",
-        fallback=conf.getint("scheduler", "dag_dir_list_interval"),
+    refresh_interval = timedelta(
+        seconds=conf.getint(
+            "webserver",
+            "dag_dependencies_refresh_interval",
+            fallback=conf.getint("scheduler", "dag_dir_list_interval"),
+        )
     )
-    last_refresh = timezone.utcnow() - timedelta(seconds=refresh_interval)
+    last_refresh = timezone.utcnow() - refresh_interval
     nodes = []
     edges = []
 
@@ -3931,8 +3934,8 @@ class DagDependenciesView(AirflowBaseView):
         """Display DAG dependencies"""
         title = "DAG Dependencies"
 
-        if timezone.utcnow() > self.last_refresh + timedelta(seconds=self.refresh_interval):
-            if models.SerializedDagModel.get_max_last_updated_datetime() > self.last_refresh:
+        if timezone.utcnow() > self.last_refresh + self.refresh_interval:
+            if SerializedDagModel.get_max_last_updated_datetime() > self.last_refresh:
                 self._calculate_graph()
             self.last_refresh = timezone.utcnow()
 
@@ -3952,7 +3955,7 @@ class DagDependenciesView(AirflowBaseView):
         nodes = []
         edges = []
 
-        for dag, dependencies in models.SerializedDagModel.get_dag_dependencies().items():
+        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
             nodes.append(self._node_dict(dag_node_id, dag, "dag"))
 
