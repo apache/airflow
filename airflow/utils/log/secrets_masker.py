@@ -140,7 +140,7 @@ class SecretsMasker(logging.Filter):
             exc_info=None,
             func="funcname",
         )
-        return frozenset(record.__dict__.keys()) - frozenset(('msg', 'args'))
+        return frozenset(record.__dict__).difference({'msg', 'args'})
 
     def filter(self, record) -> bool:
         if self.ALREADY_FILTERED_FLAG in record.__dict__:
@@ -199,7 +199,7 @@ class SecretsMasker(logging.Filter):
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self.redact(subval) for subval in item)
-        elif isinstance(item, (Iterable, list)):
+        elif isinstance(item, Iterable):
             return list(self.redact(subval) for subval in item)
         else:
             return item

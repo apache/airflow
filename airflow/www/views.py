@@ -106,6 +106,7 @@ from airflow.utils import json as utils_json, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -3227,8 +3228,6 @@ class VariableModelView(AirflowModelView):
 
     def hidden_field_formatter(self):
         """Formats hidden fields"""
-        from airflow.utils.log import secrets_masker
-
         key = self.get('key')  # noqa pylint: disable=no-member
         val = self.get('val')  # noqa pylint: disable=no-member
         if secrets_masker.should_hide_value_for_key(key):
@@ -3245,8 +3244,6 @@ class VariableModelView(AirflowModelView):
     validators_columns = {'key': [validators.DataRequired()]}
 
     def prefill_form(self, form, request_id):  # pylint: disable=unused-argument
-        from airflow.utils.log import secrets_masker
-
         if secrets_masker.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
 
