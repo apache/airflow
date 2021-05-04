@@ -127,7 +127,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         self, mock_watcher, mock_client, mock_kube_client
     ):  # pylint: disable=unused-argument
         pod_id = "my-pod-1"
-        namespace = "my-namespace"
+        namespace = "my-namespace-1"
 
         mock_delete_namespace = mock.MagicMock()
         mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
@@ -147,7 +147,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         self, mock_watcher, mock_client, mock_kube_client
     ):  # pylint: disable=unused-argument
         pod_id = "my-pod-1"
-        namespace = "my-namespace"
+        namespace = "my-namespace-2"
 
         mock_delete_namespace = mock.MagicMock()
         mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
@@ -170,7 +170,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         self, mock_watcher, mock_client, mock_kube_client
     ):  # pylint: disable=unused-argument
         pod_id = "my-pod-1"
-        namespace = "my-namespace"
+        namespace = "my-namespace-3"
 
         mock_delete_namespace = mock.MagicMock()
         mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
@@ -206,9 +206,9 @@ class TestKubernetesExecutor(unittest.TestCase):
         # When a quota is exceeded this is the ApiException we get
         response = HTTPResponse(
             body='{"kind": "Status", "apiVersion": "v1", "metadata": {}, "status": "Failure", '
-                 '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
-                 'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
-                 '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}'
+            '"message": "pods \\"podname\\" is forbidden: exceeded quota: compute-resources, '
+            'requested: limits.memory=4Gi, used: limits.memory=6508Mi, limited: limits.memory=10Gi", '
+            '"reason": "Forbidden", "details": {"name": "podname", "kind": "pods"}, "code": 403}'
         )
         response.status = 403
         response.reason = "Forbidden"
