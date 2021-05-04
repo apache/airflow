@@ -147,12 +147,12 @@ class PgbouncerConfigTest(unittest.TestCase):
         ini = base64.b64decode(encoded_ini).decode()
 
         assert (
-            "RELEASE-NAME-metadata = host=RELEASE-NAME-postgresql dbname=postgres port=5432 pool_size=10"
-            in ini
+            "RELEASE-NAME-metadata = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            " pool_size=10" in ini
         )
         assert (
-            "RELEASE-NAME-result-backend = host=RELEASE-NAME-postgresql dbname=postgres port=5432 pool_size=5"
-            in ini
+            "RELEASE-NAME-result-backend = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            " pool_size=5" in ini
         )
 
     def test_hostname_override(self):
