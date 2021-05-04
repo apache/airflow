@@ -97,6 +97,16 @@ def task_3(dag):
     return Dummy3TestOperator(task_id="some_dummy_task_3", dag=dag)
 
 
+@pytest.fixture(scope="module", autouse=True)
+def init_blank_task_instances():
+    """Make sure there are no runs before we test anything.
+
+    This really shouldn't be needed, but tests elsewhere leave the db dirty.
+    """
+    with create_session() as session:
+        session.query(TaskInstance).delete()
+
+
 @pytest.fixture(autouse=True)
 def reset_task_instances():
     yield
@@ -116,10 +126,7 @@ def test_extra_links_works(dag, task_1, viewer_client):
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {
+    assert json.loads(response.data.decode()) == {
         'url': 'http://www.example.com/some_dummy_task/foo-bar/2017-01-01T00:00:00+00:00',
         'error': None,
     }
@@ -137,10 +144,10 @@ def test_global_extra_links_works(dag, task_1, viewer_client):
     )
 
     assert response.status_code == 200
-    response_str = response.data
-    if isinstance(response.data, bytes):
-        response_str = response_str.decode()
-    assert json.loads(response_str) == {'url': 'https://github.com/apache/airflow', 'error': None}
+    assert json.loads(response.data.decode()) == {
+        'url': 'https://github.com/apache/airflow',
+        'error': None,
+    }
 
 
 def test_extra_link_in_gantt_view(dag, viewer_client, checker):

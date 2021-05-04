@@ -25,6 +25,17 @@ from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
 
+@pytest.fixture(scope="module", autouse=True)
+def init_blank_dagrun():
+    """Make sure there are no runs before we test anything.
+
+    This really shouldn't be needed, but tests elsewhere leave the db dirty.
+    """
+    with create_session() as session:
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+
+
 @pytest.fixture(autouse=True)
 def reset_dagrun():
     yield

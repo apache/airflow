@@ -39,7 +39,7 @@ def dag():
     )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def task1(dag):
     return BashOperator(
         task_id='task1',
@@ -48,7 +48,7 @@ def task1(dag):
     )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def task2(dag):
     return BashOperator(
         task_id='task2',
@@ -58,7 +58,16 @@ def task2(dag):
 
 
 @pytest.fixture(autouse=True)
-def reset_db(dag):
+def reset_db(dag, task1, task2):  # pylint: disable=unused-argument
+    """Reset DB for each test.
+
+    This writes the DAG to the DB, and clears rendered fields so we have a clean
+    slate for each test. Note that task1 and task2 are included in the argument
+    to make sure they are registered to the DAG for serialization.
+
+    The pre-test cleanup really shouldn't be necessary, but the test DB was not
+    initialized in a clean state to begin with :(
+    """
     with create_session() as session:
         SerializedDagModel.write_dag(dag)
         session.query(RenderedTaskInstanceFields).delete()

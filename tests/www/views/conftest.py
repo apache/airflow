@@ -17,7 +17,6 @@
 # under the License.
 from contextlib import contextmanager
 from typing import Any, Dict, Generator, List, NamedTuple
-from unittest import mock
 
 import flask
 import jinja2
@@ -28,6 +27,7 @@ from airflow.models import DagBag
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import create_user, delete_roles
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests.test_utils.www import client_with_login
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -66,37 +66,33 @@ def app(examples_dag_bag):
     app.jinja_env.undefined = jinja2.StrictUndefined
 
     security_manager = app.appbuilder.sm  # pylint: disable=no-member
-
-    patch_path = "flask_appbuilder.security.manager.check_password_hash"
-    with mock.patch(patch_path) as check_password_hash:
-        check_password_hash.return_value = True
-        if not security_manager.find_user(username='test'):
-            security_manager.add_user(
-                username='test',
-                first_name='test',
-                last_name='test',
-                email='test@fab.org',
-                role=security_manager.find_role('Admin'),
-                password='test',
-            )
-        if not security_manager.find_user(username='test_user'):
-            security_manager.add_user(
-                username='test_user',
-                first_name='test_user',
-                last_name='test_user',
-                email='test_user@fab.org',
-                role=security_manager.find_role('User'),
-                password='test_user',
-            )
-        if not security_manager.find_user(username='test_viewer'):
-            security_manager.add_user(
-                username='test_viewer',
-                first_name='test_viewer',
-                last_name='test_viewer',
-                email='test_viewer@fab.org',
-                role=security_manager.find_role('Viewer'),
-                password='test_viewer',
-            )
+    if not security_manager.find_user(username='test'):
+        security_manager.add_user(
+            username='test',
+            first_name='test',
+            last_name='test',
+            email='test@fab.org',
+            role=security_manager.find_role('Admin'),
+            password='test',
+        )
+    if not security_manager.find_user(username='test_user'):
+        security_manager.add_user(
+            username='test_user',
+            first_name='test_user',
+            last_name='test_user',
+            email='test_user@fab.org',
+            role=security_manager.find_role('User'),
+            password='test_user',
+        )
+    if not security_manager.find_user(username='test_viewer'):
+        security_manager.add_user(
+            username='test_viewer',
+            first_name='test_viewer',
+            last_name='test_viewer',
+            email='test_viewer@fab.org',
+            role=security_manager.find_role('Viewer'),
+            password='test_viewer',
+        )
 
     yield app
 
@@ -105,18 +101,12 @@ def app(examples_dag_bag):
 
 @pytest.fixture()
 def admin_client(app):
-    client = app.test_client()
-    resp = client.post("/login/", data={"username": "test", "password": "test"})
-    assert resp.status_code == 302
-    yield client
+    return client_with_login(app, username="test", password="test")
 
 
 @pytest.fixture()
 def viewer_client(app):
-    client = app.test_client()
-    resp = client.post("/login/", data={"username": "test_viewer", "password": "test_viewer"})
-    assert resp.status_code == 302
-    yield client
+    return client_with_login(app, username="test_viewer", password="test_viewer")
 
 
 @pytest.fixture(scope="module")
