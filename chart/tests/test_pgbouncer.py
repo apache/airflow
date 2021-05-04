@@ -105,3 +105,31 @@ class PgbouncerTest(unittest.TestCase):
             "name": "pgbouncer-config",
             "secret": {"secretName": "pgbouncer-config-secret"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
+
+    def test_pgbouncer_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "resources": {
+                        "limits": {"cpu": "200m", 'memory': "128Mi"},
+                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    def test_pgbouncer_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}

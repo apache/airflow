@@ -112,7 +112,7 @@ class QuboleCheckHook(QuboleHook):
             cmd_id = self.cmd.id
             self.log.info("command id: %d", cmd_id)
             query_result_buffer = StringIO()
-            self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM)
+            self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM, arguments=[True])
             query_result = query_result_buffer.getvalue()
             query_result_buffer.close()
             return query_result

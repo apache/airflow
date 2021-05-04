@@ -44,7 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
 - [Requirements](#requirements)
-- [Support for Python versions](#support-for-python-versions)
+- [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
@@ -81,10 +81,10 @@ Apache Airflow is tested with:
 |              | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
 | ------------ | ------------------------- | ------------------------ | -------------------------  |
 | Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
+| Kubernetes   | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
 | PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
 | MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
 | SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
-| Kubernetes   | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
@@ -93,21 +93,28 @@ MariaDB is not tested/recommended.
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-## Support for Python versions
+## Support for Python and Kubernetes versions
 
-As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
-release schedule of Python, nicely summarized in the
-[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches)
+As of Airflow 2.0 we agreed to certain rules we follow for Python and Kubernetes support.
+They are based on the official release schedule of Python and Kubernetes, nicely summarized in the
+[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches) and
+[Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
 
-1. We finish support for Python versions when they reach EOL (For Python 3.6 it means that we will remove it
-   from being supported on 23.12.2021).
+1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
+   EOL versions in master right after EOL date, and it is effectively removed when we release the
+   first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
+   For example for Python 3.6 it means that we drop support in master right after 23.12.2021, and the first
+   MAJOR or MINOR version of Airflow released after will not have it.
 
-2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
-   "smoke tests" in CI PRs which are run using this default version.
+2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
+   in terms of "smoke tests" in CI PRs which are run using this default version and default reference
+   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.0.2`` images
+   are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
+   become Python 3.7 images.
 
-3. We support a new version of Python after it is officially released, as soon as we manage to make
-   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
-   (non-Patch version) based on this CI set-up.
+3. We support a new version of Python/Kubernetes in master after they are officially released, as soon as we
+   make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
+   new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
 
 ### Additional notes on Python version requirements
 

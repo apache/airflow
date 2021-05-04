@@ -110,6 +110,27 @@ class TestKubernetesPodOperator(unittest.TestCase):
         assert k.env_vars[0].value == "footemplated"
         assert k.env_vars[0].name == "bartemplated"
 
+    def test_envs_from_configmaps(
+        self,
+    ):
+        configmap_name = "test-config-map"
+        env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap_name))]
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            env_from=env_from,
+        )
+        pod = self.run_pod(k)
+        assert pod.spec.containers[0].env_from == env_from
+
     def test_labels(self):
         k = KubernetesPodOperator(
             namespace="default",

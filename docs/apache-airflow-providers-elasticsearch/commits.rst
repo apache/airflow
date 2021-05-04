@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.4
+.....
+
+Latest change: 2021-04-27
+
+================================================================================================  ===========  =============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================================
+`657384615 <https://github.com/apache/airflow/commit/657384615fafc060f9e2ed925017306705770355>`_  2021-04-27   ``Fix 'logging.exception' redundancy (#14823)``
+`71c673e42 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
+`5da831910 <https://github.com/apache/airflow/commit/5da831910c358ecbd7a5c33ee31fe0d909508bea>`_  2021-04-10   ``Fix exception caused by missing keys in the ElasticSearch Record (#15163)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+`eb884cd38 <https://github.com/apache/airflow/commit/eb884cd380f2f010b027bf6657f4da2e2e3309aa>`_  2021-03-14   ``Add elasticsearch to the fixes of backport providers (#14763)``
+================================================================================================  ===========  =============================================================================
+
 1.0.3
 .....
 
-Latest change: 2021-03-09
+Latest change: 2021-03-13
 
 ================================================================================================  ===========  ===================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===================================================================
+`662cb8c6a <https://github.com/apache/airflow/commit/662cb8c6ac8becb26ff405f8b21acfccdd8de2ae>`_  2021-03-13   ``Prepare for releasing Elasticsearch Provider 1.0.3 (#14748)``
 `923bde2b9 <https://github.com/apache/airflow/commit/923bde2b917099135adfe470a5453f663131fd5f>`_  2021-03-09   ``Elasticsearch Provider: Fix logs downloading for tasks (#14686)``
 ================================================================================================  ===========  ===================================================================
 

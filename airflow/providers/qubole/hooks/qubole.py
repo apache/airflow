@@ -203,7 +203,15 @@ class QuboleHook(BaseHook):
             self.cmd.cancel()
 
     # pylint: disable=consider-using-with
-    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
+    def get_results(
+        self,
+        ti=None,
+        fp=None,
+        inline: bool = True,
+        delim=None,
+        fetch: bool = True,
+        include_headers: bool = False,
+    ) -> str:
         """
         Get results (or just s3 locations) of a command from Qubole and save into a file
 
@@ -225,7 +233,9 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
             self.cmd = self.cls.find(cmd_id)
 
-        self.cmd.get_results(fp, inline, delim, fetch)  # type: ignore[attr-defined]
+        self.cmd.get_results(
+            fp, inline, delim, fetch, arguments=[include_headers]
+        )  # type: ignore[attr-defined]
         fp.flush()
         fp.close()
         return fp.name

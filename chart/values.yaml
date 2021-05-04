@@ -181,13 +181,13 @@ secret: []
 extraSecrets: {}
 # eg:
 # extraSecrets:
-#   {{ .Release.Name }}-airflow-connections:
+#   '{{ .Release.Name }}-airflow-connections':
 #     data: |
 #       AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
 #     stringData: |
 #       AIRFLOW_CONN_OTHER: 'other_conn'
-#   {{ .Release.Name }}-other-secret-name-suffix: |
+#   '{{ .Release.Name }}-other-secret-name-suffix': |
 #     data: |
 #        ...
 
@@ -200,7 +200,7 @@ extraSecrets: {}
 extraConfigMaps: {}
 # eg:
 # extraConfigMaps:
-#   {{ .Release.Name }}-airflow-variables:
+#   '{{ .Release.Name }}-airflow-variables':
 #     data: |
 #       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
