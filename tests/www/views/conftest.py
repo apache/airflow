@@ -24,6 +24,7 @@ import jinja2
 import pytest
 
 from airflow import settings
+from airflow.models import DagBag
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import create_user, delete_roles
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -35,15 +36,25 @@ def session():
     yield settings.Session
 
 
+@pytest.fixture(autouse=True, scope="module")
+def examples_dag_bag(session):
+    DagBag(include_examples=True).sync_to_db()
+    dag_bag = DagBag(include_examples=True, read_dags_from_db=True)
+    session.commit()
+    yield dag_bag
+
+
 @pytest.fixture(scope="module")
-def app():
+def app(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_api_connexion",
             "init_appbuilder",
+            "init_appbuilder_links",
             "init_appbuilder_views",
             "init_flash_views",
             "init_jinja_globals",
+            "init_plugins",
         ]
     )
     def factory():
@@ -51,6 +62,7 @@ def app():
 
     app = factory()
     app.config["WTF_CSRF_ENABLED"] = False
+    app.dag_bag = examples_dag_bag
     app.jinja_env.undefined = jinja2.StrictUndefined
 
     security_manager = app.appbuilder.sm  # pylint: disable=no-member

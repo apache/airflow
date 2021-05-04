@@ -25,13 +25,6 @@ from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture(scope="module", autouse=True)
-def init_dags(session):
-    DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
-    session.commit()
-    yield
-
-
 @pytest.fixture(autouse=True)
 def reset_dagrun():
     yield
