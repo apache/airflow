@@ -279,7 +279,6 @@ class TestMultiDuplicateConnectionModelView(TestBase):
             description='Default Google Cloud Connection',
         )
 
-        # Already copied and modified
         conn2 = Connection(
             conn_id='mongodb',
             conn_type='FTP',
@@ -359,8 +358,8 @@ class TestVariableModelView(TestBase):
         Var = models.Variable  # pylint: disable=invalid-name
         (
             self.session.query(Var)
-                .filter(Var.key == self.variable['key'])
-                .update({'val': 'failed_value_not_encrypted'}, synchronize_session=False)
+            .filter(Var.key == self.variable['key'])
+            .update({'val': 'failed_value_not_encrypted'}, synchronize_session=False)
         )
         self.session.commit()
 
@@ -626,15 +625,15 @@ class TestAirflowBaseViews(TestBase):
             BaseJob.job_type == 'SchedulerJob',
             BaseJob.state == 'running',
             BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_1,
-            ).delete()
+        ).delete()
         self.session.commit()
 
         # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
         (
             self.session.query(BaseJob)
-                .filter(BaseJob.job_type == 'SchedulerJob')
-                .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)})
+            .filter(BaseJob.job_type == 'SchedulerJob')
+            .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)})
         )
         self.session.add(
             BaseJob(
@@ -658,7 +657,7 @@ class TestAirflowBaseViews(TestBase):
             BaseJob.job_type == 'SchedulerJob',
             BaseJob.state == 'running',
             BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_2,
-            ).delete()
+        ).delete()
         self.session.commit()
 
         # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
@@ -1923,7 +1922,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             self.endpoint + f'&execution_date={self.runs[1].execution_date.isoformat()}',
             data=dict(username='test', password='test'),
             follow_redirects=True,
-            )
+        )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(
@@ -1996,7 +1995,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             ),
             data=dict(username='test', password='test'),
             follow_redirects=True,
-            )
+        )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[2].execution_date, 5, data)
@@ -2987,6 +2986,7 @@ class TestTaskRescheduleView(TestBase):
 
 class TestRenderedView(TestBase):
     def setUp(self):
+
         self.default_date = datetime(2020, 3, 1)
         self.dag = DAG(
             "testdag",
@@ -3245,6 +3245,7 @@ class TestExtraLinks(TestBase):
                 return 'https://airflow.apache.org'
 
         class DummyTestOperator(BaseOperator):
+
             operator_extra_links = (
                 RaiseErrorLink(),
                 NoResponseLink(),

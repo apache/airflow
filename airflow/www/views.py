@@ -154,6 +154,7 @@ def get_safe_url(url):
         return url_for('Airflow.index')
 
     query = parse_qsl(parsed.query, keep_blank_values=True)
+
     url = parsed._replace(query=urlencode(query)).geturl()
 
     if parsed.scheme in valid_schemes and parsed.netloc in valid_netlocs:
@@ -912,6 +913,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+
         title = "DAG Details"
         root = request.args.get('root', '')
 
@@ -2100,7 +2102,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
         arrange = request.args.get('arrange', dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)
@@ -2204,7 +2205,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
         cum_chart = nvd3.lineChart(name="cumLineChart", x_is_date=True, height=chart_height, width="1200")
