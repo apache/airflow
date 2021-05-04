@@ -59,7 +59,7 @@ from airflow.utils import dates
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-gcp-project")
 FIRESTORE_PROJECT_ID = os.environ.get("G_FIRESTORE_PROJECT_ID", "example-firebase-project")
 
-EXPORT_DESTINATION_URL = os.environ.get("GCP_FIRESTORE_ARCHIVE_URL", "gs://airflow-firestore/namespace/")
+EXPORT_DESTINATION_URL = os.environ.get("GCP_FIRESTORE_ARCHIVE_URL", "gs://INVALID BUCKET NAME/namespace/")
 BUCKET_NAME = urlparse(EXPORT_DESTINATION_URL).hostname
 EXPORT_PREFIX = urlparse(EXPORT_DESTINATION_URL).path
 
