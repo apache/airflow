@@ -134,8 +134,12 @@ class TriggerRuleDep(BaseTIDep):
                 if successes or skipped:
                     ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
+                if upstream_done and done == skipped:
+                    # if upstream is done and all are skipped mark as skipped
                     ti.set_state(State.SKIPPED, session)
+                elif upstream_done and successes <= 0:
+                    # if upstream is done and there are no successes mark as upstream failed
+                    ti.set_state(State.UPSTREAM_FAILED, session)
             elif trigger_rule == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
                     ti.set_state(State.SKIPPED, session)
