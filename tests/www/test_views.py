@@ -331,7 +331,7 @@ class TestMultiDuplicateConnectionModelView(TestBase):
             'postgres_connection_Copy(1)',
             'postgres_connection_Copy(2)',
         }
-        response = {conn[0].strip() for conn in self.session.query(Connection.conn_id).all()}
+        response = {conn[0] for conn in self.session.query(Connection.conn_id).all()}
 
         assert resp.status_code == 200
         assert expected_result == response
