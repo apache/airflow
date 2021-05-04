@@ -20,7 +20,7 @@ kind: Pod
 metadata:
   name: dummy-name
 spec:
-{{- if .Values.dags.gitSync.enabled }}
+{{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
   initContainers:
 {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
 {{- end }}
@@ -61,16 +61,10 @@ spec:
           name: git-sync-ssh-key
           subPath: ssh
 {{- end }}
-{{- if .Values.dags.persistence.enabled }}
+{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
         - mountPath: {{ include "airflow_dags_mount_path" . }}
           name: dags
           readOnly: true
-{{- end }}
-{{- if .Values.dags.gitSync.enabled }}
-        - mountPath: {{ include "airflow_dags" . }}
-          name: dags
-          readOnly: true
-          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
