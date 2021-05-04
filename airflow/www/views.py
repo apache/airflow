@@ -3033,7 +3033,6 @@ class ConnectionModelView(AirflowModelView):
             new_conn_id = selected_conn.conn_id
             matches = re.findall(r"_copy(\d+)$", selected_conn.conn_id)
             if matches:
-                # replacing the last _Copy(Num) with _Copy(Num+1)
                 new_conn_id = selected_conn.conn_id.replace(
                     f'_copy{matches[-1]}', f'_copy{int(matches[-1]) + 1}'
                 )

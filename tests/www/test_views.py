@@ -252,35 +252,14 @@ class TestConnectionModelView(TestBase):
             'username': 'root',
             'password': 'admin',
         }
-
-    def tearDown(self):
-        self.clear_table(Connection)
-        super().tearDown()
-
-    def test_create_connection(self):
-        init_views.init_connection_form()
-        resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
-        self.check_content_in_response('Added Row', resp)
-
-    def test_prefill_form_null_extra(self):
-        mock_form = mock.Mock()
-        mock_form.data = {"conn_id": "test", "extra": None}
-
-        cmv = ConnectionModelView()
-        cmv.prefill_form(form=mock_form, pk=1)
-
-
-class TestMultiDuplicateConnectionModelView(TestBase):
-    def setUp(self):
-        super().setUp()
         conn1 = Connection(
-            conn_id='google_cloud_default',
+            conn_id='gcp_connection',
             conn_type='Google Cloud',
-            description='Default Google Cloud Connection',
+            description='Google Cloud Connection',
         )
 
         conn2 = Connection(
-            conn_id='mongodb',
+            conn_id='mongodb_connection',
             conn_type='FTP',
             description='MongoDB2',
             host='localhost',
@@ -298,21 +277,33 @@ class TestMultiDuplicateConnectionModelView(TestBase):
         )
 
         conn4 = Connection(
-            conn_id='postgres_connection_Copy(1)',
+            conn_id='postgres_connection_copy1',
             conn_type='FTP',
             description='Postgres',
             host='localhost',
             schema='airflow',
             port='3306',
         )
-
         self.clear_table(Connection)
         self.session.add_all([conn1, conn2, conn3, conn4])
         self.session.commit()
 
+
     def tearDown(self):
         self.clear_table(Connection)
         super().tearDown()
+
+    def test_create_connection(self):
+        init_views.init_connection_form()
+        resp = self.client.post('/connection/add', data=self.connection, follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+
+    def test_prefill_form_null_extra(self):
+        mock_form = mock.Mock()
+        mock_form.data = {"conn_id": "test", "extra": None}
+
+        cmv = ConnectionModelView()
+        cmv.prefill_form(form=mock_form, pk=1)
 
     def test_duplicate_connection(self):
         """ Test Duplicate multiple connection with suffix"""
@@ -322,13 +313,13 @@ class TestMultiDuplicateConnectionModelView(TestBase):
         resp = self.client.post('/connection/action_post', data=mock_form.data, follow_redirects=True)
 
         expected_result = {
-            'google_cloud_default',
-            'google_cloud_default_Copy(1)',
-            'mongodb',
-            'mongodb_Copy(1)',
+            'gcp_connection',
+            'gcp_connection_copy1',
+            'mongodb_connection',
+            'mongodb_connection_copy1',
             'mysql_connection',
-            'postgres_connection_Copy(1)',
-            'postgres_connection_Copy(2)',
+            'postgres_connection_copy1',
+            'postgres_connection_copy2',
         }
         response = {conn[0] for conn in self.session.query(Connection.conn_id).all()}
 
