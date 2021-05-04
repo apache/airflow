@@ -43,7 +43,6 @@ import { ChevronDownIcon } from '@chakra-ui/icons';
 const MultiSelect = ({
   name = '',
   styles = {},
-  // theme = () => ({}),
   components = {},
   ...props
 }: SelectProps): JSX.Element => {
@@ -60,31 +59,24 @@ const MultiSelect = ({
   );
 
   const chakraStyles = {
-    input: (provided: any) => ({
+    input: (provided: Record<string, any>) => ({
       ...provided,
       color: inputColor,
       lineHeight: 1,
     }),
-    singleValue: (provided: any) => ({
+    singleValue: (provided: Record<string, any>) => ({
       ...provided,
       color: inputColor,
       lineHeight: 1,
     }),
-    menu: (provided: any) => ({
+    menu: (provided: Record<string, any>) => ({
       ...provided,
       boxShadow: 'none',
     }),
-    valueContainer: (provided: any) => ({
+    valueContainer: (provided: Record<string, any>) => ({
       ...provided,
       padding: '0.125rem 1rem',
     }),
-    // control: () => {},
-    // menuList: () => {},
-    // option: () => {},
-    // multiValue: () => {},
-    // multiValueLabel: () => {},
-    // multiValueRemove: () => {},
-    // group: () => {},
   };
 
   return (
@@ -222,8 +214,8 @@ const MultiSelect = ({
           }) => {
             const { item } = useStyles();
             interface ItemProps extends CSSWithMultiValues {
-              _disabled: Record<string, string | number>,
-              _focus: Record<string, string | number>,
+              _disabled: CSSWithMultiValues,
+              _focus: CSSWithMultiValues,
             }
             return (
               <Box
