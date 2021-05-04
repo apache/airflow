@@ -351,7 +351,7 @@ class TestVariableModelView(TestBase):
         super().tearDown()
 
     def test_can_handle_error_on_decrypt(self):
-        
+
         # create valid variable
         self.client.post('/variable/add', data=self.variable, follow_redirects=True)
 
@@ -431,7 +431,7 @@ class TestPluginView(TestBase):
         self.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
 
     def test_should_list_entrypoint_plugins_on_page_with_details(self):
-        
+
         mock_plugin = AirflowPlugin()
         mock_plugin.name = "test_plugin"
         mock_plugin.source = EntryPointSource(
