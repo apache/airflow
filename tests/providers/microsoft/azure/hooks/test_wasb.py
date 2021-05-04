@@ -234,7 +234,7 @@ class TestWasbHook(unittest.TestCase):
     @mock.patch.object(WasbHook, 'check_for_blob')
     def test_delete_multiple_blobs(self, mock_check, mock_get_blobslist, mock_delete_blobs):
         mock_check.return_value = False
-        # below return value only true if delimiter == ''
+       
         mock_get_blobslist.return_value = ['blob_prefix/blob1', 'blob_prefix/blob2']
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.delete_file('container', 'blob_prefix', is_prefix=True)
