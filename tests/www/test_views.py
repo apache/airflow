@@ -351,6 +351,7 @@ class TestVariableModelView(TestBase):
         super().tearDown()
 
     def test_can_handle_error_on_decrypt(self):
+
         # create valid variable
         self.client.post('/variable/add', data=self.variable, follow_redirects=True)
 
@@ -430,6 +431,7 @@ class TestPluginView(TestBase):
         self.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
 
     def test_should_list_entrypoint_plugins_on_page_with_details(self):
+
         mock_plugin = AirflowPlugin()
         mock_plugin.name = "test_plugin"
         mock_plugin.source = EntryPointSource(
@@ -1945,7 +1947,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             self.endpoint + f'&base_date={self.runs[1].execution_date.isoformat()}&num_runs=2',
             data=dict(username='test', password='test'),
             follow_redirects=True,
-            )
+        )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[1].execution_date, 2, data)
@@ -1970,7 +1972,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             ),
             data=dict(username='test', password='test'),
             follow_redirects=True,
-            )
+        )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[1].execution_date, 42, data)
