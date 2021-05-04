@@ -270,6 +270,73 @@ class TestConnectionModelView(TestBase):
         cmv.prefill_form(form=mock_form, pk=1)
 
 
+class TestMultiDuplicateConnectionModelView(TestBase):
+    def setUp(self):
+        super().setUp()
+        conn1 = Connection(
+            conn_id='google_cloud_default',
+            conn_type='Google Cloud',
+            description='Default Google Cloud Connection',
+        )
+
+        # Already copied and modified
+        conn2 = Connection(
+            conn_id='mongodb',
+            conn_type='FTP',
+            description='MongoDB2',
+            host='localhost',
+            schema='airflow',
+            port='5567',
+        )
+
+        conn3 = Connection(
+            conn_id='mysql_connection',
+            conn_type='FTP',
+            description='MongoDB2',
+            host='localhost',
+            schema='airflow',
+            port='3306',
+        )
+
+        conn4 = Connection(
+            conn_id='postgres_connection_Copy(1)',
+            conn_type='FTP',
+            description='Postgres',
+            host='localhost',
+            schema='airflow',
+            port='3306',
+        )
+
+        self.clear_table(Connection)
+        self.session.add_all([conn1, conn2, conn3, conn4])
+        self.session.commit()
+
+    def tearDown(self):
+        self.clear_table(Connection)
+        super().tearDown()
+
+    def test_duplicate_connection(self):
+        """ Test Duplicate multiple connection with suffix"""
+
+        mock_form = mock.Mock()
+        mock_form.data = {"action": "mulduplicate", "rowid": [1, 2, 4]}
+        resp = self.client.post('/connection/action_post', data=mock_form.data, follow_redirects=True)
+
+        expected_result = {
+            'google_cloud_default',
+            'google_cloud_default_Copy(1)',
+            'mongodb',
+            'mongodb_Copy(1)',
+            'mysql_connection',
+            'postgres_connection_Copy(1)',
+            'postgres_connection_Copy(2)',
+        }
+        response = {conn[0].strip() for conn in self.session.query(Connection.conn_id).all()}
+
+        assert resp.status_code == 200
+        assert expected_result == response
+
+
 class TestVariableModelView(TestBase):
     def setUp(self):
         super().setUp()
@@ -292,8 +359,8 @@ class TestVariableModelView(TestBase):
         Var = models.Variable  # pylint: disable=invalid-name
         (
             self.session.query(Var)
-            .filter(Var.key == self.variable['key'])
-            .update({'val': 'failed_value_not_encrypted'}, synchronize_session=False)
+                .filter(Var.key == self.variable['key'])
+                .update({'val': 'failed_value_not_encrypted'}, synchronize_session=False)
         )
         self.session.commit()
 
@@ -559,15 +626,15 @@ class TestAirflowBaseViews(TestBase):
             BaseJob.job_type == 'SchedulerJob',
             BaseJob.state == 'running',
             BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_1,
-        ).delete()
+            ).delete()
         self.session.commit()
 
         # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
         (
             self.session.query(BaseJob)
-            .filter(BaseJob.job_type == 'SchedulerJob')
-            .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)})
+                .filter(BaseJob.job_type == 'SchedulerJob')
+                .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)})
         )
         self.session.add(
             BaseJob(
@@ -591,7 +658,7 @@ class TestAirflowBaseViews(TestBase):
             BaseJob.job_type == 'SchedulerJob',
             BaseJob.state == 'running',
             BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_2,
-        ).delete()
+            ).delete()
         self.session.commit()
 
         # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
@@ -1856,7 +1923,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             self.endpoint + f'&execution_date={self.runs[1].execution_date.isoformat()}',
             data=dict(username='test', password='test'),
             follow_redirects=True,
-        )
+            )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(
@@ -1879,7 +1946,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             self.endpoint + f'&base_date={self.runs[1].execution_date.isoformat()}&num_runs=2',
             data=dict(username='test', password='test'),
             follow_redirects=True,
-        )
+            )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[1].execution_date, 2, data)
@@ -1904,7 +1971,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             ),
             data=dict(username='test', password='test'),
             follow_redirects=True,
-        )
+            )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[1].execution_date, 42, data)
@@ -1929,7 +1996,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             ),
             data=dict(username='test', password='test'),
             follow_redirects=True,
-        )
+            )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assert_base_date_and_num_runs(self.runs[2].execution_date, 5, data)
