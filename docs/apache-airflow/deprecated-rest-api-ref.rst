@@ -15,20 +15,21 @@
     specific language governing permissions and limitations
     under the License.
 
-Experimental REST API Reference
-===============================
-
-Airflow exposes an REST API. It is available through the webserver. Endpoints are
-available at ``/api/experimental/``.
+Deprecated REST API
+===================
 
 .. warning::
 
-  This REST API is deprecated since version 2.0. Please consider using :doc:`the stable REST API <stable-rest-api-ref>`.
+  This REST API is deprecated since version 2.0. Please consider using the :doc:`stable REST API <stable-rest-api-ref>`.
   For more information on migration, see `UPDATING.md <https://github.com/apache/airflow/blob/master/UPDATING.md>`_
+
+Before Airflow 2.0 this REST API was known as the "experimental" API, but now that the :doc:`stable REST API <stable-rest-api-ref>` is available, it has been renamed.
+
+The endpoints for this API are available at ``/api/experimental/``.
 
 .. versionchanged:: 2.0
 
-  The experimental REST API is disabled by default. To restore these APIs while migrating to
+  This REST API is disabled by default. To restore these APIs while migrating to
   the stable REST API, set ``enable_experimental_api`` option in ``[api]`` section to ``True``.
 
 Endpoints
