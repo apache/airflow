@@ -36,6 +36,7 @@ _breeze_allowed_kind_versions="v0.10.0"
 _breeze_allowed_mysql_versions="5.7 8"
 _breeze_allowed_postgres_versions="9.6 10 11 12 13"
 _breeze_allowed_kind_operations="start stop restart status deploy test shell k9s"
+_breeze_allowed_executors="KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor"
 _breeze_allowed_test_types="All Core Providers API CLI Integration Other WWW Postgres MySQL Helm Quarantined"
 _breeze_allowed_package_formats="both sdist wheel"
 _breeze_allowed_installation_methods=". apache-airflow"
@@ -50,6 +51,7 @@ _breeze_allowed_installation_methods=". apache-airflow"
     _breeze_default_kubernetes_version=$(echo "${_breeze_allowed_kubernetes_versions}" | awk '{print $1}')
     _breeze_default_helm_version=$(echo "${_breeze_allowed_helm_versions}" | awk '{print $1}')
     _breeze_default_kind_version=$(echo "${_breeze_allowed_kind_versions}" | awk '{print $1}')
+    _breeze_default_executor=$(echo "${_breeze_allowed_executors}" | awk '{print $1}')
     _breeze_default_postgres_version=$(echo "${_breeze_allowed_postgres_versions}" | awk '{print $1}')
     _breeze_default_mysql_version=$(echo "${_breeze_allowed_mysql_versions}" | awk '{print $1}')
     _breeze_default_test_type=$(echo "${_breeze_allowed_test_types}" | awk '{print $1}')
@@ -185,6 +187,7 @@ use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies 
 use-airflow-version:
 cleanup-docker-context-files
 test-type: preserve-volumes dry-run-docker
+executor:
 "
 
 _breeze_commands="
@@ -305,6 +308,9 @@ function breeze_complete::get_known_values_breeze() {
     --test-type)
         _breeze_known_values="${_breeze_allowed_test_types}"
         ;;
+    --executor)
+      _breeze_known_values="${_breeze_allowed_executors}"
+      ;;
     --package-format)
         _breeze_known_values="${_breeze_allowed_package_formats}"
         ;;

@@ -2531,6 +2531,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: v3.2.4
 
+  --executor EXECUTOR
+          Executor to use in a kubernetes cluster.
+          One of:
+
+                 KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+
+          Default: KubernetesExecutor
+
   ****************************************************************************************************
    Manage mounting local files
 
