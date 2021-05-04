@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Mask sensitive information from logs"""
 import collections
 import logging
 import re
@@ -50,6 +51,7 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         'access_token',
     }
 )
+"""Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
 
 @cache
@@ -169,7 +171,7 @@ class SecretsMasker(logging.Filter):
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self._redact_all(subval) for subval in item)
-        elif isinstance(item, (Iterable, list)):
+        elif isinstance(item, Iterable):
             return list(self._redact_all(subval) for subval in item)
         else:
             return item
