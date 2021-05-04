@@ -40,7 +40,7 @@ spec:
       ports: []
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
-          name: airflow-logs
+          name: logs
         - name: config
           mountPath: {{ template "airflow_config_path" . }}
           subPath: airflow.cfg
@@ -94,8 +94,14 @@ spec:
   {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
 {{- include "git_sync_ssh_key_volume" . | indent 2 }}
   {{- end }}
+{{- if .Values.logs.persistence.enabled }}
+  - name: logs
+    persistentVolumeClaim:
+      claimName: {{ template "airflow_logs_volume_claim" . }}
+{{- else }}
   - emptyDir: {}
-    name: airflow-logs
+    name: logs
+{{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
   - configMap:
       defaultMode: 288

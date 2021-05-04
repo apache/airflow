@@ -251,6 +251,24 @@ class PodTemplateFileTest(unittest.TestCase):
 
         assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.volumes", docs[0])
 
+    @parameterized.expand(
+        [
+            ({"enabled": False}, {"emptyDir": {}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            (
+                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistentVolumeClaim": {"claimName": "test-claim"}},
+            ),
+        ]
+    )
+    def test_logs_persistence_changes_volume(self, log_persistence_values, expected):
+        docs = render_chart(
+            values={"logs": {"persistence": log_persistence_values}},
+            show_only=["templates/pod-template-file.yaml"],
+        )
+
+        assert {"name": "logs", **expected} in jmespath.search("spec.volumes", docs[0])
+
     def test_should_set_a_custom_image_in_pod_template(self):
         docs = render_chart(
             values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest"}}},
