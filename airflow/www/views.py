@@ -3033,7 +3033,7 @@ class ConnectionModelView(AirflowModelView):
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
             if match:
-                conn_id_prefix = selected_conn.conn_id[:match.start()]
+                conn_id_prefix = selected_conn.conn_id[: match.start()]
                 new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
             else:
                 new_conn_id += '_copy1'
