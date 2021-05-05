@@ -145,7 +145,7 @@ class S3Hook(AwsBaseHook):
         bucket_name = parsed_url.netloc
         key = parsed_url.path
 
-        return bucket_name, parsed_url.path
+        return bucket_name, key
 
     @provide_bucket_name
     def check_for_bucket(self, bucket_name: Optional[str] = None) -> bool:
