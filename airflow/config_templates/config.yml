@@ -414,6 +414,23 @@
       type: integer
       example: ~
       default: "3"
+    - name: hide_sensitive_var_conn_fields
+      description: |
+        Hide sensitive Variables or Connection extra json keys from UI and task logs when set to True
+
+        (Connection passwords are always hidden in logs)
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: sensitive_var_conn_names
+      description: |
+        A comma-separated list of extra sensitive keywords to look for in variables names or connection's
+        extra JSON.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
 
 - name: logging
   description: ~
@@ -1911,23 +1928,6 @@
       type: string
       example: ~
       default: "v3"
-- name: admin
-  description: ~
-  options:
-    - name: hide_sensitive_variable_fields
-      description: |
-        UI to hide sensitive variable fields when set to True
-      version_added: ~
-      type: string
-      example: ~
-      default: "True"
-    - name: sensitive_variable_fields
-      description: |
-        A comma-separated list of sensitive keywords to look for in variables names.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
 - name: elasticsearch
   description: ~
   options:

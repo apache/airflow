@@ -639,6 +639,7 @@ export AIRFLOW_IMAGE="${airflow_image}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
+export EXECUTOR = "${EXECUTOR}"
 docker-compose --log-level INFO ${command}
 EOF
     chmod u+x "${file}"
@@ -842,6 +843,12 @@ function breeze::parse_arguments() {
         --kind-version)
             export KIND_VERSION="${2}"
             echo "Kind version: ${KIND_VERSION}"
+            echo
+            shift 2
+            ;;
+        --executor)
+            export EXECUTOR="${2}"
+            echo "Using ${EXECUTOR} in cluster"
             echo
             shift 2
             ;;
@@ -1210,6 +1217,12 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --cleanup-docker-context-files)
+            export CLEANUP_DOCKER_CONTEXT_FILES="true"
+            echo "Preserves data volumes when stopping airflow"
+            echo
+            shift
+            ;;
         --no-rbac-ui)
             export DISABLE_RBAC="true"
             echo "When installing Airflow 1.10, RBAC UI will be disabled."
@@ -1561,6 +1574,10 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_HELM_VERSIONS=$(echo "${_breeze_allowed_helm_versions=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_HELM_VERSIONS
+
+    FORMATTED_EXECUTORS=$(echo "${_breeze_allowed_executors=""}" | tr '\n' ' ' |
+        fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_EXECUTORS
 
     FORMATTED_KIND_OPERATIONS=$(echo "${_breeze_allowed_kind_operations=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -2334,6 +2351,7 @@ ${FORMATTED_INTEGRATIONS}
 #       FORMATTED_KUBERNETES_VERSIONS
 #       FORMATTED_KIND_VERSIONS
 #       FORMATTED_HELM_VERSIONS
+#       FORMATTED_EXECUTORS
 #
 #
 # Outputs:
@@ -2374,6 +2392,14 @@ ${FORMATTED_KIND_VERSIONS}
 ${FORMATTED_HELM_VERSIONS}
 
         Default: ${_breeze_default_helm_version:=}
+
+--executor EXECUTOR
+        Executor to use in a kubernetes cluster.
+        One of:
+
+${FORMATTED_EXECUTORS}
+
+        Default: ${_breeze_default_executor:=}
 
 "
 }
@@ -2617,6 +2643,12 @@ function breeze::flag_build_docker_images() {
         Python base image. This should be a rare and manually triggered event. Also this flag
         is used in the scheduled run in CI when we rebuild all the images from the scratch
         and run the tests to see if the latest python images do not fail our tests.
+
+--cleanup-docker-context-files
+        Removes whl and tar.gz files created in docker-context-files before running the command.
+        In case there are some files there it unnecessarily increases the context size and
+        makes the COPY . always invalidated - if you happen to have those files when you build your
+        image.
 
 Customization options:
 
@@ -3009,6 +3041,7 @@ function breeze::print_star_line() {
 #   KUBERNETES_VERSION
 #   KIND_VERSION
 #   HELM_VERSION
+#   EXECUTOR
 #   POSTGRES_VERSION
 #   MYSQL_VERSION
 #   DOCKERHUB_USER
@@ -3031,6 +3064,9 @@ function breeze::read_saved_environment_variables() {
 
     HELM_VERSION="${HELM_VERSION:=$(parameters::read_from_file HELM_VERSION)}"
     HELM_VERSION=${HELM_VERSION:=${_breeze_default_helm_version}}
+
+    EXECUTOR="${EXECUTOR:=$(parameters::read_from_file EXECUTOR)}"
+    EXECUTOR=${EXECUTOR:-${_breeze_default_executor}}
 
     POSTGRES_VERSION="${POSTGRES_VERSION:=$(parameters::read_from_file POSTGRES_VERSION)}"
     POSTGRES_VERSION=${POSTGRES_VERSION:=${_breeze_default_postgres_version}}
@@ -3068,6 +3104,7 @@ function breeze::read_saved_environment_variables() {
 #     KUBERNETES_VERSION
 #     KIND_VERSION
 #     HELM_VERSION
+#     EXECUTOR
 #     POSTGRES_VERSION
 #     MYSQL_VERSION
 #     DOCKERHUB_USER
@@ -3113,6 +3150,7 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
     parameters::check_and_save_allowed_param "HELM_VERSION" "Helm version" "--helm-version"
+    parameters::check_and_save_allowed_param "EXECUTOR" "Executors" "--executor"
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
     parameters::check_and_save_allowed_param "GITHUB_REGISTRY" "GitHub Registry" "--github-registry"
@@ -3351,6 +3389,11 @@ function breeze::run_build_command() {
         fi
         ;;
     build_image)
+        if [[ ${CLEANUP_DOCKER_CONTEXT_FILES} == "true" ]]; then
+            build_images::cleanup_docker_context_files
+        fi
+        build_images::check_for_docker_context_files
+
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             build_images::prepare_prod_build
             build_images::build_prod_images

@@ -18,7 +18,7 @@
 ################################
 ## Airflow Pod Reader Role Binding
 #################################
-{{- if and .Values.rbacEnabled .Values.webserver.allowPodLogReading }}
+{{- if and .Values.rbac.create .Values.webserver.allowPodLogReading }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}

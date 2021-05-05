@@ -50,7 +50,7 @@ Package apache-airflow-providers-microsoft-mssql
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -60,15 +60,6 @@ are in ``airflow.providers.microsoft.mssql`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-microsoft-mssql``
@@ -81,25 +72,6 @@ PIP package    Version required
 =============  ==================
 ``pymssql``    ``~=2.1,>=2.1.5``
 =============  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-microsoft-mssql[odbc]
-
-
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-odbc <https://airflow.apache.org/docs/apache-airflow-providers-odbc>`_  ``odbc``
-================================================================================================  ========
 
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -121,6 +93,15 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove odbc dependency in microsoft.mssql provider (#15594)``
+
 
 1.0.1
 .....

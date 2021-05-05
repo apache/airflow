@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import base64
 import unittest
 
 import jmespath
@@ -105,3 +106,69 @@ class PgbouncerTest(unittest.TestCase):
             "name": "pgbouncer-config",
             "secret": {"secretName": "pgbouncer-config-secret"},
         } == jmespath.search("spec.template.spec.volumes[0]", docs[0])
+
+    def test_pgbouncer_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "resources": {
+                        "limits": {"cpu": "200m", 'memory': "128Mi"},
+                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    def test_pgbouncer_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+
+class PgbouncerConfigTest(unittest.TestCase):
+    def test_databases_default(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}},
+            show_only=["templates/secrets/pgbouncer-config-secret.yaml"],
+        )
+
+        encoded_ini = jmespath.search('data."pgbouncer.ini"', docs[0])
+        ini = base64.b64decode(encoded_ini).decode()
+
+        assert (
+            "RELEASE-NAME-metadata = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            " pool_size=10" in ini
+        )
+        assert (
+            "RELEASE-NAME-result-backend = host=RELEASE-NAME-postgresql.default dbname=postgres port=5432"
+            " pool_size=5" in ini
+        )
+
+    def test_hostname_override(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True, "metadataPoolSize": 12, "resultBackendPoolSize": 7},
+                "data": {
+                    "metadataConnection": {"host": "meta_host", "db": "meta_db", "port": 1111},
+                    "resultBackendConnection": {"host": "rb_host", "db": "rb_db", "port": 2222},
+                },
+            },
+            show_only=["templates/secrets/pgbouncer-config-secret.yaml"],
+        )
+
+        encoded_ini = jmespath.search('data."pgbouncer.ini"', docs[0])
+        ini = base64.b64decode(encoded_ini).decode()
+
+        assert "RELEASE-NAME-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12" in ini
+        assert "RELEASE-NAME-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7" in ini

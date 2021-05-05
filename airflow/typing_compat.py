@@ -32,3 +32,12 @@ try:
     )
 except ImportError:
     from typing_extensions import Protocol, TypedDict, runtime_checkable  # type: ignore # noqa
+
+
+# Before Py 3.7, there is no re.Pattern class
+try:
+    from re import Pattern as RePatternType  # type: ignore # pylint: disable=unused-import
+except ImportError:
+    import re
+
+    RePatternType = type(re.compile('', 0))

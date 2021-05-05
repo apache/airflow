@@ -19,6 +19,12 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Provide a name to substitute for the full names of resources
+fullnameOverride: ""
+
+# Provide a name to substitute for the name of the chart
+nameOverride: ""
+
 # User and group of airflow user
 uid: 50000
 gid: 0
@@ -106,7 +112,9 @@ networkPolicies:
 airflowPodAnnotations: {}
 
 # Enable RBAC (default on most clusters these days)
-rbacEnabled: true
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
 
 # Airflow executor
 # Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
@@ -173,13 +181,13 @@ secret: []
 extraSecrets: {}
 # eg:
 # extraSecrets:
-#   {{ .Release.Name }}-airflow-connections:
+#   '{{ .Release.Name }}-airflow-connections':
 #     data: |
 #       AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
 #     stringData: |
 #       AIRFLOW_CONN_OTHER: 'other_conn'
-#   {{ .Release.Name }}-other-secret-name-suffix: |
+#   '{{ .Release.Name }}-other-secret-name-suffix': |
 #     data: |
 #        ...
 
@@ -192,7 +200,7 @@ extraSecrets: {}
 extraConfigMaps: {}
 # eg:
 # extraConfigMaps:
-#   {{ .Release.Name }}-airflow-variables:
+#   '{{ .Release.Name }}-airflow-variables':
 #     data: |
 #       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
@@ -226,6 +234,7 @@ data:
   metadataConnection:
     user: postgres
     pass: postgres
+    protocol: postgresql
     host: ~
     port: 5432
     db: postgres
@@ -233,6 +242,7 @@ data:
   resultBackendConnection:
     user: postgres
     pass: postgres
+    protocol: postgresql
     host: ~
     port: 5432
     db: postgres
@@ -307,6 +317,17 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Allow KEDA autoscaling.
   # Persistence.enabled must be set to false to use KEDA.
   keda:
@@ -360,8 +381,6 @@ workers:
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
-  # Annotations to add to worker kubernetes service account.
-  serviceAccountAnnotations: {}
 
   # Launch additional containers into worker.
   extraContainers: []
@@ -397,6 +416,18 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to scheduler kubernetes service account.
+    annotations: {}
+
   # Scheduler pod disruption budget
   podDisruptionBudget:
     enabled: false
@@ -421,9 +452,6 @@ scheduler:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Annotations to add to scheduler kubernetes service account.
-  serviceAccountAnnotations: {}
-
   # Launch additional containers into scheduler.
   extraContainers: []
 
@@ -435,6 +463,33 @@ scheduler:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+# Airflow create user job settings
+createUserJob:
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to create user kubernetes service account.
+    annotations: {}
+
+# Airflow database migration job settings
+migrateDatabaseJob:
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to migrate database job kubernetes service account.
+    annotations: {}
 
 # Airflow webserver settings
 webserver:
@@ -453,6 +508,17 @@ webserver:
 
   # Number of webservers
   replicas: 1
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to webserver kubernetes service account.
+    annotations: {}
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -500,9 +566,6 @@ webserver:
     ## service annotations
     annotations: {}
 
-  # Annotations to add to webserver kubernetes service account.
-  serviceAccountAnnotations: {}
-
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
   affinity: {}
@@ -523,6 +586,17 @@ flower:
   #     cpu: 100m
   #     memory: 128Mi
 
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # A secret containing the connection
   secretName: ~
 
@@ -541,6 +615,18 @@ flower:
 # Statsd settings
 statsd:
   enabled: true
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -562,10 +648,24 @@ statsd:
   # Additional mappings for statsd exporter.
   extraMappings: []
 
+  uid: 65534
+
 # Pgbouncer settings
 pgbouncer:
   # Enable pgbouncer
   enabled: false
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
 
@@ -636,10 +736,23 @@ pgbouncer:
   affinity: {}
   tolerations: []
 
+  uid: 65534
+
 # Configuration for the redis provisioned by the chart
 redis:
   enabled: true
   terminationGracePeriodSeconds: 600
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to worker kubernetes service account.
+    annotations: {}
 
   persistence:
     # Enable persistent volumes
@@ -729,6 +842,17 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    # name:
+
+    # Annotations to add to cleanup cronjob kubernetes service account.
+    annotations: {}
 
 # Configuration for postgresql subchart
 # Not recommended for production

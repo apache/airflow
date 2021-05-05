@@ -86,7 +86,7 @@ spec:
 {{ toYaml $tolerations | indent 8 }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 10
-      serviceAccountName: {{ .Release.Name }}-scheduler
+      serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
       securityContext:
         runAsUser: {{ .Values.uid }}
         fsGroup: {{ .Values.gid }}

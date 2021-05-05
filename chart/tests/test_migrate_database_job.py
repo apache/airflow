@@ -27,7 +27,7 @@ class MigrateDatabaseJobTest(unittest.TestCase):
     def test_should_run_by_default(self):
         docs = render_chart(
             values={},
-            show_only=["templates/migrate-database-job.yaml"],
+            show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
         assert re.search("Job", docs[0]["kind"])

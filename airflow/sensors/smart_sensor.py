@@ -106,11 +106,18 @@ class SensorWork:
         Create task log handler for a sensor work.
         :return: log handler
         """
+        from airflow.utils.log.secrets_masker import _secrets_masker  # noqa
+
         handler_config_copy = {k: handler_config[k] for k in handler_config}
+        del handler_config_copy['filters']
+
         formatter_config_copy = {k: formatter_config[k] for k in formatter_config}
         handler = dictConfigurator.configure_handler(handler_config_copy)
         formatter = dictConfigurator.configure_formatter(formatter_config_copy)
         handler.setFormatter(formatter)
+
+        # We want to share the _global_ filterer instance, not create a new one
+        handler.addFilter(_secrets_masker())
         return handler
 
     def _get_sensor_logger(self, si):

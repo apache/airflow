@@ -27,6 +27,12 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - Parameter
      - Description
      - Default
+   * - ``fullnameOverride``
+     - Provide a name to substitute for the full names of resources
+     - ``~``
+   * - ``nameOverride``
+     - Override the name of the chart
+     - ``~``
    * - ``uid``
      - UID to run airflow pods under
      - ``1``
@@ -66,9 +72,9 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``airflowHome``
      - Location of airflow home directory
      - ``1``
-   * - ``rbacEnabled``
+   * - ``rbac.create``
      - Deploy pods with Kubernetes RBAC enabled
-     - ``1``
+     - ``true``
    * - ``executor``
      - Airflow executor (eg SequentialExecutor, LocalExecutor, CeleryExecutor, KubernetesExecutor)
      - ``1``
@@ -258,9 +264,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``workers.safeToEvict``
      - Allow Kubernetes to evict worker pods if needed (node downscaling)
      - ``1``
-   * - ``workers.serviceAccountAnnotations``
+   * - ``workers.serviceAccount.create``
+     - Create ServiceAccount for workers
+     - ``true``
+   * - ``workers.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``workers.serviceAccount.annotations``
      - Annotations to add to worker kubernetes service account
-     - ``1``
+     - ``{}``
    * - ``workers.extraVolumes``
      - Mount additional volumes into worker
      - ``1``
@@ -312,9 +324,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``scheduler.safeToEvict``
      - Allow Kubernetes to evict scheduler pods if needed (node downscaling)
      - ``1``
-   * - ``scheduler.serviceAccountAnnotations``
+   * - ``scheduler.serviceAccount.create``
+     - Create ServiceAccount for scheduler
+     - ``true``
+   * - ``scheduler.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``scheduler.serviceAccount.annotations``
      - Annotations to add to scheduler kubernetes service account
-     - ``1``
+     - ``{}``
    * - ``scheduler.extraVolumes``
      - Mount additional volumes into scheduler
      - ``1``
@@ -384,6 +402,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``webserver.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``webserver.serviceAccount.create``
+     - Create ServiceAccount for webserver
+     - ``true``
+   * - ``webserver.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``webserver.serviceAccount.annotations``
+     - Annotations to add to webserver kubernetes service account
+     - ``{}``
    * - ``flower.enabled``
      - Enable flower
      - ``1``
@@ -396,6 +423,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``flower.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``flower.serviceAccount.create``
+     - Create ServiceAccount for flower
+     - ``true``
+   * - ``flower.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``flower.serviceAccount.annotations``
+     - Annotations to add to flower kubernetes service account
+     - ``{}``
    * - ``statsd.nodeSelector``
      - Node labels for pod assignment
      - ``1``
@@ -408,6 +444,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``statsd.extraMappings``
      - Additional mappings for statsd exporter
      - ``1``
+   * - ``statsd.serviceAccount.create``
+     - Create ServiceAccount for statsd
+     - ``true``
+   * - ``statsd.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``statsd.serviceAccount.annotations``
+     - Annotations to add to statsd kubernetes service account
+     - ``{}``
    * - ``pgbouncer.nodeSelector``
      - Node labels for pod assignment
      - ``1``
@@ -420,6 +465,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``pgbouncer.configSecretName``
      - Name of existing PgBouncer config secret
      - ``~``
+   * - ``pgbouncer.serviceAccount.create``
+     - Create ServiceAccount for PgBouncer
+     - ``true``
+   * - ``pgbouncer.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``pgbouncer.serviceAccount.annotations``
+     - Annotations to add to PgBouncer kubernetes service account
+     - ``{}``
    * - ``redis.enabled``
      - Enable the redis provisioned by the chart
      - ``1``
@@ -465,6 +519,15 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``redis.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``redis.serviceAccount.create``
+     - Create ServiceAccount for redis
+     - ``true``
+   * - ``redis.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``redis.serviceAccount.annotations``
+     - Annotations to add to redis kubernetes service account
+     - ``{}``
    * - ``cleanup.nodeSelector``
      - Node labels for pod assignment
      - ``1``
@@ -474,6 +537,33 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``cleanup.tolerations``
      - Toleration labels for pod assignment
      - ``1``
+   * - ``cleanup.serviceAccount.create``
+     - Create ServiceAccount for cleanup pods
+     - ``true``
+   * - ``cleanup.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``cleanup.serviceAccount.annotations``
+     - Annotations to add to cleanup cronjob kubernetes service account
+     - ``{}``
+   * - ``createUserJob.serviceAccount.create``
+     - Create ServiceAccount for create user job
+     - ``true``
+   * - ``createUserJob.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``createUserJob.serviceAccount.annotations``
+     - Annotations to add to ``createUserJob`` kubernetes service account
+     - ``{}``
+   * - ``migrateDatabaseJob.serviceAccount.create``
+     - Create ServiceAccount for migrate database job
+     - ``true``
+   * - ``migrateDatabaseJob.serviceAccount.name``
+     - Name of ServiceAccount. If not set and create is true, a name is generated using the release name.
+     - ``~``
+   * - ``migrateDatabaseJob.serviceAccount.annotations``
+     - Annotations to add to ``migrateDatabaseJob`` kubernetes service account
+     - ``{}``
    * - ``dags.persistence.*``
      - Dag persistence configuration
      - Please refer to ``values.yaml``
@@ -486,9 +576,6 @@ The following tables lists the configurable parameters of the Airflow chart and 
    * - ``multiNamespaceMode``
      - Whether the KubernetesExecutor can launch pods in multiple namespaces
      - ``1``
-   * - ``serviceAccountAnnottions.*``
-     - Map of annotations for worker, webserver, scheduler kubernetes service accounts
-     - ``{}``
 
 
 

@@ -71,7 +71,7 @@ class TestWasbTaskHandler(unittest.TestCase):
 
             mock_error.assert_called_once_with(
                 'Could not create an WasbHook with connection id "%s".'
-                ' Please make sure that airflow[azure] is installed'
+                ' Please make sure that apache-airflow[azure] is installed'
                 ' and the Wasb connection exists.',
                 'wasb_default',
                 exc_info=True,

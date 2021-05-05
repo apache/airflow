@@ -27,6 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from parameterized import parameterized
 
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowFailException
@@ -92,8 +93,7 @@ class TestLocalTaskJob(unittest.TestCase):
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         assert all(check_result_2)
 
-    @patch('os.getpid')
-    def test_localtaskjob_heartbeat(self, mock_pid):
+    def test_localtaskjob_heartbeat(self):
         session = settings.Session()
         dag = DAG('test_localtaskjob_heartbeat', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
@@ -114,19 +114,23 @@ class TestLocalTaskJob(unittest.TestCase):
         session.commit()
 
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        ti.task = op1
+        ti.refresh_from_task(op1)
+        job1.task_runner = StandardTaskRunner(job1)
+        job1.task_runner.process = mock.Mock()
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
 
-        mock_pid.return_value = 1
+        job1.task_runner.process.pid = 1
         ti.state = State.RUNNING
         ti.hostname = get_hostname()
         ti.pid = 1
         session.merge(ti)
         session.commit()
-
+        assert ti.pid != os.getpid()
         job1.heartbeat_callback(session=None)
 
-        mock_pid.return_value = 2
+        job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
 
@@ -496,9 +500,15 @@ class TestLocalTaskJob(unittest.TestCase):
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
 
-    def test_process_kill_call_on_failure_callback(self):
+    @parameterized.expand(
+        [
+            (signal.SIGTERM,),
+            (signal.SIGKILL,),
+        ]
+    )
+    def test_process_kill_calls_on_failure_callback(self, signal_type):
         """
-        Test that ensures that when a task is killed with sigterm
+        Test that ensures that when a task is killed with sigterm or sigkill
         on_failure_callback gets executed
         """
         # use shared memory value so we can properly track value change even if
@@ -547,13 +557,14 @@ class TestLocalTaskJob(unittest.TestCase):
         process = multiprocessing.Process(target=job1.run)
         process.start()
 
-        for _ in range(0, 10):
+        for _ in range(0, 20):
             ti.refresh_from_db()
-            if ti.state == State.RUNNING:
+            if ti.state == State.RUNNING and ti.pid is not None:
                 break
             time.sleep(0.2)
         assert ti.state == State.RUNNING
-        os.kill(ti.pid, signal.SIGTERM)
+        assert ti.pid is not None
+        os.kill(ti.pid, signal_type)
         process.join(timeout=10)
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
@@ -584,5 +595,5 @@ class TestLocalTaskJobPerformance:
         mock_get_task_runner.return_value.return_code.side_effects = return_codes
 
         job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-        with assert_queries_count(13):
+        with assert_queries_count(15):
             job.run()

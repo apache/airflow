@@ -271,7 +271,7 @@ class AirflowDocsBuilder:
             console.print(f"[blue]{self.package_name:60}:[/] [green]Finished docs building successfully[/]")
         return build_errors
 
-    def publish(self):
+    def publish(self, override_versioned: bool):
         """Copy documentation packages files to airflow-site repository."""
         console.print(f"Publishing docs for {self.package_name}")
         output_dir = os.path.join(AIRFLOW_SITE_DIR, self._publish_dir)
@@ -280,14 +280,16 @@ class AirflowDocsBuilder:
         console.print(f"Copy directory: {pretty_source} => {pretty_target}")
         if os.path.exists(output_dir):
             if self.is_versioned:
-                console.print(
-                    f"Skipping previously existing {output_dir}! "
-                    f"Delete it manually if you want to regenerate it!"
-                )
-                console.print()
-                return
-            else:
-                shutil.rmtree(output_dir)
+                if override_versioned:
+                    console.print(f"Overriding previously existing {output_dir}! ")
+                else:
+                    console.print(
+                        f"Skipping previously existing {output_dir}! "
+                        f"Delete it manually if you want to regenerate it!"
+                    )
+                    console.print()
+                    return
+            shutil.rmtree(output_dir)
         shutil.copytree(self._build_dir, output_dir)
         if self.is_versioned:
             with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
