@@ -424,16 +424,13 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
 
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
         to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
-        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
             key="cluster_conf",
             value=DATAPROC_CLUSTER_CONF_EXPECTED,
@@ -460,10 +457,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_cluster.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
@@ -666,15 +660,12 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
 
         # Test whether xcom push occurs before cluster is updated
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
             key="cluster_conf",
             value=DATAPROC_CLUSTER_CONF_EXPECTED,
@@ -794,6 +785,8 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         op.execute(context=self.mock_context)
 
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+
         # Test whether xcom push occurs before polling for job
         self.assertLess(
             self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
@@ -801,10 +794,6 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             msg='Xcom push for Job Link has to be done before polling for job status',
         )
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
@@ -980,15 +969,12 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
 
         # Test whether the xcom push happens before updating the cluster
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
         self.mock_ti.xcom_push.assert_called_once_with(
             key="cluster_conf",
             value=DATAPROC_CLUSTER_CONF_EXPECTED,
@@ -1148,10 +1134,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -1210,10 +1193,7 @@ class TestDataProcPigOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -1278,10 +1258,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=MagicMock())
-        mock_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id=GCP_PROJECT, job=self.job, location=GCP_LOCATION
         )
@@ -1306,7 +1283,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
             variables=self.variables,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={})
+        op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_job.assert_called_once_with(
             project_id="other-project", job=self.other_project_job, location=GCP_LOCATION

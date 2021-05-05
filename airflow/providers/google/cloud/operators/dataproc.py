@@ -428,10 +428,7 @@ class ClusterGenerator:
 
         if self.init_actions_uris:
             init_actions_dict = [
-                {
-                    "executable_file": uri,
-                    "execution_timeout": self._get_init_action_timeout(),
-                }
+                {'executable_file': uri, 'execution_timeout': self._get_init_action_timeout()}
                 for uri in self.init_actions_uris
             ]
             cluster_data['initialization_actions'] = init_actions_dict
@@ -636,11 +633,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         gcs_uri = hook.diagnose_cluster(
             region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
-        self.log.info(
-            "Diagnostic information for cluster %s available at: %s",
-            self.cluster_name,
-            gcs_uri,
-        )
+        self.log.info('Diagnostic information for cluster %s available at: %s', self.cluster_name, gcs_uri)
         if self.delete_on_error:
             self._delete_cluster(hook)
             raise AirflowException("Cluster was created but was in ERROR state.")
@@ -672,11 +665,8 @@ class DataprocCreateClusterOperator(BaseOperator):
         return cluster
 
     def execute(self, context) -> dict:
-        self.log.info("Creating cluster: %s", self.cluster_name)
-        hook = DataprocHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        self.log.info('Creating cluster: %s', self.cluster_name)
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
         self.xcom_push(
             context,
@@ -709,11 +699,6 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster = self._create_cluster(hook)
             self._handle_error_state(hook, cluster)
 
-        self.xcom_push(
-            context,
-            key='cluster_conf',
-            value={'cluster_name': self.cluster_name, 'region': self.region, 'project_id': self.project_id},
-        )
         return Cluster.to_dict(cluster)
 
 
@@ -844,15 +829,9 @@ class DataprocScaleClusterOperator(BaseOperator):
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         scaling_cluster_data = self._build_scale_cluster_data()
-        update_mask = [
-            "config.worker_config.num_instances",
-            "config.secondary_worker_config.num_instances",
-        ]
+        update_mask = ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 
-        hook = DataprocHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
         self.xcom_push(
             context,
@@ -1119,9 +1098,7 @@ class DataprocJobBaseOperator(BaseOperator):
         """
         if self.dataproc_job_id:
             self.hook.cancel_job(
-                project_id=self.project_id,
-                job_id=self.dataproc_job_id,
-                location=self.region,
+                project_id=self.project_id, job_id=self.dataproc_job_id, location=self.region
             )
 
 
@@ -1635,9 +1612,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id,
-                region=self.region,
-                cluster_name=self.cluster_name,
+                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = f"gs://{bucket}/{self.main}"
@@ -1654,9 +1629,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id,
-                region=self.region,
-                cluster_name=self.cluster_name,
+                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = self._upload_file_temp(bucket, self.main)
