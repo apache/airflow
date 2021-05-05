@@ -143,7 +143,7 @@ class S3Hook(AwsBaseHook):
             raise AirflowException(f'Please provide a bucket_name instead of "{s3url}"')
 
         bucket_name = parsed_url.netloc
-        # key = parsed_url.path.strip('/')
+        key = parsed_url.path
 
         return bucket_name, parsed_url.path
 
