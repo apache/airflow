@@ -58,6 +58,7 @@ object1 = ClassWithCustomAttributes(attr="{{ foo }}_1", template_fields=["ref"])
 object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fields=["ref"])
 setattr(object1, 'ref', object2)
 
+
 # Essentially similar to airflow.models.baseoperator.BaseOperator
 class DummyClass(metaclass=BaseOperatorMeta):
     def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
