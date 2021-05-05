@@ -39,7 +39,9 @@ class TestOracleHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(login='login', password='password', host='host', schema='schema', port=1521)
+        self.connection = Connection(
+            login='login', password='password', host='host', schema='schema', port=1521
+        )
 
         self.db_hook = OracleHook()
         self.db_hook.get_connection = mock.Mock()
