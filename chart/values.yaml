@@ -19,107 +19,100 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Provide a name to substitute for the full names of resources
+# fullnameOverride is a name to substitute for the full names of resources
 fullnameOverride: ""
 
-# Provide a name to substitute for the name of the chart
+# nameOverride is a name to substitute for the name of the chart
 nameOverride: ""
 
-# User and group of airflow user
+# uid is the user id of the Airflow user
 uid: 50000
+# gid is the group id of the Airflow user
 gid: 0
 
-# Airflow home directory
-# Used for mount paths
+# airflowHome is the Airflow home directory; Used for mount paths
 airflowHome: "/opt/airflow"
 
-# Default airflow repository -- overrides all the specific images below
+# defaultAirflowRepository is the default Airflow image to deploy
 defaultAirflowRepository: apache/airflow
-
-# Default airflow tag to deploy
+# defaultAirflowTag is the default Airflow tag to deploy
 defaultAirflowTag: 2.0.2
 
-
-# Select certain nodes for airflow pods.
+# nodeSelector allows selecting certain nodes for all pods
 nodeSelector: {}
+# affinity allows for setting affinity for all pods
 affinity: {}
+# tolerations allows for setting tolerations for all pods
 tolerations: []
 
-# Add common labels to all objects and pods defined in this chart.
+# labels are extra labels added to all objects and pods defined in this chart
 labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable ingress resource
+  # ingress.enabled enables the ingress resource
   enabled: false
 
   # Configs for the Ingress of the web Service
   web:
-    # Annotations for the web Ingress
+    # ingress.web.annotations are annotations for the web Ingress
     annotations: {}
-
-    # The path for the web Ingress
+    # ingress.web.path is the path for the web Ingress
     path: ""
-
-    # The hostname for the web Ingress
+    # ingress.web.host is the hostname for the web Ingress
     host: ""
 
     # configs for web Ingress TLS
     tls:
-      # Enable TLS termination for the web Ingress
+      # ingress.web.tls.enabled enables TLS termination for the web Ingress
       enabled: false
-      # the name of a pre-created Secret containing a TLS private key and certificate
+      # ingress.web.tls.secretName is the name of an existing Secret containing a TLS private key and cert
       secretName: ""
 
-    # HTTP paths to add to the web Ingress before the default path
+    # ingress.web.precedingPaths are HTTP paths to add to the web Ingress before the default path
     precedingPaths: []
-
-    # Http paths to add to the web Ingress after the default path
+    # ingress.web.succeedingPaths are Http paths to add to the web Ingress after the default path
     succeedingPaths: []
 
   # Configs for the Ingress of the flower Service
   flower:
-    # Annotations for the flower Ingress
+    # ingress.flower.annotations are annotations for the flower Ingress
     annotations: {}
-
-    # The path for the flower Ingress
+    # ingress.flower.path is the path for the flower Ingress
     path: ""
-
-    # The hostname for the flower Ingress
+    # ingress.flower.host is the hostname for the flower Ingress
     host: ""
 
     # configs for web Ingress TLS
     tls:
-      # Enable TLS termination for the flower Ingress
+      # ingress.flower.tls.secretName enables TLS termination for the flower Ingress
       enabled: false
-      # the name of a pre-created Secret containing a TLS private key and certificate
+      # ingress.flower.tls.secretName is the name of an existing Secret containing a TLS private key and cert
       secretName: ""
 
-    # HTTP paths to add to the flower Ingress before the default path
+    # ingress.flower.precedingPaths are HTTP paths to add to the flower Ingress before the default path
     precedingPaths: []
-
-    # Http paths to add to the flower Ingress after the default path
+    # ingress.flower.succeedingPaths are Http paths to add to the flower Ingress after the default path
     succeedingPaths: []
 
 # Network policy configuration
 networkPolicies:
-  # Enabled network policies
+  # networkPolicies.enabled enables network policies
   enabled: false
 
-
-# Extra annotations to apply to all
-# Airflow pods
+# airflowPodAnnotations are extra annotations to apply to all Airflow pods
 airflowPodAnnotations: {}
 
 # Enable RBAC (default on most clusters these days)
 rbac:
-  # Specifies whether RBAC resources should be created
+  # rbac.create specifies whether RBAC resources should be created
   create: true
 
-# Airflow executor
-# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
+# executor sets the Airflow executor
+# executor options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "CeleryExecutor"
 
+# allowPodLaunching controls whether the scheduler/worker will be able to launch pods
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
 # service account will have access to communicate with the api-server and launch pods.
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
@@ -129,44 +122,68 @@ allowPodLaunching: true
 # Images
 images:
   airflow:
+    # images.airflow.respository is used to override the defaultAirflowRepository for Airflow image
     repository: ~
+    # images.airflow.tag is used to override the defaultAirflowTag for Airflow image
     tag: ~
+    # images.airflow.pullPolicy is the pullPolicy for the Airflow image
     pullPolicy: IfNotPresent
   pod_template:
+    # images.pod_template.repository is used to override the defaultAirflowRepository for pod_template image
     repository: ~
+    # images.pod_template.tag is used to override the defaultAirflowTag for pod_template image
     tag: ~
+    # images.pod_template.pullPolicy is the pullPolicy for the pod_template image
     pullPolicy: IfNotPresent
   flower:
+    # images.flower.repository is used to override the defaultAirflowRepository for flower image
     repository: ~
+    # images.flower.tag is used to override the defaultAirflowTag for flower image
     tag: ~
+    # images.flower.pullPolicy is the pullPolicy for the flower image
     pullPolicy: IfNotPresent
   statsd:
+    # images.statsd.respository is the respository for the statsd exporter image
     repository: apache/airflow
+    # images.statsd.tag is the tag for the statsd exporter image
     tag: airflow-statsd-exporter-2021.04.28-v0.17.0
+    # images.statsd.pullPolicy is the pullPolicy for the statsd exporter image
     pullPolicy: IfNotPresent
   redis:
+    # images.redis.respository is the respository for the redis image
     repository: redis
+    # images.redis.tag is the tag for the redis image
     tag: 6-buster
+    # images.redis.pullPolicy is the pullPolicy for the redis image
     pullPolicy: IfNotPresent
   pgbouncer:
+    # images.pgbouncer.pullPolicy is the pullPolicy for the pgbouncer image
     repository: apache/airflow
+    # images.pgbouncer.tag is the tag for the pgbouncer image
     tag: airflow-pgbouncer-2021.04.28-1.14.0
+    # images.pgbouncer.pullPolicy is the pullPolicy for the pgbouncer image
     pullPolicy: IfNotPresent
   pgbouncerExporter:
+    # images.pgbouncerExporter.repository is the repository for the pgbouncerExporter image
     repository: apache/airflow
+    # images.pgbouncerExporter.tag is the repository for the tag image
     tag: airflow-pgbouncer-exporter-2021.04.28-0.5.0
+    # images.pgbouncerExporter.pullPolicy is the pullPolicy for the pgbouncerExporter image
     pullPolicy: IfNotPresent
   gitSync:
+    # images.gitSync.repository is the repository for the gitSync image
     repository: k8s.gcr.io/git-sync/git-sync
+    # images.gitSync.tag is the tag for the gitSync image
     tag: v3.3.0
+    # images.gitSync.pullPolicy is the pullPolicy for the gitSync image
     pullPolicy: IfNotPresent
 
-# Environment variables for all airflow containers
+# env are extra environment variables for all airflow containers
 env: []
 # - name: ""
 #   value: ""
 
-# Secrets for all airflow containers
+# secret are extra secrets for all airflow containers
 secret: []
 # - envName: ""
 #   secretName: ""
