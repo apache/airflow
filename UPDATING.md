@@ -71,9 +71,9 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### ``apply_default`` decorator isn't longer necessary
+### `@apply_default` decorator isn't longer necessary
 
-This decorator is now automatically added to all operators that subclass `BaseOperator`.
+This decorator is now automatically added to all operators via the metaclass on BaseOperator
 
 ### Change the configuration options for field masking
 
