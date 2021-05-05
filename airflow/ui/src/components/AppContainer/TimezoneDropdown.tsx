@@ -39,7 +39,7 @@ interface Option { value: string, label: string }
 
 const TimezoneDropdown: React.FC = () => {
   const { timezone, setTimezone } = useTimezoneContext();
-  const [now, setNow] = useState(dayjs().tz());
+  const [now, setNow] = useState(dayjs().tz(timezone));
 
   let currentTimezone: Option | null = null;
 

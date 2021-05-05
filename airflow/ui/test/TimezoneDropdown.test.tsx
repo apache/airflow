@@ -33,10 +33,6 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 describe('test timezone dropdown', () => {
-  beforeAll(() => {
-    dayjs.tz.setDefault('America/New_York');
-  });
-
   test('Can search for a new timezone and the date changes', () => {
     const { getByText } = render(
       <TimezoneProvider>
@@ -45,21 +41,21 @@ describe('test timezone dropdown', () => {
       { wrapper: ChakraWrapper },
     );
 
-    const initialTime = dayjs().tz('America/New_York').format('h:mmA Z');
+    const initialTime = dayjs().tz('UTC').format('h:mmA Z');
 
     expect(getByText(initialTime)).toBeInTheDocument();
     const button = getByText(initialTime);
     fireEvent.click(button);
-    const input = getByText('New York');
+    const input = getByText('UTC');
     expect(input).toBeInTheDocument();
     const focusedElement = document.activeElement;
     if (focusedElement) {
-      fireEvent.change(focusedElement, { target: { value: 'Lond' } });
+      fireEvent.change(focusedElement, { target: { value: 'Anch' } });
     }
-    const option = getByText('London');
+    const option = getByText('Anchorage');
     expect(option).toBeInTheDocument();
     fireEvent.click(option);
 
-    expect(getByText(dayjs().tz('Europe/London').format('h:mmA Z'))).toBeInTheDocument();
+    expect(getByText(dayjs().tz('America/Anchorage').format('h:mmA Z'))).toBeInTheDocument();
   });
 });
