@@ -127,6 +127,9 @@ function initialization::initialize_base_variables() {
     # Which means that you do not have to start from scratch
     export PRESERVE_VOLUMES="false"
 
+    # Cleans up docker context files if specified
+    export CLEANUP_DOCKER_CONTEXT_FILES="false"
+
     # If set to true, RBAC UI will not be used for 1.10 version
     export DISABLE_RBAC=${DISABLE_RBAC:="false"}
 
@@ -495,6 +498,9 @@ function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.2.4")
     export CURRENT_HELM_VERSIONS
+    # Current executor in chart
+    CURRENT_EXECUTOR+=("KubernetesExecutor")
+    export CURRENT_EXECUTOR
     # Default Kubernetes version
     export DEFAULT_KUBERNETES_VERSION="${CURRENT_KUBERNETES_VERSIONS[0]}"
     # Default Kubernetes mode
@@ -503,6 +509,8 @@ function initialization::initialize_kubernetes_variables() {
     export DEFAULT_KIND_VERSION="${CURRENT_KIND_VERSIONS[0]}"
     # Default Helm version
     export DEFAULT_HELM_VERSION="${CURRENT_HELM_VERSIONS[0]}"
+    # Default airflow executor used in cluster
+    export DEFAULT_EXECUTOR="${CURRENT_EXECUTOR[0]}"
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
     # Kubernetes version
@@ -513,6 +521,8 @@ function initialization::initialize_kubernetes_variables() {
     export KIND_VERSION=${KIND_VERSION:=${DEFAULT_KIND_VERSION}}
     # Helm version
     export HELM_VERSION=${HELM_VERSION:=${DEFAULT_HELM_VERSION}}
+    # Airflow Executor
+    export EXECUTOR=${EXECUTOR:=${DEFAULT_EXECUTOR}}
     # Kubectl version
     export KUBECTL_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
     # Local Kind path
@@ -787,6 +797,7 @@ function initialization::make_constants_read_only() {
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION
     readonly HELM_VERSION
+    readonly EXECUTOR
     readonly KUBECTL_VERSION
 
     readonly POSTGRES_VERSION
@@ -896,6 +907,7 @@ function initialization::make_constants_read_only() {
     readonly CURRENT_MYSQL_VERSIONS
     readonly CURRENT_KIND_VERSIONS
     readonly CURRENT_HELM_VERSIONS
+    readonly CURRENT_EXECUTOR
     readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }
 

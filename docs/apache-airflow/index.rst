@@ -113,7 +113,7 @@ unit of work and continuity.
     CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
     Python API <python-api-ref>
-    Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
+    deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>

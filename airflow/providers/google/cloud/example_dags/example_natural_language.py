@@ -44,7 +44,7 @@ document = Document(content=TEXT, type="PLAIN_TEXT")
 # [END howto_operator_gcp_natural_language_document_text]
 
 # [START howto_operator_gcp_natural_language_document_gcs]
-GCS_CONTENT_URI = "gs://my-text-bucket/sentiment-me.txt"
+GCS_CONTENT_URI = "gs://INVALID BUCKET NAME/sentiment-me.txt"
 document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 # [END howto_operator_gcp_natural_language_document_gcs]
 

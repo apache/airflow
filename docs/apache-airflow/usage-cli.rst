@@ -26,19 +26,6 @@ This document is meant to give an overview of all common tasks while using the C
 
 .. _cli-remote:
 
-Set Up connection to a remote Airflow instance
-----------------------------------------------
-
-For some functions the CLI can use :doc:`the REST API <rest-api-ref>`. To configure the CLI to use the API
-when available configure as follows:
-
-.. code-block:: ini
-
-    [cli]
-    api_client = airflow.api.client.json_client
-    endpoint_url = http://<WEBSERVER>:<PORT>
-
-
 Set Up Bash/Zsh Completion
 --------------------------
 

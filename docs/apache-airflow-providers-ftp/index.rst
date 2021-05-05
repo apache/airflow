@@ -51,7 +51,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -61,15 +61,6 @@ are in ``airflow.providers.ftp`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-ftp``
@@ -94,6 +85,14 @@ You can install this package on top of an existing airflow 2.* installation via
 
 Changelog
 ---------
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add logs to show last modified in SFTP, FTP and Filesystem sensor (#15134)``
 
 1.0.1
 .....

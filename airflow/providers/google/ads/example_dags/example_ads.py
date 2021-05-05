@@ -27,7 +27,7 @@ from airflow.utils import dates
 
 # [START howto_google_ads_env_variables]
 CLIENT_IDS = ["1111111111", "2222222222"]
-BUCKET = os.environ.get("GOOGLE_ADS_BUCKET", "gs://test-google-ads-bucket")
+BUCKET = os.environ.get("GOOGLE_ADS_BUCKET", "gs://INVALID BUCKET NAME")
 GCS_OBJ_PATH = "folder_name/google-ads-api-results.csv"
 GCS_ACCOUNTS_CSV = "folder_name/accounts.csv"
 QUERY = """

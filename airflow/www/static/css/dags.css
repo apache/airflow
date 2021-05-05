@@ -31,6 +31,10 @@
 .dags-table-body {
   margin: 0 1px;
   overflow-x: auto;
+
+  /* This allows small dropdowns to overlap the table element */
+  padding-bottom: 55px;
+  margin-bottom: -55px;
 }
 
 .dags-table-more {

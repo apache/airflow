@@ -301,12 +301,13 @@ apache-airflow with doc extra:
 
 * `pip install apache-airflow[doc]`
 
-All providers:
+All providers (including overriding documentation for doc-only changes):
 
 ```shell script
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-*'
+    --package-filter 'apache-airflow-providers-*' \
+    --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```

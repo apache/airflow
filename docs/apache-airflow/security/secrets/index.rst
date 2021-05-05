@@ -30,6 +30,69 @@ The following are particularly protected:
 .. toctree::
     :maxdepth: 1
     :glob:
+    :caption: Further reading:
 
-    fernet
-    secrets-backend/index
+    Encryption at rest <fernet>
+    Using external Secret stores <secrets-backend/index>
+
+.. _security:mask-sensitive-values:
+
+Masking sensitive data
+----------------------
+
+Airflow will by default mask Connection passwords and sensitive Variables and keys from a Connection's
+extra (JSON) field when they appear in Task logs, in the Variable and in the Rendered fields views of the UI.
+
+It does this by looking for the specific *value* appearing anywhere in your output. This means that if you
+have a connection with a password of ``a``, then every instance of the letter a in your logs will be replaced
+with ``***``.
+
+To disable masking you can setting :ref:`config:core__hide_sensitive_var_conn_fields` to false.
+
+The automatic masking is triggered by Connection or Variable access. This means that if you pass a sensitive
+value via XCom or any other side-channel it will not be masked when printed in the downstream task.
+
+Sensitive field names
+"""""""""""""""""""""
+
+When masking is enabled, Airflow will always mask the password field of every Connection that is accessed by a
+task.
+
+It will also mask the value of a Variable, or the field of a Connection's extra JSON blob if the name contains
+any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token'). This list
+can also be extended:
+
+.. code-block:: ini
+
+    [core]
+    sensitive_var_conn_names = comma,separated,sensitive,names
+
+Adding your own masks
+"""""""""""""""""""""
+
+If you want to mask an additional secret that is already masked by one of the above methods, you can do it in
+your DAG file or operator's ``execute`` function using the ``mask_secret`` function. For example:
+
+.. code-block:: python
+
+    @task
+    def my_func():
+        from airflow.utils.log.secrets_masker import mask_secret
+        mask_secret("custom_value")
+
+        ...
+
+or
+
+.. code-block:: python
+
+
+    class MyOperator(BaseOperator):
+
+        def execute(self, context):
+            from airflow.utils.log.secrets_masker import mask_secret
+            mask_secret("custom_value")
+
+            ...
+
+The mask must be set before any log/output is produced to have any effect.

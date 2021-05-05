@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import os
 import re
 import unittest
 from collections import namedtuple
@@ -61,6 +62,10 @@ class UriTestCaseConfig:
 class TestConnection(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
+        patcher = mock.patch('airflow.models.connection.mask_secret', autospec=True)
+        self.mask_secret = patcher.start()
+
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         crypto._fernet = None
@@ -359,6 +364,15 @@ class TestConnection(unittest.TestCase):
             else:
                 assert expected_val == actual_val
 
+        expected_calls = []
+        if test_config.test_conn_attributes.get('password'):
+            expected_calls.append(mock.call(test_config.test_conn_attributes['password']))
+
+        if test_config.test_conn_attributes.get('extra_dejson'):
+            expected_calls.append(mock.call(test_config.test_conn_attributes['extra_dejson']))
+
+        self.mask_secret.assert_has_calls(expected_calls)
+
     # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
@@ -501,6 +515,8 @@ class TestConnection(unittest.TestCase):
         assert 'password' == conn.password
         assert 5432 == conn.port
 
+        self.mask_secret.assert_called_once_with('password')
+
     @mock.patch.dict(
         'os.environ',
         {
@@ -601,3 +617,35 @@ class TestConnection(unittest.TestCase):
             ),
         ):
             Connection(conn_id="TEST_ID", uri="mysql://", schema="AAA")
+
+    def test_masking_from_db(self):
+        """Test secrets are masked when loaded directly from the DB"""
+        from airflow.settings import Session
+
+        session = Session()
+
+        try:
+            conn = Connection(
+                conn_id=f"test-{os.getpid()}",
+                conn_type="http",
+                password="s3cr3t",
+                extra='{"apikey":"masked too"}',
+            )
+            session.add(conn)
+            session.flush()
+
+            # Make sure we re-load it, not just get the cached object back
+            session.expunge(conn)
+
+            self.mask_secret.reset_mock()
+
+            from_db = session.query(Connection).get(conn.id)
+            from_db.extra_dejson
+
+            assert self.mask_secret.mock_calls == [
+                # We should have called it _again_ when loading from the DB
+                mock.call("s3cr3t"),
+                mock.call({"apikey": "masked too"}),
+            ]
+        finally:
+            session.rollback()

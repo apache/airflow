@@ -63,7 +63,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create an AwsLogsHook with connection id "%s". '
-                'Please make sure that airflow[aws] is installed and '
+                'Please make sure that apache-airflow[aws] is installed and '
                 'the Cloudwatch logs connection exists. Exception: "%s"',
                 remote_conn_id,
                 e,

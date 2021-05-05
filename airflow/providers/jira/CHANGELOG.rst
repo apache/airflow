@@ -19,6 +19,11 @@
 Changelog
 ---------
 
+1.0.2
+.....
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+
 1.0.1
 .....
 

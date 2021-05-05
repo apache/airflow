@@ -689,13 +689,6 @@ for python_version in "3.6" "3.7" "3.8"
 )
 ```
 
-Once this succeeds you should push the "${VERSION}" image:
-
-```shell script
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
-```
-
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before the images are pushed.
 

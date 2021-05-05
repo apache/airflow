@@ -28,20 +28,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.0
+.....
+
+Latest change: 2021-04-27
+
+================================================================================================  ===========  ==============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================================================
+`4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``
+`7a0d41224 <https://github.com/apache/airflow/commit/7a0d4122459289e0f2db78ad2849d5ba42df4468>`_  2021-04-25   ``Add Connection Documentation to more Providers (#15408)``
+`44a6648fd <https://github.com/apache/airflow/commit/44a6648fd7482f61ca59153f0caaf0b019c5b3fd>`_  2021-04-07   ``Add logs to show last modified in SFTP, FTP and Filesystem sensor (#15134)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+`6e6526a0f <https://github.com/apache/airflow/commit/6e6526a0f650119cb1ad7c2e2a1b87f0fa45c60e>`_  2021-03-13   ``Update documentation for broken package releases (#14734)``
+================================================================================================  ===========  ==============================================================================
+
 1.0.1
 .....
 
-Latest change: 2021-02-01
+Latest change: 2021-02-04
 
-================================================================================================  ===========  ================================================
+================================================================================================  ===========  ========================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ================================================
+================================================================================================  ===========  ========================================================
+`88bdcfa0d <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98 <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `a9ac2b040 <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``
 `3fd5ef355 <https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e>`_  2021-01-21   ``Add missing logos for integrations (#13717)``
 `295d66f91 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
-================================================================================================  ===========  ================================================
+================================================================================================  ===========  ========================================================
 
 1.0.0
 .....

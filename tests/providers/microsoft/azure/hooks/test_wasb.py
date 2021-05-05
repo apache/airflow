@@ -237,7 +237,7 @@ class TestWasbHook(unittest.TestCase):
         mock_get_blobslist.return_value = ['blob_prefix/blob1', 'blob_prefix/blob2']
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.delete_file('container', 'blob_prefix', is_prefix=True)
-        mock_get_blobslist.assert_called_once_with('container', prefix='blob_prefix')
+        mock_get_blobslist.assert_called_once_with('container', prefix='blob_prefix', delimiter='')
         mock_delete_blobs.assert_any_call(
             'container',
             'blob_prefix/blob1',
