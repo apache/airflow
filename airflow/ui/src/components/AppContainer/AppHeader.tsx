@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Avatar,
@@ -41,21 +41,24 @@ import {
   MdExitToApp,
 } from 'react-icons/md';
 import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
+import tz from 'dayjs/plugin/timezone';
 import Select from 'components/Select';
 
 import { useAuthContext } from 'providers/auth/context';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
 import timezones from 'utils/timezones.json';
+import { useTimezoneContext } from 'providers/TimezoneProvider';
 
-dayjs.extend(timezone);
+dayjs.extend(tz);
 
 interface Props {
   bodyBg: string;
   overlayBg: string;
   breadcrumb?: React.ReactNode;
 }
+
+interface Option { value: string, label: string }
 
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
@@ -64,13 +67,23 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);
   const darkLightText = useColorModeValue(' Dark ', ' Light ');
+  const { timezone, setTimezone } = useTimezoneContext();
+  const [currentTimezone, setCurrentTimezone] = useState<Option | null>();
 
   const handleOpenProfile = () => window.alert('This will take you to your user profile view.');
 
   const options = timezones.map(({ group, zones }) => ({
     label: group,
-    options: zones.map(({ value, name }) => ({ value, label: name })),
+    options: zones.map(({ value, name }) => {
+      if (value === timezone && !currentTimezone) setCurrentTimezone({ value, label: name });
+      return { value, label: name };
+    }),
   }));
+
+  const onChangeTimezone = (newTimezone: Option | null) => {
+    setCurrentTimezone(newTimezone);
+    if (newTimezone) setTimezone(newTimezone.value);
+  };
 
   return (
     <Flex
@@ -109,13 +122,11 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
               </MenuButton>
             </Tooltip>
             <MenuList placement="top-end">
-              <MenuItem isFocusable={false}>UTC</MenuItem>
-              <MenuItem isFocusable={false}>Local</MenuItem>
-              <MenuDivider />
               <Box px="3" pb="1">
-                Other
                 <Select
                   options={options}
+                  value={currentTimezone}
+                  onChange={onChangeTimezone}
                 />
               </Box>
             </MenuList>
