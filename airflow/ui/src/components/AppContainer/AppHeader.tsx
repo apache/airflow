@@ -17,12 +17,10 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Avatar,
-  Box,
-  Button,
   Flex,
   Icon,
   Menu,
@@ -32,7 +30,6 @@ import {
   MenuItem,
   useColorMode,
   useColorModeValue,
-  Tooltip,
 } from '@chakra-ui/react';
 import {
   MdWbSunny,
@@ -42,13 +39,11 @@ import {
 } from 'react-icons/md';
 import dayjs from 'dayjs';
 import tz from 'dayjs/plugin/timezone';
-import Select from 'components/Select';
 
 import { useAuthContext } from 'providers/auth/context';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
-import timezones from 'utils/timezones.json';
-import { useTimezoneContext } from 'providers/TimezoneProvider';
+import TimezoneDropdown from './TimezoneDropdown';
 
 dayjs.extend(tz);
 
@@ -58,32 +53,14 @@ interface Props {
   breadcrumb?: React.ReactNode;
 }
 
-interface Option { value: string, label: string }
-
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
-  const now = dayjs().tz();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);
   const darkLightText = useColorModeValue(' Dark ', ' Light ');
-  const { timezone, setTimezone } = useTimezoneContext();
-  const [currentTimezone, setCurrentTimezone] = useState<Option | null>();
 
   const handleOpenProfile = () => window.alert('This will take you to your user profile view.');
-
-  const options = timezones.map(({ group, zones }) => ({
-    label: group,
-    options: zones.map(({ value, name }) => {
-      if (value === timezone && !currentTimezone) setCurrentTimezone({ value, label: name });
-      return { value, label: name };
-    }),
-  }));
-
-  const onChangeTimezone = (newTimezone: Option | null) => {
-    setCurrentTimezone(newTimezone);
-    if (newTimezone) setTimezone(newTimezone.value);
-  };
 
   return (
     <Flex
@@ -109,28 +86,7 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
       )}
       {hasValidAuthToken && (
         <Flex align="center">
-          <Menu closeOnSelect={false} autoSelect={false}>
-            <Tooltip label="Change time zone" hasArrow>
-              <MenuButton as={Button} variant="ghost" mr="4">
-                <Box
-                  as="time"
-                  dateTime={now.toString()}
-                  fontSize="md"
-                >
-                  {now.format('h:mmA Z')}
-                </Box>
-              </MenuButton>
-            </Tooltip>
-            <MenuList placement="top-end">
-              <Box px="3" pb="1">
-                <Select
-                  options={options}
-                  value={currentTimezone}
-                  onChange={onChangeTimezone}
-                />
-              </Box>
-            </MenuList>
-          </Menu>
+          <TimezoneDropdown />
           <Menu>
             <MenuButton>
               <Avatar name="Ryan Hamilton" size="sm" color="blue.900" bg="blue.200" />
