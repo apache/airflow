@@ -24,6 +24,7 @@ from airflow.utils import dates, timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.www import check_content_in_response
 
 EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
 
@@ -100,12 +101,12 @@ def _check_last_log(session, dag_id, event, execution_date):
     assert logs[0].extra
 
 
-def test_action_logging_get(session, admin_client, checker):
+def test_action_logging_get(session, admin_client):
     url = 'graph?dag_id=example_bash_operator&execution_date={}'.format(
         quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))
     )
     resp = admin_client.get(url, follow_redirects=True)
-    checker.check_content_in_response('runme_1', resp)
+    check_content_in_response('runme_1', resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
@@ -117,7 +118,7 @@ def test_action_logging_get(session, admin_client, checker):
     )
 
 
-def test_action_logging_post(session, admin_client, checker):
+def test_action_logging_post(session, admin_client):
     form = dict(
         task_id="runme_1",
         dag_id="example_bash_operator",
@@ -129,7 +130,7 @@ def test_action_logging_post(session, admin_client, checker):
         only_failed="false",
     )
     resp = admin_client.post("clear", data=form)
-    checker.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
+    check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(

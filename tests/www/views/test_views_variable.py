@@ -22,6 +22,7 @@ import pytest
 
 from airflow.models import Variable
 from airflow.utils.session import create_session
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 VARIABLE = {
     'key': 'test_key',
@@ -37,7 +38,7 @@ def clear_variables():
         session.query(Variable).delete()
 
 
-def test_can_handle_error_on_decrypt(session, admin_client, checker):
+def test_can_handle_error_on_decrypt(session, admin_client):
     # create valid variable
     admin_client.post('/variable/add', data=VARIABLE, follow_redirects=True)
 
@@ -51,24 +52,24 @@ def test_can_handle_error_on_decrypt(session, admin_client, checker):
     # retrieve Variables page, should not fail and contain the Invalid
     # label for the variable
     resp = admin_client.get('/variable/list', follow_redirects=True)
-    checker.check_content_in_response(
+    check_content_in_response(
         '<span class="label label-danger">Invalid</span>',
         resp,
     )
 
 
-def test_xss_prevention(admin_client, checker):
+def test_xss_prevention(admin_client):
     xss = "/variable/list/<img%20src=''%20onerror='alert(1);'>"
     resp = admin_client.get(xss, follow_redirects=True)
-    checker.check_content_not_in_response("<img src='' onerror='alert(1);'>", resp, resp_code=404)
+    check_content_not_in_response("<img src='' onerror='alert(1);'>", resp, resp_code=404)
 
 
-def test_import_variables_no_file(admin_client, checker):
+def test_import_variables_no_file(admin_client):
     resp = admin_client.post('/variable/varimport', follow_redirects=True)
-    checker.check_content_in_response('Missing file or syntax error.', resp)
+    check_content_in_response('Missing file or syntax error.', resp)
 
 
-def test_import_variables_failed(session, admin_client, checker):
+def test_import_variables_failed(session, admin_client):
     content = '{"str_key": "str_value"}'
 
     with mock.patch('airflow.models.Variable.set') as set_mock:
@@ -80,10 +81,10 @@ def test_import_variables_failed(session, admin_client, checker):
         resp = admin_client.post(
             '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
         )
-        checker.check_content_in_response('1 variable(s) failed to be updated.', resp)
+        check_content_in_response('1 variable(s) failed to be updated.', resp)
 
 
-def test_import_variables_success(session, admin_client, checker):
+def test_import_variables_success(session, admin_client):
     assert session.query(Variable).count() == 0
 
     content = '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
@@ -92,7 +93,7 @@ def test_import_variables_success(session, admin_client, checker):
     resp = admin_client.post(
         '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
     )
-    checker.check_content_in_response('4 variable(s) successfully updated.', resp)
+    check_content_in_response('4 variable(s) successfully updated.', resp)
 
 
 def test_description_retrieval(session, admin_client):

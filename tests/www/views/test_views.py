@@ -23,12 +23,13 @@ from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www.views import get_safe_url, truncate_task_duration
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 
-def test_configuration_do_not_expose_config(admin_client, checker):
+def test_configuration_do_not_expose_config(admin_client):
     with conf_vars({('webserver', 'expose_config'): 'False'}):
         resp = admin_client.get('configuration', follow_redirects=True)
-    checker.check_content_in_response(
+    check_content_in_response(
         [
             'Airflow Configuration',
             '# Your Airflow administrator chose not to expose the configuration, '
@@ -38,31 +39,31 @@ def test_configuration_do_not_expose_config(admin_client, checker):
     )
 
 
-def test_configuration_expose_config(admin_client, checker):
+def test_configuration_expose_config(admin_client):
     with conf_vars({('webserver', 'expose_config'): 'True'}):
         resp = admin_client.get('configuration', follow_redirects=True)
-    checker.check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
+    check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
 
 
-def test_redoc_should_render_template(capture_templates, admin_client, checker):
+def test_redoc_should_render_template(capture_templates, admin_client):
     with capture_templates() as templates:
         resp = admin_client.get('redoc')
-        checker.check_content_in_response('Redoc', resp)
+        check_content_in_response('Redoc', resp)
 
     assert len(templates) == 1
     assert templates[0].name == 'airflow/redoc.html'
     assert templates[0].local_context == {'openapi_spec_url': '/api/v1/openapi.yaml'}
 
 
-def test_plugin_should_list_on_page_with_details(admin_client, checker):
+def test_plugin_should_list_on_page_with_details(admin_client):
     resp = admin_client.get('/plugin')
-    checker.check_content_in_response("test_plugin", resp)
-    checker.check_content_in_response("Airflow Plugins", resp)
-    checker.check_content_in_response("source", resp)
-    checker.check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
+    check_content_in_response("test_plugin", resp)
+    check_content_in_response("Airflow Plugins", resp)
+    check_content_in_response("source", resp)
+    check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
 
 
-def test_plugin_should_list_entrypoint_on_page_with_details(admin_client, checker):
+def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
     mock_plugin = AirflowPlugin()
     mock_plugin.name = "test_plugin"
     mock_plugin.source = EntryPointSource(
@@ -71,16 +72,16 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client, checke
     with mock_plugin_manager(plugins=[mock_plugin]):
         resp = admin_client.get('/plugin')
 
-    checker.check_content_in_response("test_plugin", resp)
-    checker.check_content_in_response("Airflow Plugins", resp)
-    checker.check_content_in_response("source", resp)
-    checker.check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
+    check_content_in_response("test_plugin", resp)
+    check_content_in_response("Airflow Plugins", resp)
+    check_content_in_response("source", resp)
+    check_content_in_response("<em>test-entrypoint-testpluginview==1.0.0:</em> <Mock id=", resp)
 
 
-def test_plugin_endpoint_should_not_be_unauthenticated(app, checker):
+def test_plugin_endpoint_should_not_be_unauthenticated(app):
     resp = app.test_client().get('/plugin', follow_redirects=True)
-    checker.check_content_not_in_response("test_plugin", resp)
-    checker.check_content_in_response("Sign In - Airflow", resp)
+    check_content_not_in_response("test_plugin", resp)
+    check_content_in_response("Sign In - Airflow", resp)
 
 
 @pytest.mark.parametrize(
@@ -97,12 +98,12 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app, checker):
     ],
     ids=["instance", "reschedule"],
 )
-def test_task_start_date_filter(admin_client, checker, url, content):
+def test_task_start_date_filter(admin_client, url, content):
     resp = admin_client.get(url)
     # We aren't checking the logic of the date filter itself (that is built
     # in to FAB) but simply that our UTC conversion was run - i.e. it
     # doesn't blow up!
-    checker.check_content_in_response(content, resp)
+    check_content_in_response(content, resp)
 
 
 @pytest.mark.parametrize(

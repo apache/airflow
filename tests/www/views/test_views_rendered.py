@@ -25,6 +25,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
 
@@ -85,7 +86,7 @@ def patch_app(app, dag):
 
 
 @pytest.mark.usefixtures("patch_app")
-def test_rendered_template_view(admin_client, checker, task1):
+def test_rendered_template_view(admin_client, task1):
     """
     Test that the Rendered View contains the values from RenderedTaskInstanceFields
     """
@@ -98,11 +99,11 @@ def test_rendered_template_view(admin_client, checker, task1):
     url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
 
     resp = admin_client.get(url, follow_redirects=True)
-    checker.check_content_in_response("testdag__task1__20200301", resp)
+    check_content_in_response("testdag__task1__20200301", resp)
 
 
 @pytest.mark.usefixtures("patch_app")
-def test_rendered_template_view_for_unexecuted_tis(admin_client, checker, task1):
+def test_rendered_template_view_for_unexecuted_tis(admin_client, task1):
     """
     Test that the Rendered View is able to show rendered values
     even for TIs that have not yet executed
@@ -112,10 +113,10 @@ def test_rendered_template_view_for_unexecuted_tis(admin_client, checker, task1)
     url = f'rendered-templates?task_id=task1&dag_id=task1&execution_date={quote_plus(str(DEFAULT_DATE))}'
 
     resp = admin_client.get(url, follow_redirects=True)
-    checker.check_content_in_response("testdag__task1__20200301", resp)
+    check_content_in_response("testdag__task1__20200301", resp)
 
 
-def test_user_defined_filter_and_macros_raise_error(app, admin_client, checker, dag, task2):
+def test_user_defined_filter_and_macros_raise_error(app, admin_client, dag, task2):
     """
     Test that the Rendered View is able to show rendered values
     even for TIs that have not yet executed
@@ -133,8 +134,8 @@ def test_user_defined_filter_and_macros_raise_error(app, admin_client, checker, 
 
         resp = admin_client.get(url, follow_redirects=True)
 
-        checker.check_content_not_in_response("echo Hello Apache Airflow", resp)
-        checker.check_content_in_response(
+        check_content_not_in_response("echo Hello Apache Airflow", resp)
+        check_content_in_response(
             "Webserver does not have access to User-defined Macros or Filters when "
             "Dag Serialization is enabled. Hence for the task that have not yet "
             "started running, please use &#39;airflow tasks render&#39; for "

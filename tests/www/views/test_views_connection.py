@@ -23,6 +23,7 @@ from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionModelView
+from tests.test_utils.www import check_content_in_response
 
 CONNECTION = {
     'conn_id': 'test_conn',
@@ -41,10 +42,10 @@ def clear_connections():
         session.query(Connection).delete()
 
 
-def test_create_connection(admin_client, checker):
+def test_create_connection(admin_client):
     init_views.init_connection_form()
     resp = admin_client.post('/connection/add', data=CONNECTION, follow_redirects=True)
-    checker.check_content_in_response('Added Row', resp)
+    check_content_in_response('Added Row', resp)
 
 
 def test_prefill_form_null_extra():

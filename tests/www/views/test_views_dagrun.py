@@ -23,6 +23,7 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
+from tests.test_utils.www import check_content_in_response
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -54,7 +55,7 @@ def reset_dagrun():
     ],
     ids=["UTC", "EDT", "PST", "naive"],
 )
-def test_create_dagrun(session, admin_client, checker, post_date, expected):
+def test_create_dagrun(session, admin_client, post_date, expected):
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
@@ -62,7 +63,7 @@ def test_create_dagrun(session, admin_client, checker, post_date, expected):
         "run_id": "test_create_dagrun",
     }
     resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    checker.check_content_in_response('Added Row', resp)
+    check_content_in_response('Added Row', resp)
 
     dr = session.query(DagRun).one()
 
@@ -70,7 +71,7 @@ def test_create_dagrun(session, admin_client, checker, post_date, expected):
 
 
 @conf_vars({("core", "default_timezone"): "America/Toronto"})
-def test_create_dagrun_without_timezone_default(session, admin_client, checker):
+def test_create_dagrun_without_timezone_default(session, admin_client):
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
@@ -78,14 +79,14 @@ def test_create_dagrun_without_timezone_default(session, admin_client, checker):
         "run_id": "test_create_dagrun",
     }
     resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    checker.check_content_in_response('Added Row', resp)
+    check_content_in_response('Added Row', resp)
 
     dr = session.query(DagRun).one()
 
     assert dr.execution_date == timezone.datetime(2018, 7, 6, 9, 4, 3)
 
 
-def test_create_dagrun_valid_conf(session, admin_client, checker):
+def test_create_dagrun_valid_conf(session, admin_client):
     conf_value = dict(Valid=True)
     data = {
         "state": "running",
@@ -96,12 +97,12 @@ def test_create_dagrun_valid_conf(session, admin_client, checker):
     }
 
     resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    checker.check_content_in_response('Added Row', resp)
+    check_content_in_response('Added Row', resp)
     dr = session.query(DagRun).one()
     assert dr.conf == conf_value
 
 
-def test_create_dagrun_invalid_conf(session, admin_client, checker):
+def test_create_dagrun_invalid_conf(session, admin_client):
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
@@ -111,12 +112,12 @@ def test_create_dagrun_invalid_conf(session, admin_client, checker):
     }
 
     resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    checker.check_content_in_response('JSON Validation Error:', resp)
+    check_content_in_response('JSON Validation Error:', resp)
     dr = session.query(DagRun).all()
     assert not dr
 
 
-def test_list_dagrun_includes_conf(session, admin_client, checker):
+def test_list_dagrun_includes_conf(session, admin_client):
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
@@ -132,10 +133,10 @@ def test_list_dagrun_includes_conf(session, admin_client, checker):
     assert dr.conf == {"include": "me"}
 
     resp = admin_client.get('/dagrun/list', follow_redirects=True)
-    checker.check_content_in_response("{&#34;include&#34;: &#34;me&#34;}", resp)
+    check_content_in_response("{&#34;include&#34;: &#34;me&#34;}", resp)
 
 
-def test_clear_dag_runs_action(session, admin_client, checker):
+def test_clear_dag_runs_action(session, admin_client):
     dag = DagBag().get_dag("example_bash_operator")
     task0 = dag.get_task("runme_0")
     task1 = dag.get_task("runme_1")
@@ -154,11 +155,11 @@ def test_clear_dag_runs_action(session, admin_client, checker):
 
     data = {"action": "clear", "rowid": [dr.id]}
     resp = admin_client.post("/dagrun/action_post", data=data, follow_redirects=True)
-    checker.check_content_in_response("1 dag runs and 2 task instances were cleared", resp)
+    check_content_in_response("1 dag runs and 2 task instances were cleared", resp)
     assert [ti.state for ti in session.query(TaskInstance).all()] == [None, None]
 
 
-def test_clear_dag_runs_action_fails(admin_client, checker):
+def test_clear_dag_runs_action_fails(admin_client):
     data = {"action": "clear", "rowid": ["0"]}
     resp = admin_client.post("/dagrun/action_post", data=data, follow_redirects=True)
-    checker.check_content_in_response("Failed to clear state", resp)
+    check_content_in_response("Failed to clear state", resp)

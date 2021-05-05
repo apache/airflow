@@ -20,6 +20,7 @@ import pytest
 
 from airflow.models import Pool
 from airflow.utils.session import create_session
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 
 @pytest.fixture(autouse=True)
@@ -37,32 +38,32 @@ def pool():
     }
 
 
-def test_create_pool_with_same_name(admin_client, checker, pool):
+def test_create_pool_with_same_name(admin_client, pool):
     # create test pool
     resp = admin_client.post('/pool/add', data=pool, follow_redirects=True)
-    checker.check_content_in_response('Added Row', resp)
+    check_content_in_response('Added Row', resp)
 
     # create pool with the same name
     resp = admin_client.post('/pool/add', data=pool, follow_redirects=True)
-    checker.check_content_in_response('Already exists.', resp)
+    check_content_in_response('Already exists.', resp)
 
 
-def test_create_pool_with_empty_name(admin_client, checker, pool):
+def test_create_pool_with_empty_name(admin_client, pool):
     pool['pool'] = ''
     resp = admin_client.post('/pool/add', data=pool, follow_redirects=True)
-    checker.check_content_in_response('This field is required.', resp)
+    check_content_in_response('This field is required.', resp)
 
 
-def test_odd_name(session, admin_client, checker, pool):
+def test_odd_name(session, admin_client, pool):
     pool['pool'] = 'test-pool<script></script>'
     session.add(Pool(**pool))
     session.commit()
     resp = admin_client.get('/pool/list/')
-    checker.check_content_in_response('test-pool&lt;script&gt;', resp)
-    checker.check_content_not_in_response('test-pool<script>', resp)
+    check_content_in_response('test-pool&lt;script&gt;', resp)
+    check_content_not_in_response('test-pool<script>', resp)
 
 
-def test_list(app, session, admin_client, checker, pool):
+def test_list(app, session, admin_client, pool):
     pool['pool'] = 'test-pool'
     session.add(Pool(**pool))
     session.commit()
@@ -74,5 +75,5 @@ def test_list(app, session, admin_client, checker, pool):
 
         url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='queued')
         queued_tag = flask.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
-    checker.check_content_in_response(used_tag, resp)
-    checker.check_content_in_response(queued_tag, resp)
+    check_content_in_response(used_tag, resp)
+    check_content_in_response(queued_tag, resp)

@@ -23,6 +23,7 @@ from airflow.models import DagBag, DagRun
 from airflow.security import permissions
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
+from tests.test_utils.www import check_content_in_response
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -66,21 +67,21 @@ def test_trigger_dag_conf(admin_client):
     assert run.conf == conf_dict
 
 
-def test_trigger_dag_conf_malformed(admin_client, checker):
+def test_trigger_dag_conf_malformed(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'conf': '{"a": "b"'})
-    checker.check_content_in_response('Invalid JSON configuration', response)
+    check_content_in_response('Invalid JSON configuration', response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is None
 
 
-def test_trigger_dag_form(admin_client, checker):
+def test_trigger_dag_form(admin_client):
     test_dag_id = "example_bash_operator"
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}')
-    checker.check_content_in_response(f'Trigger DAG: {test_dag_id}', resp)
+    check_content_in_response(f'Trigger DAG: {test_dag_id}', resp)
 
 
 @pytest.mark.parametrize(
@@ -97,11 +98,11 @@ def test_trigger_dag_form(admin_client, checker):
         ("%2Fgraph%3Fdag_id%3Dexample_bash_operator", "/graph?dag_id=example_bash_operator"),
     ],
 )
-def test_trigger_dag_form_origin_url(admin_client, checker, test_origin, expected_origin):
+def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin):
     test_dag_id = "example_bash_operator"
 
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
-    checker.check_content_in_response(
+    check_content_in_response(
         '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
             expected_origin
         ),
@@ -116,7 +117,7 @@ def test_trigger_dag_form_origin_url(admin_client, checker, test_origin, expecte
         ({"other": "test_data", "key": 12}, {"other": "test_data", "key": 12}),
     ],
 )
-def test_trigger_dag_params_conf(admin_client, checker, request_conf, expected_conf):
+def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     """
     Test that textarea in Trigger DAG UI is pre-populated
     with json config when the conf URL parameter is passed,
@@ -136,20 +137,20 @@ def test_trigger_dag_params_conf(admin_client, checker, request_conf, expected_c
 
     expected_dag_conf = json.dumps(expected_conf, indent=4).replace("\"", "&#34;")
 
-    checker.check_content_in_response(
+    check_content_in_response(
         f'<textarea class="form-control" name="conf" id="json">{expected_dag_conf}</textarea>',
         resp,
     )
 
 
-def test_trigger_endpoint_uses_existing_dagbag(admin_client, checker):
+def test_trigger_endpoint_uses_existing_dagbag(admin_client):
     """
     Test that Trigger Endpoint uses the DagBag already created in views.py
     instead of creating a new one.
     """
     url = 'trigger?dag_id=example_bash_operator'
     resp = admin_client.post(url, data={}, follow_redirects=True)
-    checker.check_content_in_response('example_bash_operator', resp)
+    check_content_in_response('example_bash_operator', resp)
 
 
 def test_viewer_cant_trigger_dag(client_factory):

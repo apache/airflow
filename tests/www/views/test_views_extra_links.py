@@ -27,6 +27,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
 from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
+from tests.test_utils.www import check_content_in_response
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -150,7 +151,7 @@ def test_global_extra_links_works(dag, task_1, viewer_client):
     }
 
 
-def test_extra_link_in_gantt_view(dag, viewer_client, checker):
+def test_extra_link_in_gantt_view(dag, viewer_client):
     exec_date = dates.days_ago(2)
     start_date = timezone.datetime(2020, 4, 10, 2, 0, 0)
     end_date = exec_date + datetime.timedelta(seconds=30)
@@ -165,7 +166,7 @@ def test_extra_link_in_gantt_view(dag, viewer_client, checker):
     url = f'gantt?dag_id={dag.dag_id}&execution_date={exec_date}'
     resp = viewer_client.get(url, follow_redirects=True)
 
-    checker.check_content_in_response('"extraLinks":', resp)
+    check_content_in_response('"extraLinks":', resp)
 
     extra_links_grps = re.search(r'extraLinks\": \[(\".*?\")\]', resp.get_data(as_text=True))
     extra_links = extra_links_grps.group(0)
