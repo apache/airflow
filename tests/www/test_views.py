@@ -270,7 +270,7 @@ class TestConnectionModelView(TestBase):
         cmv.prefill_form(form=mock_form, pk=1)
 
     def test_duplicate_connection(self):
-        """ Test Duplicate multiple connection with suffix"""
+        """Test Duplicate multiple connection with suffix"""
         conn1 = Connection(
             conn_id='test_duplicate_gcp_connection',
             conn_type='Google Cloud',
