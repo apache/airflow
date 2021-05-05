@@ -143,8 +143,8 @@ class AutoMLPredictOperator(BaseOperator):
     :type project_id: str
     :param location: The location of the project.
     :type location: str
-    :param params: Additional domain-specific parameters for the predictions.
-    :type params: Optional[Dict[str, str]]
+    :param operation_params: Additional domain-specific parameters for the predictions.
+    :type operation_params: Optional[Dict[str, str]]
     :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
         retried.
     :type retry: Optional[google.api_core.retry.Retry]
