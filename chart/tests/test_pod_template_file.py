@@ -16,33 +16,36 @@
 # under the License.
 
 import re
+import sys
 import unittest
-from os import remove
-from os.path import dirname, realpath
-from shutil import copyfile
+from shutil import copyfile, copytree
+from tempfile import TemporaryDirectory
 
 import jmespath
+import pytest
 from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-ROOT_FOLDER = realpath(dirname(realpath(__file__)) + "/..")
-
 
 class PodTemplateFileTest(unittest.TestCase):
-    def setUp(self):
-        copyfile(
-            ROOT_FOLDER + "/files/pod-template-file.kubernetes-helm-yaml",
-            ROOT_FOLDER + "/templates/pod-template-file.yaml",
-        )
-
-    def tearDown(self):
-        remove(ROOT_FOLDER + "/templates/pod-template-file.yaml")
+    @classmethod
+    @pytest.fixture(autouse=True, scope="class")
+    def isolate_chart(cls):
+        with TemporaryDirectory() as tmp_dir:
+            cls.temp_chart_dir = tmp_dir + "/chart"
+            copytree(sys.path[0], cls.temp_chart_dir)
+            copyfile(
+                cls.temp_chart_dir + "/files/pod-template-file.kubernetes-helm-yaml",
+                cls.temp_chart_dir + "/templates/pod-template-file.yaml",
+            )
+            yield
 
     def test_should_work(self):
         docs = render_chart(
             values={},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert re.search("Pod", docs[0]["kind"])
@@ -79,6 +82,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert re.search("Pod", docs[0]["kind"])
@@ -111,6 +115,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert jmespath.search("spec.initContainers", docs[0]) is None
@@ -131,6 +136,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={"dags": dag_values},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
@@ -146,6 +152,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
@@ -166,6 +173,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
@@ -196,6 +204,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
         assert {"name": "GIT_KNOWN_HOSTS", "value": "true"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
@@ -222,6 +231,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {
@@ -237,6 +247,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}} in jmespath.search(
@@ -247,6 +258,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}}},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.volumes", docs[0])
@@ -265,6 +277,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={"logs": {"persistence": log_persistence_values}},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert {"name": "logs", **expected} in jmespath.search("spec.volumes", docs[0])
@@ -273,6 +286,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest"}}},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert re.search("Pod", docs[0]["kind"])
@@ -283,6 +297,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert re.search("Pod", docs[0]["kind"])
@@ -318,6 +333,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 "nodeSelector": {"diskType": "ssd"},
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert re.search("Pod", docs[0]["kind"])
@@ -342,6 +358,7 @@ class PodTemplateFileTest(unittest.TestCase):
         docs = render_chart(
             values={"gid": 5000},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         self.assertEqual(5000, jmespath.search("spec.securityContext.fsGroup", docs[0]))
@@ -355,6 +372,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
         assert "test-volume" == jmespath.search(
