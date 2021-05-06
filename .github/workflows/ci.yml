@@ -21,9 +21,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test', 'v2-1-test']
   pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test', 'v2-1-test']
 
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
