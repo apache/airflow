@@ -17,7 +17,7 @@
 ---
 default_stages: [commit, push]
 default_language_version:
-  # force all unspecified python hooks to run python3
+  # force all unspecified Python hooks to run python3
   python: python3
 minimum_pre_commit_version: "1.20.0"
 repos:
@@ -29,7 +29,7 @@ repos:
     rev: v1.1.10
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go.sh|\.gitmodules$
+        exclude: ^docs/Makefile$|^clients/gen/go\.sh$|\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -73,7 +73,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$.*\\.jinja2"
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|.*\.jinja2$
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -115,7 +115,7 @@ repos:
         name: Add license for all YAML files
         exclude: ^\.github/.*$
         types: [yaml]
-        files: \.yml$|\.yaml$
+        files: \.(yaml|yml)$
         args:
           - --comment-style
           - "|#|"
@@ -125,7 +125,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
@@ -196,7 +196,7 @@ repos:
         name: Run isort to sort imports in Python files
         files: \.py$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+        exclude: ^build/.*$|^\.tox/.*$|^venv/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.0.0
     hooks:
@@ -491,7 +491,7 @@ repos:
         name: Checks providers available when declared by extras in setup.py
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
-        files: setup\.py|^airflow/providers/.*\.py
+        files: setup\.py$|^airflow/providers/.*\.py$
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich']
@@ -522,7 +522,7 @@ repos:
           - https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.9/service-v1.json
         language: python
         pass_filenames: true
-        files: scripts/ci/kubernetes/nodeport.yaml
+        files: ^scripts/ci/kubernetes/nodeport\.yaml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -544,7 +544,7 @@ repos:
           - chart/values.schema.json
         language: python
         pass_filenames: true
-        files: chart/values\.yaml$
+        files: ^chart/values\.yaml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -555,7 +555,7 @@ repos:
           - airflow/config_templates/config.yml.schema.json
         language: python
         pass_filenames: true
-        files: airflow/config_templates/config\.yml$
+        files: ^airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: flynt
