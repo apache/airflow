@@ -242,9 +242,14 @@ EXTRA_PYTEST_ARGS=(
     "-rfEX"
 )
 
-if [[ "${TEST_TYPE}" != "Helm" ]]; then
+if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    # Enable parallelism
     EXTRA_PYTEST_ARGS+=(
-    "--with-db-init"
+        "-n" "auto"
+    )
+else
+    EXTRA_PYTEST_ARGS+=(
+        "--with-db-init"
     )
 fi
 
