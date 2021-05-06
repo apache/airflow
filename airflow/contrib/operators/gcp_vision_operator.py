@@ -56,7 +56,7 @@ class CloudVisionAnnotateImageOperator(CloudVisionImageAnnotateOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -72,7 +72,7 @@ class CloudVisionDetectDocumentTextOperator(CloudVisionTextDetectOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -88,7 +88,7 @@ class CloudVisionProductCreateOperator(CloudVisionCreateProductOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -104,7 +104,7 @@ class CloudVisionProductDeleteOperator(CloudVisionDeleteProductOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -120,7 +120,7 @@ class CloudVisionProductGetOperator(CloudVisionGetProductOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -137,7 +137,7 @@ class CloudVisionProductSetCreateOperator(CloudVisionCreateProductSetOperator):
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -154,7 +154,7 @@ class CloudVisionProductSetDeleteOperator(CloudVisionDeleteProductSetOperator):
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -171,7 +171,7 @@ class CloudVisionProductSetGetOperator(CloudVisionGetProductSetOperator):
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -188,7 +188,7 @@ class CloudVisionProductSetUpdateOperator(CloudVisionUpdateProductSetOperator):
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -205,7 +205,7 @@ class CloudVisionProductUpdateOperator(CloudVisionUpdateProductOperator):
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -222,6 +222,6 @@ class CloudVisionReferenceImageCreateOperator(CloudVisionCreateReferenceImageOpe
             Please use
             `airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
