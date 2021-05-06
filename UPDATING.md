@@ -75,8 +75,8 @@ https://developers.google.com/style/inclusive-documentation
 
 We've improved masking for sensitive data in Web UI and logs. As part of it, the following configurations have been changed:
 
-* ``hide_sensitive_variable_fields`` option in ``admin`` section has been replaced by ``hide_sensitive_var_conn_fields`` section in ``core`` section,
-* ``sensitive_variable_fields`` option in ``admin`` section has been replaced by ``sensitive_var_conn_names`` section in ``core`` section.
+* `hide_sensitive_variable_fields` option in `admin` section has been replaced by `hide_sensitive_var_conn_fields` section in `core` section,
+* `sensitive_variable_fields` option in `admin` section has been replaced by `sensitive_var_conn_names` section in `core` section.
 
 ### Deprecated PodDefaults and add_xcom_sidecar in airflow.kubernetes.pod_generator
 
