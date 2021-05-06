@@ -28,7 +28,7 @@ Authenticating to Hive Server2
 ------------------------------
 
 Connect to Hive Server2 using `PyHive
-https://pypi.org/project/PyHive/`_.
+<https://pypi.org/project/PyHive/>`_.
 Choose between authenticating via LDAP, kerberos, or custom.
 
 Default Connection IDs

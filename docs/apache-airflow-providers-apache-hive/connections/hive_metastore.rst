@@ -28,9 +28,9 @@ Authenticating to Hive Metastore
 --------------------------------
 
 Authentication with the Hive Metastore through `Apache Thrift Hive Server
-https://cwiki.apache.org/confluence/display/Hive/HiveServer`_
+<https://cwiki.apache.org/confluence/display/Hive/HiveServer>`_
 and the `hmsclient
-https://pypi.org/project/hmsclient/`_.
+<https://pypi.org/project/hmsclient/>`_.
 
 
 Default Connection IDs

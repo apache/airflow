@@ -30,12 +30,15 @@ Authenticating to Hive CLI
 There are two ways to connect to Hive using Airflow.
 
 1. Use the `Hive Beeline
-  <https://docs.cloudera.com/HDPDocuments/HDP2/HDP-2.1.5/bk_dataintegration/content/ch_using-hive-clients-examples.html>`_.
-  i.e. make a jdbc connection string with host, port, and schema. Optionally you can connect with a proxy user, and specify a login and password.
+   <https://docs.cloudera.com/HDPDocuments/HDP2/HDP-2.1.5/bk_dataintegration/content/ch_using-hive-clients-examples.html>`_.
+   i.e. make a jdbc connection string with host, port, and schema. Optionally you can connect with a proxy user, and specify a login and password.
 
 2. Use the `Hive CLI
-  <https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.4/starting-hive/content/hive_start_a_command_line_query_locally.html>`_.
-  i.e. specify hive cli params in the extras field.
+   <https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.4/starting-hive/content/hive_start_a_command_line_query_locally.html>`_.
+   i.e. specify hive cli params in the extras field.
+
+Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
+configure multiple connections.
 
 Default Connection IDs
 ----------------------
