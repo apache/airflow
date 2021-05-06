@@ -41,21 +41,19 @@ describe('test timezone dropdown', () => {
       { wrapper: ChakraWrapper },
     );
 
-    const initialTime = dayjs().tz('UTC').format('h:mmA Z');
+    const initialTime = dayjs().tz('UTC').format('HH:mm Z');
 
     expect(getByText(initialTime)).toBeInTheDocument();
     const button = getByText(initialTime);
     fireEvent.click(button);
-    const input = getByText('UTC');
-    expect(input).toBeInTheDocument();
     const focusedElement = document.activeElement;
     if (focusedElement) {
       fireEvent.change(focusedElement, { target: { value: 'Anch' } });
     }
-    const option = getByText('Anchorage (-08:00)');
+    const option = getByText('-08:00 America/Anchorage');
     expect(option).toBeInTheDocument();
     fireEvent.click(option);
 
-    expect(getByText(dayjs().tz('America/Anchorage').format('h:mmA Z'))).toBeInTheDocument();
+    expect(getByText(dayjs().tz('America/Anchorage').format('HH:mm Z'))).toBeInTheDocument();
   });
 });

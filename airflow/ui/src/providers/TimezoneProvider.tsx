@@ -47,7 +47,7 @@ const TimezoneProvider = ({ children }: Props): ReactElement => {
   // TODO: add in default_timezone when GET /ui-metadata is available
   // guess timezone on browser or default to utc and don't guess when testing
   const isTest = process.env.NODE_ENV === 'test';
-  const [timezone, setTimezone] = useState((!isTest && dayjs.tz.guess()) || 'UTC');
+  const [timezone, setTimezone] = useState(isTest ? 'UTC' : dayjs.tz.guess());
   useEffect(() => {
     dayjs.tz.setDefault(timezone);
   }, [timezone]);

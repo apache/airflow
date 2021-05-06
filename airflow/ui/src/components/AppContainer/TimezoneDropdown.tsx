@@ -28,9 +28,9 @@ import {
 } from '@chakra-ui/react';
 import dayjs from 'dayjs';
 import tz from 'dayjs/plugin/timezone';
-import Select from 'components/MultiSelect';
+import { getTimeZones } from '@vvo/tzdb';
 
-import timezones from 'utils/timezones.json';
+import Select from 'components/MultiSelect';
 import { useTimezoneContext } from 'providers/TimezoneProvider';
 
 dayjs.extend(tz);
@@ -41,16 +41,14 @@ const TimezoneDropdown: React.FC = () => {
   const { timezone, setTimezone } = useTimezoneContext();
   const [now, setNow] = useState(dayjs().tz(timezone));
 
+  const timezones = getTimeZones();
+
   let currentTimezone;
-  timezones.find((group) => (
-    group.options.find((zone) => {
-      if (zone.value === timezone) {
-        currentTimezone = zone;
-        return true;
-      }
-      return false;
-    })
-  ));
+  const options = timezones.map(({ name, currentTimeFormat }) => {
+    const label = `${currentTimeFormat.substring(0, 6)} ${name.replace(/_/g, ' ')}`;
+    if (name === timezone) currentTimezone = { label, value: name };
+    return { label, value: name };
+  });
 
   const onChangeTimezone = (newTimezone: Option | null) => {
     if (newTimezone) {
@@ -68,15 +66,15 @@ const TimezoneDropdown: React.FC = () => {
             dateTime={now.toString()}
             fontSize="md"
           >
-            {now.format('h:mmA Z')}
+            {now.format('HH:mm Z')}
           </Box>
         </MenuButton>
       </Tooltip>
-      <MenuList placement="top-end">
+      <MenuList placement="top-end" minWidth="350px">
         <Box px="3" pb="1">
           <Select
             autoFocus
-            options={timezones}
+            options={options}
             value={currentTimezone}
             onChange={onChangeTimezone}
           />

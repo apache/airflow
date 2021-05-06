@@ -50,7 +50,7 @@ setLogger({
 });
 
 const toastDuration = 3000;
-const refetchInterval = false;
+const refetchInterval = isTest ? false : 1000;
 
 export function useDags() {
   return useQuery<DagsResponse, Error>(
