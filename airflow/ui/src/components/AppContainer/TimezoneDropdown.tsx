@@ -28,7 +28,7 @@ import {
 } from '@chakra-ui/react';
 import dayjs from 'dayjs';
 import tz from 'dayjs/plugin/timezone';
-import Select from 'components/Select';
+import Select from 'components/MultiSelect';
 
 import timezones from 'utils/timezones.json';
 import { useTimezoneContext } from 'providers/TimezoneProvider';
@@ -41,15 +41,16 @@ const TimezoneDropdown: React.FC = () => {
   const { timezone, setTimezone } = useTimezoneContext();
   const [now, setNow] = useState(dayjs().tz(timezone));
 
-  let currentTimezone: Option | null = null;
-
-  const options = timezones.map(({ group, zones }) => ({
-    label: group,
-    options: zones.map(({ value, name }) => {
-      if (value === timezone && !currentTimezone) currentTimezone = { value, label: name };
-      return { value, label: name };
-    }),
-  }));
+  let currentTimezone;
+  timezones.find((group) => (
+    group.options.find((zone) => {
+      if (zone.value === timezone) {
+        currentTimezone = zone;
+        return true;
+      }
+      return false;
+    })
+  ));
 
   const onChangeTimezone = (newTimezone: Option | null) => {
     if (newTimezone) {
@@ -75,7 +76,7 @@ const TimezoneDropdown: React.FC = () => {
         <Box px="3" pb="1">
           <Select
             autoFocus
-            options={options}
+            options={timezones}
             value={currentTimezone}
             onChange={onChangeTimezone}
           />

@@ -38,7 +38,7 @@ import {
   RecursiveCSSObject,
   CSSWithMultiValues,
 } from '@chakra-ui/react';
-import { ChevronDownIcon } from '@chakra-ui/icons';
+import { FiChevronDown } from 'react-icons/fi';
 
 const MultiSelect = ({
   name = '',
@@ -166,7 +166,7 @@ const MultiSelect = ({
                   cursor: 'pointer',
                 }}
               >
-                <ChevronDownIcon h={5} w={5} />
+                <FiChevronDown height={5} width={5} />
               </Center>
             );
           },

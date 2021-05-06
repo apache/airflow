@@ -52,7 +52,7 @@ describe('test timezone dropdown', () => {
     if (focusedElement) {
       fireEvent.change(focusedElement, { target: { value: 'Anch' } });
     }
-    const option = getByText('Anchorage');
+    const option = getByText('Anchorage (-08:00)');
     expect(option).toBeInTheDocument();
     fireEvent.click(option);
 

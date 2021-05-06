@@ -9,7 +9,6 @@
     "lint": "eslint --format codeframe --ext mjs,jsx,js,tsx,ts src test && tsc"
   },
   "dependencies": {
-    "@chakra-ui/icons": "^1.0.12",
     "@chakra-ui/react": "^1.6.0",
     "@emotion/react": "^11.1.5",
     "@emotion/styled": "^11.1.5",
