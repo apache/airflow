@@ -59,14 +59,15 @@ class OracleHook(DbApiHook):
 
         You can set these parameters in the extra fields of your connection
         as in
-        ```
-        {
-            "dsn": (
-                "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)"
-                "(HOST=host)(PORT=1521))(CONNECT_DATA=(SID=sid)))"
-            )
-        }
-        ```
+
+        .. code-block:: python
+           {
+               "dsn": (
+                   "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)"
+                   "(HOST=host)(PORT=1521))(CONNECT_DATA=(SID=sid)))"
+               )
+           }
+
         see more param detail in
         `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
 
