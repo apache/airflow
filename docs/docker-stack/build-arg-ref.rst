@@ -172,7 +172,7 @@ You can see some examples of those in:
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_VERSION_SPECIFICATION``        |                                          | Optional - might be used for using limit |
 |                                          |                                          | for Airflow version installation - for   |
-|                                          |                                          | example ``<2.0.2`` for automated builds. |
+|                                          |                                          | example ``<2.0.3`` for automated builds. |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``false``                                | If set to ``true`` and image is built    |
 |                                          |                                          | from sources, all provider packages are  |

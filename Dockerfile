@@ -33,7 +33,7 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
-ARG AIRFLOW_VERSION="2.0.2"
+ARG AIRFLOW_VERSION="2.0.3"
 ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -161,7 +161,7 @@ ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 # set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
-# and we can install version according to specification (For example ==2.0.2 or <3.0.0).
+# and we can install version according to specification (For example ==2.0.3 or <3.0.0).
 ARG AIRFLOW_VERSION_SPECIFICATION=""
 # By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
