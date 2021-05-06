@@ -44,9 +44,9 @@ const TimezoneDropdown: React.FC = () => {
   const timezones = getTimeZones();
 
   let currentTimezone;
-  const options = timezones.map(({ name, currentTimeFormat }) => {
+  const options = timezones.map(({ name, currentTimeFormat, group }) => {
     const label = `${currentTimeFormat.substring(0, 6)} ${name.replace(/_/g, ' ')}`;
-    if (name === timezone) currentTimezone = { label, value: name };
+    if (name === timezone || group.includes(timezone)) currentTimezone = { label, value: name };
     return { label, value: name };
   });
 
