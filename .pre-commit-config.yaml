@@ -17,7 +17,7 @@
 ---
 default_stages: [commit, push]
 default_language_version:
-  # force all unspecified python hooks to run python3
+  # force all unspecified Python hooks to run python3
   python: python3
 minimum_pre_commit_version: "1.20.0"
 repos:
@@ -29,7 +29,7 @@ repos:
     rev: v1.1.10
     hooks:
       - id: forbid-tabs
-        exclude: ^docs/Makefile$|^clients/gen/go.sh|\.gitmodules$
+        exclude: ^docs/Makefile$|^clients/gen/go\.sh$|\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -43,24 +43,24 @@ repos:
       - id: insert-license
         name: Add license for all other files
         exclude: ^\.github/.*$
+        files: >
+          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
         args:
           - --comment-style
           - "|#|"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-        files: >
-          \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
       - id: insert-license
         name: Add license for all rst files
         exclude: ^\.github/.*$
+        files: \.rst$
         args:
           - --comment-style
           - "||"
           - --license-filepath
           - license-templates/LICENSE.rst
           - --fuzzy-match-generates-todo
-        files: \.rst$
       - id: insert-license
         name: Add license for all JS/TS/TSX/CSS/PUML files
         files: \.(js|ts|tsx|css|puml)$
@@ -73,7 +73,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
-        files: "^airflow/www/templates/.*\\.html$|^docs/templates/.*\\.html$.*\\.jinja2"
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|.*\.jinja2$
         exclude: ^\.github/.*$
         args:
           - --comment-style
@@ -115,7 +115,7 @@ repos:
         name: Add license for all YAML files
         exclude: ^\.github/.*$
         types: [yaml]
-        files: \.yml$|\.yaml$
+        files: \.(yaml|yml)$
         args:
           - --comment-style
           - "|#|"
@@ -125,7 +125,7 @@ repos:
       - id: insert-license
         name: Add license for all md files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md
+        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
@@ -134,18 +134,19 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all mermaid files
+        files: \.mermaid$
         args:
           - --comment-style
           - "|%%|"
           - --license-filepath
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
-        files: \.mermaid$
   - repo: https://github.com/thlorenz/doctoc.git
     rev: v2.0.0
     hooks:
       - id: doctoc
         name: Add TOC for md files
+        description: Add table of contents for md files
         files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
         args:
           - "--maxlevel"
@@ -154,6 +155,8 @@ repos:
     rev: 21.4b2
     hooks:
       - id: black
+        name: black
+        description: Run black on Python files
         args: [--config=./pyproject.toml]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0
@@ -184,8 +187,9 @@ repos:
     rev: v1.26.1
     hooks:
       - id: yamllint
-        name: Check YAML files with yamllint
-        entry: yamllint -c yamllint-config.yml --strict
+        name: Run yamllint
+        description: Check YAML files with yamllint
+        entry: yamllint -c yamllint-config.yaml --strict
         types: [yaml]
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$
@@ -193,10 +197,11 @@ repos:
     rev: 5.8.0
     hooks:
       - id: isort
-        name: Run isort to sort imports in Python files
+        name: Run isort
+        description: Run isort to sort imports in Python files
         files: \.py$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^build/.*$|^.tox/.*$|^venv/.*$
+        exclude: ^build/.*$|^\.tox/.*$|^venv/.*$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.0.0
     hooks:
@@ -498,7 +503,7 @@ repos:
       - id: markdownlint
         name: Run markdownlint
         description: Checks the style of Markdown files.
-        entry: markdownlint
+        entry: markdownlint -c .markdownlint.yaml
         language: node
         types: [markdown]
         files: \.(md|mdown|markdown)$
@@ -522,7 +527,7 @@ repos:
           - https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.9/service-v1.json
         language: python
         pass_filenames: true
-        files: scripts/ci/kubernetes/nodeport.yaml
+        files: ^scripts/ci/kubernetes/nodeport\.yaml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -544,7 +549,7 @@ repos:
           - chart/values.schema.json
         language: python
         pass_filenames: true
-        files: chart/values\.yaml$
+        files: ^chart/values\.yaml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -555,7 +560,7 @@ repos:
           - airflow/config_templates/config.yml.schema.json
         language: python
         pass_filenames: true
-        files: airflow/config_templates/config\.yml$
+        files: ^airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: flynt
