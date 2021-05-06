@@ -203,7 +203,7 @@ ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ARG AIRFLOW_CONSTRAINTS="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
-ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-2-0"
 # By changing the CI build epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="3"
