@@ -1039,6 +1039,7 @@ nodeName
 nodeSelector
 nonterminal
 noqa
+nosasl
 notificationChannels
 npm
 ntlm

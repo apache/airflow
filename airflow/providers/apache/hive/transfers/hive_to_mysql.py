@@ -40,8 +40,9 @@ class HiveToMySqlOperator(BaseOperator):
     :type mysql_table: str
     :param mysql_conn_id: source mysql connection
     :type mysql_conn_id: str
-    :param hiveserver2_conn_id: destination hive connection
-    :type hiveserver2_conn_id: str
+    :param metastore_conn_id: Reference to the
+        :ref:`metastore thrift service connection id <howto/connection:hive_metastore>`.
+    :type metastore_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
         import, typically use to truncate of delete in place
         of the data coming in, allowing the task to be idempotent (running

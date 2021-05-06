@@ -38,8 +38,8 @@ class HivePartitionSensor(BaseSensorOperator):
         and apparently supports SQL like notation as in ``ds='2015-01-01'
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
     :type partition: str
-    :param metastore_conn_id: reference to the metastore thrift service
-        connection id
+    :param metastore_conn_id: reference to the
+        :ref: `metastore thrift service connection id <howto/connection:hive_metastore>`
     :type metastore_conn_id: str
     """
 

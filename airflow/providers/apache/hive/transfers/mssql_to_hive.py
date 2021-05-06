@@ -63,8 +63,9 @@ class MsSqlToHiveOperator(BaseOperator):
     :type delimiter: str
     :param mssql_conn_id: source Microsoft SQL Server connection
     :type mssql_conn_id: str
-    :param hive_conn_id: destination hive connection
-    :type hive_conn_id: str
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :type hive_cli_conn_id: str
     :param tblproperties: TBLPROPERTIES of the hive table being created
     :type tblproperties: dict
     """

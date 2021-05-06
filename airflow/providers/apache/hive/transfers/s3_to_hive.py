@@ -88,7 +88,8 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param hive_cli_conn_id: destination hive connection
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
     :type hive_cli_conn_id: str
     :param input_compressed: Boolean to determine if file decompression is
         required to process headers

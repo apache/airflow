@@ -71,8 +71,9 @@ class MySqlToHiveOperator(BaseOperator):
     :type escapechar: str
     :param mysql_conn_id: source mysql connection
     :type mysql_conn_id: str
-    :param hive_conn_id: destination hive connection
-    :type hive_conn_id: str
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :type hive_cli_conn_id: str
     :param tblproperties: TBLPROPERTIES of the hive table being created
     :type tblproperties: dict
     """

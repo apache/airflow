@@ -41,6 +41,9 @@ class HiveStatsCollectionOperator(BaseOperator):
             value BIGINT
         );
 
+    :param metastore_conn_id: Reference to the
+        :ref:`Hive Metastore connection id <howto/connection:hive_metastore>`.
+    :type metastore_conn_id: str
     :param table: the source table, in the format ``database.table_name``. (templated)
     :type table: str
     :param partition: the source partition. (templated)

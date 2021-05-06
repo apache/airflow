@@ -35,7 +35,8 @@ class HiveOperator(BaseOperator):
         a relative path from the dag file of a (template) hive
         script. (templated)
     :type hql: str
-    :param hive_cli_conn_id: reference to the Hive database. (templated)
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`. (templated)
     :type hive_cli_conn_id: str
     :param hiveconfs: if defined, these key value pairs will be passed
         to hive as ``-hiveconf "key"="value"``

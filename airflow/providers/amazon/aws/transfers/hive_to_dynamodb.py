@@ -49,7 +49,8 @@ class HiveToDynamoDBOperator(BaseOperator):
     :type region_name: str
     :param schema: hive database schema
     :type schema: str
-    :param hiveserver2_conn_id: source hive connection
+    :param hiveserver2_conn_id: Reference to the
+        :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
     :type hiveserver2_conn_id: str
     :param aws_conn_id: aws connection
     :type aws_conn_id: str
