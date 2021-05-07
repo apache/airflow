@@ -18,7 +18,8 @@
 #
 
 import warnings
-from typing import Callable, TypeVar
+from functools import wraps
+from typing import Callable, TypeVar, cast
 
 T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
 
@@ -42,4 +43,10 @@ def apply_defaults(func: T) -> T:
         DeprecationWarning,
         stacklevel=3,
     )
-    return func
+
+    # Make it still be a wraper to keep the previous behaviour of an extra stack frame
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    return cast(T, wrapper)

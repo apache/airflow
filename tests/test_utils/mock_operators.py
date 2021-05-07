@@ -167,7 +167,7 @@ class MockHiveOperator(HiveOperator):
 
 class DeprecatedOperator(BaseOperator):
     def __init__(self, **kwargs):
-        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=4)
+        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
         super().__init__(**kwargs)
 
     def execute(self, context):
