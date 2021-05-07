@@ -25,7 +25,6 @@
   <meta name="dag_id" content="{{ dag.dag_id }}">
   <meta name="tree_url" content="{{ url_for('Airflow.tree') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('calendar.css') }}">
-  </style>
 {% endblock %}
 
 {% block content %}
@@ -33,8 +32,7 @@
   <hr>
   <div id="svg_container">
     <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
-    <svg id="calendar-svg">
-    </svg>
+    <svg id="calendar-svg"></svg>
   </div>
 {% endblock %}
 
@@ -47,7 +45,7 @@
     const statesColors = {};
     statesColors["no_status"] = "white";
     {% for state in ['failed', 'success', 'running'] %}
-    statesColors["{{state}}"] = "{{state_color_mapping[state]}}";
+      statesColors["{{state}}"] = "{{state_color_mapping[state]}}";
     {% endfor %}
 
     const calendarData = {{ data|tojson }};
