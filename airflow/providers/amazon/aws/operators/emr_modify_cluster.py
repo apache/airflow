@@ -38,7 +38,7 @@ class EmrModifyClusterOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['cluster_id', 'step_concurrency_level']
+    template_fields = ['cluster_id', 'step_concurrency_level' , 'aws_conn_id']
     template_ext = ()
     ui_color = '#f9c915'
 
