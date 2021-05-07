@@ -69,8 +69,8 @@ The images are named as follows:
 where:
 
 * ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``,
-  ``v2-0-test``, ``v1-10-test``, ``2.0.0``. The ``master``, ``v1-10-test`` ``v2-0-test`` labels are
-  built from branches so they change over time. The ``1.10.*`` and ``2.*`` labels are built from git tags
+  ``v2-0-test``, ``2.0.0``. The ``master``, ``v2-0-test`` labels are
+  built from branches so they change over time. The ````2.*`` labels are built from git tags
   and they are "fixed" once built.
 * ``PYTHON_MAJOR_MINOR_VERSION`` - version of Python used to build the image. Examples: ``3.6``, ``3.7``,
   ``3.8``
@@ -562,7 +562,6 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | used. By default it is set to            |
 |                                          |                                          | ``constraints-master`` but can be        |
 |                                          |                                          | ``constraints-2-0`` for 2.0.* versions   |
-|                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
 |                                          |                                          | or it could point to specific version    |
 |                                          |                                          | for example ``constraints-2.0.0``        |
 |                                          |                                          | is empty, it is auto-detected            |

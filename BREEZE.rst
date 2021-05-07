@@ -541,7 +541,7 @@ For all development tasks, unit tests, integration tests, and static code checks
 **CI image** maintained on the DockerHub in the ``apache/airflow`` repository.
 This Docker image contains a lot of test-related packages (size of ~1GB).
 Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
-(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v1-10-test-python3.6-ci``).
+(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v2-0-test-python3.6-ci``).
 The image is built using the `<Dockerfile.ci>`_ Dockerfile.
 
 The CI image is built automatically as needed, however it can be rebuilt manually with
@@ -638,7 +638,7 @@ The **Production image** is also maintained on the DockerHub in the
 ``apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
 installation with selected extras and dependencies. Its tag follows the pattern of
 ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
-or ``apache/airflow:v1-10-test-python3.6``).
+or ``apache/airflow:v2-0-test-python3.6``).
 
 However in many cases you want to add your own custom version of the image - with added apt dependencies,
 python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
@@ -692,56 +692,6 @@ Same as above but uses python 3.7.
              alt="Airflow Breeze - Building Production images">
       </a>
     </div>
-
-Building Production images for 1.10 Airflow versions
-----------------------------------------------------
-
-With Breeze you can also use the master Dockerfile to build custom images for released Airflow versions.
-This works in the same way as building production image from master, but you need to add additional switch
-``--install-airflow-version``. You should pass version of airflow (as released in PyPI). It can be used
-to install both released versions and release candidates. Similarly as in case of master images,
-we can pass additional extras/dependencies to install via the additional flags.
-
-.. code-block:: bash
-
-     ./breeze build-image --production-image --additional-extras "jira" --install-airflow-version="1.10.11"
-
-Builds airflow image with released Airflow version 1.10.11 and additional extra "jira" added.
-
-.. code-block:: bash
-
-     ./breeze build-image --production-image --install-airflow-version="1.10.11rc2"
-
-Builds airflow image with released Airflow version 1.10.11rc2.
-
-
-You can also build airflow directly from GitHub source code - by providing Git Reference via
-``--install-airflow-reference``. The reference can be a branch name, tag name, or commit hash. This
-is useful mostly for testing.
-
-.. code-block:: bash
-
-     ./breeze build-image --production-image --install-airflow-reference="v1-10-test"
-
-This Builds airflow image from the current ``v1-10-test`` branch of Airflow.
-
-.. code-block:: bash
-
-     ./breeze build-image --production-image \
-          --install-airflow-reference="0d91fcf725f69e10f0969ca36f9e38e1d74110d0"
-
-This Builds airflow image from the  ``0d91fcf725f69e10f0969ca36f9e38e1d74110d0`` commit hash on
-GitHub.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1586">
-        <img src="images/breeze/overlayed_breeze_build_images_released_versions.png" width="640"
-             alt="Airflow Breeze - Building Production images for 1.10 Airflow versions">
-      </a>
-    </div>
-
 
 Running static checks
 ---------------------
@@ -823,8 +773,7 @@ Generating constraints
 ----------------------
 
 Whenever setup.py gets modified, the CI master job will re-generate constraint files. Those constraint
-files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0``
-and ``constraints-1-10``.
+files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
 `<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
@@ -1319,21 +1268,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses differen version of Airflow when building PROD image.
 
-                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist
+                 2.0.2 2.0.1 2.0.0 wheel sdist
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
+          This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -1564,12 +1510,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1611,7 +1554,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
         Generates pinned constraint files with all extras from setup.py. Those files are generated in
         files folder - separate files for different python version. Those constraint files when
-        pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+        pushed to orphan constraints-master, constraints-2-0 branches are used
         to generate repeatable CI builds as well as run repeatable production image builds and
         upgrades when you want to include installing or updating some of the released providers
         released at the time particular airflow version was released. You can use those
@@ -1634,12 +1577,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1760,12 +1700,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
 
   ####################################################################################################
@@ -1848,15 +1785,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           airflow is just removed. In this case airflow package should be added to dist folder
           and --use-packages-from-dist flag should be used.
 
-                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist none
+                 2.0.2 2.0.1 2.0.0 wheel sdist none
 
   --use-packages-from-dist
           In CI image, if specified it will look for packages placed in dist folder and
           it will install the packages after entering the image.
           This is useful for testing provider packages.
-
-  --no-rbac-ui
-          Disables RBAC UI when Airflow 1.10.* is installed.
 
   --load-example-dags
           Include Airflow example dags.
@@ -1950,12 +1884,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -2017,12 +1948,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2419,12 +2347,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -p, --python PYTHON_MAJOR_MINOR_VERSION
           Python version used for the image. This is always major/minor version.
 
-          Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-          --install-airflow-version or --install-airflow-reference flags.
-
           One of:
 
-                 2.7 3.5 3.6 3.7 3.8
+                 3.6 3.7 3.8
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2564,11 +2489,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses differen version of Airflow when building PROD image.
 
-                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist
+                 2.0.2 2.0.1 2.0.0 wheel sdist
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
+          This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2592,15 +2517,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
           airflow is just removed. In this case airflow package should be added to dist folder
           and --use-packages-from-dist flag should be used.
 
-                 2.0.2 2.0.1 2.0.0 1.10.15 1.10.14 wheel sdist none
+                 2.0.2 2.0.1 2.0.0 wheel sdist none
 
   --use-packages-from-dist
           In CI image, if specified it will look for packages placed in dist folder and
           it will install the packages after entering the image.
           This is useful for testing provider packages.
-
-  --no-rbac-ui
-          Disables RBAC UI when Airflow 1.10.* is installed.
 
   ****************************************************************************************************
    Credentials

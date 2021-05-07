@@ -141,9 +141,6 @@ function breeze::setup_default_breeze_constants() {
     # Which means that you do not have to start from scratch
     export PRESERVE_VOLUMES="false"
 
-    # If set to true, RBAC UI will not be used for 1.10 version
-    export DISABLE_RBAC="false"
-
     # Sources by default are installed from local sources when using breeze
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
     export AIRFLOW_SOURCES_FROM
@@ -1223,12 +1220,6 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
-        --no-rbac-ui)
-            export DISABLE_RBAC="true"
-            echo "When installing Airflow 1.10, RBAC UI will be disabled."
-            echo
-            shift
-            ;;
         --use-packages-from-dist)
             export USE_PACKAGES_FROM_DIST="true"
             echo "Install packages found in dist folder when entering breeze."
@@ -1854,7 +1845,7 @@ ${CMDNAME} generate-constraints [FLAGS]
 
       Generates pinned constraint files with all extras from setup.py. Those files are generated in
       files folder - separate files for different python version. Those constraint files when
-      pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+      pushed to orphan constraints-master, constraints-2-0 branches are used
       to generate repeatable CI builds as well as run repeatable production image builds and
       upgrades when you want to include installing or updating some of the released providers
       released at the time particular airflow version was released. You can use those
@@ -2250,9 +2241,6 @@ function breeze::flag_airflow_variants() {
 -p, --python PYTHON_MAJOR_MINOR_VERSION
         Python version used for the image. This is always major/minor version.
 
-        Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-        --install-airflow-version or --install-airflow-reference flags.
-
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
@@ -2440,7 +2428,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         Installs Airflow directly from reference in GitHub when building PROD image.
-        This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
+        This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
 
 --installation-method INSTALLATION_METHOD
         Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2484,10 +2472,6 @@ ${FORMATTED_USE_AIRFLOW_VERSION}
         In CI image, if specified it will look for packages placed in dist folder and
         it will install the packages after entering the image.
         This is useful for testing provider packages.
-
---no-rbac-ui
-        Disables RBAC UI when Airflow 1.10.* is installed.
-
 
 "
 }
@@ -3090,7 +3074,7 @@ function breeze::read_saved_environment_variables() {
 #######################################################################################################
 #
 # Checks if variables are correctly set and if they are - saves them so that they can be used across
-# sessions. In case we are installing Airflow 1.10, the constants are set to match 1.10 line.
+# sessions.
 #
 # In case the variables are matching expected values they are saved in ".build/VARIABLE_NAME" for
 # later reuse. If not, error is printed and the saved file is cleaned, so that next time
@@ -3119,31 +3103,14 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION" "Python version" "--python"
 
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
-        if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *1_10* ]]; then
-            export BRANCH_NAME="v1-10-test"
-        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
+        if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
             export BRANCH_NAME="v2-0-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
-        if [[ ${INSTALL_AIRFLOW_VERSION=} == *1.10* ]]; then
-            export BRANCH_NAME="v1-10-test"
-        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
+        if [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
             export BRANCH_NAME="v2-0-test"
         fi
     fi
-
-    if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
-        if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
-            echo
-            echo  "${COLOR_RED}ERROR: The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
-            echo
-            echo "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
-            echo "or --install-airflow-reference and they point to 1.10 version of Airflow"
-            echo
-            exit 1
-        fi
-    fi
-
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
