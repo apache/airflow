@@ -27,6 +27,7 @@ import {
 } from 'react-query';
 
 import AuthProvider from 'providers/auth/AuthProvider';
+import DateFormatProvider from 'providers/DateFormatProvider';
 
 import App from './App';
 import theme from './theme';
@@ -37,9 +38,11 @@ render(
   <BrowserRouter basename="/">
     <ChakraProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <DateFormatProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </DateFormatProvider>
       </QueryClientProvider>
     </ChakraProvider>
   </BrowserRouter>,

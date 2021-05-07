@@ -27,6 +27,7 @@ import utc from 'dayjs/plugin/utc';
 
 import TimezoneDropdown from 'components/AppContainer/TimezoneDropdown';
 import TimezoneProvider from 'providers/TimezoneProvider';
+import { HOURS_24 } from 'providers/DateFormatProvider';
 import { ChakraWrapper } from './utils';
 
 dayjs.extend(utc);
@@ -41,7 +42,7 @@ describe('test timezone dropdown', () => {
       { wrapper: ChakraWrapper },
     );
 
-    const initialTime = dayjs().tz('UTC').format('HH:mm Z');
+    const initialTime = dayjs().tz('UTC').format(HOURS_24);
 
     expect(getByText(initialTime)).toBeInTheDocument();
     const button = getByText(initialTime);
@@ -54,6 +55,6 @@ describe('test timezone dropdown', () => {
     expect(option).toBeInTheDocument();
     fireEvent.click(option);
 
-    expect(getByText(dayjs().tz('America/Anchorage').format('HH:mm Z'))).toBeInTheDocument();
+    expect(getByText(dayjs().tz('America/Anchorage').format(HOURS_24))).toBeInTheDocument();
   });
 });
