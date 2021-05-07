@@ -26,7 +26,7 @@ import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 
 import TimezoneDropdown from 'components/AppContainer/TimezoneDropdown';
-import TimezoneProvider, { HOURS_24 } from 'providers/DateProvider';
+import DateProvider, { HOURS_24 } from 'providers/DateProvider';
 import { ChakraWrapper } from './utils';
 
 dayjs.extend(utc);
@@ -35,9 +35,9 @@ dayjs.extend(timezone);
 describe('test timezone dropdown', () => {
   test('Can search for a new timezone and the date changes', () => {
     const { getByText } = render(
-      <TimezoneProvider>
+      <DateProvider>
         <TimezoneDropdown />
-      </TimezoneProvider>,
+      </DateProvider>,
       { wrapper: ChakraWrapper },
     );
 
