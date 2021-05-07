@@ -137,7 +137,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             func.__globals__['warnings'] = autostacklevel_warn()
 
         @functools.wraps(func)
-        def wrapper(obj, *args: Any, **kwargs: Any) -> Any:
+        def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
 
             if len(args) > 0:
@@ -175,16 +175,16 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag_params:
                 kwargs['params'] = dag_params
 
-            result = func(obj, *args, **kwargs)
+            result = func(self, *args, **kwargs)
 
             # Here we set upstream task defined by XComArgs passed to template fields of the operator
-            obj.set_xcomargs_dependencies()
+            self.set_xcomargs_dependencies()
 
             # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
-            obj._BaseOperator__instantiated = True  # pylint: disable=protected-access
+            self._BaseOperator__instantiated = True  # pylint: disable=protected-access
             return result
 
-        return cast(T, wrapper)
+        return cast(T, apply_defaults)
 
     def __new__(cls, name, bases, namespace):
         new_cls = super().__new__(cls, name, bases, namespace)
