@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SimpleHttpOperator(BaseOperator):
@@ -71,7 +70,6 @@ class SimpleHttpOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,

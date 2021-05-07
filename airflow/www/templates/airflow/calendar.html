@@ -1,0 +1,53 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+{% extends "airflow/dag.html" %}
+{% block page_title %}{{ dag.dag_id }} - Tree - {{ appbuilder.app_name }}{% endblock %}
+
+{% block head_css %}
+  {{ super() }}
+  <meta name="dag_id" content="{{ dag.dag_id }}">
+  <meta name="tree_url" content="{{ url_for('Airflow.tree') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('calendar.css') }}">
+{% endblock %}
+
+{% block content %}
+  {{ super() }}
+  <hr>
+  <div id="svg_container">
+    <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
+    <svg id="calendar-svg"></svg>
+  </div>
+{% endblock %}
+
+{% block tail_js %}
+  {{ super() }}
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-tip.js') }}"></script>
+  <script src="{{ url_for_asset('calendar.js') }}"></script>
+  <script>
+    const statesColors = {};
+    statesColors["no_status"] = "white";
+    {% for state in ['failed', 'success', 'running'] %}
+      statesColors["{{state}}"] = "{{state_color_mapping[state]}}";
+    {% endfor %}
+
+    const calendarData = {{ data|tojson }};
+  </script>
+{% endblock %}

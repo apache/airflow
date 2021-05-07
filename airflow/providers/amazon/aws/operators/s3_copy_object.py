@@ -19,7 +19,6 @@ from typing import Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3CopyObjectOperator(BaseOperator):
@@ -70,7 +69,6 @@ class S3CopyObjectOperator(BaseOperator):
 
     template_fields = ('source_bucket_key', 'dest_bucket_key', 'source_bucket_name', 'dest_bucket_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,

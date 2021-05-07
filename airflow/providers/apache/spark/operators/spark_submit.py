@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.settings import WEB_COLORS
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -115,7 +114,6 @@ class SparkSubmitOperator(BaseOperator):
     ui_color = WEB_COLORS['LIGHTORANGE']
 
     # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -20,7 +20,7 @@ kind: Pod
 metadata:
   name: dummy-name
 spec:
-{{- if .Values.dags.gitSync.enabled }}
+{{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
   initContainers:
 {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
 {{- end }}
@@ -40,7 +40,7 @@ spec:
       ports: []
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
-          name: airflow-logs
+          name: logs
         - name: config
           mountPath: {{ template "airflow_config_path" . }}
           subPath: airflow.cfg
@@ -61,16 +61,10 @@ spec:
           name: git-sync-ssh-key
           subPath: ssh
 {{- end }}
-{{- if .Values.dags.persistence.enabled }}
+{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
         - mountPath: {{ include "airflow_dags_mount_path" . }}
           name: dags
           readOnly: true
-{{- end }}
-{{- if .Values.dags.gitSync.enabled }}
-        - mountPath: {{ include "airflow_dags" . }}
-          name: dags
-          readOnly: true
-          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
@@ -100,8 +94,14 @@ spec:
   {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
 {{- include "git_sync_ssh_key_volume" . | indent 2 }}
   {{- end }}
+{{- if .Values.logs.persistence.enabled }}
+  - name: logs
+    persistentVolumeClaim:
+      claimName: {{ template "airflow_logs_volume_claim" . }}
+{{- else }}
   - emptyDir: {}
-    name: airflow-logs
+    name: logs
+{{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
   - configMap:
       defaultMode: 288

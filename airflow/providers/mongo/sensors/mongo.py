@@ -17,7 +17,6 @@
 # under the License.
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class MongoSensor(BaseSensorOperator):
@@ -41,7 +40,6 @@ class MongoSensor(BaseSensorOperator):
 
     template_fields = ('collection', 'query')
 
-    @apply_defaults
     def __init__(
         self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", **kwargs
     ) -> None:

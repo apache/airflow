@@ -21,7 +21,6 @@ from typing import List, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudTranslateTextOperator(BaseOperator):
@@ -94,7 +93,6 @@ class CloudTranslateTextOperator(BaseOperator):
     )
     # [END translate_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

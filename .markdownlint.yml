@@ -16,41 +16,42 @@
 # under the License.
 #
 ---
-# MD004/ul-style
+# https://github.com/DavidAnson/markdownlint#rules--aliases
+# MD004 ul-style - Unordered list style
 MD004: false
 
-# MD007/ul-indent
+# MD007 ul-indent - Unordered list indentation
 MD007: false
 
-# MD012/no-multiple-blanks
+# MD012 no-multiple-blanks - Multiple consecutive blank lines
 MD012: false
 
-# MD013 Line length
+# MD013 line-length - Line length
 MD013: false
 
-# MD024/no-duplicate-heading/no-duplicate-header
+# MD024 no-duplicate-heading/no-duplicate-header - Multiple headings with the same content
 MD024: false
 
-# MD026/no-trailing-punctuation
+# MD026 no-trailing-punctuation - Trailing punctuation in heading
 MD026: false
 
-# MD029/ol-prefix
+# MD029 ol-prefix - Ordered list item prefix
 MD029: false
 
-# MD030/list-marker-space
+# MD030 list-marker-space - Spaces after list markers
 MD030: false
 
-# MD033/no-inline-html
+# MD033 no-inline-html - Inline HTML
 MD033: false
 
-# MD034/no-bare-urls
+# MD034 no-bare-urls - Bare URL used
 MD034: false
 
-# MD036/no-emphasis-as-heading/no-emphasis-as-header
+# MD036 no-emphasis-as-heading/no-emphasis-as-header - Emphasis used instead of a heading
 MD036: false
 
-# MD040/fenced-code-language
+# MD040 fenced-code-language - Fenced code blocks should have a language specified
 MD040: false
 
-# MD041/first-line-heading/first-line-h1
+# MD041 first-line-heading/first-line-h1 - First line in a file should be a top-level heading
 MD041: false

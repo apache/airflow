@@ -34,7 +34,9 @@ from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_TRANSLATION_BUCKET = os.environ.get("GCP_AUTOML_TRANSLATION_BUCKET", "gs://project-vcm/file")
+GCP_AUTOML_TRANSLATION_BUCKET = os.environ.get(
+    "GCP_AUTOML_TRANSLATION_BUCKET", "gs://INVALID BUCKET NAME/file"
+)
 
 # Example values
 DATASET_ID = "TRL123456789"

@@ -25,7 +25,6 @@ from kylinpy import kylinpy
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
-from airflow.utils.decorators import apply_defaults
 
 
 class KylinCubeOperator(BaseOperator):
@@ -110,7 +109,6 @@ class KylinCubeOperator(BaseOperator):
     jobs_end_status = {"FINISHED", "ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"}
 
     # pylint: disable=too-many-arguments,inconsistent-return-statements
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -18,7 +18,6 @@
 
 from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
@@ -48,7 +47,6 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
 
     template_fields = ('database_name', 'collection_name', 'document_id')
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -68,6 +68,9 @@ class HiveCliHook(BaseHook):
     The extra connection parameter ``auth`` gets passed as in the ``jdbc``
     connection string as is.
 
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :type hive_cli_conn_id: str
     :param mapred_queue: queue used by the Hadoop Scheduler (Capacity or Fair)
     :type  mapred_queue: str
     :param mapred_queue_priority: priority within the job queue.
@@ -466,7 +469,13 @@ class HiveCliHook(BaseHook):
 
 
 class HiveMetastoreHook(BaseHook):
-    """Wrapper to interact with the Hive Metastore"""
+    """
+    Wrapper to interact with the Hive Metastore
+
+    :param metastore_conn_id: reference to the
+        :ref: `metastore thrift service connection id <howto/connection:hive_metastore>`.
+    :type metastore_conn_id: str
+    """
 
     # java short max val
     MAX_PART_COUNT = 32767
@@ -811,6 +820,12 @@ class HiveServer2Hook(DbApiHook):
     * the default for run_set_variable_statements is true, if you
     are using impala you may need to set it to false in the
     ``extra`` of your connection in the UI
+
+    :param hiveserver2_conn_id: Reference to the
+        :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
+    :type hiveserver2_conn_id: str
+    :param schema: Hive database name.
+    :type schema: Optional[str]
     """
 
     conn_name_attr = 'hiveserver2_conn_id'

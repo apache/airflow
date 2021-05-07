@@ -19,7 +19,6 @@ from typing import Dict, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
-from airflow.utils.decorators import apply_defaults
 
 
 class Neo4jOperator(BaseOperator):
@@ -37,7 +36,6 @@ class Neo4jOperator(BaseOperator):
     :type neo4j_conn_id: str
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

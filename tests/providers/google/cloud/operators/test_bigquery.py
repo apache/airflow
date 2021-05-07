@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
+    BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
     BigQueryValueCheckOperator,
 )
@@ -284,6 +285,36 @@ class TestBigQueryUpdateTableOperator(unittest.TestCase):
         mock_hook.return_value.update_table.assert_called_once_with(
             table_resource=table_resource,
             fields=None,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+
+class TestBigQueryUpdateTableSchemaOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute(self, mock_hook):
+
+        schema_field_updates = [
+            {
+                'name': 'emp_name',
+                'description': 'Name of employee',
+            }
+        ]
+
+        operator = BigQueryUpdateTableSchemaOperator(
+            schema_fields_updates=schema_field_updates,
+            include_policy_tags=False,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        operator.execute(None)
+
+        mock_hook.return_value.update_table_schema.assert_called_once_with(
+            schema_fields_updates=schema_field_updates,
+            include_policy_tags=False,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
             project_id=TEST_GCP_PROJECT_ID,

@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
-from airflow.utils.decorators import apply_defaults
 
 
 class LifeSciencesRunPipelineOperator(BaseOperator):
@@ -62,7 +61,6 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

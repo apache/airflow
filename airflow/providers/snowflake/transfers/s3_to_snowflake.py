@@ -21,7 +21,6 @@ from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToSnowflakeOperator(BaseOperator):
@@ -72,7 +71,6 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type session_parameters: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

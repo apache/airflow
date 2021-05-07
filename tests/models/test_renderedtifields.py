@@ -229,8 +229,9 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         ) == result_updated
 
     @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
+    @mock.patch('airflow.utils.log.secrets_masker.redact', autospec=True, side_effect=lambda d, _=None: d)
     @mock.patch("airflow.settings.pod_mutation_hook")
-    def test_get_k8s_pod_yaml(self, mock_pod_mutation_hook):
+    def test_get_k8s_pod_yaml(self, mock_pod_mutation_hook, redact):
         """
         Test that k8s_pod_yaml is rendered correctly, stored in the Database,
         and are correctly fetched using RTIF.get_k8s_pod_yaml
@@ -289,6 +290,8 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         }
 
         assert expected_pod_yaml == rtif.k8s_pod_yaml
+        # K8s pod spec dict was passed to redact
+        redact.assert_any_call(rtif.k8s_pod_yaml)
 
         with create_session() as session:
             session.add(rtif)
@@ -303,3 +306,26 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
 
         ti2 = TI(task_2, EXECUTION_DATE)
         assert RTIF.get_k8s_pod_yaml(ti=ti2) is None
+
+    @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
+    @mock.patch('airflow.utils.log.secrets_masker.redact', autospec=True)
+    def test_redact(self, redact):
+        dag = DAG("test_ritf_redact", start_date=START_DATE)
+        with dag:
+            task = BashOperator(
+                task_id="test",
+                bash_command="echo {{ var.value.api_key }}",
+                env={'foo': 'secret', 'other_api_key': 'masked based on key name'},
+            )
+
+        redact.side_effect = [
+            'val 1',
+            'val 2',
+        ]
+
+        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        rtif = RTIF(ti=ti)
+        assert rtif.rendered_fields == {
+            'bash_command': 'val 1',
+            'env': 'val 2',
+        }

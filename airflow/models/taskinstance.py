@@ -1072,7 +1072,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
-        self.pid = os.getpid()
         self.end_date = None
         if not test_mode:
             session.merge(self)
@@ -1127,7 +1126,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
-
+        self.pid = os.getpid()
+        session.merge(self)
+        session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
@@ -1836,10 +1837,14 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     max_tries=self.max_tries,
                 )
             )
-
-            jinja_env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
-            )
+            if self.dag.render_template_as_native_obj:
+                jinja_env = jinja2.nativetypes.NativeEnvironment(
+                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
+                )
+            else:
+                jinja_env = jinja2.Environment(
+                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
+                )
             subject = jinja_env.from_string(default_subject).render(**jinja_context)
             html_content = jinja_env.from_string(default_html_content).render(**jinja_context)
             html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)

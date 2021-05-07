@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import unittest
 
-"""
-DAG designed to test what happens when a DAG with pooled tasks is run
-by a BackfillJob.
-Addresses issue #1225.
-"""
-from datetime import datetime
+import jmespath
 
-from airflow.models import DAG
-from airflow.operators.dummy import DummyOperator
+from chart.tests.helm_template_generator import render_chart
 
-dag = DAG(dag_id='test_backfill_pooled_task_dag')
-task = DummyOperator(
-    task_id='test_backfill_pooled_task',
-    dag=dag,
-    pool='test_backfill_pooled_task_pool',
-    owner='airflow',
-    start_date=datetime(2016, 2, 1),
-)
+
+class LimitRangesTest(unittest.TestCase):
+    def test_limit_ranges_template(self):
+        docs = render_chart(
+            values={"limits": [{"max": {"cpu": "500m"}, "min": {"min": "200m"}, "type": "Container"}]},
+            show_only=["templates/limitrange.yaml"],
+        )
+        assert "LimitRange" == jmespath.search("kind", docs[0])
+        assert "500m" == jmespath.search("spec.limits[0].max.cpu", docs[0])
+
+    def test_limit_ranges_are_not_added_by_default(self):
+        docs = render_chart(show_only=["templates/limitrange.yaml"])
+        assert docs == []

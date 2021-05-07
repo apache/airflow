@@ -484,6 +484,7 @@ devel = [
     'click~=7.1',
     'coverage',
     'docutils',
+    'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',

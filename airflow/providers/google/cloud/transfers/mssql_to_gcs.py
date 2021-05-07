@@ -22,7 +22,6 @@ from typing import Dict
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MSSQLToGCSOperator(BaseSQLToGCSOperator):
@@ -53,7 +52,6 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     type_map = {3: 'INTEGER', 4: 'TIMESTAMP', 5: 'NUMERIC'}
 
-    @apply_defaults
     def __init__(self, *, mssql_conn_id='mssql_default', **kwargs):
         super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id

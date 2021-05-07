@@ -39,6 +39,6 @@ class MsSqlToGoogleCloudStorageOperator(MSSQLToGCSOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.mssql_to_gcs.MSSQLToGCSOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

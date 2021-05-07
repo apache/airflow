@@ -28,7 +28,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
@@ -71,7 +70,6 @@ class GoogleDisplayVideo360CreateReportOperator(BaseOperator):
     )
     template_ext = (".json",)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -150,7 +148,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -245,7 +242,6 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -370,7 +366,6 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -430,7 +425,6 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -514,7 +508,6 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -606,7 +599,6 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -686,7 +678,6 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

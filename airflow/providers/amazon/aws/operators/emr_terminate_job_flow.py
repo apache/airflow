@@ -21,7 +21,6 @@ from typing import Any, Dict
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.utils.decorators import apply_defaults
 
 
 class EmrTerminateJobFlowOperator(BaseOperator):
@@ -38,7 +37,6 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f9c915'
 
-    @apply_defaults
     def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id

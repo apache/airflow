@@ -22,7 +22,6 @@ from docker import types
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.strings import get_random_string
 
 
@@ -96,7 +95,6 @@ class DockerSwarmOperator(DockerOperator):
     :type enable_logging: bool
     """
 
-    @apply_defaults
     def __init__(self, *, image: str, enable_logging: bool = True, **kwargs) -> None:
         super().__init__(image=image, **kwargs)
 

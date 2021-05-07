@@ -21,7 +21,6 @@ from typing import Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryToBigQueryOperator(BaseOperator):
@@ -86,7 +85,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#e6f0e4'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments

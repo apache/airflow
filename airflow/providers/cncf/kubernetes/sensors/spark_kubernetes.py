@@ -22,7 +22,6 @@ from kubernetes import client
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SparkKubernetesSensor(BaseSensorOperator):
@@ -52,7 +51,6 @@ class SparkKubernetesSensor(BaseSensorOperator):
     FAILURE_STATES = ("FAILED", "UNKNOWN")
     SUCCESS_STATES = ("COMPLETED",)
 
-    @apply_defaults
     def __init__(
         self,
         *,

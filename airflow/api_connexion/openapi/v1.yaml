@@ -133,6 +133,7 @@ info:
     |-|-|
     | v2.0 | Initial release |
     | v2.0.2    | Added /plugins endpoint |
+    | v2.1 | New providers endpoint |
 
     # Trying the API
 
@@ -848,6 +849,26 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /providers:
+    get:
+      summary: List providers
+      x-openapi-router-controller: airflow.api_connexion.endpoints.provider_endpoint
+      operationId: get_providers
+      tags: [Provider]
+      responses:
+        '200':
+          description: List of providers.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ProviderCollection'
+                  - $ref: '#/components/schemas/CollectionInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
 
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     parameters:
@@ -2014,6 +2035,29 @@ components:
               items:
                 $ref: '#/components/schemas/Pool'
         - $ref: '#/components/schemas/CollectionInfo'
+
+
+    Provider:
+      description: The provider
+      type: object
+      properties:
+        package_name:
+          type: string
+          description: The package name of the provider.
+        description:
+          type: string
+          description: The description of the provider.
+        version:
+          type: string
+          description: The version of the provider.
+
+    ProviderCollection:
+      type: object
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Provider'
 
 
     SLAMiss:
@@ -3390,6 +3434,7 @@ tags:
   - name: ImportError
   - name: Monitoring
   - name: Pool
+  - name: Provider
   - name: TaskInstance
   - name: Variable
   - name: XCom

@@ -24,7 +24,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import synonym
+from sqlalchemy.orm import reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -32,6 +32,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 
@@ -140,6 +141,14 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.schema = schema
             self.port = port
             self.extra = extra
+
+        if self.password:
+            mask_secret(self.password)
+
+    @reconstructor
+    def on_db_load(self):  # pylint: disable=missing-function-docstring
+        if self.password:
+            mask_secret(self.password)
 
     def parse_from_uri(self, **uri):
         """This method is deprecated. Please use uri parameter in constructor."""
@@ -346,8 +355,12 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         if self.extra:
             try:
                 obj = json.loads(self.extra)
+
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
+
+            # Mask sensitive keys from this list
+            mask_secret(obj)
 
         return obj
 

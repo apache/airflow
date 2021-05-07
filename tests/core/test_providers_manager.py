@@ -227,6 +227,8 @@ CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
 EXTRA_LINKS = [
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
+    'airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink',
+    'airflow.providers.google.cloud.operators.dataproc.DataprocJobLink',
     'airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink',
     'airflow.providers.qubole.operators.qubole.QDSLink',
 ]

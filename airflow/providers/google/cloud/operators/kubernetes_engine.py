@@ -29,7 +29,6 @@ from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
 
@@ -87,7 +86,6 @@ class GKEDeleteClusterOperator(BaseOperator):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -190,7 +188,6 @@ class GKECreateClusterOperator(BaseOperator):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -272,7 +269,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
 
-    @apply_defaults
     def __init__(
         self,
         *,

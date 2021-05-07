@@ -29,7 +29,8 @@ class OracleHook(DbApiHook):
     """
     Interact with Oracle SQL.
 
-    :param oracle_conn_id: The Airflow connection used for Oracle credentials.
+    :param oracle_conn_id: The :ref:`Oracle connection id <howto/connection:oracle>`
+        used for Oracle credentials.
     :type oracle_conn_id: str
     """
 

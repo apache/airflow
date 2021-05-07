@@ -17,6 +17,8 @@
 
 
 
+.. _howto/connection:oracle:
+
 Oracle Connection
 =================
 The Oracle connection type provides connection to a Oracle database.

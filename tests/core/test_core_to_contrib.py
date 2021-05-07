@@ -18,6 +18,7 @@
 
 import importlib
 import sys
+import warnings
 from inspect import isabstract
 from unittest import TestCase, mock
 
@@ -74,22 +75,26 @@ class TestMovingCoreToContrib(TestCase):
     def test_is_class_deprecated(self, new_module, old_module):
         self.skip_test_with_mssql_in_py38(new_module, old_module)
         deprecation_warning_msg = "This class is deprecated."
-        old_module_class = self.get_class_from_path(old_module)
         with pytest.warns(DeprecationWarning, match=deprecation_warning_msg) as warnings:
+            old_module_class = self.get_class_from_path(old_module)
+            warnings.clear()
             with mock.patch(f"{new_module}.__init__") as init_mock:
                 init_mock.return_value = None
                 klass = old_module_class()
                 if isinstance(klass, BaseOperator):
                     # In case of operators we are validating that proper stacklevel
-                    # is used (=3 or =4 if @apply_defaults)
+                    # is used (=3)
                     assert len(warnings) >= 1
-                    assert any(warning.filename == __file__ for warning in warnings)
+                    # For nicer error reporting from pytest, create a static
+                    # list of filenames
+                    files = [warning.filename for warning in warnings]
+                    assert __file__ in files, old_module
                 init_mock.assert_called_once()
 
     @parameterized.expand(ALL)
     def test_is_subclass(self, parent_class_path, sub_class_path):
         self.skip_test_with_mssql_in_py38(parent_class_path, sub_class_path)
-        with mock.patch(f"{parent_class_path}.__init__"):
+        with mock.patch(f"{parent_class_path}.__init__"), warnings.catch_warnings(record=True):
             parent_class_path = self.get_class_from_path(parent_class_path, parent=True)
             sub_class_path = self.get_class_from_path(sub_class_path)
             self.assert_is_subclass(sub_class_path, parent_class_path)

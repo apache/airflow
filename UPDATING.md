@@ -71,6 +71,17 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### `@apply_default` decorator isn't longer necessary
+
+This decorator is now automatically added to all operators via the metaclass on BaseOperator
+
+### Change the configuration options for field masking
+
+We've improved masking for sensitive data in Web UI and logs. As part of it, the following configurations have been changed:
+
+* `hide_sensitive_variable_fields` option in `admin` section has been replaced by `hide_sensitive_var_conn_fields` section in `core` section,
+* `sensitive_variable_fields` option in `admin` section has been replaced by `sensitive_var_conn_names` section in `core` section.
+
 ### Deprecated PodDefaults and add_xcom_sidecar in airflow.kubernetes.pod_generator
 
 We have moved PodDefaults from `airflow.kubernetes.pod_generator.PodDefaults` to

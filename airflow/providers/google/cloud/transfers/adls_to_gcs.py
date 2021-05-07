@@ -27,7 +27,6 @@ from typing import Optional, Sequence, Union
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
@@ -111,7 +110,6 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,

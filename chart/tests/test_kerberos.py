@@ -89,3 +89,9 @@ class KerberosTest(unittest.TestCase):
         )
         assert jmespath.search("spec.template.spec.containers[2].resources.limits.cpu", docs[0]) == "201m"
         assert jmespath.search("spec.template.spec.containers[2].resources.limits.memory", docs[0]) == "201Mi"
+
+    def test_keberos_sidecar_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
