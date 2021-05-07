@@ -42,7 +42,7 @@ import dayjs from 'dayjs';
 import tz from 'dayjs/plugin/timezone';
 
 import { useAuthContext } from 'providers/auth/context';
-import { useDateFormatContext, HOURS_24 } from 'providers/DateFormatProvider';
+import { useDateContext, HOURS_24 } from 'providers/DateProvider';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
 import TimezoneDropdown from './TimezoneDropdown';
@@ -57,7 +57,7 @@ interface Props {
 
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
-  const { dateFormat, toggle24Hour } = useDateFormatContext();
+  const { dateFormat, toggle24Hour } = useDateContext();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);

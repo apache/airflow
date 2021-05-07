@@ -31,16 +31,14 @@ import tz from 'dayjs/plugin/timezone';
 import { getTimeZones } from '@vvo/tzdb';
 
 import Select from 'components/MultiSelect';
-import { useTimezoneContext } from 'providers/TimezoneProvider';
-import { useDateFormatContext } from 'providers/DateFormatProvider';
+import { useDateContext } from 'providers/DateProvider';
 
 dayjs.extend(tz);
 
 interface Option { value: string, label: string }
 
 const TimezoneDropdown: React.FC = () => {
-  const { timezone, setTimezone } = useTimezoneContext();
-  const { dateFormat } = useDateFormatContext();
+  const { timezone, setTimezone, dateFormat } = useDateContext();
   const [now, setNow] = useState(dayjs().tz(timezone));
   const menuRef = useRef<HTMLButtonElement>(null);
 

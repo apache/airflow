@@ -26,8 +26,7 @@ import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 
 import TimezoneDropdown from 'components/AppContainer/TimezoneDropdown';
-import TimezoneProvider from 'providers/TimezoneProvider';
-import { HOURS_24 } from 'providers/DateFormatProvider';
+import TimezoneProvider, { HOURS_24 } from 'providers/DateProvider';
 import { ChakraWrapper } from './utils';
 
 dayjs.extend(utc);
