@@ -373,7 +373,7 @@
     // $rows.push(renderResultTableRow(resultKeys.torque_max || 'torque_max', torque_max));
     // $rows.push(renderResultTableRow(resultKeys.torque_min || 'torque_min', torque_min));
 
-    detail.forEach((k) => {
+    (detail || Object.keys(result)).forEach((k) => {
       $rows.push(renderResultTableRow(resultKeys[k] || k, result[k]));
     });
     $('#result_detail').append($rows);
@@ -401,7 +401,7 @@
         .css({'font-weight': 'bolder'});
       $('#doubleCheckModal').modal('hide');
       if (resp && resp.response === 'ok') {
-        $('#error-tags').html(errorTagsArr.map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
+        $('#error-tags').html((errorTagsArr || []).map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
           .join(','));
       }
     });
@@ -478,7 +478,7 @@
       work_center_code: {label: '工位编号', value: '{{controller.work_center_code}}'}
     };
     const {basic} = displayKeys;
-    const info = basic.map(function (k) {
+    const info = (basic || Object.keys(baseInfo)).map(function (k) {
       return baseInfo[k] || {};
     });
 
