@@ -1716,11 +1716,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Prepares airflow packages (sdist and wheel) in dist folder. Note that
         prepare-provider-packages command cleans up the dist folder, so if you want also
         to generate provider packages, make sure you run prepare-provider-packages first,
-        and prepare-airflow-packages second.
+        and prepare-airflow-packages second. You can specify optional
+        --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
+        provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
+        dist folder
 
-        General form:
+        Examples:
 
-        'breeze prepare-airflow-packages
+        'breeze prepare-airflow-packages --package-format wheel' or
+        'breeze prepare-airflow-packages --version-suffix-for-svn rc1' or
+        'breeze prepare-airflow-packages --version-suffix-for-pypi rc1'
+        'breeze prepare-airflow-packages --version-suffix-for-pypi a1
+                                              --version-suffix-for-svn a1'
 
   Flags:
 
@@ -1733,6 +1741,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  both,sdist,wheel
 
           Default: both
+
+  -S, --version-suffix-for-pypi SUFFIX
+          Adds optional suffix to the version in the generated provider package. It can be used
+          to generate rc1/rc2 ... versions of the packages to be uploaded to PyPI.
+
+  -N, --version-suffix-for-svn SUFFIX
+          Adds optional suffix to the generated names of package. It can be used to generate
+          rc1/rc2 ... versions of the packages to be uploaded to SVN.
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for

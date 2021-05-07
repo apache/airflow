@@ -1879,14 +1879,23 @@ ${CMDNAME} prepare-airflow-packages [FLAGS]
       Prepares airflow packages (sdist and wheel) in dist folder. Note that
       prepare-provider-packages command cleans up the dist folder, so if you want also
       to generate provider packages, make sure you run prepare-provider-packages first,
-      and prepare-airflow-packages second.
+      and prepare-airflow-packages second. You can specify optional
+      --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
+      provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
+      dist folder
 
-      General form:
+      Examples:
 
-      '${CMDNAME} prepare-airflow-packages
+      '${CMDNAME} prepare-airflow-packages --package-format wheel' or
+      '${CMDNAME} prepare-airflow-packages --version-suffix-for-svn rc1' or
+      '${CMDNAME} prepare-airflow-packages --version-suffix-for-pypi rc1'
+      '${CMDNAME} prepare-airflow-packages --version-suffix-for-pypi a1
+                                            --version-suffix-for-svn a1'
 
 Flags:
 $(breeze::flag_packages)
+$(breeze::flag_version_suffix)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_AIRFLOW_PACKAGES
@@ -3523,7 +3532,7 @@ function breeze::run_breeze_command() {
         ;;
     perform_prepare_airflow_packages)
         docker_engine_resources::check_all_resources
-        build_airflow_packages::build_airflow_packages
+        runs::run_prepare_airflow_packages
         ;;
     perform_prepare_provider_packages)
         docker_engine_resources::check_all_resources

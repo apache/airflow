@@ -851,7 +851,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'metadata': {
                 'annotations': {},
                 'labels': {
-                    'airflow_version': '2.1.0.dev0',
                     'dag_id': 'dag',
                     'execution_date': mock.ANY,
                     'kubernetes_pod_operator': 'True',
@@ -895,6 +894,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'volumes': [{'emptyDir': {}, 'name': 'xcom'}],
             },
         }
+        version = actual_pod['metadata']['labels']['airflow_version']
+        assert version.startswith(airflow_version)
+        del actual_pod['metadata']['labels']['airflow_version']
         assert expected_dict == actual_pod
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")

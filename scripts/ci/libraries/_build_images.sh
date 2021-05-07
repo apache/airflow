@@ -1052,7 +1052,7 @@ function build_images::build_prod_images_from_locally_built_airflow_packages() {
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
     # Build apache airflow packages
-    build_airflow_packages::build_airflow_packages
+    runs::run_prepare_airflow_packages
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
     build_images::build_prod_images

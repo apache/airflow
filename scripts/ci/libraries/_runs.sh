@@ -45,7 +45,7 @@ function runs::run_prepare_airflow_packages() {
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh" "${@}"
+        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"
     start_end::group_end
 }
 
