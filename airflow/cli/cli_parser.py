@@ -1604,6 +1604,12 @@ airflow_commands: List[CLICommand] = [
         ),
         subcommands=CELERY_COMMANDS,
     ),
+    ActionCommand(
+        name='standalone',
+        help='Run an all-in-one copy of Airflow',
+        func=lazy_load_command('airflow.cli.commands.standalone_command.standalone'),
+        args=tuple(),
+    ),
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
