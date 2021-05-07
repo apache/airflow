@@ -36,23 +36,7 @@ function build_images::add_build_args_for_remote_install() {
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE}"
         )
     else
-        if [[ ${AIRFLOW_VERSION} =~ [^0-9]*1[^0-9]*10[^0-9]([0-9]*) ]]; then
-            # All types of references/versions match this regexp for 1.10 series
-            # for example v1_10_test, 1.10.10, 1.10.9 etc. ${BASH_REMATCH[1]} matches last
-            # minor digit of version and it's length is 0 for v1_10_test, 1 for 1.10.9 and 2 for 1.10.10+
-            AIRFLOW_MINOR_VERSION_NUMBER=${BASH_REMATCH[1]}
-            if [[ ${#AIRFLOW_MINOR_VERSION_NUMBER} == "0" ]]; then
-                # For v1_10_* branches use constraints-1-10 branch
-                EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                    "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-1-10"
-                )
-            else
-                EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
-                    # For specified minor version of 1.10 or v1 branch use specific reference constraints
-                    "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
-                )
-            fi
-        elif  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+        if  [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
             EXTRA_DOCKER_PROD_BUILD_FLAGS+=(
                 # For specified minor version of 2.0 or v2 branch use specific reference constraints
                 "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=constraints-${AIRFLOW_VERSION}"
@@ -70,14 +54,10 @@ function build_images::add_build_args_for_remote_install() {
         )
     fi
     # Depending on the version built, we choose the right branch for preloading the packages from
-    # If we run build for v1-10-test builds we should choose v1-10-test, for v2-0-test we choose v2-0-test
+    # For v2-0-test we choose v2-0-test
     # all other builds when you choose a specific version (1.0 or 2.0 series) should choose stable branch
     # to preload. For all other builds we use the default branch defined in _initialization.sh
-    if [[ ${AIRFLOW_VERSION} == 'v1-10-test' ]]; then
-        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-test"
-    elif [[ ${AIRFLOW_VERSION} =~ v?1.* ]]; then
-        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v1-10-stable"
-    elif [[ ${AIRFLOW_VERSION} == 'v2-0-test' ]]; then
+    if [[ ${AIRFLOW_VERSION} == 'v2-0-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
     elif [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"

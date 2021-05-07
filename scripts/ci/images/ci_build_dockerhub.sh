@@ -57,7 +57,7 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
     # packages fails, because the packages with non-dev version are skipped (as they are alredy released)
     export VERSION_SUFFIX_FOR_PYPI="dev"
     export VERSION_SUFFIX_FOR_SVN="dev"
-    # Only build and push CI image for the nightly-master, v1-10-test and v2-0-test branches
+    # Only build and push CI image for the nightly-master, v2-0-test branches
     # for tagged releases we build everything from PyPI, so we do not need CI images
     # For development images, we have to build all packages from current sources because we want to produce
     # `Latest and greatest` image from those branches. We need to build and push CI image as well as PROD
