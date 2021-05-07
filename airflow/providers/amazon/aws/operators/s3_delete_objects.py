@@ -45,6 +45,8 @@ class S3DeleteObjectsOperator(BaseOperator):
     :type prefix: str
     :param aws_conn_id: Connection id of the S3 connection to use
     :type aws_conn_id: str
+        (Adding `aws_conn_id` param to template_fields so that it can be overriden using jinja template from Dags
+         This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 
