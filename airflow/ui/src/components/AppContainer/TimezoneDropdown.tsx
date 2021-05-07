@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Button,
@@ -40,6 +40,7 @@ interface Option { value: string, label: string }
 const TimezoneDropdown: React.FC = () => {
   const { timezone, setTimezone } = useTimezoneContext();
   const [now, setNow] = useState(dayjs().tz(timezone));
+  const menuRef = useRef<HTMLButtonElement>(null);
 
   const timezones = getTimeZones();
 
@@ -54,13 +55,15 @@ const TimezoneDropdown: React.FC = () => {
     if (newTimezone) {
       setTimezone(newTimezone.value);
       setNow(dayjs().tz(newTimezone.value));
+      // Close the dropdown on a successful change
+      menuRef?.current?.click();
     }
   };
 
   return (
     <Menu isLazy>
       <Tooltip label="Change time zone" hasArrow>
-        <MenuButton as={Button} variant="ghost" mr="4">
+        <MenuButton as={Button} variant="ghost" mr="4" ref={menuRef}>
           <Box
             as="time"
             dateTime={now.toString()}
@@ -70,15 +73,13 @@ const TimezoneDropdown: React.FC = () => {
           </Box>
         </MenuButton>
       </Tooltip>
-      <MenuList placement="top-end" minWidth="350px">
-        <Box px="3" pb="1">
-          <Select
-            autoFocus
-            options={options}
-            value={currentTimezone}
-            onChange={onChangeTimezone}
-          />
-        </Box>
+      <MenuList placement="top-end" minWidth="350px" px="3" pb="1">
+        <Select
+          autoFocus
+          options={options}
+          value={currentTimezone}
+          onChange={onChangeTimezone}
+        />
       </MenuList>
     </Menu>
 
