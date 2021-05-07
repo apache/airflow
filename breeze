@@ -639,7 +639,7 @@ export AIRFLOW_IMAGE="${airflow_image}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
-export EXECUTOR = "${EXECUTOR}"
+export EXECUTOR="${EXECUTOR}"
 docker-compose --log-level INFO ${command}
 EOF
     chmod u+x "${file}"
