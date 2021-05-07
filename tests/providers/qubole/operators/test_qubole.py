@@ -41,7 +41,7 @@ RESULTS_WITH_HEADER = 'header1\theader2\nval1\tval2'
 RESULTS_WITH_NO_HEADER = 'val1\tval2'
 
 
-def get_result_mock(fp, inline=True, delim=None, fetch=True, qlog=None, arguments=[]):
+def get_result_mock(fp, arguments):
     if arguments[0] == 'true':
         fp.write(bytearray(RESULTS_WITH_HEADER, 'utf-8'))
     else:
@@ -203,5 +203,16 @@ class TestQuboleOperator(TestCase):
             with mock.patch('qds_sdk.resource.Resource.find', return_value=PrestoCommand):
                 results = open(task.get_results(ti=task, include_headers=True), 'r').read()
                 assert results == RESULTS_WITH_HEADER
+                results = open(task.get_results(ti=task, include_headers=False), 'r').read()
+                assert results == RESULTS_WITH_NO_HEADER
+
+    @mock.patch('qds_sdk.commands.Command.get_results', new=get_result_mock)
+    def test_get_results_without_headers(self):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+
+        task = QuboleOperator(task_id=TASK_ID, command_type='prestocmd', dag=dag)
+
+        with mock.patch.object(task, 'xcom_pull', return_value='test_command_id'):
+            with mock.patch('qds_sdk.resource.Resource.find', return_value=PrestoCommand):
                 results = open(task.get_results(ti=task, include_headers=False), 'r').read()
                 assert results == RESULTS_WITH_NO_HEADER
