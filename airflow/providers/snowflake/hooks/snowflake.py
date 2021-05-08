@@ -23,8 +23,7 @@ from cryptography.hazmat.primitives import serialization
 
 # pylint: disable=no-name-in-module
 from snowflake import connector
-from snowflake.connector import DictCursor
-from snowflake.connector import SnowflakeConnection
+from snowflake.connector import DictCursor, SnowflakeConnection
 
 from airflow.hooks.dbapi import DbApiHook
 
