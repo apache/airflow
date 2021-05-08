@@ -283,8 +283,8 @@ class SnowflakeHook(DbApiHook):
                         self.log.info("Statement Execution Info - %s", row)
                         info_rows.append(row)
 
-                    self.log.info("Snowflake query id: %s", cur.sfqid)
                     self.log.info("Rows affected: %s", cur.rowcount)
+                    self.log.info("Snowflake query id: %s", cur.sfqid)
 
                     cur.close()
 
