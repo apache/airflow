@@ -280,7 +280,7 @@ class SnowflakeHook(DbApiHook):
 
                     info_rows = []
                     for row in cur:
-                        self.log.info("Statement Execution Info - %s", row)
+                        self.log.info("Statement execution info - %s", row)
                         info_rows.append(row)
 
                     self.log.info("Rows affected: %s", cur.rowcount)
@@ -303,7 +303,7 @@ class SnowflakeHook(DbApiHook):
 
                         info_rows = []
                         for row in cur:
-                            self.log.info("Statement Execution Info - %s", row)
+                            self.log.info("Statement execution info - %s", row)
                             info_rows.append(row)
 
                         self.log.info("Rows affected: %s", cur.rowcount)
