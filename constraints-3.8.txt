@@ -37,7 +37,7 @@ Werkzeug==1.0.1
 adal==1.2.7
 aiohttp==3.7.4.post0
 alabaster==0.7.12
-alembic==1.6.1
+alembic==1.6.2
 amqp==2.6.1
 analytics-python==1.2.9
 ansiwrap==0.8.4
@@ -120,7 +120,7 @@ async-timeout==3.0.1
 atlasclient==1.0.0
 attrs==20.3.0
 avro-python3==1.9.2.1
-aws-xray-sdk==2.7.0
+aws-xray-sdk==2.8.0
 azure-batch==10.0.0
 azure-common==1.1.27
 azure-core==1.13.0
@@ -149,9 +149,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.5b0
 blinker==1.4
-boto3==1.17.68
+boto3==1.17.69
 boto==2.49.0
-botocore==1.20.68
+botocore==1.20.69
 bowler==0.9.0
 cachetools==4.2.2
 cassandra-driver==3.20.2
@@ -259,7 +259,7 @@ hdfs==2.6.0
 hmsclient==0.1.1
 httplib2==0.17.4
 humanize==3.5.0
-hvac==0.10.10
+hvac==0.10.11
 identify==2.2.4
 idna==2.10
 imagesize==1.2.0
@@ -298,11 +298,10 @@ marshmallow-sqlalchemy==0.23.1
 marshmallow==3.11.1
 matplotlib-inline==0.1.2
 mccabe==0.6.1
-mock==2.0.0
 mongomock==3.22.1
 more-itertools==8.7.0
 moreorless==0.4.0
-moto==2.0.5
+moto==2.0.6
 msal-extensions==0.3.0
 msal==1.11.0
 msgpack==1.0.2
@@ -389,7 +388,7 @@ pytest-instafail==0.4.2
 pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==2.2.1
-pytest==6.2.3
+pytest==6.2.4
 python-daemon==2.3.0
 python-dateutil==2.8.1
 python-editor==1.0.4
@@ -409,12 +408,12 @@ qds-sdk==1.16.1
 redis==3.5.3
 regex==2021.4.4
 requests-kerberos==0.12.0
-requests-mock==1.8.0
+requests-mock==1.9.2
 requests-ntlm==1.1.0
 requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
 requests==2.25.1
-responses==0.13.2
+responses==0.13.3
 rich==9.2.0
 rsa==4.7.2
 s3transfer==0.4.2
