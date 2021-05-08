@@ -56,7 +56,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```shell script
     # Set Version
     export VERSION=2.0.2rc3
-
+    export VERSION_SUFFIX=rc3
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
     export AIRFLOW_REPO_ROOT=$(pwd)
@@ -80,42 +80,22 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Clean the checkout: the sdist step below will
 
     ```shell script
+    rm -rf dist/*
     git clean -fxd
     ```
 
 - Tarball the repo
 
     ```shell script
-    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz
+    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o dist/apache-airflow-${VERSION}-source.tar.gz
     ```
 
-
-- Generate sdist
-
-    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
-     in the file produced.
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    ```
-
-- Rename the sdist
-
-    **Airflow 2+**:
-
-    ```shell script
-    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
-    mv dist/apache_airflow-${VERSION%rc?}-py3-none-any.whl apache_airflow-${VERSION}-py3-none-any.whl
-    ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
-    **Airflow 2+**:
-
     ```shell script
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py3-none-any.whl
+    ./breeze prepare-airflow-packages --package-format both --version-suffix-for-svn "${VERSION_SUFFIX}"
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
     ```
 
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
@@ -128,20 +108,20 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Push the artifacts to ASF dev dist repo
 
-```
-# First clone the repo
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+    ```shell script
+    # First clone the repo
+    svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
 
-# Create new folder for the release
-cd airflow-dev
-svn mkdir ${VERSION}
+    # Create new folder for the release
+    cd airflow-dev
+    svn mkdir ${VERSION}
 
-# Move the artifacts to svn folder & commit
-mv ${AIRFLOW_REPO_ROOT}/apache{-,_}airflow-${VERSION}* ${VERSION}/
-cd ${VERSION}
-svn add *
-svn commit -m "Add artifacts for Airflow ${VERSION}"
-```
+    # Move the artifacts to svn folder & commit
+    mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
+    cd ${VERSION}
+    svn add *
+    svn commit -m "Add artifacts for Airflow ${VERSION}"
+    ```
 
 ## Prepare PyPI convenience "snapshot" packages
 
@@ -156,7 +136,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets egg_info --tag-build "$(sed -e "s/^[0-9.]*//" <<<"$VERSION")" sdist bdist_wheel
+    ./breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}"
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -201,23 +181,21 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-### Airflow 2+:
-
 ```shell script
-export VERSION_RC=<VERSION_HERE>
+export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
-  export DOCKER_TAG=${VERSION_RC}-python${python_version}
+  export DOCKER_TAG=${VERSION}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
 ```
 
-Once this succeeds you should push the "${VERSION_RC}" image:
+Once this succeeds you should push the "${VERSION}" image:
 
 ```shell script
-docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
-docker push apache/airflow:${VERSION_RC}
+docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker push apache/airflow:${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
@@ -530,25 +508,42 @@ https://dist.apache.org/repos/dist/release/airflow/
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
-# First clone the repo
+# GO to Airflow Sources first
+cd <YOUR_AIRFLOW_SOURCES>
+export AIRFLOW_SOURCES=$(pwd)
+
+# GO to Checked out DEV repo. Should be checked out before via:
+# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-release
+cd <YOUR_AIFLOW_DEV_SVN>
+svn update
+export AIRFLOW_DEV_SVN=$(pwd)
+
+# GO to Checked out RELEASE repo. Should be checked out before via:
+# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-release
+cd <YOUR_AIFLOW_RELEASE_SVN>
+svn update
+
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
 # Create new folder for the release
 cd airflow-release
-svn mkdir ${VERSION}
-cd ${VERSION}
+svn mkdir "${VERSION}"
+cd "${VERSION}"
 
 # Move the artifacts to svn folder & commit
-for f in ../../airflow-dev/$RC/*; do svn cp $f ${$(basename $f)/rc?/}; done
+for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
+    svn cp "$f" "${$(basename $f)/rc?/}"
+    # Those will be used to upload to PyPI
+    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/rc?/}"
+done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
 # Remove old release
-# http://www.apache.org/legal/release-policy.html#when-to-archive
+# See http://www.apache.org/legal/release-policy.html#when-to-archive
 cd ..
 export PREVIOUS_VERSION=2.0.2
-svn rm ${PREVIOUS_VERSION}
+svn rm "${PREVIOUS_VERSION}"
 svn commit -m "Remove old release: ${PREVIOUS_VERSION}"
 ```
 
@@ -556,17 +551,13 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 
 ## Prepare PyPI "release" packages
 
-At this point we release an official package:
-
-- Build the package:
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    ```
+At this point we release an official package (they should be copied and renamed from the
+previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
+    cd "${AIRFLOW_SOURCES}"
     twine check dist/*
     ```
 

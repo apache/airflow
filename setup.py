@@ -132,7 +132,7 @@ def git_version(version_: str) -> str:
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
     release tag or not : it will indicate the former with a 'release:{version}' prefix
-    and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
+    and the latter with a '.dev0' suffix. Following the prefix will be a sha of the current
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
 

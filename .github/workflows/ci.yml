@@ -502,8 +502,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "dev"
-      VERSION_SUFFIX_FOR_SVN: "dev"
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      VERSION_SUFFIX_FOR_SVN: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -527,7 +527,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PACKAGE_FORMAT: "wheel"
       - name: "Prepare airflow package: wheel"
-        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+        run: ./scripts/ci/build_airflow/ci_build_airflow_packages.sh
         env:
           PACKAGE_FORMAT: "wheel"
       - name: "Install and test provider packages and airflow via wheel files"
@@ -550,8 +550,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "dev"
-      VERSION_SUFFIX_FOR_SVN: "dev"
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      VERSION_SUFFIX_FOR_SVN: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -573,7 +573,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PACKAGE_FORMAT: "sdist"
       - name: "Prepare airflow package: sdist"
-        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+        run: ./scripts/ci/build_airflow/ci_build_airflow_packages.sh
         env:
           PACKAGE_FORMAT: "sdist"
       - name: "Install and test provider packages and airflow via sdist files"

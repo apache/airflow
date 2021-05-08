@@ -21,6 +21,7 @@ import unittest
 from copy import deepcopy
 from unittest import mock
 
+import airflow
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
@@ -103,6 +104,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
             poll_sleep=POLL_SLEEP,
             location=TEST_LOCATION,
         )
+        self.expected_airflow_version = 'v' + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
         """Test DataFlowPythonOperator instance is properly initialized."""
@@ -149,7 +151,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
             "job_name": job_name,
             "region": TEST_LOCATION,
             'output': 'gs://test/output',
-            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+            'labels': {'foo': 'bar', 'airflow-version': self.expected_airflow_version},
         }
         start_python_mock.assert_called_once_with(
             variables=expected_options,
@@ -181,6 +183,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             poll_sleep=POLL_SLEEP,
             location=TEST_LOCATION,
         )
+        self.expected_airflow_version = 'v' + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
         """Test DataflowTemplateOperator instance is properly initialized."""
@@ -219,7 +222,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             'jobName': job_name,
             'region': TEST_LOCATION,
             'output': 'gs://test/output',
-            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+            'labels': {'foo': 'bar', 'airflow-version': self.expected_airflow_version},
         }
 
         start_java_mock.assert_called_once_with(
@@ -260,7 +263,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             'jobName': JOB_NAME,
             'region': TEST_LOCATION,
             'output': 'gs://test/output',
-            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+            'labels': {'foo': 'bar', 'airflow-version': self.expected_airflow_version},
         }
         dataflow_running.assert_called_once_with(name=JOB_NAME, variables=variables)
 
@@ -299,7 +302,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             'jobName': JOB_NAME,
             'region': TEST_LOCATION,
             'output': 'gs://test/output',
-            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+            'labels': {'foo': 'bar', 'airflow-version': self.expected_airflow_version},
         }
         self.assertEqual(expected_variables, is_job_dataflow_running_variables)
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
@@ -353,7 +356,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             'jobName': JOB_NAME,
             'region': TEST_LOCATION,
             'output': 'gs://test/output',
-            'labels': {'foo': 'bar', 'airflow-version': 'v2-1-0-dev0'},
+            'labels': {'foo': 'bar', 'airflow-version': self.expected_airflow_version},
         }
         self.assertEqual(expected_variables, is_job_dataflow_running_variables)
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
