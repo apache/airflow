@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 class BaseSQLToGCSOperator(BaseOperator):
     """
     Copy data from SQL to Google Cloud Storage in JSON or CSV format.
-    
+
     :param sql: The SQL to execute.
     :type sql: str
     :param bucket: The bucket to upload to.
