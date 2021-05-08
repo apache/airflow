@@ -90,7 +90,7 @@ class DatabricksHook(BaseHook):  # noqa
     """
     Interact with Databricks.
 
-    :param databricks_conn_id: The name of the databricks connection to use.
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     :type databricks_conn_id: str
     :param timeout_seconds: The amount of time in seconds the requests library
         will wait before timing-out.

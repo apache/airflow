@@ -21,7 +21,6 @@ from typing import Dict, Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToMySqlOperator(BaseOperator):
@@ -42,7 +41,7 @@ class S3ToMySqlOperator(BaseOperator):
     :type mysql_extra_options: Optional[str]
     :param aws_conn_id: The S3 connection that contains the credentials to the S3 Bucket.
     :type aws_conn_id: str
-    :param mysql_conn_id: The MySQL connection that contains the credentials to the MySQL data base.
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     """
 
@@ -53,7 +52,6 @@ class S3ToMySqlOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,

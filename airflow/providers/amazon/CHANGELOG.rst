@@ -19,6 +19,44 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``S3Hook.load_file should accept Path object in addition to str (#15232)``
+* ``Add Connection Documentation for Providers (#15499)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+* ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
+* ``Update Docstrings of Modules with Missing Params (#15391)``
+* ``Add links to new modules for deprecated modules (#15316)``
+* ``Fixes doc for SQSSensor (#15323)``
+
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``A bunch of template_fields_renderers additions (#15130)``
+* ``Send region_name into parent class of AwsGlueJobHook (#14251)``
+* ``Added retry to ECS Operator (#14263)``
+* ``Make script_args templated in AwsGlueJobOperator (#14925)``
+* ``Add FTPToS3Operator (#13707)``
+* ``Implemented S3 Bucket Tagging (#14402)``
+* ``S3DataSource is not required (#14220)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``AWS: Do not log info when SSM & SecretsManager secret not found (#15120)``
+* ``Cache Hook when initializing 'CloudFormationCreateStackSensor' (#14638)``
+
 1.2.0
 .....
 

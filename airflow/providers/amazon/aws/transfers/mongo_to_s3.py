@@ -24,7 +24,6 @@ from bson import json_util
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mongo.hooks.mongo import MongoHook
-from airflow.utils.decorators import apply_defaults
 
 _DEPRECATION_MSG = (
     "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
@@ -59,9 +58,9 @@ class MongoToS3Operator(BaseOperator):
 
     template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
     ui_color = '#589636'
+    template_fields_renderers = {"mongo_query": "py"}
     # pylint: disable=too-many-instance-attributes
 
-    @apply_defaults
     def __init__(
         self,
         *,

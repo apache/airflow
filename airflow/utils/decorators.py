@@ -17,87 +17,36 @@
 # under the License.
 #
 
-import inspect
-import os
-from copy import copy
+import warnings
 from functools import wraps
-from typing import Any, Callable, Dict, TypeVar, cast
-
-from airflow.exceptions import AirflowException
-
-signature = inspect.signature
+from typing import Callable, TypeVar, cast
 
 T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
 
 
 def apply_defaults(func: T) -> T:
     """
-    Function decorator that Looks for an argument named "default_args", and
-    fills the unspecified arguments from it.
+    This decorator is deprecated.
 
-    Since python2.* isn't clear about which arguments are missing when
-    calling a function, and that this can be quite confusing with multi-level
-    inheritance and argument defaults, this decorator also alerts with
-    specific information about the missing arguments.
+    In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
+    `default_args` feature to work properly.
+
+    In current version, it is optional. The decorator is applied automatically using the metaclass.
     """
-    # Cache inspect.signature for the wrapper closure to avoid calling it
-    # at every decorated invocation. This is separate sig_cache created
-    # per decoration, i.e. each function decorated using apply_defaults will
-    # have a different sig_cache.
-    sig_cache = signature(func)
-    non_optional_args = {
-        name
-        for (name, param) in sig_cache.parameters.items()
-        if param.default == param.empty
-        and param.name != 'self'
-        and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
-    }
+    warnings.warn(
+        "This decorator is deprecated. \n"
+        "\n"
+        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
+        "`default_args` feature to work properly.\n"
+        "\n"
+        "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
+    # Make it still be a wraper to keep the previous behaviour of an extra stack frame
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        from airflow.models.dag import DagContext
-
-        if len(args) > 1:
-            raise AirflowException("Use keyword arguments when initializing operators")
-        dag_args: Dict[str, Any] = {}
-        dag_params: Dict[str, Any] = {}
-
-        dag = kwargs.get('dag') or DagContext.get_current_dag()
-        if dag:
-            dag_args = copy(dag.default_args) or {}
-            dag_params = copy(dag.params) or {}
-
-        params = kwargs.get('params', {}) or {}
-        dag_params.update(params)
-
-        default_args = {}
-        if 'default_args' in kwargs:
-            default_args = kwargs['default_args']
-            if 'params' in default_args:
-                dag_params.update(default_args['params'])
-                del default_args['params']
-
-        dag_args.update(default_args)
-        default_args = dag_args
-
-        for arg in sig_cache.parameters:
-            if arg not in kwargs and arg in default_args:
-                kwargs[arg] = default_args[arg]
-
-        missing_args = list(non_optional_args - set(kwargs))
-        if missing_args:
-            msg = f"Argument {missing_args} is required"
-            raise AirflowException(msg)
-
-        kwargs['params'] = dag_params
-
-        result = func(*args, **kwargs)
-        return result
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
 
     return cast(T, wrapper)
-
-
-if 'BUILDING_AIRFLOW_DOCS' in os.environ:
-    # flake8: noqa: F811
-    # Monkey patch hook to get good function headers while building docs
-    apply_defaults = lambda x: x

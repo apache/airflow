@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.transfers.cassandra_to_gcs`."""
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.google.cloud.transfers.cassandra_to_gcs`.
+"""
 
 import warnings
 
@@ -39,6 +42,6 @@ class CassandraToGoogleCloudStorageOperator(CassandraToGCSOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

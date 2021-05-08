@@ -34,19 +34,14 @@ def kerberos(args):
         pid, stdout, stderr, _ = setup_locations(
             "kerberos", args.pid, args.stdout, args.stderr, args.log_file
         )
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            ctx = daemon.DaemonContext(
+                pidfile=TimeoutPIDLockFile(pid, -1),
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+            )
 
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        with ctx:
-            krb.run(principal=args.principal, keytab=args.keytab)
-
-        stdout.close()
-        stderr.close()
+            with ctx:
+                krb.run(principal=args.principal, keytab=args.keytab)
     else:
         krb.run(principal=args.principal, keytab=args.keytab)

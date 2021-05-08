@@ -35,7 +35,6 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -89,7 +88,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         'email_on_failure',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

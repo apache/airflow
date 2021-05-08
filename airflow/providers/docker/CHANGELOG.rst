@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Entrypoint support in docker operator (#14642)``
+* ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+* ``Support all terminus task states in Docker Swarm Operator (#14960)``
+
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add privileged option in DockerOperator (#14157)``
+
 1.0.2
 .....
 

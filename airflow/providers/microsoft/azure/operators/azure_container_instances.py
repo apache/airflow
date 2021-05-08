@@ -38,7 +38,6 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.azure_container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
-from airflow.utils.decorators import apply_defaults
 
 Volume = namedtuple(
     'Volume',
@@ -62,7 +61,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         to start the container instance
     :type ci_conn_id: str
     :param registry_conn_id: connection id of a user which can login to a
-        private docker registry. If None, we assume a public registry
+        private docker registry. For Azure use :ref:`Azure connection id<howto/connection:azure>`
+    :type azure_conn_id: str If None, we assume a public registry
     :type registry_conn_id: Optional[str]
     :param resource_group: name of the resource group wherein this container
         instance should be started
@@ -133,9 +133,9 @@ class AzureContainerInstancesOperator(BaseOperator):
     """
 
     template_fields = ('name', 'image', 'command', 'environment_variables')
+    template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

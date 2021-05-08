@@ -149,9 +149,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=CREATE_BODY, task_id="id"
         )
-        result = op.execute(
-            context={'task_instance': mock.Mock()}  # pylint: disable=assignment-from-no-return
-        )
+        op.execute(context={'task_instance': mock.Mock()})
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -160,7 +158,6 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.create_instance.assert_called_once_with(
             project_id=PROJECT_ID, body=CREATE_BODY
         )
-        assert result is None
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
@@ -171,16 +168,13 @@ class TestCloudSql(unittest.TestCase):
         _check_if_instance_exists.return_value = False
         mock_hook.return_value.create_instance.return_value = True
         op = CloudSQLCreateInstanceOperator(instance=INSTANCE_NAME, body=CREATE_BODY, task_id="id")
-        result = op.execute(
-            context={'task_instance': mock.Mock()}  # pylint: disable=assignment-from-no-return
-        )
+        op.execute(context={'task_instance': mock.Mock()})
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_called_once_with(project_id=None, body=CREATE_BODY)
-        assert result is None
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
@@ -193,16 +187,13 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=CREATE_BODY, task_id="id"
         )
-        result = op.execute(
-            context={'task_instance': mock.Mock()}  # pylint: disable=assignment-from-no-return
-        )
+        op.execute(context={'task_instance': mock.Mock()})
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
         )
         mock_hook.return_value.create_instance.assert_not_called()
-        assert result is None
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):

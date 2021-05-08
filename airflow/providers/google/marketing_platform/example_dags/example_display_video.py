@@ -41,7 +41,7 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
 from airflow.utils import dates
 
 # [START howto_display_video_env_variables]
-BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
+BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://INVALID BUCKET NAME")
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
 OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")

@@ -22,7 +22,6 @@ from airflow.exceptions import AirflowException
 from airflow.operators.sql import SQLCheckOperator, SQLValueCheckOperator
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
 from airflow.providers.qubole.operators.qubole import QuboleOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class _QuboleCheckOperatorMixin:
@@ -104,7 +103,6 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
-    @apply_defaults
     def __init__(
         self, *, qubole_conn_id: str = "qubole_default", results_parser_callable: Callable = None, **kwargs
     ) -> None:
@@ -161,7 +159,6 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = '#000'
 
-    @apply_defaults
     def __init__(
         self,
         *,

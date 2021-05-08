@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+* ``Display explicit error in case UID has no actual username (#15212)``
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``WinRM Operator: Fix stout decoding issue (#13153)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``WinRM Operator: Fix stout decoding issue (#13153)``
+
+
 1.0.1
 .....
 

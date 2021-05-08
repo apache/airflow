@@ -31,17 +31,7 @@ from tests.test_utils.config import conf_vars
 
 
 class CustomStatsd(statsd.StatsClient):
-    incr_calls = 0
-
-    def __init__(self, host=None, port=None, prefix=None):
-        super().__init__()
-
-    def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
-        CustomStatsd.incr_calls += 1
-
-    @classmethod
-    def _reset(cls):
-        cls.incr_calls = 0
+    pass
 
 
 class InvalidCustomStatsd:
@@ -50,25 +40,14 @@ class InvalidCustomStatsd:
     statsd.StatsClient.
     """
 
-    incr_calls = 0
-
     def __init__(self, host=None, port=None, prefix=None):
         pass
-
-    def incr(self, stat, count=1, rate=1):  # pylint: disable=unused-argument
-        InvalidCustomStatsd.incr_calls += 1
-
-    @classmethod
-    def _reset(cls):
-        cls.incr_calls = 0
 
 
 class TestStats(unittest.TestCase):
     def setUp(self):
-        self.statsd_client = Mock()
+        self.statsd_client = Mock(spec=statsd.StatsClient)
         self.stats = SafeStatsdLogger(self.statsd_client)
-        CustomStatsd._reset()
-        InvalidCustomStatsd._reset()
 
     def test_increment_counter_with_valid_name(self):
         self.stats.incr('test_stats_run')
@@ -86,49 +65,56 @@ class TestStats(unittest.TestCase):
         self.stats.incr('test/$tats')
         self.statsd_client.assert_not_called()
 
-    @conf_vars({('metrics', 'statsd_on'): 'True'})
-    @mock.patch("statsd.StatsClient")
-    def test_does_send_stats_using_statsd(self, mock_statsd):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        mock_statsd.return_value.incr.assert_called_once_with('dummy_key', 1, 1)
+    def test_timer(self):
+        with self.stats.timer("dummy_timer"):
+            pass
+        self.statsd_client.timer.assert_called_once_with('dummy_timer')
 
-    @conf_vars({('metrics', 'statsd_on'): 'True'})
-    @mock.patch("datadog.DogStatsd")
-    def test_does_not_send_stats_using_dogstatsd(self, mock_dogstatsd):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        mock_dogstatsd.return_value.assert_not_called()
+    def test_empty_timer(self):
+        with self.stats.timer():
+            pass
+        self.statsd_client.timer.assert_not_called()
 
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "statsd_custom_client_path"): "tests.core.test_stats.CustomStatsd",
-        }
-    )
+    def test_timing(self):
+        self.stats.timing("dummy_timer", 123)
+        self.statsd_client.timing.assert_called_once_with('dummy_timer', 123)
+
+    def test_gauge(self):
+        self.stats.gauge("dummy", 123)
+        self.statsd_client.gauge.assert_called_once_with('dummy', 123, 1, False)
+
+    def test_decr(self):
+        self.stats.decr("dummy")
+        self.statsd_client.decr.assert_called_once_with('dummy', 1, 1)
+
+    def test_enabled_by_config(self):
+        """Test that enabling this sets the right instance properties"""
+        with conf_vars({('metrics', 'statsd_on'): 'True'}):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
+            assert not hasattr(airflow.stats.Stats, 'dogstatsd')
+        # Avoid side-effects
+        importlib.reload(airflow.stats)
+
     def test_load_custom_statsd_client(self):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_custom_client_path"): f"{__name__}.CustomStatsd",
+            }
+        ):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.statsd, CustomStatsd)
+        # Avoid side-effects
         importlib.reload(airflow.stats)
-        assert 'CustomStatsd' == type(airflow.stats.Stats.statsd).__name__  # noqa: E721
 
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "statsd_custom_client_path"): "tests.core.test_stats.CustomStatsd",
-        }
-    )
-    def test_does_use_custom_statsd_client(self):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        assert airflow.stats.Stats.statsd.incr_calls == 1
-
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "statsd_custom_client_path"): "tests.core.test_stats.InvalidCustomStatsd",
-        }
-    )
     def test_load_invalid_custom_stats_client(self):
-        with pytest.raises(
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
+            }
+        ), pytest.raises(
             AirflowConfigException,
             match=re.escape(
                 'Your custom Statsd client must extend the statsd.'
@@ -137,15 +123,15 @@ class TestStats(unittest.TestCase):
         ):
             importlib.reload(airflow.stats)
             airflow.stats.Stats.incr("dummy_key")
-
-    def tearDown(self) -> None:
-        # To avoid side-effect
         importlib.reload(airflow.stats)
 
 
 class TestDogStats(unittest.TestCase):
     def setUp(self):
-        self.dogstatsd_client = Mock()
+        pytest.importorskip('datadog')
+        from datadog import DogStatsd
+
+        self.dogstatsd_client = Mock(spec=DogStatsd)
         self.dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client)
 
     def test_increment_counter_with_valid_name_with_dogstatsd(self):
@@ -166,48 +152,72 @@ class TestDogStats(unittest.TestCase):
         self.dogstatsd.incr('test/$tats')
         self.dogstatsd_client.assert_not_called()
 
-    @conf_vars({('metrics', 'statsd_datadog_enabled'): 'True'})
-    @mock.patch("datadog.DogStatsd")
-    def test_does_send_stats_using_dogstatsd_when_dogstatsd_on(self, mock_dogstatsd):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        mock_dogstatsd.return_value.increment.assert_called_once_with(
+    def test_does_send_stats_using_dogstatsd_when_dogstatsd_on(self):
+        self.dogstatsd.incr("dummy_key")
+        self.dogstatsd_client.increment.assert_called_once_with(
             metric='dummy_key', sample_rate=1, tags=[], value=1
         )
 
-    @conf_vars({('metrics', 'statsd_datadog_enabled'): 'True'})
-    @mock.patch("datadog.DogStatsd")
-    def test_does_send_stats_using_dogstatsd_with_tags(self, mock_dogstatsd):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key", 1, 1, ['key1:value1', 'key2:value2'])
-        mock_dogstatsd.return_value.increment.assert_called_once_with(
+    def test_does_send_stats_using_dogstatsd_with_tags(self):
+        self.dogstatsd.incr("dummy_key", 1, 1, ['key1:value1', 'key2:value2'])
+        self.dogstatsd_client.increment.assert_called_once_with(
             metric='dummy_key', sample_rate=1, tags=['key1:value1', 'key2:value2'], value=1
         )
 
-    @conf_vars({('metrics', 'statsd_on'): 'True', ('metrics', 'statsd_datadog_enabled'): 'True'})
-    @mock.patch("datadog.DogStatsd")
-    def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self, mock_dogstatsd):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        mock_dogstatsd.return_value.increment.assert_called_once_with(
+    def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self):
+        self.dogstatsd.incr("dummy_key")
+        self.dogstatsd_client.increment.assert_called_once_with(
             metric='dummy_key', sample_rate=1, tags=[], value=1
         )
 
-    @conf_vars({('metrics', 'statsd_on'): 'True', ('metrics', 'statsd_datadog_enabled'): 'True'})
-    @mock.patch("statsd.StatsClient")
-    def test_does_not_send_stats_using_statsd_when_statsd_and_dogstatsd_both_on(self, mock_statsd):
-        importlib.reload(airflow.stats)
-        airflow.stats.Stats.incr("dummy_key")
-        mock_statsd.return_value.assert_not_called()
+    def test_timer(self):
+        with self.dogstatsd.timer("dummy_timer"):
+            pass
+        self.dogstatsd_client.timed.assert_called_once_with('dummy_timer', tags=[])
 
-    def tearDown(self) -> None:
-        # To avoid side-effect
+    def test_empty_timer(self):
+        with self.dogstatsd.timer():
+            pass
+        self.dogstatsd_client.timed.assert_not_called()
+
+    def test_timing(self):
+        self.dogstatsd.timing("dummy_timer", 123)
+        self.dogstatsd_client.timing.assert_called_once_with(metric='dummy_timer', value=123, tags=[])
+
+    def test_gauge(self):
+        self.dogstatsd.gauge("dummy", 123)
+        self.dogstatsd_client.gauge.assert_called_once_with(metric='dummy', sample_rate=1, value=123, tags=[])
+
+    def test_decr(self):
+        self.dogstatsd.decr("dummy")
+        self.dogstatsd_client.decrement.assert_called_once_with(
+            metric='dummy', sample_rate=1, value=1, tags=[]
+        )
+
+    def test_enabled_by_config(self):
+        """Test that enabling this sets the right instance properties"""
+        from datadog import DogStatsd
+
+        with conf_vars({('metrics', 'statsd_datadog_enabled'): 'True'}):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.dogstatsd, DogStatsd)
+            assert not hasattr(airflow.stats.Stats, 'statsd')
+        # Avoid side-effects
+        importlib.reload(airflow.stats)
+
+    def test_does_not_send_stats_using_statsd_when_statsd_and_dogstatsd_both_on(self):
+        from datadog import DogStatsd
+
+        with conf_vars({('metrics', 'statsd_on'): 'True', ('metrics', 'statsd_datadog_enabled'): 'True'}):
+            importlib.reload(airflow.stats)
+            assert isinstance(airflow.stats.Stats.dogstatsd, DogStatsd)
+            assert not hasattr(airflow.stats.Stats, 'statsd')
         importlib.reload(airflow.stats)
 
 
 class TestStatsWithAllowList(unittest.TestCase):
     def setUp(self):
-        self.statsd_client = Mock()
+        self.statsd_client = Mock(spec=statsd.StatsClient)
         self.stats = SafeStatsdLogger(self.statsd_client, AllowListValidator("stats_one, stats_two"))
 
     def test_increment_counter_with_allowed_key(self):
@@ -225,7 +235,10 @@ class TestStatsWithAllowList(unittest.TestCase):
 
 class TestDogStatsWithAllowList(unittest.TestCase):
     def setUp(self):
-        self.dogstatsd_client = Mock()
+        pytest.importorskip('datadog')
+        from datadog import DogStatsd
+
+        self.dogstatsd_client = Mock(speck=DogStatsd)
         self.dogstats = SafeDogStatsdLogger(self.dogstatsd_client, AllowListValidator("stats_one, stats_two"))
 
     def test_increment_counter_with_allowed_key(self):

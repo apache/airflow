@@ -83,8 +83,12 @@ GCP_VISION_LOCATION = os.environ.get('GCP_VISION_LOCATION', 'europe-west1')
 GCP_VISION_PRODUCT_SET_ID = os.environ.get('GCP_VISION_PRODUCT_SET_ID', 'product_set_explicit_id')
 GCP_VISION_PRODUCT_ID = os.environ.get('GCP_VISION_PRODUCT_ID', 'product_explicit_id')
 GCP_VISION_REFERENCE_IMAGE_ID = os.environ.get('GCP_VISION_REFERENCE_IMAGE_ID', 'reference_image_explicit_id')
-GCP_VISION_REFERENCE_IMAGE_URL = os.environ.get('GCP_VISION_REFERENCE_IMAGE_URL', 'gs://bucket/image1.jpg')
-GCP_VISION_ANNOTATE_IMAGE_URL = os.environ.get('GCP_VISION_ANNOTATE_IMAGE_URL', 'gs://bucket/image2.jpg')
+GCP_VISION_REFERENCE_IMAGE_URL = os.environ.get(
+    'GCP_VISION_REFERENCE_IMAGE_URL', 'gs://INVALID BUCKET NAME/image1.jpg'
+)
+GCP_VISION_ANNOTATE_IMAGE_URL = os.environ.get(
+    'GCP_VISION_ANNOTATE_IMAGE_URL', 'gs://INVALID BUCKET NAME/image2.jpg'
+)
 
 # [START howto_operator_vision_product_set]
 product_set = ProductSet(display_name='My Product Set')

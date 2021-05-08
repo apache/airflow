@@ -31,6 +31,6 @@ class DruidCheckOperator(SQLCheckOperator):
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLCheckOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(conn_id=druid_broker_conn_id, **kwargs)

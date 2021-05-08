@@ -28,7 +28,6 @@ from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
     CloudMemorystoreMemcachedHook,
 )
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudMemorystoreCreateInstanceOperator(BaseOperator):
@@ -94,7 +93,6 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -183,7 +181,6 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -275,7 +272,6 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -368,7 +364,6 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -455,7 +450,6 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -549,7 +543,6 @@ class CloudMemorystoreImportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -640,7 +633,6 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -746,7 +738,6 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -840,7 +831,6 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -953,7 +943,6 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1062,7 +1051,6 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1157,7 +1145,6 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1254,7 +1241,6 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         "gcp_conn_id",
     )
 
-    @apply_defaults
     def __init__(
         self,
         location: str,
@@ -1321,7 +1307,6 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
 
     template_fields = ("location", "instance", "project_id", "retry", "timeout", "metadata", "gcp_conn_id")
 
-    @apply_defaults
     def __init__(
         self,
         location: str,
@@ -1401,7 +1386,6 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1486,7 +1470,6 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1586,7 +1569,6 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1679,7 +1661,6 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

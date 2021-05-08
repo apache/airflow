@@ -28,6 +28,7 @@ Helm Chart for Apache Airflow
     quick-start
     airflow-configuration
     manage-dags-files
+    manage-logs
     keda
     external-redis
     using-additional-containers
@@ -59,6 +60,7 @@ Features
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
 * PostgresSQL and PgBouncer with a battle-tested configuration
 * Monitoring:
+
    * StatsD/Prometheus metrics for Airflow
    * Prometheus metrics for PgBouncer
    * Flower
@@ -81,7 +83,8 @@ To install this repository from source (using helm 3)
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.
 
-> **Tip**: List all releases using ``helm list``.
+
+.. tip:: List all releases using ``helm list``.
 
 Upgrading the Chart
 -------------------

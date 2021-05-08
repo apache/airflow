@@ -95,7 +95,8 @@ with DAG(
     You can document your task using the attributes `doc_md` (markdown),
     `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
     rendered in the UI's Task Instance Details page.
-    ![img](https://user-images.githubusercontent.com/8811558/113521151-7d4d1e00-958f-11eb-9571-10cbc9223193.png)
+    ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
+
     """
     )
 

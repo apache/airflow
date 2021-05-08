@@ -151,9 +151,8 @@ class TestCloudTasksQueueDelete(unittest.TestCase):
         mock_hook.return_value.delete_queue.return_value = None
         operator = CloudTasksQueueDeleteOperator(location=LOCATION, queue_name=QUEUE_ID, task_id="id")
 
-        result = operator.execute(context=None)
+        operator.execute(context=None)
 
-        assert result is None
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,
@@ -350,9 +349,8 @@ class TestCloudTasksTaskDelete(unittest.TestCase):
             location=LOCATION, queue_name=QUEUE_ID, task_name=TASK_NAME, task_id="id"
         )
 
-        result = operator.execute(context=None)
+        operator.execute(context=None)
 
-        assert result is None
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=None,

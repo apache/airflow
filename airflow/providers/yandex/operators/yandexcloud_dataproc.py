@@ -19,7 +19,6 @@ from typing import Dict, Iterable, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DataprocCreateClusterOperator(BaseOperator):
@@ -77,7 +76,6 @@ class DataprocCreateClusterOperator(BaseOperator):
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -165,14 +163,13 @@ class DataprocDeleteClusterOperator(BaseOperator):
     """Deletes Yandex.Cloud Data Proc cluster.
 
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
-    :type cluster_id: Optional[str]
+    :type connection_id: Optional[str]
     :param cluster_id: ID of the cluster to remove. (templated)
     :type cluster_id: Optional[str]
     """
 
     template_fields = ['cluster_id']
 
-    @apply_defaults
     def __init__(
         self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
     ) -> None:
@@ -217,7 +214,6 @@ class DataprocCreateHiveJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -266,7 +262,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
 
     :param main_jar_file_uri: URI of jar file with job.
                               Can be placed in HDFS or S3. Can be specified instead of main_class.
-    :type main_class: Optional[str]
+    :type main_jar_file_uri: Optional[str]
     :param main_class: Name of the main class of the job. Can be specified instead of main_jar_file_uri.
     :type main_class: Optional[str]
     :param file_uris: URIs of files used in the job. Can be placed in HDFS or S3.
@@ -274,7 +270,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     :param archive_uris: URIs of archive files used in the job. Can be placed in HDFS or S3.
     :type archive_uris: Optional[Iterable[str]]
     :param jar_file_uris: URIs of JAR files used in the job. Can be placed in HDFS or S3.
-    :type archive_uris: Optional[Iterable[str]]
+    :type jar_file_uris: Optional[Iterable[str]]
     :param properties: Properties for the job.
     :type properties: Optional[Dist[str, str]]
     :param args: Arguments to be passed to the job.
@@ -291,7 +287,6 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -345,7 +340,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     """Runs Spark job in Data Proc cluster.
 
     :param main_jar_file_uri: URI of jar file with job. Can be placed in HDFS or S3.
-    :type main_class: Optional[str]
+    :type main_jar_file_uri: Optional[str]
     :param main_class: Name of the main class of the job.
     :type main_class: Optional[str]
     :param file_uris: URIs of files used in the job. Can be placed in HDFS or S3.
@@ -353,7 +348,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     :param archive_uris: URIs of archive files used in the job. Can be placed in HDFS or S3.
     :type archive_uris: Optional[Iterable[str]]
     :param jar_file_uris: URIs of JAR files used in the job. Can be placed in HDFS or S3.
-    :type archive_uris: Optional[Iterable[str]]
+    :type jar_file_uris: Optional[Iterable[str]]
     :param properties: Properties for the job.
     :type properties: Optional[Dist[str, str]]
     :param args: Arguments to be passed to the job.
@@ -370,7 +365,6 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -432,7 +426,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     :param archive_uris: URIs of archive files used in the job. Can be placed in HDFS or S3.
     :type archive_uris: Optional[Iterable[str]]
     :param jar_file_uris: URIs of JAR files used in the job. Can be placed in HDFS or S3.
-    :type archive_uris: Optional[Iterable[str]]
+    :type jar_file_uris: Optional[Iterable[str]]
     :param properties: Properties for the job.
     :type properties: Optional[Dist[str, str]]
     :param args: Arguments to be passed to the job.
@@ -449,7 +443,6 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

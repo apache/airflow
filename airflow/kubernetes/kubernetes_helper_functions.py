@@ -15,6 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
+from typing import Dict, Optional
+
+from dateutil import parser
+
+from airflow.models.taskinstance import TaskInstanceKey
+
+log = logging.getLogger(__name__)
+
 
 def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
     """
@@ -44,3 +53,14 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
     safe_dag_id = _strip_unsafe_kubernetes_special_chars(dag_id)
     safe_task_id = _strip_unsafe_kubernetes_special_chars(task_id)
     return safe_dag_id + safe_task_id
+
+
+def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]:
+    """Build a TaskInstanceKey based on pod annotations"""
+    log.debug("Creating task key for annotations %s", annotations)
+    dag_id = annotations['dag_id']
+    task_id = annotations['task_id']
+    try_number = int(annotations['try_number'])
+    execution_date = parser.parse(annotations['execution_date'])
+
+    return TaskInstanceKey(dag_id, task_id, execution_date, try_number)

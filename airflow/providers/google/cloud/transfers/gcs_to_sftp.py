@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 
@@ -111,7 +110,6 @@ class GCSToSFTPOperator(BaseOperator):
     ui_color = "#f0eee4"
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

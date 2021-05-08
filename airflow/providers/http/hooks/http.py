@@ -31,9 +31,9 @@ class HttpHook(BaseHook):
 
     :param method: the API method to be called
     :type method: str
-    :param http_conn_id: connection that has the base API url i.e https://www.google.com/
-        and optional authentication credentials. Default headers can also be specified in
-        the Extra field in json format.
+    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
     :type http_conn_id: str
     :param auth_type: The auth type for the service
     :type auth_type: AuthBase of python requests lib
@@ -176,16 +176,23 @@ class HttpHook(BaseHook):
         """
         extra_options = extra_options or {}
 
+        settings = session.merge_environment_settings(
+            prepped_request.url,
+            proxies=extra_options.get("proxies", {}),
+            stream=extra_options.get("stream", False),
+            verify=extra_options.get("verify"),
+            cert=extra_options.get("cert"),
+        )
+
+        # Send the request.
+        send_kwargs = {
+            "timeout": extra_options.get("timeout"),
+            "allow_redirects": extra_options.get("allow_redirects", True),
+        }
+        send_kwargs.update(settings)
+
         try:
-            response = session.send(
-                prepped_request,
-                stream=extra_options.get("stream", False),
-                verify=extra_options.get("verify", True),
-                proxies=extra_options.get("proxies", {}),
-                cert=extra_options.get("cert"),
-                timeout=extra_options.get("timeout"),
-                allow_redirects=extra_options.get("allow_redirects", True),
-            )
+            response = session.send(prepped_request, **send_kwargs)
 
             if extra_options.get('check_response', True):
                 self.check_response(response)

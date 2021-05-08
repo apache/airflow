@@ -35,7 +35,6 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from os import listdir
 from os.path import dirname
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
@@ -52,7 +51,7 @@ from rich.syntax import Syntax
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
-    from yaml import SafeLoader  # type: ignore[no-redef]
+    from yaml import SafeLoader  # noqa
 
 INITIAL_CHANGELOG_CONTENT = """
 
@@ -88,9 +87,6 @@ HTTPS_REMOTE = "apache-https-for-providers"
 HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/master"
 
 PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
-BACKPORT_PROVIDER_TEMPLATE_PREFIX = "BACKPORT_PROVIDER_"
-
-BACKPORT_PROVIDER_PREFIX = "backport_provider_"
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir))
@@ -129,26 +125,20 @@ def cli():
     ...
 
 
-@cli.resultcallback()
-def process_result(result):
-    # This is special case - when the command executed returns false, it means that we are skipping
-    # the package
-    if result is False:
-        raise click.exceptions.Exit(64)
-    return result
-
-
 option_git_update = click.option(
     '--git-update/--no-git-update',
     default=True,
     is_flag=True,
     help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
 )
-option_backports = click.option(
-    "--backports",
+
+option_interactive = click.option(
+    '--interactive/--non-interactive',
+    default=True,
     is_flag=True,
-    help="Prepares backport packages rather than regular ones",
+    help="If the script should interactively ask the user what to do in case of doubt",
 )
+
 option_version_suffix = click.option(
     "--version-suffix",
     metavar="suffix",
@@ -312,34 +302,28 @@ MOVED_ENTITIES: Dict[EntityType, Dict[str, str]] = {
 }
 
 
-def get_pip_package_name(provider_package_id: str, backport_packages: bool) -> str:
+def get_pip_package_name(provider_package_id: str) -> str:
     """
     Returns PIP package name for the package id.
 
     :param provider_package_id: id of the package
-    :param backport_packages: whether to prepare regular (False) or backport (True) packages
     :return: the name of pip package
     """
-    return (
-        "apache-airflow-backport-providers-" if backport_packages else "apache-airflow-providers-"
-    ) + provider_package_id.replace(".", "-")
+    return "apache-airflow-providers-" + provider_package_id.replace(".", "-")
 
 
-def get_long_description(provider_package_id: str, backport_packages: bool) -> str:
+def get_long_description(provider_package_id: str) -> str:
     """
     Gets long description of the package.
 
     :param provider_package_id: package id
-    :param backport_packages: whether to prepare regular (False) or backport (True) packages
-    :return: content of the description (BACKPORT_PROVIDER_README/README file)
+    :return: content of the description: README file
     """
     package_folder = get_target_providers_package_folder(provider_package_id)
-    readme_file = os.path.join(
-        package_folder, "BACKPORT_PROVIDER_README.md" if backport_packages else "README.md"
-    )
+    readme_file = os.path.join(package_folder, "README.md")
     if not os.path.exists(readme_file):
         return ""
-    with open(readme_file, encoding='utf-8', mode="r") as file:
+    with open(readme_file, encoding='utf-8') as file:
         readme_contents = file.read()
     copying = True
     long_description = ""
@@ -347,7 +331,7 @@ def get_long_description(provider_package_id: str, backport_packages: bool) -> s
         if line.startswith("**Table of contents**"):
             copying = False
             continue
-        header_line = "## Backport package" if backport_packages else "## Provider package"
+        header_line = "## Provider package"
         if line.startswith(header_line):
             copying = True
         if copying:
@@ -355,25 +339,16 @@ def get_long_description(provider_package_id: str, backport_packages: bool) -> s
     return long_description
 
 
-def get_install_requirements(provider_package_id: str, backport_packages: bool) -> List[str]:
+def get_install_requirements(provider_package_id: str) -> List[str]:
     """
     Returns install requirements for the package.
 
     :param provider_package_id: id of the provider package
-    :param backport_packages: whether we are preparing backport packages
 
     :return: install requirements of the package
     """
     dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-
-    if backport_packages:
-        airflow_dependency = (
-            'apache-airflow~=1.10'
-            if provider_package_id != 'cncf.kubernetes'
-            else 'apache-airflow>=1.10.12, <2.0.0'
-        )
-    else:
-        airflow_dependency = 'apache-airflow>=2.0.0'
+    airflow_dependency = 'apache-airflow>=2.1.0.dev0'
     # Avoid circular dependency for the preinstalled packages
     install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
     install_requires.extend(dependencies)
@@ -388,13 +363,11 @@ def get_setup_requirements() -> List[str]:
     return ['setuptools', 'wheel']
 
 
-def get_package_extras(provider_package_id: str, backport_packages: bool) -> Dict[str, List[str]]:
+def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
     """
     Finds extras for the package specified.
 
     :param provider_package_id: id of the package
-    :param backport_packages: whether to prepare regular (False) or backport (True) packages
-
     """
     if provider_package_id == 'providers':
         return {}
@@ -402,12 +375,20 @@ def get_package_extras(provider_package_id: str, backport_packages: bool) -> Dic
         cross_provider_dependencies: Dict[str, List[str]] = json.load(dependencies_file)
     extras_dict = (
         {
-            module: [get_pip_package_name(module, backport_packages=backport_packages)]
+            module: [get_pip_package_name(module)]
             for module in cross_provider_dependencies[provider_package_id]
         }
         if cross_provider_dependencies.get(provider_package_id)
         else {}
     )
+    provider_yaml_dict = get_provider_yaml(provider_package_id)
+    additional_extras = provider_yaml_dict.get('additional-extras')
+    if additional_extras:
+        for key in additional_extras:
+            if key in extras_dict:
+                extras_dict[key].append(additional_extras[key])
+            else:
+                extras_dict[key] = additional_extras[key]
     return extras_dict
 
 
@@ -802,11 +783,25 @@ def render_template(
     return content
 
 
+class Change(NamedTuple):
+    full_hash: str
+    short_hash: str
+    date: str
+    message: str
+
+
+def get_change_from_line(line: str):
+    split_line = line.split(" ", maxsplit=3)
+    return Change(
+        full_hash=split_line[0], short_hash=split_line[1], date=split_line[2], message=split_line[3]
+    )
+
+
 def convert_git_changes_to_table(
     print_version: Optional[str], changes: str, base_url: str, markdown: bool = True
-) -> str:
+) -> Tuple[str, List[Change]]:
     """
-    Converts list of changes from it's string form to markdown table.
+    Converts list of changes from it's string form to markdown/RST table and array of change information
 
     The changes are in the form of multiple lines where each line consists of:
     FULL_COMMIT_HASH SHORT_COMMIT_HASH COMMIT_DATE COMMIT_SUBJECT
@@ -817,36 +812,38 @@ def convert_git_changes_to_table(
     :param changes: list of changes in a form of multiple-line string
     :param base_url: base url for the commit URL
     :param markdown: if True, markdown format is used else rst
-    :return: formatted table
+    :return: formatted table + list of changes (starting from the latest)
     """
     from tabulate import tabulate
 
     lines = changes.split("\n")
     headers = ["Commit", "Committed", "Subject"]
     table_data = []
+    changes_list: List[Change] = []
     for line in lines:
         if line == "":
             continue
-        full_hash, short_hash, date, message = line.split(" ", maxsplit=3)
-        message_without_backticks = message.replace("`", "'")
+        change = get_change_from_line(line)
+        message_without_backticks = change.message.replace("`", "'")
         table_data.append(
             (
-                f"[{short_hash}]({base_url}{full_hash})"
+                f"[{change.short_hash}]({base_url}{change.full_hash})"
                 if markdown
-                else f"`{short_hash} <{base_url}{full_hash}>`_",
-                date,
+                else f"`{change.short_hash} <{base_url}{change.full_hash}>`_",
+                change.date,
                 f"`{message_without_backticks}`" if markdown else f"``{message_without_backticks}``",
             )
         )
+        changes_list.append(change)
     header = ""
     if not table_data:
-        return header
+        return header, []
     table = tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
     if not markdown:
         header += f"\n\n{print_version}\n" + "." * (len(print_version) if print_version else 0) + "\n\n"
         release_date = table_data[0][1]
         header += f"Latest change: {release_date}\n\n"
-    return header + table
+    return header + table, changes_list
 
 
 def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool = True) -> str:
@@ -875,13 +872,11 @@ def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: boo
 
 def convert_cross_package_dependencies_to_table(
     cross_package_dependencies: List[str],
-    backport_packages: bool,
     markdown: bool = True,
 ) -> str:
     """
     Converts cross-package dependencies to a markdown table
     :param cross_package_dependencies: list of cross-package dependencies
-    :param backport_packages: whether we are preparing backport packages
     :param markdown: if True, markdown format is used else rst
     :return: formatted table
     """
@@ -889,18 +884,11 @@ def convert_cross_package_dependencies_to_table(
 
     headers = ["Dependent package", "Extra"]
     table_data = []
-    if backport_packages:
-        prefix = "apache-airflow-backport-providers-"
-        base_url = "https://github.com/apache/airflow/tree/master/airflow/providers/"
-    else:
-        prefix = "apache-airflow-providers-"
-        base_url = "https://airflow.apache.org/docs/"
+    prefix = "apache-airflow-providers-"
+    base_url = "https://airflow.apache.org/docs/"
     for dependency in cross_package_dependencies:
         pip_package_name = f"{prefix}{dependency.replace('.','-')}"
-        if backport_packages:
-            url_suffix = f"{dependency.replace('.','/')}"
-        else:
-            url_suffix = f"{dependency.replace('.','-')}"
+        url_suffix = f"{dependency.replace('.','-')}"
         if markdown:
             url = f"[{pip_package_name}]({base_url}{url_suffix})"
         else:
@@ -1262,11 +1250,8 @@ def check_if_classes_are_properly_named(
     return total_class_number, badly_named_class_number
 
 
-def get_package_pip_name(provider_package_id: str, backport_packages: bool):
-    if backport_packages:
-        return f"apache-airflow-backport-providers-{provider_package_id.replace('.', '-')}"
-    else:
-        return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
+def get_package_pip_name(provider_package_id: str):
+    return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
 def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
@@ -1333,11 +1318,11 @@ def convert_to_provider_info(provider_info: Dict[str, Any]) -> Dict[str, Any]:
       This method converts the full provider.yaml schema into the limited version needed at runtime.
     """
     updated_provider_info = deepcopy(provider_info)
-    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers]")
+    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers,additional-extras]")
     return expression.filter(lambda x: True, updated_provider_info)
 
 
-def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
+def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     """
     Retrieves provider info from the provider yaml file. The provider yaml file contains more information
     than provider_info that is used at runtime. This method converts the full provider yaml file into
@@ -1349,25 +1334,23 @@ def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, 
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        provider_yaml_dict = yaml.load(provider_file, SafeLoader)
+        provider_yaml_dict = yaml.load(provider_file, SafeLoader)  # noqa
+    return provider_yaml_dict
+
+
+def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
+    """
+    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
+    than provider_info that is used at runtime. This method converts the full provider yaml file into
+    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    :param provider_package_id: package id to retrieve provider.yaml from
+    :return: provider_info dictionary
+    """
+    provider_yaml_dict = get_provider_yaml(provider_package_id=provider_package_id)
     provider_info = convert_to_provider_info(provider_yaml_dict)
     validate_provider_info_with_2_0_0_schema(provider_info)
     validate_provider_info_with_runtime_schema(provider_info)
     return provider_info
-
-
-def get_backport_current_changes_table(
-    previous_release_commit_ref: Optional[str], source_provider_package_path: str, verbose: bool
-):
-    git_cmd = get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, previous_release_commit_ref)
-    try:
-        changes = subprocess.check_output(git_cmd, cwd=source_provider_package_path, universal_newlines=True)
-        changes_table = convert_git_changes_to_table(
-            previous_release_commit_ref, changes, base_url="https://github.com/apache/airflow/commit/"
-        )
-    except subprocess.CalledProcessError:
-        changes_table = ''
-    return changes_table
 
 
 def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ''):
@@ -1382,12 +1365,12 @@ def print_changes_table(changes_table):
     console.print(syntax)
 
 
-def get_all_changes_for_regular_packages(
+def get_all_changes_for_package(
     versions: List[str],
     provider_package_id: str,
     source_provider_package_path: str,
     verbose: bool,
-) -> Tuple[bool, str]:
+) -> Tuple[bool, Optional[Change], str]:
     current_version = versions[0]
     current_tag_no_suffix = get_version_tag(current_version, provider_package_id)
     if verbose:
@@ -1406,24 +1389,43 @@ def get_all_changes_for_regular_packages(
             universal_newlines=True,
         )
         if changes:
-            print(
-                f"[yellow]The provider {provider_package_id} has changes"
-                f" since last release but version is not updated[/]"
+            provider_details = get_provider_details(provider_package_id)
+            doc_only_change_file = os.path.join(
+                provider_details.source_provider_package_path, ".latest-doc-only-change.txt"
             )
+            if os.path.exists(doc_only_change_file):
+                with open(doc_only_change_file) as f:
+                    last_doc_only_hash = f.read().strip()
+                try:
+                    changes_since_last_doc_only_check = subprocess.check_output(
+                        get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
+                        cwd=source_provider_package_path,
+                        universal_newlines=True,
+                    )
+                    if not changes_since_last_doc_only_check:
+                        print()
+                        print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
+                        # Returns 66 in case of doc-only changes
+                        sys.exit(66)
+                except subprocess.CalledProcessError:
+                    # ignore when the commit mentioned as last doc-only change is obsolete
+                    pass
+            print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             print()
             print(
                 "[yellow]Please update version in "
                 f"'airflow/providers/{provider_package_id.replace('-','/')}/'"
-                "provider.yaml' to prepare release.[/]\n"
+                "provider.yaml'[/]\n"
             )
-            changes_table = convert_git_changes_to_table(
+            print("[yellow]Or mark the changes as doc-only[/]")
+            changes_table, array_of_changes = convert_git_changes_to_table(
                 "UNKNOWN", changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
             )
             print_changes_table(changes_table)
-            return False, changes_table
+            return False, array_of_changes[0], changes_table
         else:
             print(f"No changes for {provider_package_id}")
-            return False, ""
+            return False, None, ""
     if verbose:
         print("The tag does not exist. ")
     if len(versions) == 1:
@@ -1433,6 +1435,7 @@ def get_all_changes_for_regular_packages(
     next_version_tag = HEAD_OF_HTTPS_REMOTE
     changes_table = ''
     print_version = versions[0]
+    array_of_changes: List[Change] = []
     for version in versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         changes = subprocess.check_output(
@@ -1440,9 +1443,11 @@ def get_all_changes_for_regular_packages(
             cwd=source_provider_package_path,
             universal_newlines=True,
         )
-        changes_table += convert_git_changes_to_table(
+        changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
             print_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
         )
+        changes_table += changes_table_for_version
+        array_of_changes.extend(array_of_changes_for_version)
         next_version_tag = version_tag
         print_version = version
     changes = subprocess.check_output(
@@ -1450,12 +1455,13 @@ def get_all_changes_for_regular_packages(
         cwd=source_provider_package_path,
         universal_newlines=True,
     )
-    changes_table += convert_git_changes_to_table(
+    changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
         print_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
     )
+    changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, changes_table
+    return True, array_of_changes[0], changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
@@ -1474,7 +1480,6 @@ def get_provider_jinja_context(
     provider_details: ProviderPackageDetails,
     current_release_version: str,
     version_suffix: str,
-    backport_packages: bool,
 ):
     verify_provider_package(provider_details.provider_package_id)
     cross_providers_dependencies = get_cross_provider_dependent_packages(
@@ -1488,19 +1493,16 @@ def get_provider_jinja_context(
         PROVIDERS_REQUIREMENTS[provider_details.provider_package_id], markdown=False
     )
     cross_providers_dependencies_table = convert_cross_package_dependencies_to_table(
-        cross_providers_dependencies,
-        backport_packages=backport_packages,
+        cross_providers_dependencies
     )
     cross_providers_dependencies_table_rst = convert_cross_package_dependencies_to_table(
-        cross_providers_dependencies, backport_packages=backport_packages, markdown=False
+        cross_providers_dependencies, markdown=False
     )
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
-        "README_FILE": "README.md" if backport_packages else "README.rst",
+        "README_FILE": "README.rst",
         "PROVIDER_PACKAGE_ID": provider_details.provider_package_id,
-        "PACKAGE_PIP_NAME": get_pip_package_name(
-            provider_details.provider_package_id, backport_packages=backport_packages
-        ),
+        "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_package_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
         "PROVIDER_PATH": provider_details.full_package_name.replace(".", "/"),
         "RELEASE": current_release_version,
@@ -1514,16 +1516,14 @@ def get_provider_jinja_context(
         ),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "PIP_REQUIREMENTS": PROVIDERS_REQUIREMENTS[provider_details.provider_package_id],
-        "PROVIDER_TYPE": "Backport provider" if backport_packages else "Provider",
-        "PROVIDERS_FOLDER": "backport-providers" if backport_packages else "providers",
+        "PROVIDER_TYPE": "Provider",
+        "PROVIDERS_FOLDER": "providers",
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
-            provider_package_id=provider_details.provider_package_id, backport_packages=backport_packages
+            provider_package_id=provider_details.provider_package_id
         ),
         "SETUP_REQUIREMENTS": get_setup_requirements(),
-        "EXTRAS_REQUIREMENTS": get_package_extras(
-            provider_package_id=provider_details.provider_package_id, backport_packages=backport_packages
-        ),
+        "EXTRAS_REQUIREMENTS": get_package_extras(provider_package_id=provider_details.provider_package_id),
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE": cross_providers_dependencies_table,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": cross_providers_dependencies_table_rst,
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
@@ -1541,21 +1541,104 @@ def prepare_readme_file(context):
         readme_file.write(readme_content)
 
 
-def update_generated_files_for_regular_package(
+def confirm(message: str):
+    """
+    Ask user to confirm (case-insensitive).
+    :return: True if the answer is Y. Exits with 65 exit code if Q is chosen.
+    :rtype: bool
+    """
+    answer = ""
+    while answer not in ["y", "n", "q"]:
+        print(f"[yellow]{message}[Y/N/Q]?[/] ", end='')
+        answer = input("").lower()
+    if answer == "q":
+        # Returns 65 in case user decided to quit
+        sys.exit(65)
+    return answer == "y"
+
+
+def mark_latest_changes_as_documentation_only(
+    provider_details: ProviderPackageDetails, latest_change: Change
+):
+    print(
+        f"Marking last change: {latest_change.short_hash} and all above changes since the last release "
+        "as doc-only changes!"
+    )
+    with open(
+        os.path.join(provider_details.source_provider_package_path, ".latest-doc-only-change.txt"), "tw"
+    ) as f:
+        f.write(latest_change.full_hash + "\n")
+        # exit code 66 marks doc-only change marked
+        sys.exit(66)
+
+
+def update_release_notes(
     provider_package_id: str,
     version_suffix: str,
-    update_release_notes: bool,
-    update_setup: bool,
     verbose: bool,
+    interactive: bool,
 ) -> bool:
     """
     Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
-    :param update_release_notes: whether to update release notes
-    :param update_setup: whether to update setup files
     :param verbose: whether to print verbose messages
+    :param interactive: whether the script should ask the user in case of doubt
+    :returns False if the package should be skipped, True if everything generated properly
+    """
+    verify_provider_package(provider_package_id)
+    provider_details = get_provider_details(provider_package_id)
+    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    current_release_version = provider_details.versions[0]
+    jinja_context = get_provider_jinja_context(
+        provider_details=provider_details,
+        current_release_version=current_release_version,
+        version_suffix=version_suffix,
+    )
+    jinja_context["PROVIDER_INFO"] = provider_info
+    proceed, latest_change, changes = get_all_changes_for_package(
+        provider_details.versions,
+        provider_package_id,
+        provider_details.source_provider_package_path,
+        verbose,
+    )
+    if proceed:
+        if interactive and not confirm("Provider marked for release. Proceed?"):
+            return False
+    elif not latest_change:
+        print()
+        print(f"[yellow]Provider: {provider_package_id} - skipping documentation generation. No changes![/]")
+        print()
+        return False
+    else:
+        if interactive and confirm("Are those changes documentation-only?"):
+            mark_latest_changes_as_documentation_only(provider_details, latest_change)
+        return False
+
+    jinja_context["DETAILED_CHANGES_RST"] = changes
+    jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
+    print()
+    print(f"Update index.rst for {provider_package_id}")
+    print()
+    update_index_rst_for_regular_providers(
+        jinja_context, provider_package_id, provider_details.documentation_provider_package_path
+    )
+    update_commits_rst_for_regular_providers(
+        jinja_context, provider_package_id, provider_details.documentation_provider_package_path
+    )
+    return True
+
+
+def update_setup_files(
+    provider_package_id: str,
+    version_suffix: str,
+):
+    """
+    Updates generated setup.cfg/setup.py/manifest.in/provider_info) for packages
+
+    :param provider_package_id: id of the package
+    :param version_suffix: version suffix corresponding to the version in the code
     :returns False if the package should be skipped, Tre if everything generated properly
     """
     verify_provider_package(provider_package_id)
@@ -1566,43 +1649,16 @@ def update_generated_files_for_regular_package(
         provider_details=provider_details,
         current_release_version=current_release_version,
         version_suffix=version_suffix,
-        backport_packages=False,
     )
     jinja_context["PROVIDER_INFO"] = provider_info
-    if update_release_notes:
-        proceed, changes = get_all_changes_for_regular_packages(
-            provider_details.versions,
-            provider_package_id,
-            provider_details.source_provider_package_path,
-            verbose,
-        )
-        if not proceed:
-            print()
-            print(
-                f"[yellow]Provider: {provider_package_id} - skipping documentation generation. No changes![/]"
-            )
-            print()
-            return False
-        jinja_context["DETAILED_CHANGES_RST"] = changes
-        jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
-        print()
-        print(f"Update index.rst for {provider_package_id}")
-        print()
-        update_index_rst_for_regular_providers(
-            jinja_context, provider_package_id, provider_details.documentation_provider_package_path
-        )
-        update_commits_rst_for_regular_providers(
-            jinja_context, provider_package_id, provider_details.documentation_provider_package_path
-        )
-    if update_setup:
-        print()
-        print(f"Generating setup files for {provider_package_id}")
-        print()
-        prepare_setup_py_file(jinja_context)
-        prepare_setup_cfg_file(jinja_context)
-        prepare_get_provider_info_py_file(jinja_context, provider_package_id)
-        prepare_manifest_in_file(jinja_context)
-        prepare_readme_file(jinja_context)
+    print()
+    print(f"Generating setup files for {provider_package_id}")
+    print()
+    prepare_setup_py_file(jinja_context)
+    prepare_setup_cfg_file(jinja_context)
+    prepare_get_provider_info_py_file(jinja_context, provider_package_id)
+    prepare_manifest_in_file(jinja_context)
+    prepare_readme_file(jinja_context)
     return True
 
 
@@ -1696,8 +1752,8 @@ def black_format(content) -> str:
     return format_str(content, mode=black_mode())
 
 
-def prepare_setup_py_file(context, backport_package=False):
-    setup_py_template_name = "BACKPORT_SETUP" if backport_package else "SETUP"
+def prepare_setup_py_file(context):
+    setup_py_template_name = "SETUP"
     setup_py_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.py"))
     setup_py_content = render_template(
         template_name=setup_py_template_name, context=context, extension='.py', autoescape=False
@@ -1706,8 +1762,8 @@ def prepare_setup_py_file(context, backport_package=False):
         setup_py_file.write(black_format(setup_py_content))
 
 
-def prepare_setup_cfg_file(context, backport_package=False):
-    setup_cfg_template_name = "BACKPORT_SETUP" if backport_package else "SETUP"
+def prepare_setup_cfg_file(context):
+    setup_cfg_template_name = "SETUP"
     setup_cfg_file_path = os.path.abspath(os.path.join(get_target_folder(), "setup.cfg"))
     setup_cfg_content = render_template(
         template_name=setup_cfg_template_name,
@@ -1752,17 +1808,6 @@ def prepare_manifest_in_file(context):
         fh.write(content)
 
 
-def get_all_backportable_providers() -> List[str]:
-    """
-    Returns all providers that should be taken into account when preparing backports.
-    For now we remove Papermill as it is deeply linked with Lineage in Airflow core and it won't work
-    with lineage for Airflow 1.10 anyway.
-    :return: list of providers that are considered for backport provider packages
-    """
-    excluded_providers = ["papermill"]
-    return [prov for prov in PROVIDERS_REQUIREMENTS.keys() if prov not in excluded_providers]
-
-
 def get_all_providers() -> List[str]:
     """
     Returns all providers for regular packages.
@@ -1784,224 +1829,24 @@ def verify_provider_package(package: str) -> None:
         raise Exception(f"The package {package} is not a provider package.")
 
 
-#######################################################################################################
-# The below methods below might be deleted when we remove support for Backport providers
-# Which should happen end of March. Also `backport_packages` parameters from other methods with
-# all the ifs then.
-#######################################################################################################
-
-
-def store_current_changes_for_backport_providers(
-    provider_package_path: str, current_release_version: str, current_changes: str
-) -> None:
-    """
-    Stores current changes in the *_changes_YYYY.MM.DD.md file.
-
-    :param provider_package_path: path for the package
-    :param current_release_version: release version to build
-    :param current_changes: list of changes formatted in markdown format
-    """
-    current_changes_file_path = os.path.join(
-        provider_package_path,
-        "BACKPORT_PROVIDER_CHANGES_" + current_release_version + ".md",
-    )
-    with open(current_changes_file_path, "wt") as current_changes_file:
-        current_changes_file.write(current_changes)
-        current_changes_file.write("\n")
-
-
-def get_all_releases_for_backport_providers(provider_package_path: str) -> List[ReleaseInfo]:
-    """
-    Returns information about past releases (retrieved from *changes_*md files stored in the
-    package folder. It' is only used for backport provider packages.
-    :param provider_package_path: path of the package
-    :return: list of releases made so far.
-    """
-    changes_file_prefix = "BACKPORT_PROVIDER_CHANGES_"
-    past_releases: List[ReleaseInfo] = []
-    changes_file_names = listdir(provider_package_path)
-    for file_name in sorted(changes_file_names, reverse=True):
-        if file_name.startswith(changes_file_prefix) and file_name.endswith(".md"):
-            changes_file_path = os.path.join(provider_package_path, file_name)
-            with open(changes_file_path) as changes_file:
-                content = changes_file.read()
-            found = re.search(r'/([a-z0-9]*)\)', content, flags=re.MULTILINE)
-            if not found:
-                print("[yellow]No commit found. This seems to be first time you run it[/]", file=sys.stderr)
-            else:
-                last_commit_hash = found.group(1)
-                release_version = file_name[len(changes_file_prefix) :][:-3]
-                release_version_no_leading_zeros = strip_leading_zeros(release_version)
-                past_releases.append(
-                    ReleaseInfo(
-                        release_version=release_version,
-                        release_version_no_leading_zeros=release_version_no_leading_zeros,
-                        last_commit_hash=last_commit_hash,
-                        content=content,
-                        file_name=file_name,
-                    )
-                )
-    return past_releases
-
-
-def update_generated_files_for_backport_package(
-    provider_package_id: str,
-    current_release_version: str,
-    version_suffix: str,
-    update_release_notes: bool,
-    update_setup: bool,
-    verbose: bool,
-) -> None:
-    """
-    Updates generated files (readme, changes and setup.cfg/setup.py)
-
-    :param provider_package_id: id of the package
-    :param current_release_version: release version:
-    :param version_suffix: version suffix corresponding to the version in the code
-    :param update_release_notes: whether to update release notes
-    :param update_setup: whether to update setup files
-    :param verbose: whether to print verbose messages
-
-    :return: Tuple of total/bad number of entities
-    """
-    verify_provider_package(provider_package_id)
-    provider_details = get_provider_details(provider_package_id)
-    past_releases = get_all_releases_for_backport_providers(
-        provider_package_path=provider_details.source_provider_package_path
-    )
-    current_release_version, previous_release_commit_ref = check_if_release_version_ok(
-        past_releases,
-        current_release_version,
-    )
-    jinja_context = get_provider_jinja_context(
-        provider_details=provider_details,
-        current_release_version=current_release_version,
-        version_suffix=version_suffix,
-        backport_packages=True,
-    )
-    imported_classes = import_all_classes(
-        provider_ids=[provider_package_id],
-        print_imports=False,
-        paths=[PROVIDERS_PATH],
-        prefix="airflow.providers.",
-    )
-    if len(imported_classes) == 0:
-        raise Exception(
-            "There is something seriously wrong with importing all classes as "
-            f"None of the classes were imported for {provider_package_id},"
-        )
-    entity_summaries = get_package_class_summary(provider_details.full_package_name, imported_classes)
-    previous_release_commit_ref = get_previous_release_info(
-        previous_release_version=previous_release_commit_ref,
-        past_releases=past_releases,
-        current_release_version=current_release_version,
-    )
-    if update_release_notes:
-        changes_table = get_backport_current_changes_table(
-            previous_release_commit_ref, provider_details.source_provider_package_path, verbose
-        )
-        jinja_context["CURRENT_CHANGES_TABLE"] = changes_table
-        prepare_readme_and_changes_files_for_backport_providers(
-            jinja_context,
-            current_release_version,
-            entity_summaries,
-            provider_package_id,
-            provider_details.source_provider_package_path,
-        )
-    if update_setup:
-        prepare_setup_py_file(jinja_context, backport_package=True)
-        prepare_setup_cfg_file(jinja_context, backport_package=True)
-        prepare_manifest_in_file(jinja_context)
-
-
-def prepare_readme_and_changes_files_for_backport_providers(
-    context,
-    current_release_version,
-    entity_summaries,
-    provider_package_id,
-    provider_package_path,
-):
-    changes_template_name = BACKPORT_PROVIDER_TEMPLATE_PREFIX + "CHANGES"
-    current_changes = render_template(template_name=changes_template_name, context=context, extension='.md')
-    store_current_changes_for_backport_providers(
-        provider_package_path=provider_package_path,
-        current_release_version=current_release_version,
-        current_changes=current_changes,
-    )
-    context['ENTITIES'] = entity_summaries
-    context['ENTITY_NAMES'] = ENTITY_NAMES
-    all_releases = get_all_releases_for_backport_providers(provider_package_path)
-    context["RELEASES"] = all_releases
-    new_readme = LICENCE
-    readme_template_name = BACKPORT_PROVIDER_TEMPLATE_PREFIX + "README"
-    new_readme += render_template(template_name=readme_template_name, context=context, extension='.md')
-    classes_template_name = BACKPORT_PROVIDER_TEMPLATE_PREFIX + "CLASSES"
-    new_readme += render_template(template_name=classes_template_name, context=context, extension='.md')
-    for a_release in all_releases:
-        new_readme += a_release.content
-    readme_file_path = os.path.join(provider_package_path, "BACKPORT_PROVIDER_README.md")
-    old_readme = ""
-    if os.path.isfile(readme_file_path):
-        with open(readme_file_path) as readme_file_read:
-            old_readme = readme_file_read.read()
-    replace_content(readme_file_path, old_readme, new_readme, provider_package_id)
-
-
-def copy_readme_and_changelog_for_backports(provider_package_id: str) -> None:
-    """
-    Copies the right README.md/CHANGELOG.txt to provider_package directory.
-    :param provider_package_id: package from which to copy the setup.py
-    :return:
-    """
-    readme_source = "BACKPORT_PROVIDER_README.md"
-    source_provider_package_path = get_source_package_path(provider_package_id)
-    readme_source = os.path.join(source_provider_package_path, readme_source)
-    readme_target = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.md")
-    copyfile(readme_source, readme_target)
-    changelog_target = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "CHANGELOG.txt")
-    with open(readme_source) as infile, open(changelog_target, 'wt') as outfile:
-        copy = False
-        for line in infile:
-            if line.strip() == "## Releases":
-                copy = True
-            if copy:
-                outfile.write(line)
-
-
-#######################################################################################################
-# The above methods below might be deleted when we remove support for Backport providers
-# Which should happen end of March. Also `backport_packages` parameters from other methods with
-# all the ifs then.
-#######################################################################################################
-
-
 @cli.command()
-@option_backports
-def list_providers_packages(backports: bool) -> bool:
+def list_providers_packages():
     """List all provider packages."""
-    providers = get_all_backportable_providers() if backports else get_all_providers()
+    providers = get_all_providers()
     for provider in providers:
         print(provider)
-    return True
 
 
 @cli.command()
-@click.option(
-    "--release-version",
-    metavar='YYYY.MM.DD',
-    default='',
-    help='Optional release version - only used in case of backport packages',
-)
-@option_backports
 @option_version_suffix
 @option_git_update
+@option_interactive
 @argument_package_id
 @option_verbose
 def update_package_documentation(
-    backports: bool,
-    release_version: str,
     version_suffix: str,
     git_update: bool,
+    interactive: bool,
     package_id: str,
     verbose: bool,
 ):
@@ -2010,46 +1855,16 @@ def update_package_documentation(
 
     See `list-providers-packages` subcommand for the possible PACKAGE_ID values
     """
-    current_release_version = release_version
-    if release_version and not backports:
-        print("[red]ERROR: Release version can only be specified for backports[/]")
-        raise Exception("Do not specify release version for regular providers")
     provider_package_id = package_id
     verify_provider_package(provider_package_id)
-    package_ok = True
-    with with_group(f"Update generated files for package '{provider_package_id}' "):
-        if release_version:
-            print(f"Preparing release version: {current_release_version}")
-        else:
-            print("Updating documentation for the latest release version.")
+    with with_group(f"Update release notes for package '{provider_package_id}' "):
+        print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
-        if backports:
-            provider_details = get_provider_details(provider_package_id)
-            past_releases = get_all_releases_for_backport_providers(
-                provider_package_path=provider_details.source_provider_package_path
-            )
-            current_release_version, previous_release_commit_ref = check_if_release_version_ok(
-                past_releases,
-                current_release_version,
-            )
-            update_generated_files_for_backport_package(
-                provider_package_id,
-                current_release_version,
-                version_suffix,
-                update_release_notes=True,
-                update_setup=False,
-                verbose=verbose,
-            )
-        else:
-            if not update_generated_files_for_regular_package(
-                provider_package_id,
-                version_suffix,
-                update_release_notes=True,
-                update_setup=False,
-                verbose=verbose,
-            ):
-                package_ok = False
-    return package_ok
+        if not update_release_notes(
+            provider_package_id, version_suffix, verbose=verbose, interactive=interactive
+        ):
+            # Returns 64 in case of skipped package
+            sys.exit(64)
 
 
 def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: bool):
@@ -2071,48 +1886,32 @@ def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: 
 
 
 @cli.command()
-@option_backports
 @option_version_suffix
 @option_git_update
 @argument_package_id
 @option_verbose
-def generate_setup_files(
-    backports: bool, version_suffix: str, git_update: bool, package_id: str, verbose: bool
-):
+def generate_setup_files(version_suffix: str, git_update: bool, package_id: str, verbose: bool):
     """
     Generates setup files for the package.
 
     See `list-providers-packages` subcommand for the possible PACKAGE_ID values
     """
     provider_package_id = package_id
-    package_ok = True
     with with_group(f"Generate setup files for '{provider_package_id}'"):
         current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-        if not backports and tag_exists_for_version(provider_package_id, current_tag, verbose):
+        if tag_exists_for_version(provider_package_id, current_tag, verbose):
             print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
-            package_ok = False
-        elif backports:
-            update_generated_files_for_backport_package(
-                provider_package_id,
-                "",
-                version_suffix,
-                update_release_notes=False,
-                update_setup=True,
-                verbose=verbose,
-            )
-            print(f"[green]Generated backport package setup files for {provider_package_id}[/]")
+            # Returns 1 in case of skipped package
+            sys.exit(1)
         else:
-            if update_generated_files_for_regular_package(
+            if update_setup_files(
                 provider_package_id,
                 version_suffix,
-                update_release_notes=False,
-                update_setup=True,
-                verbose=verbose,
             ):
                 print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
             else:
-                package_ok = False
-    return package_ok
+                # Returns 64 in case of skipped package
+                sys.exit(64)
 
 
 def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, verbose: bool):
@@ -2127,9 +1926,11 @@ def get_current_tag(provider_package_id: str, suffix: str, git_update: bool, ver
 
 def cleanup_remnants(verbose: bool):
     if verbose:
-        print("Cleaning remnants (build, *.egginfo)")
-    shutil.rmtree("build", ignore_errors=True)
+        print("Cleaning remnants")
     files = glob.glob("*.egg-info")
+    for file in files:
+        shutil.rmtree(file, ignore_errors=True)
+    files = glob.glob("build")
     for file in files:
         shutil.rmtree(file, ignore_errors=True)
 
@@ -2157,54 +1958,60 @@ def verify_setup_py_prepared(provider_package):
     default='wheel',
     help='Optional format - only used in case of building packages (default: wheel)',
 )
-@option_backports
 @option_git_update
 @option_version_suffix
 @argument_package_id
 @option_verbose
 def build_provider_packages(
     package_format: str,
-    backports: bool,
     git_update: bool,
     version_suffix: str,
     package_id: str,
     verbose: bool,
-) -> bool:
+):
     """
     Builds provider package.
 
     See `list-providers-packages` subcommand for the possible PACKAGE_ID values
     """
-    provider_package_id = package_id
-    with with_group(f"Prepare provider package for '{provider_package_id}'"):
-        current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-        if not backports and tag_exists_for_version(provider_package_id, current_tag, verbose):
-            print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
-            return False
-        print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
-        os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
-        cleanup_remnants(verbose)
-        provider_package = package_id
-        verify_setup_py_prepared(provider_package)
 
-        print(f"Building provider package: {provider_package} in format {package_format}")
-        if backports:
-            copy_readme_and_changelog_for_backports(provider_package)
-        command = ["python3", "setup.py"]
-        if version_suffix is not None:
-            command.extend(['egg_info', '--tag-build', version_suffix])
-        if package_format in ['sdist', 'both']:
-            command.append("sdist")
-        if package_format in ['wheel', 'both']:
-            command.append("bdist_wheel")
-        print(f"Executing command: '{' '.join(command)}'")
-        try:
-            subprocess.check_call(command, stdout=subprocess.DEVNULL)
-        except subprocess.CalledProcessError as ex:
-            print(ex.output.decode())
-            raise Exception("The command returned an error %s", command)
-        print(f"[green]Prepared provider package {provider_package} in format {package_format}[/]")
-    return True
+    import tempfile
+
+    # we cannot use context managers because if the directory gets deleted (which bdist_wheel does),
+    # the context manager will throw an exception when trying to delete it again
+    tmp_build_dir = tempfile.TemporaryDirectory().name
+    tmp_dist_dir = tempfile.TemporaryDirectory().name
+    try:
+        provider_package_id = package_id
+        with with_group(f"Prepare provider package for '{provider_package_id}'"):
+            current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
+            if tag_exists_for_version(provider_package_id, current_tag, verbose):
+                print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
+                return False
+            print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
+            os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
+            cleanup_remnants(verbose)
+            provider_package = package_id
+            verify_setup_py_prepared(provider_package)
+
+            print(f"Building provider package: {provider_package} in format {package_format}")
+            command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
+            if version_suffix is not None:
+                command.extend(['egg_info', '--tag-build', version_suffix])
+            if package_format in ['sdist', 'both']:
+                command.append("sdist")
+            if package_format in ['wheel', 'both']:
+                command.extend(["bdist_wheel", "--bdist-dir", tmp_dist_dir])
+            print(f"Executing command: '{' '.join(command)}'")
+            try:
+                subprocess.check_call(command, stdout=subprocess.DEVNULL)
+            except subprocess.CalledProcessError as ex:
+                print(ex.output.decode())
+                raise Exception("The command returned an error %s", command)
+            print(f"[green]Prepared provider package {provider_package} in format {package_format}[/]")
+    finally:
+        shutil.rmtree(tmp_build_dir, ignore_errors=True)
+        shutil.rmtree(tmp_dist_dir, ignore_errors=True)
 
 
 def verify_provider_classes_for_single_provider(imported_classes: List[str], provider_package_id: str):
@@ -2246,14 +2053,10 @@ def summarise_total_vs_bad(total: int, bad: int):
 
 
 @cli.command()
-@option_backports
-def verify_provider_classes(backports: bool) -> bool:
+def verify_provider_classes():
     """Verifies if all classes in all providers are correctly named."""
     with with_group("Verifies names for all provider classes"):
-        if backports:
-            provider_ids = get_all_backportable_providers()
-        else:
-            provider_ids = get_all_providers()
+        provider_ids = get_all_providers()
         imported_classes = import_all_classes(
             provider_ids=provider_ids,
             print_imports=False,
@@ -2269,8 +2072,13 @@ def verify_provider_classes(backports: bool) -> bool:
             total += inc_total
             bad += inc_bad
         summarise_total_vs_bad(total, bad)
-    return True
 
 
 if __name__ == "__main__":
+    # The cli exit code is:
+    #   * 0 in case of success
+    #   * 1 in case of error
+    #   * 64 in case of skipped package
+    #   * 65 in case user decided to quit
+    #   * 66 in case package has doc-only changes
     cli()

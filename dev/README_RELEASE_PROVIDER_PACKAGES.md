@@ -20,10 +20,10 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Regular provider packages](#regular-provider-packages)
+- [Provider packages](#provider-packages)
 - [Decide when to release](#decide-when-to-release)
-- [Regular provider packages versioning](#regular-provider-packages-versioning)
-- [Prepare Regular Providers (RC)](#prepare-regular-providers-rc)
+- [Provider packages versioning](#provider-packages-versioning)
+- [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Generate release notes](#generate-release-notes)
   - [Build regular provider packages for SVN apache upload](#build-regular-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -36,6 +36,7 @@
   - [Verify by Contributors](#verify-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
+  - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
@@ -45,12 +46,12 @@
 
 ------------------------------------------------------------------------------------------------------------
 
-# Regular provider packages
+# Provider packages
 
 The prerequisites to release Apache Airflow are described in [README.md](README.md).
 
-You can read more about the command line tools used to generate the packages and the two types of
-packages we have (Backport and Regular Provider Packages) in [Provider packages](PROVIDER_PACKAGES.md).
+You can read more about the command line tools used to generate the packages in the
+[Provider packages](PROVIDER_PACKAGE_DETAILS.md).
 
 # Decide when to release
 
@@ -59,16 +60,16 @@ a given provider needs to be released - due to new features or due to bug fixes.
 You can release each provider package separately, but due to voting and release overhead we try to group
 releases of provider packages together.
 
-# Regular provider packages versioning
+# Provider packages versioning
 
-We are using the [SEMVER](https://semver.org/) versioning scheme for the regular packages. This is in order
+We are using the [SEMVER](https://semver.org/) versioning scheme for the provider packages. This is in order
 to give the users confidence about maintaining backwards compatibility in the new releases of those
 packages.
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
-# Prepare Regular Providers (RC)
+# Prepare Regular Provider packages (RC)
 
 ## Generate release notes
 
@@ -156,6 +157,9 @@ svn update
 
 # Create a new folder for the release.
 cd providers
+
+# Remove previously released providers
+rm -rf *
 
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
@@ -255,12 +259,16 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ./breeze build-docs -- \
-  --for-production
+  --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-*'
 ```
 
-for all providers, or if you have just few providers:
+Usually when we release packages we also build documentation for the "documentation-only" packages. This
+means that unless we release just few selected packages or if we need to deliberately skip some packages
+we should release documentation for all provider packages and the above command is the one to use.
+
+If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -272,11 +280,13 @@ cd "${AIRFLOW_REPO_ROOT}"
   ...
 ```
 
-If you have providers as list of provider ids beacuse you just released them you can build them with
+
+If you have providers as list of provider ids becuse you just released them you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
+
 
 - Now you can preview the documentation.
 
@@ -291,12 +301,13 @@ apache-airflow with doc extra:
 
 * `pip install apache-airflow[doc]`
 
-All providers:
+All providers (including overriding documentation for doc-only changes):
 
 ```shell script
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-*'
+    --package-filter 'apache-airflow-providers-*' \
+    --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
@@ -323,7 +334,7 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare voting email for Providers release candidate
 
-Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/backport-providers/
+Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/providers/
 
 Send out a vote to the dev@airflow.apache.org mailing list. Here you can prepare text of the
 email.
@@ -498,24 +509,24 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-1.10.12rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache_airflow-1.10.12rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-1.10.12rc4-py2.py3-none-any.whl'
+Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
+gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache-airflow-1.10.12rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-source.tar.gz'
+Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -569,14 +580,14 @@ Here is a typical scenario.
 First copy all the provider packages .whl files to the `dist` folder.
 
 ```shell script
-./breeze start-airflow --install-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --install-packages-from-dist
+./breeze start-airflow --use-airflow-version <VERSION>rc<X> \
+    --python 3.7 --backend postgres --use-packages-from-dist
 ```
 
 ### Building your own docker image
 
 If you prefer to build your own image, you can also use the official image and PyPI packages to test
-backport packages. This is especially helpful when you want to test integrations, but you need to install
+provider packages. This is especially helpful when you want to test integrations, but you need to install
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
@@ -642,7 +653,7 @@ Cheers,
 
 
 
-### Publish release to SVN
+## Publish release to SVN
 
 The best way of doing this is to svn cp  between the two repos (this avoids having to upload the binaries
 again, and gives a clearer history in the svn commit logs.
@@ -651,13 +662,20 @@ We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
 ```shell script
+# Go to the directory where you have checked out the dev svn release
+# And go to the sub-folder with RC candidates
+cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
 
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
 cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
 export SOURCE_DIR=$(pwd)
+
+# If some packages have been excluded, remove them now
+# Check the packages
+ls *<provider>*
+# Remove them
+svn rm *<provider>*
 
 # Go the folder where you have checked out the release repo
 # Clone it if it's not done yet
@@ -671,19 +689,15 @@ svn update
 mkdir -pv providers
 cd providers
 
-# Move the artifacts to svn folder & remove the rc postfix
+# Copy your providers with the target name to dist directory and to SVN
+rm ${AIRFLOW_REPO_ROOT}/dist/*
+
 for file in ${SOURCE_DIR}/*
 do
  base_file=$(basename ${file})
- svn mv "${file}" "${base_file//rc[0-9][\.-]/.}"
+ cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
+ svn mv "${file}" "${base_file//rc[0-9]/}"
 done
-
-
-# If some packages have been excluded, remove them now
-# Check the packages
-ls *<provider>*
-# Remove them
-svn rm *<provider>*
 
 # Check which old packages will be removed (you need python 3.6+)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
@@ -699,87 +713,28 @@ svn commit -m "Release Airflow Providers on $(date)"
 ```
 
 Verify that the packages appear in
-[backport-providers](https://dist.apache.org/repos/dist/release/airflow/providers)
-
-### Publish the final version convenience package to PyPI
-
-Checkout the RC Version for the RC Version released (there is a batch of providers - one of them is enough):
-
-```shell script
-git checkout providers-<PROVIDER_NAME>/<VERSION_RC>
-```
-
-In order to publish to PyPI you just need to build and release packages.
-
-* Generate the packages.
-
-```shell script
-./breeze --backports prepare-provider-packages both
-```
-
-if you ony build few packages, run:
-
-```shell script
-./breeze prepare-provider-packages <PACKAGE> ...
-```
-
-In case you decided to remove some of the packages. remove them from dist folder now:
-
-```shell script
-ls dist/*<provider>*
-rm dist/*<provider>*
-```
-
-
-* Verify the artifacts that would be uploaded:
-
-```shell script
-twine check dist/*
-```
-
-* Upload the package to PyPi's test environment:
-
-```shell script
-twine upload -r pypitest dist/*
-```
-
-* Verify that the test packages look good by downloading it and installing them into a virtual environment.
-  Twine prints the package links as output - separately for each package.
-
-* Upload the package to PyPi's production environment:
-
-```shell script
-twine upload -r pypi dist/*
-```
+[providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
 ## Publish the Regular convenience package to PyPI
 
-* Generate the packages with final version. Note that
-  this will clean up dist folder before generating the packages, so you will only have the right packages there.
+By that time the packages with proper name (renamed from rc* to final version should be in your dist
+folder.
 
 ```shell script
-rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
-./breeze prepare-provider-packages --package-format both
-```
-
-if you ony build few packages, run:
-
-```shell script
-rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
-./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+cd ${AIRFLOW_REPO_ROOT}
 ```
 
 * Verify the artifacts that would be uploaded:
 
 ```shell script
-twine check ${AIRFLOW_REPO_ROOT}/dist/*
+twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
 * Upload the package to PyPi's test environment:
 
 ```shell script
-twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
+twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
 * Verify that the test packages look good by downloading it and installing them into a virtual environment.
@@ -788,17 +743,14 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
 * Upload the package to PyPi's production environment:
 
 ```shell script
-twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
 * Again, confirm that the packages are available under the links printed.
 
 ## Publish documentation prepared before
 
-Merge the PR that you prepared before with the documentation. If you removed some of the providers
-from the release - remove the versions from the prepared documentation and update stable.txt with the
-previous version for those providers before merging the PR.
-
+Merge the PR that you prepared before with the documentation.
 
 ## Add tags in git
 

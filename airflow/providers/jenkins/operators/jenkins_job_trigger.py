@@ -30,7 +30,6 @@ from requests import Request
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.utils.decorators import apply_defaults
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = Optional[Union[str, Dict, List]]
@@ -100,7 +99,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
     template_ext = ('.json',)
     ui_color = '#f9ec86'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -231,9 +229,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     time.sleep(self.sleep_time)
             except jenkins.NotFoundException as err:
                 # pylint: disable=no-member
-                raise AirflowException(
-                    'Jenkins job status check failed. Final error was: ' f'{err.resp.status}'
-                )
+                raise AirflowException(f'Jenkins job status check failed. Final error was: {err.resp.status}')
             except jenkins.JenkinsException as err:
                 raise AirflowException(
                     f'Jenkins call failed with error : {err}, if you have parameters '

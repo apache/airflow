@@ -22,7 +22,6 @@ from paramiko import SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SFTPSensor(BaseSensorOperator):
@@ -37,7 +36,6 @@ class SFTPSensor(BaseSensorOperator):
 
     template_fields = ('path',)
 
-    @apply_defaults
     def __init__(self, *, path: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
@@ -48,7 +46,8 @@ class SFTPSensor(BaseSensorOperator):
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:
-            self.hook.get_mod_time(self.path)
+            mod_time = self.hook.get_mod_time(self.path)
+            self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e

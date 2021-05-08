@@ -19,7 +19,6 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
@@ -55,7 +54,6 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         "impersonation_chain",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

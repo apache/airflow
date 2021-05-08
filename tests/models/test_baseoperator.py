@@ -27,9 +27,8 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
-from airflow.models.baseoperator import chain, cross_downstream
+from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
-from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -60,7 +59,56 @@ object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fi
 setattr(object1, 'ref', object2)
 
 
+# Essentially similar to airflow.models.baseoperator.BaseOperator
+class DummyClass(metaclass=BaseOperatorMeta):
+    def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
+        self.test_param = test_param
+
+    def set_xcomargs_dependencies(self):
+        ...
+
+
+class DummySubClass(DummyClass):
+    def __init__(self, test_sub_param, **kwargs):
+        super().__init__(**kwargs)
+        self.test_sub_param = test_sub_param
+
+
 class TestBaseOperator(unittest.TestCase):
+    def test_apply(self):
+        dummy = DummyClass(test_param=True)
+        assert dummy.test_param
+
+        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+            DummySubClass(test_sub_param=True)
+
+    def test_default_args(self):
+        default_args = {'test_param': True}
+        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        assert dummy_class.test_param
+
+        default_args = {'test_param': True, 'test_sub_param': True}
+        dummy_subclass = DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        assert dummy_class.test_param
+        assert dummy_subclass.test_sub_param
+
+        default_args = {'test_param': True}
+        dummy_subclass = DummySubClass(default_args=default_args, test_sub_param=True)
+        assert dummy_class.test_param
+        assert dummy_subclass.test_sub_param
+
+        with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
+            DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+
+    def test_incorrect_default_args(self):
+        default_args = {'test_param': True, 'extra_param': True}
+        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        assert dummy_class.test_param
+
+        default_args = {'random_params': True}
+        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+            DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+
     @parameterized.expand(
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
@@ -135,6 +183,34 @@ class TestBaseOperator(unittest.TestCase):
         result = task.render_template(content, context)
         assert result == expected_output
 
+    @parameterized.expand(
+        [
+            ("{{ foo }}", {"foo": "bar"}, "bar"),
+            ("{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"]),
+            (["{{ foo }}", "{{ foo | length}}"], {"foo": ["bar1", "bar2"]}, [['bar1', 'bar2'], 2]),
+            (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
+            ("{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6)),
+            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
+            ("{{ ds }}", {"ds": datetime(2018, 12, 6, 10, 55)}, datetime(2018, 12, 6, 10, 55)),
+            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
+            (
+                ("{{ foo }}", "{{ foo.isoformat() }}"),
+                {"foo": datetime(2018, 12, 6, 10, 55)},
+                (datetime(2018, 12, 6, 10, 55), '2018-12-06T10:55:00'),
+            ),
+            (None, {}, None),
+            ([], {}, []),
+            ({}, {}, {}),
+        ]
+    )
+    def test_render_template_with_native_envs(self, content, context, expected_output):
+        """Test render_template given various input types with Native Python types"""
+        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
+            task = DummyOperator(task_id="op1")
+
+        result = task.render_template(content, context)
+        assert result == expected_output
+
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
@@ -148,6 +224,20 @@ class TestBaseOperator(unittest.TestCase):
         task.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
         assert task.arg1 == "footemplated"
         assert task.arg2 == "bartemplated"
+
+    def test_render_template_fields_native_envs(self):
+        """Verify if operator attributes are correctly templated to Native Python objects."""
+        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+
+        # Assert nothing is templated yet
+        assert task.arg1 == "{{ foo }}"
+        assert task.arg2 == "{{ bar }}"
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(context={"foo": ["item1", "item2"], "bar": 3})
+        assert task.arg1 == ["item1", "item2"]
+        assert task.arg2 == 3
 
     @parameterized.expand(
         [
@@ -223,6 +313,15 @@ class TestBaseOperator(unittest.TestCase):
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+
+        task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
+        assert mock_jinja_env.call_count == 1
+
+    @mock.patch("airflow.models.dag.NativeEnvironment", autospec=True)
+    def test_jinja_env_creation_native_environment(self, mock_jinja_env):
+        """Verify if a Jinja environment is created only once when templating."""
+        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
             task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
@@ -362,7 +461,6 @@ class TestBaseOperatorMethods(unittest.TestCase):
 class CustomOp(DummyOperator):
     template_fields = ("field", "field2")
 
-    @apply_defaults
     def __init__(self, field=None, field2=None, **kwargs):
         super().__init__(**kwargs)
         self.field = field

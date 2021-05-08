@@ -287,6 +287,7 @@ class TestCliWebServer(unittest.TestCase):
             AIRFLOW__WEBSERVER__WORKERS="1",
         ):
             # Run webserver in foreground and terminate it.
+            # pylint: disable=consider-using-with
             proc = subprocess.Popen(["airflow", "webserver"])
             assert proc.poll() is None
 
@@ -309,6 +310,7 @@ class TestCliWebServer(unittest.TestCase):
                 AIRFLOW__CORE__LOAD_EXAMPLES="False",
                 AIRFLOW__WEBSERVER__WORKERS="1",
             ):
+                # pylint: disable=consider-using-with
                 proc = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
                 assert proc.poll() is None
 
@@ -334,6 +336,7 @@ class TestCliWebServer(unittest.TestCase):
             logfile = f"{tmpdir}/airflow-webserver.log"
             try:
                 # Run webserver as daemon in background. Note that the wait method is not called.
+                # pylint: disable=consider-using-with
                 proc = subprocess.Popen(
                     [
                         "airflow",
@@ -409,6 +412,7 @@ class TestCliWebServer(unittest.TestCase):
         ):
             access_logfile = f"{tmpdir}/access.log"
             # Run webserver in foreground and terminate it.
+            # pylint: disable=consider-using-with
             proc = subprocess.Popen(
                 [
                     "airflow",
@@ -424,11 +428,12 @@ class TestCliWebServer(unittest.TestCase):
             # Wait for webserver process
             time.sleep(10)
 
+            # pylint: disable=consider-using-with
             proc2 = subprocess.Popen(["curl", "http://localhost:8080"])
             proc2.wait(10)
             try:
-                file = open(access_logfile)
-                log = json.loads(file.read())
+                with open(access_logfile) as file:
+                    log = json.loads(file.read())
                 assert '127.0.0.1' == log.get('remote_ip')
                 assert len(log) == 9
                 assert 'GET' == log.get('request_method')

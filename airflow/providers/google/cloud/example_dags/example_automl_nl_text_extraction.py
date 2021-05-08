@@ -34,7 +34,9 @@ from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_TEXT_BUCKET = os.environ.get("GCP_AUTOML_TEXT_BUCKET", "gs://cloud-ml-data/NL-entity/dataset.csv")
+GCP_AUTOML_TEXT_BUCKET = os.environ.get(
+    "GCP_AUTOML_TEXT_BUCKET", "gs://INVALID BUCKET NAME/NL-entity/dataset.csv"
+)
 
 # Example values
 DATASET_ID = ""

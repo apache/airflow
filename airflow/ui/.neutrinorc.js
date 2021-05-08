@@ -20,6 +20,7 @@
 /*
   Config for running and building the app
 */
+require('dotenv').config();
 const typescript = require('neutrinojs-typescript');
 const typescriptLint = require('neutrinojs-typescript-eslint');
 const react = require('@neutrinojs/react');
@@ -37,6 +38,12 @@ module.exports = {
       // Aliases for internal modules
       neutrino.config.resolve.alias.set('root', resolve(__dirname));
       neutrino.config.resolve.alias.set('src', resolve(__dirname, 'src'));
+      neutrino.config.resolve.alias.set('views', resolve(__dirname, 'src/views'));
+      neutrino.config.resolve.alias.set('utils', resolve(__dirname, 'src/utils'));
+      neutrino.config.resolve.alias.set('providers', resolve(__dirname, 'src/providers'));
+      neutrino.config.resolve.alias.set('components', resolve(__dirname, 'src/components'));
+      neutrino.config.resolve.alias.set('interfaces', resolve(__dirname, 'src/interfaces'));
+      neutrino.config.resolve.alias.set('api', resolve(__dirname, 'src/api'));
     },
     typescript(),
     // Modify typescript config in .tsconfig.json
@@ -51,6 +58,9 @@ module.exports = {
       moduleDirectories: ['node_modules', 'src'],
     }),
     react({
+      env: [
+        'WEBSERVER_URL'
+      ],
       html: {
         title: 'Apache Airflow',
       }

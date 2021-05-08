@@ -319,11 +319,11 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_approle(
+            _client.auth.approle.login(
                 role_id=self.role_id, secret_id=self.secret_id, mount_point=self.auth_mount_point
             )
         else:
-            _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
+            _client.auth.approle.login(role_id=self.role_id, secret_id=self.secret_id)
 
     def _set_token(self, _client: hvac.Client) -> None:
         if self.token_path:

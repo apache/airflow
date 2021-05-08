@@ -175,6 +175,16 @@ class TestGetVariables(TestVariableEndpoint):
         assert response.json["total_entries"] == 101
         assert len(response.json["variables"]) == 100
 
+    def test_should_raise_400_for_invalid_order_by(self):
+        for i in range(101):
+            Variable.set(f"var{i}", i)
+        response = self.client.get(
+            "/api/v1/variables?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
+        assert response.json["detail"] == msg
+
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):
         for i in range(200):

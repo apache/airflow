@@ -26,14 +26,14 @@ function import_all_provider_classes() {
 
 function verify_provider_packages_named_properly() {
     python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-        verify-provider-classes \
-        "${OPTIONAL_BACKPORT_FLAG[@]}"
+        verify-provider-classes
 }
 
 function run_prepare_documentation() {
     local prepared_documentation=()
     local skipped_documentation=()
     local error_documentation=()
+    local doc_only_documentation=()
 
     # Delete the remote, so that we fetch it and update it once, not once per package we build!
     git remote rm apache-https-for-providers 2>/dev/null || :
@@ -48,15 +48,24 @@ function run_prepare_documentation() {
             update-package-documentation \
             --version-suffix "${TARGET_VERSION_SUFFIX}" \
             --no-git-update \
-            "${OPTIONAL_BACKPORT_FLAG[@]}" \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
+            "${OPTIONAL_NO_INTERACTIVE_FLAG[@]}" \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then
             skipped_documentation+=("${provider_package}")
             continue
             echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
+        fi
+        if [[ ${res} == "65" ]]; then
+            echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
+            exit 1
+        fi
+        if [[ ${res} == "66" ]]; then
+            echo "${COLOR_YELLOW}Provider package '${provider_package}' marked as documentation-only!${COLOR_RESET}"
+            doc_only_documentation+=("${provider_package}")
+            continue
         fi
         if [[ ${res} != "0" ]]; then
             echo "${COLOR_RED}Error when generating provider package '${provider_package}'${COLOR_RESET}"
@@ -77,6 +86,10 @@ function run_prepare_documentation() {
     if [[ "${#skipped_documentation[@]}" != "0" ]]; then
         echo "${COLOR_YELLOW}   Skipped:${COLOR_RESET}"
         echo "${skipped_documentation[@]}" | fold -w 100
+    fi
+    if [[ "${#doc_only_documentation[@]}" != "0" ]]; then
+        echo "${COLOR_YELLOW}   Marked as doc-only (please commit those!):${COLOR_RESET}"
+        echo "${doc_only_documentation[@]}" | fold -w 100
     fi
     if [[ "${#error_documentation[@]}" != "0" ]]; then
         echo "${COLOR_RED}   Errors:${COLOR_RESET}"
@@ -101,22 +114,21 @@ export PYTHONPATH="${AIRFLOW_SOURCES}"
 verify_suffix_versions_for_package_preparation
 
 install_supported_pip_version
+import_all_provider_classes
+verify_provider_packages_named_properly
 
-# install extra packages missing in devel_ci
-# TODO: remove it when devel_all == devel_ci
-install_remaining_dependencies
-
-if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
-    import_all_provider_classes
-    verify_provider_packages_named_properly
-fi
-
-# We will be able to remove it when we get rid of BACKPORT_PACKAGES
 OPTIONAL_RELEASE_VERSION_ARGUMENT=()
 if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; then
     OPTIONAL_RELEASE_VERSION_ARGUMENT+=("--release-version" "${1}")
     shift
 fi
+
+OPTIONAL_NO_INTERACTIVE_FLAG=()
+if [[ ${NO_INTERACTIVE=} == "true" ]]; then
+    OPTIONAL_NO_INTERACTIVE_FLAG+=("--non-interactive")
+    shift
+fi
+
 
 PROVIDER_PACKAGES=("${@}")
 get_providers_to_act_on "${@}"

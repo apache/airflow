@@ -53,12 +53,17 @@ def configured_app(minimal_app_for_api):
 class TestTaskEndpoint:
     dag_id = "test_dag"
     task_id = "op1"
+    task_id2 = 'op2'
+    task1_start_date = datetime(2020, 6, 15)
+    task2_start_date = datetime(2020, 6, 16)
 
     @pytest.fixture(scope="class")
     def setup_dag(self, configured_app):
-        with DAG(self.dag_id, start_date=datetime(2020, 6, 15), doc_md="details") as dag:
-            DummyOperator(task_id=self.task_id)
+        with DAG(self.dag_id, start_date=self.task1_start_date, doc_md="details") as dag:
+            task1 = DummyOperator(task_id=self.task_id)
+            task2 = DummyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
+        task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {dag.dag_id: dag}
         configured_app.dag_bag = dag_bag  # type:ignore
@@ -87,7 +92,7 @@ class TestGetTask(TestTaskEndpoint):
                 "module_path": "airflow.operators.dummy",
             },
             "depends_on_past": False,
-            "downstream_task_ids": [],
+            "downstream_task_ids": [self.task_id2],
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
@@ -129,7 +134,7 @@ class TestGetTask(TestTaskEndpoint):
                 "module_path": "airflow.operators.dummy",
             },
             "depends_on_past": False,
-            "downstream_task_ids": [],
+            "downstream_task_ids": [self.task_id2],
             "end_date": None,
             "execution_timeout": None,
             "extra_links": [],
@@ -186,7 +191,7 @@ class TestGetTasks(TestTaskEndpoint):
                         "module_path": "airflow.operators.dummy",
                     },
                     "depends_on_past": False,
-                    "downstream_task_ids": [],
+                    "downstream_task_ids": [self.task_id2],
                     "end_date": None,
                     "execution_timeout": None,
                     "extra_links": [],
@@ -206,15 +211,71 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
-                }
+                },
+                {
+                    "class_ref": {
+                        "class_name": "DummyOperator",
+                        "module_path": "airflow.operators.dummy",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "owner": "airflow",
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-16T00:00:00+00:00",
+                    "task_id": self.task_id2,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                },
             ],
-            "total_entries": 1,
+            "total_entries": 2,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         assert response.json == expected
+
+    def test_should_respond_200_ascending_order_by_start_date(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks?order_by=start_date",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert self.task1_start_date < self.task2_start_date
+        assert response.json['tasks'][0]['task_id'] == self.task_id
+        assert response.json['tasks'][1]['task_id'] == self.task_id2
+
+    def test_should_respond_200_descending_order_by_start_date(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks?order_by=-start_date",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        # - means is descending
+        assert self.task1_start_date < self.task2_start_date
+        assert response.json['tasks'][0]['task_id'] == self.task_id2
+        assert response.json['tasks'][1]['task_id'] == self.task_id
+
+    def test_should_raise_400_for_invalid_order_by_name(self):
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/tasks?order_by=invalid_task_colume_name",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == "'DummyOperator' object has no attribute 'invalid_task_colume_name'"
 
     def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"

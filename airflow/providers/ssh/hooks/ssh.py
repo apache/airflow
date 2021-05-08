@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
-import getpass
 import os
 import warnings
 from base64 import decodebytes
@@ -30,6 +29,11 @@ from sshtunnel import SSHTunnelForwarder
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
+try:
+    from airflow.utils.platform import getuser
+except ImportError:
+    from getpass import getuser
+
 
 class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     """
@@ -37,9 +41,10 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     ref: https://github.com/paramiko/paramiko
     This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
 
-    :param ssh_conn_id: connection id from airflow Connections from where all the required
-        parameters can be fetched like username, password or key_file.
-        Thought the priority is given to the param passed during init
+    :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
+        Connections from where all the required parameters can be fetched like
+        username, password or key_file. Thought the priority is given to the
+        param passed during init
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str
@@ -173,7 +178,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 self.remote_host,
                 self.ssh_conn_id,
             )
-            self.username = getpass.getuser()
+            self.username = getuser()
 
         user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
         if os.path.isfile(user_ssh_config_filename):

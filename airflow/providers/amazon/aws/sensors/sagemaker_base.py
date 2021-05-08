@@ -20,7 +20,6 @@ from typing import Optional, Set
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerBaseSensor(BaseSensorOperator):
@@ -33,7 +32,6 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id

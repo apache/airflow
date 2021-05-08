@@ -18,7 +18,6 @@
 from typing import Any, Dict
 
 from airflow.sensors.sql import SqlSensor
-from airflow.utils.decorators import apply_defaults
 
 
 class MetastorePartitionSensor(SqlSensor):
@@ -46,7 +45,6 @@ class MetastorePartitionSensor(SqlSensor):
     ui_color = '#8da7be'
     poke_context_fields = ('partition_name', 'table', 'schema', 'mysql_conn_id')
 
-    @apply_defaults
     def __init__(
         self,
         *,

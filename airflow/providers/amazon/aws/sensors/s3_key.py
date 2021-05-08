@@ -22,7 +22,6 @@ from urllib.parse import urlparse
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class S3KeySensor(BaseSensorOperator):
@@ -58,7 +57,6 @@ class S3KeySensor(BaseSensorOperator):
 
     template_fields = ('bucket_key', 'bucket_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -148,9 +146,9 @@ class S3KeySizeSensor(S3KeySensor):
 
             def check_fn(self, data: List) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in data if isinstance(f, dict))
+    :type check_fn: Optional[Callable[..., bool]]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

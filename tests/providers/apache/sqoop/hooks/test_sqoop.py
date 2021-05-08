@@ -21,6 +21,7 @@ import collections
 import json
 import unittest
 from io import StringIO
+from unittest import mock
 from unittest.mock import call, patch
 
 import pytest
@@ -95,13 +96,15 @@ class TestSqoopHook(unittest.TestCase):
     @patch('subprocess.Popen')
     def test_popen(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = StringIO('stdout')
-        mock_popen.return_value.stderr = StringIO('stderr')
-        mock_popen.return_value.returncode = 0
-        mock_popen.return_value.communicate.return_value = [
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = StringIO('stdout')
+        mock_proc.stderr = StringIO('stderr')
+        mock_proc.communicate.return_value = [
             StringIO('stdout\nstdout'),
             StringIO('stderr\nstderr'),
         ]
+        mock_popen.return_value.__enter__.return_value = mock_proc
 
         # When
         hook = SqoopHook(conn_id='sqoop_test')

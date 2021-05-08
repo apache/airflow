@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.utils.decorators import apply_defaults
 
 
 class BaseSQLOperator(BaseOperator):
@@ -39,7 +38,6 @@ class BaseSQLOperator(BaseOperator):
     You can custom the behavior by overriding the .get_db_hook() method.
     """
 
-    @apply_defaults
     def __init__(self, *, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.conn_id = conn_id
@@ -116,7 +114,6 @@ class SQLCheckOperator(BaseSQLOperator):
     )
     ui_color = "#fff7e6"
 
-    @apply_defaults
     def __init__(
         self, *, sql: str, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs
     ) -> None:
@@ -174,7 +171,6 @@ class SQLValueCheckOperator(BaseSQLOperator):
     )  # type: Iterable[str]
     ui_color = "#fff7e6"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -253,11 +249,13 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     :type table: str
     :param conn_id: the connection ID used to connect to the database.
     :type conn_id: str
-    :param database: name of database which overwrite the defined one in connection
-    :type database: str
+    :param database: name of database which will overwrite the defined one in connection
+    :type database: Optional[str]
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
-    :type days_back: int
+    :type days_back: Optional[int]
+    :param date_filter_column: The column name for the dates to filter on. Defaults to 'ds'
+    :type date_filter_column: Optional[str]
     :param ratio_formula: which formula to use to compute the ratio between
         the two metrics. Assuming cur is the metric of today and ref is
         the metric to today - days_back.
@@ -269,8 +267,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     :type ratio_formula: str
     :param ignore_zero: whether we should ignore zero metrics
     :type ignore_zero: bool
-    :param metrics_threshold: a dictionary of ratios indexed by metrics
-    :type metrics_threshold: dict
+    :param metrics_thresholds: a dictionary of ratios indexed by metrics
+    :type metrics_thresholds: dict
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLIntervalCheckOperator"}
@@ -279,6 +277,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
+    template_fields_renderers = {"sql1": "sql", "sql2": "sql"}
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -286,7 +285,6 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
     }
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -409,7 +407,6 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         ".sql",
     )  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -496,7 +493,6 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 
-    @apply_defaults
     def __init__(
         self,
         *,

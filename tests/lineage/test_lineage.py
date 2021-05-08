@@ -16,14 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
-from airflow.lineage import AUTO
+from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
+from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+
+class CustomLineageBackend(LineageBackend):
+    def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+        pass
 
 
 class TestLineage(unittest.TestCase):
@@ -111,3 +119,42 @@ class TestLineage(unittest.TestCase):
         op1.pre_execute(ctx1)
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
+
+    @mock.patch("airflow.lineage.get_backend")
+    def test_lineage_is_sent_to_backend(self, mock_get_backend):
+        class TestBackend(LineageBackend):
+            def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+                assert len(inlets) == 1
+                assert len(outlets) == 1
+
+        func = mock.Mock()
+        func.__name__ = 'foo'
+
+        mock_get_backend.return_value = TestBackend()
+
+        dag = DAG(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE)
+
+        with dag:
+            op1 = DummyOperator(task_id='task1')
+
+        file1 = File("/tmp/some_file")
+
+        op1.inlets.append(file1)
+        op1.outlets.append(file1)
+
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+
+        prep = prepare_lineage(func)
+        prep(op1, ctx1)
+        post = apply_lineage(func)
+        post(op1, ctx1)
+
+    def test_empty_lineage_backend(self):
+        backend = get_backend()
+        assert backend is None
+
+    @conf_vars({("lineage", "backend"): "tests.lineage.test_lineage.CustomLineageBackend"})
+    def test_resolve_lineage_class(self):
+        backend = get_backend()
+        assert issubclass(backend.__class__, LineageBackend)
+        assert isinstance(backend, CustomLineageBackend)

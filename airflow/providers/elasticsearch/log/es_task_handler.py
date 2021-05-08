@@ -207,7 +207,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         if self.json_format:
             try:
                 # pylint: disable=protected-access
-                return self.formatter._style.format(_ESJsonLogFmt(**log_line.to_dict()))
+                return self.formatter._style.format(_ESJsonLogFmt(self.json_fields, **log_line.to_dict()))
             except Exception:  # noqa pylint: disable=broad-except
                 pass
 
@@ -245,8 +245,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             try:
 
                 logs = search[self.MAX_LINE_PER_PAGE * self.PAGE : self.MAX_LINE_PER_PAGE].execute()
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception('Could not read log with log_id: %s, error: %s', log_id, str(e))
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception('Could not read log with log_id: %s', log_id)
 
         return logs
 
@@ -349,5 +349,7 @@ class _ESJsonLogFmt:
     """Helper class to read ES Logs and re-format it to match settings.LOG_FORMAT"""
 
     # A separate class is needed because 'self.formatter._style.format' uses '.__dict__'
-    def __init__(self, **kwargs):
+    def __init__(self, json_fields: List, **kwargs):
+        for field in json_fields:
+            self.__setattr__(field, '')
         self.__dict__.update(kwargs)

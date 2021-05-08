@@ -45,6 +45,9 @@ class SFTPHook(SSHHook):
           permissions.
 
     Errors that may occur throughout but should be handled downstream.
+
+    :param sftp_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
+    :type sftp_conn_id: str
     """
 
     conn_name_attr = 'ftp_conn_id'
@@ -102,13 +105,6 @@ class SFTPHook(SSHHook):
                     self.ciphers = extra_options['ciphers']
 
                 if 'private_key' in extra_options:
-                    warnings.warn(
-                        'Extra option `private_key` is deprecated.'
-                        'Please use `key_file` instead.'
-                        'This option will be removed in Airflow 2.1',
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
                     self.key_file = extra_options.get('private_key')
 
     @tenacity.retry(

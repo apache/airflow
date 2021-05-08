@@ -19,6 +19,12 @@
 Changelog
 ---------
 
+1.0.2
+.....
+
+* ``Do not forward cluster-identifier to psycopg2 (#15360)``
+
+
 1.0.1
 .....
 

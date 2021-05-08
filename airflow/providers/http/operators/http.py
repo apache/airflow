@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SimpleHttpOperator(BaseOperator):
@@ -31,7 +30,8 @@ class SimpleHttpOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SimpleHttpOperator`
 
-    :param http_conn_id: The connection to run the operator against
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
+        the operator against
     :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)
     :type endpoint: str
@@ -70,7 +70,6 @@ class SimpleHttpOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,

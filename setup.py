@@ -25,7 +25,7 @@ from copy import deepcopy
 from distutils import log
 from os.path import dirname, relpath
 from textwrap import wrap
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from setuptools import Command, Distribution, find_namespace_packages, setup
 from setuptools.command.develop import develop as develop_orig
@@ -194,12 +194,11 @@ def get_sphinx_theme_version() -> str:
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
-    'boto3>=1.15.0,<1.16.0',
-    'botocore>=1.18.0,<1.19.0',
+    'boto3>=1.15.0,<1.18.0',
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]',
+    'apache-beam>=2.20.0',
 ]
 async_packages = [
     'eventlet>= 0.9.7',
@@ -225,7 +224,7 @@ azure = [
     'azure-storage-file>=2.1.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0,<3.21.0',
+    'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
     'celery~=4.4.2',
@@ -238,7 +237,12 @@ cgroups = [
 cloudant = [
     'cloudant>=2.0',
 ]
-dask = ['cloudpickle>=1.4.1, <1.5.0', 'distributed>=2.11.1, <2.20']
+dask = [
+    'cloudpickle>=1.4.1, <1.5.0',
+    'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
+    'dask>=2.9.0;python_version>="3.7"',
+    'distributed>=2.11.1, <2.20',
+]
 databricks = [
     'requests>=2.20.0, <3',
 ]
@@ -314,7 +318,9 @@ google = [
     'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
     'json-merge-patch~=0.2',
-    'pandas-gbq',
+    # pandas-gbq 0.15.0 release broke google provider's bigquery import
+    # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
+    'pandas-gbq<0.15.0',
     'plyvel',
 ]
 grpc = [
@@ -365,7 +371,7 @@ mssql = [
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.22',
-    'mysqlclient>=1.3.6,<1.4',
+    'mysqlclient>=1.3.6,<3',
 ]
 neo4j = ['neo4j>=4.2.1']
 odbc = [
@@ -378,8 +384,8 @@ pagerduty = [
     'pdpyras>=4.1.2,<5',
 ]
 papermill = [
-    'nteract-scrapbook[all]>=0.3.1',
     'papermill[all]>=1.2.1',
+    'scrapbook[all]',
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -448,6 +454,7 @@ tableau = [
 telegram = [
     'python-telegram-bot==13.0',
 ]
+trino = ['trino']
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -469,6 +476,7 @@ zendesk = [
 # End dependencies group
 
 devel = [
+    'aws_xray_sdk',
     'beautifulsoup4~=4.7.1',
     'black',
     'blinker',
@@ -476,6 +484,7 @@ devel = [
     'click~=7.1',
     'coverage',
     'docutils',
+    'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
@@ -486,17 +495,15 @@ devel = [
     'ipdb',
     'jira',
     'jsonpath-ng',
-    # HACK: Moto is not compatible with newer versions
-    # See: https://github.com/spulec/moto/issues/3535
-    'mock<4.0.3',
+    'jsondiff',
     'mongomock',
-    'moto<2',
+    'moto~=2.0',
     'mypy==0.770',
     'parameterized',
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint>=2.7.0',
+    'pylint~=2.8.1',
     'pysftp',
     'pytest~=6.0',
     'pytest-cov',
@@ -504,6 +511,7 @@ devel = [
     'pytest-rerunfailures~=9.1',
     'pytest-timeouts',
     'pytest-xdist',
+    'python-jose',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
@@ -578,6 +586,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'ssh': ssh,
     'tableau': tableau,
     'telegram': telegram,
+    'trino': trino,
     'vertica': vertica,
     'yandex': yandex,
     'zendesk': zendesk,
@@ -661,17 +670,10 @@ EXTRAS_DEPRECATED_ALIASES: Dict[str, str] = {
     'winrm': 'microsoft.winrm',
 }
 
-
-def find_requirements_for_alias(alias_to_look_for: Tuple[str, str]) -> List[str]:
-    """Finds requirements for an alias"""
-    deprecated_extra = alias_to_look_for[0]
-    new_extra = alias_to_look_for[1]
-    if new_extra == '':  # Handle case for crypto
-        return []
-    try:
-        return EXTRAS_REQUIREMENTS[new_extra]
-    except KeyError:  # noqa
-        raise Exception(f"The extra {new_extra} is missing for alias {deprecated_extra}")
+EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS: List[str] = [
+    "crypto",
+    "webhdfs",
+]
 
 
 def add_extras_for_all_deprecated_aliases() -> None:
@@ -686,6 +688,20 @@ def add_extras_for_all_deprecated_aliases() -> None:
         if requirements is None:
             raise Exception(f"The extra {extra} is missing for deprecated alias {alias}")
         EXTRAS_REQUIREMENTS[alias] = requirements
+
+
+def add_all_deprecated_provider_packages() -> None:
+    """
+    For deprecated aliases that are providers, we will swap the providers requirements to instead
+    be the provider itself.
+
+    e.g. {"kubernetes": ["kubernetes>=3.0.0, <12.0.0", ...]} becomes
+    {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
+    """
+    for alias, provider in EXTRAS_DEPRECATED_ALIASES.items():
+        if alias in EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS:
+            continue
+        replace_extra_requirement_with_provider_packages(alias, [provider])
 
 
 add_extras_for_all_deprecated_aliases()
@@ -712,6 +728,7 @@ ALL_DB_PROVIDERS = [
     'neo4j',
     'postgres',
     'presto',
+    'trino',
     'vertica',
 ]
 
@@ -740,17 +757,6 @@ PACKAGES_EXCLUDED_FOR_ALL.extend(
     ]
 )
 
-# Those packages are excluded because they break tests and they are not needed to run our test suite.
-# This can be removed as soon as we get non-conflicting
-# requirements for the apache-beam as well.
-#
-# Currently Apache Beam has very narrow and old dependencies for 'dill' and 'mock' packages which
-# are required by our tests (but only for tests).
-#
-PACKAGES_EXCLUDED_FOR_CI = [
-    'apache-beam',
-]
-
 
 def is_package_excluded(package: str, exclusion_list: List[str]):
     """
@@ -769,13 +775,7 @@ devel_all = [
     if not is_package_excluded(package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_ALL)
 ]
 
-devel_ci = [
-    package
-    for package in devel_all
-    if not is_package_excluded(
-        package=package, exclusion_list=PACKAGES_EXCLUDED_FOR_CI + PACKAGES_EXCLUDED_FOR_ALL
-    )
-]
+devel_ci = devel_all
 
 
 # Those are extras that we have to add for development purposes
@@ -924,7 +924,10 @@ def add_all_provider_packages() -> None:
     add_provider_packages_to_extra_requirements("devel_ci", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("devel_all", ALL_PROVIDERS)
     add_provider_packages_to_extra_requirements("all_dbs", ALL_DB_PROVIDERS)
-    add_provider_packages_to_extra_requirements("devel_hadoop", ["apache.hdfs", "apache.hive", "presto"])
+    add_provider_packages_to_extra_requirements(
+        "devel_hadoop", ["apache.hdfs", "apache.hive", "presto", "trino"]
+    )
+    add_all_deprecated_provider_packages()
 
 
 class Develop(develop_orig):

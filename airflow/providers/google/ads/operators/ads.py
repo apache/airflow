@@ -23,7 +23,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleAdsListAccountsOperator(BaseOperator):
@@ -35,7 +34,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     not necessarily include all accounts within the account hierarchy; rather, it will only include
     accounts where your authenticated user has been added with admin or other rights in the account.
 
-    ..seealso::
+    .. seealso::
         https://developers.google.com/google-ads/api/reference/rpc
 
 
@@ -51,8 +50,6 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type gcp_conn_id: str
     :param google_ads_conn_id: Airflow Google Ads connection ID
     :type google_ads_conn_id: str
-    :param page_size: The number of results per API page request. Max 10,000
-    :type page_size: int
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -72,7 +69,6 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

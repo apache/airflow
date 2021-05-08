@@ -28,13 +28,11 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.utils.decorators import apply_defaults
 
 
 class ComputeEngineBaseOperator(BaseOperator):
     """Abstract base operator for Google Compute Engine operators to inherit from."""
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -89,8 +87,6 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
     :type api_version: str
-    :param validate_body: Optional, If set to False, body validation is not performed.
-        Defaults to False.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -112,28 +108,6 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         'impersonation_chain',
     )
     # [END gce_instance_start_template_fields]
-
-    @apply_defaults
-    def __init__(
-        self,
-        *,
-        zone: str,
-        resource_id: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            project_id=project_id,
-            zone=zone,
-            resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id,
-            api_version=api_version,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
 
     def execute(self, context) -> None:
         hook = ComputeEngineHook(
@@ -166,8 +140,6 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
     :type api_version: str
-    :param validate_body: Optional, If set to False, body validation is not performed.
-        Defaults to False.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -189,28 +161,6 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         'impersonation_chain',
     )
     # [END gce_instance_stop_template_fields]
-
-    @apply_defaults
-    def __init__(
-        self,
-        *,
-        zone: str,
-        resource_id: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            project_id=project_id,
-            zone=zone,
-            resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id,
-            api_version=api_version,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
 
     def execute(self, context) -> None:
         hook = ComputeEngineHook(
@@ -278,7 +228,6 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_set_machine_type_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -441,7 +390,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_template_copy_operator_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -553,9 +501,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     :param api_version: Optional, API version used (for example v1 - or beta). Defaults
         to v1.
     :type api_version: str
-    :param validate_body: Optional, If set to False, body validation is not performed.
-        Defaults to False.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -581,7 +526,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     )
     # [END gce_igm_update_template_operator_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

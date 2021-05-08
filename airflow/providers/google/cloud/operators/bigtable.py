@@ -26,7 +26,6 @@ from google.cloud.bigtable_admin_v2 import enums
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigtableValidationMixin:
@@ -110,7 +109,6 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments
@@ -230,7 +228,6 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -314,7 +311,6 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -396,7 +392,6 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -508,7 +503,6 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -594,7 +588,6 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,

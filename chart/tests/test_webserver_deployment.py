@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -143,3 +144,124 @@ class WebserverDeploymentTest(unittest.TestCase):
         )
 
         assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+
+    def test_should_create_valid_affinity_tolerations_and_node_selector(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"diskType": "ssd"},
+                }
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "Deployment" == jmespath.search("kind", docs[0])
+        assert "foo" == jmespath.search(
+            "spec.template.spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.diskType",
+            docs[0],
+        )
+        assert "dynamic-pods" == jmespath.search(
+            "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
+
+    @parameterized.expand(
+        [
+            ({"enabled": False}, None),
+            ({"enabled": True}, "RELEASE-NAME-logs"),
+            ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
+        ]
+    )
+    def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
+        docs = render_chart(
+            values={"logs": {"persistence": log_persistence_values}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        if expected_claim_name:
+            assert {
+                "name": "logs",
+                "persistentVolumeClaim": {"claimName": expected_claim_name},
+            } == jmespath.search("spec.template.spec.volumes[1]", docs[0])
+            assert {
+                "name": "logs",
+                "mountPath": "/opt/airflow/logs",
+            } == jmespath.search("spec.template.spec.containers[0].volumeMounts[1]", docs[0])
+        else:
+            assert "logs" not in [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert "logs" not in [
+                v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            ]
+
+    def test_webserver_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "resources": {
+                        "limits": {"cpu": "200m", 'memory': "128Mi"},
+                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    def test_webserver_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    @parameterized.expand(
+        [
+            ("2.0.2", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
+            ("1.10.14", {"type": "Recreate"}),
+            ("1.9.0", {"type": "Recreate"}),
+            ("2.1.0", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
+        ],
+    )
+    def test_default_update_strategy(self, airflow_version, expected_strategy):
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
+
+    def test_update_strategy(self):
+        expected_strategy = {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}}
+        docs = render_chart(
+            values={"webserver": {"strategy": expected_strategy}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.strategy", docs[0]) == expected_strategy

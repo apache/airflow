@@ -201,6 +201,9 @@ class FakeSession:
             self.response._content += ('/' + request.params['date']).encode('ascii', 'ignore')
         return self.response
 
+    def merge_environment_settings(self, _url, **kwargs):
+        return kwargs
+
 
 class TestHttpOpSensor(unittest.TestCase):
     def setUp(self):

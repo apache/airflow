@@ -21,7 +21,6 @@ from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToSnowflakeOperator(BaseOperator):
@@ -53,7 +52,8 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type database: str
     :param columns_array: reference to a specific columns array in snowflake database
     :type columns_array: list
-    :param snowflake_conn_id: reference to a specific snowflake connection
+    :param snowflake_conn_id: Reference to
+        :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
@@ -71,7 +71,6 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type session_parameters: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

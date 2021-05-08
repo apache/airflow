@@ -21,7 +21,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryToMySqlOperator(BaseOperator):
@@ -50,9 +49,6 @@ class BigQueryToMySqlOperator(BaseOperator):
 
     :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
     :type dataset_table: str
-    :param max_results: The maximum number of records (rows) to be fetched
-        from the table. (templated)
-    :type max_results: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
@@ -62,8 +58,7 @@ class BigQueryToMySqlOperator(BaseOperator):
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :type delegate_to: str
-    :param mysql_conn_id: reference to a specific mysql hook
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param database: name of database which overwrite defined one in connection
     :type database: str
@@ -91,7 +86,6 @@ class BigQueryToMySqlOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments

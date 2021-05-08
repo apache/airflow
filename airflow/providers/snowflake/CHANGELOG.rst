@@ -19,13 +19,24 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Expose snowflake query_id in snowflake hook and operator (#15533)``
+
 1.2.0
 .....
 
 Features
 ~~~~~~~~
 
-* ``Bumped snowflake-connector-python library to >=2.4.1 version and get rid of pytz library pinning``
+* ``Add dynamic fields to snowflake connection (#14724)``
+
+1.1.1
+.....
 
 Bug fixes
 ~~~~~~~~~

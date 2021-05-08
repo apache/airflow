@@ -21,17 +21,17 @@ from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SlackAPIOperator(BaseOperator):
     """
     Base Slack Operator
     The SlackAPIPostOperator is derived from this operator.
-    In the future additional Slack API Operators will be derived from this class as well
+    In the future additional Slack API Operators will be derived from this class as well.
     Only one of `slack_conn_id` and `token` is required.
 
-    :param slack_conn_id: Slack connection ID which its password is Slack API token. Optional
+    :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
+        which its password is Slack API token. Optional
     :type slack_conn_id: str
     :param token: Slack API token (https://api.slack.com/web). Optional
     :type token: str
@@ -40,10 +40,9 @@ class SlackAPIOperator(BaseOperator):
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
     :type api_params: dict
     :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
-    :type api_params: dict
+    :type client_args: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -122,7 +121,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
     template_fields = ('username', 'text', 'attachments', 'blocks', 'channel')
     ui_color = '#FFBA40'
 
-    @apply_defaults
     def __init__(
         self,
         channel: str = '#general',
@@ -190,7 +188,6 @@ class SlackAPIFileOperator(SlackAPIOperator):
     template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
     ui_color = '#44BEDF'
 
-    @apply_defaults
     def __init__(
         self,
         channel: str = '#general',

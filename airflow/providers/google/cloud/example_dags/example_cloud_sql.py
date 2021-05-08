@@ -52,8 +52,8 @@ INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql')
 INSTANCE_NAME2 = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME2', 'test-mysql2')
 DB_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'testdb')
 
-EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://bucketName/fileName')
-IMPORT_URI = os.environ.get('GCSQL_MYSQL_IMPORT_URI', 'gs://bucketName/fileName')
+EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
+IMPORT_URI = os.environ.get('GCSQL_MYSQL_IMPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
 
 # Bodies below represent Cloud SQL instance resources:
 # https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances

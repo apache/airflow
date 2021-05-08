@@ -21,7 +21,7 @@ export FORCE_ANSWER_TO_QUESTIONS="quit"
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function refresh_pylint_todo() {
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+    docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         "${AIRFLOW_CI_IMAGE}" \
         "/opt/airflow/scripts/in_container/refresh_pylint_todo.sh"
 }

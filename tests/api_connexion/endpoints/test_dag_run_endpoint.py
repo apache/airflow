@@ -79,6 +79,7 @@ def configured_app(minimal_app_for_api):
 class TestDagRunEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
     default_time_2 = "2020-06-12T18:00:00+00:00"
+    default_time_3 = "2020-06-13T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
@@ -270,6 +271,54 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    def test_invalid_order_by_raises_400(self):
+        self._create_test_dag_run()
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        msg = "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
+        assert response.json['detail'] == msg
+
+    def test_return_correct_results_with_order_by(self, session):
+        self._create_test_dag_run()
+        result = session.query(DagRun).all()
+        assert len(result) == 2
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=-execution_date",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 200
+        assert self.default_time < self.default_time_2
+        # - means descending
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -530,6 +579,51 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             ],
             "total_entries": 2,
         }
+
+    def test_order_by_descending_works(self):
+        self._create_test_dag_run()
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list",
+            json={"dag_ids": ["TEST_DAG_ID"], "order_by": "-dag_run_id"},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "dag_runs": [
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_2',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time_2,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+                {
+                    'dag_id': 'TEST_DAG_ID',
+                    'dag_run_id': 'TEST_DAG_RUN_ID_1',
+                    'end_date': None,
+                    'state': 'running',
+                    'execution_date': self.default_time,
+                    'external_trigger': True,
+                    'start_date': self.default_time,
+                    'conf': {},
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    def test_order_by_raises_for_invalid_attr(self):
+        self._create_test_dag_run()
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list",
+            json={"dag_ids": ["TEST_DAG_ID"], "order_by": "-dag_ru"},
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400
+        msg = "Ordering with 'dag_ru' is disallowed or the attribute does not exist on the model"
+        assert response.json['detail'] == msg
 
     def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
         self._create_test_dag_run(extra_dag=True)
@@ -907,7 +1001,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": self.default_time,
+                "execution_date": self.default_time_3,
             },
             environ_overrides={'REMOTE_USER': "test"},
         )
@@ -915,6 +1009,27 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.json == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
             "DAGRun ID: 'TEST_DAG_RUN_ID_1' already exists",
+            "status": 409,
+            "title": "Conflict",
+            "type": EXCEPTIONS_LINK_MAP[409],
+        }
+
+    def test_response_409_when_execution_date_is_same(self):
+        self._create_test_dag_run()
+
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={
+                "dag_run_id": "TEST_DAG_RUN_ID_6",
+                "execution_date": self.default_time,
+            },
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+
+        assert response.status_code == 409, response.data
+        assert response.json == {
+            "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
+            "DAGRun ExecutionDate: '2020-06-11 18:00:00+00:00' already exists",
             "status": 409,
             "title": "Conflict",
             "type": EXCEPTIONS_LINK_MAP[409],

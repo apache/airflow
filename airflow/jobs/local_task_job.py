@@ -17,7 +17,6 @@
 # under the License.
 #
 
-import os
 import signal
 from typing import Optional
 
@@ -76,6 +75,12 @@ class LocalTaskJob(BaseJob):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.on_kill()
+            self.task_instance.refresh_from_db()
+            if self.task_instance.state not in State.finished:
+                self.task_instance.set_state(State.FAILED)
+            self.task_instance._run_finished_callback(  # pylint: disable=protected-access
+                error="task received sigterm"
+            )
             raise AirflowException("LocalTaskJob received SIGTERM signal")
 
         # pylint: enable=unused-argument
@@ -148,6 +153,10 @@ class LocalTaskJob(BaseJob):
         # task exited by itself, so we need to check for error file
         # incase it failed due to runtime exception/error
         error = None
+        if self.task_instance.state == State.RUNNING:
+            # This is for a case where the task received a sigkill
+            # while running
+            self.task_instance.set_state(State.FAILED)
         if self.task_instance.state != State.SUCCESS:
             error = self.task_runner.deserialize_run_error()
         self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
@@ -178,9 +187,9 @@ class LocalTaskJob(BaseJob):
                 )
                 raise AirflowException("Hostname of job runner does not match")
 
-            current_pid = os.getpid()
+            current_pid = self.task_runner.process.pid
             same_process = ti.pid == current_pid
-            if not same_process:
+            if ti.pid is not None and not same_process:
                 self.log.warning("Recorded pid %s does not match " "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):

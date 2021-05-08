@@ -113,7 +113,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
 
     def test_all_deps_met(self):
         """
-        Test to make sure all of the conditions for the dep are met
+        Test to make sure all the conditions for the dep are met
         """
         ti = self._get_task_instance(
             dag_end_date=datetime(2016, 1, 2),

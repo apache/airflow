@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class WasbBlobSensor(BaseSensorOperator):
@@ -31,7 +30,7 @@ class WasbBlobSensor(BaseSensorOperator):
     :type container_name: str
     :param blob_name: Name of the blob.
     :type blob_name: str
-    :param wasb_conn_id: Reference to the wasb connection.
+    :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :type wasb_conn_id: str
     :param check_options: Optional keyword arguments that
         `WasbHook.check_for_blob()` takes.
@@ -40,7 +39,6 @@ class WasbBlobSensor(BaseSensorOperator):
 
     template_fields = ('container_name', 'blob_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -81,7 +79,6 @@ class WasbPrefixSensor(BaseSensorOperator):
 
     template_fields = ('container_name', 'prefix')
 
-    @apply_defaults
     def __init__(
         self,
         *,

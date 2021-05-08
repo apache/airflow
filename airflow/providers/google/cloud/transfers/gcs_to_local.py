@@ -23,7 +23,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.sensors.base import apply_defaults
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):
@@ -41,9 +40,9 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     :param bucket: The Google Cloud Storage bucket where the object is.
         Must not contain 'gs://' prefix. (templated)
     :type bucket: str
-    :param object: The name of the object to download in the Google cloud
+    :param object_name: The name of the object to download in the Google cloud
         storage bucket. (templated)
-    :type object: str
+    :type object_name: str
     :param filename: The file path, including filename,  on the local file system (where the
         operator is being executed) that the file should be downloaded to. (templated)
         If no filename passed, the downloaded data will not be stored on the local file
@@ -75,14 +74,13 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
     template_fields = (
         'bucket',
-        'object',
+        'object_name',
         'filename',
         'store_to_xcom_key',
         'impersonation_chain',
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -119,7 +117,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
         super().__init__(**kwargs)
         self.bucket = bucket
-        self.object = object_name
+        self.object_name = object_name
         self.filename = filename  # noqa
         self.store_to_xcom_key = store_to_xcom_key  # noqa
         self.gcp_conn_id = gcp_conn_id
@@ -127,7 +125,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
+        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object_name, self.filename)
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -135,10 +133,10 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         )
 
         if self.store_to_xcom_key:
-            file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object)
+            file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object_name)
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes))
             else:
                 raise AirflowException('The size of the downloaded file is too large to push to XCom!')
         else:
-            hook.download(bucket_name=self.bucket, object_name=self.object, filename=self.filename)
+            hook.download(bucket_name=self.bucket, object_name=self.object_name, filename=self.filename)

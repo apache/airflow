@@ -28,14 +28,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.0
+.....
+
+Latest change: 2021-04-27
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`5b2fe0e74 <https://github.com/apache/airflow/commit/5b2fe0e74013cd08d1f76f5c115f2c8f990ff9bc>`_  2021-04-27   ``Add Connection Documentation for Popular Providers (#15393)``
+`594d93d3b <https://github.com/apache/airflow/commit/594d93d3b0882132615ec26770ea77ff6aac5dff>`_  2021-04-09   ``Entrypoint support in docker operator (#14642)``
+`566127308 <https://github.com/apache/airflow/commit/566127308f283e2eff29e8a7fbfb01f17a1cd18a>`_  2021-04-08   ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+`ab4771769 <https://github.com/apache/airflow/commit/ab477176998090e8fb94d6f0e6bf056bad2da441>`_  2021-04-07   ``Support all terminus task states in Docker Swarm Operator (#14960)``
+================================================================================================  ===========  ======================================================================
+
+1.1.0
+.....
+
+Latest change: 2021-04-06
+
+================================================================================================  ===========  =============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================================
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+`3064bf044 <https://github.com/apache/airflow/commit/3064bf04429f86ff2b527704603ef3ca9b9fe22f>`_  2021-03-02   ``Add privileged option in DockerOperator (#14157)``
+================================================================================================  ===========  =============================================================================
+
 1.0.2
 .....
 
-Latest change: 2021-02-05
+Latest change: 2021-02-27
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
 `10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
 ================================================================================================  ===========  =======================================================================
 
