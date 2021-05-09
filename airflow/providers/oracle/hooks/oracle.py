@@ -61,6 +61,7 @@ class OracleHook(DbApiHook):
         as in
 
         .. code-block:: python
+        
            {
                "dsn": (
                    "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)"
