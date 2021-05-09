@@ -202,30 +202,25 @@ class ExternalTaskSensor(BaseSensorOperator):
         :type states: list
         :return: count of record against the filters
         """
-        TI = TaskInstance
-        DR = DagRun
-        if self.external_task_id:
-            count = (
-                session.query(func.count())  # .count() is inefficient
-                .filter(
-                    TI.dag_id == self.external_dag_id,
-                    TI.task_id == self.external_task_id,
-                    TI.state.in_(states),  # pylint: disable=no-member
-                    TI.execution_date.in_(dttm_filter),
-                )
-                .scalar()
-            )
+
+        if self.external_task_id is None:
+            model = DagRun
         else:
-            count = (
-                session.query(func.count())
-                .filter(
-                    DR.dag_id == self.external_dag_id,
-                    DR.state.in_(states),  # pylint: disable=no-member
-                    DR.execution_date.in_(dttm_filter),
-                )
-                .scalar()
+            model = TaskInstance
+
+        select = (
+            session.query(func.count())  # .count() is inefficient
+            .filter(
+                model.dag_id == self.external_dag_id,
+                model.state.in_(states),  # pylint: disable=no-member
+                model.execution_date.in_(dttm_filter),
             )
-        return count
+        )
+
+        if model is TaskInstance:
+            select = select.filter(model.task_id == self.external_task_id)
+
+        return select.scalar()
 
     def _handle_execution_date_fn(self, context) -> Any:
         """
