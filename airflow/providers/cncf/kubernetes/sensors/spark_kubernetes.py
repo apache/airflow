@@ -15,16 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import Optional
 
-from kubernetes import client
-
-from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.cncf.kubernetes.sensors.base_kubernetes import \
+    BaseKubernetesCustomAppSensor
 
 
-class SparkKubernetesSensor(BaseSensorOperator):
+class SparkKubernetesSensor(BaseKubernetesCustomAppSensor):
     """
     Checks sparkApplication object in kubernetes cluster:
 
@@ -46,10 +43,8 @@ class SparkKubernetesSensor(BaseSensorOperator):
     :param api_version: kubernetes api version of sparkApplication
     :type api_version: str
     """
-
-    template_fields = ("application_name", "namespace")
-    FAILURE_STATES = ("FAILED", "UNKNOWN")
-    SUCCESS_STATES = ("COMPLETED",)
+    application_type = "Spark"
+    application_plural = "sparkapplications"
 
     def __init__(
         self,
@@ -62,66 +57,10 @@ class SparkKubernetesSensor(BaseSensorOperator):
         api_version: str = 'v1beta2',
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.application_name = application_name
-        self.attach_log = attach_log
-        self.namespace = namespace
-        self.kubernetes_conn_id = kubernetes_conn_id
-        self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        self.api_group = api_group
-        self.api_version = api_version
-
-    @property
-    def app_name_log(self):
-        return f'Spark application: {self.application_name} in namespace: {self.namespace}'
-
-    def _log_driver(self, application_state: str, response: dict) -> None:
-        self.log.info(f"{self.app_name_log} logs:")
-        if not self.attach_log:
-            return
-        status_info = response["status"]
-        if "driverInfo" not in status_info:
-            return
-        driver_info = status_info["driverInfo"]
-        if "podName" not in driver_info:
-            return
-        driver_pod_name = driver_info["podName"]
-        namespace = response["metadata"]["namespace"]
-        log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
-        try:
-            log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
-                log += line.decode()
-            log_method(log)
-        except client.rest.ApiException as e:
-            self.log.warning(
-                "Could not read logs for pod %s. It may have been disposed.\n"
-                "Make sure timeToLiveSeconds is set on your SparkApplication spec.\n"
-                "underlying exception: %s",
-                driver_pod_name,
-                e,
-            )
-
-    def poke(self, context: Dict) -> bool:
-        self.log.info("Poking: %s", self.application_name)
-        response = self.hook.get_custom_object(
-            group=self.api_group,
-            version=self.api_version,
-            plural="sparkapplications",
-            name=self.application_name,
-            namespace=self.namespace,
-        )
-        try:
-            application_state = response["status"]["applicationState"]["state"]
-        except KeyError:
-            return False
-        if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
-            self._log_driver(application_state, response)
-        if application_state in self.FAILURE_STATES:
-            raise AirflowException(f"{self.app_name_log} failed with state: {application_state}")
-        elif application_state in self.SUCCESS_STATES:
-            self.log.info(f"{self.app_name_log} ended successfully")
-            return True
-        else:
-            self.log.info(f"{self.app_name_log} is still in state: %s", application_state)
-            return False
+        super().__init__(application_name=application_name,
+                         api_group=api_group,
+                         api_version=api_version,
+                         attach_log=attach_log,
+                         namespace=namespace,
+                         kubernetes_conn_id=kubernetes_conn_id,
+                         **kwargs)

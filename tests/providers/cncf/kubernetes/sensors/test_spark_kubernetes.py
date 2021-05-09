@@ -767,7 +767,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         drive_pod_log_call = info_log_call.mock_calls[2]
         driver_log_value = drive_pod_log_call[1][0]
 
-        expected_first_log = f'Spark App: {application_name} in namespace: {namespace} logs:'
+        expected_first_log = f'Spark application: {application_name} in ' \
+                             f'namespace: {namespace} logs >'
         assert log_info_call.args[0] == expected_first_log
         assert driver_log_value == TEST_POD_LOG_RESULT
 
