@@ -20,8 +20,7 @@ import datetime
 import os
 from typing import Any, Callable, FrozenSet, Iterable, Optional, Union
 
-from sqlalchemy import func
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
