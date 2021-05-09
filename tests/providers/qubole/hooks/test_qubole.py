@@ -62,7 +62,7 @@ class TestQuboleHook(TestCase):
         task = mock.MagicMock()
         task.xcom_pull.return_value = 'test_command_id'
         with mock.patch('qds_sdk.resource.Resource.find', return_value=PrestoCommand):
-            results = open(hook.get_results(ti=task, include_headers=True), 'r').read()
+            results = open(hook.get_results(ti=task, include_headers=True)).read()
             assert results == RESULTS_WITH_HEADER
 
     @mock.patch('qds_sdk.commands.Command.get_results', new=get_result_mock)
@@ -75,5 +75,5 @@ class TestQuboleHook(TestCase):
         task.xcom_pull.return_value = 'test_command_id'
 
         with mock.patch('qds_sdk.resource.Resource.find', return_value=PrestoCommand):
-            results = open(hook.get_results(ti=task, include_headers=False), 'r').read()
+            results = open(hook.get_results(ti=task, include_headers=False)).read()
             assert results == RESULTS_WITH_NO_HEADER

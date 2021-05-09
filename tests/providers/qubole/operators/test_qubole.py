@@ -184,13 +184,13 @@ class TestQuboleOperator(TestCase):
     @mock.patch('airflow.providers.qubole.hooks.qubole.QuboleHook.get_results')
     def test_parameter_include_header_passed(self, mock_get_results):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-        qo = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
-        qo.get_results(include_headers=True)
+        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
+        qubole_operator.get_results(include_headers=True)
         mock_get_results.asset_called_with('include_headers', True)
 
     @mock.patch('airflow.providers.qubole.hooks.qubole.QuboleHook.get_results')
     def test_parameter_include_header_missing(self, mock_get_results):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-        qo = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
-        qo.get_results()
+        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
+        qubole_operator.get_results()
         mock_get_results.asset_called_with('include_headers', False)
