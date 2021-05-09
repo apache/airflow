@@ -36,7 +36,7 @@ env:
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - workflow_run type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # This token should not be empty in workflow_run type of event.

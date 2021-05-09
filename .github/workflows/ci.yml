@@ -43,7 +43,7 @@ env:
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # In builds from forks, this token is empty, and this is good because such builds do not even try
