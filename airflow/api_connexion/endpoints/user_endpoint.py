@@ -41,7 +41,7 @@ def get_user(username):
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 @format_parameters({'limit': check_limit})
-def get_users(limit, order_by='id', offset=0):
+def get_users(limit, order_by='id', offset=None):
     """Get users"""
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
