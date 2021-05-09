@@ -71,7 +71,12 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.api_group = api_group
         self.api_version = api_version
 
+    @property
+    def app_name_log(self):
+        return f'Spark application: {self.application_name} in namespace: {self.namespace}'
+
     def _log_driver(self, application_state: str, response: dict) -> None:
+        self.log.info(f"{self.app_name_log} logs:")
         if not self.attach_log:
             return
         status_info = response["status"]
@@ -113,10 +118,10 @@ class SparkKubernetesSensor(BaseSensorOperator):
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
-            raise AirflowException(f"Spark application failed with state: {application_state}")
+            raise AirflowException(f"{self.app_name_log} failed with state: {application_state}")
         elif application_state in self.SUCCESS_STATES:
-            self.log.info("Spark application ended successfully")
+            self.log.info(f"{self.app_name_log} ended successfully")
             return True
         else:
-            self.log.info("Spark application is still in state: %s", application_state)
+            self.log.info(f"{self.app_name_log} is still in state: %s", application_state)
             return False
