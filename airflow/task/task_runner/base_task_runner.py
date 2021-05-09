@@ -113,9 +113,7 @@ class BaseTaskRunner(LoggingMixin):
         return load_error_file(self._error_file)
 
     def _stream_reader(self, stream):
-        """
-        Reading from the stream and log into task logs
-        """
+        """Reading from the stream and log into task logs"""
         while True:
             line = stream.readline()
             if isinstance(line, bytes):
@@ -130,13 +128,8 @@ class BaseTaskRunner(LoggingMixin):
             )
 
     def read_task_logs(self, stream):
-        """
-        Start a thread to read subprocess logging output
-        """
-        log_reader = threading.Thread(
-            target=self._stream_reader,
-            args=(stream,),
-        )
+        """Start a daemon thread to read subprocess logging output"""
+        log_reader = threading.Thread(target=self._stream_reader, args=(stream,), daemon=True)
         log_reader.start()
 
     def run_command(self, run_with=None):
