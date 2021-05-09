@@ -235,7 +235,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         :type states: list
         :return: count of record against the filters
         """
-
         if self.external_task_id is None:
             model = DagRun
         else:
