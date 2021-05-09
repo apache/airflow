@@ -52,7 +52,7 @@ class StandardTaskRunner(BaseTaskRunner):
         if pid:
             self.log.info("Started process %d to run task", pid)
             os.close(wpipe)
-            self.read_task_logs(os.fdopen(rpipe))
+            self._read_task_logs(os.fdopen(rpipe))
             return psutil.Process(pid)
         else:
             import signal

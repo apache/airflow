@@ -114,12 +114,7 @@ class BaseTaskRunner(LoggingMixin):
 
     def _stream_reader(self, stream):
         """Reading from the stream and log into task logs"""
-        while True:
-            line = stream.readline()
-            if isinstance(line, bytes):
-                line = line.decode('utf-8')
-            if not line:
-                break
+        for line in iter(stream.readline, ""):
             self.log.info(
                 'Job %s: Subtask %s %s',
                 self._task_instance.job_id,
@@ -127,7 +122,7 @@ class BaseTaskRunner(LoggingMixin):
                 line.rstrip('\n'),
             )
 
-    def read_task_logs(self, stream):
+    def _read_task_logs(self, stream):
         """Start a daemon thread to read subprocess logging output"""
         log_reader = threading.Thread(target=self._stream_reader, args=(stream,), daemon=True)
         log_reader.start()
@@ -156,7 +151,7 @@ class BaseTaskRunner(LoggingMixin):
             env=os.environ.copy(),
             preexec_fn=os.setsid,
         )
-        self.read_task_logs(proc.stdout)
+        self._read_task_logs(proc.stdout)
         return proc
 
     def start(self):

@@ -93,6 +93,7 @@ class StreamLogWriter:
 
         This is a no-op method.
         """
+        self.flush()
 
     @property
     def closed(self):
