@@ -132,6 +132,7 @@ function output_all_basic_variables() {
     else
         initialization::ga_output postgres-exclude '[]'
         initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output mssql-exclude '[]'
         initialization::ga_output sqlite-exclude '[]'
     fi
 
