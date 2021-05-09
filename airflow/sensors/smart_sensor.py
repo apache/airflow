@@ -24,7 +24,7 @@ import traceback
 from logging.config import DictConfigurator  # type: ignore
 from time import sleep
 
-from sqlalchemy import and_, or_, tuple_
+from sqlalchemy import and_, or_
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator, SensorInstance, SkipMixin, TaskInstance
@@ -391,13 +391,21 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :param session: The sqlalchemy session.
         """
         TI = TaskInstance
-        ti_keys = [(x.dag_id, x.task_id, x.execution_date) for x in sensor_works]
 
         def update_ti_hostname_with_count(count, ti_keys):
             # Using or_ instead of in_ here to prevent from full table scan.
             tis = (
                 session.query(TI)
-                .filter(or_(tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key for ti_key in ti_keys))
+                .filter(
+                    or_(
+                        and_(
+                            TI.dag_id == ti_key.dag_id,
+                            TI.task_id == ti_key.task_id,
+                            TI.execution_date == ti_key.execution_date,
+                        )
+                        for ti_key in ti_keys
+                    )
+                )
                 .all()
             )
 
@@ -407,7 +415,9 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
             return count + len(ti_keys)
 
-        count = helpers.reduce_in_chunks(update_ti_hostname_with_count, ti_keys, 0, self.max_tis_per_query)
+        count = helpers.reduce_in_chunks(
+            update_ti_hostname_with_count, sensor_works, 0, self.max_tis_per_query
+        )
         if count:
             self.log.info("Updated hostname on %s tis.", count)
 
