@@ -47,6 +47,7 @@ class TestExternalTaskSensor(unittest.TestCase):
     def test_time_sensor(self):
         op = TimeSensor(task_id=TEST_TASK_ID, target_time=time(0), dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        return op
 
     def test_external_task_sensor(self):
         self.test_time_sensor()
@@ -280,6 +281,47 @@ exit 0
             dag=self.dag,
         )
         op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_sensor_with_tolerance_before(self):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            execution_date_tolerance_before=timedelta(seconds=1),
+            timeout=1,
+            dag=self.dag,
+        )
+        date = DEFAULT_DATE + timedelta(seconds=1)
+        op.run(start_date=date, end_date=date, ignore_ti_state=True)
+
+    def test_external_task_sensor_with_tolerance_after(self):
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            execution_date_tolerance_after=timedelta(seconds=1),
+            timeout=1,
+            dag=self.dag,
+        )
+        date = DEFAULT_DATE - timedelta(seconds=1)
+        op.run(start_date=date, end_date=date, ignore_ti_state=True)
+
+    def test_external_task_sensor_with_tolerance_multiple(self):
+        sensor = self.test_time_sensor()
+        date = DEFAULT_DATE - timedelta(seconds=1)
+        sensor.run(start_date=date, end_date=date, ignore_ti_state=True)
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID,
+            execution_date_tolerance_after=timedelta(seconds=1),
+            timeout=1,
+            dag=self.dag,
+        )
+        date = DEFAULT_DATE - timedelta(seconds=1)
+        op.run(start_date=date, end_date=date, ignore_ti_state=True)
 
     def test_external_task_sensor_error_delta_and_fn(self):
         self.test_time_sensor()

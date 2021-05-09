@@ -21,6 +21,7 @@ import os
 from typing import Any, Callable, FrozenSet, Iterable, Optional, Union
 
 from sqlalchemy import func
+from sqlalchemy import or_
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
@@ -71,6 +72,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         Either execution_delta or execution_date_fn can be passed to ExternalTaskSensor,
         but not both.
     :type execution_date_fn: Optional[Callable]
+    :param execution_date_tolerance_before: time difference with the previous execution to
+        look at, the default is the same execution_date as the current task.
+        For yesterday, use [positive!] datetime.timedelta(days=1).
+    :type execution_date_tolerance_before: datetime.timedelta
+    :param execution_date_tolerance_after: time difference with an execution to
+        look at in the future, the default is the same execution_date as the current task.
+        For tomorrow, use [positive!] datetime.timedelta(days=1).
+    :type execution_date_tolerance_after: datetime.timedelta
     :param check_existence: Set to `True` to check if the external task exists (when
         external_task_id is not None) or check if the DAG to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task
@@ -95,6 +104,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         failed_states: Optional[Iterable[str]] = None,
         execution_delta: Optional[datetime.timedelta] = None,
         execution_date_fn: Optional[Callable] = None,
+        execution_date_tolerance_before: Optional[datetime.timedelta] = None,
+        execution_date_tolerance_after: Optional[datetime.timedelta] = None,
         check_existence: bool = False,
         **kwargs,
     ):
@@ -131,6 +142,8 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self.execution_delta = execution_delta
         self.execution_date_fn = execution_date_fn
+        self.execution_date_tolerance_before = execution_date_tolerance_before
+        self.execution_date_tolerance_after = execution_date_tolerance_after
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
         self.check_existence = check_existence
@@ -148,8 +161,26 @@ class ExternalTaskSensor(BaseSensorOperator):
         dttm_filter = dttm if isinstance(dttm, list) else [dttm]
         serialized_dttm_filter = ','.join(dt.isoformat() for dt in dttm_filter)
 
+        tolerances = [
+            (op, td.total_seconds())
+            for (op, td) in (
+                ("-", self.execution_date_tolerance_before),
+                ("+", self.execution_date_tolerance_after),
+            )
+            # This intentionally compares false if the timedelta is trivial
+            if td
+        ]
+
+        if tolerances:
+            serialized_dttm_filter += (
+                " (" + (", ".join("%s%d secs" % (op, secs) for (op, secs) in tolerances)) + ")"
+            )
+
         self.log.info(
-            'Poking for %s.%s on %s ... ', self.external_dag_id, self.external_task_id, serialized_dttm_filter
+            'Poking for %s.%s on %s ... ',
+            self.external_dag_id,
+            self.external_task_id,
+            serialized_dttm_filter,
         )
 
         # In poke mode this will check dag existence only once
@@ -162,7 +193,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.failed_states:
             count_failed = self.get_count(dttm_filter, session, self.failed_states)
 
-        if count_failed == len(dttm_filter):
+        if count_failed >= len(dttm_filter):
             if self.external_task_id:
                 raise AirflowException(
                     f'The external task {self.external_task_id} in DAG {self.external_dag_id} failed.'
@@ -170,7 +201,10 @@ class ExternalTaskSensor(BaseSensorOperator):
             else:
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
 
-        return count_allowed == len(dttm_filter)
+        # If an execution date tolerance is given, we may match on more than
+        # the provided execution dates which is why the operator here (and
+        # above) is ">=".
+        return count_allowed >= len(dttm_filter)
 
     def _check_for_existence(self, session) -> None:
         dag_to_wait = session.query(DagModel).filter(DagModel.dag_id == self.external_dag_id).first()
@@ -208,14 +242,18 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             model = TaskInstance
 
-        select = (
-            session.query(func.count())  # .count() is inefficient
-            .filter(
-                model.dag_id == self.external_dag_id,
-                model.state.in_(states),  # pylint: disable=no-member
-                model.execution_date.in_(dttm_filter),
-            )
+        select = session.query(func.count()).filter(  # .count() is inefficient
+            model.dag_id == self.external_dag_id,
+            model.state.in_(states),  # pylint: disable=no-member
         )
+
+        if self.execution_date_tolerance_before or self.execution_date_tolerance_after:
+            before = self.execution_date_tolerance_before or datetime.timedelta()
+            after = self.execution_date_tolerance_after or datetime.timedelta()
+            conditions = [model.execution_date.between(dt - before, dt + after) for dt in dttm_filter]
+            select = select.filter(or_(*conditions))
+        else:
+            select = select.filter(model.execution_date.in_(dttm_filter))
 
         if model is TaskInstance:
             select = select.filter(model.task_id == self.external_task_id)
