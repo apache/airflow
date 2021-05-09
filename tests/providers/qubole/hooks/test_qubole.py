@@ -29,7 +29,7 @@ RESULTS_WITH_NO_HEADER = 'val1\tval2'
 add_tags = QuboleHook._add_tags
 
 
-# pylint: disable =unused-arguments
+# pylint: disable = unused-argument
 def get_result_mock(fp, inline, delim, fetch, arguments):
     if arguments[0] == 'true':
         fp.write(bytearray(RESULTS_WITH_HEADER, 'utf-8'))
