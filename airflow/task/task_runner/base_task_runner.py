@@ -112,7 +112,10 @@ class BaseTaskRunner(LoggingMixin):
         """Return task runtime error if its written to provided error file."""
         return load_error_file(self._error_file)
 
-    def _read_task_logs(self, stream):
+    def _stream_reader(self, stream):
+        """
+        Reading from the stream and log into task logs
+        """
         while True:
             line = stream.readline()
             if isinstance(line, bytes):
@@ -125,6 +128,16 @@ class BaseTaskRunner(LoggingMixin):
                 self._task_instance.task_id,
                 line.rstrip('\n'),
             )
+
+    def read_task_logs(self, stream):
+        """
+        Start a thread to read subprocess logging output
+        """
+        log_reader = threading.Thread(
+            target=self._stream_reader,
+            args=(stream,),
+        )
+        log_reader.start()
 
     def run_command(self, run_with=None):
         """
@@ -150,14 +163,7 @@ class BaseTaskRunner(LoggingMixin):
             env=os.environ.copy(),
             preexec_fn=os.setsid,
         )
-
-        # Start daemon thread to read subprocess logging output
-        log_reader = threading.Thread(
-            target=self._read_task_logs,
-            args=(proc.stdout,),
-        )
-        log_reader.daemon = True
-        log_reader.start()
+        self.read_task_logs(proc.stdout)
         return proc
 
     def start(self):
