@@ -1027,6 +1027,7 @@ nonterminal
 noqa
 notificationChannels
 npm
+nteract
 ntlm
 nullable
 num

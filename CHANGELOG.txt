@@ -1,19 +1,35 @@
-Airflow 2.0.3, 2021-05-10
+Airflow 2.0.3, 2021-05-13
 -------------------------
 
 Improvements
 """"""""""""
 
-* ``Use Pip 21.* to install airflow officially (#15513)``
-* ``Remove the limit on Gunicorn dependency (#15611)``
-* ``Rename nteract-scrapbook to scrapbook (#15290)``
+* Use Pip 21.* to install airflow officially (#15513)
+* Remove the limit on Gunicorn dependency (#15611)
+* Rename nteract-scrapbook to scrapbook (#15290)
+* Reduce false-positives when detecting SQLite usage (#15716)
+* Add Traceback in LogRecord in ``JSONFormatter`` (#15414)
+* Error traceback missing from task logs when json_format=True (#14950)
 
 Fixes
 """""
 
-* ``Fix critical CeleryKubernetesExecutor bug (#13247)``
-* ``Fixes wrong limit for dask for python>3.7 (should be <3.7) (#15545)``
-* ``Fix deprecated provider aliases (#15465)``
+* Fix critical CeleryKubernetesExecutor bug (#13247)
+* Fixes wrong limit for dask for python>3.7 (should be <3.7) (#15545)
+* Fix deprecated provider aliases (#15465)
+* Enforce READ COMMITTED isolation when using mysql (#15714)
+* Fix sync-perm to work correctly when update_fab_perms = False (#14847)
+* Fix incorrect slots stats when TI ``pool_slots > 1`` (#15426)
+* Further fix trimmed ``pod_id`` for ``KubernetesPodOperator`` (#15445)
+* Invalid name when trimmed pod_id ends with hyphen in ``KubernetesPodOperator`` (#15443)
+* Fix used_group_ids in partial_subset (#13700) (#15308)
+* Execute ``on_failure_callback`` when SIGTERM is received (#15172)
+* Fix Task Adoption in ``KubernetesExecutor`` (#14795)
+* Task incorrectly marked as orphaned when using 2 schedulers (#13808)
+* Fix changing the parent dag state on subdag clear (#15562)
+* When one_success mark task as failed if no success (#15467)
+* Enforce READ COMMITTED isolation when using mysql (#15714)
+
 
 Airflow 2.0.2, 2021-04-19
 -------------------------
