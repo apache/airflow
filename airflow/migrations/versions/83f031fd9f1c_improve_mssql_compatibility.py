@@ -39,8 +39,9 @@ depends_on = None
 
 def is_table_empty(conn, table_name):
     """
-    This function checks if the mssql table is empty
-    :param conn: sql connection object
+    This function checks if the MS SQL table is empty
+
+    :param conn: SQL connection object
     :param table_name: table name
     :return: Booelan indicating if the table is present
     """
@@ -171,7 +172,7 @@ def _get_timestamp(conn):
 
 
 def upgrade():
-    """Improve compatibility with MSSQL  backend"""
+    """Improve compatibility with MSSQL backend"""
     conn = op.get_bind()
     if conn.dialect.name != 'mssql':
         return
@@ -221,7 +222,7 @@ def upgrade():
 
 
 def downgrade():
-    """Reverse  MSSQL backend compatibility improvements"""
+    """Reverse MSSQL backend compatibility improvements"""
     conn = op.get_bind()
     if conn.dialect.name != 'mssql':
         return
