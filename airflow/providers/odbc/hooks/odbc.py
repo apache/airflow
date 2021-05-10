@@ -162,7 +162,6 @@ class OdbcHook(DbApiHook):
 
         If ``attrs_before`` provided, keys and values are converted to int, as required by pyodbc.
         """
-
         conn_connect_kwargs = self.connection_extra_lower.get('connect_kwargs', {})
         hook_connect_kwargs = self._connect_kwargs or {}
         merged_connect_kwargs = merge_dicts(conn_connect_kwargs, hook_connect_kwargs)
