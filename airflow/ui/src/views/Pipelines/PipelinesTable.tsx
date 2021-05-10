@@ -19,12 +19,12 @@
 
 import React, { useMemo } from 'react';
 import {
-  Table, Thead, Tbody, Tr, Th, Td, chakra, Alert, AlertIcon,
+  Table, Thead, Tbody, Tr, Th, Td, chakra, Alert, AlertIcon, Progress, Switch, IconButton,
 } from '@chakra-ui/react';
 import {
   useTable, useSortBy, Column,
 } from 'react-table';
-import { MdArrowDropDown, MdArrowDropUp } from 'react-icons/md';
+import { MdArrowDropDown, MdArrowDropUp, MdPlayArrow } from 'react-icons/md';
 
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
@@ -43,6 +43,19 @@ const PipelinesTable: React.FC = () => {
       isPaused: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
     })),
     [dags],
+  );
+
+  const getRandomInt = (max: number) => Math.floor(Math.random() * max);
+
+  // Generate 1-10 fake rows to show a skeleton loader
+  const loadingData = useMemo(
+    () => [...Array(getRandomInt(10) || 1)].map(() => ({
+      isPaused: <Switch disabled />,
+      tags: '',
+      dagId: <Progress size="lg" isIndeterminate data-testid="pipelines-loading" />,
+      trigger: <IconButton size="sm" icon={<MdPlayArrow />} aria-label="Trigger Dag" disabled />,
+    })),
+    [],
   );
 
   const columns = useMemo<Column<any>[]>(
@@ -71,7 +84,7 @@ const PipelinesTable: React.FC = () => {
     allColumns,
     rows,
     prepareRow,
-  } = useTable({ columns, data }, useSortBy);
+  } = useTable({ columns, data: isLoading && !data.length ? loadingData : data }, useSortBy);
 
   return (
     <>
@@ -104,11 +117,6 @@ const PipelinesTable: React.FC = () => {
           </Tr>
         </Thead>
         <Tbody {...getTableBodyProps()}>
-          {isLoading && (
-          <Tr>
-            <Td colSpan={2}>Loading…</Td>
-          </Tr>
-          )}
           {(!isLoading && !dags.length) && (
           <Tr>
             <Td colSpan={2}>No Pipelines found.</Td>

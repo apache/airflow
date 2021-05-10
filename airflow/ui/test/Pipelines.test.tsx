@@ -79,13 +79,14 @@ describe('Test Pipelines Table', () => {
         totalEntries: 1,
       });
 
-    const { getByText } = render(
+    const { getByText, getAllByTestId } = render(
       <QueryWrapper><Pipelines /></QueryWrapper>,
       {
         wrapper: RouterWrapper,
       },
     );
-    expect(getByText('Loading…')).toBeInTheDocument();
+    // At least one loading bar is rendered
+    expect(getAllByTestId('pipelines-loading').length).toBeGreaterThanOrEqual(1);
     await waitFor(() => expect(getByText(sampleDag.dagId)).toBeInTheDocument());
   });
 
