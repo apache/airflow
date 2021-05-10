@@ -17,6 +17,7 @@
 # under the License.
 #
 from unittest import TestCase, mock
+
 from qds_sdk.commands import PrestoCommand
 
 from airflow.providers.qubole.hooks.qubole import QuboleHook
