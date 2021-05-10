@@ -17,46 +17,93 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
-  Alert,
-  AlertIcon,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
+  Table, Thead, Tbody, Tr, Th, Td, chakra, Alert, AlertIcon,
 } from '@chakra-ui/react';
+import {
+  useTable, useSortBy, Column,
+} from 'react-table';
+import { MdArrowDropDown, MdArrowDropUp } from 'react-icons/md';
 
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
-import type { Dag } from 'interfaces';
-import Row from './Row';
+import {
+  DagName, PauseToggle, TriggerDagButton, DagTag,
+} from './Row';
 
 const PipelinesTable: React.FC = () => {
   const { data: { dags } = defaultDags, isLoading, error } = useDags();
+  const data = useMemo(
+    () => dags.map((d) => ({
+      ...d,
+      tags: d.tags.map((tag) => <DagTag tag={tag} key={tag.name} />),
+      dagId: <DagName dagId={d.dagId} />,
+      trigger: <TriggerDagButton dagId={d.dagId} />,
+      isPaused: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
+    })),
+    [dags],
+  );
+
+  const columns = useMemo<Column<any>[]>(
+    () => [
+      {
+        accessor: 'isPaused',
+      },
+      {
+        Header: 'Dag Id',
+        accessor: 'dagId',
+      },
+      {
+        Header: 'Tags',
+        accessor: 'tags',
+      },
+      {
+        accessor: 'trigger',
+      },
+    ],
+    [],
+  );
+
+  const {
+    getTableProps,
+    getTableBodyProps,
+    allColumns,
+    rows,
+    prepareRow,
+  } = useTable({ columns, data }, useSortBy);
 
   return (
     <>
       {error && (
-        <Alert status="error" my="4" key={error.message}>
-          <AlertIcon />
-          {error.message}
-        </Alert>
+      <Alert status="error" my="4" key={error.message}>
+        <AlertIcon />
+        {error.message}
+      </Alert>
       )}
-      <Table size="sm">
-        <Thead position="sticky" top={0}>
-          <Tr
-            borderBottomWidth="1px"
-            textAlign="left"
-          >
-            <Th />
-            <Th>DAG ID</Th>
-            <Th />
+      <Table {...getTableProps()}>
+        <Thead>
+          <Tr>
+            {allColumns.map((column) => (
+              <Th
+                {...column.getHeaderProps(column.getSortByToggleProps())}
+              >
+                {column.render('Header')}
+                <chakra.span pl="2">
+                  {column.isSorted && (
+                    column.isSortedDesc ? (
+                      <MdArrowDropDown aria-label="sorted descending" style={{ display: 'inline' }} size="2em" />
+                    ) : (
+                      <MdArrowDropUp aria-label="sorted ascending" style={{ display: 'inline' }} size="2em" />
+                    )
+                  )}
+                </chakra.span>
+              </Th>
+
+            ))}
           </Tr>
         </Thead>
-        <Tbody>
+        <Tbody {...getTableBodyProps()}>
           {isLoading && (
           <Tr>
             <Td colSpan={2}>Loading…</Td>
@@ -67,7 +114,20 @@ const PipelinesTable: React.FC = () => {
             <Td colSpan={2}>No Pipelines found.</Td>
           </Tr>
           )}
-          {dags.map((dag: Dag) => <Row key={dag.dagId} dag={dag} />)}
+          {rows.map((row) => {
+            prepareRow(row);
+            return (
+              <Tr {...row.getRowProps()}>
+                {row.cells.map((cell) => (
+                  <Td
+                    {...cell.getCellProps()}
+                  >
+                    {cell.render('Cell')}
+                  </Td>
+                ))}
+              </Tr>
+            );
+          })}
         </Tbody>
       </Table>
     </>
