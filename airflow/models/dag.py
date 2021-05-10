@@ -898,7 +898,9 @@ class DAG(LoggingMixin):
         )
 
         if external_trigger is not None:
-            query = query.filter(DagRun.external_trigger == expression.literal(external_trigger))
+            query = query.filter(
+                DagRun.external_trigger == (expression.true() if external_trigger else expression.false())
+            )
 
         return query.scalar()
 

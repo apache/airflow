@@ -127,6 +127,9 @@ class SerializedDagModel(Base):
                 .first()
                 is not None
             ):
+                # TODO: .first() is not None can be changed to .scalar() once we update to sqlalchemy 1.4+
+                # as the associated sqlalchemy bug for MySQL was fixed
+                # related issue : https://github.com/sqlalchemy/sqlalchemy/issues/5481
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
@@ -315,7 +318,7 @@ class SerializedDagModel(Base):
         if session.bind.dialect.name in ["sqlite", "mysql"]:
             for row in session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies")).all():
                 dependencies[row[0]] = [DagDependency(**d) for d in json.loads(row[1])]
-        elif session.bind.dialect.name in ["mssql"]:
+        elif session.bind.dialect.name == "mssql":
             for row in session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies")).all():
                 dependencies[row[0]] = [DagDependency(**d) for d in json.loads(row[1])]
         else:

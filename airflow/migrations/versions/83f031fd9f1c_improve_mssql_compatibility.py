@@ -164,13 +164,7 @@ def alter_mssql_datetime2_column(conn, op, table_name, column_name, nullable):
 
 
 def _get_timestamp(conn):
-    result = conn.execute(
-        """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
-    ).fetchone()
-    mssql_version = result[0]
-    if mssql_version not in ("2000", "2005"):
+    if _use_date_time2(conn):
         return mssql.DATETIME2(precision=6)
     else:
         return mssql.DATETIME
