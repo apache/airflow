@@ -171,7 +171,7 @@ class OdbcHook(DbApiHook):
                 int(k): int(v) for k, v in merged_connect_kwargs['attrs_before'].items()
             }
 
-        return {k: v for k, v in merged_connect_kwargs.items()}
+        return merged_connect_kwargs
 
     def get_conn(self) -> pyodbc.Connection:
         """Returns a pyodbc connection object."""
