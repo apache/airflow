@@ -26,7 +26,7 @@ from kubernetes_tests.test_base import EXECUTOR, TestBase
 class TestKubernetesExecutor(TestBase):
     def test_integration_run_dag(self):
         dag_id = 'example_kubernetes_executor_config'
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=self.host)
         print(f"Found the job with execution_date {execution_date}")
 
         # Wait some time for the operator to complete
@@ -50,7 +50,7 @@ class TestKubernetesExecutor(TestBase):
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = 'example_kubernetes_executor_config'
 
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=self.host)
 
         self._delete_airflow_pod("scheduler")
 
@@ -88,14 +88,14 @@ class TestKubernetesExecutor(TestBase):
     def test_integration_run_dag_with_running_task_pod_kill(self):
         dag_id = 'example_kubernetes_executor_config'
         pod_name = 'examplekubernetesexecutorconfigstarttask'
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=self.host)
         self._delete_task_pod(pod_name)
         self.monitor_task(
             host=self.host,
             dag_run_id=dag_run_id,
             dag_id=dag_id,
             task_id='start_task',
-            expected_final_state='success',
+            expected_final_state='failed',
             timeout=300,
         )
         self.monitor_task(
@@ -119,6 +119,7 @@ class TestKubernetesExecutor(TestBase):
         dag_id = 'example_kubernetes_executor_config'
         pod_name = 'examplekubernetesexecutorconfigstarttask'
         dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=host)
         self._delete_task_pod(pod_name, type='ContainerCreating')
         self.monitor_task(
             host=self.host,
