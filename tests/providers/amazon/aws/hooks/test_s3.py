@@ -74,7 +74,6 @@ class TestAwsS3Hook:
         assert parsed != ("test", "this/is/not/a-real-s3-directory"), "Incorrect parsing of the s3 url"
         assert parsed == ("test", "this/is/not/a-real-s3-directory/"), "Incorrect parsing of the s3 url"
 
-
     def test_check_for_bucket(self, s3_bucket):
         hook = S3Hook()
         assert hook.check_for_bucket(s3_bucket) is True
