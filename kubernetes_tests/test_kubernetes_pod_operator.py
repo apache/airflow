@@ -53,6 +53,7 @@ def create_context(task):
         "ts": execution_date.isoformat(),
         "task": task,
         "ti": task_instance,
+        "task_instance": task_instance,
     }
 
 

@@ -345,8 +345,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
             label_selector = self._get_pod_identifying_label_string(labels)
 
-            self.namespace = self.pod.metadata.namespace
-
             pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
@@ -367,6 +365,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             if final_state != State.SUCCESS:
                 status = self.client.read_namespaced_pod(self.pod.metadata.name, self.namespace)
                 raise AirflowException(f'Pod {self.pod.metadata.name} returned a failure: {status}')
+            context['task_instance'].xcom_push(key='pod_name', value=self.pod.metadata.name)
+            context['task_instance'].xcom_push(key='pod_namespace', value=self.namespace)
             return result
         except AirflowException as ex:
             raise AirflowException(f'Pod Launching failed: {ex}')

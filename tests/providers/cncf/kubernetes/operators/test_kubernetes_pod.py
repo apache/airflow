@@ -19,7 +19,6 @@ import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
-import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
@@ -28,6 +27,8 @@ from airflow.models import DAG, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 
 
 class TestKubernetesPodOperator(unittest.TestCase):
@@ -49,14 +50,13 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
-        tzinfo = pendulum.timezone("Europe/Amsterdam")
-        execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-        task_instance = TaskInstance(task=task, execution_date=execution_date)
+        task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         return {
             "dag": dag,
-            "ts": execution_date.isoformat(),
+            "ts": DEFAULT_DATE.isoformat(),
             "task": task,
             "ti": task_instance,
+            "task_instance": task_instance,
         }
 
     def run_pod(self, operator) -> k8s.V1Pod:
@@ -605,3 +605,20 @@ class TestKubernetesPodOperator(unittest.TestCase):
         sanitized_pod = self.sanitize_for_serialization(pod)
         assert isinstance(pod.spec.node_selector, dict)
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
+
+    def test_push_xcom_pod_info(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        ti = TaskInstance(task=k, execution_date=DEFAULT_DATE)
+        pod_name = ti.xcom_pull(task_ids=k.task_id, key='pod_name')
+        pod_namespace = ti.xcom_pull(task_ids=k.task_id, key='pod_namespace')
+        assert pod_name and pod_name == pod.metadata.name
+        assert pod_namespace and pod_namespace == pod.metadata.namespace
