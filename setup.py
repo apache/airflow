@@ -198,7 +198,7 @@ amazon = [
     'watchtower~=0.7.3',
 ]
 apache_beam = [
-    'apache-beam[gcp]',
+    'apache-beam>=2.20.0',
 ]
 asana = ['asana>=0.10', 'cached-property>=1.5.2']
 async_packages = [
