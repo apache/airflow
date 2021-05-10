@@ -912,6 +912,10 @@ config:
   elasticsearch:
     json_format: 'True'
     log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"
+  elasticsearch_configs:
+    max_retries: 3
+    timeout: 30
+    retry_timeout: 'True'
   kerberos:
     keytab: '{{ .Values.kerberos.keytabPath }}'
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
