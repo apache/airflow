@@ -50,7 +50,7 @@ class MongoToS3Operator(BaseOperator):
     :param replace: whether or not to replace the file in S3 if it previously existed
     :type replace: bool
     :param allow_disk_use: enables writing to temporary files in the case you are handling large dataset
-        when running an aggregate pipeline.
+        This only takes effect when `mongo_query` is a list - running an aggregate pipeline
     :type allow_disk_use: bool
     :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
     :type compression: str
