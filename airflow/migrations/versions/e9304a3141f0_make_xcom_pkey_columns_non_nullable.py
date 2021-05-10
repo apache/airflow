@@ -50,10 +50,10 @@ def _get_timestamp(conn):
     dialect_name = conn.dialect.name
     if dialect_name == "mssql":
         return mssql.DATETIME2(precision=6) if _use_date_time2(conn) else mssql.DATETIME
-    elif dialect_name != "mysql":
-        return sa.TIMESTAMP(timezone=True)
-    else:
+    elif dialect_name == "mysql":
         return mysql.TIMESTAMP(fsp=6, timezone=True)
+    else:
+        return sa.TIMESTAMP(timezone=True)
 
 
 def upgrade():
