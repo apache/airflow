@@ -38,8 +38,8 @@ class S3ListOperator(BaseOperator):
     :type delimiter: str
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :type aws_conn_id: str
-         (Adding this param to template_fields so that it can be overriden using jinja template from Dags
-          This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
+         adding this param to template_fields for jinja template use.
+         This feature can be useful for some kind of Dag Isolation etc
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -67,7 +67,7 @@ class S3ListOperator(BaseOperator):
             )
     """
 
-    template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter' , 'aws_conn_id')
+    template_fields: Iterable[str] = ('bucket','prefix','delimiter','aws_conn_id')
     ui_color = '#ffd700'
 
     def __init__(
