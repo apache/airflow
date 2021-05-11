@@ -2315,9 +2315,9 @@ def dag(*dag_args, **dag_kwargs):
     Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
 
     :param dag_args: Arguments for DAG object
-    :type dag_args: list
+    :type dag_args: Any
     :param dag_kwargs: Kwargs for DAG object.
-    :type dag_kwargs: dict
+    :type dag_kwargs: Any
     """
 
     def wrapper(f: Callable):
