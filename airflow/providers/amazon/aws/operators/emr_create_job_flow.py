@@ -42,7 +42,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type region_name: Optional[str]
     """
 
-    template_fields = ['job_flow_overrides' , 'aws_conn_id']
+    template_fields = ['job_flow_overrides','aws_conn_id']
     template_ext = ('.json',)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
