@@ -73,6 +73,7 @@
     "url-search-params-polyfill": "^8.1.0"
   },
   "resolutions": {
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "trim": "^0.0.3"
   }
 }
