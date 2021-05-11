@@ -31,16 +31,16 @@ gid: 0
 
 # Airflow home directory
 # Used for mount paths
-airflowHome: "/opt/airflow"
+airflowHome: /opt/airflow
 
 # Default airflow repository -- overrides all the specific images below
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 2.0.2
+defaultAirflowTag: "2.0.2"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: 2.0.2
+airflowVersion: "2.0.2"
 
 # Images
 images:
@@ -213,6 +213,7 @@ extraConfigMaps: {}
 
 # Extra env 'items' that will be added to the definition of airflow containers
 # a string is expected (can be templated).
+# TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.
 extraEnv: ~
 # eg:
 # extraEnv: |
@@ -280,11 +281,11 @@ fernetKeySecretName: ~
 #
 kerberos:
   enabled: false
-  ccacheMountPath: '/var/kerberos-ccache'
-  ccacheFileName: 'cache'
-  configPath: '/etc/krb5.conf'
-  keytabPath: '/etc/airflow.keytab'
-  principal: 'airflow@FOO.COM'
+  ccacheMountPath: /var/kerberos-ccache
+  ccacheFileName: cache
+  configPath: /etc/krb5.conf
+  keytabPath: /etc/airflow.keytab
+  principal: airflow@FOO.COM
   reinitFrequency: 3600
   config: |
     # This is an example config showing how you can use templating and how "example" config
@@ -329,7 +330,7 @@ workers:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -358,7 +359,7 @@ workers:
     # If using a custom storageClass, pass name ref to all statefulSets here
     storageClassName:
     # Execute init container to chown log directory.
-    # This is currently only needed in KinD, due to usage
+    # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
 
@@ -429,7 +430,7 @@ scheduler:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to scheduler kubernetes service account.
     annotations: {}
@@ -450,8 +451,7 @@ scheduler:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # This setting can overwrite
-  # podMutation settings.
+  # `airflow_local_settings` file as a string.
   airflowLocalSettings: ~
 
   # This setting tells kubernetes that its ok to evict
@@ -478,7 +478,7 @@ createUserJob:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to create user kubernetes service account.
     annotations: {}
@@ -492,7 +492,7 @@ migrateDatabaseJob:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
@@ -521,7 +521,7 @@ webserver:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to webserver kubernetes service account.
     annotations: {}
@@ -601,7 +601,7 @@ flower:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -631,7 +631,7 @@ statsd:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -670,7 +670,7 @@ pgbouncer:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -708,9 +708,9 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
-  # Limit the resources to pgbouncerExported.
-  # When you specify the resource request the scheduler uses this information to decide which node to place
-  # the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
+  # Limit the resources to pgbouncer.
+  # When you specify the resource request the k8s scheduler uses this information to decide which node to
+  # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
   # that the running container is not allowed to use more of that resource than the limit you set.
   # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
   # Example:
@@ -758,7 +758,7 @@ redis:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -858,7 +858,7 @@ cleanup:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to cleanup cronjob kubernetes service account.
     annotations: {}
@@ -1007,6 +1007,7 @@ dags:
     # interval between git sync attempts in seconds
     wait: 60
     containerName: git-sync
+    # TODO: Should this be 65534?
     uid: 65533
     extraVolumeMounts: []
 

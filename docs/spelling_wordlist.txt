@@ -71,6 +71,7 @@ Colour
 ComputeNodeState
 Computenodes
 Config
+ConfigMaps
 Configs
 ContainerPort
 Cron
@@ -179,6 +180,7 @@ Hitesh
 Hiveserver
 Hoc
 Homan
+HostAliases
 Hostname
 Hou
 Http
@@ -237,6 +239,7 @@ Lifecycle
 LineItem
 ListGenerator
 ListInfoTypesResponse
+Liveness
 Logstash
 Lowin
 Lyft
@@ -285,6 +288,7 @@ Paramiko
 Params
 Paxos
 Pem
+PgBouncer
 Pinot
 Popen
 Postgres
@@ -354,6 +358,7 @@ StatefulSet
 StatefulSets
 StatsD
 Statsd
+StorageClass
 StoredInfoType
 Stringified
 Subclasses
@@ -560,6 +565,7 @@ changelog
 charset
 checklicence
 chmod
+chown
 ci
 cid
 ciphertext
@@ -806,6 +812,7 @@ getsource
 gevent
 gid
 gif
+gitSync
 github
 gitignore
 gitpython
@@ -1287,6 +1294,7 @@ stmts
 storedInfoType
 str
 stringified
+subchart
 subclasses
 subclassing
 subcommand

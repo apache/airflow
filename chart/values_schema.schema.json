@@ -1,0 +1,93 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "description": "This schema is used to validate `values.schema.json` to ensure each parameter has `default` and `description` set, and that top level properties have a `docs_section` set.",
+    "definitions": {
+        "leafs": {
+            "additionalProperties": {
+                "additionalProperties": {
+                    "$ref": "#/definitions/leafs"
+                }
+            },
+            "if": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "integer"
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "number"
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "string"
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "boolean"
+                            }
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "object"
+                            },
+                            "properties": false
+                        }
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "const": "array"
+                            },
+                            "items": false
+                        }
+                    }
+                ]
+            },
+            "then": {
+                "required": [
+                    "description",
+                    "default"
+                ]
+            }
+        }
+    },
+    "required": [
+        "docs_section_order"
+    ],
+    "properties": {
+        "section_order": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "properties": {
+            "additionalProperties": {
+                "allOf": [
+                    {
+                        "$ref": "#/definitions/leafs"
+                    },
+                    {
+                        "required": [
+                            "docs_section"
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}
