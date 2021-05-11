@@ -115,14 +115,14 @@ You can configure the Docker-based Breeze development environment as follows:
 
 Step 3: Create a Branch & Make Local Changes
 --------------------------------------------
-Create a local branch in your forked GitHub repository to track your local changes. Make sure to use latest ``apache/master`` as the base for the branch, and that your fork's master branch is synced with Apache Airflow's master as well. 
+Create a local branch in your forked GitHub repository to track your local changes. Make sure to use latest ``apache/master`` as the base for the branch, and that your fork's master branch is synced with Apache Airflow's master as well.
 To bring in the latest changes from the Apache Airflow repo into your master at any given time, run ``git pull apache/master`` from the ``master`` branch in your fork. If you have conflicts and want to override your local master,
 you can override your local changes with ``git fetch apache; git reset --hard apache/master``.
 
 For detailed guidelines, read the `How to sync your fork <#how-to-sync-your-fork>`_ and `How to Rebase PR <#how-to-rebase-pr>`_ sections below.
 
 Note: While we recommend that you always create a local branch for your development, some people develop their changes directly in a ``master`` branch within their forked repository.
-This allows you to easily compare changes, especially if you or your team are working on multiple changes at once. 
+This allows you to easily compare changes, especially if you or your team are working on multiple changes at once.
 
 Step 4: Prepare a PR
 --------------------
@@ -542,7 +542,7 @@ This can be done by running this (it utilizes parallel preparation of the constr
       ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
       ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
     done
-    
+
     GENERATE_CONSTRAINTS_MODE="pypi-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
     GENERATE_CONSTRAINTS_MODE="source-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
     GENERATE_CONSTRAINTS_MODE="no-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
