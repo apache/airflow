@@ -84,9 +84,8 @@ def test_duplicate_connection(admin_client):
         session.add_all([conn1, conn2, conn3])
         session.commit()
 
-    mock_form = mock.Mock()
-    mock_form.data = {"action": "mulduplicate", "rowid": [conn1.id, conn3.id]}
-    resp = admin_client.post('/connection/action_post', data=mock_form.data, follow_redirects=True)
+    data = {"action": "mulduplicate", "rowid": [conn1.id, conn3.id]}
+    resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
     expected_result = {
         'test_duplicate_gcp_connection',
         'test_duplicate_gcp_connection_copy1',
