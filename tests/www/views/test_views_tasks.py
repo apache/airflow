@@ -73,58 +73,115 @@ def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
 
 
 @pytest.mark.parametrize(
-    "url, content",
+    "url, contents",
     [
-        (
+        pytest.param(
+            "/",
+            [
+                "/delete?dag_id=example_bash_operator",
+                "return confirmDeleteDag(this, 'example_bash_operator')",
+            ],
+            id="delete-dag-button-normal",
+        ),
+        pytest.param(
             f'task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}',
-            'Task Instance Details',
+            ['Task Instance Details'],
+            id="task",
         ),
-        (
+        pytest.param(
             f'xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}',
-            'XCom',
+            ['XCom'],
+            id="xcom",
         ),
-        ('xcom/list', 'List XComs'),
-        (
+        pytest.param('xcom/list', ['List XComs'], id="xcom-list"),
+        pytest.param(
             f'rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}',
-            'Rendered Template',
+            ['Rendered Template'],
+            id="rendered-templates",
         ),
-        ('dag_details?dag_id=example_bash_operator', 'DAG Details'),
-        ("graph?dag_id=example_bash_operator", "example_bash_operator"),
-        ("tree?dag_id=example_bash_operator", "example_bash_operator"),
-        ("dag_details?dag_id=example_bash_operator", "example_bash_operator"),
-        ('dag_details?dag_id=example_subdag_operator.section-1', 'DAG Details'),
-        ('graph?dag_id=example_bash_operator', 'runme_1'),
-        ('tree?dag_id=example_bash_operator', 'runme_1'),
-        ('tree?dag_id=example_subdag_operator.section-1', 'section-1-task-1'),
-        ('duration?days=30&dag_id=example_bash_operator', 'example_bash_operator'),
-        ('duration?days=30&dag_id=missing_dag', 'seems to be missing'),
-        ('tries?days=30&dag_id=example_bash_operator', 'example_bash_operator'),
-        ('landing_times?days=30&dag_id=example_bash_operator', 'example_bash_operator'),
-        ('gantt?dag_id=example_bash_operator', 'example_bash_operator'),
-    ],
-    ids=[
-        "task",
-        "xcom",
-        "xcom-list",
-        "rendered-templates",
-        "dag-details",
-        "existing-dagbag-graph",
-        "existing-dagbag-tree",
-        "existing-dagbag-dag-details",
-        "dag-details-subdag",
-        'graph',
-        'tree',
-        "tree-subdag",
-        'duration',
-        'duration-missing',
-        'tries',
-        'landing-times',
-        "gantt",
+        pytest.param(
+            'dag_details?dag_id=example_bash_operator',
+            ['DAG Details'],
+            id="dag-details",
+        ),
+        pytest.param(
+            'dag_details?dag_id=example_subdag_operator.section-1',
+            ['DAG Details'],
+            id="dag-details-subdag",
+        ),
+        pytest.param(
+            'graph?dag_id=example_bash_operator',
+            ['runme_1'],
+            id='graph',
+        ),
+        pytest.param(
+            'tree?dag_id=example_bash_operator',
+            ['runme_1'],
+            id='tree',
+        ),
+        pytest.param(
+            'tree?dag_id=example_subdag_operator.section-1',
+            ['section-1-task-1'],
+            id="tree-subdag",
+        ),
+        pytest.param(
+            'duration?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='duration',
+        ),
+        pytest.param(
+            'duration?days=30&dag_id=missing_dag',
+            ['seems to be missing'],
+            id='duration-missing',
+        ),
+        pytest.param(
+            'tries?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='tries',
+        ),
+        pytest.param(
+            'landing_times?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='landing-times',
+        ),
+        pytest.param(
+            'gantt?dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id="gantt",
+        ),
+        pytest.param(
+            "dag-dependencies",
+            ["child_task1", "test_trigger_dagrun"],
+            id="dag-dependencies",
+        ),
+        # Test that Graph, Tree, Calendar & Dag Details View uses the DagBag
+        # already created in views.py
+        pytest.param(
+            "graph?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-graph",
+        ),
+        pytest.param(
+            "tree?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-tree",
+        ),
+        pytest.param(
+            "calendar?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-calendar",
+        ),
+        pytest.param(
+            "dag_details?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-dag-details",
+        ),
     ],
 )
-def test_views_get(admin_client, url, content):
+def test_views_get(admin_client, url, contents):
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(content, resp)
+    for content in contents:
+        check_content_in_response(content, resp)
 
 
 def test_rendered_k8s(admin_client):
@@ -139,12 +196,6 @@ def test_rendered_k8s_without_k8s(admin_client):
     url = f'rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}'
     resp = admin_client.get(url, follow_redirects=True)
     assert 404 == resp.status_code
-
-
-def test_delete_dag_button_normal(admin_client):
-    resp = admin_client.get('/', follow_redirects=True)
-    check_content_in_response('/delete?dag_id=example_bash_operator', resp)
-    check_content_in_response("return confirmDeleteDag(this, 'example_bash_operator')", resp)
 
 
 @pytest.mark.parametrize(
