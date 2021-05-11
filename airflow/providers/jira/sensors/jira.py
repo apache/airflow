@@ -21,7 +21,6 @@ from jira.resources import Issue, Resource
 
 from airflow.providers.jira.operators.jira import JIRAError, JiraOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class JiraSensor(BaseSensorOperator):
@@ -38,7 +37,6 @@ class JiraSensor(BaseSensorOperator):
     :type result_processor: function
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -85,7 +83,6 @@ class JiraTicketSensor(JiraSensor):
 
     template_fields = ("ticket_id",)
 
-    @apply_defaults
     def __init__(
         self,
         *,

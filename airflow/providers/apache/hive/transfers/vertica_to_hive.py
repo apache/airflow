@@ -26,7 +26,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-from airflow.utils.decorators import apply_defaults
 
 
 class VerticaToHiveOperator(BaseOperator):
@@ -70,7 +69,6 @@ class VerticaToHiveOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#b4e0ff'
 
-    @apply_defaults
     def __init__(
         self,
         *,

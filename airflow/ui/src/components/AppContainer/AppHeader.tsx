@@ -21,8 +21,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Avatar,
-  Box,
-  Button,
   Flex,
   Icon,
   Menu,
@@ -32,7 +30,6 @@ import {
   MenuItem,
   useColorMode,
   useColorModeValue,
-  Tooltip,
 } from '@chakra-ui/react';
 import {
   MdWbSunny,
@@ -41,13 +38,14 @@ import {
   MdExitToApp,
 } from 'react-icons/md';
 import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
+import tz from 'dayjs/plugin/timezone';
 
 import { useAuthContext } from 'providers/auth/context';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
+import TimezoneDropdown from './TimezoneDropdown';
 
-dayjs.extend(timezone);
+dayjs.extend(tz);
 
 interface Props {
   bodyBg: string;
@@ -57,13 +55,10 @@ interface Props {
 
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
-  const now = dayjs().tz();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);
   const darkLightText = useColorModeValue(' Dark ', ' Light ');
-
-  const handleOpenTZ = () => window.alert('This will open time zone select modal!');
 
   const handleOpenProfile = () => window.alert('This will take you to your user profile view.');
 
@@ -91,18 +86,7 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
       )}
       {hasValidAuthToken && (
         <Flex align="center">
-          <Tooltip label="Change time zone" hasArrow>
-            {/* TODO: open modal for time zone update */}
-            <Button variant="ghost" mr="4" onClick={handleOpenTZ}>
-              <Box
-                as="time"
-                dateTime={now.toString()}
-                fontSize="md"
-              >
-                {now.format('h:mmA Z')}
-              </Box>
-            </Button>
-          </Tooltip>
+          <TimezoneDropdown />
           <Menu>
             <MenuButton>
               <Avatar name="Ryan Hamilton" size="sm" color="blue.900" bg="blue.200" />

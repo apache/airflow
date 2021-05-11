@@ -19,7 +19,6 @@ from typing import Any, Dict, Optional
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class HivePartitionSensor(BaseSensorOperator):
@@ -50,7 +49,6 @@ class HivePartitionSensor(BaseSensorOperator):
     )
     ui_color = '#C5CAE9'
 
-    @apply_defaults
     def __init__(
         self,
         *,

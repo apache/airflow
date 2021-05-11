@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SparkKubernetesOperator(BaseOperator):
@@ -47,7 +46,6 @@ class SparkKubernetesOperator(BaseOperator):
     template_ext = ('yaml', 'yml', 'json')
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,

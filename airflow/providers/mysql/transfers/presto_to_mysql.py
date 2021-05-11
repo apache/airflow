@@ -20,7 +20,6 @@ from typing import Dict, Optional
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
-from airflow.utils.decorators import apply_defaults
 
 
 class PrestoToMySqlOperator(BaseOperator):
@@ -50,7 +49,6 @@ class PrestoToMySqlOperator(BaseOperator):
     template_fields_renderers = {"mysql_preoperator": "sql"}
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
         *,

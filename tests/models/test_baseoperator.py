@@ -27,9 +27,8 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
-from airflow.models.baseoperator import chain, cross_downstream
+from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
-from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -60,7 +59,56 @@ object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fi
 setattr(object1, 'ref', object2)
 
 
+# Essentially similar to airflow.models.baseoperator.BaseOperator
+class DummyClass(metaclass=BaseOperatorMeta):
+    def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
+        self.test_param = test_param
+
+    def set_xcomargs_dependencies(self):
+        ...
+
+
+class DummySubClass(DummyClass):
+    def __init__(self, test_sub_param, **kwargs):
+        super().__init__(**kwargs)
+        self.test_sub_param = test_sub_param
+
+
 class TestBaseOperator(unittest.TestCase):
+    def test_apply(self):
+        dummy = DummyClass(test_param=True)
+        assert dummy.test_param
+
+        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+            DummySubClass(test_sub_param=True)
+
+    def test_default_args(self):
+        default_args = {'test_param': True}
+        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        assert dummy_class.test_param
+
+        default_args = {'test_param': True, 'test_sub_param': True}
+        dummy_subclass = DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        assert dummy_class.test_param
+        assert dummy_subclass.test_sub_param
+
+        default_args = {'test_param': True}
+        dummy_subclass = DummySubClass(default_args=default_args, test_sub_param=True)
+        assert dummy_class.test_param
+        assert dummy_subclass.test_sub_param
+
+        with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
+            DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+
+    def test_incorrect_default_args(self):
+        default_args = {'test_param': True, 'extra_param': True}
+        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        assert dummy_class.test_param
+
+        default_args = {'random_params': True}
+        with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
+            DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+
     @parameterized.expand(
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
@@ -413,7 +461,6 @@ class TestBaseOperatorMethods(unittest.TestCase):
 class CustomOp(DummyOperator):
     template_fields = ("field", "field2")
 
-    @apply_defaults
     def __init__(self, field=None, field2=None, **kwargs):
         super().__init__(**kwargs)
         self.field = field

@@ -28,7 +28,6 @@ import pendulum
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils.decorators import apply_defaults
 
 
 class _PostgresServerSideCursorDecorator:
@@ -97,7 +96,6 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         1700: 'FLOAT',
     }
 
-    @apply_defaults
     def __init__(
         self,
         *,

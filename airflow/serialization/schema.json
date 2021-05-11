@@ -66,6 +66,12 @@
         "maxProperties": 1
       }
     },
+    "dag_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
     "dag": {
       "type": "object",
       "properties": {
@@ -104,7 +110,8 @@
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
         ]},
-        "edge_info": { "$ref": "#/definitions/edge_info" }
+        "edge_info": { "$ref": "#/definitions/edge_info" },
+        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
       },
       "required": [
         "_dag_id",

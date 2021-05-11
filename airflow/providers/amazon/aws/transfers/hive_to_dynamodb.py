@@ -24,7 +24,6 @@ from typing import Callable, Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class HiveToDynamoDBOperator(BaseOperator):
@@ -60,7 +59,6 @@ class HiveToDynamoDBOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

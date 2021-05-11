@@ -585,3 +585,21 @@ Note that packaged DAGs come with some caveats:
 * They will be inserted into Python's ``sys.path`` and importable by any other code in the Airflow process, so ensure the package names don't clash with other packages already installed on your system.
 
 In general, if you have a complex set of compiled dependencies and modules, you are likely better off using the Python ``virtualenv`` system and installing the necessary packages on your target systems with ``pip``.
+
+DAG Dependencies
+================
+
+*Added in Airflow 2.1*
+
+While dependencies between tasks in a DAG are explicitly defined through upstream and downstream
+relationships, dependencies between DAGs are a bit more complex. In general, there are two ways
+in which one DAG can depend on another:
+
+- triggering - :class:`~airflow.operators.trigger_dagrun.TriggerDagRunOperator`
+- waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
+
+Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG
+with different execution dates. The **Dag Dependencies** view
+``Menu -> Browse -> DAG Dependencies`` helps visualize dependencies between DAGs. The dependencies
+are calculated by the scheduler during DAG serialization and the webserver uses them to build
+the dependency graph.

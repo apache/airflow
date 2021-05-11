@@ -30,7 +30,6 @@ except ImportError:
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
-from airflow.utils.decorators import apply_defaults
 
 REGEX_REPO_PATH = re.compile(r"^/p/(?P<project_id>[^/]+)/r/(?P<repo_name>[^/]+)")
 
@@ -200,7 +199,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     )
     template_ext = ['.yml', '.yaml', '.json']
 
-    @apply_defaults
     def __init__(
         self,
         *,

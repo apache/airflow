@@ -130,9 +130,6 @@ function initialization::initialize_base_variables() {
     # Cleans up docker context files if specified
     export CLEANUP_DOCKER_CONTEXT_FILES="false"
 
-    # If set to true, RBAC UI will not be used for 1.10 version
-    export DISABLE_RBAC=${DISABLE_RBAC:="false"}
-
     # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
     export USE_PACKAGES_FROM_DIST=${USE_PACKAGES_FROM_DIST:="false"}
@@ -729,7 +726,6 @@ Initialization variables:
     LOAD_EXAMPLES: '${LOAD_EXAMPLES}'
     USE_AIRFLOW_VERSION: '${USE_AIRFLOW_VERSION=}'
     USE_PACKAGES_FROM_DIST: '${USE_PACKAGES_FROM_DIST=}'
-    DISABLE_RBAC: '${DISABLE_RBAC}'
 
 Test variables:
 

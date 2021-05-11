@@ -23,7 +23,6 @@ except ImportError:
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsGlueCrawlerOperator(BaseOperator):
@@ -42,7 +41,6 @@ class AwsGlueCrawlerOperator(BaseOperator):
 
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         config,

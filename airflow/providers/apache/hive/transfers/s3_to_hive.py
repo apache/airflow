@@ -30,7 +30,6 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -104,7 +103,6 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
     template_ext = ()
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

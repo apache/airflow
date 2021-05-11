@@ -21,7 +21,7 @@ CI Environment
 ==============
 
 Continuous Integration is important component of making Apache Airflow robust and stable. We are running
-a lot of tests for every pull request, for master and v1-10-test branches and regularly as CRON jobs.
+a lot of tests for every pull request, for master and v2-0-test branches and regularly as CRON jobs.
 
 Our execution environment for CI is `GitHub Actions <https://github.com/features/actions>`_. GitHub Actions
 (GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/202 to become
@@ -106,7 +106,7 @@ Default is the GitHub Package Registry one. The Pull Request forks have no acces
 auto-detect the registry used when they wait for the images.
 
 You can interact with the GitHub Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - you can
-pass ``--github-registry`` flag wih  either ``docker.pkg.github.com`` for GitHub Package Registry or
+pass ``--github-registry`` flag with either ``docker.pkg.github.com`` for GitHub Package Registry or
 ``ghcr.io`` for GitHub Container Registry and pull/push operations will be performed using the chosen
 registry, using appropriate naming convention. This allows building and pushing the images locally by
 committers who have access to push/pull those images.
@@ -307,7 +307,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | tested set of dependency constraints            |
 |                                         |             |             |            | stored in separated "orphan" branches           |
 |                                         |             |             |            | of the airflow repository                       |
-|                                         |             |             |            | ("constraints-master, "constraints-1-10")       |
+|                                         |             |             |            | ("constraints-master, "constraints-2-0")        |
 |                                         |             |             |            | but when this flag is set to anything but false |
 |                                         |             |             |            | (for example commit SHA), they are not used     |
 |                                         |             |             |            | used and "eager" upgrade strategy is used       |

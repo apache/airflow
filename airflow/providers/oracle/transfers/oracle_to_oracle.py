@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OracleToOracleOperator(BaseOperator):
@@ -46,7 +45,6 @@ class OracleToOracleOperator(BaseOperator):
     template_fields_renderers = {"source_sql": "sql", "source_sql_params": "py"}
     ui_color = '#e08c8c'
 
-    @apply_defaults
     def __init__(
         self,
         *,

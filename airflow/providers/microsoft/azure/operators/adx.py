@@ -25,7 +25,6 @@ from azure.kusto.data._models import KustoResultTable
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):
@@ -48,7 +47,6 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     template_fields = ('query', 'database')
     template_ext = ('.kql',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

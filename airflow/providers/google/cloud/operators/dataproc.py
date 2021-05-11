@@ -40,7 +40,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 DATAPROC_BASE_LINK = "https://console.cloud.google.com/dataproc"
 DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
@@ -525,7 +524,6 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     operator_extra_links = (DataprocClusterLink(),)
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -753,7 +751,6 @@ class DataprocScaleClusterOperator(BaseOperator):
 
     operator_extra_links = (DataprocClusterLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -894,7 +891,6 @@ class DataprocDeleteClusterOperator(BaseOperator):
 
     template_fields = ('project_id', 'region', 'cluster_name', 'impersonation_chain')
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1002,7 +998,6 @@ class DataprocJobBaseOperator(BaseOperator):
 
     operator_extra_links = (DataprocJobLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1161,7 +1156,6 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     operator_extra_links = (DataprocJobLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1236,7 +1230,6 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     ui_color = '#0273d4'
     job_type = 'hive_job'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1311,7 +1304,6 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     ui_color = '#0273d4'
     job_type = 'spark_sql_job'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1391,7 +1383,6 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     ui_color = '#0273d4'
     job_type = 'spark_job'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1471,7 +1462,6 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     ui_color = '#0273d4'
     job_type = 'hadoop_job'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1576,7 +1566,6 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         )
         return f"gs://{bucket}/{temp_filename}"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1758,7 +1747,6 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     template_fields = ['template_id', 'impersonation_chain', 'request_id', 'parameters']
     template_fields_renderers = {"parameters": "json"}
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -1858,7 +1846,6 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     template_fields = ['template', 'impersonation_chain']
     template_fields_renderers = {"template": "json"}
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1952,7 +1939,6 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     operator_extra_links = (DataprocJobLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2081,7 +2067,6 @@ class DataprocUpdateClusterOperator(BaseOperator):
     template_fields = ('impersonation_chain', 'cluster_name')
     operator_extra_links = (DataprocClusterLink(),)
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

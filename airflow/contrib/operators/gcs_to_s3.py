@@ -39,6 +39,6 @@ class GoogleCloudStorageToS3Operator(GCSToS3Operator):
             "This class is deprecated. "
             "Please use `airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator`.",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

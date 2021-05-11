@@ -18,7 +18,6 @@
 from typing import Any, Dict, List, Tuple
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class NamedHivePartitionSensor(BaseSensorOperator):
@@ -42,7 +41,6 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     ui_color = '#8d99ae'
     poke_context_fields = ('partition_names', 'metastore_conn_id')
 
-    @apply_defaults
     def __init__(
         self,
         *,

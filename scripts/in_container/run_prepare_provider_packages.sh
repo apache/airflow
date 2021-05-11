@@ -148,27 +148,6 @@ function build_provider_packages() {
     fi
 }
 
-function rename_packages_if_needed() {
-    cd "${AIRFLOW_SOURCES}" || exit 1
-    pushd dist >/dev/null 2>&1 || exit 1
-    if [[ -n "${FILE_VERSION_SUFFIX}" ]]; then
-        # In case we have FILE_VERSION_SUFFIX we rename prepared files
-        if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
-            for FILE in *.tar.gz
-            do
-                mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}.tar.gz}"
-            done
-        fi
-        if [[ "${PACKAGE_FORMAT}" == "wheel" || "${PACKAGE_FORMAT}" == "both" ]]; then
-            for FILE in *.whl
-            do
-                mv "${FILE}" "${FILE//\-py3/${FILE_VERSION_SUFFIX}-py3}"
-            done
-        fi
-    fi
-    popd >/dev/null
-}
-
 setup_provider_packages
 
 cd "${PROVIDER_PACKAGES_DIR}" || exit 1

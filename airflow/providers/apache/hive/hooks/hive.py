@@ -738,7 +738,7 @@ class HiveMetastoreHook(BaseHook):
         :type filter_map: map
 
         >>> hh = HiveMetastoreHook()
-        >>> filter_map = {'ds': '2015-01-01', 'ds': '2014-01-01'}
+        >>> filter_map = {'ds': '2015-01-01'}
         >>> t = 'static_babynames_partitioned'
         >>> hh.max_partition(schema='airflow',\
         ... table_name=t, field='ds', filter_map=filter_map)

@@ -58,9 +58,8 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub    |
 |                                          |                                          | where constraints file is taken from     |
-|                                          |                                          | It can be ``constraints-master`` but     |
-|                                          |                                          | can be ``constraints-1-10`` for 1.10.*   |
-|                                          |                                          | versions of ``constraints-2-0`` for      |
+|                                          |                                          | It can be ``constraints-master`` or      |
+|                                          |                                          | ``constraints-2-0`` for                  |
 |                                          |                                          | 2.0.* installation. In case of building  |
 |                                          |                                          | specific version you want to point it    |
 |                                          |                                          | to specific tag, for example             |

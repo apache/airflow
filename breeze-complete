@@ -23,7 +23,7 @@
 # by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="2.7 3.5 3.6 3.7 3.8"
+_breeze_allowed_python_major_minor_versions="3.6 3.7 3.8"
 _breeze_allowed_backends="sqlite mysql postgres"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
@@ -62,8 +62,6 @@ _breeze_allowed_install_airflow_versions=$(cat <<-EOF
 2.0.2
 2.0.1
 2.0.0
-1.10.15
-1.10.14
 wheel
 sdist
 EOF

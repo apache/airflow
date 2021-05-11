@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.utils.decorators import apply_defaults
 
 if TYPE_CHECKING:
     from airflow.hooks.dbapi import DbApiHook
@@ -53,7 +52,6 @@ class MsSqlOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

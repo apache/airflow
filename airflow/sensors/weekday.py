@@ -18,7 +18,6 @@
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.weekday import WeekDay
 
 
@@ -72,7 +71,6 @@ class DayOfWeekSensor(BaseSensorOperator):
     :type use_task_execution_day: bool
     """
 
-    @apply_defaults
     def __init__(self, *, week_day, use_task_execution_day=False, **kwargs):
         super().__init__(**kwargs)
         self.week_day = week_day

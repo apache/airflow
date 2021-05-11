@@ -19,7 +19,6 @@ from typing import Dict, Iterable, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DataprocCreateClusterOperator(BaseOperator):
@@ -77,7 +76,6 @@ class DataprocCreateClusterOperator(BaseOperator):
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -172,7 +170,6 @@ class DataprocDeleteClusterOperator(BaseOperator):
 
     template_fields = ['cluster_id']
 
-    @apply_defaults
     def __init__(
         self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
     ) -> None:
@@ -217,7 +214,6 @@ class DataprocCreateHiveJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -291,7 +287,6 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -370,7 +365,6 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -449,7 +443,6 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

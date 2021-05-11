@@ -23,7 +23,6 @@ from tempfile import NamedTemporaryFile
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.samba.hooks.samba import SambaHook
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -49,7 +48,6 @@ class HiveToSambaOperator(BaseOperator):
         '.sql',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

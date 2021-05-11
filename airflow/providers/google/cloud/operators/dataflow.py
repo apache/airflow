@@ -31,7 +31,6 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 from airflow.version import version
 
 
@@ -349,7 +348,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     ui_color = "#0273d4"
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -635,7 +633,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     ]
     ui_color = "#0273d4"
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -774,7 +771,6 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
     template_fields = ["body", "location", "project_id", "gcp_conn_id"]
 
-    @apply_defaults
     def __init__(
         self,
         body: Dict,
@@ -878,7 +874,6 @@ class DataflowStartSqlJobOperator(BaseOperator):
         "gcp_conn_id",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         job_name: str,
@@ -1051,7 +1046,6 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
     template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

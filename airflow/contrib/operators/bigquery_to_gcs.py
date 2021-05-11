@@ -39,6 +39,6 @@ class BigQueryToCloudStorageOperator(BigQueryToGCSOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryToGCSOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

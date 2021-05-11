@@ -244,7 +244,7 @@ def prepare_engine_args(disable_connection_pool=False):
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
-    elif 'sqlite' not in SQL_ALCHEMY_CONN:
+    elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
@@ -287,6 +287,15 @@ def prepare_engine_args(disable_connection_pool=False):
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
+
+    # The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
+    # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
+    # 'READ COMMITTED' is the default value for PostgreSQL.
+    # More information here:
+    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
+    if SQL_ALCHEMY_CONN.startswith('mysql'):
+        engine_args['isolation_level'] = 'READ COMMITTED'
+
     return engine_args
 
 

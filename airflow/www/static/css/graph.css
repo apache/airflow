@@ -165,3 +165,30 @@ g.node.removed rect {
   background-color: #f0f0f0;
   cursor: move;
 }
+
+.legend-item.dag {
+  float: left;
+  background-color: #e8f7e4;
+}
+
+.legend-item.trigger {
+  float: left;
+  background-color: #ffefeb;
+}
+
+.legend-item.sensor {
+  float: left;
+  background-color: #e6f1f2;
+}
+
+g.node.dag rect {
+  fill: #e8f7e4;
+}
+
+g.node.trigger rect {
+  fill: #ffefeb;
+}
+
+g.node.sensor rect {
+  fill: #e6f1f2;
+}

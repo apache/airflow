@@ -25,7 +25,6 @@ except ImportError:
 
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudFormationCreateStackSensor(BaseSensorOperator):
@@ -44,7 +43,6 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     template_fields = ['stack_name']
     ui_color = '#C5CAE9'
 
-    @apply_defaults
     def __init__(self, *, stack_name, aws_conn_id='aws_default', region_name=None, **kwargs):
         super().__init__(**kwargs)
         self.stack_name = stack_name
@@ -81,7 +79,6 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     template_fields = ['stack_name']
     ui_color = '#C5CAE9'
 
-    @apply_defaults
     def __init__(
         self,
         *,
