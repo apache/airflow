@@ -19,12 +19,27 @@
 
 import React, { useMemo } from 'react';
 import {
-  Table, Thead, Tbody, Tr, Th, Td, chakra, Alert, AlertIcon, Progress, Switch, IconButton,
+  Flex,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  chakra,
+  Alert,
+  AlertIcon,
+  Progress,
+  Switch,
+  IconButton,
+  Text,
 } from '@chakra-ui/react';
 import {
-  useTable, useSortBy, Column,
+  useTable, useSortBy, Column, usePagination,
 } from 'react-table';
-import { MdArrowDropDown, MdArrowDropUp, MdPlayArrow } from 'react-icons/md';
+import {
+  MdArrowDropDown, MdArrowDropUp, MdPlayArrow, MdKeyboardArrowLeft, MdKeyboardArrowRight,
+} from 'react-icons/md';
 
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
@@ -53,7 +68,7 @@ const PipelinesTable: React.FC = () => {
         tags: d.tags.map((tag) => <DagTag tag={tag} key={tag.name} />),
         dagId: <DagName dagId={d.dagId} />,
         trigger: <TriggerDagButton dagId={d.dagId} />,
-        isPaused: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
+        active: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
       }))),
     [dags, isLoading],
   );
@@ -61,7 +76,9 @@ const PipelinesTable: React.FC = () => {
   const columns = useMemo<Column<any>[]>(
     () => [
       {
-        accessor: 'isPaused',
+        Header: 'Active',
+        accessor: 'active',
+        sortType: (rowA, rowB) => (rowA.original.isPaused && !rowB.original.isPaused ? 1 : -1),
       },
       {
         Header: 'Dag Id',
@@ -72,6 +89,7 @@ const PipelinesTable: React.FC = () => {
         accessor: 'tags',
       },
       {
+        disableSortBy: true,
         accessor: 'trigger',
       },
     ],
@@ -82,9 +100,23 @@ const PipelinesTable: React.FC = () => {
     getTableProps,
     getTableBodyProps,
     allColumns,
-    rows,
     prepareRow,
-  } = useTable({ columns, data }, useSortBy);
+    page,
+    canPreviousPage,
+    canNextPage,
+    pageCount,
+    nextPage,
+    previousPage,
+    state: { pageIndex },
+  } = useTable(
+    {
+      columns,
+      data,
+      initialState: { pageIndex: 0, pageSize: 25 },
+    },
+    useSortBy,
+    usePagination,
+  );
 
   return (
     <>
@@ -122,7 +154,7 @@ const PipelinesTable: React.FC = () => {
             <Td colSpan={2}>No Pipelines found.</Td>
           </Tr>
           )}
-          {rows.map((row) => {
+          {page.map((row) => {
             prepareRow(row);
             return (
               <Tr {...row.getRowProps()}>
@@ -138,6 +170,19 @@ const PipelinesTable: React.FC = () => {
           })}
         </Tbody>
       </Table>
+      <Flex alignItems="center" justifyContent="flex-end">
+        <IconButton variant="ghost" onClick={previousPage} disabled={!canPreviousPage} aria-label="Previous Page">
+          <MdKeyboardArrowLeft />
+        </IconButton>
+        <IconButton variant="ghost" onClick={nextPage} disabled={!canNextPage} aria-label="Next Page">
+          <MdKeyboardArrowRight />
+        </IconButton>
+        <Text>
+          {pageIndex + 1}
+          {' of '}
+          {pageCount}
+        </Text>
+      </Flex>
     </>
   );
 };
