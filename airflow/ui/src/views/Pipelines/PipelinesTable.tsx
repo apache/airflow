@@ -32,30 +32,30 @@ import {
   DagName, PauseToggle, TriggerDagButton, DagTag,
 } from './Row';
 
+const getRandomInt = (max: number) => Math.floor(Math.random() * max);
+
+// Generate 1-10 fake rows to show a skeleton loader
+const skeletonLoader = [...Array(getRandomInt(10) || 1)].map(() => ({
+  isPaused: <Switch disabled />,
+  tags: '',
+  dagId: <Progress size="lg" isIndeterminate data-testid="pipelines-loading" />,
+  trigger: <IconButton size="sm" icon={<MdPlayArrow />} aria-label="Trigger Dag" disabled />,
+}));
+
 const PipelinesTable: React.FC = () => {
   const { data: { dags } = defaultDags, isLoading, error } = useDags();
+
   const data = useMemo(
-    () => dags.map((d) => ({
-      ...d,
-      tags: d.tags.map((tag) => <DagTag tag={tag} key={tag.name} />),
-      dagId: <DagName dagId={d.dagId} />,
-      trigger: <TriggerDagButton dagId={d.dagId} />,
-      isPaused: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
-    })),
-    [dags],
-  );
-
-  const getRandomInt = (max: number) => Math.floor(Math.random() * max);
-
-  // Generate 1-10 fake rows to show a skeleton loader
-  const loadingData = useMemo(
-    () => [...Array(getRandomInt(10) || 1)].map(() => ({
-      isPaused: <Switch disabled />,
-      tags: '',
-      dagId: <Progress size="lg" isIndeterminate data-testid="pipelines-loading" />,
-      trigger: <IconButton size="sm" icon={<MdPlayArrow />} aria-label="Trigger Dag" disabled />,
-    })),
-    [],
+    () => (isLoading && !dags.length
+      ? skeletonLoader
+      : dags.map((d) => ({
+        ...d,
+        tags: d.tags.map((tag) => <DagTag tag={tag} key={tag.name} />),
+        dagId: <DagName dagId={d.dagId} />,
+        trigger: <TriggerDagButton dagId={d.dagId} />,
+        isPaused: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
+      }))),
+    [dags, isLoading],
   );
 
   const columns = useMemo<Column<any>[]>(
@@ -84,7 +84,7 @@ const PipelinesTable: React.FC = () => {
     allColumns,
     rows,
     prepareRow,
-  } = useTable({ columns, data: isLoading && !data.length ? loadingData : data }, useSortBy);
+  } = useTable({ columns, data }, useSortBy);
 
   return (
     <>
