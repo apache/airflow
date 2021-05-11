@@ -20,7 +20,6 @@ from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.asana.hooks.asana import AsanaHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AsanaCreateTaskOperator(BaseOperator):
@@ -43,7 +42,6 @@ class AsanaCreateTaskOperator(BaseOperator):
     :type task_parameters: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -84,7 +82,6 @@ class AsanaUpdateTaskOperator(BaseOperator):
     :type task_update_parameters: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -119,7 +116,6 @@ class AsanaDeleteTaskOperator(BaseOperator):
     :type asana_task_gid: str
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -155,7 +151,6 @@ class AsanaFindTaskOperator(BaseOperator):
     :type search_parameters: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
