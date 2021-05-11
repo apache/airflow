@@ -28,6 +28,8 @@ import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from airflow.utils.state import State
+
 CLUSTER_FORWARDED_PORT = os.environ.get('CLUSTER_FORWARDED_PORT') or "8080"
 KUBERNETES_HOST_PORT = (os.environ.get('CLUSTER_HOST') or "localhost") + ":" + CLUSTER_FORWARDED_PORT
 EXECUTOR = os.environ.get("EXECUTOR")
@@ -73,6 +75,21 @@ class TestBase(unittest.TestCase):
         names = [re.compile(r'\s+').split(x)[0] for x in air_pod if 'airflow' + suffix in x]
         if names:
             check_call(['kubectl', 'delete', 'pod', names[0]])
+
+    @staticmethod
+    def _delete_task_pod(name, type="Running"):
+        while True:
+            air_pod = check_output(['kubectl', 'get', 'pods']).decode()
+            air_pod = air_pod.split('\n')
+            names = [re.compile(r'\s+').split(x)[0] for x in air_pod if name in x]
+            statuses = [re.compile(r'\s+').split(x)[2] for x in air_pod if name in x and len(x) > 1]
+            print('Found Containers: ', names)
+            print('Container statuses: ', statuses)
+            if type in statuses:
+                name = names[statuses.index(type)]
+                print("Deleting pod: ", name)
+                check_call(['kubectl', 'delete', 'pod', name])
+                break
 
     def _get_session_with_retries(self):
         session = requests.Session()
@@ -122,7 +139,7 @@ class TestBase(unittest.TestCase):
                 state = result_json['state']
                 print(f"Attempt {tries}: Current state of operator is {state}")
 
-                if state == expected_final_state:
+                if state in State.finished:
                     break
                 self._describe_resources(namespace="airflow")
                 self._describe_resources(namespace="default")
@@ -154,7 +171,7 @@ class TestBase(unittest.TestCase):
             check_call(["echo", f"Attempt {tries}: Current state of dag is {state}"])
             print(f"Attempt {tries}: Current state of dag is {state}")
 
-            if state == expected_final_state:
+            if state in State.finished:
                 break
             self._describe_resources("airflow")
             self._describe_resources("default")
@@ -177,12 +194,11 @@ class TestBase(unittest.TestCase):
         print(f"Calling [start_dag]#2 {post_string}")
         # Trigger a new dagrun
         result = self.session.post(post_string, json={})
-        try:
-            result_json = result.json()
-        except ValueError:
-            result_json = str(result)
+        result_json = result.json()
         print(f"Received [start_dag]#2 {result_json}")
         assert result.status_code == 200, f"Could not trigger a DAG-run: {result_json}"
+        execution_date = result_json['execution_date']
+        dag_run_id = result_json['dag_run_id']
 
         time.sleep(1)
 
@@ -192,18 +208,4 @@ class TestBase(unittest.TestCase):
         assert result.status_code == 200, f"Could not get DAGRuns: {result.json()}"
         result_json = result.json()
         print(f"Received: [start_dag]#3 {result_json}")
-        return result_json
-
-    def start_job_in_kubernetes(self, dag_id, host):
-        result_json = self.start_dag(dag_id=dag_id, host=host)
-        dag_runs = result_json['dag_runs']
-        assert len(dag_runs) > 0
-        execution_date = None
-        dag_run_id = None
-        for dag_run in dag_runs:
-            if dag_run['dag_id'] == dag_id:
-                execution_date = dag_run['execution_date']
-                dag_run_id = dag_run['dag_run_id']
-                break
-        assert execution_date is not None, f"No execution_date can be found for the dag with {dag_id}"
         return dag_run_id, execution_date

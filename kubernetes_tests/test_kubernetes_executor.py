@@ -86,6 +86,8 @@ class TestKubernetesExecutor(TestBase):
         assert self._num_pods_in_namespace('test-namespace') == 0, "failed to delete pods in other namespace"
 
     def test_integration_run_dag_with_running_task_pod_kill(self):
+        # This tests that when a task pod is killed while it's still running, then
+        # the task is marked failed and downstream tasks are marked as upstream failed as well
         dag_id = 'example_kubernetes_executor_config'
         pod_name = 'examplekubernetesexecutorconfigstarttask'
         dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=self.host)
@@ -116,10 +118,11 @@ class TestKubernetesExecutor(TestBase):
         assert self._num_pods_in_namespace('test-namespace') == 0, "failed to delete pods in other namespace"
 
     def test_integration_run_dag_with_container_creating_task_pod_kill(self):
+        # This tests that when a task pod is killed while it's still creating, then
+        # the task is marked failed and downstream tasks are marked as upstream failed as well
         dag_id = 'example_kubernetes_executor_config'
         pod_name = 'examplekubernetesexecutorconfigstarttask'
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
-        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=host)
+        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=self.host)
         self._delete_task_pod(pod_name, type='ContainerCreating')
         self.monitor_task(
             host=self.host,

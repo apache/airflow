@@ -29,7 +29,7 @@ from kubernetes_tests.test_base import EXECUTOR, TestBase
 class TestCeleryAndLocalExecutor(TestBase):
     def test_integration_run_dag(self):
         dag_id = 'example_bash_operator'
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, execution_date = self.start_dag(dag_id, self.host)
         print(f"Found the job with execution_date {execution_date}")
 
         # Wait some time for the operator to complete
@@ -53,7 +53,7 @@ class TestCeleryAndLocalExecutor(TestBase):
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = 'example_xcom'
 
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, execution_date = self.start_dag(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
 
