@@ -74,6 +74,7 @@ describe('Test Pipelines Table', () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
+      .query(() => true)
       .reply(200, {
         dags: [sampleDag],
         totalEntries: 1,
@@ -94,6 +95,7 @@ describe('Test Pipelines Table', () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
+      .query(() => true)
       .reply(404, {
         dags: [],
         totalEntries: 0,
@@ -119,6 +121,7 @@ describe('Test Pipelines Table', () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
+      .query(() => true)
       .reply(200, {
         dags: [sampleDag],
         totalEntries: 1,

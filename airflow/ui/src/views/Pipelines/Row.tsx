@@ -36,11 +36,13 @@ import type { DagTag as DagTagType } from 'interfaces';
 interface PauseProps {
   dagId: string;
   isPaused: boolean;
+  offset?: number;
 }
 
-export const PauseToggle: React.FC<PauseProps> = ({ dagId, isPaused }) => {
-  const mutation = useSaveDag(dagId);
+export const PauseToggle: React.FC<PauseProps> = ({ dagId, isPaused, offset = 0 }) => {
+  const mutation = useSaveDag(dagId, offset);
   const togglePaused = () => mutation.mutate({ isPaused: !isPaused });
+
   return (
     <Tooltip
       label={isPaused ? 'Activate DAG' : 'Pause DAG'}

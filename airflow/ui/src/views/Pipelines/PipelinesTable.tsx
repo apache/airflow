@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Flex,
   Table,
@@ -33,6 +33,7 @@ import {
   Switch,
   IconButton,
   Text,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import {
   useTable, useSortBy, Column, usePagination,
@@ -57,8 +58,20 @@ const skeletonLoader = [...Array(getRandomInt(10) || 1)].map(() => ({
   trigger: <IconButton size="sm" icon={<MdPlayArrow />} aria-label="Trigger Dag" disabled />,
 }));
 
+const LIMIT = 25;
+
 const PipelinesTable: React.FC = () => {
-  const { data: { dags } = defaultDags, isLoading, error } = useDags();
+  const [offset, setOffset] = useState(0);
+  const {
+    data: { dags, totalEntries } = defaultDags,
+    isLoading,
+    error,
+  } = useDags({ limit: LIMIT, offset });
+
+  const oddColor = useColorModeValue('gray.50', 'gray.900');
+  const hoverColor = useColorModeValue('gray.100', 'gray.700');
+
+  const pageCount = Math.ceil(totalEntries / LIMIT) || 1;
 
   const data = useMemo(
     () => (isLoading && !dags.length
@@ -68,9 +81,9 @@ const PipelinesTable: React.FC = () => {
         tags: d.tags.map((tag) => <DagTag tag={tag} key={tag.name} />),
         dagId: <DagName dagId={d.dagId} />,
         trigger: <TriggerDagButton dagId={d.dagId} />,
-        active: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} />,
+        active: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} offset={offset} />,
       }))),
-    [dags, isLoading],
+    [dags, isLoading, offset],
   );
 
   const columns = useMemo<Column<any>[]>(
@@ -104,7 +117,6 @@ const PipelinesTable: React.FC = () => {
     page,
     canPreviousPage,
     canNextPage,
-    pageCount,
     nextPage,
     previousPage,
     state: { pageIndex },
@@ -112,11 +124,23 @@ const PipelinesTable: React.FC = () => {
     {
       columns,
       data,
-      initialState: { pageIndex: 0, pageSize: 25 },
+      pageCount,
+      manualPagination: true,
+      initialState: { pageIndex: offset / LIMIT, pageSize: LIMIT },
     },
     useSortBy,
     usePagination,
   );
+
+  const handleNext = () => {
+    nextPage();
+    setOffset((pageIndex + 1) * LIMIT);
+  };
+
+  const handlePrevious = () => {
+    previousPage();
+    setOffset((pageIndex - 1 || 0) * LIMIT);
+  };
 
   return (
     <>
@@ -157,10 +181,15 @@ const PipelinesTable: React.FC = () => {
           {page.map((row) => {
             prepareRow(row);
             return (
-              <Tr {...row.getRowProps()}>
+              <Tr
+                {...row.getRowProps()}
+                _odd={{ backgroundColor: oddColor }}
+                _hover={{ backgroundColor: hoverColor }}
+              >
                 {row.cells.map((cell) => (
                   <Td
                     {...cell.getCellProps()}
+                    py={3}
                   >
                     {cell.render('Cell')}
                   </Td>
@@ -171,10 +200,10 @@ const PipelinesTable: React.FC = () => {
         </Tbody>
       </Table>
       <Flex alignItems="center" justifyContent="flex-end">
-        <IconButton variant="ghost" onClick={previousPage} disabled={!canPreviousPage} aria-label="Previous Page">
+        <IconButton variant="ghost" onClick={handlePrevious} disabled={!canPreviousPage} aria-label="Previous Page">
           <MdKeyboardArrowLeft />
         </IconButton>
-        <IconButton variant="ghost" onClick={nextPage} disabled={!canNextPage} aria-label="Next Page">
+        <IconButton variant="ghost" onClick={handleNext} disabled={!canNextPage} aria-label="Next Page">
           <MdKeyboardArrowRight />
         </IconButton>
         <Text>
