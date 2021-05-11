@@ -147,8 +147,6 @@ def test_calendar(admin_client, dagruns):
 
     bash_dagrun, _, _ = dagruns
 
-    expected_data = '{{\\"date\\":{},\\"state\\":{},\\"count\\":1}}'.format(
-        bash_dagrun.execution_date.date().isoformat(),
-        State.RUNNING,
-    )
-    check_content_in_response(expected_data, resp)
+    datestr = bash_dagrun.execution_date.date().isoformat()
+    expected = rf'{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}'
+    check_content_in_response(expected, resp)
