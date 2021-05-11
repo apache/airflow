@@ -80,9 +80,6 @@ Note : After adding user to docker group Logout and Login again for group member
 
   $ docker run hello-world
 
-
-
-
 Docker Compose
 --------------
 
@@ -105,8 +102,6 @@ Docker Compose
 .. code-block:: bash
 
   $ docker-compose --version
-
-
 
 Pyenv and setting up virtual-env
 --------------------------------
@@ -158,9 +153,6 @@ Pyenv and setting up virtual-env
 
   $ pyenv activate airflow-env
 
-
-
-
 Setup Airflow with Breeze and PyCharm
 #####################################
 
@@ -202,8 +194,6 @@ Forking and cloning Project
         <img src="images/quick_start/airflow_clone.png"
              alt="Cloning github fork of Apache airflow">
       </div>
-
-
 
 3. Open PyCharm and click ``Get from Version Control``
 
@@ -362,8 +352,6 @@ Using Breeze
     $ root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
 
 
-
-
 2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
    and password ``admin``.
 
@@ -378,8 +366,7 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup mysql database in
-MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
+3. Setup mysql database in MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
    blank(leave empty), default schema ``airflow``.
 
    .. raw:: html
@@ -467,8 +454,6 @@ Following are some of important topics of Breeze documentation:
 
    <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#other-uses-of-the-airflow-breeze-environment"
    target="_blank">Other uses of the Airflow Breeze environment</a>
-
-
 
 Setting up Debug
 ----------------
