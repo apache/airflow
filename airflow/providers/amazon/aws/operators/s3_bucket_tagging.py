@@ -34,15 +34,12 @@ class S3GetBucketTaggingOperator(BaseOperator):
 
     :param bucket_name: This is bucket name you want to reference
     :type bucket_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
+    :param aws_conn_id: adding this param to template_fields for jinja template use 
+        This feature can be useful for some kind of Dag Isolation etc 
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields = ("bucket_name","aws_conn_id")
 
     def __init__(self, bucket_name: str, aws_conn_id: Optional[str] = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
