@@ -35,7 +35,7 @@ branch_labels = None
 depends_on = None
 
 
-def __use_date_time2(conn):
+def _use_date_time2(conn):
     result = conn.execute(
         """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
         like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
@@ -45,10 +45,10 @@ def __use_date_time2(conn):
     return mssql_version not in ("2000", "2005")
 
 
-def __get_timestamp(conn):
+def _get_timestamp(conn):
     dialect_name = conn.dialect.name
     if dialect_name == "mssql":
-        return mssql.DATETIME2(precision=6) if __use_date_time2(conn) else mssql.DATETIME
+        return mssql.DATETIME2(precision=6) if _use_date_time2(conn) else mssql.DATETIME
     elif dialect_name != "mysql":
         return sa.TIMESTAMP(timezone=True)
     else:
@@ -60,7 +60,7 @@ def upgrade():
     conn = op.get_bind()  # pylint: disable=no-member
     is_sqlite = bool(conn.dialect.name == "sqlite")
     is_mssql = bool(conn.dialect.name == "mssql")
-    timestamp = __get_timestamp(conn)
+    timestamp = _get_timestamp(conn)
 
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
