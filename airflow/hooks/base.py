@@ -74,8 +74,8 @@ class BaseHook(LoggingMixin):
                 conn.port,
                 conn.schema,
                 conn.login,
-                "XXXXXXXX" if conn.password else None,
-                "XXXXXXXX" if conn.extra_dejson else None,
+                conn.password,
+                conn.extra_dejson,
             )
         return conn
 

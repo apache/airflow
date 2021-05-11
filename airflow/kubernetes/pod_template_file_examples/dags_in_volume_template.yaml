@@ -62,6 +62,7 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
+    fsGroup: 50000
   nodeSelector:
     {}
   affinity:

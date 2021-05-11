@@ -37,9 +37,25 @@ metadata:
 spec:
   replicas: {{ .Values.webserver.replicas }}
   strategy:
+    {{- if .Values.webserver.strategy }}
+    {{- toYaml .Values.webserver.strategy | nindent 4 }}
+    {{- else }}
+    {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+    # Here we define the rolling update strategy
+    # - maxSurge define how many pod we can add at a time
+    # - maxUnavailable define how many pod can be unavailable
+    #   during the rolling update
+    # Setting maxUnavailable to 0 would make sure we have the appropriate
+    # capacity during the rolling update.
+    # You can also use percentage based value instead of integer.
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
+    {{- else }}
+    type: Recreate
+    {{- end}}
+    {{- end}}
   selector:
     matchLabels:
       tier: airflow

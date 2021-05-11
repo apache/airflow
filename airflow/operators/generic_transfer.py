@@ -19,7 +19,6 @@ from typing import List, Optional, Union
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class GenericTransfer(BaseOperator):
@@ -52,7 +51,6 @@ class GenericTransfer(BaseOperator):
     template_fields_renderers = {"preoperator": "sql"}
     ui_color = '#b0f07c'
 
-    @apply_defaults
     def __init__(
         self,
         *,

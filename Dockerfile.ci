@@ -21,7 +21,7 @@ FROM ${PYTHON_BASE_IMAGE} as main
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
-ARG AIRFLOW_VERSION="2.0.0.dev0"
+ARG AIRFLOW_VERSION="2.1.0.dev0"
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="6"
 
@@ -45,7 +45,7 @@ RUN apt-get update \
 
 ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND="\
-    curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
+    curl --fail --location https://deb.nodesource.com/setup_14.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
 ARG ADDITIONAL_DEV_APT_COMMAND=""

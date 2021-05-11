@@ -27,7 +27,6 @@ from MySQLdb.constants import FIELD_TYPE
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
@@ -65,7 +64,6 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         FIELD_TYPE.YEAR: 'INTEGER',
     }
 
-    @apply_defaults
     def __init__(self, *, mysql_conn_id='mysql_default', ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id

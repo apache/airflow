@@ -24,7 +24,6 @@ from googleapiclient.errors import HttpError
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -66,7 +65,6 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -143,7 +141,6 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -224,7 +221,6 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -332,7 +328,6 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -415,7 +410,6 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -499,7 +493,6 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -596,7 +589,6 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -694,7 +686,6 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -798,7 +789,6 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -906,7 +896,6 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

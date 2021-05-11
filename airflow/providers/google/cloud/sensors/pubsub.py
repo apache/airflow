@@ -23,7 +23,6 @@ from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class PubSubPullSensor(BaseSensorOperator):
@@ -102,7 +101,6 @@ class PubSubPullSensor(BaseSensorOperator):
     ]
     ui_color = '#ff7f50'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -25,7 +25,6 @@ from typing import Callable, List, Optional, Sequence, Set, Union
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
@@ -62,7 +61,6 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -138,7 +136,6 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
@@ -206,7 +203,6 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
@@ -317,7 +313,6 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,

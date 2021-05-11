@@ -141,9 +141,6 @@ function breeze::setup_default_breeze_constants() {
     # Which means that you do not have to start from scratch
     export PRESERVE_VOLUMES="false"
 
-    # If set to true, RBAC UI will not be used for 1.10 version
-    export DISABLE_RBAC="false"
-
     # Sources by default are installed from local sources when using breeze
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM:="."}
     export AIRFLOW_SOURCES_FROM
@@ -639,6 +636,7 @@ export AIRFLOW_IMAGE="${airflow_image}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
+export EXECUTOR="${EXECUTOR}"
 docker-compose --log-level INFO ${command}
 EOF
     chmod u+x "${file}"
@@ -842,6 +840,12 @@ function breeze::parse_arguments() {
         --kind-version)
             export KIND_VERSION="${2}"
             echo "Kind version: ${KIND_VERSION}"
+            echo
+            shift 2
+            ;;
+        --executor)
+            export EXECUTOR="${2}"
+            echo "Using ${EXECUTOR} in cluster"
             echo
             shift 2
             ;;
@@ -1216,12 +1220,6 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
-        --no-rbac-ui)
-            export DISABLE_RBAC="true"
-            echo "When installing Airflow 1.10, RBAC UI will be disabled."
-            echo
-            shift
-            ;;
         --use-packages-from-dist)
             export USE_PACKAGES_FROM_DIST="true"
             echo "Install packages found in dist folder when entering breeze."
@@ -1568,6 +1566,10 @@ function breeze::prepare_formatted_versions() {
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_HELM_VERSIONS
 
+    FORMATTED_EXECUTORS=$(echo "${_breeze_allowed_executors=""}" | tr '\n' ' ' |
+        fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_EXECUTORS
+
     FORMATTED_KIND_OPERATIONS=$(echo "${_breeze_allowed_kind_operations=""}" | tr '\n' ' ' |
         fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_KIND_OPERATIONS
@@ -1843,7 +1845,7 @@ ${CMDNAME} generate-constraints [FLAGS]
 
       Generates pinned constraint files with all extras from setup.py. Those files are generated in
       files folder - separate files for different python version. Those constraint files when
-      pushed to orphan constraints-master, constraints-2-0 and constraints-1-10 branches are used
+      pushed to orphan constraints-master, constraints-2-0 branches are used
       to generate repeatable CI builds as well as run repeatable production image builds and
       upgrades when you want to include installing or updating some of the released providers
       released at the time particular airflow version was released. You can use those
@@ -1877,14 +1879,23 @@ ${CMDNAME} prepare-airflow-packages [FLAGS]
       Prepares airflow packages (sdist and wheel) in dist folder. Note that
       prepare-provider-packages command cleans up the dist folder, so if you want also
       to generate provider packages, make sure you run prepare-provider-packages first,
-      and prepare-airflow-packages second.
+      and prepare-airflow-packages second. You can specify optional
+      --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
+      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
+      provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
+      dist folder
 
-      General form:
+      Examples:
 
-      '${CMDNAME} prepare-airflow-packages
+      '${CMDNAME} prepare-airflow-packages --package-format wheel' or
+      '${CMDNAME} prepare-airflow-packages --version-suffix-for-svn rc1' or
+      '${CMDNAME} prepare-airflow-packages --version-suffix-for-pypi rc1'
+      '${CMDNAME} prepare-airflow-packages --version-suffix-for-pypi a1
+                                            --version-suffix-for-svn a1'
 
 Flags:
 $(breeze::flag_packages)
+$(breeze::flag_version_suffix)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_AIRFLOW_PACKAGES
@@ -2239,9 +2250,6 @@ function breeze::flag_airflow_variants() {
 -p, --python PYTHON_MAJOR_MINOR_VERSION
         Python version used for the image. This is always major/minor version.
 
-        Note that versions 2.7 and 3.5 are only valid when installing Airflow 1.10 with
-        --install-airflow-version or --install-airflow-reference flags.
-
         One of:
 
 ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
@@ -2340,6 +2348,7 @@ ${FORMATTED_INTEGRATIONS}
 #       FORMATTED_KUBERNETES_VERSIONS
 #       FORMATTED_KIND_VERSIONS
 #       FORMATTED_HELM_VERSIONS
+#       FORMATTED_EXECUTORS
 #
 #
 # Outputs:
@@ -2381,6 +2390,14 @@ ${FORMATTED_HELM_VERSIONS}
 
         Default: ${_breeze_default_helm_version:=}
 
+--executor EXECUTOR
+        Executor to use in a kubernetes cluster.
+        One of:
+
+${FORMATTED_EXECUTORS}
+
+        Default: ${_breeze_default_executor:=}
+
 "
 }
 
@@ -2414,13 +2431,13 @@ function breeze::flag_local_file_mounting() {
 function breeze::flag_build_different_airflow_version() {
     echo "
 -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
-        Uses differen version of Airflow when building PROD image.
+        Uses different version of Airflow when building PROD image.
 
 ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         Installs Airflow directly from reference in GitHub when building PROD image.
-        This can be a GitHub branch like master or v1-10-test, or a tag like 2.0.0a1.
+        This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
 
 --installation-method INSTALLATION_METHOD
         Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2464,10 +2481,6 @@ ${FORMATTED_USE_AIRFLOW_VERSION}
         In CI image, if specified it will look for packages placed in dist folder and
         it will install the packages after entering the image.
         This is useful for testing provider packages.
-
---no-rbac-ui
-        Disables RBAC UI when Airflow 1.10.* is installed.
-
 
 "
 }
@@ -3021,6 +3034,7 @@ function breeze::print_star_line() {
 #   KUBERNETES_VERSION
 #   KIND_VERSION
 #   HELM_VERSION
+#   EXECUTOR
 #   POSTGRES_VERSION
 #   MYSQL_VERSION
 #   DOCKERHUB_USER
@@ -3044,6 +3058,9 @@ function breeze::read_saved_environment_variables() {
     HELM_VERSION="${HELM_VERSION:=$(parameters::read_from_file HELM_VERSION)}"
     HELM_VERSION=${HELM_VERSION:=${_breeze_default_helm_version}}
 
+    EXECUTOR="${EXECUTOR:=$(parameters::read_from_file EXECUTOR)}"
+    EXECUTOR=${EXECUTOR:-${_breeze_default_executor}}
+
     POSTGRES_VERSION="${POSTGRES_VERSION:=$(parameters::read_from_file POSTGRES_VERSION)}"
     POSTGRES_VERSION=${POSTGRES_VERSION:=${_breeze_default_postgres_version}}
 
@@ -3066,7 +3083,7 @@ function breeze::read_saved_environment_variables() {
 #######################################################################################################
 #
 # Checks if variables are correctly set and if they are - saves them so that they can be used across
-# sessions. In case we are installing Airflow 1.10, the constants are set to match 1.10 line.
+# sessions.
 #
 # In case the variables are matching expected values they are saved in ".build/VARIABLE_NAME" for
 # later reuse. If not, error is printed and the saved file is cleaned, so that next time
@@ -3080,6 +3097,7 @@ function breeze::read_saved_environment_variables() {
 #     KUBERNETES_VERSION
 #     KIND_VERSION
 #     HELM_VERSION
+#     EXECUTOR
 #     POSTGRES_VERSION
 #     MYSQL_VERSION
 #     DOCKERHUB_USER
@@ -3094,37 +3112,21 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION" "Python version" "--python"
 
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
-        if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *1_10* ]]; then
-            export BRANCH_NAME="v1-10-test"
-        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
+        if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
             export BRANCH_NAME="v2-0-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
-        if [[ ${INSTALL_AIRFLOW_VERSION=} == *1.10* ]]; then
-            export BRANCH_NAME="v1-10-test"
-        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
+        if [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
             export BRANCH_NAME="v2-0-test"
         fi
     fi
-
-    if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ]]; then
-        if [[ ${BRANCH_NAME} == "master" || ${BRANCH_NAME} == "v2-0-test" ]]; then
-            echo
-            echo  "${COLOR_RED}ERROR: The ${PYTHON_MAJOR_MINOR_VERSION} can only be used when installing Airflow 1.10.*  ${COLOR_RESET}"
-            echo
-            echo "You can use it only when you specify 1.10 Airflow via --install-airflow-version"
-            echo "or --install-airflow-reference and they point to 1.10 version of Airflow"
-            echo
-            exit 1
-        fi
-    fi
-
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
     parameters::check_and_save_allowed_param "HELM_VERSION" "Helm version" "--helm-version"
+    parameters::check_and_save_allowed_param "EXECUTOR" "Executors" "--executor"
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
     parameters::check_and_save_allowed_param "GITHUB_REGISTRY" "GitHub Registry" "--github-registry"
@@ -3530,7 +3532,7 @@ function breeze::run_breeze_command() {
         ;;
     perform_prepare_airflow_packages)
         docker_engine_resources::check_all_resources
-        build_airflow_packages::build_airflow_packages
+        runs::run_prepare_airflow_packages
         ;;
     perform_prepare_provider_packages)
         docker_engine_resources::check_all_resources

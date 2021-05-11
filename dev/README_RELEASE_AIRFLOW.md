@@ -55,8 +55,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     # Set Version
-    export VERSION=1.10.2rc3
-
+    export VERSION=2.0.2rc3
+    export VERSION_SUFFIX=rc3
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
     export AIRFLOW_REPO_ROOT=$(pwd)
@@ -68,7 +68,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
-- Set your version to 1.10.2 in `setup.py` (without the RC tag)
+- Set your version to 2.0.N in `setup.py` (without the RC tag)
 - Commit the version change.
 
 - Tag your release
@@ -80,62 +80,25 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Clean the checkout: the sdist step below will
 
     ```shell script
+    rm -rf dist/*
     git clean -fxd
     ```
 
 - Tarball the repo
 
     ```shell script
-    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz
+    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o dist/apache-airflow-${VERSION}-source.tar.gz
     ```
 
-
-- Generate sdist
-
-    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
-     in the file produced.
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    ```
-
-- Rename the sdist
-
-    **Airflow 2+**:
-
-    ```shell script
-    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
-    mv dist/apache_airflow-${VERSION%rc?}-py3-none-any.whl apache_airflow-${VERSION}-py3-none-any.whl
-    ```
-
-    **Airflow 1.10.x**:
-
-    ```shell script
-    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
-    mv dist/apache_airflow-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow-${VERSION}-py2.py3-none-any.whl
-    ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
-    **Airflow 2+**:
-
     ```shell script
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py3-none-any.whl
+    ./breeze prepare-airflow-packages --package-format both --version-suffix-for-svn "${VERSION_SUFFIX}"
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
     ```
 
-    **Airflow 1.10.x**:
-
-    ```shell script
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py2.py3-none-any.whl
-    ```
-
-- Tag & Push latest constraints files. This pushes constraints with rc suffix (this is expected)!
-
-    **Airflow 2+**:
+- Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
     git checkout constraints-2-0
@@ -143,30 +106,22 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git push origin "constraints-${VERSION}"
     ```
 
-    **Airflow 1.10.x**:
-
-    ```shell script
-    git checkout constraints-1-10
-    git tag -s "constraints-${VERSION}"
-    git push origin "constraints-${VERSION}"
-    ```
-
 - Push the artifacts to ASF dev dist repo
 
-```
-# First clone the repo
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+    ```shell script
+    # First clone the repo
+    svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
 
-# Create new folder for the release
-cd airflow-dev
-svn mkdir ${VERSION}
+    # Create new folder for the release
+    cd airflow-dev
+    svn mkdir ${VERSION}
 
-# Move the artifacts to svn folder & commit
-mv ${AIRFLOW_REPO_ROOT}/apache{-,_}airflow-${VERSION}* ${VERSION}/
-cd ${VERSION}
-svn add *
-svn commit -m "Add artifacts for Airflow ${VERSION}"
-```
+    # Move the artifacts to svn folder & commit
+    mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
+    cd ${VERSION}
+    svn add *
+    svn commit -m "Add artifacts for Airflow ${VERSION}"
+    ```
 
 ## Prepare PyPI convenience "snapshot" packages
 
@@ -181,7 +136,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets egg_info --tag-build "$(sed -e "s/^[0-9.]*//" <<<"$VERSION")" sdist bdist_wheel
+    ./breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}"
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -226,50 +181,25 @@ pushed. If this did not happen - please login to DockerHub and check the status 
 
 In case you need, you can also build and push the images manually:
 
-### Airflow 2+:
-
 ```shell script
-export VERSION_RC=<VERSION_HERE>
+export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
 for python_version in "3.6" "3.7" "3.8"
 (
-  export DOCKER_TAG=${VERSION_RC}-python${python_version}
+  export DOCKER_TAG=${VERSION}-python${python_version}
   ./scripts/ci/images/ci_build_dockerhub.sh
 )
 ```
 
-Once this succeeds you should push the "${VERSION_RC}" image:
+Once this succeeds you should push the "${VERSION}" image:
 
 ```shell script
-docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
-docker push apache/airflow:${VERSION_RC}
+docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker push apache/airflow:${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before the images are pushed.
-
-
-### Airflow 1.10:
-
-```shell script
-for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
-do
-    ./breeze build-image --production-image --python ${python_version} \
-        --image-tag apache/airflow:${VERSION_RC}-python${python_version} --build-cache-local
-    docker push apache/airflow:${VERSION_RC}-python${python_version}
-done
-```
-
-Once this succeeds you should push the "${VERSION_RC}" image:
-
-```shell script
-docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
-docker push apache/airflow:${VERSION_RC}
-```
-
-
-### Airflow 1.10:
-
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -280,7 +210,7 @@ docker push apache/airflow:${VERSION_RC}
 Subject:
 
 ```
-[VOTE] Airflow 1.10.2rc3
+[VOTE] Airflow 2.0.2rc3
 ```
 
 Body:
@@ -288,15 +218,15 @@ Body:
 ```
 Hey all,
 
-I have cut Airflow 1.10.2 RC3. This email is calling a vote on the release,
+I have cut Airflow 2.0.2 RC3. This email is calling a vote on the release,
 which will last for 72 hours. Consider this my (binding) +1.
 
-Airflow 1.10.2 RC3 is available at:
-https://dist.apache.org/repos/dist/dev/airflow/1.10.2rc3/
+Airflow 2.0.2 RC3 is available at:
+https://dist.apache.org/repos/dist/dev/airflow/2.0.2rc3/
 
-*apache-airflow-1.10.2rc3-source.tar.gz* is a source release that comes
+*apache-airflow-2.0.2rc3-source.tar.gz* is a source release that comes
 with INSTALL instructions.
-*apache-airflow-1.10.2rc3-bin.tar.gz* is the binary Python "sdist" release.
+*apache-airflow-2.0.2rc3-bin.tar.gz* is the binary Python "sdist" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -308,11 +238,11 @@ The test procedure for PMCs and Contributors who would like to test this RC are 
 https://github.com/apache/airflow/blob/master/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
 
 Please note that the version number excludes the `rcX` string, so it's now
-simply 1.10.2. This will allow us to rename the artifact without modifying
+simply 2.0.2. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
 
-Changes since 1.10.2rc2:
+Changes since 2.0.2rc2:
 *Bugs*:
 [AIRFLOW-3732] Fix issue when trying to edit connection in RBAC UI
 [AIRFLOW-2866] Fix missing CSRF token head when using RBAC UI (#3804)
@@ -447,24 +377,24 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-1.10.12rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache_airflow-1.10.12rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-1.10.12rc4-py2.py3-none-any.whl'
+Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
+gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache-airflow-1.10.12rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-source.tar.gz'
+Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -487,9 +417,9 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-1.10.12rc4-bin.tar.gz.sha512
-Checking apache_airflow-1.10.12rc4-py2.py3-none-any.whl.sha512
-Checking apache-airflow-1.10.12rc4-source.tar.gz.sha512
+Checking apache-airflow-2.0.2rc4-bin.tar.gz.sha512
+Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
+Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
 
 # Verify release candidates by Contributors
@@ -497,7 +427,7 @@ Checking apache-airflow-1.10.12rc4-source.tar.gz.sha512
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
 is available on PyPI apart from SVN packages, so everyone should be able to install
-the release candidate version of Airflow via simply (<VERSION> is 1.10.12 for example, and <X> is
+the release candidate version of Airflow via simply (<VERSION> is 2.0.2 for example, and <X> is
 release candidate number 1,2,3,....).
 
 ```shell script
@@ -523,12 +453,6 @@ Running the following command will use tmux inside breeze, create `admin` user a
 ./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
 ```
 
-For 1.10 releases you can also use `--no-rbac-ui` flag disable RBAC UI of Airflow:
-
-```shell script
-./breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres --no-rbac-ui
-```
-
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
 
@@ -541,7 +465,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Airflow 1.10.2rc3
+[RESULT][VOTE] Airflow 2.0.2rc3
 ```
 
 Message:
@@ -549,7 +473,7 @@ Message:
 ```
 Hello,
 
-Apache Airflow 1.10.2 (based on RC3) has been accepted.
+Apache Airflow 2.0.2 (based on RC3) has been accepted.
 
 4 “+1” binding votes received:
 - Kaxil Naik  (binding)
@@ -584,25 +508,42 @@ https://dist.apache.org/repos/dist/release/airflow/
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
-# First clone the repo
-export RC=1.10.4rc5
+# GO to Airflow Sources first
+cd <YOUR_AIRFLOW_SOURCES>
+export AIRFLOW_SOURCES=$(pwd)
+
+# GO to Checked out DEV repo. Should be checked out before via:
+# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-release
+cd <YOUR_AIFLOW_DEV_SVN>
+svn update
+export AIRFLOW_DEV_SVN=$(pwd)
+
+# GO to Checked out RELEASE repo. Should be checked out before via:
+# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-release
+cd <YOUR_AIFLOW_RELEASE_SVN>
+svn update
+
+export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
 # Create new folder for the release
 cd airflow-release
-svn mkdir ${VERSION}
-cd ${VERSION}
+svn mkdir "${VERSION}"
+cd "${VERSION}"
 
 # Move the artifacts to svn folder & commit
-for f in ../../airflow-dev/$RC/*; do svn cp $f ${$(basename $f)/rc?/}; done
+for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
+    svn cp "$f" "${$(basename $f)/rc?/}"
+    # Those will be used to upload to PyPI
+    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/rc?/}"
+done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
 # Remove old release
-# http://www.apache.org/legal/release-policy.html#when-to-archive
+# See http://www.apache.org/legal/release-policy.html#when-to-archive
 cd ..
-export PREVIOUS_VERSION=1.10.1
-svn rm ${PREVIOUS_VERSION}
+export PREVIOUS_VERSION=2.0.2
+svn rm "${PREVIOUS_VERSION}"
 svn commit -m "Remove old release: ${PREVIOUS_VERSION}"
 ```
 
@@ -610,17 +551,13 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 
 ## Prepare PyPI "release" packages
 
-At this point we release an official package:
-
-- Build the package:
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    ```
+At this point we release an official package (they should be copied and renamed from the
+previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
+    cd "${AIRFLOW_SOURCES}"
     twine check dist/*
     ```
 
@@ -691,25 +628,6 @@ for python_version in "3.6" "3.7" "3.8"
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before the images are pushed.
-
-
-### Airflow 1.10:
-
-```shell script
-for python_version in "2.7" "3.5" "3.6" "3.7" "3.8"
-do
-    ./breeze build-image --production-image --python ${python_version} \
-        --image-tag apache/airflow:${VERSION}-python${python_version} --build-cache-local
-    docker push apache/airflow:${VERSION}-python${python_version}
-done
-```
-
-Once this succeeds you should push the "${VERSION}" image:
-
-```shell script
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
-```
 
 ## Publish documentation
 

@@ -157,7 +157,7 @@ not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
-``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches and then we create tag
+``constraints-master``, ``constraints-2-0`` orphan branches and then we create tag
 for each released version e.g. :subst-code:`constraints-|version|`. This way, when we keep a tested and working set of dependencies.
 
 Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
@@ -172,7 +172,7 @@ You can create the URL to the file substituting the variables in the template be
 
 where:
 
-- ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``master``, ``2-0``, ``1-10`` for latest development version
+- ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``master``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
 There is also a no-providers constraint file, which contains just constraints required to install Airflow core. This allows

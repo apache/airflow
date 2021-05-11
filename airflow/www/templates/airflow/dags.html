@@ -233,6 +233,10 @@
                           <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
                           Duration
                         </a>
+                        <a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}" class="dags-table-more__link">
+                          <span class="material-icons" aria-hidden="true">event</span>
+                          Calendar
+                        </a>
                         <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id) }}" class="dags-table-more__link">
                           <span class="material-icons" aria-hidden="true">account_tree</span>
                           Graph

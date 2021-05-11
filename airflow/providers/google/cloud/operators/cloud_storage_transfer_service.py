@@ -53,7 +53,6 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
-from airflow.utils.decorators import apply_defaults
 
 
 class TransferJobPreprocessor:
@@ -219,7 +218,6 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -299,7 +297,6 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_update_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -377,7 +374,6 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -445,7 +441,6 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_get_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -585,7 +580,6 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_pause_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -649,7 +643,6 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_resume_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -714,7 +707,6 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_cancel_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -828,7 +820,6 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     )
     ui_color = '#e09411'
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -998,7 +989,6 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     )
     ui_color = '#e09411'
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

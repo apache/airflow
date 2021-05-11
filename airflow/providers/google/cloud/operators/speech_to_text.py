@@ -25,7 +25,6 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
@@ -77,7 +76,6 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
     )
     # [END gcp_speech_to_text_synthesize_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

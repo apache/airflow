@@ -25,7 +25,6 @@ from airflow.models import BaseOperator, TaskInstance
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleApiToS3Operator(BaseOperator):
@@ -101,7 +100,6 @@ class GoogleApiToS3Operator(BaseOperator):
     template_ext = ()
     ui_color = '#cc181e'
 
-    @apply_defaults
     def __init__(
         self,
         *,

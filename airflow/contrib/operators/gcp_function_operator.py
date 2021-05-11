@@ -43,7 +43,7 @@ class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
             Please use
             `airflow.providers.google.cloud.operators.function.CloudFunctionDeleteFunctionOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -60,6 +60,6 @@ class GcfFunctionDeployOperator(CloudFunctionDeployFunctionOperator):
             Please use
             `airflow.providers.google.cloud.operators.function.CloudFunctionDeployFunctionOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

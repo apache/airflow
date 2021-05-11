@@ -25,7 +25,7 @@ from airflow.utils.dates import days_ago
 BLOB_NAME = os.environ.get("AZURE_BLOB_NAME", "file.txt")
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 GCP_BUCKET_FILE_PATH = os.environ.get("GCP_BUCKET_FILE_PATH", "file.txt")
-GCP_BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "azure_bucket")
+GCP_BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "INVALID BUCKET NAME")
 GCP_OBJECT_NAME = os.environ.get("GCP_OBJECT_NAME", "file.txt")
 
 

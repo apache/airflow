@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -135,7 +134,7 @@ class GCSToBigQueryOperator(BaseOperator):
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
         options and schema for CSV and JSON sources. (Default: ``True``).
-        Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
+        Parameter must be set to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
@@ -174,7 +173,6 @@ class GCSToBigQueryOperator(BaseOperator):
     ui_color = '#f0eee4'
 
     # pylint: disable=too-many-locals,too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

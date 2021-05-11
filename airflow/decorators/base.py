@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
@@ -111,7 +110,6 @@ class DecoratedOperator(BaseOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs = ('python_callable',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

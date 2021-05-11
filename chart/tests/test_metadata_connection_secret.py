@@ -53,8 +53,8 @@ class MetadataConnectionSecretTest(unittest.TestCase):
         connection = self._get_connection({})
 
         assert (
-            "postgresql://postgres:postgres@RELEASE-NAME-postgresql.default.svc.cluster.local:5432"
-            "/postgres?sslmode=disable" == connection
+            "postgresql://postgres:postgres@RELEASE-NAME-postgresql.default:5432/postgres?sslmode=disable"
+            == connection
         )
 
     def test_should_set_pgbouncer_overrides_when_enabled(self):
@@ -63,7 +63,7 @@ class MetadataConnectionSecretTest(unittest.TestCase):
 
         # host, port, dbname get overridden
         assert (
-            "postgresql://postgres:postgres@RELEASE-NAME-pgbouncer.default.svc.cluster.local:6543"
+            "postgresql://postgres:postgres@RELEASE-NAME-pgbouncer.default:6543"
             "/RELEASE-NAME-metadata?sslmode=disable" == connection
         )
 
@@ -76,7 +76,7 @@ class MetadataConnectionSecretTest(unittest.TestCase):
 
         # host, port, dbname still get overridden even with an non-chart db
         assert (
-            "postgresql://someuser:somepass@RELEASE-NAME-pgbouncer.default.svc.cluster.local:6543"
+            "postgresql://someuser:somepass@RELEASE-NAME-pgbouncer.default:6543"
             "/RELEASE-NAME-metadata?sslmode=disable" == connection
         )
 

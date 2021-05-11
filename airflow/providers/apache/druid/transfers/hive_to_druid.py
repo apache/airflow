@@ -23,7 +23,6 @@ from typing import Any, Dict, List, Optional
 from airflow.models import BaseOperator
 from airflow.providers.apache.druid.hooks.druid import DruidHook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
-from airflow.utils.decorators import apply_defaults
 
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
@@ -80,7 +79,6 @@ class HiveToDruidOperator(BaseOperator):
     template_fields = ('sql', 'intervals')
     template_ext = ('.sql',)
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AirbyteTriggerSyncOperator(BaseOperator):
@@ -51,7 +50,6 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     template_fields = ('connection_id',)
 
-    @apply_defaults
     def __init__(
         self,
         connection_id: str,

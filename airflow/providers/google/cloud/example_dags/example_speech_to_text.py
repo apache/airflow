@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToS
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "gcp-speech-to-text-test-bucket")
+BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "INVALID BUCKET NAME")
 
 # [START howto_operator_speech_to_text_gcp_filename]
 FILENAME = "gcp-speech-test-file"

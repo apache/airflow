@@ -68,8 +68,11 @@ spec:
           args:
             - "bash"
             - "-c"
-            # Support running against 1.10.x and 2.x
-            - 'airflow users create "$@" || airflow create_user "$@"'
+            {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+            - 'airflow users create "$@"'
+            {{- else }}
+            - 'airflow create_user "$@"'
+            {{- end }}
             - --
             - "-r"
             - {{ .Values.webserver.defaultUser.role }}

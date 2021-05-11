@@ -389,6 +389,7 @@ class WasbHook(BaseHook):
         blob_name: str,
         is_prefix: bool = False,
         ignore_if_missing: bool = False,
+        delimiter: str = '',
         **kwargs,
     ) -> None:
         """
@@ -407,7 +408,9 @@ class WasbHook(BaseHook):
         :type kwargs: object
         """
         if is_prefix:
-            blobs_to_delete = self.get_blobs_list(container_name, prefix=blob_name, **kwargs)
+            blobs_to_delete = self.get_blobs_list(
+                container_name, prefix=blob_name, delimiter=delimiter, **kwargs
+            )
         elif self.check_for_blob(container_name, blob_name):
             blobs_to_delete = [blob_name]
         else:

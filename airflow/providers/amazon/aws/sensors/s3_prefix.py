@@ -19,7 +19,6 @@ from typing import Optional, Union
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class S3PrefixSensor(BaseSensorOperator):
@@ -55,7 +54,6 @@ class S3PrefixSensor(BaseSensorOperator):
 
     template_fields = ('prefix', 'bucket_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,

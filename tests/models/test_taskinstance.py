@@ -2080,8 +2080,8 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
     @parameterized.expand(
         [
             # Expected queries, mark_success
-            (10, False),
-            (5, True),
+            (12, False),
+            (7, True),
         ]
     )
     def test_execute_queries_count(self, expected_query_count, mark_success):
@@ -2117,7 +2117,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
                 session=session,
             )
 
-        with assert_queries_count(10):
+        with assert_queries_count(12):
             ti._run_raw_task()
 
     def test_operator_field_with_serialization(self):

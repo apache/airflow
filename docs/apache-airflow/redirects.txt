@@ -43,6 +43,7 @@ start.rst start/index.rst
 # References
 cli-ref.rst cli-and-env-variables-ref.rst
 _api/index.rst python-api-ref.rst
+rest-api-ref.rst deprecated-rest-api-ref.rst
 
 # Concepts
 concepts.rst concepts/index.rst

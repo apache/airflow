@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOp
 from airflow.utils.dates import days_ago
 
 VAULT_NAME = "airflow"
-BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://glacier_bucket")
+BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://INVALID BUCKET NAME")
 OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
 
 with models.DAG(

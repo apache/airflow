@@ -45,7 +45,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.providers.cncf.kubernetes.utils import pod_launcher, xcom_sidecar
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
@@ -174,7 +173,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     )
 
     # fmt: off
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         # fmt: on
         self,

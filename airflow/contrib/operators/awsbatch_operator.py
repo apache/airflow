@@ -53,7 +53,7 @@ class AWSBatchOperator(AwsBatchOperator):
             """This class is deprecated.
             Please use `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 

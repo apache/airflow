@@ -25,7 +25,6 @@ from google.cloud.bigtable_admin_v2 import enums
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.operators.bigtable import BigtableValidationMixin
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValidationMixin):
@@ -65,7 +64,6 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -66,6 +66,12 @@ def _get_parser():
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
     )
     parser.add_argument(
+        '--override-versioned',
+        dest='override_versioned',
+        action='store_true',
+        help='Overrides versioned directories',
+    )
+    parser.add_argument(
         "--package-filter",
         action="append",
         help=(
@@ -90,7 +96,7 @@ def main():
     print()
     for package_name in current_packages:
         builder = AirflowDocsBuilder(package_name=package_name, for_production=True)
-        builder.publish()
+        builder.publish(override_versioned=args.override_versioned)
 
 
 main()
