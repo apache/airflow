@@ -48,7 +48,10 @@ echo
 kind::get_kind_cluster_name
 trap 'echo $? > "${PARALLEL_JOB_STATUS}"; kind::perform_kind_cluster_operation "stop"' EXIT HUP INT TERM
 
-"$( dirname "${BASH_SOURCE[0]}" )/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh"
+for executor in KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+do
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh" "${executor}"
 
-export CLUSTER_FORWARDED_PORT="${FORWARDED_PORT_NUMBER}"
-"$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+    export CLUSTER_FORWARDED_PORT="${FORWARDED_PORT_NUMBER}"
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+done

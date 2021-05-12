@@ -296,7 +296,44 @@ function kind::wait_for_webserver_healthy() {
     set -e
 }
 
+function kind::in_array {
+  ARRAY=$2
+  for e in ${ARRAY[*]}
+  do
+    if [[ "$e" == "$1" ]]
+    then
+      return 0
+    fi
+  done
+  return 1
+}
+
 function kind::deploy_airflow_with_helm() {
+    ALLOWED_EXECUTORS="[ KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor]"
+    set +u
+    if [[ -z "${1=}" ]]; then
+        echo
+        echo  "Running locally"
+        echo
+        DEPLOY_WITH="${EXECUTOR}"
+    else
+        DEPLOY_WITH="${1}"
+        if kind::in_array "${DEPLOY_WITH}" "$ALLOWED_EXECUTORS"
+        then
+            echo
+            echo "Running in CI"
+            echo
+        else
+            echo
+            echo "${COLOR_RED}ERROR: Wrong executor name: ${DEPLOY_WITH}. Should be one of ${ALLOWED_EXECUTORS}  ${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+
+    fi
+
+    set -u
+
     echo "Deleting namespace ${HELM_AIRFLOW_NAMESPACE}"
     kubectl delete namespace "${HELM_AIRFLOW_NAMESPACE}" >/dev/null 2>&1 || true
     kubectl delete namespace "test-namespace" >/dev/null 2>&1 || true
@@ -337,7 +374,7 @@ function kind::deploy_airflow_with_helm() {
         --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
-        --set "executor=${EXECUTOR}"
+        --set "executor=${DEPLOY_WITH}"
     echo
     popd > /dev/null 2>&1|| exit 1
 }
