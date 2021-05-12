@@ -37,9 +37,8 @@ class EmrAddStepsOperator(BaseOperator):
         (templated)
     :type cluster_states: list
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-         (adding this param to template_fields so that it can be overriden using jinja template from Dags
-           This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc) 
+    :type aws_conn_id: <str> adding this param to template_fields so that it can be overriden using jinja template from Dags.
+                             This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc) 
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :type steps: list|str
@@ -47,7 +46,7 @@ class EmrAddStepsOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps' , 'aws_conn_id']
+    template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps','aws_conn_id']
     template_ext = ('.json',)
     ui_color = '#f9c915'
 
