@@ -66,12 +66,11 @@ class CloudFormationDeleteStackOperator(BaseOperator):
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
     :type params: dict
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-         (Adding this param to template_fields so that it can be overriden using jinja template from Dags
-         This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
+    :type aws_conn_id: <str> Adding this param to template_fields so that it can be overriden using jinja template from Dags
+                             This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
     """
 
-    template_fields: List[str] = ['stack_name' , 'aws_conn_id']
+    template_fields: List[str] = ['stack_name','aws_conn_id']
     template_ext = ()
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'
