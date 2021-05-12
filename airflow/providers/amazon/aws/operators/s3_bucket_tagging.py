@@ -79,7 +79,6 @@ class S3PutBucketTaggingOperator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then the default boto3 configuration would be used (and must be
         maintained on each worker node).
-        
         Adding this param to template_fields so that it can be overriden using jinja template from Dags
         This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc
 
