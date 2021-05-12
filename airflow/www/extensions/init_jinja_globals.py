@@ -53,6 +53,7 @@ def init_jinja_globals(app):
 
     git_version = get_airflow_git_version()
 
+
     def prepare_jinja_globals():
         extra_globals = {
             'server_timezone': server_timezone,
@@ -66,6 +67,7 @@ def init_jinja_globals(app):
             'airflow_version': airflow_version,
             'git_version': git_version,
             'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
+            'rest_api_enabled': conf.get('api', 'auth_backend') != 'airflow.api.auth.backend.deny_all',
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

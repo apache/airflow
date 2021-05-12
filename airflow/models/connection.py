@@ -348,6 +348,22 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.extra_dejson,
         )
 
+    def test_connection(self):
+        """Calls out get_hook method and executes test_connection method on that."""
+        status, message = False, ''
+        try:
+            hook = self.get_hook()
+            if getattr(hook, 'test_connection', False):
+                status, message = hook.test_connection()
+            else:
+                message = (
+                    f"Hook {hook.__class__.__name__} doesn't implement or inherit test_connection method"
+                )
+        except Exception as e:  # noqa pylint: disable=broad-except
+            message = str(e)
+
+        return status, message
+
     @property
     def extra_dejson(self) -> Dict:
         """Returns the extra property by deserializing json."""

@@ -21,6 +21,10 @@
 
 {% block tail %}
   {{ super() }}
+  <script>
+    // eslint-disable-next-line no-unused-vars
+    const restApiEnabled = '{{ rest_api_enabled }}' === 'True';
+  </script>
   <script src="{{ url_for_asset(filename='connectionForm.js') }}"></script>
   <script id="field_behaviours" type="text/json">{{ widgets["edit"].field_behaviours }}</script>
 {% endblock %}
