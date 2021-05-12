@@ -73,7 +73,7 @@ importlib-resources==1.5.0
 inflection==0.5.1
 iso8601==0.1.14
 isodate==0.6.0
-itsdangerous==2.0.0
+itsdangerous==1.1.0
 jsonschema==3.2.0
 kombu==4.6.11
 kubernetes==11.0.0

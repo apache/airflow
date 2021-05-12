@@ -207,7 +207,7 @@ ipython==7.23.1
 iso8601==0.1.14
 isodate==0.6.0
 isort==5.8.0
-itsdangerous==2.0.0
+itsdangerous==1.1.0
 jedi==0.18.0
 jira==2.0.0
 jmespath==0.10.0
