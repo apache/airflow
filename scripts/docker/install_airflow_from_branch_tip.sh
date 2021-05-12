@@ -50,6 +50,8 @@ function install_airflow_from_branch_tip() {
     pip uninstall --yes apache-airflow
 }
 
+common::get_airflow_version_specification
+common::override_pip_version_if_needed
 common::get_constraints_location
 
 install_airflow_from_branch_tip
