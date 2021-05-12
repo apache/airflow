@@ -52,6 +52,7 @@ function get_maximum_parallel_k8s_jobs() {
 function run_kubernetes_test() {
     local kubernetes_version=$1
     local python_version=$2
+    local executor=$3
     local job="Cluster-${kubernetes_version}-python-${python_version}"
 
     mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
@@ -61,7 +62,7 @@ function run_kubernetes_test() {
     parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
         --jobs "${MAX_PARALLEL_K8S_JOBS}" \
             "$(dirname "${BASH_SOURCE[0]}")/ci_setup_cluster_and_run_kubernetes_tests_single_job.sh" \
-                "${kubernetes_version}" "${python_version}" >"${JOB_LOG}" 2>&1
+                "${kubernetes_version}" "${python_version}" "$executor">"${JOB_LOG}" 2>&1
 }
 
 function run_k8s_tests_in_parallel() {
@@ -69,6 +70,8 @@ function run_k8s_tests_in_parallel() {
     start_end::group_start "Monitoring k8s tests"
     parallel::initialize_monitoring
     parallel::monitor_progress
+
+    local mode=$1
 
     # In case there are more kubernetes versions than strings, we can reuse python versions so we add it twice here
     local repeated_python_versions
@@ -83,7 +86,8 @@ function run_k8s_tests_in_parallel() {
         export FORWARDED_PORT_NUMBER
         API_SERVER_PORT=$((19090 + index))
         export API_SERVER_PORT
-        run_kubernetes_test "${kubernetes_version}" "${python_version}" "${@}"
+        run_kubernetes_test "${kubernetes_version}" "${python_version}" "${mode}" "${@}"
+        d
     done
     set +e
     parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
@@ -99,8 +103,9 @@ parallel::make_sure_python_versions_are_specified
 parallel::make_sure_kubernetes_versions_are_specified
 
 get_maximum_parallel_k8s_jobs
-
-run_k8s_tests_in_parallel "${@}"
-
-# this will exit with error code in case some of the tests failed
-parallel::print_job_summary_and_return_status_code
+for mode in KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+do
+    run_k8s_tests_in_parallel "${mode}" "${@}"
+    # this will exit with error code in case some of the tests failed
+    parallel::print_job_summary_and_return_status_code
+done
