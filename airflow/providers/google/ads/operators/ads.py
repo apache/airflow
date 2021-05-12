@@ -62,8 +62,8 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-    :param api_version: The Google Ads API version to use.
-    :type api_version: str
+    :param api_version: Optional Google Ads API version to use.
+    :type api_version: Optional[str]
     """
 
     template_fields = (
