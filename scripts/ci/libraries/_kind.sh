@@ -131,10 +131,6 @@ function kind::perform_kind_cluster_operation() {
     echo "Kubernetes mode: ${KUBERNETES_MODE}"
     echo
 
-    echo
-    echo "Executor: ${EXECUTOR}"
-    echo
-
     if [[ ${OPERATION} == "status" ]]; then
         if [[ ${ALL_CLUSTERS} == *"${KIND_CLUSTER_NAME}"* ]]; then
             echo
@@ -317,6 +313,9 @@ function kind::deploy_airflow_with_helm() {
         executor_in_use="${EXECUTOR}"
     else
         executor_in_use=$1
+        echo
+        echo "EXECUTOR: ${executor_in_use}"
+        echo
         if kind::in_array "${executor_in_use}" "${ALLOWED_EXECUTORS}"
         then
             echo
