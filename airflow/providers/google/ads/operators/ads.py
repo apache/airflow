@@ -82,7 +82,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         google_ads_conn_id: str = "google_ads_default",
         gzip: bool = False,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        api_version: str = "v5",
+        api_version: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -96,11 +96,14 @@ class GoogleAdsListAccountsOperator(BaseOperator):
 
     def execute(self, context: dict) -> str:
         uri = f"gs://{self.bucket}/{self.object_name}"
+        kwargs = {}
+        if self.api_version:
+            kwargs.update(api_version=self.api_version)
 
         ads_hook = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id,
-            api_version=self.api_version,
+            **kwargs,
         )
 
         gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)

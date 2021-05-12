@@ -94,7 +94,7 @@ class GoogleAdsToGcsOperator(BaseOperator):
         page_size: int = 10000,
         gzip: bool = False,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        api_version: str = "v5",
+        api_version: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -111,10 +111,14 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.api_version = api_version
 
     def execute(self, context: dict) -> None:
+        kwargs = {}
+        if self.api_version:
+            kwargs.update(api_version=self.api_version)
+
         service = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id,
-            api_version=self.api_version,
+            **kwargs,
         )
         rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
 
