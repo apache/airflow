@@ -30,9 +30,8 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     :param job_flow_id: id of the JobFlow to terminate. (templated)
     :type job_flow_id: str
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-       (Adding `aws_conn_id` param to template_fields so that it can be overriden using jinja template from Dags
-        This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
+    :type aws_conn_id: <str> Adding `aws_conn_id` param to template_fields so that it can be overriden using jinja template from Dags
+                             This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc
     """
 
     template_fields = ['job_flow_id' , 'aws_conn_id']
