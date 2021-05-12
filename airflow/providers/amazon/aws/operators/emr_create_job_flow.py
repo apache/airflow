@@ -30,9 +30,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
     the config from the connection.
 
     :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-       (adding this param to template_fields for jinja template use 
-        This feature can be useful for some kind of Dag Isolation etc) 
+    :type aws_conn_id: <str> adding this param to template_fields for jinja template use in the dags.
+                             This feature can be useful for some kind of Dag Isolation etc) 
     :param emr_conn_id: emr connection to use
     :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
