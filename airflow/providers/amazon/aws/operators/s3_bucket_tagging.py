@@ -34,8 +34,8 @@ class S3GetBucketTaggingOperator(BaseOperator):
 
     :param bucket_name: This is bucket name you want to reference
     :type bucket_name: str
-    :param aws_conn_id: adding this param to template_fields for jinja template use 
-        This feature can be useful for some kind of Dag Isolation etc 
+    :param aws_conn_id: adding this param to template_fields for jinja template use.
+                             This feature can be useful for some kind of Dag Isolation etc 
     :type aws_conn_id: Optional[str]
     """
 
