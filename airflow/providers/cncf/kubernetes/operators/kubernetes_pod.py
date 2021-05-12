@@ -257,7 +257,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         else:
             self.node_selector = {}
         self.annotations = annotations or {}
-        self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
+        self.affinity = convert_affinity(affinity) if affinity else {} 
         self.k8s_resources = convert_resources(resources) if resources else {}
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
