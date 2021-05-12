@@ -35,6 +35,7 @@ interface DateContextData {
   setTimezone: (value: string) => void;
   dateFormat: string;
   toggle24Hour: () => void;
+  formatDate: (date?: string | Date) => string;
 }
 
 export const DateContext = createContext<DateContextData>({
@@ -42,6 +43,7 @@ export const DateContext = createContext<DateContextData>({
   setTimezone: () => {},
   dateFormat: HOURS_24,
   toggle24Hour: () => {},
+  formatDate: () => '',
 });
 
 export const useDateContext = () => useContext(DateContext);
@@ -55,15 +57,17 @@ const DateProvider = ({ children }: Props): ReactElement => {
   // guess timezone on browser or default to utc and don't guess when testing
   const isTest = process.env.NODE_ENV === 'test';
   const [timezone, setTimezone] = useState(isTest ? 'UTC' : dayjs.tz.guess());
-  const [dateFormat, setDateFormat] = useState(HOURS_24);
+  const [dateFormat, setFormat] = useState(HOURS_24);
 
   const toggle24Hour = () => {
-    setDateFormat(dateFormat === HOURS_24 ? HOURS_12 : HOURS_24);
+    setFormat(dateFormat === HOURS_24 ? HOURS_12 : HOURS_24);
   };
 
   useEffect(() => {
     dayjs.tz.setDefault(timezone);
   }, [timezone]);
+
+  const formatDate = (date?: string | Date) => dayjs(date).tz(timezone).format(dateFormat);
 
   return (
     <DateContext.Provider
@@ -72,6 +76,7 @@ const DateProvider = ({ children }: Props): ReactElement => {
         setTimezone,
         dateFormat,
         toggle24Hour,
+        formatDate,
       }}
     >
       {children}

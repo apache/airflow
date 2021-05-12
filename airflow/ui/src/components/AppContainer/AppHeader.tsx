@@ -38,16 +38,12 @@ import {
   MdExitToApp,
   MdQueryBuilder,
 } from 'react-icons/md';
-import dayjs from 'dayjs';
-import tz from 'dayjs/plugin/timezone';
 
 import { useAuthContext } from 'providers/auth/context';
 import { useDateContext, HOURS_24 } from 'providers/DateProvider';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
 import TimezoneDropdown from './TimezoneDropdown';
-
-dayjs.extend(tz);
 
 interface Props {
   bodyBg: string;
@@ -105,6 +101,7 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
                 {darkLightText}
                 Mode
               </MenuItem>
+              {/* Clock config should move to User Profile Settings when that page exists */}
               <MenuItem onClick={toggle24Hour}>
                 <Icon as={MdQueryBuilder} mr="2" />
                 Use
