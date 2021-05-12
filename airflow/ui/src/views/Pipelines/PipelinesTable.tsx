@@ -41,7 +41,7 @@ const getRandomInt = (max: number) => Math.floor(Math.random() * max);
 
 // Generate 1-10 placeholder rows
 const skeletonLoader = [...Array(getRandomInt(10) || 1)].map(() => ({
-  isPaused: <Switch disabled />,
+  active: <Switch isDisabled />,
   tags: '',
   dagId: <Progress size="lg" isIndeterminate data-testid="pipelines-loading" />,
   trigger: <IconButton size="sm" icon={<MdPlayArrow />} aria-label="Trigger Dag" disabled />,
