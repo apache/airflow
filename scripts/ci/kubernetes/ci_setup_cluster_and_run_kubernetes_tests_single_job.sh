@@ -30,7 +30,8 @@ fi
 export PYTHON_MAJOR_MINOR_VERSION=$1
 shift
 
-export executor=$1
+export executor_in_use=$1
+shift
 
 # Requires PARALLEL_JOB_STATUS
 
@@ -50,7 +51,7 @@ echo
 kind::get_kind_cluster_name
 trap 'echo $? > "${PARALLEL_JOB_STATUS}"; kind::perform_kind_cluster_operation "stop"' EXIT HUP INT TERM
 
-"$( dirname "${BASH_SOURCE[0]}" )/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh" "${executor}"
+"$( dirname "${BASH_SOURCE[0]}" )/ci_setup_cluster_and_deploy_airflow_to_kubernetes.sh" "${executor_in_use}"
 
 export CLUSTER_FORWARDED_PORT="${FORWARDED_PORT_NUMBER}"
 "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
