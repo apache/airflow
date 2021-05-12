@@ -39,9 +39,7 @@ class AWSAthenaOperator(BaseOperator):
     :param output_location: s3 path to write the query results into. (templated)
     :type output_location: str
     :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
-          (adding this param to template_fields so that it can be overriden using jinja template from Dags
-           This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc) 
+    :type aws_conn_id: <str> adding this param to template_fields so that it can be overriden using jinja template from Dags 
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :type client_request_token: str
     :param workgroup: Athena workgroup in which query will be run
@@ -57,7 +55,7 @@ class AWSAthenaOperator(BaseOperator):
     """
 
     ui_color = '#44b5e2'
-    template_fields = ('query', 'database', 'output_location' , 'aws_conn_id')
+    template_fields = ('query', 'database', 'output_location','aws_conn_id')
     template_ext = ('.sql',)
     template_fields_renderers = {"query": "sql"}
 
