@@ -114,7 +114,7 @@ describe('Test Pipelines Table', () => {
       },
     );
 
-    await waitFor(() => expect(getByText('No Pipelines found.')).toBeInTheDocument());
+    await waitFor(() => expect(getByText('No Data found.')).toBeInTheDocument());
   });
 
   test('Toggle a pipeline on/off', async () => {

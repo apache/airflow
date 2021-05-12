@@ -19,29 +19,18 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-  Flex,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  chakra,
   Alert,
   AlertIcon,
   Progress,
   Switch,
   IconButton,
-  Text,
-  useColorModeValue,
 } from '@chakra-ui/react';
+import type { Column } from 'react-table';
 import {
-  useTable, useSortBy, Column, usePagination,
-} from 'react-table';
-import {
-  MdArrowDropDown, MdArrowDropUp, MdPlayArrow, MdKeyboardArrowLeft, MdKeyboardArrowRight,
+  MdPlayArrow,
 } from 'react-icons/md';
 
+import Table from 'components/Table';
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
 import {
@@ -50,7 +39,7 @@ import {
 
 const getRandomInt = (max: number) => Math.floor(Math.random() * max);
 
-// Generate 1-10 fake rows to show a skeleton loader
+// Generate 1-10 placeholder rows
 const skeletonLoader = [...Array(getRandomInt(10) || 1)].map(() => ({
   isPaused: <Switch disabled />,
   tags: '',
@@ -68,11 +57,7 @@ const PipelinesTable: React.FC = () => {
     error,
   } = useDags({ limit: LIMIT, offset });
 
-  const oddColor = useColorModeValue('gray.50', 'gray.900');
-  const hoverColor = useColorModeValue('gray.100', 'gray.700');
-
-  const pageCount = Math.ceil(totalEntries / LIMIT) || 1;
-
+  // Show placeholders rows when data is loading for the first time
   const data = useMemo(
     () => (isLoading && !dags.length
       ? skeletonLoader
@@ -91,6 +76,7 @@ const PipelinesTable: React.FC = () => {
       {
         Header: 'Active',
         accessor: 'active',
+        // Implement custom sort function because the data is a react component
         sortType: (rowA, rowB) => (rowA.original.isPaused && !rowB.original.isPaused ? 1 : -1),
       },
       {
@@ -109,39 +95,6 @@ const PipelinesTable: React.FC = () => {
     [],
   );
 
-  const {
-    getTableProps,
-    getTableBodyProps,
-    allColumns,
-    prepareRow,
-    page,
-    canPreviousPage,
-    canNextPage,
-    nextPage,
-    previousPage,
-    state: { pageIndex },
-  } = useTable(
-    {
-      columns,
-      data,
-      pageCount,
-      manualPagination: true,
-      initialState: { pageIndex: offset / LIMIT, pageSize: LIMIT },
-    },
-    useSortBy,
-    usePagination,
-  );
-
-  const handleNext = () => {
-    nextPage();
-    setOffset((pageIndex + 1) * LIMIT);
-  };
-
-  const handlePrevious = () => {
-    previousPage();
-    setOffset((pageIndex - 1 || 0) * LIMIT);
-  };
-
   return (
     <>
       {error && (
@@ -150,68 +103,15 @@ const PipelinesTable: React.FC = () => {
         {error.message}
       </Alert>
       )}
-      <Table {...getTableProps()}>
-        <Thead>
-          <Tr>
-            {allColumns.map((column) => (
-              <Th
-                {...column.getHeaderProps(column.getSortByToggleProps())}
-              >
-                {column.render('Header')}
-                <chakra.span pl="2">
-                  {column.isSorted && (
-                    column.isSortedDesc ? (
-                      <MdArrowDropDown aria-label="sorted descending" style={{ display: 'inline' }} size="2em" />
-                    ) : (
-                      <MdArrowDropUp aria-label="sorted ascending" style={{ display: 'inline' }} size="2em" />
-                    )
-                  )}
-                </chakra.span>
-              </Th>
-
-            ))}
-          </Tr>
-        </Thead>
-        <Tbody {...getTableBodyProps()}>
-          {(!isLoading && !dags.length) && (
-          <Tr>
-            <Td colSpan={2}>No Pipelines found.</Td>
-          </Tr>
-          )}
-          {page.map((row) => {
-            prepareRow(row);
-            return (
-              <Tr
-                {...row.getRowProps()}
-                _odd={{ backgroundColor: oddColor }}
-                _hover={{ backgroundColor: hoverColor }}
-              >
-                {row.cells.map((cell) => (
-                  <Td
-                    {...cell.getCellProps()}
-                    py={3}
-                  >
-                    {cell.render('Cell')}
-                  </Td>
-                ))}
-              </Tr>
-            );
-          })}
-        </Tbody>
-      </Table>
-      <Flex alignItems="center" justifyContent="flex-end">
-        <IconButton variant="ghost" onClick={handlePrevious} disabled={!canPreviousPage} aria-label="Previous Page">
-          <MdKeyboardArrowLeft />
-        </IconButton>
-        <IconButton variant="ghost" onClick={handleNext} disabled={!canNextPage} aria-label="Next Page">
-          <MdKeyboardArrowRight />
-        </IconButton>
-        <Text>
-          {pageIndex + 1}
-          {' of '}
-          {pageCount}
-        </Text>
-      </Flex>
+      <Table
+        data={data}
+        columns={columns}
+        manualPagination={{
+          offset,
+          setOffset,
+          totalEntries,
+        }}
+      />
     </>
   );
 };
