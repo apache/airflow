@@ -54,9 +54,8 @@ class S3FileTransformOperator(BaseOperator):
     :param script_args: arguments for transformation script (templated)
     :type script_args: sequence of str
     :param source_aws_conn_id: source s3 connection
-    :type source_aws_conn_id: str
-           (Adding this param to template_fields so that it can be overriden using jinja template from Dags
-            This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
+    :type source_aws_conn_id: <str> Adding this param to template_fields so that it can be overriden using jinja template from Dags
+                                    This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -71,9 +70,8 @@ class S3FileTransformOperator(BaseOperator):
         This is also applicable to ``dest_verify``.
     :type source_verify: bool or str
     :param dest_aws_conn_id: destination s3 connection
-    :type dest_aws_conn_id: str
-          (Adding this param to template_fields so that it can be overriden using jinja template from Dags
-           This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
+    :type dest_aws_conn_id: <str> Adding this param to template_fields so that it can be overriden using jinja template from Dags
+                                  This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc
     :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
         See: ``source_verify``
     :type dest_verify: bool or str
