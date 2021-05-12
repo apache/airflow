@@ -171,7 +171,7 @@ function kind::perform_kind_cluster_operation() {
             echo
             kind::build_image_for_kubernetes_tests
             kind::load_image_to_kind_cluster
-            kind::deploy_airflow_with_helm ""
+            kind::deploy_airflow_with_helm
             kind::deploy_test_kubernetes_resources
             kind::wait_for_webserver_healthy
         elif [[ ${OPERATION} == "test" ]]; then
@@ -306,29 +306,22 @@ function kind::in_array {
 
 function kind::deploy_airflow_with_helm() {
     ALLOWED_EXECUTORS="[ KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor]"
-    if [[ ${CI:=} == "false" ]]; then
-        echo
-        echo  "Running locally"
-        echo
-        executor_in_use="${EXECUTOR}"
-    else
-        executor_in_use=$1
-        echo
-        echo "EXECUTOR: ${executor_in_use}"
-        echo
-        if kind::in_array "${executor_in_use}" "${ALLOWED_EXECUTORS}"
-        then
-            echo
-            echo "Running in CI"
-            echo
-        else
-            echo
-            echo "${COLOR_RED}ERROR: Wrong executor name: ${executor_in_use}. Should be one of ${ALLOWED_EXECUTORS}  ${COLOR_RESET}"
-            echo
-            exit 1
-        fi
 
+    echo
+    echo "EXECUTOR: ${EXECUTOR}"
+    echo
+    if kind::in_array "${EXECUTOR}" "${ALLOWED_EXECUTORS}" # we have to check this because it's not readonly
+    then
+        echo
+        echo "Running in CI"
+        echo
+    else
+        echo
+        echo "${COLOR_RED}ERROR: Wrong executor name: ${EXECUTOR}. Should be one of ${ALLOWED_EXECUTORS}  ${COLOR_RESET}"
+        echo
+        exit 1
     fi
+
 
     echo "Deleting namespace ${HELM_AIRFLOW_NAMESPACE}"
     kubectl delete namespace "${HELM_AIRFLOW_NAMESPACE}" >/dev/null 2>&1 || true
@@ -370,7 +363,7 @@ function kind::deploy_airflow_with_helm() {
         --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
-        --set "executor=${executor_in_use}"
+        --set "executor=${EXECUTOR}"
     echo
     popd > /dev/null 2>&1|| exit 1
 }
