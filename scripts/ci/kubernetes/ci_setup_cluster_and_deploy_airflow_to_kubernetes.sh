@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-DEPLOY_WITH=$1
 
 export SKIP_BUILDING_PROD_IMAGE="true"
 
@@ -32,6 +31,6 @@ build_images::prepare_prod_build
 build_images::build_prod_images
 kind::build_image_for_kubernetes_tests
 kind::load_image_to_kind_cluster
-kind::deploy_airflow_with_helm "${DEPLOY_WITH}"
+kind::deploy_airflow_with_helm "$@"
 kind::deploy_test_kubernetes_resources
 kind::wait_for_webserver_healthy
