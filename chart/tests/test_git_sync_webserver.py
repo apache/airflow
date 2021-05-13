@@ -26,7 +26,10 @@ from tests.helm_template_generator import render_chart
 class GitSyncWebserverTest(unittest.TestCase):
     def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -34,7 +37,10 @@ class GitSyncWebserverTest(unittest.TestCase):
 
     def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}}},
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}},
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -43,10 +49,11 @@ class GitSyncWebserverTest(unittest.TestCase):
     def test_should_add_git_sync_container_to_webserver_if_persistence_is_not_enabled_but_git_sync_is(self):
         docs = render_chart(
             values={
+                "airflowVersion": "1.10.14",
                 "dags": {
                     "gitSync": {"enabled": True, "containerName": "git-sync"},
                     "persistence": {"enabled": False},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -63,18 +70,44 @@ class GitSyncWebserverTest(unittest.TestCase):
             "spec.template.spec.serviceAccountName", docs[0]
         )
 
-    @parameterized.expand([(True,), (False,)])
-    def test_git_sync_with_exclude_webserver(self, exclude_webserver):
+    @parameterized.expand(
+        [
+            (
+                "2.0.0",
+                True,
+            ),
+            (
+                "2.0.2",
+                True,
+            ),
+            (
+                "1.10.14",
+                False,
+            ),
+            (
+                "1.9.0",
+                False,
+            ),
+            (
+                "2.1.0",
+                True,
+            ),
+        ],
+    )
+    def test_git_sync_with_different_airflow_versions(self, airflow_version, exclude_webserver):
         """
-        If that dags.gitSync.excludeWebserver=True - git sync related containers, volume mounts & volumes
+        If Airflow >= 2.0.0 - git sync related containers, volume mounts & volumes
         are not created.
         """
         docs = render_chart(
             values={
+                "airflowVersion": airflow_version,
                 "dags": {
-                    "gitSync": {"enabled": True, "excludeWebserver": exclude_webserver},
+                    "gitSync": {
+                        "enabled": True,
+                    },
                     "persistence": {"enabled": False},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )

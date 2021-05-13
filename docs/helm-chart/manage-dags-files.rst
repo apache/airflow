@@ -82,7 +82,7 @@ Mounting DAGs using Git-Sync sidecar with Persistence enabled
 
 This option will use a Persistent Volume Claim with an access mode of ``ReadWriteMany``.
 The scheduler pod will sync DAGs from a git repository onto the PVC every configured number of
-seconds. The other pods will read the synced DAGs. Not all volume  plugins have support for
+seconds. The other pods will read the synced DAGs. Not all volume plugins have support for
 ``ReadWriteMany`` access mode.
 Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
 for details.
@@ -96,17 +96,11 @@ for details.
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
 
-When using ``apache-airflow>=2.0.0``, :ref:`DAG Serialization <apache-airflow:dag-serialization>` is enabled by default,
-hence Webserver does not need access to DAG files, so you can turn off ``git-sync`` for Webserver by setting
-``dags.gitSync.excludeWebserver`` to ``true``.
-This is also recommended when enabling DAG Serialization for ``apache-airflow>=1.10.11,<2``.
-
 .. code-block:: bash
 
     helm upgrade airflow . \
       --set dags.persistence.enabled=true \
       --set dags.gitSync.enabled=true \
-      --set dags.gitSync.excludeWebserver=true
       # you can also override the other persistence or gitSync values
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
@@ -114,7 +108,8 @@ This is also recommended when enabling DAG Serialization for ``apache-airflow>=1
 Mounting DAGs using Git-Sync sidecar without Persistence
 --------------------------------------------------------
 
-This option will use an always running Git-Sync sidecar on every scheduler, webserver and worker pods.
+This option will use an always running Git-Sync sidecar on every scheduler, webserver (if ``airflowVersion < 2.0.0``)
+and worker pods.
 The Git-Sync sidecar containers will sync DAGs from a git repository every configured number of
 seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an init container on your worker pods.
 
@@ -126,6 +121,9 @@ seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an in
       # you can also override the other gitSync values
       # by setting the  dags.gitSync.* values
       # Refer values.yaml for details
+
+When using ``apache-airflow>=2.0.0``, :ref:`DAG Serialization <apache-airflow:dag-serialization>` is enabled by default,
+hence Webserver does not need access to DAG files, so ``git-sync`` sidecar is not run on Webserver.
 
 Mounting DAGs from an externally populated PVC
 ----------------------------------------------
