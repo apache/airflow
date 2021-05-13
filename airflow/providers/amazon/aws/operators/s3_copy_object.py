@@ -48,9 +48,8 @@ class S3CopyObjectOperator(BaseOperator):
     :type dest_bucket_name: str
     :param source_version_id: Version ID of the source object (OPTIONAL)
     :type source_version_id: str
-    :param aws_conn_id: Connection id of the S3 connection to use
-    :type aws_conn_id: <str> adding this param to template_fields for jinja template use.
-                             This feature can be useful for some kind of Dag Isolation etc
+    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+    :type aws_conn_id: <str>
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 

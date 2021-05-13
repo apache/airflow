@@ -33,11 +33,11 @@ class CloudFormationCreateStackOperator(BaseOperator):
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
     :type params: dict
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
     :type aws_conn_id: str
     """
 
-    template_fields: List[str] = ['stack_name']
+    template_fields: List[str] = ['stack_name','aws_conn_id']
     template_ext = ()
     ui_color = '#6b9659'
 
@@ -65,9 +65,8 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
     :type params: dict
-    :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: <str> Adding this param to template_fields so that it can be overriden using jinja template from Dags
-                             This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc)
+    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+    :type aws_conn_id: <str>
     """
 
     template_fields: List[str] = ['stack_name','aws_conn_id']

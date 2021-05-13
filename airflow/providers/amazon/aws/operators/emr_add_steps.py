@@ -36,9 +36,8 @@ class EmrAddStepsOperator(BaseOperator):
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
     :type cluster_states: list
-    :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: <str> adding this param to template_fields so that it can be overriden using jinja template from Dags.
-                             This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc) 
+    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+    :type aws_conn_id: <str>
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :type steps: list|str

@@ -34,8 +34,7 @@ class S3GetBucketTaggingOperator(BaseOperator):
 
     :param bucket_name: This is bucket name you want to reference
     :type bucket_name: str
-    :param aws_conn_id: adding this param to template_fields for jinja template use.
-                             This feature can be useful for some kind of Dag Isolation etc 
+    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
     :type aws_conn_id: Optional[str]
     """
 
@@ -78,14 +77,11 @@ class S3PutBucketTaggingOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then the default boto3 configuration would be used (and must be
-        maintained on each worker node).
-        Adding this param to template_fields so that it can be overriden using jinja template from Dags
-        This feature can be useful if user wants to update/override the aws_conn_id for some kind of Dag Isolation etc
-
+        maintained on each worker node).Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name", "aws_conn_id")
+    template_fields = ("bucket_name","aws_conn_id")
 
     def __init__(
         self,
@@ -130,11 +126,11 @@ class S3DeleteBucketTaggingOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
+        maintained on each worker node).Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
     :type aws_conn_id: Optional[str]
     """
 
-    template_fields = ("bucket_name",)
+    template_fields = ("bucket_name","aws_conn_id")
 
     def __init__(self, bucket_name: str, aws_conn_id: Optional[str] = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
