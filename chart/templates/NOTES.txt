@@ -50,12 +50,12 @@ Run this command to see the list of running pods:
 Default Webserver (Airflow UI) Login credentials:
   username: {{ .Values.webserver.defaultUser.username }}
   password: {{ .Values.webserver.defaultUser.password }}
-  port: {{ .Values.ports.airflowUI }}   
+  port: {{ .Values.ports.airflowUI }}
 
-{{ end }}  
+{{ end }}
 
 {{- if .Values.postgresql.enabled }}
-Default Postgres connection credentials: 
+Default Postgres connection credentials:
     username: {{ .Values.data.metadataConnection.user }}
     password: {{ .Values.data.metadataConnection.pass }}
     port: {{ .Values.data.metadataConnection.port }}
@@ -65,4 +65,4 @@ Default Postgres connection credentials:
 {{- if .Values.flower.enable }}
 FlowerUI running on:
   port: {{ .Values.ports.flowerUI }}
-{{- end }}   
+{{- end }}
