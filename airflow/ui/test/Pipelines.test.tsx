@@ -149,4 +149,20 @@ describe('Test Pipelines Table', () => {
     await waitFor(() => expect(getByText('Pipeline Updated')).toBeInTheDocument());
     await waitFor(() => expect(input.checked).toBeFalsy());
   });
+
+  test('Errors when retrieving dags are shown to the user', async () => {
+    nock(url)
+      .defaultReplyHeaders(defaultHeaders)
+      .get('/dags')
+      .query(() => true)
+      .replyWithError('something awful happened');
+
+    const { getByText } = render(
+      <QueryWrapper><Pipelines /></QueryWrapper>,
+      {
+        wrapper: RouterWrapper,
+      },
+    );
+    await waitFor(() => expect(getByText('something awful happened')).toBeInTheDocument());
+  });
 });
