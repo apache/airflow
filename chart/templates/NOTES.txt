@@ -16,12 +16,15 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 
-*/}}Thank you for installing Airflow!
+*/}}
+
+
+Thank you for installing apache {{ .Chart.Name }}!
 
 Your release is named {{ .Release.Name }}.
 
-{{- if .Values.ingress.enabled }}
-You can now access your service(s) by following defined Ingress urls:
+{{ if .Values.ingress.enabled }}
+You can now access your dashboard(s) by following defined Ingress urls:
 
 Airflow Webserver:     http{{ if .Values.ingress.web.tls.enabled }}s{{ end }}://{{ .Values.ingress.web.host }}{{ .Values.ingress.web.path }}/
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
@@ -30,10 +33,36 @@ Flower dashboard:      http{{ if .Values.ingress.flower.tls.enabled }}s{{ end }}
 {{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
 
-Airflow dashboard:        kubectl port-forward svc/{{ .Release.Name }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+      kubectl port-forward svc/{{ .Release.Name }}-webserver {{ .Values.ports.airflowUI }}:{{ .Values.ports.airflowUI }} --namespace {{ .Release.Namespace }}
+
 {{- if .Values.flower.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")}}
 Flower dashboard:         kubectl port-forward svc/{{ .Release.Name }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
 {{- end }}
+
+Run this command to see the list of running pods:
+      echo -c kubectl get pods --namespace {{ .Release.Namespace }}
+
+
+{{ if .Values.webserver.defaultUser.enabled}}
+Default Webserver (Airflow UI) Login credentials:
+  username: {{ .Values.webserver.defaultUser.username }}
+  password: {{ .Values.webserver.defaultUser.password }}
+  port: {{ .Values.ports.airflowUI }}   
+
+{{ end }}  
+
+{{- if .Values.postgresql.enabled }}
+Default Postgres connection credentials: 
+    username: {{ .Values.data.metadataConnection.user }}
+    password: {{ .Values.data.metadataConnection.pass }}
+    port: {{ .Values.data.metadataConnection.port }}
+
+{{- end }}
+
+{{- if .Values.flower.enable }}
+FlowerUI running on:
+  port: {{ .Values.ports.flowerUI }}
+{{- end }}   
