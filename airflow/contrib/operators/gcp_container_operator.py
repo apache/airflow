@@ -221,6 +221,8 @@ class GKEPodOperator(KubernetesPodOperator):
     :param gcp_conn_id: The google cloud connection id to use. This allows for
         users to specify a service account.
     :type gcp_conn_id: str
+    :param use_internal_ip: Use a private endpoint for the GKE cluster
+    :type use_internal_ip: bool
     """
     template_fields = ('project_id', 'location',
                        'cluster_name') + KubernetesPodOperator.template_fields
@@ -231,6 +233,7 @@ class GKEPodOperator(KubernetesPodOperator):
                  location,
                  cluster_name,
                  gcp_conn_id='google_cloud_default',
+                 use_internal_ip=False,
                  *args,
                  **kwargs):
         super(GKEPodOperator, self).__init__(*args, **kwargs)
@@ -238,6 +241,7 @@ class GKEPodOperator(KubernetesPodOperator):
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
+        self.use_internal_ip = use_internal_ip
 
     def execute(self, context):
         # Specifying a service account file allows the user to using non default
@@ -265,11 +269,13 @@ class GKEPodOperator(KubernetesPodOperator):
             # required by KubernetesPodOperator.
             # The gcloud command looks at the env variable `KUBECONFIG` for where to save
             # the kubernetes config file.
-            subprocess.check_call(
-                ["gcloud", "container", "clusters", "get-credentials",
+            cmd_list = ["gcloud", "container", "clusters", "get-credentials",
                  self.cluster_name,
                  "--zone", self.location,
-                 "--project", self.project_id])
+                 "--project", self.project_id]
+            if self.use_internal_ip:
+                cmd_list.append("--internal-ip")
+            subprocess.check_call(cmd_list)
 
             # Since the key file is of type mkstemp() closing the file will delete it from
             # the file system so it cannot be accessed after we don't need it anymore
