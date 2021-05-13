@@ -19,7 +19,7 @@ under the License.
 */}}
 
 
-Thank you for installing Apache {{ title .Chart.Name }}!
+Thank you for installing Apache {{ title .Chart.Name }} {{ .Values.airflowVersion }}!
 
 Your release is named {{ .Release.Name }}.
 
