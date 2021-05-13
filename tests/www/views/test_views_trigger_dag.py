@@ -78,6 +78,16 @@ def test_trigger_dag_conf_malformed(admin_client):
     assert run is None
 
 
+def test_trigger_dag_conf_not_dict(self):
+    test_dag_id = "example_bash_operator"
+
+    response = self.client.post(f'trigger?dag_id={test_dag_id}', data={'conf': 'string and not a dict'})
+    self.check_content_in_response('must be a dict', response)
+
+    run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+    assert run is None
+
+
 def test_trigger_dag_form(admin_client):
     test_dag_id = "example_bash_operator"
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}')
