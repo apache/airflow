@@ -119,7 +119,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
   if (subdagId === undefined) $('#div_btn_subdag').hide();
   else {
     $('#div_btn_subdag').show();
-    // subdag_id = `{{ dag.dag_id }}.${t}`;
+    subdagId = `${dagId}.${t}`;
   }
 
   $('#dag_dl_logs').hide();

@@ -401,10 +401,4 @@
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for_asset('dag.js') }}"></script>
-  <script>
-    // {% if show_external_log_redirect is defined %}
-    //   show_external_log_redirect = '{{ show_external_log_redirect }}' == 'True';
-    // {% endif %}
-
-  </script>
 {% endblock %}
