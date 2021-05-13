@@ -1007,7 +1007,6 @@ dags:
     # interval between git sync attempts in seconds
     wait: 60
     containerName: git-sync
-    # TODO: Should this be 65534?
     uid: 65533
     extraVolumeMounts: []
 
