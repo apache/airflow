@@ -145,6 +145,7 @@ update-extras
 update-local-yml-file
 update-setup-cfg-file
 version-sync
+www-lint
 yamllint
 EOF
 )
