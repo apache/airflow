@@ -128,7 +128,7 @@ def pytest_addoption(parser):
         action="append",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
-        "[cassandra,kerberos,mongo,openldap,presto,rabbitmq,redis]. ",
+        "[cassandra,kerberos,mongo,openldap,rabbitmq,redis,statsd,trino]. ",
     )
     group.addoption(
         "--backend",
@@ -418,3 +418,10 @@ def frozen_sleep(monkeypatch):
 
     if freezegun_control is not None:
         freezegun_control.stop()
+
+
+@pytest.fixture(scope="session")
+def app():
+    from airflow.www import app
+
+    return app.create_app(testing=True)

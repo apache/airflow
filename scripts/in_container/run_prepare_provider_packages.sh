@@ -19,20 +19,13 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 function copy_sources() {
-    if [[ ${BACKPORT_PACKAGES} == "true" ]]; then
-        group_start "Copy and refactor sources"
-        echo "==================================================================================="
-        echo " Copying sources and refactoring code for backport provider packages"
-        echo "==================================================================================="
-    else
-        group_start "Copy sources"
-        echo "==================================================================================="
-        echo " Copying sources for provider packages"
-        echo "==================================================================================="
-    fi
-
+    group_start "Copy sources"
+    echo "==================================================================================="
+    echo " Copying sources for provider packages"
+    echo "==================================================================================="
     pushd "${AIRFLOW_SOURCES}"
-    python3 "${PROVIDER_PACKAGES_DIR}/copy_provider_package_sources.py" "${OPTIONAL_BACKPORT_FLAG[@]}"
+    rm -rf "provider_packages/airflow"
+    cp -r airflow "provider_packages"
     popd
 
     group_end
@@ -87,7 +80,6 @@ function build_provider_packages() {
         set +e
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             generate-setup-files \
-            "${OPTIONAL_BACKPORT_FLAG[@]}" \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
@@ -113,7 +105,6 @@ function build_provider_packages() {
         fi
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             build-provider-packages \
-            "${OPTIONAL_BACKPORT_FLAG[@]}" \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             --no-git-update \
             --version-suffix "${package_suffix}" \
@@ -157,28 +148,6 @@ function build_provider_packages() {
     fi
 }
 
-function rename_packages_if_needed() {
-    cd "${AIRFLOW_SOURCES}" || exit 1
-    pushd dist >/dev/null 2>&1 || exit 1
-    if [[ -n "${FILE_VERSION_SUFFIX}" ]]; then
-        # In case we have FILE_VERSION_SUFFIX we rename prepared files
-        if [[ "${PACKAGE_FORMAT}" == "sdist" || "${PACKAGE_FORMAT}" == "both" ]]; then
-            for FILE in *.tar.gz
-            do
-                mv "${FILE}" "${FILE//\.tar\.gz/${FILE_VERSION_SUFFIX}.tar.gz}"
-            done
-        fi
-        if [[ "${PACKAGE_FORMAT}" == "wheel" || "${PACKAGE_FORMAT}" == "both" ]]; then
-            for FILE in *.whl
-            do
-                mv "${FILE}" "${FILE//\-py3/${FILE_VERSION_SUFFIX}-py3}"
-            done
-        fi
-    fi
-    popd >/dev/null
-}
-
-install_remaining_dependencies
 setup_provider_packages
 
 cd "${PROVIDER_PACKAGES_DIR}" || exit 1

@@ -17,7 +17,7 @@
 # under the License.
 
 #
-# Verifies if stored md5sum of the file changed since the last tme ot was checked
+# Verifies if stored md5sum of the file changed since the last time it was checked
 # The md5sum files are stored in .build directory - you can delete this directory
 # If you want to rebuild everything from the scratch
 #
@@ -28,9 +28,9 @@ function md5sum::calculate_file_md5sum {
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
-    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
-    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
+    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum.new
     echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
     local RET_CODE=0
     if [[ ! -f "${MD5SUM_FILE}" ]]; then
@@ -40,7 +40,13 @@ function md5sum::calculate_file_md5sum {
         diff "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}" >/dev/null
         RES=$?
         if [[ "${RES}" != "0" ]]; then
-            verbosity::print_info "The md5sum changed for ${FILE}"
+            verbosity::print_info "The md5sum changed for ${FILE}: was $(cat "${MD5SUM_FILE}") now it is $(cat "${MD5SUM_FILE_NEW}")"
+            if [[ ${CI} == "true" ]]; then
+                echo "${COLOR_RED}The file has changed: ${FILE}${COLOR_RESET}"
+                echo "${COLOR_BLUE}==============================${COLOR_RESET}"
+                cat "${FILE}"
+                echo "${COLOR_BLUE}==============================${COLOR_RESET}"
+            fi
             RET_CODE=1
         fi
     fi
@@ -49,19 +55,19 @@ function md5sum::calculate_file_md5sum {
 
 #
 # Moves md5sum file from it's temporary location in CACHE_TMP_FILE_DIR to
-# BUILD_CACHE_DIR - thus updating stored MD5 sum fo the file
+# BUILD_CACHE_DIR - thus updating stored MD5 sum for the file
 #
 function md5sum::move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
     local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
-    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
+    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
-    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "${FILE}").md5sum.new
+    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum.new
     if [[ -f "${MD5SUM_FILE_NEW}" ]]; then
         mv "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}"
-        verbosity::print_info "Updated md5sum file ${MD5SUM_FILE} for ${FILE}."
+        verbosity::print_info "Updated md5sum file ${MD5SUM_FILE} for ${FILE}: $(cat "${MD5SUM_FILE}")"
     fi
 }
 

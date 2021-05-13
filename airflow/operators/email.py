@@ -18,7 +18,6 @@
 from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 
 
@@ -51,7 +50,6 @@ class EmailOperator(BaseOperator):
     template_ext = ('.html',)
     ui_color = '#e6faf9'
 
-    @apply_defaults
     def __init__(  # pylint: disable=invalid-name
         self,
         *,

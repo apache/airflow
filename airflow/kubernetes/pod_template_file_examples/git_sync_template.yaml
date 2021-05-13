@@ -31,7 +31,7 @@ spec:
         - name: GIT_SYNC_REV
           value: "HEAD"
         - name: GIT_SYNC_BRANCH
-          value: "v1-10-stable"
+          value: "v2-0-stable"
         - name: GIT_SYNC_REPO
           value: "https://github.com/apache/airflow.git"
         - name: GIT_SYNC_DEPTH
@@ -47,7 +47,7 @@ spec:
         - name: GIT_SYNC_MAX_SYNC_FAILURES
           value: "0"
       volumeMounts:
-        - name: dags
+        - name: airflow-dags
           mountPath: /git
   containers:
     - args: []
@@ -82,13 +82,11 @@ spec:
         - mountPath: /opt/airflow/dags
           name: airflow-dags
           readOnly: false
-        - mountPath: /opt/airflow/dags
-          name: airflow-dags
-          readOnly: true
   hostNetwork: false
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
+    fsGroup: 50000
   nodeSelector:
     {}
   affinity:
@@ -97,7 +95,7 @@ spec:
     []
   serviceAccountName: 'RELEASE-NAME-worker-serviceaccount'
   volumes:
-    - name: dags
+    - name: airflow-dags
       emptyDir: {}
     - emptyDir: {}
       name: airflow-logs

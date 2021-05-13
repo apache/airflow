@@ -185,7 +185,7 @@ class TestVaultHook(TestCase):
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url=expected_url)
-        test_client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        test_client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 
@@ -211,7 +211,7 @@ class TestVaultHook(TestCase):
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        test_client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        test_client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 
@@ -237,7 +237,7 @@ class TestVaultHook(TestCase):
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        test_client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        test_client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 

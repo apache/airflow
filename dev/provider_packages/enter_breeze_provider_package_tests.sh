@@ -21,7 +21,7 @@ export MOUNT_SELECTED_LOCAL_SOURCES="false"
 . "$(dirname "${BASH_SOURCE[0]}")/../../scripts/ci/libraries/_script_init.sh"
 
 function enter_breeze_with_mapped_sources() {
-    docker run -it "${EXTRA_DOCKER_FLAGS[@]}" \
+    docker_v run -it "${EXTRA_DOCKER_FLAGS[@]}" \
         -v "${AIRFLOW_SOURCES}/setup.py:/airflow_sources/setup.py:cached" \
         -v "${AIRFLOW_SOURCES}/setup.cfg:/airflow_sources/setup.cfg:cached" \
         -v "${AIRFLOW_SOURCES}/airflow/__init__.py:/airflow_sources/airflow/__init__.py:cached" \

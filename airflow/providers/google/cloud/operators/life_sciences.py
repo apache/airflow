@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
-from airflow.utils.decorators import apply_defaults
 
 
 class LifeSciencesRunPipelineOperator(BaseOperator):
@@ -39,7 +38,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
     :type location: str
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
-    :param project_id: str
+    :type project_id: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v2beta).
@@ -62,7 +61,6 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

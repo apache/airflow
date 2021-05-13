@@ -17,6 +17,8 @@
 
 
 
+.. _howto/connection:mysql:
+
 MySQL Connection
 ================
 The MySQL connection type provides connection to a MySQL database.
@@ -66,7 +68,7 @@ Extra (optional)
             "unix_socket": "/var/socket",
             "ssl": {
               "cert": "/tmp/client-cert.pem",
-              "ca": "/tmp/server-ca.pem'",
+              "ca": "/tmp/server-ca.pem",
               "key": "/tmp/client-key.pem"
             }
          }

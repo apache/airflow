@@ -34,7 +34,7 @@ commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 Templating
 ----------
 
-You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
+You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize the
 ``bash_command`` argument.
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
@@ -78,7 +78,8 @@ Skipping
 --------
 
 In general a non-zero exit code produces an AirflowException and thus a task failure.  In cases where it is desirable
-to instead have the task end in a ``skipped`` state, you can exit with code ``127``.
+to instead have the task end in a ``skipped`` state, you can exit with code ``99`` (or with another exit code if you
+pass ``skip_exit_code``).
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
     :language: python

@@ -93,7 +93,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
-                'sure that airflow[aws] is installed and the S3 connection exists. Exception : "%s"',
+                'sure that apache-airflow[aws] is installed and the S3 connection exists. Exception : "%s"',
                 'aws_default',
                 ANY,
                 exc_info=True,

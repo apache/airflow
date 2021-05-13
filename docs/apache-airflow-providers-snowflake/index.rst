@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
+    Connection Types <connections/snowflake>
     Operators <operators/index>
 
 .. toctree::
@@ -57,7 +58,7 @@ Package apache-airflow-providers-snowflake
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 1.1.1
+Release: 1.3.0
 
 Provider package
 ----------------
@@ -67,15 +68,6 @@ are in ``airflow.providers.snowflake`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-snowflake``
@@ -94,7 +86,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified backport providers package in order to use them.
+You need to install the specified provider packages in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -130,6 +122,22 @@ Dependent package                                                               
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Expose snowflake query_id in snowflake hook and operator (#15533)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add dynamic fields to snowflake connection (#14724)``
+
 1.1.1
 .....
 
@@ -137,7 +145,7 @@ Bug fixes
 ~~~~~~~~~
 
 * ``Corrections in docs and tools after releasing provider RCs (#14082)``
-
+* ``Prepare to release the next wave of providers: (#14487)``
 
 1.1.0
 .....

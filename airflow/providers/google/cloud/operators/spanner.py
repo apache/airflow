@@ -21,7 +21,6 @@ from typing import List, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SpannerDeployInstanceOperator(BaseOperator):
@@ -73,7 +72,6 @@ class SpannerDeployInstanceOperator(BaseOperator):
     )
     # [END gcp_spanner_deploy_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -158,7 +156,6 @@ class SpannerDeleteInstanceOperator(BaseOperator):
     )
     # [END gcp_spanner_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -240,7 +237,6 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     template_ext = ('.sql',)
     # [END gcp_spanner_query_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -350,7 +346,6 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     template_ext = ('.sql',)
     # [END gcp_spanner_database_deploy_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -455,7 +450,6 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     template_ext = ('.sql',)
     # [END gcp_spanner_database_update_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -549,7 +543,6 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     )
     # [END gcp_spanner_database_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

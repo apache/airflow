@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class HttpSensor(BaseSensorOperator):
@@ -50,7 +49,8 @@ class HttpSensor(BaseSensorOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HttpSensor`
 
-    :param http_conn_id: The connection to run the sensor against
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run the
+        sensor against
     :type http_conn_id: str
     :param method: The HTTP request method to use
     :type method: str
@@ -73,7 +73,6 @@ class HttpSensor(BaseSensorOperator):
 
     template_fields = ('endpoint', 'request_params', 'headers')
 
-    @apply_defaults
     def __init__(
         self,
         *,

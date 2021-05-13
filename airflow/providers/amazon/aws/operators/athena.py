@@ -26,7 +26,6 @@ except ImportError:
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AWSAthenaOperator(BaseOperator):
@@ -58,8 +57,8 @@ class AWSAthenaOperator(BaseOperator):
     ui_color = '#44b5e2'
     template_fields = ('query', 'database', 'output_location')
     template_ext = ('.sql',)
+    template_fields_renderers = {"query": "sql"}
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

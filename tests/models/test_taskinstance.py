@@ -905,6 +905,13 @@ class TestTaskInstance(unittest.TestCase):
             ['one_success', 2, 0, 0, 0, 2, True, None, True],
             ['one_success', 2, 0, 1, 0, 3, True, None, True],
             ['one_success', 2, 1, 0, 0, 3, True, None, True],
+            ['one_success', 0, 5, 0, 0, 5, True, State.SKIPPED, False],
+            ['one_success', 0, 4, 1, 0, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 3, 1, 1, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 4, 0, 1, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 5, 0, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 4, 1, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 0, 5, 5, True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
@@ -932,15 +939,15 @@ class TestTaskInstance(unittest.TestCase):
     )
     def test_check_task_dependencies(
         self,
-        trigger_rule,
-        successes,
-        skipped,
-        failed,
-        upstream_failed,
-        done,
-        flag_upstream_failed,
-        expect_state,
-        expect_completed,
+        trigger_rule: str,
+        successes: int,
+        skipped: int,
+        failed: int,
+        upstream_failed: int,
+        done: int,
+        flag_upstream_failed: bool,
+        expect_state: State,
+        expect_completed: bool,
     ):
         start_date = timezone.datetime(2016, 2, 1, 0, 0, 0)
         dag = models.DAG('test-dag', start_date=start_date)
@@ -1971,8 +1978,8 @@ class TestTaskInstance(unittest.TestCase):
                 for upstream, downstream in dependencies.items():
                     dag.set_dependency(upstream, downstream)
 
-            scheduler = SchedulerJob(subdir=os.devnull)
-            scheduler.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler_job = SchedulerJob(subdir=os.devnull)
+            scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
 
@@ -1999,9 +2006,11 @@ class TestTaskInstance(unittest.TestCase):
             self.validate_ti_states(dag_run, first_run_state, error_message)
 
             if second_run_state:
-                scheduler._critical_section_execute_task_instances(session=session)
+                scheduler_job._critical_section_execute_task_instances(session=session)
                 task_instance_b.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
+            if scheduler_job.processor_agent:
+                scheduler_job.processor_agent.end()
 
     def test_set_state_up_for_retry(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
@@ -2071,8 +2080,8 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
     @parameterized.expand(
         [
             # Expected queries, mark_success
-            (10, False),
-            (5, True),
+            (12, False),
+            (7, True),
         ]
     )
     def test_execute_queries_count(self, expected_query_count, mark_success):
@@ -2108,7 +2117,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
                 session=session,
             )
 
-        with assert_queries_count(10):
+        with assert_queries_count(12):
             ti._run_raw_task()
 
     def test_operator_field_with_serialization(self):

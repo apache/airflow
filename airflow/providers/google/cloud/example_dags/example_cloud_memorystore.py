@@ -63,7 +63,7 @@ MEMORYSTORE_MEMCACHED_INSTANCE_NAME = os.environ.get(
     "GCP_MEMORYSTORE_MEMCACHED_INSTANCE_NAME", "test-memorystore-memcached-1"
 )
 
-BUCKET_NAME = os.environ.get("GCP_MEMORYSTORE_BUCKET", "test-memorystore-bucket")
+BUCKET_NAME = os.environ.get("GCP_MEMORYSTORE_BUCKET", "INVALID BUCKET NAME")
 EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 
 # [START howto_operator_instance]

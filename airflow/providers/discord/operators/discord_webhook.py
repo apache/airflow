@@ -21,7 +21,6 @@ from typing import Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import SimpleHttpOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class DiscordWebhookOperator(SimpleHttpOperator):
@@ -56,7 +55,6 @@ class DiscordWebhookOperator(SimpleHttpOperator):
 
     template_fields = ['username', 'message']
 
-    @apply_defaults
     def __init__(
         self,
         *,

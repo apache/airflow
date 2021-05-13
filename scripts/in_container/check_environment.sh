@@ -160,17 +160,17 @@ check_integration "MongoDB" "mongo" "run_nc mongo 27017" 50
 check_integration "Redis" "redis" "run_nc redis 6379" 50
 check_integration "Cassandra" "cassandra" "run_nc cassandra 9042" 50
 check_integration "OpenLDAP" "openldap" "run_nc openldap 389" 50
-check_integration "Presto (HTTP)" "presto" "run_nc presto 8080" 50
-check_integration "Presto (HTTPS)" "presto" "run_nc presto 7778" 50
-check_integration "Presto (API)" "presto" \
-    "curl --max-time 1 http://presto:8080/v1/info/ | grep '\"starting\":false'" 50
+check_integration "Trino (HTTP)" "trino" "run_nc trino 8080" 50
+check_integration "Trino (HTTPS)" "trino" "run_nc trino 7778" 50
+check_integration "Trino (API)" "trino" \
+    "curl --max-time 1 http://trino:8080/v1/info/ | grep '\"starting\":false'" 50
 check_integration "Pinot (HTTP)" "pinot" "run_nc pinot 9000" 50
 CMD="curl --max-time 1 -X GET 'http://pinot:9000/health' -H 'accept: text/plain' | grep OK"
-check_integration "Presto (Controller API)" "pinot" "${CMD}" 50
+check_integration "Pinot (Controller API)" "pinot" "${CMD}" 50
 CMD="curl --max-time 1 -X GET 'http://pinot:9000/pinot-controller/admin' -H 'accept: text/plain' | grep GOOD"
-check_integration "Presto (Controller API)" "pinot" "${CMD}" 50
+check_integration "Pinot (Controller API)" "pinot" "${CMD}" 50
 CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain' | grep OK"
-check_integration "Presto (Broker API)" "pinot" "${CMD}" 50
+check_integration "Pinot (Broker API)" "pinot" "${CMD}" 50
 check_integration "RabbitMQ" "rabbitmq" "run_nc rabbitmq 5672" 50
 
 echo "-----------------------------------------------------------------------------------------------"

@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySQLToS3Operator(BaseOperator):
@@ -41,7 +40,7 @@ class MySQLToS3Operator(BaseOperator):
     :type s3_bucket: str
     :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :type s3_key: str
-    :param mysql_conn_id: reference to a specific mysql database
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
     :type aws_conn_id: str
@@ -69,8 +68,8 @@ class MySQLToS3Operator(BaseOperator):
         'query',
     )
     template_ext = ('.sql',)
+    template_fields_renderers = {"query": "sql"}
 
-    @apply_defaults
     def __init__(
         self,
         *,

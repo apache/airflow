@@ -51,7 +51,7 @@ Exports a copy of all or a subset of documents from Google Cloud Firestore to Go
     :start-after: [START howto_operator_export_database_to_gcs]
     :end-before: [END howto_operator_export_database_to_gcs]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.firebase.operators.firestore.CloudFirestoreExportDatabaseOperator`
 parameters which allows you to dynamically determine values.
 

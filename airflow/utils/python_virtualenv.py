@@ -18,6 +18,7 @@
 #
 """Utilities for creating a virtual environment"""
 import os
+from collections import deque
 from typing import List, Optional
 
 import jinja2
@@ -40,6 +41,36 @@ def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional
     # direct path alleviates need to activate
     cmd = [f'{tmp_dir}/bin/pip', 'install']
     return cmd + requirements
+
+
+def _balance_parens(after_decorator):
+    num_paren = 1
+    after_decorator = deque(after_decorator)
+    after_decorator.popleft()
+    while num_paren:
+        current = after_decorator.popleft()
+        if current == "(":
+            num_paren = num_paren + 1
+        elif current == ")":
+            num_paren = num_paren - 1
+    return ''.join(after_decorator)
+
+
+def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
+    """
+    Removed @task.virtualenv
+
+    :param python_source:
+    """
+    if task_decorator_name not in python_source:
+        return python_source
+    split = python_source.split(task_decorator_name)
+    before_decorator, after_decorator = split[0], split[1]
+    if after_decorator[0] == "(":
+        after_decorator = _balance_parens(after_decorator)
+    if after_decorator[0] == "\n":
+        after_decorator = after_decorator[1:]
+    return before_decorator + after_decorator
 
 
 def prepare_virtualenv(
@@ -69,7 +100,11 @@ def prepare_virtualenv(
     return f'{venv_directory}/bin/python'
 
 
-def write_python_script(jinja_context: dict, filename: str):
+def write_python_script(
+    jinja_context: dict,
+    filename: str,
+    render_template_as_native_obj: bool = False,
+):
     """
     Renders the python script to a file to execute in the virtual environment.
 
@@ -78,8 +113,15 @@ def write_python_script(jinja_context: dict, filename: str):
     :type jinja_context: dict
     :param filename: The name of the file to dump the rendered script to.
     :type filename: str
+    :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
+        to a native Python object
     """
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
-    template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+    if render_template_as_native_obj:
+        template_env = jinja2.nativetypes.NativeEnvironment(
+            loader=template_loader, undefined=jinja2.StrictUndefined
+        )
+    else:
+        template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
     template = template_env.get_template('python_virtualenv_script.jinja2')
     template.stream(**jinja_context).dump(filename)

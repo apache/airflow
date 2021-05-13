@@ -54,7 +54,7 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto)              |
+| kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -84,14 +84,15 @@ For example the below command will install:
   * apache-airflow-providers-google
   * apache-airflow-providers-apache-spark
 
-with a consistent set of dependencies based on constraint files provided by Airflow  Community at the time 2.0.1 version was released.
+with a consistent set of dependencies based on constraint files provided by Airflow Community at the time |version| version was released.
 
 .. code-block:: bash
+    :substitutions:
 
-    pip install apache-airflow[google,amazon,apache.spark]==2.0.1 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.6.txt"
+    pip install apache-airflow[google,amazon,apache.spark]==|version| \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt"
 
-Note, that this will install providers in the versions that were released at the time of Airflow 2.0.1 release. You can later
+Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
 
 
@@ -234,6 +235,8 @@ Those are extras that add dependencies needed for integration with other softwar
 | samba               | ``pip install 'apache-airflow[samba]'``             | Samba hooks and operators                 |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | singularity         | ``pip install 'apache-airflow[singularity]'``       | Singularity container operator            |
++---------------------+-----------------------------------------------------+-------------------------------------------+
+| trino               | ``pip install 'apache-airflow[trino]'``             | All Trino related operators & hooks       |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 
 

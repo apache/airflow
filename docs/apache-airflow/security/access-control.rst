@@ -168,6 +168,7 @@ Endpoint                                                                        
 /pools/{pool_name}                                                                 DELETE Pool.can_delete                                                   Op
 /pools/{pool_name}                                                                 GET    Pool.can_read                                                     Op
 /pools/{pool_name}                                                                 PATCH  Pool.can_edit                                                     Op
+/providers                                                                         GET    Provider.can_read                                                 Op
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
@@ -182,6 +183,8 @@ Endpoint                                                                        
                                                                                           Task Instances.can_read, XComs.can_read
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
                                                                                           Task Instances.can_read, XComs.can_read
+/users                                                                             GET    Users.can_read                                                    Admin
+/users/{username}                                                                  GET    Users.can_read                                                    Admin
 ================================================================================== ====== ================================================================= ============
 
 

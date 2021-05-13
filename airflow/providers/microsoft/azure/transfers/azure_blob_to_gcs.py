@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureBlobStorageToGCSOperator(BaseOperator):
@@ -66,7 +65,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

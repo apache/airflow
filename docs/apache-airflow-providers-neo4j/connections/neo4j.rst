@@ -17,9 +17,12 @@
 
 
 
+.. _howto/connection:neo4j:
+
 Neo4j Connection
 ================
-The Neo4j connection type provides connection to a Neo4j database.
+The Neo4j connection type provides connection to a Neo4j database using the `Neo4j Python client
+<https://neo4j.com/developer/python/>`_.
 
 Configuring the Connection
 --------------------------
@@ -61,3 +64,14 @@ Extra (optional)
             "certs_self_signed": true,
             "certs_trusted_ca": false
          }
+
+When specifying the connection in environment variable you should specify
+it using URI syntax.
+
+Note that all components of the URI should be URL-encoded.
+
+For example:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_NEO4J_DEFAULT='neo4j://username:password@https%3A%2F%2Fneo4jhost/neo4j-schema?encrypted=true&neo4j_scheme=true&certs_self_signed=true&certs_trusted_ca=false'

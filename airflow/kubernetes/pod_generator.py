@@ -36,31 +36,10 @@ from kubernetes.client.api_client import ApiClient
 
 import airflow.utils.yaml as yaml
 from airflow.exceptions import AirflowConfigException
-from airflow.kubernetes.pod_generator_deprecated import PodGenerator as PodGeneratorDeprecated
+from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63
-
-
-class PodDefaults:
-    """Static defaults for Pods"""
-
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
-    SIDECAR_CONTAINER = k8s.V1Container(
-        name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
-        volume_mounts=[VOLUME_MOUNT],
-        resources=k8s.V1ResourceRequirements(
-            requests={
-                "cpu": "1m",
-            }
-        ),
-    )
 
 
 def make_safe_label_value(string):
@@ -157,6 +136,10 @@ class PodGenerator:
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
         """Adds sidecar"""
+        warnings.warn(
+            "This function is deprecated. "
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+        )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -368,10 +351,6 @@ class PodGenerator:
         except Exception:  # pylint: disable=W0703
             image = kube_image
 
-        task_id = make_safe_label_value(task_id)
-        dag_id = make_safe_label_value(dag_id)
-        scheduler_job_id = make_safe_label_value(str(scheduler_job_id))
-
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
@@ -383,9 +362,9 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': scheduler_job_id,
-                    'dag_id': dag_id,
-                    'task_id': task_id,
+                    'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+                    'dag_id': make_safe_label_value(dag_id),
+                    'task_id': make_safe_label_value(task_id),
                     'execution_date': datetime_to_label_safe_datestring(date),
                     'try_number': str(try_number),
                     'airflow_version': airflow_version.replace('+', '-'),
@@ -472,9 +451,10 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-        trimmed_pod_id = pod_id[:MAX_LABEL_LEN]
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
+        # Strip trailing '-' and '.' as they can't be followed by '.'
+        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
+        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
         return safe_pod_id
 
 

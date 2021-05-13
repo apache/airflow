@@ -19,6 +19,9 @@
 CLIENTS_GEN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly CLIENTS_GEN_DIR
 
+CLEANUP_DIRS=(api docs)
+readonly CLEANUP_DIRS
+
 # shellcheck source=./clients/gen/common.sh
 source "${CLIENTS_GEN_DIR}/common.sh"
 

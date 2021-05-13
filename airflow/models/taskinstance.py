@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
-import getpass
 import hashlib
 import logging
 import math
@@ -68,6 +67,7 @@ from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import State
@@ -77,7 +77,6 @@ try:
     from kubernetes.client.api_client import ApiClient
 
     from airflow.kubernetes.kube_config import KubeConfig
-    from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
     from airflow.kubernetes.pod_generator import PodGenerator
 except ImportError:
     ApiClient = None
@@ -272,7 +271,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
-    pool = Column(String(50), nullable=False)
+    pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
@@ -284,7 +283,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
     external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
     # If adding new fields here then remember to add them to
-    # refresh_from_db() or they wont display in the UI correctly
+    # refresh_from_db() or they won't display in the UI correctly
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -327,7 +326,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.execution_date = execution_date
 
         self.try_number = 0
-        self.unixname = getpass.getuser()
+        self.unixname = getuser()
         if state:
             self.state = state
         self.hostname = ''
@@ -1073,7 +1072,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
-        self.pid = os.getpid()
         self.end_date = None
         if not test_mode:
             session.merge(self)
@@ -1128,7 +1126,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
-
+        self.pid = os.getpid()
+        session.merge(self)
+        session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
@@ -1295,11 +1295,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 registered = False
                 try:
                     registered = task_copy.register_in_sensor_service(self, context)
-                except Exception as e:
+                except Exception:  # pylint: disable=broad-except
                     self.log.warning(
-                        "Failed to register in sensor service.Continue to run task in non smart sensor mode."
+                        "Failed to register in sensor service."
+                        " Continue to run task in non smart sensor mode.",
+                        exc_info=True,
                     )
-                    self.log.exception(e, exc_info=True)
 
                 if registered:
                     # Will raise AirflowSmartSensorException to avoid long running execution.
@@ -1348,9 +1349,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         try:
             if task.on_execute_callback:
                 task.on_execute_callback(context)
-        except Exception as exc:  # pylint: disable=broad-except
-            self.log.error("Failed when executing execute callback")
-            self.log.exception(exc)
+        except Exception:  # pylint: disable=broad-except
+            self.log.exception("Failed when executing execute callback")
 
     def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
         """
@@ -1533,9 +1533,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         if email_for_state and task.email:
             try:
                 self.email_alert(error)
-            except Exception as exec2:  # pylint: disable=broad-except
-                self.log.error('Failed to send email to: %s', task.email)
-                self.log.exception(exec2)
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception('Failed to send email to: %s', task.email)
 
         if not test_mode:
             session.merge(self)
@@ -1777,6 +1776,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
     def render_k8s_pod_yaml(self) -> Optional[dict]:
         """Render k8s pod yaml"""
+        from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
+
         kube_config = KubeConfig()
         pod = PodGenerator.construct_pod(
             dag_id=self.dag_id,
@@ -1836,10 +1837,14 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     max_tries=self.max_tries,
                 )
             )
-
-            jinja_env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
-            )
+            if self.dag.render_template_as_native_obj:
+                jinja_env = jinja2.nativetypes.NativeEnvironment(
+                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
+                )
+            else:
+                jinja_env = jinja2.Environment(
+                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
+                )
             subject = jinja_env.from_string(default_subject).render(**jinja_context)
             html_content = jinja_env.from_string(default_html_content).render(**jinja_context)
             html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
@@ -2155,8 +2160,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    # Let pylint know about these relationships, without introducing an import cycle
-    from sqlalchemy.orm import relationship
 
     from airflow.job.base_job import BaseJob
     from airflow.models.dagrun import DagRun

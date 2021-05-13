@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+import pytest
 
 from airflow.api_connexion.schemas.role_and_permission_schema import (
     RoleCollection,
@@ -23,29 +23,25 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_schema,
 )
 from airflow.security import permissions
-from airflow.www import app
 from tests.test_utils.api_connexion_utils import create_role, delete_role
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
-class TestRoleCollectionItemSchema(unittest.TestCase):
-    @classmethod
-    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
-        cls.role = create_role(
-            cls.app,  # type: ignore
+class TestRoleCollectionItemSchema:
+    @pytest.fixture(scope="class")
+    def role(self, minimal_app_for_api):
+        yield create_role(
+            minimal_app_for_api,  # type: ignore
             name="Test",
             permissions=[
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
             ],
         )
+        delete_role(minimal_app_for_api, "Test")
 
-    @classmethod
-    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
-    def tearDownClass(cls) -> None:
-        delete_role(cls.app, 'Test')
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, minimal_app_for_api, role):
+        self.app = minimal_app_for_api
+        self.role = role
 
     def test_serialize(self):
         deserialized_role = role_schema.dump(self.role)
@@ -66,35 +62,31 @@ class TestRoleCollectionItemSchema(unittest.TestCase):
         }
 
 
-class TestRoleCollectionSchema(unittest.TestCase):
-    @classmethod
-    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
-        cls.role1 = create_role(
-            cls.app,  # type: ignore
+class TestRoleCollectionSchema:
+    @pytest.fixture(scope="class")
+    def role1(self, minimal_app_for_api):
+        yield create_role(
+            minimal_app_for_api,  # type: ignore
             name="Test1",
             permissions=[
                 (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
             ],
         )
-        cls.role2 = create_role(
-            cls.app,  # type: ignore
+        delete_role(minimal_app_for_api, 'Test1')
+
+    @pytest.fixture(scope="class")
+    def role2(self, minimal_app_for_api):
+        yield create_role(
+            minimal_app_for_api,  # type: ignore
             name="Test2",
             permissions=[
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
         )
+        delete_role(minimal_app_for_api, 'Test2')
 
-    @classmethod
-    @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
-    def tearDownClass(cls) -> None:
-        delete_role(cls.app, 'Test1')
-        delete_role(cls.app, 'Test2')
-
-    def test_serialize(self):
-        instance = RoleCollection([self.role1, self.role2], total_entries=2)
+    def test_serialize(self, role1, role2):
+        instance = RoleCollection([role1, role2], total_entries=2)
         deserialized = role_collection_schema.dump(instance)
         assert deserialized == {
             'roles': [

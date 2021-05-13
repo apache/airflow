@@ -29,6 +29,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.secrets.local_filesystem import _create_connection, load_connections_dict
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
@@ -234,3 +235,43 @@ def connections_delete(args):
         else:
             session.delete(to_delete)
             print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
+
+
+@cli_utils.action_logging
+def connections_import(args):
+    """Imports connections from a given file"""
+    if os.path.exists(args.file):
+        _import_helper(args.file)
+    else:
+        raise SystemExit("Missing connections file.")
+
+
+def _import_helper(file_path):
+    """Helps import connections from a file"""
+    connections_dict = load_connections_dict(file_path)
+    with create_session() as session:
+        for conn_id, conn_values in connections_dict.items():
+            if session.query(Connection).filter(Connection.conn_id == conn_id).first():
+                print(f'Could not import connection {conn_id}: connection already exists.')
+                continue
+
+            allowed_fields = [
+                'extra',
+                'description',
+                'conn_id',
+                'login',
+                'conn_type',
+                'host',
+                'password',
+                'schema',
+                'port',
+                'uri',
+                'extra_dejson',
+            ]
+            filtered_connection_values = {
+                key: value for key, value in conn_values.items() if key in allowed_fields
+            }
+            connection = _create_connection(conn_id, filtered_connection_values)
+            session.add(connection)
+            session.commit()
+            print(f'Imported connection {conn_id}')

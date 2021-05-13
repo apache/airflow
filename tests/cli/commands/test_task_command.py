@@ -313,6 +313,8 @@ class TestCliTasks(unittest.TestCase):
         assert state == State.SUCCESS
 
 
+# For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
+@pytest.mark.quarantined
 class TestLogsfromTaskRunCommand(unittest.TestCase):
     def setUp(self) -> None:
         self.dag_id = "test_logging_dag"

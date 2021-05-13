@@ -20,7 +20,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsGlueCrawlerSensor(BaseSensorOperator):
@@ -34,7 +33,6 @@ class AwsGlueCrawlerSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    @apply_defaults
     def __init__(self, *, crawler_name: str, aws_conn_id: str = 'aws_default', **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name

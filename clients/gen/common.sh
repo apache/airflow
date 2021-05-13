@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-OPENAPI_GENERATOR_CLI_VER=5.0.1
+OPENAPI_GENERATOR_CLI_VER=5.1.0
 readonly OPENAPI_GENERATOR_CLI_VER
 
 GIT_USER=${GIT_USER:-apache}
@@ -45,10 +45,24 @@ function validate_input {
     OUTPUT_DIR=$(realpath "$2")
     readonly OUTPUT_DIR
 
+    # cleanup the existing generated code, otherwise generator would skip them
+    for dir in "${CLEANUP_DIRS[@]}"
+    do
+        local dirToClean="${OUTPUT_DIR}/${dir}"
+        echo "Cleaning up ${dirToClean}"
+        rm -rf "${dirToClean:?}"
+    done
+
     # create openapi ignore file to keep generated code clean
     cat <<EOF > "${OUTPUT_DIR}/.openapi-generator-ignore"
 .travis.yml
 git_push.sh
+.gitlab-ci.yml
+requirements.txt
+setup.cfg
+setup.py
+test-requirements.txt
+tox.ini
 EOF
 }
 

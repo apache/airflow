@@ -56,7 +56,7 @@ def utcnow() -> dt.datetime:
     :return:
     """
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
-    # instead of a Timezone. This is not pickable and also creates issues
+    # instead of a Timezone. This is not picklable and also creates issues
     # when using replace()
     result = dt.datetime.utcnow()
     result = result.replace(tzinfo=utc)
@@ -71,7 +71,7 @@ def utc_epoch() -> dt.datetime:
     :return:
     """
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
-    # instead of a Timezone. This is not pickable and also creates issues
+    # instead of a Timezone. This is not picklable and also creates issues
     # when using replace()
     result = dt.datetime(1970, 1, 1)
     result = result.replace(tzinfo=utc)
@@ -169,5 +169,6 @@ def parse(string: str, timezone=None) -> DateTime:
     Parse a time string and return an aware datetime
 
     :param string: time string
+    :param timezone: the timezone
     """
     return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore

@@ -50,7 +50,7 @@ Package apache-airflow-providers-apache-livy
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 1.0.1
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -61,15 +61,6 @@ are in ``airflow.providers.apache.livy`` python package.
 Installation
 ------------
 
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
-
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-apache-livy``
 
@@ -77,7 +68,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified backport providers package in order to use them.
+You need to install the specified provider packages in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -113,12 +104,21 @@ Dependent package                                                               
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Extend HTTP extra_options to LivyHook and operator (#14816)``
+
+
 1.0.1
 .....
 
-Updated documentation and readme files.
+* ``Updated documentation and readme files.``
 
 1.0.0
 .....
 
-Initial version of the provider.
+* ``Initial version of the provider.``

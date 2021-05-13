@@ -45,7 +45,7 @@ The actual tasks defined here will run in a different context from
 the context of this script. Different tasks run on different workers
 at different points in time, which means that this script cannot be used
 to cross communicate between tasks. Note that for this
-purpose we have a more advanced feature called :ref:`XComs <concepts:xcom>`.
+purpose we have a more advanced feature called :doc:`/concepts/xcoms`.
 
 People sometimes think of the DAG definition file as a place where they
 can do some actual data processing - that is not the case at all!
@@ -184,13 +184,18 @@ Adding DAG and Tasks documentation
 ----------------------------------
 We can add documentation for DAG or each single task. DAG documentation only support
 markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml.
+json, yaml. The DAG documentation can be written as a doc string at the beginning of the DAG file (recommended)
+or anywhere in the file. Below you can find some examples on how to implement task and DAG docs,
+as well as screenshots:
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
     :dedent: 4
     :start-after: [START documentation]
     :end-before: [END documentation]
+
+.. image:: img/task_doc.png
+.. image:: img/dag_doc.png
 
 Setting up Dependencies
 -----------------------
@@ -362,8 +367,7 @@ running against it should get it to get triggered and run every day.
 Here's a few things you might want to do next:
 
 .. seealso::
-    - Read the :ref:`Concepts page<concepts>` for detailed explanation
-      of Airflow concepts such as DAGs, Tasks, Operators, etc.
+    - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
     - Take an in-depth tour of the UI - click all the things!
     - Keep reading the docs!
 

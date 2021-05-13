@@ -160,6 +160,7 @@ class TestGCSFileTransformOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook, mock_subprocess, mock_tempfile):
+
         source_bucket = TEST_BUCKET
         source_object = "test.txt"
         destination_bucket = TEST_BUCKET + "-dest"
@@ -177,11 +178,16 @@ class TestGCSFileTransformOperator(unittest.TestCase):
 
         mock_tempfile.return_value.__enter__.side_effect = [mock1, mock2]
 
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_popen = mock.MagicMock()
+        mock_popen.return_value.__enter__.return_value = mock_proc
+
+        mock_subprocess.Popen = mock_popen
         mock_subprocess.PIPE = "pipe"
         mock_subprocess.STDOUT = "stdout"
-        mock_subprocess.Popen.return_value.stdout.readline = lambda: b""
-        mock_subprocess.Popen.return_value.wait.return_value = None
-        mock_subprocess.Popen.return_value.returncode = 0
 
         op = GCSFileTransformOperator(
             task_id=TASK_ID,
@@ -278,11 +284,16 @@ class TestGCSTimeSpanFileTransformOperator(unittest.TestCase):
             f"{source_prefix}/{file2}",
         ]
 
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_popen = mock.MagicMock()
+        mock_popen.return_value.__enter__.return_value = mock_proc
+
+        mock_subprocess.Popen = mock_popen
         mock_subprocess.PIPE = "pipe"
         mock_subprocess.STDOUT = "stdout"
-        mock_subprocess.Popen.return_value.stdout.readline = lambda: b""
-        mock_subprocess.Popen.return_value.wait.return_value = None
-        mock_subprocess.Popen.return_value.returncode = 0
 
         op = GCSTimeSpanFileTransformOperator(
             task_id=TASK_ID,

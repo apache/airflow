@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.natural_language`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.operators.natural_language`."""
 
 import warnings
 
@@ -50,7 +50,7 @@ class CloudLanguageAnalyzeEntitiesOperator(CloudNaturalLanguageAnalyzeEntitiesOp
             .CloudNaturalLanguageAnalyzeEntitiesOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -71,7 +71,7 @@ class CloudLanguageAnalyzeEntitySentimentOperator(CloudNaturalLanguageAnalyzeEnt
             .CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -90,7 +90,7 @@ class CloudLanguageAnalyzeSentimentOperator(CloudNaturalLanguageAnalyzeSentiment
             .CloudNaturalLanguageAnalyzeSentimentOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -109,6 +109,6 @@ class CloudLanguageClassifyTextOperator(CloudNaturalLanguageClassifyTextOperator
             .CloudNaturalLanguageClassifyTextOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

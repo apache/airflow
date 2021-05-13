@@ -50,7 +50,7 @@ Package apache-airflow-providers-jira
 `Atlassian Jira <https://www.atlassian.com/>`__
 
 
-Release: 1.0.1
+Release: 1.0.2
 
 Provider package
 ----------------
@@ -60,15 +60,6 @@ are in ``airflow.providers.jira`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-jira``
@@ -102,6 +93,11 @@ PIP package    Version required
 
 Changelog
 ---------
+
+1.0.2
+.....
+
+* ``Fix 'logging.exception' redundancy (#14823)``
 
 1.0.1
 .....

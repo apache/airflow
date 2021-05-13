@@ -67,7 +67,7 @@ it will be retrieved from the Google Cloud connection used. Basic usage of the o
     :start-after: [START howto_bigquery_create_data_transfer]
     :end-before: [END howto_bigquery_create_data_transfer]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.bigquery_dts.BigQueryCreateDataTransferOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`,
 which allows it to be used by other operators. Additionally, id of the new config is accessible in
@@ -90,7 +90,7 @@ Basic usage of the operator:
     :start-after: [START howto_bigquery_delete_data_transfer]
     :end-before: [END howto_bigquery_delete_data_transfer]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.bigquery_dts.BigQueryCreateDataTransferOperator`
 parameters which allows you to dynamically determine values.
 
@@ -111,7 +111,7 @@ Basic usage of the operator:
     :start-after: [START howto_bigquery_start_transfer]
     :end-before: [END howto_bigquery_start_transfer]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.bigquery_dts.BigQueryDataTransferServiceStartTransferRunsOperator`
 parameters which allows you to dynamically determine values.
 
@@ -124,7 +124,7 @@ To check if operation succeeded you can use
     :start-after: [START howto_bigquery_dts_sensor]
     :end-before: [END howto_bigquery_dts_sensor]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor`
 parameters which allows you to dynamically determine values.
 

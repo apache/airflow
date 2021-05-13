@@ -132,30 +132,31 @@ class TestCliVariables(unittest.TestCase):
 
     def test_variables_isolation(self):
         """Test isolation of variables"""
-        tmp1 = tempfile.NamedTemporaryFile(delete=True)
-        tmp2 = tempfile.NamedTemporaryFile(delete=True)
+        with tempfile.NamedTemporaryFile(delete=True) as tmp1, tempfile.NamedTemporaryFile(
+            delete=True
+        ) as tmp2:
 
-        # First export
-        variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'foo', '{"foo":"bar"}']))
-        variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'bar', 'original']))
-        variable_command.variables_export(self.parser.parse_args(['variables', 'export', tmp1.name]))
+            # First export
+            variable_command.variables_set(
+                self.parser.parse_args(['variables', 'set', 'foo', '{"foo":"bar"}'])
+            )
+            variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'bar', 'original']))
+            variable_command.variables_export(self.parser.parse_args(['variables', 'export', tmp1.name]))
 
-        first_exp = open(tmp1.name)
+            with open(tmp1.name) as first_exp:
 
-        variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'bar', 'updated']))
-        variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'foo', '{"foo":"oops"}']))
-        variable_command.variables_delete(self.parser.parse_args(['variables', 'delete', 'foo']))
-        variable_command.variables_import(self.parser.parse_args(['variables', 'import', tmp1.name]))
+                variable_command.variables_set(self.parser.parse_args(['variables', 'set', 'bar', 'updated']))
+                variable_command.variables_set(
+                    self.parser.parse_args(['variables', 'set', 'foo', '{"foo":"oops"}'])
+                )
+                variable_command.variables_delete(self.parser.parse_args(['variables', 'delete', 'foo']))
+                variable_command.variables_import(self.parser.parse_args(['variables', 'import', tmp1.name]))
 
-        assert 'original' == Variable.get('bar')
-        assert '{\n  "foo": "bar"\n}' == Variable.get('foo')
+                assert 'original' == Variable.get('bar')
+                assert '{\n  "foo": "bar"\n}' == Variable.get('foo')
 
-        # Second export
-        variable_command.variables_export(self.parser.parse_args(['variables', 'export', tmp2.name]))
+                # Second export
+                variable_command.variables_export(self.parser.parse_args(['variables', 'export', tmp2.name]))
 
-        second_exp = open(tmp2.name)
-        assert first_exp.read() == second_exp.read()
-
-        # Clean up files
-        second_exp.close()
-        first_exp.close()
+                with open(tmp2.name) as second_exp:
+                    assert first_exp.read() == second_exp.read()

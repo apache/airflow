@@ -22,6 +22,11 @@
 
 {% block page_title %}{{ dag.dag_id }} - {{ appbuilder.app_name }}{% endblock %}
 
+{% block head_meta %}
+  {{ super() }}
+  <meta name="dag_id" content="{{ dag.dag_id }}">
+{% endblock %}
+
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('switch.css') }}">
@@ -97,6 +102,10 @@
           <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
             Graph View</a></li>
+          <li><a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}">
+            <span class="material-icons" aria-hidden="true">event</span>
+            Calendar View
+          </a></li>
           <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
             Task Duration</a></li>
@@ -119,13 +128,26 @@
       </div>
       <div class="col-md-2">
         <div class="btn-group pull-right">
-          <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default btn-icon-only">
-            <span class="material-icons" aria-hidden="true">play_arrow</span>
-          </a>
-          <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default btn-icon-only">
+          <div class="dropdown">
+            <a aria-label="Trigger DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn" data-toggle="dropdown">
+              <span class="material-icons" aria-hidden="true">play_arrow</span>
+            </a>
+            <ul class="dropdown-menu trigger-dropdown-menu">
+              <li>
+                <form method="POST" action="{{ url_for('Airflow.trigger') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                  <input type="hidden" name="origin" value="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id) }}">
+                  <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
+                </form>
+              </li>
+              <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}">Trigger DAG w/ config</a></li>
+            </ul>
+          </div>
+          <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
             <span class="material-icons" aria-hidden="true">refresh</span>
           </a>
-          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only"
+          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
             onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
             <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
           </a>

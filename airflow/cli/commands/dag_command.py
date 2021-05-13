@@ -195,7 +195,12 @@ def dag_show(args):
 def _display_dot_via_imgcat(dot: Dot):
     data = dot.pipe(format='png')
     try:
-        proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        with subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
+            out, err = proc.communicate(data)
+            if out:
+                print(out.decode('utf-8'))
+            if err:
+                print(err.decode('utf-8'))
     except OSError as e:
         if e.errno == errno.ENOENT:
             raise SystemExit(
@@ -203,11 +208,6 @@ def _display_dot_via_imgcat(dot: Dot):
             )
         else:
             raise
-    out, err = proc.communicate(data)
-    if out:
-        print(out.decode('utf-8'))
-    if err:
-        print(err.decode('utf-8'))
 
 
 def _save_dot_to_file(dot: Dot, filename: str):

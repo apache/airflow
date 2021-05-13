@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.text_to_speech`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.operators.text_to_speech`."""
 
 import warnings
 
@@ -40,6 +40,6 @@ class GcpTextToSpeechSynthesizeOperator(CloudTextToSpeechSynthesizeOperator):
             Please use
             `airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

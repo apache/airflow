@@ -65,6 +65,7 @@ Committers
 - Kevin Yang (@KevinYang21)
 - Leah Cole (@leahecole)
 - Maxime "Max" Beauchemin (@mistercrunch)
+- Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
 - Ry Walker (@ryw)
 - Ryan Hamilton (@ryanahamilton)
@@ -74,6 +75,7 @@ Committers
 - Tomasz Urbaszek (@turbaszek)
 - Vikram Koka (@vikramkoka)
 - Xiaodong Deng (@XD-DENG)
+- Xinbin Huang (@xinbinhuang)
 
 For the full list of contributors, take a look at `Airflow's GitHub
 Contributor page:

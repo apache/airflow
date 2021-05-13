@@ -25,7 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
-from airflow.utils.decorators import apply_defaults
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -41,6 +40,9 @@ class HiveStatsCollectionOperator(BaseOperator):
             value BIGINT
         );
 
+    :param metastore_conn_id: Reference to the
+        :ref:`Hive Metastore connection id <howto/connection:hive_metastore>`.
+    :type metastore_conn_id: str
     :param table: the source table, in the format ``database.table_name``. (templated)
     :type table: str
     :param partition: the source partition. (templated)
@@ -62,7 +64,6 @@ class HiveStatsCollectionOperator(BaseOperator):
     template_fields = ('table', 'partition', 'ds', 'dttm')
     ui_color = '#aff7a6'
 
-    @apply_defaults
     def __init__(
         self,
         *,

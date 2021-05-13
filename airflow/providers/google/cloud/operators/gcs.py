@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSCreateBucketOperator(BaseOperator):
@@ -116,7 +115,6 @@ class GCSCreateBucketOperator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -174,7 +172,7 @@ class GCSCreateBucketOperator(BaseOperator):
 
 class GCSListObjectsOperator(BaseOperator):
     """
-    List all objects from the bucket with the give string prefix and delimiter in name.
+    List all objects from the bucket with the given string prefix and delimiter in name.
 
     This operator returns a python list with the name of objects which can be used by
      `xcom` in the downstream task.
@@ -229,7 +227,6 @@ class GCSListObjectsOperator(BaseOperator):
 
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -318,7 +315,6 @@ class GCSDeleteObjectsOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -416,7 +412,6 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
     )
     # [END gcs_bucket_create_acl_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -511,7 +506,6 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     )
     # [END gcs_object_create_acl_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -602,7 +596,6 @@ class GCSFileTransformOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -638,17 +631,17 @@ class GCSFileTransformOperator(BaseOperator):
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
             cmd += [source_file.name, destination_file.name]
-            process = subprocess.Popen(
+            with subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
-            )
-            self.log.info("Process output:")
-            if process.stdout:
-                for line in iter(process.stdout.readline, b''):
-                    self.log.info(line.decode(self.output_encoding).rstrip())
+            ) as process:
+                self.log.info("Process output:")
+                if process.stdout:
+                    for line in iter(process.stdout.readline, b''):
+                        self.log.info(line.decode(self.output_encoding).rstrip())
 
-            process.wait()
-            if process.returncode:
-                raise AirflowException(f"Transform script failed: {process.returncode}")
+                process.wait()
+                if process.returncode:
+                    raise AirflowException(f"Transform script failed: {process.returncode}")
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
@@ -759,7 +752,6 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         """
         return dt.strftime(prefix) if prefix else None
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -865,17 +857,17 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
                 timespan_start.replace(microsecond=0).isoformat(),
                 timespan_end.replace(microsecond=0).isoformat(),
             ]
-            process = subprocess.Popen(
+            with subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
-            )
-            self.log.info("Process output:")
-            if process.stdout:
-                for line in iter(process.stdout.readline, b''):
-                    self.log.info(line.decode(self.output_encoding).rstrip())
+            ) as process:
+                self.log.info("Process output:")
+                if process.stdout:
+                    for line in iter(process.stdout.readline, b''):
+                        self.log.info(line.decode(self.output_encoding).rstrip())
 
-            process.wait()
-            if process.returncode:
-                raise AirflowException(f"Transform script failed: {process.returncode}")
+                process.wait()
+                if process.returncode:
+                    raise AirflowException(f"Transform script failed: {process.returncode}")
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir)
 
@@ -942,7 +934,6 @@ class GCSDeleteBucketOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1029,7 +1020,6 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -26,7 +26,6 @@ except ImportError:
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerBaseOperator(BaseOperator):
@@ -41,11 +40,11 @@ class SageMakerBaseOperator(BaseOperator):
 
     template_fields = ['config']
     template_ext = ()
+    template_fields_renderers = {"config": "py"}
     ui_color = '#ededed'
 
     integer_fields = []  # type: Iterable[Iterable[str]]
 
-    @apply_defaults
     def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
 
