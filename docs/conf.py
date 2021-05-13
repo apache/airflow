@@ -391,7 +391,7 @@ elif PACKAGE_NAME == 'helm-chart':
         out = []
         for param_name, schema in root_schema.items():
             prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
-            section_name = schema["docs_section"] if "docs_section" in schema else default_section
+            section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
             if section_name and schema["description"] and "default" in schema:
                 out.append(
                     {
@@ -426,7 +426,7 @@ elif PACKAGE_NAME == 'helm-chart':
 
     # and finally order the sections!
     ordered_sections = []
-    for name in chart_schema["docs_section_order"]:
+    for name in chart_schema["x-docsSectionOrder"]:
         if name not in sections:
             raise ValueError(f"Unable to find any parameters for section: {name}")
         ordered_sections.append({"name": name, "params": sections.pop(name)})

@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
-    "description": "This schema is used to validate `values.schema.json` to ensure each parameter has `default` and `description` set, and that top level properties have a `docs_section` set.",
+    "description": "This schema is used to validate `values.schema.json` to ensure each parameter has `default` and `description` set, and that top level properties have a `x-docsSection` set.",
     "definitions": {
         "leafs": {
             "additionalProperties": {
@@ -66,7 +66,7 @@
         }
     },
     "required": [
-        "docs_section_order"
+        "x-docsSectionOrder"
     ],
     "properties": {
         "section_order": {
@@ -83,7 +83,7 @@
                     },
                     {
                         "required": [
-                            "docs_section"
+                            "x-docsSection"
                         ]
                     }
                 ]

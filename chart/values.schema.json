@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema",
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
-    "docs_section_order": [
+    "x-docsSectionOrder": [
         "Common",
         "Airflow",
         "Images",
@@ -25,55 +25,55 @@
             "description": "Provide a name to substitute for the full names of resources",
             "type": "string",
             "default": "",
-            "docs_section": null
+            "x-docsSection": null
         },
         "nameOverride": {
             "description": "Override the name of the chart",
             "type": "string",
             "default": "",
-            "docs_section": null
+            "x-docsSection": null
         },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",
             "default": 50000,
-            "docs_section": "Airflow"
+            "x-docsSection": "Airflow"
         },
         "gid": {
             "description": "Group of airflow user.",
             "type": "integer",
             "default": 0,
-            "docs_section": "Airflow"
+            "x-docsSection": "Airflow"
         },
         "airflowHome": {
             "description": "Airflow home directory. Used for mount paths.",
             "type": "string",
             "default": "/opt/airflow",
-            "docs_section": "Airflow"
+            "x-docsSection": "Airflow"
         },
         "defaultAirflowRepository": {
             "description": "Default airflow repository. Overrides all the specific images below.",
             "type": "string",
             "default": "apache/airflow",
-            "docs_section": "Common"
+            "x-docsSection": "Common"
         },
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
             "default": "2.0.2",
-            "docs_section": "Common"
+            "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
             "default": "2.0.2",
-            "docs_section": "Common"
+            "x-docsSection": "Common"
         },
         "nodeSelector": {
             "description": "Select certain nodes for all pods.",
             "type": "object",
             "default": {},
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "additionalProperties": {
                 "type": "string"
             }
@@ -82,19 +82,19 @@
             "description": "Specify scheduling constraints for all pods.",
             "type": "object",
             "default": {},
-            "docs_section": "Kubernetes"
+            "x-docsSection": "Kubernetes"
         },
         "tolerations": {
             "description": "Specify Tolerations for all pods.",
             "type": "array",
             "default": [],
-            "docs_section": "Kubernetes"
+            "x-docsSection": "Kubernetes"
         },
         "labels": {
             "description": "Add common labels to all objects and pods defined in this chart.",
             "type": "object",
             "default": {},
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "additionalProperties": {
                 "type": "string"
             }
@@ -102,7 +102,7 @@
         "ingress": {
             "description": "Ingress configuration.",
             "type": "object",
-            "docs_section": "Ingress",
+            "x-docsSection": "Ingress",
             "properties": {
                 "enabled": {
                     "description": "Enable ingress resource.",
@@ -212,7 +212,7 @@
         "networkPolicies": {
             "description": "Network policy configuration.",
             "type": "object",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -226,18 +226,18 @@
             "description": "Extra annotations to apply to all Airflow pods.",
             "type": "object",
             "default": {},
-            "docs_section": "Kubernetes"
+            "x-docsSection": "Kubernetes"
         },
         "airflowConfigAnnotations": {
             "description": "Extra annotations to apply to the main Airflow configmap.",
             "type": "object",
             "default": {},
-            "docs_section": "Kubernetes"
+            "x-docsSection": "Kubernetes"
         },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "properties": {
                 "create": {
                     "description": "Specifies whether RBAC resources should be created.",
@@ -249,7 +249,7 @@
         "executor": {
             "description": "Airflow executor.",
             "type": "string",
-            "docs_section": "Common",
+            "x-docsSection": "Common",
             "default": "CeleryExecutor",
             "enum": [
                 "LocalExecutor",
@@ -261,13 +261,13 @@
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
             "type": "boolean",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": true
         },
         "images": {
             "description": "Images.",
             "type": "object",
-            "docs_section": "Images",
+            "x-docsSection": "Images",
             "additionalProperties": false,
             "properties": {
                 "airflow": {
@@ -501,7 +501,7 @@
         "env": {
             "description": "Environment variables for all Airflow containers.",
             "type": "array",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": [],
             "examples": [
                 {
@@ -513,7 +513,7 @@
         "secret": {
             "description": "Secrets for all Airflow containers.",
             "type": "array",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": [],
             "examples": [
                 {
@@ -529,7 +529,7 @@
                 "null",
                 "string"
             ],
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": null,
             "examples": [
                 "- name: AIRFLOW__CORE__LOAD_EXAMPLES\n   value: True"
@@ -541,7 +541,7 @@
                 "null",
                 "string"
             ],
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": null,
             "examples": [
                 "- secretRef:\n  name: '{{ .Release.Name }}-airflow-connections'",
@@ -551,7 +551,7 @@
         "extraSecrets": {
             "description": "Extra secrets that will be managed by the chart.",
             "type": "object",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
                 "description": "Name of the secret (can be templated).",
@@ -581,7 +581,7 @@
         "extraConfigMaps": {
             "description": "Extra ConfigMaps that will be managed by the chart.",
             "type": "object",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
                 "description": "Name of the configMap (can be templated).",
@@ -606,7 +606,7 @@
         "data": {
             "description": "Airflow database & redis configuration.",
             "type": "object",
-            "docs_section": "Database",
+            "x-docsSection": "Database",
             "additionalProperties": false,
             "properties": {
                 "metadataSecretName": {
@@ -631,7 +631,7 @@
                         "string",
                         "null"
                     ],
-                    "docs_section": "Redis",
+                    "x-docsSection": "Redis",
                     "default": null
                 },
                 "metadataConnection": {
@@ -730,7 +730,7 @@
                         "string",
                         "null"
                     ],
-                    "docs_section": "Redis",
+                    "x-docsSection": "Redis",
                     "default": null
                 }
             }
@@ -741,7 +741,7 @@
                 "string",
                 "null"
             ],
-            "docs_section": "Common",
+            "x-docsSection": "Common",
             "default": null
         },
         "fernetKeySecretName": {
@@ -750,13 +750,13 @@
                 "string",
                 "null"
             ],
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": null
         },
         "kerberos": {
             "description": "Kerberos configurations for airflow",
             "type": "object",
-            "docs_section": "Kerberos",
+            "x-docsSection": "Kerberos",
             "properties": {
                 "enabled": {
                     "description": "Enable kerberos.",
@@ -803,7 +803,7 @@
         "workers": {
             "description": "Airflow Worker configuration.",
             "type": "object",
-            "docs_section": "Workers",
+            "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
                 "replicas": {
@@ -1031,7 +1031,7 @@
         "scheduler": {
             "description": "Airflow scheduler settings.",
             "type": "object",
-            "docs_section": "Scheduler",
+            "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
                 "livenessProbe": {
@@ -1137,7 +1137,7 @@
                         "string",
                         "null"
                     ],
-                    "docs_section": "Common",
+                    "x-docsSection": "Common",
                     "default": null
                 },
                 "safeToEvict": {
@@ -1183,7 +1183,7 @@
         "createUserJob": {
             "description": "Airflow job to create a user settings.",
             "type": "object",
-            "docs_section": "Jobs",
+            "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
                 "serviceAccount": {
@@ -1215,7 +1215,7 @@
         "migrateDatabaseJob": {
             "description": "Airflow job to migrate databases settings.",
             "type": "object",
-            "docs_section": "Jobs",
+            "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
                 "serviceAccount": {
@@ -1247,7 +1247,7 @@
         "webserver": {
             "description": "Airflow webserver settings.",
             "type": "object",
-            "docs_section": "Webserver",
+            "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
                 "allowPodLogReading": {
@@ -1376,7 +1376,7 @@
                         "enabled": {
                             "description": "Enable default user creation.",
                             "type": "boolean",
-                            "docs_section": "Common",
+                            "x-docsSection": "Common",
                             "default": true
                         },
                         "role": {
@@ -1432,7 +1432,7 @@
                         "string",
                         "null"
                     ],
-                    "docs_section": "Common",
+                    "x-docsSection": "Common",
                     "default": null,
                     "examples": [
                         "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
@@ -1478,7 +1478,7 @@
         "flower": {
             "description": "Flower settings.",
             "type": "object",
-            "docs_section": "Flower",
+            "x-docsSection": "Flower",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -1591,7 +1591,7 @@
         "statsd": {
             "description": "StatsD settings.",
             "type": "object",
-            "docs_section": "Statsd",
+            "x-docsSection": "Statsd",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -1690,13 +1690,13 @@
         "pgbouncer": {
             "description": "PgBouncer settings.",
             "type": "object",
-            "docs_section": "PgBouncer",
+            "x-docsSection": "PgBouncer",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",
-                    "docs_section": "Common",
+                    "x-docsSection": "Common",
                     "default": false
                 },
                 "extraNetworkPolicies": {
@@ -1895,7 +1895,7 @@
         "redis": {
             "description": "Configuration for the Redis provisioned by the chart.",
             "type": "object",
-            "docs_section": "Redis",
+            "x-docsSection": "Redis",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -2018,7 +2018,7 @@
         "registry": {
             "description": "Auth secret for a private registry. This is used if pulling Airflow images from a private registry.",
             "type": "object",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "additionalProperties": false,
             "properties": {
                 "secretName": {
@@ -2047,7 +2047,7 @@
         "elasticsearch": {
             "description": "Elasticsearch logging configuration.",
             "type": "object",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -2081,7 +2081,7 @@
         "ports": {
             "description": "All ports used by chart.",
             "type": "object",
-            "docs_section": "Ports",
+            "x-docsSection": "Ports",
             "additionalProperties": false,
             "properties": {
                 "flowerUI": {
@@ -2129,19 +2129,19 @@
         "quotas": {
             "description": "Define any ResourceQuotas for namespace.",
             "type": "object",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "default": {}
         },
         "limits": {
             "description": "Define default/max/min values for pods and containers in namespace.",
             "type": "array",
-            "docs_section": "Kubernetes",
+            "x-docsSection": "Kubernetes",
             "default": []
         },
         "cleanup": {
             "description": "This runs as a CronJob to cleanup old pods.",
             "type": "object",
-            "docs_section": "Jobs",
+            "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -2201,7 +2201,7 @@
         "postgresql": {
             "description": "Configuration for PostgreSQL subchart.",
             "type": "object",
-            "docs_section": "Database",
+            "x-docsSection": "Database",
             "properties": {
                 "enabled": {
                     "description": "Enable PostgreSQL subchart.",
@@ -2223,7 +2223,7 @@
         "config": {
             "description": "Settings to go into the mounted airflow.cfg",
             "type": "object",
-            "docs_section": "Common",
+            "x-docsSection": "Common",
             "default": "See values.yaml",
             "additionalProperties": {
                 "type": "object",
@@ -2239,7 +2239,7 @@
         },
         "multiNamespaceMode": {
             "description": "Whether the KubernetesExecutor can launch workers and pods in multiple namespaces",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "type": "boolean",
             "default": false
         },
@@ -2249,13 +2249,13 @@
                 "string",
                 "null"
             ],
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "default": null
         },
         "dags": {
             "description": "DAGs settings.",
             "type": "object",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
                 "persistence": {
@@ -2411,7 +2411,7 @@
         "logs": {
             "description": "Logs settings.",
             "type": "object",
-            "docs_section": "Airflow",
+            "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
                 "persistence": {
