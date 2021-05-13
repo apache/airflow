@@ -1009,6 +1009,9 @@ dags:
     containerName: git-sync
     uid: 65533
     extraVolumeMounts: []
+    # Extra env vars for the git sync container (templated)
+    extraEnvVars: {}
+    #  GIT_SYNC_TIMEOUT: "60"
 
 logs:
   persistence:

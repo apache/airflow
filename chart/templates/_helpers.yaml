@@ -189,6 +189,12 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_ONE_TIME
       value: "true"
     {{- end }}
+    {{- range $key, $val := .Values.dags.gitSync.extraEnvVars }}
+    {{- if $val }}
+    - name: {{ tpl $key $ }}
+      value: {{ tpl $val $ | quote }}
+    {{- end }}
+    {{- end }}
   volumeMounts:
   - name: dags
     mountPath: {{ .Values.dags.gitSync.root }}

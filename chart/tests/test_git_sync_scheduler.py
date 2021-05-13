@@ -215,3 +215,26 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "extraEnvVars": {
+                            "FOO-{{ .Release.Name }}": "bar-{{ .Release.Name }}",
+                            "BAR": "0",
+                            "HIDDEN": None,  # Simulate a "removed" entry, which will have a None
+                        },
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        envs = jmespath.search("spec.template.spec.containers[1].env", docs[0])
+
+        assert {"name": "FOO-RELEASE-NAME", "value": "bar-RELEASE-NAME"} in envs
+        assert {"name": "BAR", "value": "0"} in envs
+        assert "HIDDEN" not in [i["name"] for i in envs]
