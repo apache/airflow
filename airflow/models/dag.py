@@ -1463,13 +1463,8 @@ class DAG(LoggingMixin):
         """
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
-        task_dict = self.task_dict
-        task_group = self._task_group
-        self.task_dict = {}
-        self._task_group = None  # type: ignore
-        dag = copy.deepcopy(self)
-        self.task_dict = task_dict
-        self._task_group = task_group
+        memo = {id(self.task_dict): None, id(self._task_group): None}
+        dag = copy.deepcopy(self, memo)  # type: ignore
 
         if isinstance(task_ids_or_regex, (str, RePatternType)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]

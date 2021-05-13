@@ -432,6 +432,11 @@ class PythonVirtualenvOperator(PythonOperator):
                 )
                 raise
 
+    def __deepcopy__(self, memo):
+        # module objects can't be copied _at all__
+        memo[id(self.pickling_library)] = self.pickling_library
+        return super().__deepcopy__(memo)
+
 
 def get_current_context() -> Dict[str, Any]:
     """
