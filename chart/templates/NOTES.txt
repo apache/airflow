@@ -37,7 +37,8 @@ Airflow Webserver:     kubectl port-forward svc/{{ .Release.Name }}-webserver {{
 
 {{- if .Values.flower.enabled }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")}}
-Flower dashboard:         kubectl port-forward svc/{{ .Release.Name }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
+Flower dashboard:      kubectl port-forward svc/{{ .Release.Name }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
+
 {{- end }}
 {{- end }}
 {{- end }}
