@@ -31,11 +31,10 @@ build_images::prepare_prod_build
 build_images::build_prod_images
 kind::build_image_for_kubernetes_tests
 kind::load_image_to_kind_cluster
-for mode in KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+for mode in KubernetesExecutor CeleryExecutor LocalExecutor
 do
     export EXECUTOR="${mode}"
     kind::deploy_airflow_with_helm
-
     kind::deploy_test_kubernetes_resources
     kind::wait_for_webserver_healthy
     export CLUSTER_FORWARDED_PORT="${FORWARDED_PORT_NUMBER}"
