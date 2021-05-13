@@ -111,14 +111,10 @@ class GoogleAdsToGcsOperator(BaseOperator):
         self.api_version = api_version
 
     def execute(self, context: dict) -> None:
-        kwargs = {}
-        if self.api_version:
-            kwargs.update(api_version=self.api_version)
-
         service = GoogleAdsHook(
             gcp_conn_id=self.gcp_conn_id,
             google_ads_conn_id=self.google_ads_conn_id,
-            **kwargs,
+            api_version=self.api_version,
         )
         rows = service.search(client_ids=self.client_ids, query=self.query, page_size=self.page_size)
 

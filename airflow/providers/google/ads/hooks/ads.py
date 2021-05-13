@@ -76,16 +76,18 @@ class GoogleAdsHook(BaseHook):
     :rtype: list[GoogleAdsRow]
     """
 
+    default_version = "v5"
+
     def __init__(
         self,
+        api_version: str,
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
-        api_version: str = "v5",
     ) -> None:
         super().__init__()
+        self.api_version = api_version or self.default_version
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
-        self.api_version = api_version
         self.google_ads_config: Dict[str, Any] = {}
 
     @cached_property
