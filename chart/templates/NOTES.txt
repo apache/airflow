@@ -19,7 +19,7 @@ under the License.
 */}}
 
 
-Thank you for installing apache {{ .Chart.Name }}!
+Thank you for installing Apache {{ title .Chart.Name }}!
 
 Your release is named {{ .Release.Name }}.
 
@@ -43,7 +43,7 @@ Flower dashboard:         kubectl port-forward svc/{{ .Release.Name }}-flower {{
 {{- end }}
 
 Run this command to see the list of running pods:
-      echo -c kubectl get pods --namespace {{ .Release.Namespace }}
+      kubectl get pods --namespace {{ .Release.Namespace }}
 
 
 {{ if .Values.webserver.defaultUser.enabled}}
