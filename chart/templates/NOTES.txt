@@ -57,8 +57,3 @@ Default Postgres connection credentials:
     port: {{ .Values.data.metadataConnection.port }}
 
 {{- end }}
-
-{{- if .Values.flower.enable }}
-FlowerUI running on:
-  port: {{ .Values.ports.flowerUI }}
-{{- end }}
