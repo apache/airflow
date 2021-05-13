@@ -24,7 +24,7 @@ Thank you for installing Apache {{ title .Chart.Name }}!
 Your release is named {{ .Release.Name }}.
 
 {{- if .Values.ingress.enabled }}
-You can now access your dashboard(s) by following defined Ingress urls:
+You can now access your service(s) by following defined Ingress urls:
 
 Airflow Webserver:     http{{ if .Values.ingress.web.tls.enabled }}s{{ end }}://{{ .Values.ingress.web.host }}{{ .Values.ingress.web.path }}/
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
