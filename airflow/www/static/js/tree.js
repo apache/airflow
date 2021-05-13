@@ -208,9 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('height', height)
       .attr('width', updateWidth);
 
-    // d3.select(self.frameElement).transition()
-    //   .duration(duration)
-    //   .style('height', `${height}px`);
+    d3.select(window.frameElement).transition()
+      .duration(duration)
+      .style('height', `${height}px`);
 
     // Compute the "layout".
     updateNodes.forEach((n, j) => {
@@ -240,7 +240,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the nodes…
     const node = svg.selectAll('g.node')
-      .data(updateNodes, (d) => d.id || (d.id = ++i));
+      .data(updateNodes, (d) => {
+        if (!d.id) {
+          i += 1;
+          d.id = i;
+        }
+        return d.id;
+      });
 
     const nodeEnter = node.enter().append('g')
       .attr('class', nodeClass)
