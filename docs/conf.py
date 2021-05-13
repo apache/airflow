@@ -148,7 +148,8 @@ if PACKAGE_NAME == 'apache-airflow':
             "sphinx_script_update",
         ]
     )
-elif PACKAGE_NAME == "apache-airflow-providers":
+
+if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
             'operators_and_hooks_ref',
