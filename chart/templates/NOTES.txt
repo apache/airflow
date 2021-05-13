@@ -45,8 +45,8 @@ Flower dashboard:         kubectl port-forward svc/{{ .Release.Name }}-flower {{
 
 {{- if .Values.webserver.defaultUser.enabled}}
 Default Webserver (Airflow UI) Login credentials:
-  username: {{ .Values.webserver.defaultUser.username }}
-  password: {{ .Values.webserver.defaultUser.password }}
+    username: {{ .Values.webserver.defaultUser.username }}
+    password: {{ .Values.webserver.defaultUser.password }}
 {{- end }}
 
 {{- if .Values.postgresql.enabled }}
