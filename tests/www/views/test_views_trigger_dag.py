@@ -78,7 +78,7 @@ def test_trigger_dag_conf_malformed(admin_client):
     assert run is None
 
 
-def test_trigger_dag_conf_not_dict():
+def test_trigger_dag_conf_not_dict(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'conf': 'string and not a dict'})
