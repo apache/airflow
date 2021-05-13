@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, confirm, postAsForm */
+/* global document, window, $, confirm, postAsForm, confirm */
 
 import getMetaValue from './meta_value';
 
@@ -52,19 +52,11 @@ const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-ur
   return obj;
 }, {});
 
-// Update modal urls on toggle
-document.addEventListener('click', (event) => {
-  if (event.target.matches('button[data-toggle="button"]')) {
-    updateModalUrls();
-  }
-});
-
 function updateButtonUrl(elm, params) {
   elm.setAttribute('href', `${elm.dataset.baseUrl}?${$.param(params)}`);
 }
 
 function updateModalUrls() {
-  console.log(buttons);
   updateButtonUrl(buttons.subdag, {
     dag_id: subdagId,
     execution_date: executionDate,
@@ -102,6 +94,13 @@ function updateModalUrls() {
     execution_date: executionDate,
   });
 }
+
+// Update modal urls on toggle
+document.addEventListener('click', (event) => {
+  if (event.target.matches('button[data-toggle="button"]')) {
+    updateModalUrls();
+  }
+});
 
 export function callModal(t, d, extraLinks, tryNumbers, sd) {
   taskId = t;
@@ -156,15 +155,16 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
       <a href="${url}"> ${showLabel} </a>
       </li>`);
 
-    if (index === 0 || !showExternalLogRedirect) continue;
-    const redirLogUrl = `${externalLogUrl
-    }?dag_id=${encodeURIComponent(dagId)
-    }&task_id=${encodeURIComponent(taskId)
-    }&execution_date=${encodeURIComponent(executionDate)
-    }&try_number=${index}`;
-    $('#redir_log_try_index').append(`<li role="presentation" style="display:inline">
+    if (index !== 0 || showExternalLogRedirect) {
+      const redirLogUrl = `${externalLogUrl
+      }?dag_id=${encodeURIComponent(dagId)
+      }&task_id=${encodeURIComponent(taskId)
+      }&execution_date=${encodeURIComponent(executionDate)
+      }&try_number=${index}`;
+      $('#redir_log_try_index').append(`<li role="presentation" style="display:inline">
       <a href="${redirLogUrl}"> ${showLabel} </a>
       </li>`);
+    }
   }
 
   if (extraLinks && extraLinks.length > 0) {
@@ -216,7 +216,9 @@ export function callModalDag(dag) {
   });
 }
 
-export function confirmDeleteDag(link, id) {
+// eslint-disable-next-line no-unused-vars
+function confirmDeleteDag(link, id) {
+  // eslint-disable-next-line no-alert, no-restricted-globals
   if (confirm(`Are you sure you want to delete '${id}' now?\n\
     This option will delete ALL metadata, DAG runs, etc.\n\
     EXCEPT Log.\n\
