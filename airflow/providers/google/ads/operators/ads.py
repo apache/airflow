@@ -23,7 +23,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleAdsListAccountsOperator(BaseOperator):
@@ -70,7 +69,6 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

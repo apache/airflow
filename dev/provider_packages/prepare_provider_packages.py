@@ -348,7 +348,7 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     :return: install requirements of the package
     """
     dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-    airflow_dependency = 'apache-airflow>=2.0.0'
+    airflow_dependency = 'apache-airflow>=2.1.0.dev0'
     # Avoid circular dependency for the preinstalled packages
     install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
     install_requires.extend(dependencies)
@@ -1396,16 +1396,20 @@ def get_all_changes_for_package(
             if os.path.exists(doc_only_change_file):
                 with open(doc_only_change_file) as f:
                     last_doc_only_hash = f.read().strip()
-                changes_since_last_doc_only_check = subprocess.check_output(
-                    get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
-                    cwd=source_provider_package_path,
-                    universal_newlines=True,
-                )
-                if not changes_since_last_doc_only_check:
-                    print()
-                    print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
-                    # Returns 66 in case of doc-only changes
-                    sys.exit(66)
+                try:
+                    changes_since_last_doc_only_check = subprocess.check_output(
+                        get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
+                        cwd=source_provider_package_path,
+                        universal_newlines=True,
+                    )
+                    if not changes_since_last_doc_only_check:
+                        print()
+                        print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
+                        # Returns 66 in case of doc-only changes
+                        sys.exit(66)
+                except subprocess.CalledProcessError:
+                    # ignore when the commit mentioned as last doc-only change is obsolete
+                    pass
             print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             print()
             print(
@@ -1635,7 +1639,7 @@ def update_setup_files(
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
-    :returns False if the package should be skipped, Tre if everything generated properly
+    :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
     provider_details = get_provider_details(provider_package_id)

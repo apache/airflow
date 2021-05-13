@@ -28,6 +28,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.0
+.....
+
+Latest change: 2021-04-27
+
+================================================================================================  ===========  ===========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================================
+`5b2fe0e74 <https://github.com/apache/airflow/commit/5b2fe0e74013cd08d1f76f5c115f2c8f990ff9bc>`_  2021-04-27   ``Add Connection Documentation for Popular Providers (#15393)``
+`53fc1a967 <https://github.com/apache/airflow/commit/53fc1a96797fde66cd68345a29a111ae86c1a35a>`_  2021-04-26   ``Change KPO node_selectors warning to proper deprecationwarning (#15507)``
+`d3cc67aa7 <https://github.com/apache/airflow/commit/d3cc67aa7a7213db4325e77ca0246548bf1c0184>`_  2021-04-24   ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
+`be421a6b0 <https://github.com/apache/airflow/commit/be421a6b07c2ae9167150b77dc1185a94812b358>`_  2021-04-23   ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
+`44480d367 <https://github.com/apache/airflow/commit/44480d3673e8349fe784c10d38e4915f08b82b94>`_  2021-04-14   ``Require 'name' with KubernetesPodOperator (#15373)``
+`b4770725a <https://github.com/apache/airflow/commit/b4770725a3aa03bd50a0a8c8e01db667bff93862>`_  2021-04-12   ``Add links to new modules for deprecated modules (#15316)``
+================================================================================================  ===========  ===========================================================================
+
 1.1.0
 .....
 

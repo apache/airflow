@@ -24,12 +24,13 @@ from typing import Any, Optional
 from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import Session, synonym
+from sqlalchemy.orm import Session, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
 log = logging.getLogger()
@@ -55,6 +56,11 @@ class Variable(Base, LoggingMixin):
         self.key = key
         self.val = val
         self.description = description
+
+    @reconstructor
+    def on_db_load(self):  # pylint: disable=missing-function-docstring
+        if self._val:
+            mask_secret(self.val, self.key)
 
     def __repr__(self):
         # Hiding the value
@@ -134,8 +140,11 @@ class Variable(Base, LoggingMixin):
                 raise KeyError(f'Variable {key} does not exist')
         else:
             if deserialize_json:
-                return json.loads(var_val)
+                obj = json.loads(var_val)
+                mask_secret(var_val, key)
+                return obj
             else:
+                mask_secret(var_val, key)
                 return var_val
 
     @classmethod

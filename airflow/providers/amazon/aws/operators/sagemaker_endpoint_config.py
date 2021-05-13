@@ -18,7 +18,6 @@
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
@@ -37,7 +36,6 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
 
     integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
 
-    @apply_defaults
     def __init__(self, *, config: dict, **kwargs):
         super().__init__(config=config, **kwargs)
 

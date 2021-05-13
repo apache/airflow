@@ -58,7 +58,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------
@@ -68,15 +68,6 @@ are in ``airflow.providers.cncf.kubernetes`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-cncf-kubernetes``
@@ -111,6 +102,21 @@ PIP package       Version required
 
 Changelog
 ---------
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Require 'name' with KubernetesPodOperator (#15373)``
+* ``Change KPO node_selectors warning to proper deprecationwarning (#15507)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
+* ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
 
 1.1.0
 .....

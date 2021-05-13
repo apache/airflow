@@ -123,8 +123,20 @@ class TestPostgresHookConn(unittest.TestCase):
             'DbUser': login,
         }
         self.db_hook.get_conn()
+        get_cluster_credentials_call = mock.call(
+            DbUser=self.connection.login,
+            DbName=self.connection.schema,
+            ClusterIdentifier="different-identifier",
+            AutoCreate=False,
+        )
+        mock_client.return_value.get_cluster_credentials.assert_has_calls([get_cluster_credentials_call])
         mock_connect.assert_called_once_with(
             user=login, password='aws_token', host=self.connection.host, dbname='schema', port=5439
+        )
+        # Verify that the connection object has not been mutated.
+        self.db_hook.get_conn()
+        mock_client.return_value.get_cluster_credentials.assert_has_calls(
+            [get_cluster_credentials_call, get_cluster_credentials_call]
         )
 
 

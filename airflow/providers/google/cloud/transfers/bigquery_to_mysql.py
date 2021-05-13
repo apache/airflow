@@ -21,7 +21,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryToMySqlOperator(BaseOperator):
@@ -87,7 +86,6 @@ class BigQueryToMySqlOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments

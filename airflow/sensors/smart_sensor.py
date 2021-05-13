@@ -31,7 +31,6 @@ from airflow.models import BaseOperator, SensorInstance, SkipMixin, TaskInstance
 from airflow.settings import LOGGING_CLASS_PATH
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.module_loading import import_string
@@ -106,11 +105,18 @@ class SensorWork:
         Create task log handler for a sensor work.
         :return: log handler
         """
+        from airflow.utils.log.secrets_masker import _secrets_masker  # noqa
+
         handler_config_copy = {k: handler_config[k] for k in handler_config}
+        del handler_config_copy['filters']
+
         formatter_config_copy = {k: formatter_config[k] for k in formatter_config}
         handler = dictConfigurator.configure_handler(handler_config_copy)
         formatter = dictConfigurator.configure_formatter(formatter_config_copy)
         handler.setFormatter(formatter)
+
+        # We want to share the _global_ filterer instance, not create a new one
+        handler.addFilter(_secrets_masker())
         return handler
 
     def _get_sensor_logger(self, si):
@@ -304,7 +310,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     ui_color = '#e6f1f2'
 
-    @apply_defaults
     def __init__(
         self,
         poke_interval=180,

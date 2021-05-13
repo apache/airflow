@@ -21,7 +21,6 @@ from tableauserverclient import WorkbookItem
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import TableauHook
-from airflow.utils.decorators import apply_defaults
 
 
 class TableauRefreshWorkbookOperator(BaseOperator):
@@ -41,7 +40,6 @@ class TableauRefreshWorkbookOperator(BaseOperator):
     :type tableau_conn_id: str
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,9 +14,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-build_airflow_packages::build_airflow_packages
+from typing import List, NamedTuple
 
-cd "${AIRFLOW_SOURCES}/dist" || exit 1
+from marshmallow import Schema, fields
+
+
+class ProviderSchema(Schema):
+    """Provider schema"""
+
+    package_name = fields.String(required=True)
+    description = fields.String(required=True)
+    version = fields.String(required=True)
+
+
+class ProviderCollection(NamedTuple):
+    """List of Providers"""
+
+    providers: List[ProviderSchema]
+    total_entries: int
+
+
+class ProviderCollectionSchema(Schema):
+    """Provider Collection schema"""
+
+    providers = fields.List(fields.Nested(ProviderSchema))
+    total_entries = fields.Int()
+
+
+provider_collection_schema = ProviderCollectionSchema()
+provider_schema = ProviderSchema()

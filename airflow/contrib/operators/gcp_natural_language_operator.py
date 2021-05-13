@@ -50,7 +50,7 @@ class CloudLanguageAnalyzeEntitiesOperator(CloudNaturalLanguageAnalyzeEntitiesOp
             .CloudNaturalLanguageAnalyzeEntitiesOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -71,7 +71,7 @@ class CloudLanguageAnalyzeEntitySentimentOperator(CloudNaturalLanguageAnalyzeEnt
             .CloudNaturalLanguageAnalyzeEntitySentimentOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -90,7 +90,7 @@ class CloudLanguageAnalyzeSentimentOperator(CloudNaturalLanguageAnalyzeSentiment
             .CloudNaturalLanguageAnalyzeSentimentOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -109,6 +109,6 @@ class CloudLanguageClassifyTextOperator(CloudNaturalLanguageClassifyTextOperator
             .CloudNaturalLanguageClassifyTextOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

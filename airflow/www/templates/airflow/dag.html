@@ -92,6 +92,10 @@
           <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
             Graph View</a></li>
+          <li><a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}">
+            <span class="material-icons" aria-hidden="true">event</span>
+            Calendar View
+          </a></li>
           <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
             Task Duration</a></li>

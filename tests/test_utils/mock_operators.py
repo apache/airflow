@@ -23,7 +23,6 @@ import attr
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.utils.decorators import apply_defaults
 
 
 # Namedtuple for testing purposes
@@ -37,7 +36,6 @@ class MockOperator(BaseOperator):
 
     template_fields = ("arg1", "arg2")
 
-    @apply_defaults
     def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
@@ -117,7 +115,6 @@ class CustomOperator(BaseOperator):
             return (CustomOpLink(),)
         return (CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command))
 
-    @apply_defaults
     def __init__(self, bash_command=None, **kwargs):
         super().__init__(**kwargs)
         self.bash_command = bash_command
@@ -169,9 +166,8 @@ class MockHiveOperator(HiveOperator):
 
 
 class DeprecatedOperator(BaseOperator):
-    @apply_defaults
     def __init__(self, **kwargs):
-        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=4)
+        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
         super().__init__(**kwargs)
 
     def execute(self, context):

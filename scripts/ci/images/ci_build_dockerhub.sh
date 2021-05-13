@@ -54,10 +54,10 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
     echo
     # All the packages: Airflow and providers will have a "dev" version suffix in the imaage that
     # is built from non-release tag. If this is not set, then building images from locally build
-    # packages fails, because the packages with non-dev version are skipped (as they are alredy released)
-    export VERSION_SUFFIX_FOR_PYPI="dev"
-    export VERSION_SUFFIX_FOR_SVN="dev"
-    # Only build and push CI image for the nightly-master, v1-10-test and v2-0-test branches
+    # packages fails, because the packages with non-dev version are skipped (as they are already released)
+    export VERSION_SUFFIX_FOR_PYPI=".dev0"
+    export VERSION_SUFFIX_FOR_SVN=".dev0"
+    # Only build and push CI image for the nightly-master, v2-0-test branches
     # for tagged releases we build everything from PyPI, so we do not need CI images
     # For development images, we have to build all packages from current sources because we want to produce
     # `Latest and greatest` image from those branches. We need to build and push CI image as well as PROD
@@ -134,4 +134,12 @@ else
     build_images::build_prod_images
     verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
     push_pull_remove_images::push_prod_images
+    if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
+        # In case of default Python version we also push ":version" and ":latest" tag
+        docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
+            "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+        docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}" "apache/airflow:latest"
+        docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+        docker push "apache/airflow:latest"
+    fi
 fi

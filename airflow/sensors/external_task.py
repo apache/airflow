@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -87,7 +86,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Return operator extra links"""
         return [ExternalTaskSensorLink()]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -273,7 +271,6 @@ class ExternalTaskMarker(DummyOperator):
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
 
-    @apply_defaults
     def __init__(
         self,
         *,

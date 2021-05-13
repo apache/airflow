@@ -27,41 +27,61 @@ import dayjsTz from 'dayjs/plugin/timezone';
 dayjs.extend(utc);
 dayjs.extend(dayjsTz);
 
-interface TimezoneContextData {
+export const HOURS_24 = 'HH:mm Z';
+export const HOURS_12 = 'h:mmA Z';
+
+interface DateContextData {
   timezone: string;
   setTimezone: (value: string) => void;
+  dateFormat: string;
+  toggle24Hour: () => void;
+  formatDate: (date?: string | Date) => string;
 }
 
-export const TimezoneContext = createContext<TimezoneContextData>({
+export const DateContext = createContext<DateContextData>({
   timezone: 'UTC',
   setTimezone: () => {},
+  dateFormat: HOURS_24,
+  toggle24Hour: () => {},
+  formatDate: () => '',
 });
 
-export const useTimezoneContext = () => useContext(TimezoneContext);
+export const useDateContext = () => useContext(DateContext);
 
 type Props = {
   children: ReactNode;
 };
 
-const TimezoneProvider = ({ children }: Props): ReactElement => {
+const DateProvider = ({ children }: Props): ReactElement => {
   // TODO: add in default_timezone when GET /ui-metadata is available
-  // guess timezone on browser or default to utc
-  const [timezone, setTimezone] = useState(dayjs.tz.guess() || 'UTC');
+  // guess timezone on browser or default to utc and don't guess when testing
+  const isTest = process.env.NODE_ENV === 'test';
+  const [timezone, setTimezone] = useState(isTest ? 'UTC' : dayjs.tz.guess());
+  const [dateFormat, setFormat] = useState(HOURS_24);
+
+  const toggle24Hour = () => {
+    setFormat(dateFormat === HOURS_24 ? HOURS_12 : HOURS_24);
+  };
 
   useEffect(() => {
     dayjs.tz.setDefault(timezone);
   }, [timezone]);
 
+  const formatDate = (date?: string | Date) => dayjs(date).tz(timezone).format(dateFormat);
+
   return (
-    <TimezoneContext.Provider
+    <DateContext.Provider
       value={{
         timezone,
         setTimezone,
+        dateFormat,
+        toggle24Hour,
+        formatDate,
       }}
     >
       {children}
-    </TimezoneContext.Provider>
+    </DateContext.Provider>
   );
 };
 
-export default TimezoneProvider;
+export default DateProvider;

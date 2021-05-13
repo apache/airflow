@@ -38,7 +38,6 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.azure_container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
-from airflow.utils.decorators import apply_defaults
 
 Volume = namedtuple(
     'Volume',
@@ -137,7 +136,6 @@ class AzureContainerInstancesOperator(BaseOperator):
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
