@@ -82,9 +82,9 @@ def test_trigger_dag_conf_not_dict(self):
     test_dag_id = "example_bash_operator"
 
     response = self.client.post(f'trigger?dag_id={test_dag_id}', data={'conf': 'string and not a dict'})
-    self.check_content_in_response('must be a dict', response)
+    self.check_content_in_response('must be a dict', response, status_code=400)
 
-    run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+    run = self.session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is None
 
 
