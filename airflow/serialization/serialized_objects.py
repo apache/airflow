@@ -35,6 +35,7 @@ except ImportError:
     cache = lru_cache(maxsize=None)
 from pendulum.tz.timezone import Timezone
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
@@ -374,7 +375,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if v.default is not v.empty
     }
 
-    dependency_detector = DependencyDetector
+    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1885,6 +1885,12 @@
       type: string
       example: ~
       default: "False"
+    - name: dependency_detector
+      description: DAG dependency detector class to use
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.serialization.serialized_objects.DependencyDetector"
 - name: kerberos
   description: ~
   options:
