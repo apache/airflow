@@ -305,7 +305,7 @@ function kind::in_array {
 }
 
 function kind::deploy_airflow_with_helm() {
-    ALLOWED_EXECUTORS="[ KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor]"
+    ALLOWED_EXECUTORS="[ KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor ]"
 
     echo
     echo "EXECUTOR: ${EXECUTOR}"
@@ -313,7 +313,7 @@ function kind::deploy_airflow_with_helm() {
     if kind::in_array "${EXECUTOR}" "${ALLOWED_EXECUTORS}" # we have to check this because it's not readonly
     then
         echo
-        echo "Running in CI"
+        echo "Deploying with ${EXECUTOR}"
         echo
     else
         echo
