@@ -292,37 +292,7 @@ function kind::wait_for_webserver_healthy() {
     set -e
 }
 
-function kind::in_array {
-  ARRAY=$2
-  for e in ${ARRAY[*]}
-  do
-    if [[ "$e" == "$1" ]]
-    then
-      return 0
-    fi
-  done
-  return 1
-}
-
 function kind::deploy_airflow_with_helm() {
-    ALLOWED_EXECUTORS="[ KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor ]"
-
-    echo
-    echo "EXECUTOR: ${EXECUTOR}"
-    echo
-    if kind::in_array "${EXECUTOR}" "${ALLOWED_EXECUTORS}" # we have to check this because it's not readonly
-    then
-        echo
-        echo "Deploying with ${EXECUTOR}"
-        echo
-    else
-        echo
-        echo "${COLOR_RED}ERROR: Wrong executor name: ${EXECUTOR}. Should be one of ${ALLOWED_EXECUTORS}  ${COLOR_RESET}"
-        echo
-        exit 1
-    fi
-
-
     echo "Deleting namespace ${HELM_AIRFLOW_NAMESPACE}"
     kubectl delete namespace "${HELM_AIRFLOW_NAMESPACE}" >/dev/null 2>&1 || true
     kubectl delete namespace "test-namespace" >/dev/null 2>&1 || true

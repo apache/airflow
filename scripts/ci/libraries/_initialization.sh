@@ -795,7 +795,7 @@ function initialization::make_constants_read_only() {
     readonly KIND_VERSION
     readonly HELM_VERSION
     readonly KUBECTL_VERSION
-
+    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -903,6 +903,7 @@ function initialization::make_constants_read_only() {
     readonly CURRENT_MYSQL_VERSIONS
     readonly CURRENT_KIND_VERSIONS
     readonly CURRENT_HELM_VERSIONS
+    readonly CURRENT_EXECUTOR
     readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }
 
