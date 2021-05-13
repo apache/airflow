@@ -42,9 +42,6 @@ Flower dashboard:         kubectl port-forward svc/{{ .Release.Name }}-flower {{
 {{- end }}
 {{- end }}
 
-Run this command to see the list of running pods:
-      kubectl get pods --namespace {{ .Release.Namespace }}
-
 
 {{ if .Values.webserver.defaultUser.enabled}}
 Default Webserver (Airflow UI) Login credentials:
