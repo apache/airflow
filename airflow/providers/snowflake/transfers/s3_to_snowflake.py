@@ -79,7 +79,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         stage: str,
         prefix: Optional[str] = None,
         file_format: str,
-        schema: str,  # TODO: shouldn't be required, rely on session/user defaults
+        schema: Optional[str] = None,
         columns_array: Optional[list] = None,
         warehouse: Optional[str] = None,
         database: Optional[str] = None,
@@ -117,33 +117,23 @@ class S3ToSnowflakeOperator(BaseOperator):
             session_parameters=self.session_parameters,
         )
 
-        files = ""
-        if self.s3_keys:
-            files = "files=({})".format(", ".join(f"'{key}'" for key in self.s3_keys))
-
-        # we can extend this based on stage
-        base_sql = """
-                    FROM @{stage}/{prefix}
-                    {files}
-                    file_format={file_format}
-                """.format(
-            stage=self.stage,
-            prefix=(self.prefix if self.prefix else ""),
-            files=files,
-            file_format=self.file_format,
-        )
-
-        if self.columns_array:
-            copy_query = """
-                COPY INTO {schema}.{table}({columns}) {base_sql}
-            """.format(
-                schema=self.schema, table=self.table, columns=",".join(self.columns_array), base_sql=base_sql
-            )
+        if self.schema:
+            into = f"{self.schema}.{self.table}"
         else:
-            copy_query = f"""
-                COPY INTO {self.schema}.{self.table} {base_sql}
-            """
-        copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
+            into = self.table
+        if self.columns_array:
+            into = f"{into}({','.join(self.columns_array)})"
+
+        sql_parts = [
+            f"COPY INTO {into}",
+            f"FROM @{self.stage}/{self.prefix or ''}",
+        ]
+        if self.s3_keys:
+            files = ", ".join(f"'{key}'" for key in self.s3_keys)
+            sql_parts.append(f"files=({files})")
+        sql_parts.append(f"file_format={self.file_format}")
+
+        copy_query = "\n".join(sql_parts)
 
         self.log.info('Executing COPY command...')
         snowflake_hook.run(copy_query, self.autocommit)
