@@ -35,6 +35,6 @@ class BranchSqlOperator(BranchSQLOperator):
             """This class is deprecated.
             Please use `airflow.operators.sql.BranchSQLOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(**kwargs)

@@ -40,6 +40,6 @@ class FileToGoogleCloudStorageOperator(LocalFilesystemToGCSOperator):
             Please use
             `airflow.providers.google.cloud.transfers.local_to_gcs.LocalFilesystemToGCSOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

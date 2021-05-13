@@ -50,7 +50,7 @@ To restart Data Fusion instance use:
     :start-after: [START howto_cloud_data_fusion_restart_instance_operator]
     :end-before: [END howto_cloud_data_fusion_restart_instance_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionRestartInstanceOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -69,7 +69,7 @@ To delete Data Fusion instance use:
     :start-after: [START howto_cloud_data_fusion_delete_instance_operator]
     :end-before: [END howto_cloud_data_fusion_delete_instance_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -89,7 +89,7 @@ To create Data Fusion instance use:
     :start-after: [START howto_cloud_data_fusion_create_instance_operator]
     :end-before: [END howto_cloud_data_fusion_create_instance_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionCreateInstanceOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -109,7 +109,7 @@ To update Data Fusion instance use:
     :start-after: [START howto_cloud_data_fusion_update_instance_operator]
     :end-before: [END howto_cloud_data_fusion_update_instance_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionUpdateInstanceOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -128,7 +128,7 @@ To retrieve Data Fusion instance use:
     :start-after: [START howto_cloud_data_fusion_get_instance_operator]
     :end-before: [END howto_cloud_data_fusion_get_instance_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionGetInstanceOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -148,7 +148,7 @@ To create Data Fusion pipeline use:
     :start-after: [START howto_cloud_data_fusion_create_pipeline]
     :end-before: [END howto_cloud_data_fusion_create_pipeline]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionCreatePipelineOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -167,7 +167,7 @@ To start Data Fusion pipeline use:
     :start-after: [START howto_cloud_data_fusion_start_pipeline]
     :end-before: [END howto_cloud_data_fusion_start_pipeline]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -186,7 +186,7 @@ To stop Data Fusion pipeline use:
     :start-after: [START howto_cloud_data_fusion_stop_pipeline]
     :end-before: [END howto_cloud_data_fusion_stop_pipeline]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStopPipelineOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -205,7 +205,7 @@ To delete Data Fusion pipeline use:
     :start-after: [START howto_cloud_data_fusion_delete_pipeline]
     :end-before: [END howto_cloud_data_fusion_delete_pipeline]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -225,7 +225,7 @@ To list Data Fusion pipelines use:
     :start-after: [START howto_cloud_data_fusion_list_pipelines]
     :end-before: [END howto_cloud_data_fusion_list_pipelines]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionListPipelinesOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.

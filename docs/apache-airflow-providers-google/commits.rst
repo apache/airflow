@@ -35,6 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2021-04-29
+
+================================================================================================  ===========  ====================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ====================================================================================================
+`814e471d1 <https://github.com/apache/airflow/commit/814e471d137aad68bd64a21d20736e7b88403f97>`_  2021-04-29   ``Update pre-commit checks (#15583)``
+`bf2b48174 <https://github.com/apache/airflow/commit/bf2b48174a1ccfe398eefba7f04a5cacac421266>`_  2021-04-27   ``Add Connection Documentation for Providers (#15499)``
+`4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``
+`e229f3541 <https://github.com/apache/airflow/commit/e229f3541dd764db54785625875a7c5e94225736>`_  2021-04-27   ``Use Pip 21.* to install airflow officially (#15513)``
+`71c673e42 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
+`3b9a91806 <https://github.com/apache/airflow/commit/3b9a91806ea102cc2bc00b545f63f57031f458c9>`_  2021-04-22   ``Bugfix: Fix rendering of ''object_name'' in ''GCSToLocalFilesystemOperator'' (#15487)``
+`c5e302030 <https://github.com/apache/airflow/commit/c5e302030de7512a07120f71f388ad1859b26ca2>`_  2021-04-21   ``Fix typo in DataprocCreateClusterOperator (#15462)``
+`42a1ca8aa <https://github.com/apache/airflow/commit/42a1ca8aab905a0eb1ffb3da30cef9c76830abff>`_  2021-04-20   ``Fixes wrongly specified path for leveldb hook (#15453)``
+`6da36bad2 <https://github.com/apache/airflow/commit/6da36bad2c5c86628284d91ad6de418bae7cd029>`_  2021-04-18   ``[Airflow-15245] - passing custom image family name to the DataProcClusterCreateoperator (#15250)``
+`f64990560 <https://github.com/apache/airflow/commit/f6499056069fd2331b121144e67f6c6e95d7ca5b>`_  2021-04-15   ``fix docstring typos (#15392)``
+`7bf69edca <https://github.com/apache/airflow/commit/7bf69edca0d0622deb171f5a16af754dbcd04ce2>`_  2021-04-08   ``Fix typo in a docstring (#15276)``
+================================================================================================  ===========  ====================================================================================================
+
 2.2.0
 .....
 

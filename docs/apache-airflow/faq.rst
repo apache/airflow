@@ -85,7 +85,7 @@ sure you fully understand how it proceeds.
 How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
-Check out the :ref:`concepts/trigger_rule`.
+You can achieve this with :ref:`concepts:trigger-rules`.
 
 What's the deal with ``start_date``?
 ------------------------------------

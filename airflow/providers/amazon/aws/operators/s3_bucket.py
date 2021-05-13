@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3CreateBucketOperator(BaseOperator):
@@ -45,7 +44,6 @@ class S3CreateBucketOperator(BaseOperator):
 
     template_fields = ("bucket_name",)
 
-    @apply_defaults
     def __init__(
         self,
         *,

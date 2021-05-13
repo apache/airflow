@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -40,7 +39,6 @@ class TimeoutTestSensor(BaseSensorOperator):
     :type return_value: any
     """
 
-    @apply_defaults
     def __init__(self, return_value=False, **kwargs):
         self.return_value = return_value
         super().__init__(**kwargs)

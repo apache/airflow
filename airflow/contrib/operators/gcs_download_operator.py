@@ -39,6 +39,6 @@ class GoogleCloudStorageDownloadOperator(GCSToLocalFilesystemOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.gcs.GCSToLocalFilesystemOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

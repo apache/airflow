@@ -57,3 +57,14 @@ Kube config (JSON format)
 
 Namespace
   Default kubernetes namespace for the connection.
+
+When specifying the connection in environment variable you should specify
+it using URI syntax.
+
+Note that all components of the URI should be URL-encoded.
+
+For example:
+
+.. code-block:: bash
+
+    AIRFLOW_CONN_KUBERNETES_DEFAULT='kubernetes://?extra__kubernetes__in_cluster=True&extra__kubernetes__kube_config_path=~%2F.kube%2Fconfig&extra__kubernetes__kube_config=kubeconfig+json&extra__kubernetes__namespace=namespace'

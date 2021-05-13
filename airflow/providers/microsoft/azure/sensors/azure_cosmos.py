@@ -18,7 +18,6 @@
 
 from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
@@ -41,13 +40,13 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
     :type collection_name: str
     :param document_id: The ID of the target document.
     :type document_id: str
-    :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
+    :param azure_cosmos_conn_id: Reference to the
+        :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     :type azure_cosmos_conn_id: str
     """
 
     template_fields = ('database_name', 'collection_name', 'document_id')
 
-    @apply_defaults
     def __init__(
         self,
         *,

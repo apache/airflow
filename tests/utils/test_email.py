@@ -128,22 +128,22 @@ class TestEmail(unittest.TestCase):
 class TestEmailSmtp(unittest.TestCase):
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp(self, mock_send_mime):
-        attachment = tempfile.NamedTemporaryFile()
-        attachment.write(b'attachment')
-        attachment.seek(0)
-        utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
-        assert mock_send_mime.called
-        _, call_args = mock_send_mime.call_args
-        assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
-        assert ['to'] == call_args['e_to']
-        msg = call_args['mime_msg']
-        assert 'subject' == msg['Subject']
-        assert conf.get('smtp', 'SMTP_MAIL_FROM') == msg['From']
-        assert 2 == len(msg.get_payload())
-        filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
-        assert filename == msg.get_payload()[-1].get('Content-Disposition')
-        mimeapp = MIMEApplication('attachment')
-        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+        with tempfile.NamedTemporaryFile() as attachment:
+            attachment.write(b'attachment')
+            attachment.seek(0)
+            utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
+            assert mock_send_mime.called
+            _, call_args = mock_send_mime.call_args
+            assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
+            assert ['to'] == call_args['e_to']
+            msg = call_args['mime_msg']
+            assert 'subject' == msg['Subject']
+            assert conf.get('smtp', 'SMTP_MAIL_FROM') == msg['From']
+            assert 2 == len(msg.get_payload())
+            filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
+            assert filename == msg.get_payload()[-1].get('Content-Disposition')
+            mimeapp = MIMEApplication('attachment')
+            assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
@@ -156,23 +156,25 @@ class TestEmailSmtp(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_bcc_smtp(self, mock_send_mime):
-        attachment = tempfile.NamedTemporaryFile()
-        attachment.write(b'attachment')
-        attachment.seek(0)
-        utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc')
-        assert mock_send_mime.called
-        _, call_args = mock_send_mime.call_args
-        assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
-        assert ['to', 'cc', 'bcc'] == call_args['e_to']
-        msg = call_args['mime_msg']
-        assert 'subject' == msg['Subject']
-        assert conf.get('smtp', 'SMTP_MAIL_FROM') == msg['From']
-        assert 2 == len(msg.get_payload())
-        assert 'attachment; filename="' + os.path.basename(attachment.name) + '"' == msg.get_payload()[
-            -1
-        ].get('Content-Disposition')
-        mimeapp = MIMEApplication('attachment')
-        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+        with tempfile.NamedTemporaryFile() as attachment:
+            attachment.write(b'attachment')
+            attachment.seek(0)
+            utils.email.send_email_smtp(
+                'to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc'
+            )
+            assert mock_send_mime.called
+            _, call_args = mock_send_mime.call_args
+            assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
+            assert ['to', 'cc', 'bcc'] == call_args['e_to']
+            msg = call_args['mime_msg']
+            assert 'subject' == msg['Subject']
+            assert conf.get('smtp', 'SMTP_MAIL_FROM') == msg['From']
+            assert 2 == len(msg.get_payload())
+            assert 'attachment; filename="' + os.path.basename(attachment.name) + '"' == msg.get_payload()[
+                -1
+            ].get('Content-Disposition')
+            mimeapp = MIMEApplication('attachment')
+            assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')

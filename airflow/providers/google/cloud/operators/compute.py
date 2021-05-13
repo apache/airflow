@@ -28,13 +28,11 @@ from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.utils.decorators import apply_defaults
 
 
 class ComputeEngineBaseOperator(BaseOperator):
     """Abstract base operator for Google Compute Engine operators to inherit from."""
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -111,28 +109,6 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_start_template_fields]
 
-    @apply_defaults
-    def __init__(
-        self,
-        *,
-        zone: str,
-        resource_id: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            project_id=project_id,
-            zone=zone,
-            resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id,
-            api_version=api_version,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
-
     def execute(self, context) -> None:
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -185,28 +161,6 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         'impersonation_chain',
     )
     # [END gce_instance_stop_template_fields]
-
-    @apply_defaults
-    def __init__(
-        self,
-        *,
-        zone: str,
-        resource_id: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            project_id=project_id,
-            zone=zone,
-            resource_id=resource_id,
-            gcp_conn_id=gcp_conn_id,
-            api_version=api_version,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
 
     def execute(self, context) -> None:
         hook = ComputeEngineHook(
@@ -274,7 +228,6 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_set_machine_type_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -437,7 +390,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     )
     # [END gce_instance_template_copy_operator_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -574,7 +526,6 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
     )
     # [END gce_igm_update_template_operator_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

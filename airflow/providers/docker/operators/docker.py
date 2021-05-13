@@ -25,7 +25,6 @@ from docker import APIClient, tls
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -107,7 +106,7 @@ class DockerOperator(BaseOperator):
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
     :type xcom_all: bool
-    :param docker_conn_id: ID of the Airflow connection to use
+    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :type docker_conn_id: str
     :param dns: Docker custom DNS servers
     :type dns: list[str]
@@ -136,7 +135,6 @@ class DockerOperator(BaseOperator):
     )
 
     # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,

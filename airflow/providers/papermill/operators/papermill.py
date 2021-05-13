@@ -22,7 +22,6 @@ import papermill as pm
 
 from airflow.lineage.entities import File
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 @attr.s(auto_attribs=True)
@@ -49,7 +48,6 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    @apply_defaults
     def __init__(
         self,
         *,

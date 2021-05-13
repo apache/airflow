@@ -43,7 +43,7 @@ Operator
 Transfer files between Google Storage and Google Drive is performed with the
 :class:`~airflow.providers.google.suite.transfers.gcs_to_gdrive.GCSToGoogleDriveOperator` operator.
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.suite.transfers.gcs_to_gdrive.GCSToGoogleDriveOperator`
 parameters which allows you to dynamically determine values.
 

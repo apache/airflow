@@ -19,11 +19,13 @@
 import pendulum
 import pytest
 
-from airflow.decorators import task_group as task_group_decorator
+from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.models import DAG
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
 
@@ -598,7 +600,7 @@ def test_build_task_group_deco_context_manager():
     # Creating Tasks
     @task
     def task_start():
-        """Dummy Task which is First Task of Dag """
+        """Dummy Task which is First Task of Dag"""
         return '[Task_start]'
 
     @task
@@ -608,32 +610,32 @@ def test_build_task_group_deco_context_manager():
 
     @task
     def task_1(value):
-        """ Dummy Task1"""
+        """Dummy Task1"""
         return f'[ Task1 {value} ]'
 
     @task
     def task_2(value):
-        """ Dummy Task2"""
+        """Dummy Task2"""
         print(f'[ Task2 {value} ]')
 
     @task
     def task_3(value):
-        """ Dummy Task3"""
+        """Dummy Task3"""
         return f'[ Task3 {value} ]'
 
     @task
     def task_4(value):
-        """ Dummy Task3"""
+        """Dummy Task3"""
         print(f'[ Task4 {value} ]')
 
     # Creating TaskGroups
     @task_group_decorator
     def section_1(value):
-        """ TaskGroup for grouping related Tasks"""
+        """TaskGroup for grouping related Tasks"""
 
         @task_group_decorator()
         def section_2(value2):
-            """ TaskGroup for grouping related Tasks"""
+            """TaskGroup for grouping related Tasks"""
             return task_4(task_3(value2))
 
         op1 = task_2(task_1(value))
@@ -676,7 +678,6 @@ def test_build_task_group_deco_context_manager():
                     },
                     {'id': 'section_1.task_1'},
                     {'id': 'section_1.task_2'},
-                    {'id': 'section_1.downstream_join_id'},
                 ],
             },
             {'id': 'task_end'},
@@ -688,12 +689,12 @@ def test_build_task_group_deco_context_manager():
 
 
 def test_build_task_group_with_operators():
-    """  Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator """
+    """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
 
     from airflow.decorators import task
 
     def task_start():
-        """Dummy Task which is First Task of Dag """
+        """Dummy Task which is First Task of Dag"""
         return '[Task_start]'
 
     def task_end():
@@ -703,23 +704,23 @@ def test_build_task_group_with_operators():
     # Creating Tasks
     @task
     def task_1(value):
-        """ Dummy Task1"""
+        """Dummy Task1"""
         return f'[ Task1 {value} ]'
 
     @task
     def task_2(value):
-        """ Dummy Task2"""
+        """Dummy Task2"""
         return f'[ Task2 {value} ]'
 
     @task
     def task_3(value):
-        """ Dummy Task3"""
+        """Dummy Task3"""
         print(f'[ Task3 {value} ]')
 
     # Creating TaskGroups
     @task_group_decorator(group_id='section_1')
     def section_a(value):
-        """ TaskGroup for grouping related Tasks"""
+        """TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
 
     execution_date = pendulum.parse("20201109")
@@ -743,12 +744,12 @@ def test_build_task_group_with_operators():
 
 
 def test_task_group_context_mix():
-    """ Test cases to check nested TaskGroup context manager with taskgroup decorator"""
+    """Test cases to check nested TaskGroup context manager with taskgroup decorator"""
 
     from airflow.decorators import task
 
     def task_start():
-        """Dummy Task which is First Task of Dag """
+        """Dummy Task which is First Task of Dag"""
         return '[Task_start]'
 
     def task_end():
@@ -758,23 +759,23 @@ def test_task_group_context_mix():
     # Creating Tasks
     @task
     def task_1(value):
-        """ Dummy Task1"""
+        """Dummy Task1"""
         return f'[ Task1 {value} ]'
 
     @task
     def task_2(value):
-        """ Dummy Task2"""
+        """Dummy Task2"""
         return f'[ Task2 {value} ]'
 
     @task
     def task_3(value):
-        """ Dummy Task3"""
+        """Dummy Task3"""
         print(f'[ Task3 {value} ]')
 
     # Creating TaskGroups
     @task_group_decorator
     def section_2(value):
-        """ TaskGroup for grouping related Tasks"""
+        """TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
 
     execution_date = pendulum.parse("20201109")
@@ -805,7 +806,6 @@ def test_task_group_context_mix():
                             {'id': 'section_1.section_2.task_1'},
                             {'id': 'section_1.section_2.task_2'},
                             {'id': 'section_1.section_2.task_3'},
-                            {'id': 'section_1.section_2.downstream_join_id'},
                         ],
                     },
                     {'id': 'section_1.task_1'},
@@ -824,13 +824,13 @@ def test_task_group_context_mix():
 
 
 def test_duplicate_task_group_id():
-    """ Testing automatic suffix assignment for duplicate group_id"""
+    """Testing automatic suffix assignment for duplicate group_id"""
 
     from airflow.decorators import task
 
     @task(task_id='start_task')
     def task_start():
-        """Dummy Task which is First Task of Dag """
+        """Dummy Task which is First Task of Dag"""
         print('[Task_start]')
 
     @task(task_id='end_task')
@@ -841,17 +841,17 @@ def test_duplicate_task_group_id():
     # Creating Tasks
     @task(task_id='task')
     def task_1():
-        """ Dummy Task1"""
+        """Dummy Task1"""
         print('[Task1]')
 
     @task(task_id='task')
     def task_2():
-        """ Dummy Task2"""
+        """Dummy Task2"""
         print('[Task2]')
 
     @task(task_id='task1')
     def task_3():
-        """ Dummy Task3"""
+        """Dummy Task3"""
         print('[Task3]')
 
     @task_group_decorator('task_group1')
@@ -898,7 +898,7 @@ def test_call_taskgroup_twice():
 
     @task(task_id='start_task')
     def task_start():
-        """Dummy Task which is First Task of Dag """
+        """Dummy Task which is First Task of Dag"""
         print('[Task_start]')
 
     @task(task_id='end_task')
@@ -909,7 +909,7 @@ def test_call_taskgroup_twice():
     # Creating Tasks
     @task(task_id='task')
     def task_1():
-        """ Dummy Task1"""
+        """Dummy Task1"""
         print('[Task1]')
 
     @task_group_decorator
@@ -947,3 +947,35 @@ def test_call_taskgroup_twice():
     }
 
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
+
+
+def test_pass_taskgroup_output_to_task():
+    """Test that the output of a task group can be passed to a task."""
+    from airflow.decorators import task
+
+    @task
+    def one():
+        return 1
+
+    @task_group_decorator
+    def addition_task_group(num):
+        @task
+        def add_one(i):
+            return i + 1
+
+        return add_one(num)
+
+    @task
+    def increment(num):
+        return num + 1
+
+    @dag(schedule_interval=None, start_date=days_ago(1), default_args={"owner": "airflow"})
+    def wrap():
+        total_1 = one()
+        assert isinstance(total_1, XComArg)
+        total_2 = addition_task_group(total_1)
+        assert isinstance(total_2, XComArg)
+        total_3 = increment(total_2)
+        assert isinstance(total_3, XComArg)
+
+    wrap()

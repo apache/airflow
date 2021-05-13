@@ -27,6 +27,7 @@ import getMetaValue from './meta_value';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
 
+// dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const executionDate = getMetaValue('execution_date');
 const arrange = getMetaValue('arrange');

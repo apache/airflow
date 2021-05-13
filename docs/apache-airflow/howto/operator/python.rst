@@ -51,7 +51,7 @@ Airflow passes in an additional set of keyword arguments: one for each of the
 argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
-is evaluated as a :ref:`Jinja template <jinja-templating>`.
+is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
 
 

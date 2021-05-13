@@ -446,7 +446,7 @@ test in parallel. This way we can decrease the time of running all tests in self
 .. note::
 
   We need to split tests manually into separate suites rather than utilise
-  ``pytest-xdist`` or ``pytest-parallel`` which could ba a simpler and much more "native" parallelization
+  ``pytest-xdist`` or ``pytest-parallel`` which could be a simpler and much more "native" parallelization
   mechanism. Unfortunately, we cannot utilise those tools because our tests are not truly ``unit`` tests that
   can run in parallel. A lot of our tests rely on shared databases - and they update/reset/cleanup the
   databases while they are executing. They are also exercising features of the Database such as locking which
@@ -545,7 +545,7 @@ This installs airflow and enters
 
 .. code-block:: bash
 
-     ./breeze --install-airflow-version wheel --install-packages-from-dist --skip-mounting-local-sources
+     ./breeze --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
 
 
 
@@ -601,6 +601,17 @@ The deploy command performs those steps:
 5. Applies the volumes.yaml to get the volumes deployed to ``default`` namespace - this is where
    KubernetesExecutor starts its pods.
 
+You can also specify a different executor by providing the ``--executor`` optional argument:
+
+.. code-block:: bash
+
+    ./breeze kind-cluster deploy --executor CeleryExecutor
+
+Note that when you specify the ``--executor`` option, it becomes the default. Therefore, every other operations
+on ``./breeze kind-cluster`` will default to using this executor. To change that, use the ``--executor`` option on the
+subsequent commands too.
+
+
 Running tests with Kubernetes Cluster
 -------------------------------------
 
@@ -622,6 +633,12 @@ Running Kubernetes tests via breeze:
       ./breeze kind-cluster test
       ./breeze kind-cluster test -- TEST TEST [TEST ...]
 
+Optionally add ``--executor``:
+
+.. code-block:: bash
+
+      ./breeze kind-cluster test --executor CeleryExecutor
+      ./breeze kind-cluster test -- TEST TEST [TEST ...] --executor CeleryExecutor
 
 Entering shell with Kubernetes Cluster
 --------------------------------------
@@ -644,6 +661,12 @@ You can enter the shell via those scripts
 .. code-block:: bash
 
       ./breeze kind-cluster shell
+
+Optionally add ``--executor``:
+
+.. code-block:: bash
+
+      ./breeze kind-cluster shell --executor CeleryExecutor
 
 
 K9s CLI - debug Kubernetes in style!
@@ -1277,13 +1300,11 @@ The DAGs can be run in the master version of Airflow but they also work
 with older versions.
 
 To run the tests for Airflow 1.10.* series, you need to run Breeze with
-``--install-airflow-version==<VERSION>`` to install a different version of Airflow.
-If ``current`` is specified (default), then the current version of Airflow is used.
-Otherwise, the released version of Airflow is installed.
+``--use-airflow-pypi-version=<VERSION>`` to re-install a different version of Airflow.
 
 You should also consider running it with ``restart`` command when you change the installed version.
 This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
-So typically you'd run it like ``breeze --install-airflow-version=1.10.9 restart``.
+So typically you'd run it like ``breeze --use-airflow-pypi-version=1.10.9 restart``.
 
 Tracking SQL statements
 =======================

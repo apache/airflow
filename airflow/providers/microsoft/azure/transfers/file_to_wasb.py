@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.utils.decorators import apply_defaults
 
 
 class FileToWasbOperator(BaseOperator):
@@ -42,7 +41,6 @@ class FileToWasbOperator(BaseOperator):
 
     template_fields = ('file_path', 'container_name', 'blob_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -19,7 +19,6 @@ from typing import Dict, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
-from airflow.utils.decorators import apply_defaults
 
 
 class Neo4jOperator(BaseOperator):
@@ -33,11 +32,10 @@ class Neo4jOperator(BaseOperator):
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement, a list of str (sql statements)
     :type sql: str or list[str]
-    :param neo4j_conn_id: reference to a specific Neo4j database
+    :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
     :type neo4j_conn_id: str
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

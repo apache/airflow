@@ -88,7 +88,7 @@ each command (default is ``False``)
 Templating
 ----------
 
-You can use :ref:`Jinja templates <jinja-templating>` to parameterize
+You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize
 ``sql``.
 
 .. exampleinclude:: /../../airflow/providers/jdbc/example_dags/example_jdbc_queries.py

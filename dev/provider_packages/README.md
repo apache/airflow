@@ -209,7 +209,7 @@ of those  steps automatically, but you can manually run the scripts as follows t
 The commands are best to execute in the Breeze environment as it has all the dependencies installed,
 Examples below describe that. However, for development you might run them in your local development
 environment as it makes it easier to debug. Just make sure you install your development environment
-with 'devel_all' extra (make sure to ue the right python version).
+with 'devel_all' extra (make sure to use the right python version).
 
 Note that it is best to use `INSTALL_PROVIDERS_FROM_SOURCES` set to`true`, to make sure
 that any new added providers are not added as packages (in case they are not yet available in PyPI.
@@ -455,7 +455,8 @@ This prepares airflow package in the "dist" folder
 2. Enter the container:
 
 ```shell script
-export INSTALL_AIRFLOW_VERSION="wheel"
+export USE_AIRFLOW_VERSION="wheel"
+export USE_PACKAGES_FROM_DIST="true"
 
 ./dev/provider_packages/enter_breeze_provider_package_tests.sh
 ```

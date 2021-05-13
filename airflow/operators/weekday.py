@@ -20,7 +20,6 @@ from typing import Dict, Iterable, Union
 
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.weekday import WeekDay
 
 
@@ -50,7 +49,6 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     :type use_task_execution_day: bool
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

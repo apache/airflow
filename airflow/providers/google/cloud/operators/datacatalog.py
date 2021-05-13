@@ -32,7 +32,6 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudDataCatalogCreateEntryOperator(BaseOperator):
@@ -95,7 +94,6 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -213,7 +211,6 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -331,7 +328,6 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -462,7 +458,6 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -580,7 +575,6 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -691,7 +685,6 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -785,7 +778,6 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -880,7 +872,6 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -980,7 +971,6 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1078,7 +1068,6 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1176,7 +1165,6 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1272,7 +1260,6 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1362,7 +1349,6 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1458,7 +1444,6 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1553,7 +1538,6 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1647,7 +1631,6 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1769,7 +1752,6 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1875,7 +1857,6 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -1987,7 +1968,6 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -2103,7 +2083,6 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2221,7 +2200,6 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

@@ -116,7 +116,7 @@ Airflow has many more integrations available for separate installation as a prov
      -
 
    * - :mod:`airflow.sensors.smart_sensor_operator`
-     - :doc:`smart-sensor`
+     - :doc:`concepts/smart-sensors`
 
 **Hooks:**
 

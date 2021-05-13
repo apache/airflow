@@ -41,10 +41,12 @@ function build_prod_images_on_ci() {
             python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
 
-        # first we pull base python image. We will need it to re-push it after master build
-        # Becoming the new "latest" image for other builds
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
-            "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"
+        if [[ "${WAIT_FOR_PYTHON_BASE_IMAGE=}" == "true" ]]; then
+            # first we pull base python image. We will need it to re-push it after master build
+            # Becoming the new "latest" image for other builds
+            build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
+                "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"
+        fi
 
         # And then the actual image
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \

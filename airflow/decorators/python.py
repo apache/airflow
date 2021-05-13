@@ -19,7 +19,6 @@ from typing import Callable, Optional, TypeVar
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.operators.python import PythonOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
@@ -47,7 +46,6 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs = ('python_callable',)
 
-    @apply_defaults
     def __init__(
         self,
         **kwargs,

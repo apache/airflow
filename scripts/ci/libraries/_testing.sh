@@ -44,7 +44,7 @@ function testing::get_docker_compose_local() {
         DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml")
     fi
 
-    if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} ]]; then
+    if [[ -n ${USE_AIRFLOW_VERSION=} ]]; then
         DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml")
     fi
     readonly DOCKER_COMPOSE_LOCAL
@@ -54,7 +54,7 @@ function testing::get_maximum_parallel_test_jobs() {
     docker_engine_resources::get_available_cpus_in_docker
     if [[ -n ${RUNS_ON=} && ${RUNS_ON} != *"self-hosted"* ]]; then
         echo
-        echo "${COLOR_YELLOW}This is a Github Public runner - for now we are forcing max parallel Quarantined tests jobs to 1 for those${COLOR_RESET}"
+        echo "${COLOR_YELLOW}This is a GitHub Public runner - for now we are forcing max parallel Quarantined tests jobs to 1 for those${COLOR_RESET}"
         echo
         export MAX_PARALLEL_QUARANTINED_TEST_JOBS="1"
     else

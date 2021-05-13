@@ -166,19 +166,29 @@ g.node.removed rect {
   cursor: move;
 }
 
-.refresh-actions {
-  float: right;
-  display: inline-flex;
-  align-items: center;
-  top: 10px;
-  right: 10px;
-  position: relative;
+.legend-item.dag {
+  float: left;
+  background-color: #e8f7e4;
 }
 
-.refresh-actions > .switch-label {
-  margin: 0 10px 0 20px;
+.legend-item.trigger {
+  float: left;
+  background-color: #ffefeb;
 }
 
-.loading-dots.refresh-loading {
-  display: none;
+.legend-item.sensor {
+  float: left;
+  background-color: #e6f1f2;
+}
+
+g.node.dag rect {
+  fill: #e8f7e4;
+}
+
+g.node.trigger rect {
+  fill: #ffefeb;
+}
+
+g.node.sensor rect {
+  fill: #e6f1f2;
 }

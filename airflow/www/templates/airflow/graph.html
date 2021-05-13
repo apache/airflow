@@ -24,7 +24,6 @@
 
 {% block head_meta %}
   {{ super() }}
-  <meta name="dag_id" content="{{ dag.dag_id }}">
   <meta name="execution_date" content="{{ execution_date }}">
   <meta name="arrange" content="{{ arrange }}">
   <meta name="task_instances_url" content="{{ url_for('Airflow.task_instances') }}">

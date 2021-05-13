@@ -34,7 +34,7 @@ commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 Templating
 ----------
 
-You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
+You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize the
 ``bash_command`` argument.
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py

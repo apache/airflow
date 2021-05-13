@@ -82,7 +82,6 @@ class SqoopHook(BaseHook):
         self.num_mappers = num_mappers
         self.properties = properties or {}
         self.log.info("Using connection to: %s:%s/%s", self.conn.host, self.conn.port, self.conn.schema)
-        self.sub_process: Any = None
 
     def get_conn(self) -> Any:
         return self.conn
@@ -107,17 +106,13 @@ class SqoopHook(BaseHook):
         """
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: %s", masked_cmd)
-        self.sub_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
-
-        for line in iter(self.sub_process.stdout):  # type: ignore
-            self.log.info(line.strip())
-
-        self.sub_process.wait()
-
-        self.log.info("Command exited with return code %s", self.sub_process.returncode)
-
-        if self.sub_process.returncode:
-            raise AirflowException(f"Sqoop command failed: {masked_cmd}")
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs) as sub_process:
+            for line in iter(sub_process.stdout):  # type: ignore
+                self.log.info(line.strip())
+            sub_process.wait()
+            self.log.info("Command exited with return code %s", sub_process.returncode)
+            if sub_process.returncode:
+                raise AirflowException(f"Sqoop command failed: {masked_cmd}")
 
     def _prepare_command(self, export: bool = False) -> List[str]:
         sqoop_cmd_type = "export" if export else "import"

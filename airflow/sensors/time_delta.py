@@ -18,7 +18,6 @@
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 
 class TimeDeltaSensor(BaseSensorOperator):
@@ -32,7 +31,6 @@ class TimeDeltaSensor(BaseSensorOperator):
     :type delta: datetime.timedelta
     """
 
-    @apply_defaults
     def __init__(self, *, delta, **kwargs):
         super().__init__(**kwargs)
         self.delta = delta

@@ -27,7 +27,7 @@ code or CLI.
 
 .. image:: ../img/variable_hidden.png
 
-See the :ref:`Variables Concepts <concepts:variables>` documentation for
+See the :doc:`Variables Concepts </concepts/variables>` documentation for
 more information.
 
 Storing Variables in Environment Variables

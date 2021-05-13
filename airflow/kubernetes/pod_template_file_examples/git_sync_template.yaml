@@ -31,7 +31,7 @@ spec:
         - name: GIT_SYNC_REV
           value: "HEAD"
         - name: GIT_SYNC_BRANCH
-          value: "v1-10-stable"
+          value: "v2-0-stable"
         - name: GIT_SYNC_REPO
           value: "https://github.com/apache/airflow.git"
         - name: GIT_SYNC_DEPTH
@@ -86,6 +86,7 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
+    fsGroup: 50000
   nodeSelector:
     {}
   affinity:

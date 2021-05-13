@@ -19,7 +19,6 @@ from typing import Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
-from airflow.utils.decorators import apply_defaults
 
 
 class JdbcOperator(BaseOperator):
@@ -49,7 +48,6 @@ class JdbcOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

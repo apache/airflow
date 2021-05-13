@@ -17,6 +17,8 @@
 
 
 
+.. _howto/connection:ssh:
+
 SSH Connection
 ==============
 The SSH connection type provides connection to use :class:`~airflow.providers.ssh.hooks.ssh.SSHHook` to run

@@ -44,6 +44,43 @@ class TestFlower:
             assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
             assert "flower" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
 
+    @pytest.mark.parametrize(
+        "airflow_version, expected_arg",
+        [
+            (
+                "2.0.2",
+                "airflow celery flower",
+            ),
+            (
+                "1.10.14",
+                "airflow flower",
+            ),
+            (
+                "1.9.0",
+                "airflow flower",
+            ),
+            (
+                "2.1.0",
+                "airflow celery flower",
+            ),
+        ],
+    )
+    def test_args_with_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
+            "-c",
+            expected_arg,
+        ]
+
     def test_should_create_flower_deployment_with_authorization(self):
         docs = render_chart(
             values={
@@ -127,3 +164,27 @@ class TestFlower:
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    def test_flower_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "resources": {
+                        "limits": {"cpu": "200m", 'memory': "128Mi"},
+                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                    }
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    def test_flower_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}

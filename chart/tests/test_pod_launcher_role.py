@@ -36,7 +36,7 @@ class PodLauncherTest(unittest.TestCase):
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):
         docs = render_chart(
             values={
-                "rbacEnabled": rbac,
+                "rbac": {"create": rbac},
                 "allowPodLaunching": allow,
                 "executor": executor,
             },
@@ -44,6 +44,6 @@ class PodLauncherTest(unittest.TestCase):
         )
         if expected_accounts:
             for idx, suffix in enumerate(expected_accounts):
-                assert f"RELEASE-NAME-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
+                assert f"RELEASE-NAME-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
         else:
             assert [] == docs

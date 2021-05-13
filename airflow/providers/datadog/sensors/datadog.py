@@ -22,7 +22,6 @@ from datadog import api
 from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class DatadogSensor(BaseSensorOperator):
@@ -55,7 +54,6 @@ class DatadogSensor(BaseSensorOperator):
 
     ui_color = '#66c3dd'
 
-    @apply_defaults
     def __init__(
         self,
         *,

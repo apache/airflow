@@ -19,7 +19,6 @@ from typing import Any, Dict, Optional
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class HivePartitionSensor(BaseSensorOperator):
@@ -38,8 +37,8 @@ class HivePartitionSensor(BaseSensorOperator):
         and apparently supports SQL like notation as in ``ds='2015-01-01'
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
     :type partition: str
-    :param metastore_conn_id: reference to the metastore thrift service
-        connection id
+    :param metastore_conn_id: reference to the
+        :ref: `metastore thrift service connection id <howto/connection:hive_metastore>`
     :type metastore_conn_id: str
     """
 
@@ -50,7 +49,6 @@ class HivePartitionSensor(BaseSensorOperator):
     )
     ui_color = '#C5CAE9'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -40,6 +40,6 @@ class DatastoreImportOperator(CloudDatastoreImportEntitiesOperator):
             Please use
             `airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

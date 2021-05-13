@@ -41,6 +41,7 @@ def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
         DeprecationWarning,
         stacklevel=2,
     )
+    # pylint: disable=consider-using-with
     return TmpDir(*args, **kwargs)
 
 
@@ -64,7 +65,7 @@ def mkdirs(path, mode):
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
-ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+ZIP_REGEX = re.compile(fr'((.*\.zip){re.escape(os.sep)})?(.*)')
 
 
 def correct_maybe_zipped(fileloc):
@@ -90,6 +91,7 @@ def open_maybe_zipped(fileloc, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
+        # pylint: disable=consider-using-with
         return open(fileloc, mode=mode)
 
 

@@ -19,7 +19,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class TableauJobFailedException(AirflowException):
@@ -36,14 +35,13 @@ class TableauJobStatusSensor(BaseSensorOperator):
     :type job_id: str
     :param site_id: The id of the site where the workbook belongs to.
     :type site_id: Optional[str]
-    :param tableau_conn_id: The Tableau Connection id containing the credentials
-        to authenticate to the Tableau Server.
+    :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
+        containing the credentials to authenticate to the Tableau Server.
     :type tableau_conn_id: str
     """
 
     template_fields = ('job_id',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

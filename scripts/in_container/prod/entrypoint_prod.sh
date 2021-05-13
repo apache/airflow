@@ -277,6 +277,12 @@ function check_uid_gid() {
     fi
 }
 
+# In Airflow image we are setting PIP_USER variable to true, in order to install all the packages
+# by default with the ``--user`` flag. However this is a problem if a virtualenv is created later
+# which happens in PythonVirtualenvOperator. We are unsetting this variable here, so that it is
+# not set when PIP is run by Airflow later on
+unset PIP_USER
+
 check_uid_gid
 
 # Set umask to 0002 to make all the directories created by the current user group-writeable
@@ -304,6 +310,7 @@ fi
 if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then
     create_www_user
 fi
+
 
 # The `bash` and `python` commands should also verify the basic connections
 # So they are run after the DB check

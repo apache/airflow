@@ -19,7 +19,6 @@
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
@@ -36,7 +35,6 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     :type aws_conn_id: str
     """
 
-    @apply_defaults
     def __init__(self, *, config, **kwargs):
         super().__init__(config=config, **kwargs)
 

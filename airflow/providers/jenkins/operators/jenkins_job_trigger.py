@@ -30,7 +30,6 @@ from requests import Request
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.utils.decorators import apply_defaults
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = Optional[Union[str, Dict, List]]
@@ -100,7 +99,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
     template_ext = ('.json',)
     ui_color = '#f9ec86'
 
-    @apply_defaults
     def __init__(
         self,
         *,
