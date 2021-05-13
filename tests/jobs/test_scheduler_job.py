@@ -50,7 +50,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.utils.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.utils.dag_processing import DagFileProcessorAgent
 from airflow.utils.dates import days_ago
 from airflow.utils.file import list_py_file_paths
@@ -164,6 +164,8 @@ class TestDagFileProcessor(unittest.TestCase):
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta()},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -172,7 +174,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        dag_file_processor.execute_callbacks(bag, [SlaCallbackRequest("not-relevant", "test_sla_miss")])
 
         assert sla_callback.called
 
@@ -194,6 +196,8 @@ class TestDagFileProcessor(unittest.TestCase):
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': None},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -202,7 +206,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        dag_file_processor.execute_callbacks(bag, [SlaCallbackRequest("not-relevant", "test_sla_miss")])
         sla_callback.assert_not_called()
 
     def test_dag_file_processor_sla_miss_callback_sent_notification(self):
@@ -223,6 +227,8 @@ class TestDagFileProcessor(unittest.TestCase):
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
@@ -240,9 +246,9 @@ class TestDagFileProcessor(unittest.TestCase):
             )
         )
 
-        # Now call manage_slas and see if the sla_miss callback gets called
+        # Now request a sla_miss callback and see if the it gets called
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        dag_file_processor.execute_callbacks(bag, [SlaCallbackRequest("not-relevant", "test_sla_miss")])
 
         sla_callback.assert_not_called()
 
@@ -261,6 +267,8 @@ class TestDagFileProcessor(unittest.TestCase):
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         task = DummyOperator(task_id='dummy', dag=dag, owner='airflow', sla=datetime.timedelta(hours=1))
 
@@ -269,16 +277,22 @@ class TestDagFileProcessor(unittest.TestCase):
         # Create an SlaMiss where notification was sent, but email was not
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
-        # Now call manage_slas and see if the sla_miss callback gets called
+        # Now request a sla_miss callback and see if the it gets called
         mock_log = mock.MagicMock()
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        sla_callback_request = SlaCallbackRequest(
+            "not-relevant",
+            "test_sla_miss",
+            log=mock_log,
+        )
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=MagicMock())
+        dag_file_processor.execute_callbacks(bag, [sla_callback_request])
+
         assert sla_callback.called
         mock_log.exception.assert_called_once_with(
             'Could not call sla_miss_callback for DAG %s', 'test_sla_miss'
         )
 
-    @mock.patch('airflow.jobs.scheduler_job.send_email')
+    @mock.patch('airflow.utils.callback_requests.send_email')
     def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(self, mock_send_email):
         session = settings.Session()
 
@@ -287,6 +301,8 @@ class TestDagFileProcessor(unittest.TestCase):
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         email1 = 'test1@test.com'
         task = DummyOperator(
@@ -301,8 +317,7 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(SlaMiss(task_id='sla_missed', dag_id='test_sla_miss', execution_date=test_start_date))
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        dag_file_processor.execute_callbacks(bag, [SlaCallbackRequest("not-relevant", "test_sla_miss")])
 
         assert len(mock_send_email.call_args_list) == 1
 
@@ -310,7 +325,7 @@ class TestDagFileProcessor(unittest.TestCase):
         assert email1 in send_email_to
         assert email2 not in send_email_to
 
-    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    @mock.patch('airflow.utils.callback_requests.Stats.incr')
     @mock.patch("airflow.utils.email.send_email")
     def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email, mock_stats_incr):
         """
@@ -327,6 +342,8 @@ class TestDagFileProcessor(unittest.TestCase):
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         task = DummyOperator(
             task_id='dummy', dag=dag, owner='airflow', email='test@test.com', sla=datetime.timedelta(hours=1)
@@ -338,9 +355,14 @@ class TestDagFileProcessor(unittest.TestCase):
         session.merge(SlaMiss(task_id='dummy', dag_id='test_sla_miss', execution_date=test_start_date))
 
         mock_log = mock.MagicMock()
-        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
+        sla_callback_request = SlaCallbackRequest(
+            "not-relevant",
+            "test_sla_miss",
+            log=mock_log,
+        )
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=MagicMock())
 
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        dag_file_processor.execute_callbacks(bag, [sla_callback_request])
         mock_log.exception.assert_called_once_with(
             'Could not send SLA Miss email notification for DAG %s', 'test_sla_miss'
         )
@@ -358,6 +380,8 @@ class TestDagFileProcessor(unittest.TestCase):
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         )
+        bag = DagBag(None, include_examples=False, include_smart_sensor=False)
+        bag.bag_dag(dag, root_dag=dag)
 
         task = DummyOperator(
             task_id='dummy', dag=dag, owner='airflow', email='test@test.com', sla=datetime.timedelta(hours=1)
@@ -372,7 +396,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
         mock_log = mock.MagicMock()
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
-        dag_file_processor.manage_slas(dag=dag, session=session)
+        dag_file_processor.execute_callbacks(bag, [SlaCallbackRequest("not-relevant", "test_sla_miss")])
 
     @parameterized.expand(
         [

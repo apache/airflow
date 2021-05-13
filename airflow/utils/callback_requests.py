@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional, Set
 
@@ -150,8 +150,16 @@ class SlaCallbackRequest(CallbackRequest, LoggingMixin):
     :param dag_id: DAG ID
     """
 
-    def __init__(self, full_filepath: str, dag_id: str):
+    def __init__(
+        self,
+        full_filepath: str,
+        dag_id: str,
+        *,
+        log: Optional[logging.Logger] = None,
+    ):
         super().__init__(full_filepath)
+        if log is not None:
+            self._log = log
         self.dag_id = dag_id
 
     def _update_sla_misses(self, dag: "DAG", *, session: Session) -> None:
