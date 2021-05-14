@@ -152,6 +152,9 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
+# `airflow_local_settings` file as a string.
+airflowLocalSettings: ~
+
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
@@ -450,9 +453,6 @@ scheduler:
   #  requests:
   #   cpu: 100m
   #   memory: 128Mi
-
-  # `airflow_local_settings` file as a string.
-  airflowLocalSettings: ~
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.

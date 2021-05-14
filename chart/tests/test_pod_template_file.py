@@ -383,3 +383,21 @@ class PodTemplateFileTest(unittest.TestCase):
             "spec.containers[0].volumeMounts[2].name",
             docs[0],
         )
+
+    def test_no_airflow_local_settings_by_default(self):
+        docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
+        volume_mounts = jmespath.search("spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
