@@ -42,6 +42,7 @@ export const dagTZ = getMetaValue('dag_timezone');
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 const extraLinksUrl = getMetaValue('extra_links_url');
+const pausedUrl = getMetaValue('paused_url');
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
@@ -245,7 +246,7 @@ $('#pause_resume').on('change', function onChange() {
   const $input = $(this);
   const id = $input.data('dag-id');
   const isPaused = $input.is(':checked');
-  const url = `{{ url_for('Airflow.paused') }}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
+  const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
   $input.removeClass('switch-input--error');
   $.post(url).fail(() => {
     setTimeout(() => {
