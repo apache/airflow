@@ -96,30 +96,68 @@ class TestECSOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ['EC2', None],
-            ['FARGATE', None],
-            ['EC2', {'testTagKey': 'testTagValue'}],
-            ['', {'testTagKey': 'testTagValue'}],
+            ['EC2', None, None, {'launchType': 'EC2'}],
+            ['FARGATE', None, None, {'launchType': 'FARGATE', 'platformVersion': 'LATEST'}],
+            [
+                'EC2',
+                None,
+                {'testTagKey': 'testTagValue'},
+                {'launchType': 'EC2', 'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
+            ],
+            [
+                '',
+                None,
+                {'testTagKey': 'testTagValue'},
+                {'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
+            ],
+            [
+                None,
+                {'capacityProvider': 'FARGATE_SPOT'},
+                None,
+                {
+                    'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
+                    'platformVersion': 'LATEST',
+                },
+            ],
+            [
+                'FARGATE',
+                {'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123},
+                None,
+                {
+                    'capacityProviderStrategy': {
+                        'capacityProvider': 'FARGATE_SPOT',
+                        'weight': 123,
+                        'base': 123,
+                    },
+                    'platformVersion': 'LATEST',
+                },
+            ],
+            [
+                'EC2',
+                {'capacityProvider': 'FARGATE_SPOT'},
+                None,
+                {
+                    'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
+                    'platformVersion': 'LATEST',
+                },
+            ],
         ]
     )
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
-    def test_execute_without_failures(self, launch_type, tags, check_mock, wait_mock):
+    def test_execute_without_failures(
+        self, launch_type, capacity_provider_strategy, tags, expected_args, check_mock, wait_mock
+    ):
 
-        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(  # pylint: disable=no-value-for-parameter
+            launch_type=launch_type, capacity_provider_strategy=capacity_provider_strategy, tags=tags
+        )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.execute(None)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
-        extend_args = {}
-        if launch_type:
-            extend_args['launchType'] = launch_type
-        if launch_type == 'FARGATE':
-            extend_args['platformVersion'] = 'LATEST'
-        if tags:
-            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
         client_mock.run_task.assert_called_once_with(
             cluster='c',
@@ -133,7 +171,7 @@ class TestECSOperator(unittest.TestCase):
                 'awsvpcConfiguration': {'securityGroups': ['sg-123abc'], 'subnets': ['subnet-123456ab']}
             },
             propagateTags='TASK_DEFINITION',
-            **extend_args,
+            **expected_args,
         )
 
         wait_mock.assert_called_once_with()
