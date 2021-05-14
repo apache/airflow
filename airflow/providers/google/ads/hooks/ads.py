@@ -85,7 +85,7 @@ class GoogleAdsHook(BaseHook):
         google_ads_conn_id: str = "google_ads_default",
     ) -> None:
         super().__init__()
-        self.api_version = api_version or self.default_version
+        self.api_version = api_version or self.default_api_version
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
         self.google_ads_config: Dict[str, Any] = {}
