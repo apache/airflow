@@ -36,7 +36,7 @@ from subprocess import PIPE, Popen
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
-import requests
+import httpx
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
@@ -500,7 +500,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             )
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
-        response = requests.get(download_url, allow_redirects=True)
+        response = httpx.get(download_url, allow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, 'wb') as file:
