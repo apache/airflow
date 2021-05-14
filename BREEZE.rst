@@ -34,7 +34,7 @@ The environment is available for local use and is also used in Airflow's CI test
 We called it *Airflow Breeze* as **It's a Breeze to contribute to Airflow**.
 
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
-are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
+are described in `CONTRIBUTE-CODE.rst <CONTRIBUTE-CODE.rst>`_.
 
 All the output from the last ./breeze command is automatically logged to the ``logs/breeze.out`` file.
 
@@ -776,7 +776,7 @@ Whenever setup.py gets modified, the CI master job will re-generate constraint f
 files are stored in separated orphan branches: ``constraints-master``, ``constraints-2-0``.
 
 Those are constraint files as described in detail in the
-`<CONTRIBUTING.rst#pinned-constraint-files>`_ contributing documentation.
+`<CONTRIBUTE-C0DE.rst>`_ contributing documentation.
 
 You can use ``./breeze generate-constraints`` command to manually generate constraints for a single python
 version and single constraint mode like this:
@@ -804,7 +804,7 @@ Constraints are generated separately for each python version and there are separ
 
 In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
 pushes changed to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#mnully-generating-constraint-files>`_ which utilises
+the procedure described in `<CONTRIBUTE-CODE.rst>`_ which utilises
 multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
