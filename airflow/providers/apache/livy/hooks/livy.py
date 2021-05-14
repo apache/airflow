@@ -21,7 +21,7 @@ import re
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-import requests
+import httpx
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -75,19 +75,25 @@ class LivyHook(HttpHook, LoggingMixin):
         super().__init__(http_conn_id=livy_conn_id)
         self.extra_options = extra_options or {}
 
-    def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
+    def get_conn(
+        self, headers: Optional[Dict[Any, Any]] = None, verify: bool = True, proxies=None, cert=None
+    ) -> httpx.Client:
         """
         Returns http session for use with requests
 
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
-        :return: requests session
-        :rtype: requests.Session
+        :param verify: whether to verify SSL during the connection (only use for testing)
+        :param proxies: A dictionary mapping proxy keys to proxy
+        :param cert: client An SSL certificate used by the requested host
+            to authenticate the client. Either a path to an SSL certificate file, or
+            two-tuple of (certificate file, key file), or a three-tuple of (certificate
+            file, key file, password).
         """
         tmp_headers = self._def_headers.copy()  # setting default headers
         if headers:
             tmp_headers.update(headers)
-        return super().get_conn(tmp_headers)
+        return super().get_conn(tmp_headers, verify, proxies, cert)
 
     def run_method(
         self,
@@ -108,7 +114,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :param headers: headers
         :type headers: dict
         :return: http response
-        :rtype: requests.Response
+        :rtype: httpx.Response
         """
         if method not in ('GET', 'POST', 'PUT', 'DELETE', 'HEAD'):
             raise ValueError(f"Invalid http method '{method}'")
@@ -142,7 +148,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
+        except httpx.HTTPStatusError as err:
             raise AirflowException(
                 "Could not submit batch. Status code: {}. Message: '{}'".format(
                     err.response.status_code, err.response.text
@@ -172,7 +178,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
+        except httpx.HTTPStatusError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
@@ -196,7 +202,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
+        except httpx.HTTPStatusError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
@@ -223,7 +229,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
+        except httpx.HTTPStatusError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
                 "Could not kill the batch with session id: {}. Message: {}".format(

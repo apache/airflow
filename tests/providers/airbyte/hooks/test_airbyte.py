@@ -20,7 +20,6 @@ import unittest
 from unittest import mock
 
 import pytest
-import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -34,12 +33,7 @@ class TestAirbyteHook(unittest.TestCase):
     """
 
     airbyte_conn_id = 'airbyte_conn_id_test'
-    connection_id = 'conn_test_sync'
-    job_id = 1
-    sync_connection_endpoint = 'http://test-airbyte:8001/api/v1/connections/sync'
-    get_job_endpoint = 'http://test-airbyte:8001/api/v1/jobs/get'
-    _mock_sync_conn_success_response_body = {'job': {'id': 1}}
-    _mock_job_status_success_response_body = {'job': {'status': 'succeeded'}}
+    job_id = '1'
 
     def setUp(self):
         db.merge_conn(
@@ -53,22 +47,6 @@ class TestAirbyteHook(unittest.TestCase):
         response = mock.Mock()
         response.json.return_value = {'job': {'status': status}}
         return response
-
-    @requests_mock.mock()
-    def test_submit_sync_connection(self, m):
-        m.post(
-            self.sync_connection_endpoint, status_code=200, json=self._mock_sync_conn_success_response_body
-        )
-        resp = self.hook.submit_sync_connection(connection_id=self.connection_id)
-        assert resp.status_code == 200
-        assert resp.json() == self._mock_sync_conn_success_response_body
-
-    @requests_mock.mock()
-    def test_get_job_status(self, m):
-        m.post(self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body)
-        resp = self.hook.get_job(job_id=self.job_id)
-        assert resp.status_code == 200
-        assert resp.json() == self._mock_job_status_success_response_body
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_succeeded(self, mock_get_job):
@@ -124,3 +102,38 @@ class TestAirbyteHook(unittest.TestCase):
 
         calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
         assert mock_get_job.has_calls(calls)
+
+
+@pytest.fixture
+def setup_hook():
+    yield AirbyteHook(airbyte_conn_id='airbyte_conn_id_test')
+
+
+class TestAirbyteMockHttpx:
+    sync_connection_endpoint = 'http://test-airbyte:8001/api/v1/connections/sync'
+    get_job_endpoint = 'http://test-airbyte:8001/api/v1/jobs/get'
+    connection_id = 'conn_test_sync'
+    _mock_sync_conn_success_response_body = {'job': {'id': 1}}
+    _mock_job_status_success_response_body = {'job': {'status': 'succeeded'}}
+
+    def test_submit_sync_connection(self, httpx_mock, setup_hook):
+        httpx_mock.add_response(
+            method='POST',
+            url=self.sync_connection_endpoint,
+            status_code=200,
+            json=self._mock_sync_conn_success_response_body,
+        )
+        resp = setup_hook.submit_sync_connection(connection_id=self.connection_id)
+        assert resp.status_code == 200
+        assert resp.json() == self._mock_sync_conn_success_response_body
+
+    def test_get_job_status(self, httpx_mock, setup_hook):
+        httpx_mock.add_response(
+            method='POST',
+            url=self.get_job_endpoint,
+            status_code=200,
+            json=self._mock_job_status_success_response_body,
+        )
+        resp = setup_hook.get_job(job_id='1')
+        assert resp.status_code == 200
+        assert resp.json() == self._mock_job_status_success_response_body

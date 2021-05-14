@@ -18,9 +18,6 @@
 #
 import json
 import unittest
-from unittest import mock
-
-from requests.exceptions import MissingSchema
 
 from airflow.models import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
@@ -129,41 +126,22 @@ class TestSlackWebhookHook(unittest.TestCase):
         # Then
         assert self.expected_message_dict == json.loads(message)
 
-    @mock.patch('requests.Session')
-    @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id(self, mock_request, mock_session):
+
+class TestSlackWebhookMockHttpx:
+    expected_url = 'https://hooks.slack.com/services/T000/B000/XXX'
+    expected_method = 'POST'
+
+    def test_url_generated_by_http_conn_id(self, httpx_mock):
+        httpx_mock.add_response(url=self.expected_url, method=self.expected_method)
         hook = SlackWebhookHook(http_conn_id='slack-webhook-url')
-        try:
-            hook.execute()
-        except MissingSchema:
-            pass
-        mock_request.assert_called_once_with(
-            self.expected_method, self.expected_url, headers=mock.ANY, data=mock.ANY
-        )
-        mock_request.reset_mock()
+        hook.execute()
 
-    @mock.patch('requests.Session')
-    @mock.patch('requests.Request')
-    def test_url_generated_by_endpoint(self, mock_request, mock_session):
+    def test_url_generated_by_endpoint(self, httpx_mock):
+        httpx_mock.add_response(url=self.expected_url, method=self.expected_method)
         hook = SlackWebhookHook(webhook_token=self.expected_url)
-        try:
-            hook.execute()
-        except MissingSchema:
-            pass
-        mock_request.assert_called_once_with(
-            self.expected_method, self.expected_url, headers=mock.ANY, data=mock.ANY
-        )
-        mock_request.reset_mock()
+        hook.execute()
 
-    @mock.patch('requests.Session')
-    @mock.patch('requests.Request')
-    def test_url_generated_by_http_conn_id_and_endpoint(self, mock_request, mock_session):
+    def test_url_generated_by_http_conn_id_and_endpoint(self, httpx_mock):
+        httpx_mock.add_response(url=self.expected_url, method=self.expected_method)
         hook = SlackWebhookHook(http_conn_id='slack-webhook-host', webhook_token='B000/XXX')
-        try:
-            hook.execute()
-        except MissingSchema:
-            pass
-        mock_request.assert_called_once_with(
-            self.expected_method, self.expected_url, headers=mock.ANY, data=mock.ANY
-        )
-        mock_request.reset_mock()
+        hook.execute()

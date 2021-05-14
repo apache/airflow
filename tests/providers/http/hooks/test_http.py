@@ -17,15 +17,11 @@
 # under the License.
 import json
 import os
-import unittest
-from collections import OrderedDict
 from unittest import mock
 
+import httpx
 import pytest
-import requests
-import requests_mock
 import tenacity
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -40,41 +36,42 @@ def get_airflow_connection_with_port(unused_conn_id=None):
     return Connection(conn_id='http_default', conn_type='http', host='test.com', port=1234)
 
 
-class TestHttpHook(unittest.TestCase):
+@pytest.fixture
+def setup_hook():
+    yield HttpHook(method='GET')
+
+
+@pytest.fixture
+def setup_lowercase_hook():
+    yield HttpHook(method='get')
+
+
+@pytest.fixture
+def setup_post_hook():
+    yield HttpHook(method='POST')
+
+
+class TestHttpHook:
     """Test get, post and raise_for_status"""
 
-    def setUp(self):
-        session = requests.Session()
-        adapter = requests_mock.Adapter()
-        session.mount('mock', adapter)
-        self.get_hook = HttpHook(method='GET')
-        self.get_lowercase_hook = HttpHook(method='get')
-        self.post_hook = HttpHook(method='POST')
-
-    @requests_mock.mock()
-    def test_raise_for_status_with_200(self, m):
-
-        m.get('http://test:8080/v1/test', status_code=200, text='{"status":{"status": 200}}', reason='OK')
+    def test_raise_for_status_with_200(self, httpx_mock, setup_hook):
+        httpx_mock.add_response(
+            url='http://test:8080/v1/test', status_code=200, data='{"status":{"status": 200}}'
+        )
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-            resp = self.get_hook.run('v1/test')
+            resp = setup_hook.run('v1/test')
             assert resp.text == '{"status":{"status": 200}}'
 
-    @requests_mock.mock()
-    @mock.patch('requests.Session')
-    @mock.patch('requests.Request')
-    def test_get_request_with_port(self, mock_requests, request_mock, mock_session):
-        from requests.exceptions import MissingSchema
-
+    @mock.patch('httpx.Client')
+    @mock.patch('httpx.Request')
+    def test_get_request_with_port(self, request_mock, mock_client, setup_hook):
         with mock.patch(
             'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
             expected_url = 'http://test.com:1234/some/endpoint'
             for endpoint in ['some/endpoint', '/some/endpoint']:
 
-                try:
-                    self.get_hook.run(endpoint)
-                except MissingSchema:
-                    pass
+                setup_hook.run(endpoint)
 
                 request_mock.assert_called_once_with(
                     mock.ANY, expected_url, headers=mock.ANY, params=mock.ANY
@@ -82,117 +79,116 @@ class TestHttpHook(unittest.TestCase):
 
                 request_mock.reset_mock()
 
-    @requests_mock.mock()
-    def test_get_request_do_not_raise_for_status_if_check_response_is_false(self, m):
-
-        m.get(
-            'http://test:8080/v1/test',
+    def test_get_request_do_not_raise_for_status_if_check_response_is_false(self, httpx_mock, setup_hook):
+        httpx_mock.add_response(
+            url='http://test:8080/v1/test',
             status_code=404,
-            text='{"status":{"status": 404}}',
-            reason='Bad request',
+            data='{"status":{"status": 404}}',
         )
 
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-            resp = self.get_hook.run('v1/test', extra_options={'check_response': False})
+            resp = setup_hook.run('v1/test', extra_options={'check_response': False})
             assert resp.text == '{"status":{"status": 404}}'
 
-    @requests_mock.mock()
-    def test_hook_contains_header_from_extra_field(self, mock_requests):
+    def test_hook_contains_header_from_extra_field(self, setup_hook):
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             expected_conn = get_airflow_connection()
-            conn = self.get_hook.get_conn()
+            conn = setup_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
             assert conn.headers.get('bareer') == 'test'
 
-    @requests_mock.mock()
-    @mock.patch('requests.Request')
-    def test_hook_with_method_in_lowercase(self, mock_requests, request_mock):
-        from requests.exceptions import InvalidURL, MissingSchema
-
+    def test_hook_with_method_in_lowercase(self, httpx_mock, setup_lowercase_hook):
+        data = "test_params=aaaa"
+        httpx_mock.add_response(
+            url='http://test.com:1234/v1/test?test_params=aaaa',
+            status_code=200,
+            data='{"status":{"status": 200}}',
+        )
         with mock.patch(
             'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
-            data = "test params"
             try:
-                self.get_lowercase_hook.run('v1/test', data=data)
-            except (MissingSchema, InvalidURL):
+                setup_lowercase_hook.run('v1/test', data=data)
+            except ConnectionError:
                 pass
-            request_mock.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
 
-    @requests_mock.mock()
-    def test_hook_uses_provided_header(self, mock_requests):
-        conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
+    def test_hook_uses_provided_header(self, setup_hook):
+        conn = setup_hook.get_conn(headers={"bareer": "newT0k3n"})
         assert conn.headers.get('bareer') == "newT0k3n"
 
-    @requests_mock.mock()
-    def test_hook_has_no_header_from_extra(self, mock_requests):
-        conn = self.get_hook.get_conn()
+    def test_hook_has_no_header_from_extra(self, setup_hook):
+        conn = setup_hook.get_conn()
         assert conn.headers.get('bareer') is None
 
-    @requests_mock.mock()
-    def test_hooks_header_from_extra_is_overridden(self, mock_requests):
+    def test_hooks_header_from_extra_is_overridden(self, setup_hook):
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-            conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            assert conn.headers.get('bareer') == 'newT0k3n'
+            conn = setup_hook.get_conn()
+            assert conn.headers.get('bareer') == 'test'
 
-    @requests_mock.mock()
-    def test_post_request(self, mock_requests):
-        mock_requests.post(
-            'http://test:8080/v1/test', status_code=200, text='{"status":{"status": 200}}', reason='OK'
+    def test_hooks_header_from_extra_is_overridden_and_used(self, httpx_mock, setup_hook):
+        httpx_mock.add_response(
+            url='http://test:8080/v1/test',
+            status_code=200,
+            data='{"status":{"status": 200}}',
+            match_headers={"bareer": "test"},
+        )
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            setup_hook.run('v1/test', extra_options={'check_response': False})
+
+    def test_post_request(self, httpx_mock, setup_post_hook):
+        httpx_mock.add_response(
+            method='POST', url='http://test:8080/v1/test', status_code=200, data='{"status":{"status": 200}}'
         )
 
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-            resp = self.post_hook.run('v1/test')
+            resp = setup_post_hook.run('v1/test')
             assert resp.status_code == 200
 
-    @requests_mock.mock()
-    def test_post_request_with_error_code(self, mock_requests):
-        mock_requests.post(
-            'http://test:8080/v1/test',
+    def test_post_request_with_error_code(self, httpx_mock, setup_post_hook):
+        httpx_mock.add_response(
+            method='POST',
+            url='http://test:8080/v1/test',
             status_code=418,
-            text='{"status":{"status": 418}}',
-            reason='I\'m a teapot',
         )
 
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             with pytest.raises(AirflowException):
-                self.post_hook.run('v1/test')
+                setup_post_hook.run('v1/test')
 
-    @requests_mock.mock()
-    def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, mock_requests):
-        mock_requests.post(
-            'http://test:8080/v1/test',
+    def test_post_request_do_not_raise_for_status_if_check_response_is_false(
+        self, httpx_mock, setup_post_hook
+    ):
+        httpx_mock.add_response(
+            method='POST',
+            url='http://test:8080/v1/test',
             status_code=418,
-            text='{"status":{"status": 418}}',
-            reason='I\'m a teapot',
         )
 
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-            resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
+            resp = setup_post_hook.run('v1/test', extra_options={'check_response': False})
             assert resp.status_code == 418
 
-    @mock.patch('airflow.providers.http.hooks.http.requests.Session')
-    def test_retry_on_conn_error(self, mocked_session):
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
+    def test_retry_on_conn_error(self, mocked_client, setup_hook):
 
         retry_args = dict(
             wait=tenacity.wait_none(),
             stop=tenacity.stop_after_attempt(7),
-            retry=tenacity.retry_if_exception_type(requests.exceptions.ConnectionError),
+            retry=tenacity.retry_if_exception_type(httpx.NetworkError),
         )
 
         def send_and_raise(unused_request, **kwargs):
-            raise requests.exceptions.ConnectionError
+            raise httpx.NetworkError(message="ConnectionError")
 
-        mocked_session().send.side_effect = send_and_raise
+        mocked_client().send.side_effect = send_and_raise
         # The job failed for some reason
         with pytest.raises(tenacity.RetryError):
-            self.get_hook.run_with_advanced_retry(endpoint='v1/test', _retry_args=retry_args)
-        assert self.get_hook._retry_obj.stop.max_attempt_number + 1 == mocked_session.call_count
+            setup_hook.run_with_advanced_retry(endpoint='v1/test', _retry_args=retry_args)
+        assert setup_hook._retry_obj.stop.max_attempt_number + 1 == mocked_client.call_count
 
-    @requests_mock.mock()
-    def test_run_with_advanced_retry(self, m):
+    def test_run_with_advanced_retry(self, httpx_mock, setup_hook):
 
-        m.get('http://test:8080/v1/test', status_code=200, reason='OK')
+        httpx_mock.add_response(url='http://test:8080/v1/test', status_code=200)
 
         retry_args = dict(
             wait=tenacity.wait_none(),
@@ -201,22 +197,18 @@ class TestHttpHook(unittest.TestCase):
             reraise=True,
         )
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-            response = self.get_hook.run_with_advanced_retry(endpoint='v1/test', _retry_args=retry_args)
-            assert isinstance(response, requests.Response)
+            response = setup_hook.run_with_advanced_retry(endpoint='v1/test', _retry_args=retry_args)
+            assert isinstance(response, httpx.Response)
 
-    def test_header_from_extra_and_run_method_are_merged(self):
-        def run_and_return(unused_session, prepped_request, unused_extra_options, **kwargs):
-            return prepped_request
-
+    def test_header_from_extra_and_run_method_are_merged(self, httpx_mock, setup_hook):
+        httpx_mock.add_response(
+            url='http://test:8080/v1/test',
+            status_code=200,
+            match_headers={"bareer": "test", "some_other_header": "test"},
+        )
         # The job failed for some reason
-        with mock.patch(
-            'airflow.providers.http.hooks.http.HttpHook.run_and_check', side_effect=run_and_return
-        ):
-            with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
-                prepared_request = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
-                actual = dict(prepared_request.headers)
-                assert actual.get('bareer') == 'test'
-                assert actual.get('some_other_header') == 'test'
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            setup_hook.run('v1/test', headers={'some_other_header': 'test'})
 
     @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):
@@ -250,8 +242,8 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         assert hook.base_url == 'https://localhost'
 
-    def test_method_converted_to_uppercase_when_created_in_lowercase(self):
-        assert self.get_lowercase_hook.method == 'GET'
+    def test_method_converted_to_uppercase_when_created_in_lowercase(self, setup_lowercase_hook):
+        assert setup_lowercase_hook.method == 'GET'
 
     @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_connection_without_host(self, mock_get_connection):
@@ -262,96 +254,90 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         assert hook.base_url == 'http://'
 
-    @parameterized.expand(
-        [
-            'GET',
-            'POST',
-        ]
-    )
-    @requests_mock.mock()
-    def test_json_request(self, method, mock_requests):
+    def test_json_request_get(self, httpx_mock):
         obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
 
-        def match_obj1(request):
-            return request.json() == obj1
-
-        mock_requests.request(method=method, url='//test:8080/v1/test', additional_matcher=match_obj1)
+        httpx_mock.add_response(
+            method='GET', url='http://test:8080/v1/test', match_content=json.dumps(obj1).encode('utf-8')
+        )
 
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             # will raise NoMockAddress exception if obj1 != request.json()
-            HttpHook(method=method).run('v1/test', json=obj1)
+            HttpHook(method='GET').run('v1/test', json=obj1)
 
-    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
-    def test_verify_set_to_true_by_default(self, mock_session_send):
+    def test_json_request_post(self, httpx_mock):
+        obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
+
+        httpx_mock.add_response(
+            method='POST', url='http://test:8080/v1/test', match_content=json.dumps(obj1).encode('utf-8')
+        )
+
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            # will raise NoMockAddress exception if obj1 != request.json()
+            HttpHook(method='POST').run('v1/test', json=obj1)
+
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
+    def test_verify_set_to_true_by_default(self, mock_client, setup_hook):
         with mock.patch(
             'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
-            self.get_hook.run('/some/endpoint')
-            mock_session_send.assert_called_once_with(
-                mock.ANY,
-                allow_redirects=True,
-                cert=None,
-                proxies=OrderedDict(),
-                stream=False,
-                timeout=None,
-                verify=True,
+            setup_hook.run('/some/endpoint')
+            mock_client.assert_called_once_with(verify=True, cert=None, proxies=None)
+
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
+    def test_verify_can_be_overridden(self, mock_client, setup_hook):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            setup_hook.run('/some/endpoint', extra_options={'verify': False})
+            mock_client.assert_called_once_with(verify=False, cert=None, proxies=None)
+
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
+    def test_cert_can_be_overridden(self, mock_client, setup_hook):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            setup_hook.run('/some/endpoint', extra_options={'cert': '/tmp/private.crt'})
+            mock_client.assert_called_once_with(verify=True, cert='/tmp/private.crt', proxies=None)
+
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
+    def test_proxies_can_be_overridden(self, mock_client, setup_hook):
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            setup_hook.run('/some/endpoint', extra_options={'proxies': {"http://localhost": 'http://proxy'}})
+            mock_client.assert_called_once_with(
+                verify=True, cert=None, proxies={"http://localhost": 'http://proxy'}
             )
 
-    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
+    def test_verifu_parameter_set(self, mock_client, setup_hook):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ):
+
+            setup_hook.run('/some/endpoint', extra_options={'verify': '/tmp/overridden.crt'})
+            mock_client.assert_called_once_with(cert=None, proxies=None, verify='/tmp/overridden.crt')
+
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
-    def test_requests_ca_bundle_env_var(self, mock_session_send):
+    def test_requests_ca_bundle_env_var(self, mock_client, setup_hook):
         with mock.patch(
             'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
 
-            self.get_hook.run('/some/endpoint')
+            setup_hook.run('/some/endpoint')
+            mock_client.assert_called_once_with(cert=None, proxies=None, verify='/tmp/test.crt')
 
-            mock_session_send.assert_called_once_with(
-                mock.ANY,
-                allow_redirects=True,
-                cert=None,
-                proxies=OrderedDict(),
-                stream=False,
-                timeout=None,
-                verify='/tmp/test.crt',
-            )
-
-    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
-    def test_verify_respects_requests_ca_bundle_env_var(self, mock_session_send):
+    def test_verify_respects_requests_ca_bundle_env_var(self, mock_client, setup_hook):
         with mock.patch(
             'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
 
-            self.get_hook.run('/some/endpoint', extra_options={'verify': True})
+            setup_hook.run('/some/endpoint', extra_options={'verify': True})
+            mock_client.assert_called_once_with(cert=None, proxies=None, verify='/tmp/test.crt')
 
-            mock_session_send.assert_called_once_with(
-                mock.ANY,
-                allow_redirects=True,
-                cert=None,
-                proxies=OrderedDict(),
-                stream=False,
-                timeout=None,
-                verify='/tmp/test.crt',
-            )
-
-    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    @mock.patch('airflow.providers.http.hooks.http.httpx.Client')
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
-    def test_verify_false_parameter_overwrites_set_requests_ca_bundle_env_var(self, mock_session_send):
+    def test_verify_false_parameter_overwrites_set_requests_ca_bundle_env_var(self, mock_client, setup_hook):
         with mock.patch(
             'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
         ):
-            self.get_hook.run('/some/endpoint', extra_options={'verify': False})
-
-            mock_session_send.assert_called_once_with(
-                mock.ANY,
-                allow_redirects=True,
-                cert=None,
-                proxies=OrderedDict(),
-                stream=False,
-                timeout=None,
-                verify=False,
-            )
-
-
-send_email_test = mock.Mock()
+            setup_hook.run('/some/endpoint', extra_options={'verify': False})
+            mock_client.assert_called_once_with(cert=None, proxies=None, verify=False)

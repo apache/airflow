@@ -18,9 +18,9 @@
 #
 
 import json
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-import requests
+import httpx
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
@@ -54,20 +54,25 @@ class OpsgenieAlertHook(HttpHook):
             )
         return api_key
 
-    def get_conn(self, headers: Optional[dict] = None) -> requests.Session:
+    def get_conn(
+        self, headers: Optional[Dict[Any, Any]] = None, verify: bool = True, proxies=None, cert=None
+    ) -> httpx.Client:
         """
         Overwrite HttpHook get_conn because this hook just needs base_url
         and headers, and does not need generic params
 
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
+        :param verify: whether to verify SSL during the connection (only use for testing)
+        :param proxies: A dictionary mapping proxy keys to proxy
+        :param cert: client An SSL certificate used by the requested host
+            to authenticate the client. Either a path to an SSL certificate file, or
+            two-tuple of (certificate file, key file), or a three-tuple of (certificate
+            file, key file, password).
         """
-        conn = self.get_connection(self.http_conn_id)
-        self.base_url = conn.host if conn.host else 'https://api.opsgenie.com'
-        session = requests.Session()
-        if headers:
-            session.headers.update(headers)
-        return session
+        client = super().get_conn(headers=headers, verify=verify, proxies=proxies, cert=cert)
+        self.base_url = self.conn.host if self.conn.host else 'https://api.opsgenie.com'
+        return client
 
     def execute(self, payload: Optional[dict] = None) -> Any:
         """

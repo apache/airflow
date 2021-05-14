@@ -15,12 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
-import requests
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import TaskInstance
@@ -34,23 +31,22 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class TestHttpSensor(unittest.TestCase):
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=args)
+@pytest.fixture
+def setup_dag():
+    args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+    yield DAG(TEST_DAG_ID, default_args=args)
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_poke_exception(self, mock_session_send):
+
+class TestHttpSensor:
+    def test_poke_exception(self, httpx_mock):
         """
         Exception occurs in poke function should not be ignored.
         """
-        response = requests.Response()
-        response.status_code = 200
-        mock_session_send.return_value = response
 
         def resp_check(_):
             raise AirflowException('AirflowException raised here!')
 
+        httpx_mock.add_response(status_code=200)
         task = HttpSensor(
             task_id='http_sensor_poke_exception',
             http_conn_id='http_default',
@@ -63,19 +59,14 @@ class TestHttpSensor(unittest.TestCase):
         with pytest.raises(AirflowException, match='AirflowException raised here!'):
             task.execute(context={})
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_poke_continues_for_http_500_with_extra_options_check_response_false(self, mock_session_send):
+    def test_poke_continues_for_http_500_with_extra_options_check_response_false(self, httpx_mock, setup_dag):
         def resp_check(_):
             return False
 
-        response = requests.Response()
-        response.status_code = 500
-        response.reason = 'Internal Server Error'
-        response._content = b'Internal Server Error'
-        mock_session_send.return_value = response
+        httpx_mock.add_response(status_code=500, data="Internal Server Error")
 
         task = HttpSensor(
-            dag=self.dag,
+            dag=setup_dag,
             task_id='http_sensor_poke_for_code_500',
             http_conn_id='http_default',
             endpoint='',
@@ -87,16 +78,16 @@ class TestHttpSensor(unittest.TestCase):
             poke_interval=1,
         )
 
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout, match='Snap. Time is OUT. DAG id: unit_test_dag'):
             task.execute(context={})
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_head_method(self, mock_session_send):
+    def test_head_method(self, httpx_mock, setup_dag):
         def resp_check(_):
             return True
 
+        httpx_mock.add_response(status_code=200, url='https://www.httpbin.org', method='HEAD')
         task = HttpSensor(
-            dag=self.dag,
+            dag=setup_dag,
             task_id='http_sensor_head_method',
             http_conn_id='http_default',
             endpoint='',
@@ -109,19 +100,8 @@ class TestHttpSensor(unittest.TestCase):
 
         task.execute(context={})
 
-        args, kwargs = mock_session_send.call_args
-        received_request = args[0]
-
-        prep_request = requests.Request('HEAD', 'https://www.httpbin.org', {}).prepare()
-
-        assert prep_request.url == received_request.url
-        assert prep_request.method, received_request.method
-
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_poke_context(self, mock_session_send):
-        response = requests.Response()
-        response.status_code = 200
-        mock_session_send.return_value = response
+    def test_poke_context(self, httpx_mock, setup_dag):
+        httpx_mock.add_response(status_code=200, url='https://www.httpbin.org')
 
         def resp_check(_, execution_date):
             if execution_date == DEFAULT_DATE:
@@ -136,25 +116,19 @@ class TestHttpSensor(unittest.TestCase):
             response_check=resp_check,
             timeout=5,
             poke_interval=1,
-            dag=self.dag,
+            dag=setup_dag,
         )
 
         task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         task.execute(task_instance.get_template_context())
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_logging_head_error_request(self, mock_session_send):
+    def test_logging_head_error_request(self, httpx_mock, setup_dag):
         def resp_check(_):
             return True
 
-        response = requests.Response()
-        response.status_code = 404
-        response.reason = 'Not Found'
-        response._content = b"This endpoint doesn't exist"
-        mock_session_send.return_value = response
-
+        httpx_mock.add_response(status_code=404, data="This endpoint doesn't exist")
         task = HttpSensor(
-            dag=self.dag,
+            dag=setup_dag,
             task_id='http_sensor_head_method',
             http_conn_id='http_default',
             endpoint='',
@@ -167,7 +141,7 @@ class TestHttpSensor(unittest.TestCase):
 
         with mock.patch.object(task.hook.log, 'error') as mock_errors:
             with pytest.raises(AirflowSensorTimeout):
-                task.execute(None)
+                task.execute(context={})
 
             assert mock_errors.called
             calls = [
@@ -187,68 +161,51 @@ class TestHttpSensor(unittest.TestCase):
             mock_errors.assert_has_calls(calls)
 
 
-class FakeSession:
-    def __init__(self):
-        self.response = requests.Response()
-        self.response.status_code = 200
-        self.response._content = 'apache/airflow'.encode('ascii', 'ignore')
-
-    def send(self, *args, **kwargs):
-        return self.response
-
-    def prepare_request(self, request):
-        if 'date' in request.params:
-            self.response._content += ('/' + request.params['date']).encode('ascii', 'ignore')
-        return self.response
-
-    def merge_environment_settings(self, _url, **kwargs):
-        return kwargs
+@pytest.fixture
+def setup_op_dag():
+    args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
+    yield DAG(TEST_DAG_ID, default_args=args)
 
 
-class TestHttpOpSensor(unittest.TestCase):
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
-        dag = DAG(TEST_DAG_ID, default_args=args)
-        self.dag = dag
-
-    @mock.patch('requests.Session', FakeSession)
-    def test_get(self):
+class TestHttpOpSensor:
+    def test_get(self, httpx_mock, setup_op_dag):
+        httpx_mock.add_response(status_code=200)
         op = SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
             data={"client": "ubuntu", "q": "airflow"},
             headers={},
-            dag=self.dag,
+            dag=setup_op_dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch('requests.Session', FakeSession)
-    def test_get_response_check(self):
+    def test_get_response_check(self, httpx_mock, setup_op_dag):
+        httpx_mock.add_response(status_code=200, data="apache/airflow")
         op = SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
-            data={"client": "ubuntu", "q": "airflow"},
             response_check=lambda response: ("apache/airflow" in response.text),
             headers={},
-            dag=self.dag,
+            dag=setup_op_dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch('requests.Session', FakeSession)
-    def test_sensor(self):
+    def test_sensor(self, httpx_mock, setup_op_dag):
+        httpx_mock.add_response(
+            status_code=200,
+            url="https://www.httpbin.org//search?client=ubuntu&q=airflow&date="
+            + DEFAULT_DATE.strftime('%Y-%m-%d'),
+        )
         sensor = HttpSensor(
             task_id='http_sensor_check',
             http_conn_id='http_default',
             endpoint='/search',
             request_params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
             headers={},
-            response_check=lambda response: (
-                "apache/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d') in response.text
-            ),
             poke_interval=5,
             timeout=15,
-            dag=self.dag,
+            dag=setup_op_dag,
         )
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

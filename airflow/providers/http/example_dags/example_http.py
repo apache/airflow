@@ -75,7 +75,7 @@ task_get_op_response_filter = SimpleHttpOperator(
     task_id='get_op_response_filter',
     method='GET',
     endpoint='get',
-    response_filter=lambda response: response.json()['nested']['property'],
+    response_filter=lambda response: response.json()['headers']['Host'],
     dag=dag,
 )
 # [END howto_operator_http_task_get_op_response_filter]

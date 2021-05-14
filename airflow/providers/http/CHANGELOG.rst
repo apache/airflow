@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Due to licencing issues, the HTTP provider switched from ``requests`` to ``httpx`` library.
+In case you use an authentication method different than default Basic Authenticaton,
+you will need to change it to use the httpx-compatible one.
+
+HttpHook's run() method passes any kwargs passed to underlying httpx.Requests object rather than
+to requests.Requests. They largely compatible (for example json kwarg is supported in both) but not fully.
+The ``content`` and ``auth`` parameters are not supported in ``httpx``.
+
+The "verify", "proxie" and "cert" extra parameters
+
+The get_conn() method of HttpHook returns ``httpx.Client`` rather than ``requests.Session``.
+
+The get_conn() method of HttpHook has extra parameters: verify ,proxies and cert which are executed by the
+run() method, so if your hook derives from the HttpHook it should be updated.
+
+The ``run_and_check`` method is gone. PreparedRequests are not supported in ``httpx`` and this method
+used it. Instead, run method simply creates and executes the full request instance.
+
+While ``httpx`` does not support ``REQUESTS_CA_BUNDLE`` variable overriding ca crt, we backported
+the requests behaviour to HTTPHook and it respects the variable if set. More details on that variable
+can be found `here <https://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification`_
+
+
 1.1.1
 .....
 

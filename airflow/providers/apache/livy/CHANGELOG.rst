@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+The Livy Hook derives now from the new version of Http Hook in Http Provider.
+
+TODO: Add extra dependency to 2.0.0 version of http Provider.
+
+
 1.1.0
 .....
 

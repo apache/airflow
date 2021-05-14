@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional, Union
+import http
+import os
+from typing import Any, Callable, Dict, Optional, Type, Union
 
-import requests
+import httpx
 import tenacity
-from requests.auth import HTTPBasicAuth
+from httpx import Auth, BasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -48,29 +50,38 @@ class HttpHook(BaseHook):
         self,
         method: str = 'POST',
         http_conn_id: str = default_conn_name,
-        auth_type: Any = HTTPBasicAuth,
+        auth_type: Type[Auth] = BasicAuth,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self.auth_type: Any = auth_type
+        self.auth_type: Type[Auth] = auth_type
+        self.extra_headers: Dict = {}
+        self.conn = None
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
-    def get_conn(self, headers: Optional[Dict[Any, Any]] = None) -> requests.Session:
+    def get_conn(
+        self, headers: Optional[Dict[Any, Any]] = None, verify: bool = True, proxies=None, cert=None
+    ) -> httpx.Client:
         """
-        Returns http session for use with requests
+        Returns httpx client for use with requests
 
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
+        :param verify: whether to verify SSL during the connection (only use for testing)
+        :param proxies: A dictionary mapping proxy keys to proxy
+        :param cert: client An SSL certificate used by the requested host
+            to authenticate the client. Either a path to an SSL certificate file, or
+            two-tuple of (certificate file, key file), or a three-tuple of (certificate
+            file, key file, password).
         """
-        session = requests.Session()
+        client = httpx.Client(verify=verify, proxies=proxies, cert=cert)
 
         if self.http_conn_id:
             conn = self.get_connection(self.http_conn_id)
-
             if conn.host and "://" in conn.host:
                 self.base_url = conn.host
             else:
@@ -82,16 +93,20 @@ class HttpHook(BaseHook):
             if conn.port:
                 self.base_url = self.base_url + ":" + str(conn.port)
             if conn.login:
-                session.auth = self.auth_type(conn.login, conn.password)
+                # Note! This handles Basic Auth and DigestAuth and any other authentication that
+                # supports login/password in the constructor.
+                client.auth = self.auth_type(conn.login, conn.password)  # noqa
             if conn.extra:
                 try:
-                    session.headers.update(conn.extra_dejson)
+                    client.headers.update(conn.extra_dejson)
                 except TypeError:
                     self.log.warning('Connection to %s has invalid extra field.', conn.host)
+            # Hooks deriving from HTTP Hook might use it to query connection details
+            self.conn = conn
         if headers:
-            session.headers.update(headers)
+            client.headers.update(headers)
 
-        return session
+        return client
 
     def run(
         self,
@@ -111,16 +126,24 @@ class HttpHook(BaseHook):
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         :param extra_options: additional options to be used when executing the request
-            i.e. {'check_response': False} to avoid checking raising exceptions on non
-            2XX or 3XX status codes
+            i.e. ``{'check_response': False}`` to avoid checking raising exceptions on non
+            2XX or 3XX status codes. The extra options can take the following keys:
+            verify, proxies, cert, stream, allow_redirects, timeout, check_response.
+            See ``httpx.Client`` for description of those parameters.
         :type extra_options: dict
         :param request_kwargs: Additional kwargs to pass when creating a request.
-            For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
+            For example, ``run(json=obj)`` is passed as ``httpx.Request(json=obj)``
         """
         extra_options = extra_options or {}
 
-        session = self.get_conn(headers)
-
+        verify = extra_options.get("verify", True)
+        if verify is True:
+            # Only use REQUESTS_CA_BUNDLE content if verify is set to True,
+            # otherwise use passed value as it can be string, or SSLcontext
+            verify = os.environ.get('REQUESTS_CA_BUNDLE', verify)
+        proxies = extra_options.get("proxies", None)
+        cert = extra_options.get("cert", None)
+        client = self.get_conn(headers, verify=verify, proxies=proxies, cert=cert)
         if self.base_url and not self.base_url.endswith('/') and endpoint and not endpoint.startswith('/'):
             url = self.base_url + '/' + endpoint
         else:
@@ -128,19 +151,33 @@ class HttpHook(BaseHook):
 
         if self.method == 'GET':
             # GET uses params
-            req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
+            req = httpx.Request(self.method, url, params=data, headers=client.headers, **request_kwargs)
         elif self.method == 'HEAD':
             # HEAD doesn't use params
-            req = requests.Request(self.method, url, headers=headers, **request_kwargs)
+            req = httpx.Request(self.method, url, headers=client.headers, **request_kwargs)
         else:
             # Others use data
-            req = requests.Request(self.method, url, data=data, headers=headers, **request_kwargs)
+            req = httpx.Request(self.method, url, headers=client.headers, data=data, **request_kwargs)
 
-        prepped_request = session.prepare_request(req)
+        # Send the request
+        send_kwargs = {
+            "stream": extra_options.get("stream", False),
+            "allow_redirects": extra_options.get("allow_redirects", True),
+            "timeout": extra_options.get("timeout"),
+        }
         self.log.info("Sending '%s' to url: %s", self.method, url)
-        return self.run_and_check(session, prepped_request, extra_options)
 
-    def check_response(self, response: requests.Response) -> None:
+        try:
+            response = client.send(req, **send_kwargs)
+            if extra_options.get('check_response', True):
+                self.check_response(response)
+            return response
+
+        except httpx.NetworkError as ex:
+            self.log.warning('%s Tenacity will retry to execute the operation', ex)
+            raise ex
+
+    def check_response(self, response: httpx.Response) -> None:
         """
         Checks the status code and raise an AirflowException exception on non 2XX or 3XX
         status codes
@@ -150,57 +187,15 @@ class HttpHook(BaseHook):
         """
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError:
-            self.log.error("HTTP error: %s", response.reason)
+        except httpx.HTTPError:
+            phrase = 'Unknown'
+            try:
+                phrase = http.HTTPStatus(response.status_code).phrase
+            except ValueError:
+                pass
+            self.log.error("HTTP error: %s", phrase)
             self.log.error(response.text)
-            raise AirflowException(str(response.status_code) + ":" + response.reason)
-
-    def run_and_check(
-        self,
-        session: requests.Session,
-        prepped_request: requests.PreparedRequest,
-        extra_options: Dict[Any, Any],
-    ) -> Any:
-        """
-        Grabs extra options like timeout and actually runs the request,
-        checking for the result
-
-        :param session: the session to be used to execute the request
-        :type session: requests.Session
-        :param prepped_request: the prepared request generated in run()
-        :type prepped_request: session.prepare_request
-        :param extra_options: additional options to be used when executing the request
-            i.e. {'check_response': False} to avoid checking raising exceptions on non 2XX
-            or 3XX status codes
-        :type extra_options: dict
-        """
-        extra_options = extra_options or {}
-
-        settings = session.merge_environment_settings(
-            prepped_request.url,
-            proxies=extra_options.get("proxies", {}),
-            stream=extra_options.get("stream", False),
-            verify=extra_options.get("verify"),
-            cert=extra_options.get("cert"),
-        )
-
-        # Send the request.
-        send_kwargs = {
-            "timeout": extra_options.get("timeout"),
-            "allow_redirects": extra_options.get("allow_redirects", True),
-        }
-        send_kwargs.update(settings)
-
-        try:
-            response = session.send(prepped_request, **send_kwargs)
-
-            if extra_options.get('check_response', True):
-                self.check_response(response)
-            return response
-
-        except requests.exceptions.ConnectionError as ex:
-            self.log.warning('%s Tenacity will retry to execute the operation', ex)
-            raise ex
+            raise AirflowException(str(response.status_code) + ":" + response.text)
 
     def run_with_advanced_retry(self, _retry_args: Dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
         """

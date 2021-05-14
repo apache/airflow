@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from typing import Any, Callable, Dict, Optional, Type
 
-from requests.auth import AuthBase, HTTPBasicAuth
+from httpx import Auth, BasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -86,7 +86,7 @@ class SimpleHttpOperator(BaseOperator):
         extra_options: Optional[Dict[str, Any]] = None,
         http_conn_id: str = 'http_default',
         log_response: bool = False,
-        auth_type: Type[AuthBase] = HTTPBasicAuth,
+        auth_type: Type[Auth] = BasicAuth,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)

@@ -343,20 +343,7 @@ hive = [
     'pyhive[hive]>=0.6.0',
     'thrift>=0.9.2',
 ]
-http = [
-    'requests>=2.20.0',
-]
-http_provider = [
-    # NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
-    #        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
-    #        See https://github.com/psf/requests/pull/5797
-    #        This means that providers that depend on Http and cannot work without it, have to have
-    #        explicit dependency on `apache-airflow-providers-http` which needs to be pulled in for them.
-    #        Other cross-provider-dependencies are optional (usually cross-provider dependencies only enable
-    #        some features of providers and majority of those providers works). They result with an extra,
-    #        not with the `install-requires` dependency.
-    'apache-airflow-providers-http',
-]
+http = []
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -543,7 +530,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-    'airbyte': http_provider,
+    'airbyte': http,
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
@@ -551,7 +538,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.hdfs': hdfs,
     'apache.hive': hive,
     'apache.kylin': kylin,
-    'apache.livy': http_provider,
+    'apache.livy': http,
     'apache.pig': [],
     'apache.pinot': pinot,
     'apache.spark': spark,
@@ -584,7 +571,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
-    'opsgenie': http_provider,
+    'opsgenie': http,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,

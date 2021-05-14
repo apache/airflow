@@ -20,7 +20,6 @@ import json
 import unittest
 
 import pytest
-import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -31,6 +30,36 @@ from airflow.utils import db
 class TestOpsgenieAlertHook(unittest.TestCase):
     conn_id = 'opsgenie_conn_id_test'
     opsgenie_alert_endpoint = 'https://api.opsgenie.com/v2/alerts'
+
+    def setUp(self):
+        db.merge_conn(
+            Connection(
+                conn_id=self.conn_id,
+                conn_type='http',
+                host='https://api.opsgenie.com/',
+                password='eb243592-faa2-4ba2-a551q-1afdf565c889',
+            )
+        )
+
+    def test_get_api_key(self):
+        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
+        api_key = hook._get_api_key()
+        assert 'eb243592-faa2-4ba2-a551q-1afdf565c889' == api_key
+
+    def test_get_conn_defaults_host(self):
+        hook = OpsgenieAlertHook()
+        hook.get_conn()
+        assert 'https://api.opsgenie.com' == hook.base_url
+
+
+class TestOpsGenieAlertMockHttpx:
+    conn_id = 'opsgenie_conn_id_test'
+    opsgenie_alert_endpoint = 'https://api.opsgenie.com/v2/alerts'
+    _mock_success_response_body = {
+        "result": "Request will be processed",
+        "took": 0.302,
+        "requestId": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
+    }
     _payload = {
         'message': 'An example alert message',
         'alias': 'Life is too short for no alias',
@@ -60,57 +89,35 @@ class TestOpsgenieAlertHook(unittest.TestCase):
         'user': 'Jesse',
         'note': 'Write this down',
     }
-    _mock_success_response_body = {
-        "result": "Request will be processed",
-        "took": 0.302,
-        "requestId": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
-    }
 
-    def setUp(self):
-        db.merge_conn(
-            Connection(
-                conn_id=self.conn_id,
-                conn_type='http',
-                host='https://api.opsgenie.com/',
-                password='eb243592-faa2-4ba2-a551q-1afdf565c889',
-            )
+    def test_call_with_success(self, httpx_mock):
+        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
+        httpx_mock.add_response(
+            url=self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body
         )
-
-    def test_get_api_key(self):
-        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        api_key = hook._get_api_key()
-        assert 'eb243592-faa2-4ba2-a551q-1afdf565c889' == api_key
-
-    def test_get_conn_defaults_host(self):
-        hook = OpsgenieAlertHook()
-        hook.get_conn()
-        assert 'https://api.opsgenie.com' == hook.base_url
-
-    @requests_mock.mock()
-    def test_call_with_success(self, m):
-        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         resp = hook.execute(payload=self._payload)
         assert resp.status_code == 202
         assert resp.json() == self._mock_success_response_body
 
-    @requests_mock.mock()
-    def test_api_key_set(self, m):
+    def test_api_key_set(self, httpx_mock):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
+        httpx_mock.add_response(
+            url=self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body
+        )
         resp = hook.execute(payload=self._payload)
         assert resp.request.headers.get('Authorization') == 'GenieKey eb243592-faa2-4ba2-a551q-1afdf565c889'
 
-    @requests_mock.mock()
-    def test_api_key_not_set(self, m):
+    def test_api_key_not_set(self):
         hook = OpsgenieAlertHook()
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
         with pytest.raises(AirflowException):
             hook.execute(payload=self._payload)
 
-    @requests_mock.mock()
-    def test_payload_set(self, m):
+    def test_payload_set(self, httpx_mock):
         hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
-        m.post(self.opsgenie_alert_endpoint, status_code=202, json=self._mock_success_response_body)
-        resp = hook.execute(payload=self._payload)
-        assert json.loads(resp.request.body) == self._payload
+        httpx_mock.add_response(
+            url=self.opsgenie_alert_endpoint,
+            status_code=202,
+            json=self._mock_success_response_body,
+            match_content=json.dumps(self._payload).encode("utf-8"),
+        )
+        hook.execute(payload=self._payload)
