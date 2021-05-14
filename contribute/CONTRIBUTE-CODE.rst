@@ -34,6 +34,7 @@ Where to Contribute
 --------------------
 To get started, decide where or what you want to contribute. For ideas, you can browse:
 
+- `Good First Issues <https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3A%22good%20first%20issue%22>`__
 - `All GitHub Issues <https://github.com/apache/airflow/issues>`__
 - `Reported Bugs <https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Akind%3Abug>`__
 - `Requested Features <https://github.com/apache/airflow/labels/kind%3Afeature>`__

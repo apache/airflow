@@ -40,7 +40,7 @@ Do you want to contribute to Airflow docs, but you're not sure exactly where? Co
 - Images or screenshots that help provide users context
 - New tutorials
 
-Anything that makes Airflow easier to use and understand is welcome.
+Anything that makes Airflow easier to use and understand is welcome. For specific ideas, browse `open documentation issues <https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Akind%3Adocumentation>`_ in GitHub.
 
 Before you Begin
 -----------------
