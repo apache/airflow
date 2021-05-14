@@ -59,7 +59,7 @@ def insert_documentation(file_path: str, content: List[str], header: str, footer
 
 if __name__ == '__main__':
     install_file_path = os.path.join(AIRFLOW_SOURCES_DIR, 'INSTALL')
-    contributing_file_path = os.path.join(AIRFLOW_SOURCES_DIR, 'CONTRIBUTING.rst')
+    contributing_file_path = os.path.join(AIRFLOW_SOURCES_DIR, 'CONTRIBUTE-PROVIDERS.rst')
     extras = wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)
     extras = [line + "\n" for line in extras]
     insert_documentation(install_file_path, extras, INSTALL_HEADER, INSTALL_FOOTER)
