@@ -77,6 +77,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             image='ubuntu:latest',
             command='env',
             user='unittest',
+            mounts=[],
             tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
         )
