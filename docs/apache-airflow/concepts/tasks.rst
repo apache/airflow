@@ -132,6 +132,7 @@ is periodically executed and rescheduled until it succeeds.
   still have up to 3600 seconds in total for it to succeed.
 
 .. code-block:: python
+
     sensor = SFTPSensor(
         task_id="sensor",
         path='/root/test',
