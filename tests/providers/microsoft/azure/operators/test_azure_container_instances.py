@@ -334,9 +334,7 @@ class TestACIOperator(unittest.TestCase):
     @mock.patch(
         "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
-    @mock.patch(
-        'airflow.providers.microsoft.azure.operators.azure_container_instances.sleep'
-    )
+    @mock.patch('airflow.providers.microsoft.azure.operators.azure_container_instances.sleep')
     def test_execute_correct_sleep_cycle(self, sleep_mock, aci_mock):
         expected_c_state1 = ContainerState(state='Running', exit_code=0, detail_status='test')
         expected_cg1 = make_mock_cg(expected_c_state1)
