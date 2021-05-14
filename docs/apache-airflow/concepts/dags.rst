@@ -603,3 +603,6 @@ with different execution dates. The **Dag Dependencies** view
 ``Menu -> Browse -> DAG Dependencies`` helps visualize dependencies between DAGs. The dependencies
 are calculated by the scheduler during DAG serialization and the webserver uses them to build
 the dependency graph.
+
+The dependency detector is configurable, so you can implement your own logic different than the defaults in
+:class:`~airflow.serialization.serialized_objects.DependencyDetector`

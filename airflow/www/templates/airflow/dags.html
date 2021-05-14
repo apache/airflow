@@ -277,5 +277,15 @@
   <script src="{{ url_for_asset('dags.js') }}"></script>
   <script>
     const STATE_COLOR = {{ state_color|tojson }};
+    // Tests rely on confirmDeleteDag to be in the html
+    function confirmDeleteDag(link, dagId) {
+      if (confirm(`Are you sure you want to delete '${dagId}' now?\n\
+        This option will delete ALL metadata, DAG runs, etc.\n\
+        EXCEPT Log.\n\
+        This cannot be undone.`)) {
+        postAsForm(link.href, {});
+      }
+      return false;
+    }
   </script>
 {% endblock %}

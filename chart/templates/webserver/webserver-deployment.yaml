@@ -128,7 +128,7 @@ spec:
               subPath: webserver_config.py
               readOnly: true
 {{- end }}
-{{- if .Values.scheduler.airflowLocalSettings }}
+{{- if .Values.airflowLocalSettings }}
             - name: config
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py

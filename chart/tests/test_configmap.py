@@ -45,3 +45,18 @@ class ConfigmapTest(unittest.TestCase):
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert "value" == annotations.get("key")
         assert "value-two" == annotations.get("key-two")
+
+    def test_no_airflow_local_settings_by_default(self):
+        docs = render_chart(
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        assert "airflow_local_settings.py" not in jmespath.search("data", docs[0])
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        assert "# Well hello!" == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()

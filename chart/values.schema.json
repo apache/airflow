@@ -234,6 +234,15 @@
             "default": {},
             "x-docsSection": "Kubernetes"
         },
+        "airflowLocalSettings": {
+            "description": "`airflow_local_settings` file as a string.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
@@ -1130,15 +1139,6 @@
                             }
                         }
                     ]
-                },
-                "airflowLocalSettings": {
-                    "description": "`airflow_local_settings` file as a string.",
-                    "type": [
-                        "string",
-                        "null"
-                    ],
-                    "x-docsSection": "Common",
-                    "default": null
                 },
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
