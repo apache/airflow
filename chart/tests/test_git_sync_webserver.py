@@ -130,3 +130,21 @@ class GitSyncWebserverTest(unittest.TestCase):
             assert "git-sync" in containers_names
             assert "dags" in volume_mount_names
             assert "dags" in volume_names
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
