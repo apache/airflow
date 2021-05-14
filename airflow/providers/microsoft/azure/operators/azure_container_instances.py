@@ -338,7 +338,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                             "Exception while getting logs from container instance, retrying..."
                         )
 
-                if state in ["Terminated"]:
+                if state == "Terminated":
                     self.log.info("Container exited with detail_status %s", detail_status)
                     return exit_code
 
