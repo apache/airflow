@@ -140,7 +140,7 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
         },
     )
 
-See the `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_ to find all available options.
+See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
 
 Rendering Fields as Native Python Objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
