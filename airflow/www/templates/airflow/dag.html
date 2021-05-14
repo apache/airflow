@@ -403,4 +403,16 @@
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for_asset('dag.js') }}"></script>
+  <script>
+    // Tests rely on confirmDeleteDag to be in the html
+    function confirmDeleteDag(link, id) {
+      if (confirm(`Are you sure you want to delete '${id}' now?\n\
+        This option will delete ALL metadata, DAG runs, etc.\n\
+        EXCEPT Log.\n\
+        This cannot be undone.`)) {
+        postAsForm(link.href, {});
+      }
+      return false;
+    }
+  </script>
 {% endblock %}
