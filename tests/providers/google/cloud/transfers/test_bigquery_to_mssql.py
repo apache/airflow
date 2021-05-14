@@ -32,7 +32,7 @@ class TestBigQueryToMsSqlOperator(unittest.TestCase):
         destination_table = 'table'
         operator = BigQueryToMsSqlOperator(
             task_id=TASK_ID,
-            dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
+            source_project_dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
             mssql_table=destination_table,
             replace=False,
         )
