@@ -93,6 +93,10 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
     """
     Pokes DMS task until it is completed.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/sensor:DmsTaskCompletedSensor`
+
     :param replication_task_arn: AWS DMS replication task ARN
     :type replication_task_arn: str
     """

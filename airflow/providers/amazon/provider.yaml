@@ -135,6 +135,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/step-functions/
     logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
     tags: [aws]
+  - integration-name: AWS Database Migration Service
+    external-doc-url: https://aws.amazon.com/dms/
+    logo: /integration-logos/aws/AWS-Database-Migration-Service_64@5x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/dms.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -149,6 +155,13 @@ operators:
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.operators.datasync
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.operators.dms_create_task
+      - airflow.providers.amazon.aws.operators.dms_delete_task
+      - airflow.providers.amazon.aws.operators.dms_describe_tasks
+      - airflow.providers.amazon.aws.operators.dms_start_task
+      - airflow.providers.amazon.aws.operators.dms_stop_task
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2_start_instance
@@ -205,6 +218,9 @@ sensors:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.dms_task
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
@@ -264,6 +280,9 @@ hooks:
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.hooks.datasync
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.dms
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2

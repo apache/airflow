@@ -538,6 +538,7 @@ bigtable
 bitshift
 bolkedebruin
 booktabs
+bool
 boolean
 booleans
 bootDiskType
@@ -558,6 +559,7 @@ casted
 catchup
 cattrs
 ccache
+cdc
 celeryd
 celltags
 cfg
@@ -705,6 +707,7 @@ distcp
 distro
 distros
 dlp
+dms
 dns
 dnsPolicy
 dnspolicy

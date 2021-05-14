@@ -24,7 +24,18 @@ from airflow.utils.decorators import apply_defaults
 
 
 class DmsStopTaskOperator(BaseOperator):
-    """Stops AWS DMS replication task."""
+    """
+    Stops AWS DMS replication task.
+
+    :param replication_task_arn: Replication task ARN
+    :type replication_task_arn: str
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :type aws_conn_id: Optional[str]
+    """
 
     template_fields = ('replication_task_arn',)
     template_ext = ()

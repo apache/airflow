@@ -24,7 +24,18 @@ from airflow.utils.decorators import apply_defaults
 
 
 class DmsDescribeTasksOperator(BaseOperator):
-    """Describes AWS DMS replication tasks."""
+    """
+    Describes AWS DMS replication tasks.
+
+    :param describe_tasks_kwargs: Describe tasks command arguments
+    :type describe_tasks_kwargs: Optional[dict]
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :type aws_conn_id: Optional[str]
+    """
 
     template_fields = ('describe_tasks_kwargs',)
     template_ext = ()

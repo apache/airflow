@@ -24,7 +24,27 @@ from airflow.utils.decorators import apply_defaults
 
 
 class DmsStartTaskOperator(BaseOperator):
-    """Starts AWS DMS replication task."""
+    """
+    Starts AWS DMS replication task.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsStartTaskOperator`
+
+    :param replication_task_arn: Replication task ARN
+    :type replication_task_arn: str
+    :param start_replication_task_type: Replication task start type
+        ('start-replication'|'resume-processing'|'reload-target')
+    :type start_replication_task_type: Optional[str]
+    :param start_task_kwargs: Extra start replication task arguments
+    :type start_task_kwargs: Optional[dict]
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :type aws_conn_id: Optional[str]
+    """
 
     template_fields = (
         'replication_task_arn',
