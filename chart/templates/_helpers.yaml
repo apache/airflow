@@ -304,11 +304,12 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{ define "pgbouncer_config" }}
+{{- $resultBackendConnection := .Values.data.resultBackendConnection | default .Values.data.metadataConnection }}
 {{- $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
-{{- $pgResultBackendHost := .Values.data.resultBackendConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
+{{- $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 [databases]
 {{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }}
-{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ .Values.data.resultBackendConnection.db }} port={{ .Values.data.resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }}
+{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }}
 
 [pgbouncer]
 pool_mode = transaction
@@ -339,8 +340,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{ define "pgbouncer_users" }}
+{{- $resultBackendConnection := .Values.data.resultBackendConnection | default .Values.data.metadataConnection }}
 {{ .Values.data.metadataConnection.user | quote }} {{ .Values.data.metadataConnection.pass | quote }}
-{{ .Values.data.resultBackendConnection.user | quote }} {{ .Values.data.resultBackendConnection.pass | quote }}
+{{ $resultBackendConnection.user | quote }} {{ $resultBackendConnection.pass | quote }}
 {{- end }}
 
 {{ define "airflow_logs" -}}

@@ -690,23 +690,27 @@
                 },
                 "resultBackendConnection": {
                     "description": "Result backend connection configuration.",
-                    "type": "object",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": false,
                     "properties": {
                         "user": {
                             "description": "The database user.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": null
                         },
                         "pass": {
                             "description": "The database password.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": null
                         },
                         "protocol": {
                             "description": "The database protocol.",
                             "type": "string",
-                            "default": "postgresql"
+                            "default": null
                         },
                         "host": {
                             "description": "The database host.",
@@ -719,19 +723,28 @@
                         "port": {
                             "description": "The database port.",
                             "type": "integer",
-                            "default": 5432
+                            "default": null
                         },
                         "db": {
                             "description": "The name of the database.",
                             "type": "string",
-                            "default": "postgres"
+                            "default": null
                         },
                         "sslmode": {
                             "description": "The database SSL parameter.",
                             "type": "string",
-                            "default": "disable"
+                            "default": null
                         }
-                    }
+                    },
+                    "required": [
+                        "user",
+                        "pass",
+                        "protocol",
+                        "host",
+                        "port",
+                        "db",
+                        "sslmode"
+                    ]
                 },
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance).",
