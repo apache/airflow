@@ -1113,10 +1113,6 @@ OPERATORS = [
         'airflow.operators.branch_operator.BaseBranchOperator',
     ),
     (
-        'airflow.operators.datetime.BranchDateTimeOperator',
-        'airflow.operators.datetime_branch.DateTimeBranchOperator',
-    ),
-    (
         'airflow.operators.bash.BashOperator',
         'airflow.operators.bash_operator.BashOperator',
     ),
