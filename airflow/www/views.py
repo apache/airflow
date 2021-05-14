@@ -4194,6 +4194,7 @@ class CustomUserStatsChartView(UserStatsChartView):
     route_base = "/userstatschartview"
     method_permission_name = {
         'chart': 'read',
+        'list': 'read',
     }
     base_permissions = [permissions.ACTION_CAN_READ]
 
@@ -4204,6 +4205,7 @@ class CustomUserLDAPModelView(UserLDAPModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4216,6 +4218,7 @@ class CustomUserOAuthModelView(UserOAuthModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4228,6 +4231,7 @@ class CustomUserOIDModelView(UserOIDModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4240,6 +4244,7 @@ class CustomUserRemoteUserModelView(UserRemoteUserModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
