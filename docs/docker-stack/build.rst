@@ -117,6 +117,10 @@ You should be aware, about a few things:
   in runtime, will have ``GID=0`` and will be group-writable.
 
 .. note::
+  When you build image for Airflow version < ``2.1`` (for example 2.0.2 or 1.10.15) the image is build with
+  PIP 20.2.4 because ``PIP21+`` is only supported for ``Airflow 2.1+``
+
+.. note::
   Only as of ``2.0.2`` the default group of ``airflow`` user is ``root``. Previously it was ``airflow``,
   so if you are building your images based on an earlier image, you need to manually change the default
   group for airflow user:

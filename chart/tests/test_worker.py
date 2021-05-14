@@ -231,3 +231,35 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_no_airflow_local_settings_by_default(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_airflow_local_settings_kerberos_sidecar(self):
+        docs = render_chart(
+            values={
+                "airflowLocalSettings": "# Well hello!",
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])

@@ -48,11 +48,13 @@ def create_context(task):
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     task_instance = TaskInstance(task=task, execution_date=execution_date)
+    task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,
         "ts": execution_date.isoformat(),
         "task": task,
         "ti": task_instance,
+        "task_instance": task_instance,
     }
 
 

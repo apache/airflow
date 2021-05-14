@@ -119,6 +119,8 @@ install_all_other_packages_from_docker_context_files() {
     fi
 }
 
+common::get_airflow_version_specification
+common::override_pip_version_if_needed
 common::get_constraints_location
 
 install_airflow_and_providers_from_docker_context_files

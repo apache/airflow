@@ -537,9 +537,21 @@ repos:
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
+        name: Lint chart/values.schema.json file with JSON Schema
+        entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
+        args:
+          - --spec-file
+          - chart/values_schema.schema.json
+        language: python
+        pass_filenames: true
+        files: chart/values\.schema\.json$
+        require_serial: true
+        additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
+      - id: json-schema
         name: Lint chart/values.yaml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
+          - --enforce-defaults
           - --spec-file
           - chart/values.schema.json
         language: python

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, confirm, postAsForm, confirm */
+/* global document, window, $, */
 
 import getMetaValue from './meta_value';
 
@@ -214,18 +214,6 @@ export function callModalDag(dag) {
     dag_id: dag && dag.execution_date,
     execution_date: dag && dag.dag_id,
   });
-}
-
-// eslint-disable-next-line no-unused-vars
-function confirmDeleteDag(link, id) {
-  // eslint-disable-next-line no-alert, no-restricted-globals
-  if (confirm(`Are you sure you want to delete '${id}' now?\n\
-    This option will delete ALL metadata, DAG runs, etc.\n\
-    EXCEPT Log.\n\
-    This cannot be undone.`)) {
-    postAsForm(link.href, {});
-  }
-  return false;
 }
 
 // Task Instance Modal actions

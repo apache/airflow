@@ -189,8 +189,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     AIRFLOW_INSTALL_EDITABLE_FLAG="" \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
-# Only copy install_mysql.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+COPY scripts/docker/*.sh /scripts/docker/
 RUN bash ./scripts/docker/install_mysql.sh dev
 
 COPY docker-context-files /docker-context-files
@@ -198,9 +197,6 @@ COPY docker-context-files /docker-context-files
 RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
-
-# Upgrade to specific PIP version
-RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" && mkdir -p /root/.local/bin
 
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
@@ -210,19 +206,15 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM} \
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
-# Only copy common.sh to not invalidate cache on other script changes
-COPY scripts/docker/common.sh /scripts/docker/common.sh
-
-# Only copy install_airflow_from_branch_tip.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_airflow_from_branch_tip.sh /scripts/docker/install_airflow_from_branch_tip.sh
-
 # In case of Production build image segment we want to pre-install master version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
 # are uninstalled, only dependencies remain
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
-RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
+# Upgrade to specific PIP version
+RUN bash /scripts/docker/install_pip_version.sh; \
+    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_from_branch_tip.sh; \
     fi
@@ -256,9 +248,6 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 
 WORKDIR /opt/airflow
 
-# Copy all install scripts here
-COPY scripts/docker/install*.sh /scripts/docker/
-
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
@@ -269,14 +258,10 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
-    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
-
-# Copy compile_www_assets.sh install scripts here
-COPY scripts/docker/compile_www_assets.sh /scripts/docker/compile_www_assets.sh
-
-RUN bash /scripts/docker/compile_www_assets.sh && \
-# make sure that all directories and files in .local are also group accessible
-    find /root/.local -executable -print0 | xargs --null chmod g+x && \
+    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
+    bash /scripts/docker/compile_www_assets.sh; \
+    # make sure that all directories and files in .local are also group accessible
+    find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw
 
 ARG BUILD_ID
@@ -421,8 +406,9 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Only copy install_mysql script. We do not need any other
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+# Only copy install_mysql and install_pip_version.sh. We do not need any other scripts in the final image.
+COPY scripts/docker/install_mysql.sh scripts/docker/install_pip_version.sh /scripts/docker/
+
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
@@ -448,7 +434,7 @@ COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 
 RUN chmod a+x /entrypoint /clean-logs && \
     chmod g=u /etc/passwd && \
-    pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    bash /scripts/docker/install_pip_version.sh
 
 WORKDIR ${AIRFLOW_HOME}
 

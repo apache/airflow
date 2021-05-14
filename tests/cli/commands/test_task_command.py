@@ -20,6 +20,7 @@ import io
 import json
 import logging
 import os
+import re
 import unittest
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
@@ -226,6 +227,47 @@ class TestCliTasks(unittest.TestCase):
                 )
             )
 
+    def test_task_render(self):
+        """
+        tasks render should render and displays templated fields for a given task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(['tasks', 'render', 'tutorial', 'templated', DEFAULT_DATE.isoformat()])
+            )
+
+        output = stdout.getvalue()
+
+        assert 'echo "2016-01-01"' in output
+        assert 'echo "2016-01-08"' in output
+        assert 'echo "Parameter I passed in"' in output
+
+    def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
+        """
+        tasks run should return an AirflowException when invalid pickle_id is passed
+        """
+        pickle_id = 'pickle_id'
+
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
+        ):
+            dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        'tasks',
+                        'run',
+                        'example_bash_operator',
+                        'runme_0',
+                        DEFAULT_DATE.isoformat(),
+                        '--pickle',
+                        pickle_id,
+                    ]
+                ),
+                dag,
+            )
+
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
@@ -270,6 +312,25 @@ class TestCliTasks(unittest.TestCase):
             'start_date': ti_start.isoformat(),
             'end_date': ti_end.isoformat(),
         }
+
+    def test_task_states_for_dag_run_when_dag_run_not_exists(self):
+        """
+        task_states_for_dag_run should return an AirflowException when invalid dag id is passed
+        """
+        with pytest.raises(AirflowException, match="DagRun does not exist."):
+            default_date2 = timezone.make_aware(datetime(2016, 1, 9))
+            task_command.task_states_for_dag_run(
+                self.parser.parse_args(
+                    [
+                        'tasks',
+                        'states-for-dag-run',
+                        'not_exists_dag',
+                        default_date2.isoformat(),
+                        '--output',
+                        "json",
+                    ]
+                )
+            )
 
     def test_subdag_clear(self):
         args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes'])

@@ -211,7 +211,7 @@ class DAG(LoggingMixin):
             )
 
         **See**: `Jinja Environment documentation
-        <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+        <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
     :param tags: List of tags to help filtering DAGS in the UI.
