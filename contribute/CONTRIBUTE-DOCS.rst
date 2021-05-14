@@ -101,7 +101,7 @@ Alternatively, you can host the entire website by running the following command 
 
     docs/start_doc_server.sh
 
-After running this command, you can access the updated documentation directly in your web browser by visiting ``localhost:8000``. 
+After running this command, you can access the updated documentation directly in your web browser by visiting ``localhost:8000``.
 
 6. Once you've finished making your changes, create a `pull request <https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__ from your forked repository.
 7. Repeat steps 3-5 for any suggestions you get from your PR reviewers.
@@ -218,7 +218,7 @@ All cross references share the same general formatting:
 
     ... :role:`target`
 
-Here, ``role`` is the type of content you're referencing, while ``target`` is where to look for that content. 
+Here, ``role`` is the type of content you're referencing, while ``target`` is where to look for that content.
 
 For example:
 
@@ -260,7 +260,7 @@ Troubleshooting
 Breeze Build Failure
 --------------------
 The build timeout for  ``./breeze build-docs`` is fixed at 4 minutes, as seen in `docs_builder.py <https://github.com/apache/airflow/blob/2.0.0/docs/exts/docs_build/docs_builder.py#L40>`__.
-If your build is timing out or otherwise failing, re-run the build. 
+If your build is timing out or otherwise failing, re-run the build.
 
 If the timeout persists, try building one document or directory at a time using the ``--package-filter`` flag.
 
@@ -292,21 +292,3 @@ Contribute to Helm Chart Documentation
 --------------------------------------
 
 Currently, Airflow's Helm Chart documentation exists only on GitHub. To contribute, access the `Helm chart documentation repo <https://github.com/apache/airflow/tree/master/docs/helm-chart>`__ and follow the contribution guidelines.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
