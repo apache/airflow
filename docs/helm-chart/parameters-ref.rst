@@ -28,7 +28,7 @@ The following tables lists the configurable parameters of the Airflow chart and 
 
     {% for section in sections %}
 
-    .. _config:{{ section["name"] }}:
+    .. _parameters:{{ section["name"] }}:
 
     {{ section["name"] }}
     {{ "=" * (section["name"]|length + 2) }}

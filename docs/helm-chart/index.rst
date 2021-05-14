@@ -30,8 +30,8 @@ Helm Chart for Apache Airflow
     manage-dags-files
     manage-logs
     keda
-    external-redis
     using-additional-containers
+    production-guide
 
 .. toctree::
     :hidden:

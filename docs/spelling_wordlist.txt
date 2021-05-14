@@ -1107,6 +1107,7 @@ podSpec
 podspec
 poller
 polyfill
+pooler
 postMessage
 postfix
 postgres
