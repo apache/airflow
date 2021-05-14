@@ -54,6 +54,10 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
+      {{- if .Values.airflowPodAnnotations }}
+      annotations:
+      {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+      {{- end }}
     spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}

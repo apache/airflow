@@ -184,23 +184,22 @@ class TestBaseChartTest(unittest.TestCase):
         release_name = "TEST-BASIC"
         k8s_objects = render_chart(
             name=release_name,
-            values={
-                "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
-                "executor": "CeleryExecutor",
-            },
+            values={"airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"}},
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/flower/flower-deployment.yaml",
             ],
         )
+        # pod_template_file is tested separately as it has extra setup steps
 
-        assert len(k8s_objects) == 3
+        assert 4 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
             assert "test-annotation/safe-to-evict" in annotations
-            assert "true" in annotations.get("test-annotation/safe-to-evict")
+            assert "true" in annotations["test-annotation/safe-to-evict"]
 
     def test_chart_is_consistent_with_official_airflow_image(self):
         def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:
