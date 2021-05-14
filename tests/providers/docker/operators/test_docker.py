@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 
 try:
     from docker import APIClient
+    from docker.types import Mount
 
     from airflow.providers.docker.hooks.docker import DockerHook
     from airflow.providers.docker.operators.docker import DockerOperator
@@ -66,7 +67,7 @@ class TestDockerOperator(unittest.TestCase):
             network_mode='bridge',
             owner='unittest',
             task_id='unittest',
-            volumes=['/host/path:/container/path'],
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             entrypoint='["sh", "-c"]',
             working_dir='/container/path',
             shm_size=1000,
