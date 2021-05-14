@@ -42,7 +42,8 @@ from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
 
 class AwsBatchWaitersHook(AwsBatchClientHook):
     """
-    A utility to manage waiters for AWS batch services
+    A utility to manage waiters for AWS batch services.
+    
     Examples:
 
     .. code-block:: python
