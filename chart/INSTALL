@@ -1,0 +1,14 @@
+## INSTALL / BUILD instructions for Apache Airflow Chart
+
+# The Assumption here is that you have a running Kubernetes cluster
+# with helm installed
+
+### Add Airflow Helm Repo
+helm repo add apache-airflow https://airflow.apache.org
+helm repo update
+
+### Update Chart Dependencies
+helm dep update
+
+### Run `helm install` Command
+helm install airflow apache-airflow/airflow
