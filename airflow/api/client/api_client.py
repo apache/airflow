@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for all the API clients."""
-import requests
+import httpx
 
 
 class Client:
@@ -24,7 +24,7 @@ class Client:
 
     def __init__(self, api_base_url, auth=None, session=None):
         self._api_base_url = api_base_url
-        self._session: requests.Session = session or requests.Session()
+        self._session: httpx.Client = session or httpx.Client()
         if auth:
             self._session.auth = auth
 

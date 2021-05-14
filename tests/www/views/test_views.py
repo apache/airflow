@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from unittest import mock
 
 import pytest
 
+from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www.views import get_safe_url, truncate_task_duration
 from tests.test_utils.config import conf_vars
@@ -39,7 +41,10 @@ def test_configuration_do_not_expose_config(admin_client):
     )
 
 
+@mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"})
 def test_configuration_expose_config(admin_client):
+    # make sure config is initialized (without unit test mote)
+    initialize_config()
     with conf_vars({('webserver', 'expose_config'): 'True'}):
         resp = admin_client.get('configuration', follow_redirects=True)
     check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)

@@ -71,6 +71,18 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### New "deprecated_api" extra
+
+We have a new '[deprecated_api]' extra that should be used when installing airflow when the deprecated API
+is going to be used. This is now an optional feature of Airflow now because it pulls in `requests` which
+(as of 14 May 2021) pulls LGPL `chardet` dependency.
+
+### The `http` provider is not installed by default
+
+The `http` provider is now optional and not installed by default, until `chardet` becomes an optional
+dependency of `requests`.
+See [PR to replace chardet with charset-normalizer](https://github.com/psf/requests/pull/5797)
+
 ### `@apply_default` decorator isn't longer necessary
 
 This decorator is now automatically added to all operators via the metaclass on BaseOperator
