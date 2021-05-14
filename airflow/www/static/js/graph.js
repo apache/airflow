@@ -20,12 +20,13 @@
  */
 
 /*
-  global d3, document, call_modal, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $
+  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $
 */
 
 import getMetaValue from './meta_value';
 import { escapeHtml } from './main';
 import tiTooltip, { taskNoInstanceTooltip } from './task_instances';
+import { callModal } from './dag';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
@@ -155,8 +156,8 @@ function draw() {
       if (nodeId in taskInstances) tryNumber = taskInstances[nodeId].tryNumber;
       else tryNumber = 0;
 
-      if (task.task_type === 'SubDagOperator') call_modal(nodeId, executionDate, task.extra_links, tryNumber, true);
-      else call_modal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
+      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
+      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
     } else {
       // join node between TaskGroup. Ignore.
     }
