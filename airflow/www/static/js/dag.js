@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, confirm, postAsForm, confirm */
+/* global document, window, $, confirm, postAsForm */
 
 import getMetaValue from './meta_value';
 
@@ -46,6 +46,7 @@ let taskId = '';
 let executionDate = '';
 let subdagId = '';
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
+const safeDagId = getMetaValue('safe_dag_id');
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
   obj[elm.id.replace('btn_', '')] = elm;
@@ -216,17 +217,16 @@ export function callModalDag(dag) {
   });
 }
 
-// eslint-disable-next-line no-unused-vars
-function confirmDeleteDag(link, id) {
-  // eslint-disable-next-line no-alert, no-restricted-globals
-  if (confirm(`Are you sure you want to delete '${id}' now?\n\
+$('#delete-dag').on('click', function deleteDag() {
+  // eslint-disable-next-line no-restricted-globals
+  if (confirm(`Are you sure you want to delete '${safeDagId}' now?\n\
     This option will delete ALL metadata, DAG runs, etc.\n\
     EXCEPT Log.\n\
     This cannot be undone.`)) {
-    postAsForm(link.href, {});
+    postAsForm(this.href, {});
   }
   return false;
-}
+});
 
 // Task Instance Modal actions
 $('form[data-action]').on('submit', function submit(e) {

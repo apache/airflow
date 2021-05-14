@@ -81,17 +81,17 @@ $('#page_size').on('change', function onPageSizeChange() {
   window.location = `${DAGS_INDEX}?page_size=${pSize}`;
 });
 
-// eslint-disable-next-line no-unused-vars
-function confirmDeleteDag(link, dagId) {
-  // eslint-disable-next-line no-alert, no-restricted-globals
+$('.delete-dag').on('click', function deleteDag(e) {
+  e.preventDefault();
+  const dagId = this.getAttribute('content');
+  // eslint-disable-next-line no-restricted-globals
   if (confirm(`Are you sure you want to delete '${dagId}' now?\n\
     This option will delete ALL metadata, DAG runs, etc.\n\
     EXCEPT Log.\n\
     This cannot be undone.`)) {
-    postAsForm(link.href, {});
+    postAsForm(this.href, {});
   }
-  return false;
-}
+});
 
 const encodedDagIds = new URLSearchParams();
 

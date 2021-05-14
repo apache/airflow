@@ -34,6 +34,7 @@
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
   <meta name="external_log_url" content="{{ url_for('Airflow.redirect_to_external_log') }}">
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
+  <meta name="safe_dag_id" content="{{ dag.safe_dag_id }}">
   {% if show_external_log_redirect is defined %}
     <meta name="show_external_log_redirect" content="{{ show_external_log_redirect }}">
   {% endif %}
@@ -144,8 +145,7 @@
           <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
             <span class="material-icons" aria-hidden="true">refresh</span>
           </a>
-          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
-            onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
+          <a id="delete-dag" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}" aria-label="Delete DAG" href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}">
             <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
           </a>
         </div>
