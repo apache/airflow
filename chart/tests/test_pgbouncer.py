@@ -230,7 +230,15 @@ class PgbouncerConfigTest(unittest.TestCase):
             "pgbouncer": {"enabled": True, "metadataPoolSize": 12, "resultBackendPoolSize": 7},
             "data": {
                 "metadataConnection": {"host": "meta_host", "db": "meta_db", "port": 1111},
-                "resultBackendConnection": {"host": "rb_host", "db": "rb_db", "port": 2222},
+                "resultBackendConnection": {
+                    "protocol": "postgresql",
+                    "host": "rb_host",
+                    "user": "someuser",
+                    "pass": "someuser",
+                    "db": "rb_db",
+                    "port": 2222,
+                    "sslmode": "disabled",
+                },
             },
         }
         ini = self._get_pgbouncer_ini(values)
