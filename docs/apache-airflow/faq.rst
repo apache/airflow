@@ -281,10 +281,10 @@ Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 Task execution interactions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-What does TemplateNotFound mean?
----------------------------------
+What does ``TemplateNotFound`` mean?
+-------------------------------------
 
-TemplateNotFound errors are usually due to misalignment with user expectations when passing path to operator
+``TemplateNotFound`` errors are usually due to misalignment with user expectations when passing path to operator
 that trigger Jinja templating. A common occurrence is with :ref:`BashOperators<howto/operator:BashOperator>`.
 
 Another commonly missed fact is that the files are resolved relative to where the pipeline file lives. You can add
@@ -334,27 +334,6 @@ See :ref:`concepts:trigger-rules` for more information.
 
 If the tasks are not related by dependency, you will need to :ref:`build a custom Operator<custom_operator>`.
 
-
-Airflow CLI
-^^^^^^^^^^^
-
-What are all the ``airflow tasks run`` commands in the process list?
----------------------------------------------------------------------
-
-There are many layers of ``airflow tasks run`` commands, meaning it can call itself.
-
-- Basic ``airflow tasks run``: fires up an executor, and tell it to run an
-  ``airflow tasks run --local`` command. If using Celery, this means it puts a
-  command in the queue for it to run remotely on the worker. If using
-  LocalExecutor, that translates into running it in a subprocess pool.
-- Local ``airflow tasks run --local``: starts an ``airflow tasks run --raw``
-  command (described below) as a subprocess and is in charge of
-  emitting heartbeats, listening for external kill signals
-  and ensures some cleanup takes place if the subprocess fails.
-- Raw ``airflow tasks run --raw`` runs the actual operator's execute method and
-  performs the actual work.
-
-
 Airflow UI
 ^^^^^^^^^^
 
@@ -387,7 +366,7 @@ MySQL and MySQL variant Databases
 What does "MySQL Server has gone away" mean?
 --------------------------------------------
 
-You may occasionally experience OperationalError with the message "MySQL Server has gone away". This is due to the
+You may occasionally experience ``OperationalError`` with the message "MySQL Server has gone away". This is due to the
 connection pool keeping connections open too long and you are given an old connection that has expired. To ensure a
 valid connection, you can set :ref:`config:core__sql_alchemy_pool_recycle` to ensure connections are invalidated after
 that many seconds and new ones are created.
@@ -403,15 +382,15 @@ the MySQL database since they define charset explicitly.
 
     sql_alchemy_conn = mysql://airflow@localhost:3306/airflow?charset=utf8
 
-You will experience UnicodeDecodeError thrown by WTForms templating and other Airflow modules like below.
+You will experience ``UnicodeDecodeError`` thrown by ``WTForms`` templating and other Airflow modules like below.
 
 .. code-block:: text
 
    'ascii' codec can't decode byte 0xae in position 506: ordinal not in range(128)
 
 
-How to fix Exception: Global variable explicit_defaults_for_timestamp needs to be on (1)?
------------------------------------------------------------------------------------------
+How to fix Exception: Global variable ``explicit_defaults_for_timestamp`` needs to be on (1)?
+---------------------------------------------------------------------------------------------
 
 This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server and you need to enable it by:
 
