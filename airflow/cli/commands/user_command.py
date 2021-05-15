@@ -70,15 +70,27 @@ def users_create(args):
         raise SystemExit('Failed to create user')
 
 
+def _find_user(args):
+    if not args.username and not args.email:
+        raise SystemExit('Missing args: must supply one of --username or --email')
+
+    if args.username and args.email:
+        raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
+
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+
+    user = appbuilder.sm.find_user(username=args.username, email=args.email)
+    if not user:
+        raise SystemExit(f'User "{args.username or args.email}" does not exist')
+    return user
+
+
 @cli_utils.action_logging
 def users_delete(args):
     """Deletes user from DB"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    user = _find_user(args)
 
-    try:
-        user = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
-    except StopIteration:
-        raise SystemExit(f'{args.username} is not a valid user')
+    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
 
     if appbuilder.sm.del_register_user(user):
         print(f'User {args.username} deleted')
@@ -89,16 +101,9 @@ def users_delete(args):
 @cli_utils.action_logging
 def users_manage_role(args, remove=False):
     """Deletes or appends user roles"""
-    if not args.username and not args.email:
-        raise SystemExit('Missing args: must supply one of --username or --email')
-
-    if args.username and args.email:
-        raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
+    user = _find_user(args)
 
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
-    user = appbuilder.sm.find_user(username=args.username) or appbuilder.sm.find_user(email=args.email)
-    if not user:
-        raise SystemExit(f'User "{args.username or args.email}" does not exist')
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
