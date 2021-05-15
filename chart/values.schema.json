@@ -541,7 +541,12 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "- name: AIRFLOW__CORE__LOAD_EXAMPLES\n   value: True"
+                [
+                    {
+                        "name": "AIRFLOW__CORE__LOAD_EXAMPLES",
+                        "value": "True"
+                    }
+                ]
             ]
         },
         "extraEnvFrom": {
