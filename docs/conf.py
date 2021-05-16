@@ -363,6 +363,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         extensions.append('sphinxcontrib.jinja')
 elif PACKAGE_NAME == 'helm-chart':
 
+    def _str_representer(dumper, data):
+        style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style)
+
+    yaml.add_representer(str, _str_representer)
+
     def _format_default(value: Any) -> str:
         if value == "":
             return '""'
