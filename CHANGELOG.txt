@@ -1,11 +1,11 @@
-Airflow 2.1.0, 2021-05-11
+Airflow 2.1.0, 2021-05-17
 -------------------------
 
 New Features
 """"""""""""
 
 - Add ``PythonVirtualenvDecorator`` to Taskflow API (#14761)
-- Add Taskgroup decorator (#15034)
+- Add ``Taskgroup`` decorator (#15034)
 - Create a DAG Calendar View (#15423)
 - Create cross-DAG dependencies view (#13199)
 - Add rest API to query for providers (#13394)
@@ -16,15 +16,15 @@ New Features
 - Add JSON linter to DAG Trigger UI (#13551)
 - Add DAG Description Doc to Trigger UI Page (#13365)
 - Add airflow webserver URL into SLA miss email. (#13249)
-- Add readonly REST API endpoints for users (#14735)
+- Add read only REST API endpoints for users (#14735)
 - Add files to generate Airflow's Python SDK (#14739)
 - Add dynamic fields to snowflake connection (#14724)
-- Add readonly REST API endpoint for roles and permissions (#14664)
+- Add read only REST API endpoint for roles and permissions (#14664)
 - Add new datetime branch operator (#11964)
 - Add Google leveldb hook and operator (#13109) (#14105)
 - Add plugins endpoint to the REST API (#14280)
 - Add ``worker_pod_pending_timeout`` support (#15263)
-- Add support for labelling DAG edges (#15142)
+- Add support for labeling DAG edges (#15142)
 - Add CUD REST API endpoints for Roles (#14840)
 - Import connections from a file (#15177)
 - A bunch of ``template_fields_renderers`` additions (#15130)
@@ -82,14 +82,14 @@ Improvements
 Bug Fixes
 """""""""
 
-- Ensure that task preceeding a PythonVirtualenvOperator doesn't fail (#15822)
+- Ensure that task preceding a PythonVirtualenvOperator doesn't fail (#15822)
 - Prevent mixed case env vars from crashing processes like worker (#14380)
 - Fixed type annotations in DAG decorator (#15778)
 - Fix on_failure_callback when task receive SIGKILL (#15537)
 - Fix dags table overflow (#15660)
 - Fix changing the parent dag state on subdag clear (#15562)
 - Fix reading from zip package to default to text (#13962)
-- Fix wrong parameter for drawDagStatsForDag() in dags.html (#13884)
+- Fix wrong parameter for ``drawDagStatsForDag`` in dags.html (#13884)
 - Fix QueuedLocalWorker crashing with EOFError (#13215)
 - Fix typo in ``NotPreviouslySkippedDep`` (#13933)
 - Fix parallelism after KubeExecutor pod adoption (#15555)
@@ -129,6 +129,7 @@ Bug Fixes
 - Make ``airflow info`` work with pipes (#14528)
 - Rework client-side script for connection form. (#14052)
 - API: Add ``CollectionInfo`` in all Collections that have ``total_entries`` (#14366)
+- Fix ``task_instance_mutation_hook`` when importing airflow.models.dagrun (#15851)
 
 Doc only changes
 """"""""""""""""
@@ -136,13 +137,13 @@ Doc only changes
 - Fix docstring of SqlSensor (#15466)
 - Small changes on "DAGs and Tasks documentation" (#14853)
 - Add note on changes to configuration options (#15696)
-- Add docs to the markdownlint and yamllint config files (#15682)
+- Add docs to the ``markdownlint`` and ``yamllint`` config files (#15682)
 - Rename old "Experimental" API to deprecated in the docs. (#15653)
 - Fix documentation error in `git_sync_template.yaml` (#13197)
 - Fix doc link permission name (#14972)
 - Fix link to Helm chart docs (#14652)
 - Fix docstrings for Kubernetes code (#14605)
-- docs: Capitalise & minor fixes (#14283) (#14534)
+- docs: Capitalize & minor fixes (#14283) (#14534)
 - Fixed reading from zip package to default to text. (#13984)
 - An initial rework of the "Concepts" docs (#15444)
 - Improve docstrings for various modules (#15047)
@@ -158,18 +159,18 @@ Doc only changes
 - Add picture and examples for Edge Labels (#15310)
 - Add example DAG & how-to guide for sqlite (#13196)
 - Add links to new modules for deprecated modules (#15316)
-- Add note in Updating.md about FAB datamodel change (#14478)
+- Add note in Updating.md about FAB data model change (#14478)
 
 Misc/Internal
 """""""""""""
 
 - Fix ``logging.exception`` redundancy (#14823)
-- Bump stylelint to remove vulnerable sub-dependency (#15784)
+- Bump ``stylelint`` to remove vulnerable sub-dependency (#15784)
 - Add resolution to force dependencies to use patched version of lodash (#15777)
 - Update croniter to 1.0.x series (#15769)
 - Get rid of Airflow 1.10 in Breeze (#15712)
 - Run helm chart tests in parallel (#15706)
-- Bump ssri from 6.0.1 to 6.0.2 in /airflow/www (#15437)
+- Bump ``ssri`` from 6.0.1 to 6.0.2 in /airflow/www (#15437)
 - Remove the limit on Gunicorn dependency (#15611)
 - Better "dependency already registered" warning message for tasks #14613 (#14860)
 - Pin pandas-gbq to <0.15.0 (#15114)
@@ -178,15 +179,15 @@ Misc/Internal
 - Finish refactor of DAG resource name helper (#15511)
 - Refactor/Cleanup Presentation of Graph Task and Path Highlighting (#15257)
 - Standardize default fab perms (#14946)
-- Remove datepicker for task instance detail view (#15284)
+- Remove ``datepicker`` for task instance detail view (#15284)
 - Turn provider's import warnings into debug logs (#14903)
 - Remove left-over fields from required in provider_info schema. (#14119)
 - Deprecate ``tableau`` extra (#13595)
 - Use built-in `cached_property` on Python 3.8 where possible (#14606)
 - Clean-up JS code in UI templates (#14019)
 - Bump elliptic from 6.5.3 to 6.5.4 in /airflow/www (#14668)
-- Switch to f-strings using flynt. (#13732)
-- use jquery ready instead of vanilla js (#15258)
+- Switch to f-strings using ``flynt``. (#13732)
+- use ``jquery`` ready instead of vanilla js (#15258)
 - Migrate task instance log (ti_log) js (#15309)
 - Migrate graph js (#15307)
 - Migrate dags.html javascript (#14692)
@@ -194,7 +195,7 @@ Misc/Internal
 - Separate Kubernetes pod_launcher from core airflow (#15165)
 - update remaining old import paths of operators (#15127)
 - Remove broken and undocumented "demo mode" feature (#14601)
-- Simplify configuration/legibility of Webpack entries (#14551)
+- Simplify configuration/legibility of ``Webpack`` entries (#14551)
 - remove inline tree js (#14552)
 - Js linting and inline migration for simple scripts (#14215)
 - Remove use of repeated constant in AirflowConfigParser (#14023)
