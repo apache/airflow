@@ -25,6 +25,7 @@ CURRENT_POSTGRES_VERSIONS=()
 CURRENT_MYSQL_VERSIONS=()
 CURRENT_KIND_VERSIONS=()
 CURRENT_HELM_VERSIONS=()
+CURRENT_EXECUTOR=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 INSTALLED_PROVIDERS=()
 
@@ -790,9 +791,8 @@ function initialization::make_constants_read_only() {
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION
     readonly HELM_VERSION
-    readonly EXECUTOR
     readonly KUBECTL_VERSION
-
+    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
