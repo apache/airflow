@@ -49,7 +49,7 @@ You can find the prerequisites to release Apache Airflow in [README.md](README.m
 
 ## Build RC artifacts
 
-The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
+The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
 - Set environment variables
 
