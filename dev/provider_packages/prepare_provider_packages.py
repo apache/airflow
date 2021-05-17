@@ -1476,7 +1476,7 @@ def get_all_changes_for_package(
     changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, array_of_changes[0], changes_table
+    return True, array_of_changes[0] if len(array_of_changes) > 0 else None, changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
