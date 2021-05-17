@@ -82,6 +82,7 @@ Improvements
 Bug Fixes
 """""""""
 
+- Fix 500 error from updateTaskInstancesState API endpoint when ``dry_run`` not passed (#15889)
 - Ensure that task preceding a PythonVirtualenvOperator doesn't fail (#15822)
 - Prevent mixed case env vars from crashing processes like worker (#14380)
 - Fixed type annotations in DAG decorator (#15778)
