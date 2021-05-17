@@ -64,7 +64,7 @@ class ClsCurveStorage(ClsEntity):
         if entity_id:
             self._fileName = "{}.csv".format(entity_id)
         else:
-            self._fileName = "{}.csv".format(str(uuid.uuid4()))
+            self._fileName = "{}.csv".format(uuid.uuid4())
         return self._fileName
 
     @property
