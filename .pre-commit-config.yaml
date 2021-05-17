@@ -562,9 +562,10 @@ repos:
         args:
           - --spec-file
           - chart/values_schema.schema.json
+          - chart/values.schema.json
         language: python
-        pass_filenames: true
-        files: chart/values\.schema\.json$
+        pass_filenames: false
+        files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
@@ -574,9 +575,10 @@ repos:
           - --enforce-defaults
           - --spec-file
           - chart/values.schema.json
+          - chart/values.yaml
         language: python
-        pass_filenames: true
-        files: chart/values\.yaml$
+        pass_filenames: false
+        files: ^chart/values\.yaml$|^chart/values\.schema\.json$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: json-schema
