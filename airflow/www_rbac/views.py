@@ -92,6 +92,10 @@ from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_cur
 from flask_appbuilder.models.sqla.filters import FilterEqualFunction, FilterInFunction
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
+import os
+
+FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
+
 
 _logger = logging.getLogger(__name__)
 csrf = CSRFProtect()
@@ -2778,7 +2782,8 @@ class VariableModelView(AirflowModelView):
 
     @staticmethod
     def generateCurveParamKey(key):
-        return "{}@@{}".format(key, uuid.uuid4())
+        dt = "{}@{}".format(key, FACTORY_CODE)
+        return "{}@@{}".format(key, uuid.uuid3(uuid.NAMESPACE_DNS, dt))
 
     @staticmethod
     def is_curve_param_key(key: str) -> bool:
