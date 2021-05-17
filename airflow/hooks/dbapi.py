@@ -166,7 +166,7 @@ class DbApiHook(BaseHook):
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
-        :param handler: The result handler which is called with the result of each statement. 
+        :param handler: The result handler which is called with the result of each statement.
         :type handler: callable
         :return: query results if handler was provided.
         """
