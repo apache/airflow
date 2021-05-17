@@ -209,18 +209,6 @@ class TestOracleHook(unittest.TestCase):
         self.cur.execute.assert_called_once_with(sql, param)
         assert self.conn.commit.called
 
-    def test_run_with_handler(self):
-        sql = 'SQL'
-        param = ('p1', 'p2')
-        called = 0
-        def handler(cur):
-            cur.execute.assert_called_once_with(sql, param)
-            nonlocal called
-            called += 1
-        self.db_hook.run(sql, parameters=param, handler=handler)
-        assert called == 1
-        assert self.conn.commit.called
-
     def test_insert_rows_with_fields(self):
         rows = [
             (
