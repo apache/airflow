@@ -966,6 +966,7 @@ licence
 licences
 lifecycle
 lineterminator
+linter
 linux
 livy
 localExecutor
