@@ -47,6 +47,7 @@ apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.3
 arrow==0.17.0
+asana==0.10.3
 asn1crypto==1.4.0
 astroid==2.5.6
 async-generator==1.10
@@ -87,6 +88,7 @@ boto3==1.17.71
 boto==2.49.0
 botocore==1.20.71
 bowler==0.9.0
+cached-property==1.5.2
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.6.0
@@ -188,9 +190,12 @@ grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
 grpcio==1.37.1
 gunicorn==20.1.0
+h11==0.12.0
 hdfs==2.6.0
 hmsclient==0.1.1
+httpcore==0.13.3
 httplib2==0.17.4
+httpx==0.18.1
 humanize==3.5.0
 hvac==0.10.11
 identify==2.2.4
@@ -315,6 +320,7 @@ pysftp==0.2.9
 pyspark==3.1.1
 pytest-cov==2.11.1
 pytest-forked==1.3.0
+pytest-httpx==0.12.0
 pytest-instafail==0.4.2
 pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
@@ -345,6 +351,7 @@ requests-oauthlib==1.1.0
 requests-toolbelt==0.9.1
 requests==2.25.1
 responses==0.13.3
+rfc3986==1.5.0
 rich==9.2.0
 rsa==4.7.2
 s3transfer==0.4.2
@@ -359,6 +366,7 @@ simple-salesforce==1.11.1
 six==1.16.0
 slack-sdk==3.5.1
 smmap==4.0.0
+sniffio==1.2.0
 snowballstemmer==2.1.0
 snowflake-connector-python==2.4.3
 snowflake-sqlalchemy==1.2.4
