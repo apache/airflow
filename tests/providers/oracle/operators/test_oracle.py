@@ -40,7 +40,9 @@ class TestOracleOperator(unittest.TestCase):
             task_id=task_id,
         )
         operator.execute(context=context)
-        assert len(mock_run.mock_calls) == 1
-        assert mock_run.mock_calls[0].args[1] == sql
-        assert mock_run.mock_calls[0].kwargs["autocommit"] is autocommit
-        assert mock_run.mock_calls[0].kwargs["parameters"] is parameters
+        mock_run.assert_called_once_with(
+            mock.ANY,
+            sql,
+            autocommit=autocommit,
+            parameters=parameters,
+        )
