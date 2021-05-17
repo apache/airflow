@@ -593,7 +593,8 @@ INSTALL_REQUIREMENTS = [
     'unicodecsv>=0.14.1',
     'werkzeug<1.0.0',
     'zope.deprecation>=4.0, <5.0',
-    'flask_paginate==0.7.0'
+    'flask_paginate==0.7.0',
+    'kafka-python==2.0.2'
 ]
 
 
