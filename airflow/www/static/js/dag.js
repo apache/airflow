@@ -211,9 +211,10 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
 export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
+  executionDate = dag.execution_date;
   updateButtonUrl(buttons.dag_graph_view, {
-    dag_id: dag && dag.execution_date,
-    execution_date: dag && dag.dag_id,
+    dag_id: dag && dag.dag_id,
+    execution_date: dag && dag.execution_date,
   });
 }
 
@@ -221,25 +222,31 @@ export function callModalDag(dag) {
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  form.execution_date.value = executionDate;
-  form.origin.value = window.location;
-  if (form.task_id) {
-    form.task_id.value = taskId;
+  // Somehow submit is fired twice. Only once is the executionDate valid
+  if (executionDate) {
+    form.execution_date.value = executionDate;
+    form.origin.value = window.location;
+    if (form.task_id) {
+      form.task_id.value = taskId;
+    }
+    form.action = $(this).data('action');
+    form.submit();
   }
-  form.action = $(this).data('action');
-  form.submit();
 });
 
 // DAG Modal actions
 $('form button[data-action]').on('click', function onClick() {
   const form = $(this).closest('form').get(0);
-  form.execution_date.value = executionDate;
-  form.origin.value = window.location;
-  if (form.task_id) {
-    form.task_id.value = taskId;
+  // Somehow submit is fired twice. Only once is the executionDate valid
+  if (executionDate) {
+    form.execution_date.value = executionDate;
+    form.origin.value = window.location;
+    if (form.task_id) {
+      form.task_id.value = taskId;
+    }
+    form.action = $(this).data('action');
+    form.submit();
   }
-  form.action = $(this).data('action');
-  form.submit();
 });
 
 $('#pause_resume').on('change', function onChange() {
