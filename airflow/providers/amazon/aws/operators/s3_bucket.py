@@ -36,7 +36,7 @@ class S3CreateBucketOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).Also use in template_fields so that it can be overriden using jinja template from Dags.
+        maintained on each worker node).(templated).
     :type aws_conn_id: Optional[str]
     :param region_name: AWS region_name. If not specified fetched from connection.
     :type region_name: Optional[str]
@@ -83,7 +83,7 @@ class S3DeleteBucketOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).Also use in template_fields so that it can be overriden using jinja template from Dags.
+        maintained on each worker node).(templated).
     :type aws_conn_id: Optional[str]
     """
 

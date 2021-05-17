@@ -29,8 +29,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
     A dictionary of JobFlow overrides can be passed that override
     the config from the connection.
 
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
-    :type aws_conn_id: <str>
+    :param aws_conn_id: aws connection to use (templated).
+    :type aws_conn_id: str
     :param emr_conn_id: emr connection to use
     :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file

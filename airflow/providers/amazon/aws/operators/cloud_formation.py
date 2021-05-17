@@ -33,7 +33,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
     :type params: dict
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+    :param aws_conn_id: aws connection to use (templated).
     :type aws_conn_id: str
     """
 
@@ -65,8 +65,8 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
     :type params: dict
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
-    :type aws_conn_id: <str>
+    :param aws_conn_id: aws connection to use (templated).
+    :type aws_conn_id: str
     """
 
     template_fields: List[str] = ['stack_name','aws_conn_id']

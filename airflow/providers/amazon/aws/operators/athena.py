@@ -38,8 +38,8 @@ class AWSAthenaOperator(BaseOperator):
     :type database: str
     :param output_location: s3 path to write the query results into. (templated)
     :type output_location: str
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags. 
-    :type aws_conn_id: <str>
+    :param aws_conn_id: aws connection to use (templated). 
+    :type aws_conn_id: str
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :type client_request_token: str
     :param workgroup: Athena workgroup in which query will be run

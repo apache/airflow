@@ -43,8 +43,8 @@ class S3DeleteObjectsOperator(BaseOperator):
     :param prefix: Prefix of objects to delete. (templated)
         All objects matching this prefix in the bucket will be deleted.
     :type prefix: str
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
-    :type aws_conn_id: <str>
+    :param aws_conn_id: aws connection to use (templated).
+    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 

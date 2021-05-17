@@ -34,7 +34,7 @@ class S3GetBucketTaggingOperator(BaseOperator):
 
     :param bucket_name: This is bucket name you want to reference
     :type bucket_name: str
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+    :param aws_conn_id: aws connection to use (templated).
     :type aws_conn_id: Optional[str]
     """
 
@@ -77,7 +77,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then the default boto3 configuration would be used (and must be
-        maintained on each worker node).Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+        maintained on each worker node). (templated).
     :type aws_conn_id: Optional[str]
     """
 
@@ -126,7 +126,7 @@ class S3DeleteBucketTaggingOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+        maintained on each worker node) (templated).
     :type aws_conn_id: Optional[str]
     """
 

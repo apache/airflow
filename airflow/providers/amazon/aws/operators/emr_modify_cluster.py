@@ -30,7 +30,7 @@ class EmrModifyClusterOperator(BaseOperator):
     :type cluster_id: str
     :param step_concurrency_level: Concurrency of the cluster
     :type step_concurrency_level: int
-    :param aws_conn_id: Aws connection to use in template_fields so that it can be overriden using jinja template from Dags.
+    :param aws_conn_id: aws connection to use (templated).
     :type aws_conn_id: str
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     :type do_xcom_push: bool
