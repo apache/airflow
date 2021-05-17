@@ -915,15 +915,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-kubernetes:
     timeout-minutes: 50
-    name: Helm Chart
+    name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
+    strategy:
+      matrix:
+        executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
       KUBERNETES_MODE: "image"
+      EXECUTOR: ${{matrix.executor}}
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
       GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
