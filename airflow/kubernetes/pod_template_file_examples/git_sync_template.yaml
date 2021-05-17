@@ -26,10 +26,8 @@ metadata:
 spec:
   initContainers:
     - name: git-sync
-      image: "k8s.gcr.io/git-sync:v3.1.6"
+      image: "k8s.gcr.io/git-sync/git-sync:v3.3.0"
       env:
-        - name: GIT_SYNC_REV
-          value: "HEAD"
         - name: GIT_SYNC_BRANCH
           value: "v2-0-stable"
         - name: GIT_SYNC_REPO
@@ -42,10 +40,8 @@ spec:
           value: "repo"
         - name: GIT_SYNC_ADD_USER
           value: "true"
-        - name: GIT_SYNC_WAIT
-          value: "60"
-        - name: GIT_SYNC_MAX_SYNC_FAILURES
-          value: "0"
+        - name: GIT_SYNC_ONE_TIME
+          value: "true"
       volumeMounts:
         - name: airflow-dags
           mountPath: /git
@@ -81,24 +77,22 @@ spec:
           name: airflow-logs
         - mountPath: /opt/airflow/dags
           name: airflow-dags
+          subPath: repo/airflow/example_dags
           readOnly: false
   hostNetwork: false
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
     fsGroup: 50000
-  nodeSelector:
-    {}
-  affinity:
-    {}
-  tolerations:
-    []
-  serviceAccountName: 'RELEASE-NAME-worker-serviceaccount'
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  serviceAccountName: "RELEASE-NAME-worker-serviceaccount"
   volumes:
     - name: airflow-dags
       emptyDir: {}
-    - emptyDir: {}
-      name: airflow-logs
+    - name: airflow-logs
+      emptyDir: {}
     - configMap:
         name: RELEASE-NAME-airflow-config
       name: airflow-config
