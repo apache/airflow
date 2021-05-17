@@ -180,6 +180,14 @@ repos:
         exclude: ^airflow/_vendor/
         args:
           - --remove
+      - id: pretty-format-json
+        args:
+          - --autofix
+          - --no-sort-keys
+          - --indent
+          - "4"
+        files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
+        pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.13.0
     hooks:

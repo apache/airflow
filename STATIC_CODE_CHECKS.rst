@@ -138,6 +138,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pre-commit-hook-names``             Check that hook names are not overly long
 ----------------------------------- ---------------------------------------------------------------- ------------
+``pretty-format-json``                Formats json files
+----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``providers-init-file``               Check that provider's __init__.py file is removed

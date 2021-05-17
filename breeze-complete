@@ -121,6 +121,7 @@ no-providers-in-core-examples
 no-relative-imports
 pre-commit-descriptions
 pre-commit-hook-names
+pretty-format-json
 provide-create-sessions
 providers-init-file
 provider-yamls
