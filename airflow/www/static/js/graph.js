@@ -299,7 +299,7 @@ d3.select('#searchbox').on('keyup', () => {
     setFocusMap();
   }
 
-  d3.selectAll('g.nodes g.node').forEach(function highlight(d) {
+  d3.selectAll('g.nodes g.node').filter(function highlight(d) {
     if (s === '') {
       d3.selectAll('g.edgePaths, g.edgeLabel').attr('data-highlight', null);
       d3.select(this).attr('data-highlight', null);
@@ -312,6 +312,8 @@ d3.select('#searchbox').on('keyup', () => {
         d3.select(this).attr('data-highlight', 'fade');
       }
     }
+    // We don't actually use the returned results from filter
+    return null;
   });
 
   // This moves the matched node to the center of the graph area
