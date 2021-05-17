@@ -43,6 +43,7 @@ New Features
 Improvements
 """"""""""""
 
+- Add optional result handler callback to ``DbApiHook`` (#15581)
 - Update Flask App Builder limit to recently released 3.3 (#15792)
 - Prevent creating flask sessions on REST API requests (#15295)
 - Sync DAG specific permissions when parsing (#15311)
