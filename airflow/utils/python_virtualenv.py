@@ -100,7 +100,11 @@ def prepare_virtualenv(
     return f'{venv_directory}/bin/python'
 
 
-def write_python_script(jinja_context: dict, filename: str):
+def write_python_script(
+    jinja_context: dict,
+    filename: str,
+    render_template_as_native_obj: bool = False,
+):
     """
     Renders the python script to a file to execute in the virtual environment.
 
@@ -109,8 +113,15 @@ def write_python_script(jinja_context: dict, filename: str):
     :type jinja_context: dict
     :param filename: The name of the file to dump the rendered script to.
     :type filename: str
+    :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
+        to a native Python object
     """
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
-    template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+    if render_template_as_native_obj:
+        template_env = jinja2.nativetypes.NativeEnvironment(
+            loader=template_loader, undefined=jinja2.StrictUndefined
+        )
+    else:
+        template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
     template = template_env.get_template('python_virtualenv_script.jinja2')
     template.stream(**jinja_context).dump(filename)

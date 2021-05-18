@@ -66,7 +66,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         except AzureHttpError:
             self.log.exception(
                 'Could not create an WasbHook with connection id "%s".'
-                ' Please make sure that airflow[azure] is installed'
+                ' Please make sure that apache-airflow[azure] is installed'
                 ' and the Wasb connection exists.',
                 remote_conn_id,
             )

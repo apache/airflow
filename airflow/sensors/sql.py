@@ -21,7 +21,6 @@ from typing import Iterable
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SqlSensor(BaseSensorOperator):
@@ -58,7 +57,6 @@ class SqlSensor(BaseSensorOperator):
     )
     ui_color = '#7c7287'
 
-    @apply_defaults
     def __init__(
         self, *, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False, **kwargs
     ):

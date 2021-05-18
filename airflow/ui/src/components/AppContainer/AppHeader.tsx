@@ -21,8 +21,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Avatar,
-  Box,
-  Button,
   Flex,
   Icon,
   Menu,
@@ -32,22 +30,20 @@ import {
   MenuItem,
   useColorMode,
   useColorModeValue,
-  Tooltip,
 } from '@chakra-ui/react';
 import {
   MdWbSunny,
   MdBrightness2,
   MdAccountCircle,
   MdExitToApp,
+  MdQueryBuilder,
 } from 'react-icons/md';
-import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
 
 import { useAuthContext } from 'providers/auth/context';
+import { useDateContext, HOURS_24 } from 'providers/DateProvider';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
-
-dayjs.extend(timezone);
+import TimezoneDropdown from './TimezoneDropdown';
 
 interface Props {
   bodyBg: string;
@@ -57,13 +53,11 @@ interface Props {
 
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
-  const now = dayjs().tz();
+  const { dateFormat, toggle24Hour } = useDateContext();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);
   const darkLightText = useColorModeValue(' Dark ', ' Light ');
-
-  const handleOpenTZ = () => window.alert('This will open time zone select modal!');
 
   const handleOpenProfile = () => window.alert('This will take you to your user profile view.');
 
@@ -91,18 +85,7 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
       )}
       {hasValidAuthToken && (
         <Flex align="center">
-          <Tooltip label="Change time zone" hasArrow>
-            {/* TODO: open modal for time zone update */}
-            <Button variant="ghost" mr="4" onClick={handleOpenTZ}>
-              <Box
-                as="time"
-                dateTime={now.toString()}
-                fontSize="md"
-              >
-                {now.format('h:mmA Z')}
-              </Box>
-            </Button>
-          </Tooltip>
+          <TimezoneDropdown />
           <Menu>
             <MenuButton>
               <Avatar name="Ryan Hamilton" size="sm" color="blue.900" bg="blue.200" />
@@ -117,6 +100,13 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
                 Set
                 {darkLightText}
                 Mode
+              </MenuItem>
+              {/* Clock config should move to User Profile Settings when that page exists */}
+              <MenuItem onClick={toggle24Hour}>
+                <Icon as={MdQueryBuilder} mr="2" />
+                Use
+                {dateFormat === HOURS_24 ? ' 12 hour ' : ' 24 hour '}
+                clock
               </MenuItem>
               <MenuDivider />
               <MenuItem onClick={logout}>

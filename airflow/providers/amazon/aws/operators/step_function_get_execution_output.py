@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
-from airflow.utils.decorators import apply_defaults
 
 
 class StepFunctionGetExecutionOutputOperator(BaseOperator):
@@ -42,7 +41,6 @@ class StepFunctionGetExecutionOutputOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f9c915'
 
-    @apply_defaults
     def __init__(
         self,
         *,

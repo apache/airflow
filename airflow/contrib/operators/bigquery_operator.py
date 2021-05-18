@@ -51,6 +51,6 @@ class BigQueryOperator(BigQueryExecuteQueryOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

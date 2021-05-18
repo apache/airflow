@@ -86,15 +86,7 @@ Variable View
 The variable view allows you to list, create, edit or delete the key-value pair
 of a variable used during jobs. Value of a variable will be hidden if the key contains
 any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token')
-by default, but can be configured to show in clear-text (by configuration option
-``hide_sensitive_variable_fields``).
-
-Users can also extend this list by using the following configurations option:
-
-.. code-block:: ini
-
-    [admin]
-    sensitive_variable_fields = comma_separated_sensitive_variable_fields_list
+by default, but can be configured to show in clear-text. See :ref:`security:mask-sensitive-values`.
 
 ------------
 

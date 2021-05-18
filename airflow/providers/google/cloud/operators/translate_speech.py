@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudTranslateSpeechOperator(BaseOperator):
@@ -118,7 +117,6 @@ class CloudTranslateSpeechOperator(BaseOperator):
     )
     # [END translate_speech_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -205,6 +205,8 @@ def configure_vars():
 
 def configure_orm(disable_connection_pool=False):
     """Configure ORM using SQLAlchemy"""
+    from airflow.utils.log.secrets_masker import mask_secret
+
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -220,6 +222,9 @@ def configure_orm(disable_connection_pool=False):
         connect_args = {}
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
+
+    mask_secret(engine.url.password)
+
     setup_event_handlers(engine)
 
     Session = scoped_session(
@@ -239,7 +244,7 @@ def prepare_engine_args(disable_connection_pool=False):
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
-    elif 'sqlite' not in SQL_ALCHEMY_CONN:
+    elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
@@ -282,6 +287,15 @@ def prepare_engine_args(disable_connection_pool=False):
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
+
+    # The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
+    # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
+    # 'READ COMMITTED' is the default value for PostgreSQL.
+    # More information here:
+    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
+    if SQL_ALCHEMY_CONN.startswith('mysql'):
+        engine_args['isolation_level'] = 'READ COMMITTED'
+
     return engine_args
 
 
@@ -497,3 +511,9 @@ IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
 }
+
+HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')
+
+# By default this is off, but is automatically configured on when running task
+# instances
+MASK_SECRETS_IN_LOGS = False

@@ -57,8 +57,19 @@ class RenderedTaskInstanceFields(Base):
             field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
         }
 
+        self._redact()
+
     def __repr__(self):
         return f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.execution_date}"
+
+    def _redact(self):
+        from airflow.utils.log.secrets_masker import redact
+
+        if self.k8s_pod_yaml:
+            self.k8s_pod_yaml = redact(self.k8s_pod_yaml)
+
+        for field, rendered in self.rendered_fields.items():
+            self.rendered_fields[field] = redact(rendered, field)
 
     @classmethod
     @provide_session

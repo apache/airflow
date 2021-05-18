@@ -19,8 +19,6 @@
 
 # Helm Chart for Apache Airflow
 
-> :warning: **This Helm Chart has yet to be released**. We are working to [release it officially](https://github.com/apache/airflow/issues/10752) as soon as possible.
-
 [Apache Airflow](https://airflow.apache.org/) is a platform to programmatically author, schedule and monitor workflows.
 
 ## Introduction
@@ -52,7 +50,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Documentation
 
-Documentation can be found at [../docs/helm-chart](/docs/helm-chart) directory.
+Documentation for the released version can be found at https://airflow.apache.org/docs/helm-chart/.
 
 The latest development version is published on:
 [http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/helm-chart/latest/index.html](http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/helm-chart/latest/index.html)

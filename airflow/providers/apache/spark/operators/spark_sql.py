@@ -20,7 +20,6 @@ from typing import Any, Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SparkSqlOperator(BaseOperator):
@@ -63,7 +62,6 @@ class SparkSqlOperator(BaseOperator):
     template_ext = [".sql", ".hql"]
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

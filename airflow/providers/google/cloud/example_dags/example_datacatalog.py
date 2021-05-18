@@ -92,7 +92,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
         entry={
             "display_name": "Wizard",
             "type_": "FILESET",
-            "gcs_fileset_spec": {"file_patterns": ["gs://test-datacatalog/**"]},
+            "gcs_fileset_spec": {"file_patterns": ["gs://INVALID BUCKET NAME/**"]},
         },
     )
     # [END howto_operator_gcp_datacatalog_create_entry_gcs]

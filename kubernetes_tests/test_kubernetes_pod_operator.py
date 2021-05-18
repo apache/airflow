@@ -41,6 +41,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.version import version as airflow_version
+from kubernetes_tests.test_base import EXECUTOR
 
 
 def create_context(task):
@@ -48,11 +49,13 @@ def create_context(task):
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     task_instance = TaskInstance(task=task, execution_date=execution_date)
+    task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,
         "ts": execution_date.isoformat(),
         "task": task,
         "ti": task_instance,
+        "task_instance": task_instance,
     }
 
 
@@ -61,6 +64,7 @@ def get_kubeconfig_path():
     return kubeconfig_path if kubeconfig_path else os.path.expanduser('~/.kube/config')
 
 
+@pytest.mark.skipif(EXECUTOR != 'KubernetesExecutor', reason="Only runs on KubernetesExecutor")
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)
@@ -574,34 +578,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_configmaps(self, mock_client, mock_monitor, mock_start):
-        # GIVEN
-        from airflow.utils.state import State
-
-        configmap_name = "test-config-map"
-        env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap_name))]
-        # WHEN
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test-" + str(random.randint(0, 1000000)),
-            task_id="task" + self.get_current_task_name(),
-            in_cluster=False,
-            do_xcom_push=False,
-            env_from=env_from,
-        )
-        # THEN
-        mock_monitor.return_value = (State.SUCCESS, None)
-        context = create_context(k)
-        k.execute(context)
-        assert mock_start.call_args[0][0].spec.containers[0].env_from == env_from
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_envs_from_secrets(self, mock_client, monitor_mock, start_mock):
         # GIVEN
         from airflow.utils.state import State
@@ -879,7 +855,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'metadata': {
                 'annotations': {},
                 'labels': {
-                    'airflow_version': '2.1.0.dev0',
                     'dag_id': 'dag',
                     'execution_date': mock.ANY,
                     'kubernetes_pod_operator': 'True',
@@ -923,6 +898,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'volumes': [{'emptyDir': {}, 'name': 'xcom'}],
             },
         }
+        version = actual_pod['metadata']['labels']['airflow_version']
+        assert version.startswith(airflow_version)
+        del actual_pod['metadata']['labels']['airflow_version']
         assert expected_dict == actual_pod
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")

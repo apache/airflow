@@ -25,6 +25,12 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+Change in ``AutoMLPredictOperator``
+```````````````````````````````````
+
+The ``params`` parameter in :class:`~airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator` class
+was renamed ``operation_params`` because it conflicted with a ``param`` parameter in the ``BaseOperator`` class.
+
 Integration with the ``apache.beam`` provider
 `````````````````````````````````````````````
 
@@ -76,6 +82,19 @@ or
   pip install apache-airflow-providers-apache-beam[google]
 
 But be aware that some ``BigQuery`` operators functionality might not be available in this case.
+
+Features
+~~~~~~~~
+
+* ``[Airflow-15245] - passing custom image family name to the DataProcClusterCreateoperator (#15250)``
+
+Fixes
+~~~~~
+
+* ``Bugfix: Fix rendering of ''object_name'' in ''GCSToLocalFilesystemOperator'' (#15487)``
+* ``Fix typo in DataprocCreateClusterOperator (#15462)``
+* ``Fixes wrongly specified path for leveldb hook (#15453)``
+
 
 2.2.0
 .....

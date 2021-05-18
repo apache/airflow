@@ -137,6 +137,38 @@ class TestDagBag(unittest.TestCase):
             dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
             assert [] == dagbag.process_file(f.name)
 
+    def test_process_file_duplicated_dag_id(self):
+        """Loading a DAG with ID that already existed in a DAG bag should result in an import error."""
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        def create_dag():
+            from airflow.decorators import dag
+
+            @dag(default_args={'owner': 'owner1'})
+            def my_flow():
+                pass
+
+            my_dag = my_flow()  # noqa # pylint: disable=unused-variable
+
+        source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
+        with NamedTemporaryFile("w+", encoding="utf8") as tf_1, NamedTemporaryFile(
+            "w+", encoding="utf8"
+        ) as tf_2:
+            tf_1.writelines(source_lines)
+            tf_2.writelines(source_lines)
+            tf_1.flush()
+            tf_2.flush()
+
+            found_1 = dagbag.process_file(tf_1.name)
+            assert len(found_1) == 1 and found_1[0].dag_id == "my_flow"
+            assert dagbag.import_errors == {}
+            dags_in_bag = dagbag.dags
+
+            found_2 = dagbag.process_file(tf_2.name)
+            assert len(found_2) == 0
+            assert dagbag.import_errors[tf_2.name].startswith("Ignoring DAG")
+            assert dagbag.dags == dags_in_bag  # Should not change.
+
     def test_zip_skip_log(self):
         """
         test the loading of a DAG from within a zip file that skips another file because

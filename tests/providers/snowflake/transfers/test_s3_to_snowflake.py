@@ -27,12 +27,12 @@ class TestS3ToSnowflakeTransfer:
     @pytest.mark.parametrize("columns_array", [None, ['col1', 'col2', 'col3']])
     @pytest.mark.parametrize("s3_keys", [None, ['1.csv', '2.csv']])
     @pytest.mark.parametrize("prefix", [None, 'prefix'])
+    @pytest.mark.parametrize("schema", [None, 'schema'])
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
-    def test_execute(self, mock_run, prefix, s3_keys, columns_array):
+    def test_execute(self, mock_run, schema, prefix, s3_keys, columns_array):
         table = 'table'
         stage = 'stage'
         file_format = 'file_format'
-        schema = 'schema'
 
         S3ToSnowflakeOperator(
             s3_keys=s3_keys,
@@ -46,22 +46,21 @@ class TestS3ToSnowflakeTransfer:
             dag=None,
         ).execute(None)
 
-        files = None
-        if s3_keys:
-            files = "files=({})".format(", ".join(f"'{key}'" for key in s3_keys))
-        base_sql = f"""
-                FROM @{stage}/{prefix if prefix else ''}
-                {files if files else ''}
-                file_format={file_format}
-            """
-
-        columns = None
+        copy_query = "COPY INTO "
+        if schema:
+            copy_query += f"{schema}.{table}"
+        else:
+            copy_query += table
         if columns_array:
-            columns = f"({','.join(columns_array)})"
-        copy_query = f"""
-                COPY INTO {schema}.{table}{columns if columns else ''} {base_sql}
-            """
-        copy_query = "\n".join(line.strip() for line in copy_query.splitlines())
+            copy_query += f"({','.join(columns_array)})"
+
+        copy_query += f"\nFROM @{stage}/{prefix or ''}"
+
+        if s3_keys:
+            files = ", ".join(f"'{key}'" for key in s3_keys)
+            copy_query += f"\nfiles=({files})"
+
+        copy_query += f"\nfile_format={file_format}"
 
         mock_run.assert_called_once()
         assert mock_run.call_args[0][0] == copy_query

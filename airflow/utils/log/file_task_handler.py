@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-import requests
+import httpx
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.helpers import parse_template_string
@@ -172,7 +172,7 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                response = requests.get(url, timeout=timeout)
+                response = httpx.get(url, timeout=timeout)
                 response.encoding = "utf-8"
 
                 # Check if the resource was properly fetched

@@ -25,7 +25,6 @@ except ImportError:
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AthenaSensor(BaseSensorOperator):
@@ -59,7 +58,6 @@ class AthenaSensor(BaseSensorOperator):
     template_ext = ()
     ui_color = '#66c3ff'
 
-    @apply_defaults
     def __init__(
         self,
         *,

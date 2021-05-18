@@ -20,7 +20,6 @@ from typing import List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudFormationCreateStackOperator(BaseOperator):
@@ -42,7 +41,6 @@ class CloudFormationCreateStackOperator(BaseOperator):
     template_ext = ()
     ui_color = '#6b9659'
 
-    @apply_defaults
     def __init__(self, *, stack_name: str, params: dict, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.stack_name = stack_name
@@ -76,7 +74,6 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'
 
-    @apply_defaults
     def __init__(
         self, *, stack_name: str, params: Optional[dict] = None, aws_conn_id: str = 'aws_default', **kwargs
     ):

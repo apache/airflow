@@ -23,7 +23,6 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class FacebookAdsReportToGcsOperator(BaseOperator):
@@ -80,7 +79,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -27,8 +27,7 @@ We recommend testing with Kubernetes 1.16+, example:
 
 .. code-block:: bash
 
-   kind create cluster \
-     --image kindest/node:v1.18.15
+   kind create cluster --image kindest/node:v1.18.15
 
 Confirm it’s up:
 
@@ -36,20 +35,31 @@ Confirm it’s up:
 
    kubectl cluster-info --context kind-kind
 
+Add Airflow Stable Repo
+-----------------------
+
+.. code-block:: bash
+
+   helm repo add apache-airflow https://airflow.apache.org
+   helm repo update
+
 Create namespace and Install the chart
 --------------------------------------
 
 .. code-block:: bash
 
-   kubectl create namespace airflow
-   helm install airflow -n airflow .
+  export RELEASE_NAME=example-release
+  export NAMESPACE=example-namespace
+
+  kubectl create namespace $NAMESPACE
+  helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
 
 It may take a few minutes. Confirm the pods are up:
 
 .. code-block:: bash
 
-   kubectl get pods --all-namespaces
-   helm list -n airflow
+   kubectl get pods --namespace $NAMESPACE
+   helm list --namespace $NAMESPACE
 
 Run ``kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow``
 to port-forward the Airflow UI to http://localhost:8080/ to confirm
@@ -88,7 +98,6 @@ Build a Docker image from your DAGs
     .. code-block:: bash
 
       # from airflow chart directory
-      helm upgrade airflow -n airflow \
+      helm upgrade $RELEASE_NAME --namespace $NAMESPACE \
           --set images.airflow.repository=my-dags \
-          --set images.airflow.tag=0.0.1 \
-          .
+          --set images.airflow.tag=0.0.1

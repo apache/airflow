@@ -19,6 +19,15 @@
 Changelog
 ---------
 
+1.0.4
+.....
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+* ``Fix exception caused by missing keys in the ElasticSearch Record (#15163)``
+
 1.0.3
 .....
 

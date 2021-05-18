@@ -26,7 +26,6 @@ except ImportError:
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -132,7 +131,6 @@ class BashOperator(BaseOperator):
     )
     ui_color = '#f0ede4'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -47,10 +47,10 @@ details the steps for releasing apache-airflow-upgrade-check package.
 
 ## Pre-requisites
 
-- Install `setuptools-build-subpackage` v0.1.0 by running:
+- Install `setuptools-build-subpackage` by running:
 
   ```shell script
-  pip install https://github.com/ashb/setuptools-build-subpackage/archive/master.zip
+  pip install setuptools-build-subpackage
   ```
 
 ## Build RC artifacts

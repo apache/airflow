@@ -25,7 +25,6 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
@@ -82,7 +81,6 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(BaseOperator):
     )
     # [END gcp_video_intelligence_detect_labels_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -182,7 +180,6 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(BaseOperator):
     )
     # [END gcp_video_intelligence_detect_explicit_content_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -282,7 +279,6 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(BaseOperator):
     )
     # [END gcp_video_intelligence_detect_video_shots_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

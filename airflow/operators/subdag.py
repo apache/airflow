@@ -28,7 +28,6 @@ from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -62,7 +61,6 @@ class SubDagOperator(BaseSensorOperator):
     ui_fgcolor = '#fff'
 
     @provide_session
-    @apply_defaults
     def __init__(
         self,
         *,
