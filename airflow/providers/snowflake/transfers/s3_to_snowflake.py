@@ -72,8 +72,6 @@ class S3ToSnowflakeOperator(BaseOperator):
         the time you connect to Snowflake
     :type session_parameters: dict
     """
-    
-    template_fields = ("s3_keys",)
 
     def __init__(
         self,

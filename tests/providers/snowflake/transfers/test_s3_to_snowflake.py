@@ -28,8 +28,9 @@ class TestS3ToSnowflakeTransfer:
     @pytest.mark.parametrize("s3_keys", [None, ['1.csv', '2.csv']])
     @pytest.mark.parametrize("prefix", [None, 'prefix'])
     @pytest.mark.parametrize("schema", [None, 'schema'])
+    @pytest.mark.parametrize("on_error", [None, 'CONTINUE'])
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
-    def test_execute(self, mock_run, schema, prefix, s3_keys, columns_array):
+    def test_execute(self, mock_run, schema, prefix, s3_keys, columns_array, on_error):
         table = 'table'
         stage = 'stage'
         file_format = 'file_format'
@@ -59,6 +60,9 @@ class TestS3ToSnowflakeTransfer:
         if s3_keys:
             files = ", ".join(f"'{key}'" for key in s3_keys)
             copy_query += f"\nfiles=({files})"
+
+        if on_error:
+            copy_query += f"\non_error={on_error}"
 
         copy_query += f"\nfile_format={file_format}"
 
