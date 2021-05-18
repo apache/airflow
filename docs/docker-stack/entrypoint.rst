@@ -78,7 +78,7 @@ The image entrypoint works as follows:
   .. code-block:: bash
 
     > docker run -it apache/airflow:master-python3.6 version
-    2.1.0.dev0
+    2.2.0.dev0
 
 * If ``AIRFLOW__CELERY__BROKER_URL`` variable is passed and airflow command with
   scheduler, worker of flower command is used, then the script checks the broker connection
