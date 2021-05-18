@@ -907,13 +907,13 @@ class TestSchedulerJob(unittest.TestCase):
 
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db()
-        assert ti1.state == State.QUEUED
+        assert ti1.state == State.FAILED
         mock_task_callback.assert_called_once_with(
             full_filepath='/test_path1/',
             simple_task_instance=mock.ANY,
             msg='Executor reports task instance '
-            '<TaskInstance: test_process_executor_events.dummy_task 2016-01-01 00:00:00+00:00 [queued]> '
-            'finished (failed) although the task says its queued. (Info: None) '
+            '<TaskInstance: test_process_executor_events.dummy_task 2016-01-01 00:00:00+00:00 [failed]> '
+            'finished (failed) although the task says its failed. (Info: None) '
             'Was the task killed externally?',
         )
         self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once_with(task_callback)
