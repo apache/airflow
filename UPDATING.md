@@ -100,10 +100,6 @@ serve as a DagBag cache burst time.
 
 The `default_queue` configuration option has been moved from `[celery]` section to `[operators]` section to allow for re-use between different executors.
 
-### Update `parse_s3_url` in airflow.providers.amazon.aws.hooks.s3.S3Hook
-
-The `parse_s3_url` method in `airflow.providers.amazon.aws.hooks.s3.S3Hook` will now not remove the trailing slash by default. This will allow user to more flexibly implement their preferred prefix-level or subdirectory-level s3 operations.
-
 ## Airflow 2.0.2
 
 ### Default `[kubernetes] enable_tcp_keepalive` is changed to `True`
