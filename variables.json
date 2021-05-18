@@ -1,0 +1,152 @@
+{
+    "analysis_result_mq_queue": {
+        "durable": true,
+        "passive": false,
+        "queue": "qcos.process_results"
+    },
+    "analysis_result_mq_queue_nd": {
+        "durable": true,
+        "passive": false,
+        "queue": "QCOS_IMES_BOLT_ANALY_DATA"
+    },
+    "curve_template_mq_queue": {
+        "durable": true,
+        "passive": false,
+        "queue": "qcos.training_templates"
+    },
+    "dashboard_diff": "51JOPwGGk",
+    "dashboard_ok_rate": "H2XWxQMGk",
+    "dashboard_task": "IoRG5XGMz",
+    "final_result_mq_queue": {
+        "durable": true,
+        "passive": false,
+        "queue": "qcos.process_results"
+    },
+    "mails_diff": "",
+    "mails_ok_rate": "",
+    "mails_task": "",
+    "mails_task_retry": "",
+    "result_error_message_mapping": {
+        "1": " Rundown angle max shut off",
+        "10": " Current monitoring max shut off",
+        "11": " Post view torque min torque shut off",
+        "12": " Post view torque max torque shut off",
+        "13": " Post view torque Angle too small",
+        "14": " Trigger lost",
+        "15": " Torque less than target",
+        "16": " Tool hot",
+        "17": " Multistage abort",
+        "18": " Rehit",
+        "19": " DS measure failed",
+        "2": " Rundown angle min shut off",
+        "20": " Current limit reached",
+        "21": " EndTime out shutoff",
+        "22": " Remove fastener limit exceeded",
+        "23": " Disable drive",
+        "24": " Transducer lost",
+        "25": " Transducer shorted",
+        "26": " Transducer corrupt",
+        "27": " Sync timeout",
+        "28": " Dynamic current monitoring min",
+        "29": " Dynamic current monitoring max",
+        "3": " Torque max shut off",
+        "30": " Angle max monitor",
+        "31": " Yield nut off",
+        "32": " Yield too few samples",
+        "4": " Angle max shut off",
+        "5": " Selftap torque max shut off",
+        "6": " Selftap torque min shut off",
+        "7": " Prevail torque max shut off",
+        "8": " Prevail torque min shut off",
+        "9": " Prevail torque compensate overflow"
+    },
+    "result_keys_translation_mapping": {
+        "angle_max": "最大角度",
+        "angle_min": "最小角度",
+        "angle_target": "目标角度",
+        "batch": "批次",
+        "batch_count": "批次号",
+        "channel_id": "通道号",
+        "controller_name": "控制器名称",
+        "controller_sn": "控制器序列号",
+        "count": "拧紧次数",
+        "entity_id": "曲线编号",
+        "error_code": "错误信息",
+        "group_seq": "组序号",
+        "job": "JOB",
+        "last_calibration_date": "工具最近校准日期",
+        "measure_angle": "测量角度",
+        "measure_result": "拧紧结果",
+        "measure_time": "测量时间",
+        "measure_torque": "测量扭矩",
+        "nut_no": "螺栓编号",
+        "pset": "PSET",
+        "seq": "拧紧点序号",
+        "strategy": "策略",
+        "tightening_id": "拧紧ID",
+        "tool_sn": "工具序列号",
+        "torque_max": "最大扭矩",
+        "torque_min": "最小扭矩",
+        "torque_target": "目标扭矩",
+        "torque_threshold": "扭矩阈值",
+        "total_tool_counter": "工具拧紧总数",
+        "update_time": "更新时间",
+        "user_id": "用户ID",
+        "vin": "车辆编码",
+        "workorder_id": "工单号"
+    },
+    "task_retry_period": {
+        "days": -1
+    },
+    "task_retry_threshold": 1,
+    "tightening_result_mq_queue": {
+        "durable": true,
+        "passive": false,
+        "queue": "qcos.tightening_results"
+    },
+    "tightening_result_mq_queue_nd": {
+        "durable": true,
+        "passive": false,
+        "queue": "QCOS_IMES_BOLT_DATA"
+    },
+    "verify_error_map": {
+        "-2147418111": "内存中无对应曲线编号，曲线对应参数给出错误",
+        "0": "正确返回",
+        "1": "扭矩曲线形态异常",
+        "2": "角度曲线异常",
+        "3": "曲线斜率异常",
+        "4": "曲线局部扭矩异常",
+        "5": "曲线最大扭矩异常",
+        "6": "曲线最终角度异常",
+        "7": "曲线软停止异常"
+    },
+    "view_curve_page_keys": {
+        "basic": [
+            "entity_id",
+            "bolt_number",
+            "execution_date",
+            "controller_name",
+            "tool_sn"
+        ],
+        "detail": [
+            "vin",
+            "measure_result",
+            "measure_torque",
+            "torque_target",
+            "torque_max",
+            "torque_min",
+            "measure_angle",
+            "angle_target",
+            "angle_max",
+            "angle_min",
+            "strategy",
+            "update_time",
+            "tightening_id",
+            "job",
+            "batch_count",
+            "pset",
+            "channel_id",
+            "error_code"
+        ]
+    }
+}
