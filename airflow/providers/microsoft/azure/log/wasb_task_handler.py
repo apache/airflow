@@ -189,7 +189,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 log,
                 self.wasb_container,
                 remote_log_location,
-                overwrite=True
+                overwrite=append
             )
         except AzureHttpError:
             self.log.exception('Could not write logs to %s', remote_log_location)
