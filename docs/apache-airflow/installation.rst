@@ -188,7 +188,7 @@ Installation script
 '''''''''''''''''''
 
 In order to simplify the installation, we have prepared examples that will select
-`the constraints file <installation:constraints>`__ compatible with your Python version.
+:ref:`the constraints file <installation:constraints>` compatible with your Python version.
 
 **Installing Airflow with extras and providers**
 
