@@ -45,6 +45,7 @@ from typing import (
 )
 
 import jinja2
+import jinja2.sandbox
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
@@ -997,7 +998,7 @@ class DAG(LoggingMixin):
         if self.render_template_as_native_obj:
             env = NativeEnvironment(**jinja_env_options)
         else:
-            env = jinja2.Environment(**jinja_env_options)  # type: ignore
+            env = jinja2.sandbox.SandboxedEnvironment(**jinja_env_options)  # type: ignore
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals

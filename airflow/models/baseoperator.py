@@ -46,6 +46,7 @@ from typing import (
 
 import attr
 import jinja2
+import jinja2.sandbox
 
 try:
     from functools import cached_property
@@ -1078,7 +1079,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)  # noqa
+        return (
+            self.dag.get_template_env()
+            if self.has_dag()
+            else jinja2.sandbox.SandboxedEnvironment(cache_size=0)
+        )  # noqa
 
     def prepare_template(self) -> None:
         """
