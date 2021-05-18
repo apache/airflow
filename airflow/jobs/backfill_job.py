@@ -702,6 +702,9 @@ class BackfillJob(BaseJob):
 
         return err
 
+    def _get_dag_with_subdags(self):
+        return [self.dag] + self.dag.subdags
+
     @provide_session
     def _execute_dagruns(self, dagrun_infos, ti_status, executor, pickle_id, start_date, session=None):
         """
@@ -717,7 +720,7 @@ class BackfillJob(BaseJob):
         :param session: the current session object
         """
         for dagrun_info in dagrun_infos:
-            for dag in [self.dag] + self.dag.subdags:
+            for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 tis_map = self._task_instances_for_dag_run(dag_run, session=session)
                 if dag_run is None:
@@ -784,6 +787,31 @@ class BackfillJob(BaseJob):
                 return
             dagrun_infos = [DagRunInfo.interval(dagrun_start_date, dagrun_end_date)]
 
+        dag_with_subdags_ids = [d.dag_id for d in self._get_dag_with_subdags()]
+        running_dagruns = DagRun.find(
+            dag_id=dag_with_subdags_ids,
+            execution_start_date=self.bf_start_date,
+            execution_end_date=self.bf_end_date,
+            no_backfills=True,
+            state=DagRunState.RUNNING,
+        )
+
+        if running_dagruns:
+            for run in running_dagruns:
+                self.log.error(
+                    "Backfill cannot be created for DagRun %s in %s, as there's already %s in a RUNNING "
+                    "state.",
+                    run.run_id,
+                    run.execution_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                    run.run_type,
+                )
+            self.log.error(
+                "Changing DagRun into BACKFILL would cause scheduler to lose track of executing "
+                "tasks. Not changing DagRun type into BACKFILL, and trying insert another DagRun into "
+                "database would cause database constraint violation for dag_id + execution_date "
+                "combination. Please adjust backfill dates or wait for this DagRun to finish.",
+            )
+            return
         # picklin'
         pickle_id = None
 
