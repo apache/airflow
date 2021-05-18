@@ -326,7 +326,6 @@ google = [
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
-    'plyvel',
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -381,6 +380,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
+leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -636,6 +636,7 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'google_auth': flask_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
+    'leveldb': leveldb,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,

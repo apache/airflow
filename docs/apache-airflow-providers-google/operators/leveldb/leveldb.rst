@@ -29,6 +29,11 @@ an ordered mapping from string keys to string values.
 
 .. _howto/operator:LevelDBOperator:
 
+.. note::
+
+    To use LevelDB hooks and operators you must requires installation of ``plyvel``.  It will be
+    installed if you specify the extra ``apached-airflow-providers-google[leveldb]``.
+
 Put key
 ^^^^^^^^^^^^^^^
 
