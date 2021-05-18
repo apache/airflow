@@ -26,7 +26,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Master](#master)
+- [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
@@ -53,8 +53,6 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Master
-
 <!--
 
 I'm glad you want to write a new note. Remember that this note is intended for users.
@@ -71,6 +69,8 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+## Airflow 2.1.0
+
 ### New "deprecated_api" extra
 
 We have a new '[deprecated_api]' extra that should be used when installing airflow when the deprecated API
@@ -83,7 +83,7 @@ The `http` provider is now optional and not installed by default, until `chardet
 dependency of `requests`.
 See [PR to replace chardet with charset-normalizer](https://github.com/psf/requests/pull/5797)
 
-### `@apply_default` decorator isn't longer necessary
+### `@apply_default` decorator is no longer necessary
 
 This decorator is now automatically added to all operators via the metaclass on BaseOperator
 
