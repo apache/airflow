@@ -62,6 +62,11 @@ Also, you can only build one documentation via ``--package-filter`` option.
 .. code-block:: bash
 
     ./breeze build-docs -- --package-filter <PACKAGE-NAME>
+You can also see all the available commands via:
+
+.. code-block:: bash
+
+        ./breeze build-docs -- --help
 
 Running the Docs Locally
 ------------------------
