@@ -196,7 +196,7 @@ If release name contains chart name it will be used as a full name.
   volumeMounts:
   - name: dags
     mountPath: /git
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+  {{- if .Values.dags.gitSync.sshKeySecret }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
     readOnly: true
@@ -208,7 +208,7 @@ If release name contains chart name it will be used as a full name.
     subPath: known_hosts
   {{- end }}
   {{- end }}
-{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.extraVolumeMounts }}
+{{- if .Values.dags.gitSync.extraVolumeMounts }}
 {{ toYaml .Values.dags.gitSync.extraVolumeMounts | indent 2 }}
 {{- end }}
 {{- end }}

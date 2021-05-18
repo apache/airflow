@@ -172,6 +172,12 @@ class PodTemplateFileTest(unittest.TestCase):
         )
         assert {
             "name": "git-sync-ssh-key",
+            "mountPath": "/etc/git-secret/ssh",
+            "subPath": "gitSshKey",
+            "readOnly": True,
+        } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
+        assert {
+            "name": "git-sync-ssh-key",
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.volumes", docs[0])
 
@@ -195,14 +201,15 @@ class PodTemplateFileTest(unittest.TestCase):
             "spec.initContainers[0].env", docs[0]
         )
         assert {
-            "name": "git-sync-known-hosts",
-            "configMap": {"defaultMode": 288, "name": "RELEASE-NAME-airflow-config"},
-        } in jmespath.search("spec.volumes", docs[0])
+            "name": "GIT_SSH_KNOWN_HOSTS_FILE",
+            "value": "/etc/git-secret/known_hosts",
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
-            "name": "git-sync-known-hosts",
+            "name": "config",
             "mountPath": "/etc/git-secret/known_hosts",
             "subPath": "known_hosts",
-        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
+            "readOnly": True,
+        } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
