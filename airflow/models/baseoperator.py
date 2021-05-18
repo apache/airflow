@@ -54,6 +54,7 @@ except ImportError:
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
+import airflow.templates
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -1078,7 +1079,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)  # noqa
+        return (
+            self.dag.get_template_env()
+            if self.has_dag()
+            else airflow.templates.SandboxedEnvironment(cache_size=0)
+        )  # noqa
 
     def prepare_template(self) -> None:
         """

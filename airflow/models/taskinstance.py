@@ -1837,14 +1837,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     max_tries=self.max_tries,
                 )
             )
-            if self.dag.render_template_as_native_obj:
-                jinja_env = jinja2.nativetypes.NativeEnvironment(
-                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
-                )
-            else:
-                jinja_env = jinja2.Environment(
-                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
-                )
+            jinja_env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
+            )
             subject = jinja_env.from_string(default_subject).render(**jinja_context)
             html_content = jinja_env.from_string(default_html_content).render(**jinja_context)
             html_content_err = jinja_env.from_string(default_html_content_err).render(**jinja_context)
