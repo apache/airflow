@@ -45,6 +45,8 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type prefix: str
     :param file_format: reference to a specific file format
     :type file_format: str
+    :param on_error: const that specifies the action to perform when an error is encountered while loading data from a file
+    :type on_error: str
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
     :type warehouse: str
@@ -70,6 +72,8 @@ class S3ToSnowflakeOperator(BaseOperator):
         the time you connect to Snowflake
     :type session_parameters: dict
     """
+    
+    template_fields = ("s3_keys",)
 
     def __init__(
         self,
@@ -79,6 +83,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         stage: str,
         prefix: Optional[str] = None,
         file_format: str,
+        on_error: Optional[str] = None,
         schema: Optional[str] = None,
         columns_array: Optional[list] = None,
         warehouse: Optional[str] = None,
@@ -98,6 +103,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.stage = stage
         self.prefix = prefix
         self.file_format = file_format
+        self.on_error = on_error
         self.schema = schema
         self.columns_array = columns_array
         self.autocommit = autocommit
@@ -132,6 +138,9 @@ class S3ToSnowflakeOperator(BaseOperator):
             files = ", ".join(f"'{key}'" for key in self.s3_keys)
             sql_parts.append(f"files=({files})")
         sql_parts.append(f"file_format={self.file_format}")
+
+        if self.on_error:
+            sql_parts.append(f"on_error={self.on_error}")
 
         copy_query = "\n".join(sql_parts)
 
