@@ -215,7 +215,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 def task_group_to_dict(task_group):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
-    the Graph View.
+    the Graph.
     """
     if isinstance(task_group, BaseOperator):
         return {
@@ -277,7 +277,7 @@ def task_group_to_dict(task_group):
 
 def dag_edges(dag):
     """
-    Create the list of edges needed to construct the Graph View.
+    Create the list of edges needed to construct the Graph view.
 
     A special case is made if a TaskGroup is immediately upstream/downstream of another
     TaskGroup or task. Two dummy nodes named upstream_join_id and downstream_join_id are
@@ -1915,7 +1915,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         )
 
     def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
-        """Returns formatted dag_runs for Tree View"""
+        """Returns formatted dag_runs for Tree view"""
         dates = sorted(dag_runs.keys())
         min_date = min(dag_runs, default=None)
 
