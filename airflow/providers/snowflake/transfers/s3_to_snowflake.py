@@ -72,6 +72,7 @@ class S3ToSnowflakeOperator(BaseOperator):
     """
 
     template_fields = ("s3_keys",)
+    template_fields_renderers = {"s3_keys": "json"}
 
     def __init__(
         self,
