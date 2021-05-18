@@ -20,6 +20,10 @@ Changelog
 ---------
 
 2.0.0
+.....
+
+Bug fixes
+~~~~~~~~~
 
 * ``Update `parse_s3_url` in airflow.providers.amazon.aws.hooks.s3.S3Hook(#15609)
 
