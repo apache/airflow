@@ -1717,18 +1717,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
         prepare-provider-packages command cleans up the dist folder, so if you want also
         to generate provider packages, make sure you run prepare-provider-packages first,
         and prepare-airflow-packages second. You can specify optional
-        --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
-        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
-        provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
-        dist folder
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+        The packages are prepared in dist folder
 
         Examples:
 
         'breeze prepare-airflow-packages --package-format wheel' or
-        'breeze prepare-airflow-packages --version-suffix-for-svn rc1' or
         'breeze prepare-airflow-packages --version-suffix-for-pypi rc1'
-        'breeze prepare-airflow-packages --version-suffix-for-pypi a1
-                                              --version-suffix-for-svn a1'
 
   Flags:
 

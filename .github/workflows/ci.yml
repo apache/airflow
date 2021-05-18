@@ -521,7 +521,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      VERSION_SUFFIX_FOR_SVN: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -570,7 +569,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      VERSION_SUFFIX_FOR_SVN: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:

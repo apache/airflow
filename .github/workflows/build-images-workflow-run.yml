@@ -410,7 +410,6 @@ jobs:
       FORCE_PULL_BASE_PYTHON_IMAGE: >
         ${{ needs.cancel-workflow-runs.sourceEvent == 'schedule' && 'true' || 'false' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      VERSION_SUFFIX_FOR_SVN: ".dev0"
     steps:
       - name: >
           Checkout [${{ needs.cancel-workflow-runs.outputs.sourceEvent }}]

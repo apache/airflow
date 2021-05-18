@@ -126,13 +126,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 --package-format both
+./breeze prepare-provider-packages --package-format both
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 --package-format both PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -791,7 +791,7 @@ We also made those versions available on PyPi for convenience ('pip install apac
 
 https://pypi.org/search/?q=apache-airflow-providers
 
-The documentation is available at http://airflow.apache.org/docs/ and linked from the PyPI packages:
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
