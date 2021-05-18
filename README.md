@@ -222,25 +222,25 @@ following the ASF Policy.
 
   ![DAGs](/docs/apache-airflow/img/dags.png)
 
-- **Tree View**: Tree representation of a DAG that spans across time.
+- **Tree**: Tree representation of a DAG that spans across time.
 
-  ![Tree View](/docs/apache-airflow/img/tree.png)
+  ![Tree](/docs/apache-airflow/img/tree.png)
 
-- **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
+- **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph View](/docs/apache-airflow/img/graph.png)
+  ![Graph](/docs/apache-airflow/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
   ![Task Duration](/docs/apache-airflow/img/duration.png)
 
-- **Gantt View**: Duration and overlap of a DAG.
+- **Gantt**: Duration and overlap of a DAG.
 
-  ![Gantt View](/docs/apache-airflow/img/gantt.png)
+  ![Gantt](/docs/apache-airflow/img/gantt.png)
 
-- **Code View**:  Quick way to view source code of a DAG.
+- **Code**:  Quick way to view source code of a DAG.
 
-  ![Code View](/docs/apache-airflow/img/code.png)
+  ![Code](/docs/apache-airflow/img/code.png)
 
 
 ## Contributing
