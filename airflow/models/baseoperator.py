@@ -46,7 +46,6 @@ from typing import (
 
 import attr
 import jinja2
-import jinja2.sandbox
 
 try:
     from functools import cached_property
@@ -55,6 +54,7 @@ except ImportError:
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
+import airflow.templates
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -1082,7 +1082,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return (
             self.dag.get_template_env()
             if self.has_dag()
-            else jinja2.sandbox.SandboxedEnvironment(cache_size=0)
+            else airflow.templates.SandboxedEnvironment(cache_size=0)
         )  # noqa
 
     def prepare_template(self) -> None:
