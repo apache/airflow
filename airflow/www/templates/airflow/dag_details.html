@@ -50,7 +50,7 @@
     </tr>
     <tr>
       <th>Start Date</th>
-      <td>{{ dag.start_date }}</td>
+      <td id="dag_start_date">{{ dag.start_date }}</td>
     </tr>
     <tr>
       <th>End Date</th>
@@ -107,4 +107,9 @@
       </td>
     </tr>
   </table>
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
+  <script src="{{ url_for_asset('dagDetails.js') }}"></script>
 {% endblock %}
