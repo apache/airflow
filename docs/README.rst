@@ -57,6 +57,12 @@ or just to run documentation building
 
      ./breeze build-docs -- --docs-only
 
+Also, you can only build one documentation via ``--package-filter`` option.
+
+.. code-block:: bash
+
+    ./breeze build-docs -- --package-filter <PACKAGE-NAME>
+
 Running the Docs Locally
 ------------------------
 
