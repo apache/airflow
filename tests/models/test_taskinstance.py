@@ -2059,9 +2059,9 @@ def test_refresh_from_task(pool_override):
 
 def test_refresh_from_db():
     """
-    Test that all columns defined on the TaskInstance are refreshed form the db
+    Test that all columns defined on the TaskInstance are refreshed from the db
     """
-    dag = DAG('dag', start_date=DEFAULT_DATE)
+    dag = DAG('test_refresh_from_db', start_date=DEFAULT_DATE)
     task = DummyOperator(task_id='op', dag=dag)
     ti = TI(task=task, execution_date=datetime.datetime.now())
 
