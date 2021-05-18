@@ -52,11 +52,10 @@ if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
     echo
     echo "Building airflow from branch or non-release tag: ${DOCKER_TAG}"
     echo
-    # All the packages: Airflow and providers will have a "dev" version suffix in the imaage that
+    # All the packages: Airflow and providers will have a "dev" version suffix in the image that
     # is built from non-release tag. If this is not set, then building images from locally build
     # packages fails, because the packages with non-dev version are skipped (as they are already released)
     export VERSION_SUFFIX_FOR_PYPI=".dev0"
-    export VERSION_SUFFIX_FOR_SVN=".dev0"
     # Only build and push CI image for the nightly-master, v2-0-test branches
     # for tagged releases we build everything from PyPI, so we do not need CI images
     # For development images, we have to build all packages from current sources because we want to produce

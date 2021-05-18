@@ -477,8 +477,6 @@ function initialization::initialize_image_build_variables() {
 function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
-    # Artifact name suffix for SVN packaging
-    export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN=}"
 
 }
 
@@ -665,7 +663,6 @@ Host variables:
 Version suffix variables:
 
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN}
 
 Git variables:
 
@@ -873,7 +870,6 @@ function initialization::make_constants_read_only() {
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
     readonly VERSION_SUFFIX_FOR_PYPI
-    readonly VERSION_SUFFIX_FOR_SVN
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE

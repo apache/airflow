@@ -258,9 +258,6 @@ You can use those variables when you try to reproduce the build locally.
 | ``VERSION_SUFFIX_FOR_PYPI``             |             |             |            | Version suffix used during provider             |
 |                                         |             |             |            | package preparation for PyPI builds.            |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_SVN``              |             |             |            | Version suffix used during provider             |
-|                                         |             |             |            | package preparation for SVN builds.             |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                           |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | COMMIT_SHA                              |             | GITHUB_SHA  | GITHUB_SHA | SHA of the commit of the build is run           |

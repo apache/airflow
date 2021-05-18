@@ -57,6 +57,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     # Set Version
     export VERSION=2.0.2rc3
     export VERSION_SUFFIX=rc3
+    export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
     export AIRFLOW_REPO_ROOT=$(pwd)
@@ -87,14 +88,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tarball the repo
 
     ```shell script
-    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o dist/apache-airflow-${VERSION}-source.tar.gz
+    git archive --format=tar.gz ${VERSION} \
+        --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
+        -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
-    ./breeze prepare-airflow-packages --package-format both --version-suffix-for-svn "${VERSION_SUFFIX}"
+    ./breeze prepare-airflow-packages --package-format both
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
     ```
 
@@ -126,7 +129,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 ## Prepare PyPI convenience "snapshot" packages
 
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to pypi for installing via pip. Also those packages
+publish "snapshots" of the RC builds to PyPI for installing via pip. Also those packages
 are used to build the production docker image in DockerHub, so we need to upload the packages
 before we push the tag to GitHub. Pushing the tag to GitHub automatically triggers image building in
 DockerHub.
@@ -145,7 +148,7 @@ To do this we need to
     twine check dist/*
     ```
 
-- Upload the package to PyPi's test environment:
+- Upload the package to PyPI's test environment:
 
     ```shell script
     twine upload -r pypitest dist/*
@@ -154,7 +157,7 @@ To do this we need to
 - Verify that the test package looks good by downloading it and installing it into a virtual environment. The package download link is available at:
 https://test.pypi.org/project/apache-airflow/#files
 
-- Upload the package to PyPi's production environment:
+- Upload the package to PyPI's production environment:
 `twine upload -r pypi dist/*`
 
 - Again, confirm that the package is available here:
@@ -476,18 +479,18 @@ Hello,
 Apache Airflow 2.0.2 (based on RC3) has been accepted.
 
 4 “+1” binding votes received:
-- Kaxil Naik  (binding)
-- Bolke de Bruin (binding)
-- Ash Berlin-Taylor (binding)
-- Tao Feng (binding)
+- Kaxil Naik
+- Bolke de Bruin
+- Ash Berlin-Taylor
+- Tao Feng
 
 
 4 "+1" non-binding votes received:
 
-- Deng Xiaodong (non-binding)
-- Stefan Seelmann (non-binding)
-- Joshua Patchus (non-binding)
-- Felix Uellendall (non-binding)
+- Deng Xiaodong
+- Stefan Seelmann
+- Joshua Patchus
+- Felix Uellendall
 
 Vote thread:
 https://lists.apache.org/thread.html/736404ca3d2b2143b296d0910630b9bd0f8b56a0c54e3a05f4c8b5fe@%3Cdev.airflow.apache.org%3E
@@ -513,13 +516,13 @@ cd <YOUR_AIRFLOW_SOURCES>
 export AIRFLOW_SOURCES=$(pwd)
 
 # GO to Checked out DEV repo. Should be checked out before via:
-# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-release
+# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
 cd <YOUR_AIFLOW_DEV_SVN>
 svn update
 export AIRFLOW_DEV_SVN=$(pwd)
 
 # GO to Checked out RELEASE repo. Should be checked out before via:
-# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-release
+# svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 cd <YOUR_AIFLOW_RELEASE_SVN>
 svn update
 
@@ -561,7 +564,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     twine check dist/*
     ```
 
-- Upload the package to PyPi's test environment:
+- Upload the package to PyPI's test environment:
 
     ```shell script
     twine upload -r pypitest dist/*
@@ -570,7 +573,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Verify that the test package looks good by downloading it and installing it into a virtual environment.
     The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
 
-- Upload the package to PyPi's production environment:
+- Upload the package to PyPI's production environment:
 
     ```shell script
     twine upload -r pypi dist/*
@@ -692,7 +695,7 @@ here:
 
 https://dist.apache.org/repos/dist/release/airflow/${VERSION}/
 
-We also made this version available on PyPi for convenience (`pip install apache-airflow`):
+We also made this version available on PyPI for convenience (`pip install apache-airflow`):
 
 https://pypi.python.org/pypi/apache-airflow
 
