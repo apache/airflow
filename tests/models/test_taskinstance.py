@@ -2057,6 +2057,26 @@ def test_refresh_from_task(pool_override):
     assert ti.operator == DummyOperator.__name__
 
 
+def test_refresh_from_db():
+    """
+    Test that all columns defined on the TaskInstance are refreshed form the db
+    """
+    dag = DAG('dag', start_date=DEFAULT_DATE)
+    task = DummyOperator(task_id='op', dag=dag)
+    ti = TI(task=task, execution_date=datetime.datetime.now())
+
+    # We only care about columns that are not primary keys
+    columns = [column for column in ti.__table__.columns if not column.primary_key]
+
+    for column in columns:
+        setattr(ti, column.name, 'NOT_REFRESHED')
+
+    ti.refresh_from_db()
+
+    for column in columns:
+        assert getattr(ti, column.name) != 'NOT_REFRESHED'
+
+
 class TestRunRawTaskQueriesCount(unittest.TestCase):
     """
     These tests are designed to detect changes in the number of queries executed
