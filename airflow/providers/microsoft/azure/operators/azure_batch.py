@@ -23,7 +23,6 @@ from azure.batch import models as batch_models
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -89,7 +88,7 @@ class AzureBatchOperator(BaseOperator):
         This property must not be specified if enableAutoScale is set to false.
         It is required if enableAutoScale is set to true.
     :type auto_scale_formula: Optional[str]
-    :param azure_batch_conn_id: The connection id of Azure batch service
+    :param azure_batch_conn_id: The :ref:`Azure Batch connection id<howto/connection:azure_batch>`
     :type azure_batch_conn_id: str
     :param use_latest_verified_vm_image_and_sku: Whether to use the latest verified virtual
         machine image and sku in the batch account. Default is false.
@@ -132,7 +131,6 @@ class AzureBatchOperator(BaseOperator):
     )
     ui_color = '#f0f0e4'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments,too-many-locals

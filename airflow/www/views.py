@@ -25,10 +25,10 @@ import socket
 import sys
 import traceback
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Dict, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -55,9 +55,25 @@ from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter  # noqa
+from flask_appbuilder.security.views import (
+    PermissionModelView,
+    PermissionViewModelView,
+    ResetMyPasswordView,
+    ResetPasswordView,
+    RoleModelView,
+    UserDBModelView,
+    UserInfoEditView,
+    UserLDAPModelView,
+    UserOAuthModelView,
+    UserOIDModelView,
+    UserRemoteUserModelView,
+    UserStatsChartView,
+    ViewMenuModelView,
+)
 from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
+from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
 from sqlalchemy import and_, desc, func, or_, union_all
@@ -77,10 +93,11 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
@@ -90,6 +107,7 @@ from airflow.utils import json as utils_json, timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -348,10 +366,16 @@ def dag_edges(dag):
     for root in dag.roots:
         get_downstream(root)
 
-    return [
-        {'source_id': source_id, 'target_id': target_id}
-        for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip)
-    ]
+    result = []
+    # Build result dicts with the two ends of the edge, plus any extra metadata
+    # if we have it.
+    for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
+        record = {"source_id": source_id, "target_id": target_id}
+        label = dag.get_edge_info(source_id, target_id).get("label")
+        if label:
+            record["label"] = label
+        result.append(record)
+    return result
 
 
 ######################################################################################
@@ -632,6 +656,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 num_of_pages,
                 search=escape(arg_search_query) if arg_search_query else None,
                 status=arg_status_filter if arg_status_filter else None,
+                tags=arg_tags_filter if arg_tags_filter else None,
             ),
             num_runs=num_runs,
             tags=tags,
@@ -1889,56 +1914,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             State.SUCCESS,
         )
 
-    @expose('/tree')
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
-        ]
-    )
-    @gzipped  # pylint: disable=too-many-locals
-    @action_logging  # pylint: disable=too-many-locals
-    def tree(self):
-        """Get Dag as tree."""
-        dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
-            return redirect(url_for('Airflow.index'))
-
-        root = request.args.get('root')
-        if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
-
-        base_date = request.args.get('base_date')
-        num_runs = request.args.get('num_runs', type=int)
-        if num_runs is None:
-            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
-
-        if base_date:
-            base_date = timezone.parse(base_date)
-        else:
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        with create_session() as session:
-            dag_runs = (
-                session.query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-                .order_by(DagRun.execution_date.desc())
-                .limit(num_runs)
-                .all()
-            )
-        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-
+    def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
+        """Returns formatted dag_runs for Tree View"""
         dates = sorted(dag_runs.keys())
-        max_date = max(dates) if dates else None
-        min_date = min(dates) if dates else None
+        min_date = min(dag_runs, default=None)
 
-        tis = dag.get_task_instances(start_date=min_date, end_date=base_date)
-        task_instances: Dict[Tuple[str, datetime], models.TaskInstance] = {}
-        for ti in tis:
-            task_instances[(ti.task_id, ti.execution_date)] = ti
+        task_instances = {
+            (ti.task_id, ti.execution_date): ti
+            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date)
+        }
 
         expanded = set()
         # The default recursion traces every path so that tree view has full
@@ -2014,11 +1998,54 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 node['extra_links'] = task.extra_links
             return node
 
-        data = {
+        return {
             'name': '[DAG]',
             'children': [recurse_nodes(t, set()) for t in dag.roots],
             'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
+
+    @expose('/tree')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        ]
+    )
+    @gzipped  # pylint: disable=too-many-locals
+    @action_logging  # pylint: disable=too-many-locals
+    def tree(self):
+        """Get Dag as tree."""
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for('Airflow.index'))
+
+        root = request.args.get('root')
+        if root:
+            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+
+        num_runs = request.args.get('num_runs', type=int)
+        if num_runs is None:
+            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
+
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
+
+        with create_session() as session:
+            dag_runs = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+                .order_by(DagRun.execution_date.desc())
+                .limit(num_runs)
+                .all()
+            )
+        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+
+        max_date = max(dag_runs.keys(), default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
@@ -2035,6 +2062,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         else:
             external_log_name = None
 
+        data = self._get_tree_data(dag_runs, dag, base_date)
+
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
@@ -2049,6 +2078,70 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
+        )
+
+    @expose('/calendar')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @gzipped  # pylint: disable=too-many-locals
+    @action_logging  # pylint: disable=too-many-locals
+    def calendar(self):
+        """Get DAG runs as calendar"""
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for('Airflow.index'))
+
+        root = request.args.get('root')
+        if root:
+            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+
+        with create_session() as session:
+            dag_states = (
+                session.query(
+                    func.date(DagRun.execution_date).label('date'),
+                    DagRun.state,
+                    func.count('*').label('count'),
+                )
+                .filter(DagRun.dag_id == dag.dag_id)
+                .group_by(func.date(DagRun.execution_date), DagRun.state)
+                .order_by(func.date(DagRun.execution_date).asc())
+                .all()
+            )
+
+        dag_states = [
+            {
+                # DATE() in SQLite and MySQL behave differently:
+                # SQLite returns a string, MySQL returns a date.
+                'date': dr.date if isinstance(dr.date, str) else dr.date.isoformat(),
+                'state': dr.state,
+                'count': dr.count,
+            }
+            for dr in dag_states
+        ]
+
+        data = {
+            'dag_states': dag_states,
+            'start_date': (dag.start_date or DateTime.utcnow()).date().isoformat(),
+            'end_date': (dag.end_date or DateTime.utcnow()).date().isoformat(),
+        }
+
+        doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
+
+        # avoid spaces to reduce payload size
+        data = htmlsafe_json_dumps(data, separators=(',', ':'))
+
+        return self.render_template(
+            'airflow/calendar.html',
+            dag=dag,
+            doc_md=doc_md,
+            data=data,
+            root=root,
         )
 
     @expose('/graph')
@@ -2654,6 +2747,52 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         return json.dumps(task_instances, cls=utils_json.AirflowJsonEncoder)
 
+    @expose('/object/tree_data')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def tree_data(self):
+        """Returns tree data"""
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+
+        if not dag:
+            response = jsonify({'error': f"can't find dag {dag_id}"})
+            response.status_code = 404
+            return response
+
+        root = request.args.get('root')
+        if root:
+            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+
+        num_runs = request.args.get('num_runs', type=int)
+        if num_runs is None:
+            num_runs = conf.getint('webserver', 'default_dag_run_display_number')
+
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
+
+        with create_session() as session:
+            dag_runs = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+                .order_by(DagRun.execution_date.desc())
+                .limit(num_runs)
+                .all()
+            )
+        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+
+        tree_data = self._get_tree_data(dag_runs, dag, base_date)
+
+        # avoid spaces to reduce payload size
+        return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
+
 
 class ConfigurationView(AirflowBaseView):
     """View to show Airflow Configurations"""
@@ -3145,9 +3284,9 @@ class VariableModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ['key', 'val', 'is_encrypted']
-    add_columns = ['key', 'val']
-    edit_columns = ['key', 'val']
+    list_columns = ['key', 'val', 'description', 'is_encrypted']
+    add_columns = ['key', 'val', 'description']
+    edit_columns = ['key', 'val', 'description']
     search_columns = ['key', 'val']
 
     base_order = ('key', 'asc')
@@ -3156,7 +3295,7 @@ class VariableModelView(AirflowModelView):
         """Formats hidden fields"""
         key = self.get('key')  # noqa pylint: disable=no-member
         val = self.get('val')  # noqa pylint: disable=no-member
-        if wwwutils.should_hide_value_for_key(key):
+        if secrets_masker.should_hide_value_for_key(key):
             return Markup('*' * 8)
         if val:
             return val
@@ -3170,7 +3309,7 @@ class VariableModelView(AirflowModelView):
     validators_columns = {'key': [validators.DataRequired()]}
 
     def prefill_form(self, form, request_id):  # pylint: disable=unused-argument
-        if wwwutils.should_hide_value_for_key(form.key.data):
+        if secrets_masker.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
@@ -3293,6 +3432,7 @@ class DagRunModelView(AirflowModelView):
     method_permission_name = {
         'add': 'create',
         'list': 'read',
+        'action_clear': 'delete',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
@@ -3831,3 +3971,281 @@ class DagModelView(AirflowModelView):
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
         return wwwutils.json_response(payload)
+
+
+class DagDependenciesView(AirflowBaseView):
+    """View to show dependencies between DAGs"""
+
+    refresh_interval = timedelta(
+        seconds=conf.getint(
+            "webserver",
+            "dag_dependencies_refresh_interval",
+            fallback=conf.getint("scheduler", "dag_dir_list_interval"),
+        )
+    )
+    last_refresh = timezone.utcnow() - refresh_interval
+    nodes = []
+    edges = []
+
+    @expose('/dag-dependencies')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+        ]
+    )
+    @gzipped
+    @action_logging
+    def list(self):
+        """Display DAG dependencies"""
+        title = "DAG Dependencies"
+
+        if timezone.utcnow() > self.last_refresh + self.refresh_interval:
+            if SerializedDagModel.get_max_last_updated_datetime() > self.last_refresh:
+                self._calculate_graph()
+            self.last_refresh = timezone.utcnow()
+
+        return self.render_template(
+            "airflow/dag_dependencies.html",
+            title=title,
+            nodes=self.nodes,
+            edges=self.edges,
+            last_refresh=self.last_refresh.strftime("%Y-%m-%d %H:%M:%S"),
+            arrange=conf.get("webserver", "dag_orientation"),
+            width=request.args.get("width", "100%"),
+            height=request.args.get("height", "800"),
+        )
+
+    def _calculate_graph(self):
+
+        nodes = []
+        edges = []
+
+        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+            dag_node_id = f"dag:{dag}"
+            nodes.append(self._node_dict(dag_node_id, dag, "dag"))
+
+            for dep in dependencies:
+
+                nodes.append(self._node_dict(dep.node_id, dep.dependency_id, dep.dependency_type))
+                edges.extend(
+                    [
+                        {"u": f"dag:{dep.source}", "v": dep.node_id},
+                        {"u": dep.node_id, "v": f"dag:{dep.target}"},
+                    ]
+                )
+
+        self.nodes = nodes
+        self.edges = edges
+
+    @staticmethod
+    def _node_dict(node_id, label, node_class):
+        return {
+            "id": node_id,
+            "value": {"label": label, "rx": 5, "ry": 5, "class": node_class},
+        }
+
+
+class CustomPermissionModelView(PermissionModelView):
+    """Customize permission names for FAB's builtin PermissionModelView."""
+
+    class_permission_name = permissions.RESOURCE_PERMISSION
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomPermissionViewModelView(PermissionViewModelView):
+    """Customize permission names for FAB's builtin PermissionViewModelView."""
+
+    class_permission_name = permissions.RESOURCE_PERMISSION_VIEW
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomResetMyPasswordView(ResetMyPasswordView):
+    """Customize permission names for FAB's builtin ResetMyPasswordView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PASSWORD
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomResetPasswordView(ResetPasswordView):
+    """Customize permission names for FAB's builtin ResetPasswordView."""
+
+    class_permission_name = permissions.RESOURCE_PASSWORD
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomRoleModelView(RoleModelView):
+    """Customize permission names for FAB's builtin RoleModelView."""
+
+    class_permission_name = permissions.RESOURCE_ROLE
+    method_permission_name = {
+        'delete': 'delete',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'add': 'create',
+        'copy_role': 'create',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+
+class CustomViewMenuModelView(ViewMenuModelView):
+    """Customize permission names for FAB's builtin ViewMenuModelView."""
+
+    class_permission_name = permissions.RESOURCE_VIEW_MENU
+    method_permission_name = {
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserDBModelView(UserDBModelView):
+    """Customize permission names for FAB's builtin UserDBModelView."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
+        'resetpasswords': permissions.RESOURCE_PASSWORD,
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'add': 'create',
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'resetmypassword': 'read',
+        'resetpasswords': 'read',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+    @property
+    def class_permission_name(self):
+        """Returns appropriate permission name depending on request method name."""
+        if request:
+            action_name = request.view_args.get("name")
+            _, method_name = request.url_rule.endpoint.split(".")
+            if method_name == 'action' and action_name:
+                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
+            if method_name:
+                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
+
+        return self._class_permission_name
+
+    @class_permission_name.setter
+    def class_permission_name(self, name):
+        self._class_permission_name = name
+
+
+class CustomUserInfoEditView(UserInfoEditView):
+    """Customize permission names for FAB's builtin UserInfoEditView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    route_base = "/userinfoeditview"
+    method_permission_name = {
+        'this_form_get': 'read',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomUserStatsChartView(UserStatsChartView):
+    """Customize permission names for FAB's builtin UserStatsChartView."""
+
+    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
+    route_base = "/userstatschartview"
+    method_permission_name = {
+        'chart': 'read',
+        'list': 'read',
+    }
+    base_permissions = [permissions.ACTION_CAN_READ]
+
+
+class CustomUserLDAPModelView(UserLDAPModelView):
+    """Customize permission names for FAB's builtin UserLDAPModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserOAuthModelView(UserOAuthModelView):
+    """Customize permission names for FAB's builtin UserOAuthModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserOIDModelView(UserOIDModelView):
+    """Customize permission names for FAB's builtin UserOIDModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+
+class CustomUserRemoteUserModelView(UserRemoteUserModelView):
+    """Customize permission names for FAB's builtin UserRemoteUserModelView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    method_permission_name = {
+        'userinfo': 'read',
+        'list': 'read',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]

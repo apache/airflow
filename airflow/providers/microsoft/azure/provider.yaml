@@ -22,6 +22,7 @@ description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
 
 versions:
+  - 2.0.0
   - 1.3.0
   - 1.2.0
   - 1.1.0
@@ -156,3 +157,4 @@ hook-class-names:
   - airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
   - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
+  - airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook

@@ -50,6 +50,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                               |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| deprecated_api      | ``pip install 'apache-airflow[deprecated_api]'``    | Deprecated, experimental API that is replaced with the new REST API        |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github_enterprise   | ``pip install 'apache-airflow[github_enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
@@ -84,14 +86,15 @@ For example the below command will install:
   * apache-airflow-providers-google
   * apache-airflow-providers-apache-spark
 
-with a consistent set of dependencies based on constraint files provided by Airflow  Community at the time 2.0.1 version was released.
+with a consistent set of dependencies based on constraint files provided by Airflow Community at the time |version| version was released.
 
 .. code-block:: bash
+    :substitutions:
 
-    pip install apache-airflow[google,amazon,apache.spark]==2.0.1 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.6.txt"
+    pip install apache-airflow[google,amazon,apache.spark]==|version| \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt"
 
-Note, that this will install providers in the versions that were released at the time of Airflow 2.0.1 release. You can later
+Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
 
 
@@ -144,6 +147,8 @@ Those are extras that add dependencies needed for integration with external serv
 | airbyte             | ``pip install 'apache-airflow[airbyte]'``           | Airbyte hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | amazon              | ``pip install 'apache-airflow[amazon]'``            | Amazon Web Services                                 |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -251,7 +256,7 @@ Those are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | grpc                | ``pip install 'apache-airflow[grpc]'``              | Grpc hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |      *       |
+| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | imap                | ``pip install 'apache-airflow[imap]'``              | IMAP hooks and sensors               |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

@@ -21,7 +21,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AirbyteJobSensor(BaseSensorOperator):
@@ -40,7 +39,6 @@ class AirbyteJobSensor(BaseSensorOperator):
     template_fields = ('airbyte_job_id',)
     ui_color = '#6C51FD'
 
-    @apply_defaults
     def __init__(
         self,
         *,

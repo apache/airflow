@@ -24,6 +24,7 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
+from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,7 +39,9 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeVar,
     Union,
+    cast,
 )
 
 import attr
@@ -51,6 +54,7 @@ except ImportError:
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
+import airflow.templates
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -65,7 +69,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
+from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
@@ -80,23 +84,113 @@ ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskStateChangeCallback = Callable[[Context], None]
 
+T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
+
 
 class BaseOperatorMeta(abc.ABCMeta):
-    """Base metaclass of BaseOperator."""
+    """Metaclass of BaseOperator."""
 
-    def __call__(cls, *args, **kwargs):
+    @classmethod
+    def _apply_defaults(cls, func: T) -> T:
         """
-        Called when you call BaseOperator(). In this way we are able to perform an action
-        after initializing an operator no matter where  the ``super().__init__`` is called
-        (before or after assign of new attributes in a custom operator).
-        """
-        obj: BaseOperator = type.__call__(cls, *args, **kwargs)
-        # Here we set upstream task defined by XComArgs passed to template fields of the operator
-        obj.set_xcomargs_dependencies()
+        Function decorator that Looks for an argument named "default_args", and
+        fills the unspecified arguments from it.
 
-        # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
-        obj._BaseOperator__instantiated = True
-        return obj
+        Since python2.* isn't clear about which arguments are missing when
+        calling a function, and that this can be quite confusing with multi-level
+        inheritance and argument defaults, this decorator also alerts with
+        specific information about the missing arguments.
+        """
+        # Cache inspect.signature for the wrapper closure to avoid calling it
+        # at every decorated invocation. This is separate sig_cache created
+        # per decoration, i.e. each function decorated using apply_defaults will
+        # have a different sig_cache.
+        sig_cache = signature(func)
+        non_optional_args = {
+            name
+            for (name, param) in sig_cache.parameters.items()
+            if param.default == param.empty
+            and param.name != 'self'
+            and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+        }
+
+        # pylint: disable=invalid-name,missing-docstring
+        class autostacklevel_warn:
+            def __init__(self):
+                self.warnings = __import__('warnings')
+
+            def __getattr__(self, name):
+                return getattr(self.warnings, name)
+
+            def __dir__(self):
+                return dir(self.warnings)
+
+            def warn(self, message, category=None, stacklevel=1, source=None):
+                self.warnings.warn(message, category, stacklevel + 2, source)
+
+        # pylint: enable=invalid-name,missing-docstring
+
+        if func.__globals__.get('warnings') is sys.modules['warnings']:
+            # Yes, this is slightly hacky, but it _automatically_ sets the right
+            # stacklevel parameter to `warnings.warn` to ignore the decorator. Now
+            # that the decorator is applied automatically, this makes the needed
+            # stacklevel parameter less confusing.
+            func.__globals__['warnings'] = autostacklevel_warn()
+
+        @functools.wraps(func)
+        def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
+            from airflow.models.dag import DagContext
+
+            if len(args) > 0:
+                raise AirflowException("Use keyword arguments when initializing operators")
+            dag_args: Dict[str, Any] = {}
+            dag_params: Dict[str, Any] = {}
+
+            dag = kwargs.get('dag') or DagContext.get_current_dag()
+            if dag:
+                dag_args = copy.copy(dag.default_args) or {}
+                dag_params = copy.copy(dag.params) or {}
+
+            params = kwargs.get('params', {}) or {}
+            dag_params.update(params)
+
+            default_args = {}
+            if 'default_args' in kwargs:
+                default_args = kwargs['default_args']
+                if 'params' in default_args:
+                    dag_params.update(default_args['params'])
+                    del default_args['params']
+
+            dag_args.update(default_args)
+            default_args = dag_args
+
+            for arg in sig_cache.parameters:
+                if arg not in kwargs and arg in default_args:
+                    kwargs[arg] = default_args[arg]
+
+            missing_args = list(non_optional_args - set(kwargs))
+            if missing_args:
+                msg = f"Argument {missing_args} is required"
+                raise AirflowException(msg)
+
+            if dag_params:
+                kwargs['params'] = dag_params
+
+            result = func(self, *args, **kwargs)
+
+            # Here we set upstream task defined by XComArgs passed to template fields of the operator
+            self.set_xcomargs_dependencies()
+
+            # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
+            self._BaseOperator__instantiated = True  # pylint: disable=protected-access
+            return result
+
+        return cast(T, apply_defaults)
+
+    def __new__(cls, name, bases, namespace):
+        new_cls = super().__new__(cls, name, bases, namespace)
+        new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+        return new_cls
 
 
 # pylint: disable=too-many-instance-attributes,too-many-public-methods
@@ -361,7 +455,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     _lock_for_execution = False
 
     # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
-    @apply_defaults
     def __init__(
         self,
         task_id: str,
@@ -986,7 +1079,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)  # noqa
+        return (
+            self.dag.get_template_env()
+            if self.has_dag()
+            else airflow.templates.SandboxedEnvironment(cache_size=0)
+        )  # noqa
 
     def prepare_template(self) -> None:
         """
@@ -1184,10 +1281,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """@property: type of the task"""
         return self.__class__.__name__
 
-    def add_only_new(self, item_set: Set[str], item: str) -> None:
+    def add_only_new(self, item_set: Set[str], item: str, dag_id: str) -> None:
         """Adds only new items to item set"""
         if item in item_set:
-            self.log.warning('Dependency %s, %s already registered', self, item)
+            self.log.warning('Dependency %s, %s already registered for DAG: %s', self, item, dag_id)
         else:
             item_set.add(item)
 
@@ -1205,6 +1302,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self,
         task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
         upstream: bool = False,
+        edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """Sets relatives for the task or task list."""
         if not isinstance(task_or_task_list, Sequence):
@@ -1257,25 +1355,37 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 task.dag = dag
                 task.dag.task_group.add(task)
             if upstream:
-                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
-                self.add_only_new(self._upstream_task_ids, task.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id, self.dag.dag_id)
+                self.add_only_new(self._upstream_task_ids, task.task_id, task.dag.dag_id)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, task.task_id, self.task_id)
             else:
-                self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
+                self.add_only_new(self._downstream_task_ids, task.task_id, task.dag.dag_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id, self.dag.dag_id)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.task_id, task.task_id)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_downstream(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        edge_modifier: Optional[EdgeModifier] = None,
+    ) -> None:
         """
         Set a task or a task list to be directly downstream from the current
         task. Required by TaskMixin.
         """
-        self._set_relatives(task_or_task_list, upstream=False)
+        self._set_relatives(task_or_task_list, upstream=False, edge_modifier=edge_modifier)
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_upstream(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        edge_modifier: Optional[EdgeModifier] = None,
+    ) -> None:
         """
         Set a task or a task list to be directly upstream from the current
         task. Required by TaskMixin.
         """
-        self._set_relatives(task_or_task_list, upstream=True)
+        self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
     def output(self):

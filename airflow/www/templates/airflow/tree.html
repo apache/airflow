@@ -19,6 +19,7 @@
 
 {% extends "airflow/dag.html" %}
 {% block page_title %}{{ dag.dag_id }} - Tree - {{ appbuilder.app_name }}{% endblock %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block head_css %}
   {{ super() }}
@@ -75,6 +76,21 @@
   <hr>
   <div id="svg_container">
     <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
+    <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+      <span class="material-icons" aria-hidden="true">error</span>
+      <span id="error_msg">Oops.</span>
+    </div>
+    <div class="refresh-actions">
+      {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
+      <label class="switch-label">
+        <input class="switch-input" id="auto_refresh" type="checkbox">
+        <span class="switch" aria-hidden="true"></span>
+        Auto-refresh
+      </label>
+      <button class="btn btn-default btn-sm" id="refresh_button">
+        <span class="material-icons" aria-hidden="true">refresh</span>
+      </button>
+    </div>
     <svg id="tree-svg" class='tree' width="100%"></svg>
   </div>
 {% endblock %}

@@ -43,7 +43,7 @@ To query the Google Ads API and generate a CSV report of the results use
     :start-after: [START howto_google_ads_to_gcs_operator]
     :end-before: [END howto_google_ads_to_gcs_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.ads.transfers.ads_to_gcs.GoogleAdsToGcsOperator`
 parameters which allow you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.
@@ -62,7 +62,7 @@ To upload Google Ads accounts to Google Cloud Storage bucket use the
     :start-after: [START howto_ads_list_accounts_operator]
     :end-before: [END howto_ads_list_accounts_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.ads.transfers.ads_to_gcs.GoogleAdsToGcsOperator`
 parameters which allow you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows the result to be used by other operators.

@@ -20,7 +20,6 @@ from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OpsgenieAlertOperator(BaseOperator):
@@ -70,7 +69,6 @@ class OpsgenieAlertOperator(BaseOperator):
     template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

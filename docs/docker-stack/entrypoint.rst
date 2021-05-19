@@ -78,7 +78,7 @@ The image entrypoint works as follows:
   .. code-block:: bash
 
     > docker run -it apache/airflow:master-python3.6 version
-    2.1.0.dev0
+    2.2.0.dev0
 
 * If ``AIRFLOW__CELERY__BROKER_URL`` variable is passed and airflow command with
   scheduler, worker of flower command is used, then the script checks the broker connection
@@ -87,13 +87,71 @@ The image entrypoint works as follows:
   command to execute and result of this evaluation is used as ``AIRFLOW__CELERY__BROKER_URL``. The
   ``_CMD`` variable takes precedence over the ``AIRFLOW__CELERY__BROKER_URL`` variable.
 
-Creating system user
---------------------
+.. _arbitrary-docker-user:
 
-Airflow image is Open-Shift compatible, which means that you can start it with random user ID and group id 0.
-Airflow will automatically create such a user and make it's home directory point to ``/home/airflow``.
+Allowing arbitrary user to run the container
+--------------------------------------------
+
+Airflow image is Open-Shift compatible, which means that you can start it with random user ID and the
+group id ``0`` (``root``). If you want to run the image with user different than Airflow, you MUST set
+GID of the user to ``0``. In case you try to use different group, the entrypoint exits with error.
+
+OpenShift randomly assigns UID when it starts the container, but you can utilise this flexible UID
+also in case of running the image manually. This might be useful for example in case you want to
+mount ``dag`` and ``logs`` folders from host system on Linux, in which case the UID should be set
+the same ID as your host user.
+
+This can be achieved in various ways - you can change USER when you extend or customize the image or
+you can dynamically pass the user to  ``docker run`` command, by adding ``--user`` flag in one of
+those formats (See `Docker Run reference <https://docs.docker.com/engine/reference/run/#user>`_ for details):
+
+```
+[ user | user:group | uid | uid:gid | user:gid | uid:group ]
+```
+
+In case of Docker Compose environment it can be changed via ``user:`` entry in the ``docker-compose.yaml``.
+See `Docker compose reference <https://docs.docker.com/compose/compose-file/compose-file-v3/#domainname-hostname-ipc-mac_address-privileged-read_only-shm_size-stdin_open-tty-user-working_dir>`_
+for details. In our Quickstart Guide using Docker-Compose, the UID and GID can be passed via
+``AIRFLOW_UID`` and ``AIRFLOW_GID`` variables as described in
+:ref:`Initializing docker compose environment <initializing_docker_compose_environment>`.
+
+In case ``GID`` is set to ``0``, the user can be any UID, but in case UID is different than the default
+``airflow`` (UID=50000), the user will be automatically created when entering the container.
+
+In order to accommodate a number of external libraries and projects, Airflow will automatically create
+such an arbitrary user in (`/etc/passwd`) and make it's home directory point to ``/home/airflow``.
+Many of 3rd-party libraries and packages require home directory of the user to be present, because they
+need to write some cache information there, so such a dynamic creation of a user is necessary.
+
+Such arbitrary user has to be able to write to certain directories that needs write access, and since
+it is not advised to allow write access to "other" for security reasons, the OpenShift
+guidelines introduced the concept of making all such folders have the ``0`` (``root``) group id (GID).
+All the directories that need write access in the Airflow production image have GID set to 0 (and
+they are writable for the group). We are following that concept and all the directories that need
+write access follow that.
+
+The GID=0 is set as default for the ``airflow`` user, so any directories it creates have GID set to 0
+by default. The entrypoint sets ``umask`` to be ``0002`` - this means that any directories created by
+the user have also "group write" access for group ``0`` - they will be writable by other users with
+``root`` group. Also whenever any "arbitrary" user creates a folder (for example in a mounted volume), that
+folder will have a "group write" access and ``GID=0``, so that execution with another, arbitrary user
+will still continue to work, even if such directory is mounted by another arbitrary user later.
+
+The ``umask`` setting however only works for runtime of the container - it is not used during building of
+the image. If you would like to extend the image and add your own packages, you should remember to add
+``umask 0002`` in front of your docker command - this way the directories created by any installation
+that need group access will also be writable for the group. This can be done for example this way:
+
+  .. code-block:: docker
+
+      RUN umask 0002; \
+          do_something; \
+          do_otherthing;
+
+
 You can read more about it in the "Support arbitrary user ids" chapter in the
-`Openshift best practices <https://docs.openshift.com/container-platform/4.1/openshift_images/create-images.html#images-create-guide-openshift_create-images>`_.
+`Openshift best practices <https://docs.openshift.com/container-platform/4.7/openshift_images/create-images.html#images-create-guide-openshift_create-images>`_.
+
 
 Waits for Airflow DB connection
 -------------------------------

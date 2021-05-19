@@ -33,7 +33,6 @@ The following code shows how to add extra links to an operator via Plugins:
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.plugins_manager import AirflowPlugin
-    from airflow.utils.decorators import apply_defaults
 
 
     class GoogleLink(BaseOperatorLink):
@@ -48,7 +47,6 @@ The following code shows how to add extra links to an operator via Plugins:
             GoogleLink(),
         )
 
-        @apply_defaults
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
 

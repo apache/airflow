@@ -84,6 +84,7 @@ class BaseTaskRunner(LoggingMixin):
             # - the runner can read/execute those values as it needs
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
+        # pylint: disable=consider-using-with
         self._error_file = NamedTemporaryFile(delete=True)
         self._cfg_path = cfg_path
         self._command = (
@@ -132,7 +133,7 @@ class BaseTaskRunner(LoggingMixin):
 
         self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
-        # pylint: disable=subprocess-popen-preexec-fn
+        # pylint: disable=subprocess-popen-preexec-fn,consider-using-with
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,

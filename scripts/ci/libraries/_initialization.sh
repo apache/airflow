@@ -25,6 +25,7 @@ CURRENT_POSTGRES_VERSIONS=()
 CURRENT_MYSQL_VERSIONS=()
 CURRENT_KIND_VERSIONS=()
 CURRENT_HELM_VERSIONS=()
+CURRENT_EXECUTOR=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 INSTALLED_PROVIDERS=()
 
@@ -127,12 +128,12 @@ function initialization::initialize_base_variables() {
     # Which means that you do not have to start from scratch
     export PRESERVE_VOLUMES="false"
 
-    # If set to true, RBAC UI will not be used for 1.10 version
-    export DISABLE_RBAC=${DISABLE_RBAC:="false"}
+    # Cleans up docker context files if specified
+    export CLEANUP_DOCKER_CONTEXT_FILES="false"
 
     # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
-    export INSTALL_PACKAGES_FROM_DIST=${INSTALL_PACKAGES_FROM_DIST:="false"}
+    export USE_PACKAGES_FROM_DIST=${USE_PACKAGES_FROM_DIST:="false"}
 
     # If set the specified file will be used to initialize Airflow after the environment is created,
     # otherwise it will use files/airflow-breeze-config/init.sh
@@ -410,8 +411,7 @@ function initialization::initialize_image_build_variables() {
     export INSTALLED_PROVIDERS
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    # default version of PIP USED (This has to be < 20.3 until https://github.com/apache/airflow/issues/12838 is solved)
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="20.2.4"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.1"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -464,14 +464,19 @@ function initialization::initialize_image_build_variables() {
     #   * 'constraints-source-providers' for constraints with source version of providers (defaults in Breeze and CI)
     #   * 'constraints-no-providers' for constraints without providers
     export AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS:="constraints-source-providers"}"
+
+    # Replace airflow at runtime in CI image with the one specified
+    #   * none - just removes airflow
+    #   * wheel - replaces airflow with one specified in the wheel file in /dist
+    #   * wheel - replaces airflow with one specified in the sdist file in /dist
+    #   * <VERSION> - replaces airflow with the specific version from PyPI
+    export USE_AIRFLOW_VERSION=${USE_AIRFLOW_VERSION:=""}
 }
 
 # Determine version suffixes used to build provider packages
 function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
-    # Artifact name suffix for SVN packaging
-    export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN=}"
 
 }
 
@@ -489,6 +494,9 @@ function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.2.4")
     export CURRENT_HELM_VERSIONS
+    # Current executor in chart
+    CURRENT_EXECUTOR+=("KubernetesExecutor")
+    export CURRENT_EXECUTOR
     # Default Kubernetes version
     export DEFAULT_KUBERNETES_VERSION="${CURRENT_KUBERNETES_VERSIONS[0]}"
     # Default Kubernetes mode
@@ -497,6 +505,8 @@ function initialization::initialize_kubernetes_variables() {
     export DEFAULT_KIND_VERSION="${CURRENT_KIND_VERSIONS[0]}"
     # Default Helm version
     export DEFAULT_HELM_VERSION="${CURRENT_HELM_VERSIONS[0]}"
+    # Default airflow executor used in cluster
+    export DEFAULT_EXECUTOR="${CURRENT_EXECUTOR[0]}"
     # Namespace where airflow is installed via helm
     export HELM_AIRFLOW_NAMESPACE="airflow"
     # Kubernetes version
@@ -507,6 +517,8 @@ function initialization::initialize_kubernetes_variables() {
     export KIND_VERSION=${KIND_VERSION:=${DEFAULT_KIND_VERSION}}
     # Helm version
     export HELM_VERSION=${HELM_VERSION:=${DEFAULT_HELM_VERSION}}
+    # Airflow Executor
+    export EXECUTOR=${EXECUTOR:=${DEFAULT_EXECUTOR}}
     # Kubectl version
     export KUBECTL_VERSION=${KUBERNETES_VERSION:=${DEFAULT_KUBERNETES_VERSION}}
     # Local Kind path
@@ -651,7 +663,6 @@ Host variables:
 Version suffix variables:
 
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN}
 
 Git variables:
 
@@ -711,8 +722,8 @@ Initialization variables:
     INIT_SCRIPT_FILE: '${INIT_SCRIPT_FILE=}'
     LOAD_DEFAULT_CONNECTIONS: '${LOAD_DEFAULT_CONNECTIONS}'
     LOAD_EXAMPLES: '${LOAD_EXAMPLES}'
-    INSTALL_PACKAGES_FROM_DIST: '${INSTALL_PACKAGES_FROM_DIST=}'
-    DISABLE_RBAC: '${DISABLE_RBAC}'
+    USE_AIRFLOW_VERSION: '${USE_AIRFLOW_VERSION=}'
+    USE_PACKAGES_FROM_DIST: '${USE_PACKAGES_FROM_DIST=}'
 
 Test variables:
 
@@ -781,7 +792,7 @@ function initialization::make_constants_read_only() {
     readonly KIND_VERSION
     readonly HELM_VERSION
     readonly KUBECTL_VERSION
-
+    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -790,6 +801,8 @@ function initialization::make_constants_read_only() {
 
     readonly INSTALL_AIRFLOW_VERSION
     readonly INSTALL_AIRFLOW_REFERENCE
+
+    readonly USE_AIRFLOW_VERSION
 
     readonly DB_RESET
     readonly VERBOSE
@@ -857,7 +870,6 @@ function initialization::make_constants_read_only() {
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
     readonly VERSION_SUFFIX_FOR_PYPI
-    readonly VERSION_SUFFIX_FOR_SVN
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
@@ -887,6 +899,7 @@ function initialization::make_constants_read_only() {
     readonly CURRENT_MYSQL_VERSIONS
     readonly CURRENT_KIND_VERSIONS
     readonly CURRENT_HELM_VERSIONS
+    readonly CURRENT_EXECUTOR
     readonly ALL_PYTHON_MAJOR_MINOR_VERSIONS
 }
 

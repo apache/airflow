@@ -128,6 +128,84 @@ class TestCliUsers:
         )
         user_command.users_delete(args)
 
+    def test_cli_delete_user_by_email(self):
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test4',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                'jdoe2@example.com',
+                '--role',
+                'Viewer',
+                '--use-random-password',
+            ]
+        )
+        user_command.users_create(args)
+        args = self.parser.parse_args(
+            [
+                'users',
+                'delete',
+                '--email',
+                'jdoe2@example.com',
+            ]
+        )
+        user_command.users_delete(args)
+
+    @pytest.mark.parametrize(
+        'args,raise_match',
+        [
+            (
+                [
+                    'users',
+                    'delete',
+                ],
+                'Missing args: must supply one of --username or --email',
+            ),
+            (
+                [
+                    'users',
+                    'delete',
+                    '--username',
+                    'test',
+                    '--email',
+                    'jdoe2@example.com',
+                ],
+                'Conflicting args: must supply either --username or --email, but not both',
+            ),
+            (
+                [
+                    'users',
+                    'delete',
+                    '--username',
+                    'test',
+                ],
+                'User "test" does not exist',
+            ),
+            (
+                [
+                    'users',
+                    'delete',
+                    '--email',
+                    'jode2@example.com',
+                ],
+                'User "jode2@example.com" does not exist',
+            ),
+        ],
+    )
+    def test_find_user(self, args, raise_match):
+        args = self.parser.parse_args(args)
+        with pytest.raises(
+            SystemExit,
+            match=raise_match,
+        ):
+            user_command._find_user(args)
+
     def test_cli_list_users(self):
         for i in range(0, 3):
             args = self.parser.parse_args(
@@ -230,7 +308,7 @@ class TestCliUsers:
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as file:
+        with open(users_filename) as file:
             retrieved_users = json.loads(file.read())
         os.remove(users_filename)
 
@@ -248,21 +326,21 @@ class TestCliUsers:
 
     def _import_users_from_file(self, user_list):
         json_file_content = json.dumps(user_list)
-        f = tempfile.NamedTemporaryFile(delete=False)
-        try:
-            f.write(json_file_content.encode())
-            f.flush()
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            try:
+                f.write(json_file_content.encode())
+                f.flush()
 
-            args = self.parser.parse_args(['users', 'import', f.name])
-            user_command.users_import(args)
-        finally:
-            os.remove(f.name)
+                args = self.parser.parse_args(['users', 'import', f.name])
+                user_command.users_import(args)
+            finally:
+                os.remove(f.name)
 
     def _export_users_to_file(self):
-        f = tempfile.NamedTemporaryFile(delete=False)
-        args = self.parser.parse_args(['users', 'export', f.name])
-        user_command.users_export(args)
-        return f.name
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            args = self.parser.parse_args(['users', 'export', f.name])
+            user_command.users_export(args)
+            return f.name
 
     def test_cli_add_user_role(self):
         args = self.parser.parse_args(

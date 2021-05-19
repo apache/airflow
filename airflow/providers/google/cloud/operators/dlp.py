@@ -44,7 +44,6 @@ from google.protobuf.json_format import MessageToDict
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudDLPCancelDLPJobOperator(BaseOperator):
@@ -90,7 +89,6 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -179,7 +177,6 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -287,7 +284,6 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -395,7 +391,6 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -497,7 +492,6 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -600,7 +594,6 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -719,7 +712,6 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -815,7 +807,6 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -901,7 +892,6 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -987,7 +977,6 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1072,7 +1061,6 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1158,7 +1146,6 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1249,7 +1236,6 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1334,7 +1320,6 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1420,7 +1405,6 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1505,7 +1489,6 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1591,7 +1574,6 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1685,7 +1667,6 @@ class CloudDLPInspectContentOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1780,7 +1761,6 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1875,7 +1855,6 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1965,7 +1944,6 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2054,7 +2032,6 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2147,7 +2124,6 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2242,7 +2218,6 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2344,7 +2319,6 @@ class CloudDLPRedactImageOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2451,7 +2425,6 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2555,7 +2528,6 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2656,7 +2628,6 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2753,7 +2724,6 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -2852,7 +2822,6 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

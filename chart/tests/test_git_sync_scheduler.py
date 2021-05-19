@@ -215,3 +215,20 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )

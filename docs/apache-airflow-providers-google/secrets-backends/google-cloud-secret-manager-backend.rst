@@ -28,7 +28,7 @@ Before you begin
 
 Before you start, make sure you have performed the following tasks:
 
-1.  Include sendgrid subpackage as part of your Airflow installation
+1.  Include ``google`` subpackage as an extra of your Airflow installation
 
     .. code-block:: bash
 

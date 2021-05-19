@@ -28,11 +28,12 @@ import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
+    Copy data from SQL to Google Cloud Storage in JSON or CSV format.
+
     :param sql: The SQL to execute.
     :type sql: str
     :param bucket: The bucket to upload to.
@@ -99,7 +100,6 @@ class BaseSQLToGCSOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments
@@ -184,6 +184,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         col_type_dict = self._get_col_type_dict()
         file_no = 0
+        # pylint: disable=consider-using-with
         tmp_file_handle = NamedTemporaryFile(delete=True)
         if self.export_format == 'csv':
             file_mime_type = 'text/csv'
@@ -234,6 +235,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             # Stop if the file exceeds the file size limit.
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
+                # pylint: disable=consider-using-with
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 files_to_upload.append(
                     {
@@ -337,6 +339,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.log.info('Using schema for %s', self.schema_filename)
         self.log.debug("Current schema: %s", schema)
 
+        # pylint: disable=consider-using-with
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         tmp_schema_file_handle.write(schema.encode('utf-8'))
         schema_file_to_upload = {

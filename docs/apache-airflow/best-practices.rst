@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _best_practice:
+
 Best Practices
 ==============
 
@@ -25,10 +27,18 @@ Creating a new DAG is a two-step process:
 
 This tutorial will introduce you to the best practices for these two steps.
 
+.. _best_practice:writing_a_dag:
+
 Writing a DAG
 ^^^^^^^^^^^^^^
+
 Creating a new DAG in Airflow is quite simple. However, there are many things that you need to take care of
 to ensure the DAG run or failure does not produce unexpected results.
+
+Creating a Custom Operator/Hook
+-------------------------------
+
+Please follow our guide on :ref:`custom Operators <custom_operator>`.
 
 Creating a task
 ---------------
@@ -54,7 +64,6 @@ Some of the ways you can avoid producing a different result -
     You should define repetitive parameters such as ``connection_id`` or S3 paths in ``default_args`` rather than declaring them for each task.
     The ``default_args`` help to avoid mistakes such as typographical errors.
 
-
 Deleting a task
 ----------------
 
@@ -75,7 +84,7 @@ For example, if we have a task that stores processed data in S3 that task can pu
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them.
-Where at all possible, use :ref:`Connections <concepts-connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 
 Variables
@@ -101,9 +110,12 @@ or if you need to deserialize a json object from the variable :
     {{ var.json.<variable_name> }}
 
 
-.. note::
+Top level Python Code
+---------------------
 
-    In general, you should not write any code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
+In general, you should not write any code outside of defining Airflow constructs like Operators. The code outside the
+tasks runs every time Airflow parses an eligible python file, which happens at the minimum frequency of
+:ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` seconds.
 
 
 Testing a DAG

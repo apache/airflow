@@ -19,6 +19,33 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Change in ``DockerOperator`` and ``DockerSwarmOperator``
+````````````````````````````````````````````````````````
+
+The ``volumes`` parameter in
+:class:`~airflow.providers.docker.operators.docker.DockerOperator` and
+:class:`~airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator`
+was replaced by the ``mounts`` parameter, which uses the newer
+`mount syntax <https://docs.docker.com/storage/>`__ instead of ``--bind``.
+
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Entrypoint support in docker operator (#14642)``
+* ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+* ``Support all terminus task states in Docker Swarm Operator (#14960)``
+
+
 1.1.0
 .....
 

@@ -48,10 +48,12 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
+from jinja2.nativetypes import NativeEnvironment
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.session import Session
 
+import airflow.templates
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
@@ -65,6 +67,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
+from airflow.typing_compat import RePatternType
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -73,17 +76,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
-
-
-# Before Py 3.7, there is no re.Pattern class
-try:
-    from re import Pattern as PatternType  # type: ignore
-except ImportError:
-    PatternType = type(re.compile('', 0))
 
 
 log = logging.getLogger(__name__)
@@ -216,7 +212,7 @@ class DAG(LoggingMixin):
             )
 
         **See**: `Jinja Environment documentation
-        <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+        <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
     :param tags: List of tags to help filtering DAGS in the UI.
@@ -263,6 +259,7 @@ class DAG(LoggingMixin):
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
         jinja_environment_kwargs: Optional[Dict] = None,
+        render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
@@ -349,6 +346,11 @@ class DAG(LoggingMixin):
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
 
+        # Keeps track of any extra edge metadata (sparse; will not contain all
+        # edges, so do not iterate over it for that). Outer key is upstream
+        # task ID, inner key is downstream task ID.
+        self.edge_info: Dict[str, Dict[str, EdgeInfoType]] = {}
+
         # To keep it in parity with Serialized DAGs
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
         self.has_on_success_callback = self.on_success_callback is not None
@@ -360,6 +362,7 @@ class DAG(LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
+        self.render_template_as_native_obj = render_template_as_native_obj
         self.tags = tags
         self._task_group = TaskGroup.create_root(self)
 
@@ -992,8 +995,10 @@ class DAG(LoggingMixin):
         }
         if self.jinja_environment_kwargs:
             jinja_env_options.update(self.jinja_environment_kwargs)
-
-        env = jinja2.Environment(**jinja_env_options)  # type: ignore
+        if self.render_template_as_native_obj:
+            env = NativeEnvironment(**jinja_env_options)
+        else:
+            env = airflow.templates.SandboxedEnvironment(**jinja_env_options)  # type: ignore
 
         # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
         # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
@@ -1201,6 +1206,7 @@ class DAG(LoggingMixin):
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
         if include_parentdag and self.is_subdag and self.parent_dag is not None:
+            dag_ids.append(self.parent_dag.dag_id)
             p_dag = self.parent_dag.sub_dag(
                 task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
@@ -1438,7 +1444,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: Union[str, PatternType, Iterable[str]],
+        task_ids_or_regex: Union[str, RePatternType, Iterable[str]],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -1458,15 +1464,10 @@ class DAG(LoggingMixin):
         """
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
-        task_dict = self.task_dict
-        task_group = self._task_group
-        self.task_dict = {}
-        self._task_group = None  # type: ignore
-        dag = copy.deepcopy(self)
-        self.task_dict = task_dict
-        self._task_group = task_group
+        memo = {id(self.task_dict): None, id(self._task_group): None}
+        dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, PatternType)):
+        if isinstance(task_ids_or_regex, (str, RePatternType)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
@@ -1499,6 +1500,8 @@ class DAG(LoggingMixin):
                 if isinstance(child, BaseOperator):
                     if child.task_id in dag.task_dict:
                         copied.children[child.task_id] = dag.task_dict[child.task_id]
+                    else:
+                        copied.used_group_ids.discard(child.task_id)
                 else:
                     filtered_child = filter_task_group(child, copied)
 
@@ -2050,6 +2053,24 @@ class DAG(LoggingMixin):
             }
         return cls.__serialized_fields
 
+    def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
+        """
+        Returns edge information for the given pair of tasks if present, and
+        None if there is no information.
+        """
+        # Note - older serialized DAGs may not have edge_info being a dict at all
+        if self.edge_info:
+            return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, {})
+        else:
+            return {}
+
+    def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
+        """
+        Sets the given edge information on the DAG. Note that this will overwrite,
+        rather than merge with, existing info.
+        """
+        self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
+
 
 class DagTag(Base):
     """A tag name per dag, to allow quick filtering in the DAG view."""
@@ -2290,9 +2311,9 @@ def dag(*dag_args, **dag_kwargs):
     Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
 
     :param dag_args: Arguments for DAG object
-    :type dag_args: list
+    :type dag_args: Any
     :param dag_kwargs: Kwargs for DAG object.
-    :type dag_kwargs: dict
+    :type dag_kwargs: Any
     """
 
     def wrapper(f: Callable):

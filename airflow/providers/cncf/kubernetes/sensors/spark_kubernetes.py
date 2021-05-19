@@ -22,7 +22,6 @@ from kubernetes import client
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SparkKubernetesSensor(BaseSensorOperator):
@@ -37,7 +36,8 @@ class SparkKubernetesSensor(BaseSensorOperator):
     :type application_name:  str
     :param namespace: the kubernetes namespace where the sparkApplication reside in
     :type namespace: str
-    :param kubernetes_conn_id: the connection to Kubernetes cluster
+    :param kubernetes_conn_id: The :ref:`kubernetes connection<howto/connection:kubernetes>`
+        to Kubernetes cluster.
     :type kubernetes_conn_id: str
     :param attach_log: determines whether logs for driver pod should be appended to the sensor log
     :type attach_log: bool
@@ -51,7 +51,6 @@ class SparkKubernetesSensor(BaseSensorOperator):
     FAILURE_STATES = ("FAILED", "UNKNOWN")
     SUCCESS_STATES = ("COMPLETED",)
 
-    @apply_defaults
     def __init__(
         self,
         *,

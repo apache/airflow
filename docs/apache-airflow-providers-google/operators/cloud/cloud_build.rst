@@ -106,7 +106,7 @@ Trigger a build is performed with the
     :start-after: [START howto_operator_create_build_from_storage]
     :end-before: [END howto_operator_create_build_from_storage]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.

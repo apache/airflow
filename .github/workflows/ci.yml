@@ -43,7 +43,7 @@ env:
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # In builds from forks, this token is empty, and this is good because such builds do not even try
@@ -78,7 +78,8 @@ jobs:
     # change this and get access to our self-hosted runners
     #
     # When changing this list, ensure that it is kept in sync with the
-    # configOverride parameter in AWS SSM (which is what the runner uses)
+    # /runners/apache/airflow/configOverlay
+    # parameter in AWS SSM ParameterStore (which is what the runner uses)
     runs-on: >-
       ${{ (
         (
@@ -119,8 +120,9 @@ jobs:
             "jhtimmins",
             "dstandish",
             "xinbinhuang",
-            "yuqian"
-          ]'), github.actor)
+            "yuqian",
+            "eladkal"
+          ]'), github.event.pull_request.user.login)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
@@ -518,8 +520,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "dev"
-      VERSION_SUFFIX_FOR_SVN: "dev"
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -543,19 +544,20 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PACKAGE_FORMAT: "wheel"
       - name: "Prepare airflow package: wheel"
-        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+        run: ./scripts/ci/build_airflow/ci_build_airflow_packages.sh
         env:
           PACKAGE_FORMAT: "wheel"
       - name: "Install and test provider packages and airflow via wheel files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
         env:
-          INSTALL_AIRFLOW_VERSION: "wheel"
+          USE_AIRFLOW_VERSION: "wheel"
           PACKAGE_FORMAT: "wheel"
-      - name: "Install and test provider packages and airflow on Airflow 2.0 files"
+      - name: "Install and test provider packages and airflow on Airflow 2.1 files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
         env:
-          INSTALL_AIRFLOW_VERSION: "2.0.0"
+          USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
+        if: false
 
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40
@@ -566,8 +568,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      VERSION_SUFFIX_FOR_PYPI: "dev"
-      VERSION_SUFFIX_FOR_SVN: "dev"
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -589,13 +590,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PACKAGE_FORMAT: "sdist"
       - name: "Prepare airflow package: sdist"
-        run: ./scripts/ci/build_airflow/ci_build_airflow_package.sh
+        run: ./scripts/ci/build_airflow/ci_build_airflow_packages.sh
         env:
           PACKAGE_FORMAT: "sdist"
       - name: "Install and test provider packages and airflow via sdist files"
         run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
         env:
-          INSTALL_AIRFLOW_VERSION: "sdist"
+          USE_AIRFLOW_VERSION: "sdist"
           PACKAGE_FORMAT: "sdist"
 
   tests-helm:
@@ -607,7 +608,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       TEST_TYPES: "Helm"
-      BACKEND: "sqlite"
+      BACKEND: ""
+      DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: >
@@ -626,7 +628,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
+      - name: "Tests: Helm"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
@@ -966,15 +968,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-kubernetes:
     timeout-minutes: 50
-    name: K8s tests
+    name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
+    strategy:
+      matrix:
+        executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
       KUBERNETES_MODE: "image"
+      EXECUTOR: ${{matrix.executor}}
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
       GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
@@ -1070,6 +1076,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: Set push-python-image
+        id: push-python-image
+        run: |
+          if [[ "${REF}" == 'refs/head/master' || "${REF}" == 'refs/head/main' ]]; then
+              echo "::set-output name=wanted::true"
+          else
+              echo "::set-output name=wanted::false"
+          fi
+        env:
+          REF: ${{ github.ref }}
       - name:
           "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
@@ -1077,8 +1093,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           # Since we are going to push both final image and build image segment, we need to pull the
           # build image, in case we are pulling from registry rather than building.
           WAIT_FOR_PROD_BUILD_IMAGE: "true"
+          WAIT_FOR_PYTHON_BASE_IMAGE: ${{ steps.push-python-image.outputs.wanted}}
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
+        env:
+          PUSH_PYTHON_BASE_IMAGE: ${{ steps.push-python-image.outputs.wanted}}
 
   push-ci-images-to-github-registry:
     timeout-minutes: 10

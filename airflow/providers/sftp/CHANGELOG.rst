@@ -19,6 +19,15 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Undeprecate private_key option in SFTPHook (#15348)``
+* ``Add logs to show last modified in SFTP, FTP and Filesystem sensor (#15134)``
+
 1.1.1
 .....
 

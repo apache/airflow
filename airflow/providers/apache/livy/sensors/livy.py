@@ -20,7 +20,6 @@ from typing import Any, Dict, Optional, Union
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class LivySensor(BaseSensorOperator):
@@ -37,7 +36,6 @@ class LivySensor(BaseSensorOperator):
 
     template_fields = ('batch_id',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

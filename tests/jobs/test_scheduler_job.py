@@ -2009,6 +2009,37 @@ class TestSchedulerJob(unittest.TestCase):
             assert ti.start_date == ti.end_date
             assert ti.duration is not None
 
+    @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
+    def test_executor_end_called(self, mock_processor_agent):
+        """
+        Test to make sure executor.end gets called with a successful scheduler loop run
+        """
+        self.scheduler_job = SchedulerJob(subdir=os.devnull, num_runs=1)
+        self.scheduler_job.executor = mock.MagicMock(slots_available=8)
+
+        self.scheduler_job.run()
+
+        self.scheduler_job.executor.end.assert_called_once()
+        self.scheduler_job.processor_agent.end.assert_called_once()
+
+    @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
+    def test_cleanup_methods_all_called(self, mock_processor_agent):
+        """
+        Test to make sure all cleanup methods are called when the scheduler loop has an exception
+        """
+        self.scheduler_job = SchedulerJob(subdir=os.devnull, num_runs=1)
+        self.scheduler_job.executor = mock.MagicMock(slots_available=8)
+        self.scheduler_job._run_scheduler_loop = mock.MagicMock(side_effect=Exception("oops"))
+        mock_processor_agent.return_value.end.side_effect = Exception("double oops")
+        self.scheduler_job.executor.end = mock.MagicMock(side_effect=Exception("triple oops"))
+
+        with self.assertRaises(Exception):
+            self.scheduler_job.run()
+
+        self.scheduler_job.processor_agent.end.assert_called_once()
+        self.scheduler_job.executor.end.assert_called_once()
+        mock_processor_agent.return_value.end.reset_mock(side_effect=True)
+
     def test_dagrun_timeout_verify_max_active_runs(self):
         """
         Test if a a dagrun will not be scheduled if max_dag_runs
@@ -2672,6 +2703,7 @@ class TestSchedulerJob(unittest.TestCase):
         # As tasks require 2 slots, only 3 can fit into 6 available
         assert len(task_instances_list) == 3
 
+    @pytest.mark.quarantined
     def test_scheduler_keeps_scheduling_pool_full(self):
         """
         Test task instances in a pool that isn't full keep getting scheduled even when a pool is full.
@@ -3405,7 +3437,7 @@ class TestSchedulerJob(unittest.TestCase):
         assert detected_files == expected_files
 
     def test_adopt_or_reset_orphaned_tasks_nothing(self):
-        """Try with nothing. """
+        """Try with nothing."""
         self.scheduler_job = SchedulerJob()
         session = settings.Session()
         assert 0 == self.scheduler_job.adopt_or_reset_orphaned_tasks(session=session)
@@ -3465,7 +3497,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.rollback()
 
     def test_reset_orphaned_tasks_nonexistent_dagrun(self):
-        """Make sure a task in an orphaned state is not reset if it has no dagrun. """
+        """Make sure a task in an orphaned state is not reset if it has no dagrun."""
         dag_id = 'test_reset_orphaned_tasks_nonexistent_dagrun'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
@@ -3889,7 +3921,7 @@ class TestSchedulerJob(unittest.TestCase):
             schedule_interval='@once',
             max_active_runs=1,
         ) as dag:
-            # Cant use DummyOperator as that goes straight to success
+            # Can't use DummyOperator as that goes straight to success
             task1 = BashOperator(task_id='dummy1', bash_command='true')
 
         session = settings.Session()
@@ -4002,7 +4034,7 @@ class TestSchedulerJob(unittest.TestCase):
             schedule_interval='@once',
             max_active_runs=1,
         ) as dag:
-            # Cant use DummyOperator as that goes straight to success
+            # Can't use DummyOperator as that goes straight to success
             task1 = BashOperator(task_id='dummy1', bash_command='true')
 
         session = settings.Session()
@@ -4049,7 +4081,7 @@ class TestSchedulerJob(unittest.TestCase):
             schedule_interval='@once',
             max_active_runs=1,
         ) as dag:
-            # Cant use DummyOperator as that goes straight to success
+            # Can't use DummyOperator as that goes straight to success
             task1 = BashOperator(task_id='dummy1', bash_command='true')
             task2 = BashOperator(task_id='dummy2', bash_command='true')
 

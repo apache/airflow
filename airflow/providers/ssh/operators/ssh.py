@@ -24,7 +24,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SSHOperator(BaseOperator):
@@ -34,8 +33,9 @@ class SSHOperator(BaseOperator):
     :param ssh_hook: predefined ssh_hook to use for remote execution.
         Either `ssh_hook` or `ssh_conn_id` needs to be provided.
     :type ssh_hook: airflow.providers.ssh.hooks.ssh.SSHHook
-    :param ssh_conn_id: connection id from airflow Connections.
-        `ssh_conn_id` will be ignored if `ssh_hook` is provided.
+    :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
+        from airflow Connections. `ssh_conn_id` will be ignored if
+        `ssh_hook` is provided.
     :type ssh_conn_id: str
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
@@ -59,7 +59,6 @@ class SSHOperator(BaseOperator):
     template_ext = ('.sh',)
     template_fields_renderers = {"command": "bash"}
 
-    @apply_defaults
     def __init__(
         self,
         *,

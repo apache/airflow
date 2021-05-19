@@ -34,6 +34,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-apache-pinot',
     'apache-airflow-providers-apache-spark',
     'apache-airflow-providers-apache-sqoop',
+    'apache-airflow-providers-asana',
     'apache-airflow-providers-celery',
     'apache-airflow-providers-cloudant',
     'apache-airflow-providers-cncf-kubernetes',
@@ -90,10 +91,11 @@ ALL_PROVIDERS = [
 ]
 
 CONNECTIONS_LIST = [
+    'asana',
     'aws',
     'azure',
     'azure_batch',
-    'azure_container_instances',
+    'azure_container_registry',
     'azure_cosmos',
     'azure_data_explorer',
     'azure_data_factory',
@@ -124,6 +126,7 @@ CONNECTIONS_LIST = [
     'jenkins',
     'jira',
     'kubernetes',
+    'leveldb',
     'livy',
     'mongo',
     'mssql',
@@ -156,6 +159,21 @@ CONNECTIONS_LIST = [
 ]
 
 CONNECTION_FORM_WIDGETS = [
+    'extra__asana__project',
+    'extra__asana__workspace',
+    'extra__azure__subscriptionId',
+    'extra__azure__tenantId',
+    'extra__azure_batch__account_url',
+    'extra__azure_cosmos__collection_name',
+    'extra__azure_cosmos__database_name',
+    'extra__azure_data_explorer__auth_method',
+    'extra__azure_data_explorer__certificate',
+    'extra__azure_data_explorer__tenant',
+    'extra__azure_data_explorer__thumbprint',
+    'extra__azure_data_factory__subscriptionId',
+    'extra__azure_data_factory__tenantId',
+    'extra__azure_data_lake__account_name',
+    'extra__azure_data_lake__tenant',
     'extra__google_cloud_platform__key_path',
     'extra__google_cloud_platform__keyfile_dict',
     'extra__google_cloud_platform__num_retries',
@@ -176,6 +194,10 @@ CONNECTION_FORM_WIDGETS = [
     'extra__snowflake__database',
     'extra__snowflake__region',
     'extra__snowflake__warehouse',
+    'extra__wasb__connection_string',
+    'extra__wasb__sas_token',
+    'extra__wasb__shared_access_key',
+    'extra__wasb__tenant_id',
     'extra__yandexcloud__folder_id',
     'extra__yandexcloud__oauth',
     'extra__yandexcloud__public_ssh_key',
@@ -184,6 +206,14 @@ CONNECTION_FORM_WIDGETS = [
 ]
 
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
+    'asana',
+    'azure',
+    'azure_batch',
+    'azure_container_registry',
+    'azure_cosmos',
+    'azure_data_explorer',
+    'azure_data_factory',
+    'azure_data_lake',
     'cloudant',
     'docker',
     'gcpssh',
@@ -195,12 +225,15 @@ CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
     'snowflake',
     'spark',
     'ssh',
+    'wasb',
     'yandexcloud',
 ]
 
 EXTRA_LINKS = [
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
+    'airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink',
+    'airflow.providers.google.cloud.operators.dataproc.DataprocJobLink',
     'airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink',
     'airflow.providers.qubole.operators.qubole.QDSLink',
 ]

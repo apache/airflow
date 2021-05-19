@@ -59,7 +59,7 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "git-sync" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "git-sync" == jmespath.search("spec.template.spec.containers[1].name", docs[0])
 
     def test_should_not_add_sync_container_to_worker_if_git_sync_and_persistence_are_enabled(self):
         docs = render_chart(
@@ -73,4 +73,21 @@ class GitSyncWorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "git-sync" != jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "git-sync" != jmespath.search("spec.template.spec.containers[1].name", docs[0])
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )

@@ -22,7 +22,6 @@ from trino.dbapi import Cursor as TrinoCursor
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
-from airflow.utils.decorators import apply_defaults
 
 
 class _TrinoToGCSTrinoCursorAdapter:
@@ -175,7 +174,6 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
         "UUID": "STRING",
     }
 
-    @apply_defaults
     def __init__(self, *, trino_conn_id: str = "trino_default", **kwargs):
         super().__init__(**kwargs)
         self.trino_conn_id = trino_conn_id

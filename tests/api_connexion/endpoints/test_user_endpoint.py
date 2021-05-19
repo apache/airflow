@@ -35,8 +35,7 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
-            (permissions.ACTION_CAN_LIST, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_SHOW, permissions.RESOURCE_USER_DB_MODELVIEW),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

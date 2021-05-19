@@ -729,6 +729,11 @@ ARG_ALLOW_MULTIPLE = Arg(
     help="If passed, this command will be successful even if multiple matching alive jobs are found.",
 )
 
+# sync-perm
+ARG_INCLUDE_DAGS = Arg(
+    ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -1290,7 +1295,7 @@ USERS_COMMANDS = (
         name='delete',
         help='Delete a user',
         func=lazy_load_command('airflow.cli.commands.user_command.users_delete'),
-        args=(ARG_USERNAME,),
+        args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL),
     ),
     ActionCommand(
         name='add-role',
@@ -1400,7 +1405,11 @@ CONFIG_COMMANDS = (
 KUBERNETES_COMMANDS = (
     ActionCommand(
         name='cleanup-pods',
-        help="Clean up Kubernetes pods in evicted/failed/succeeded states",
+        help=(
+            "Clean up Kubernetes pods "
+            "(created by KubernetesExecutor/KubernetesPodOperator) "
+            "in evicted/failed/succeeded states"
+        ),
         func=lazy_load_command('airflow.cli.commands.kubernetes_command.cleanup_pods'),
         args=(ARG_NAMESPACE,),
     ),
@@ -1508,6 +1517,7 @@ airflow_commands: List[CLICommand] = [
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
+            ARG_SKIP_SERVE_LOGS,
         ),
         epilog=(
             'Signals:\n'
@@ -1552,9 +1562,9 @@ airflow_commands: List[CLICommand] = [
     ),
     ActionCommand(
         name='sync-perm',
-        help="Update permissions for existing roles and DAGs",
+        help="Update permissions for existing roles and optionally DAGs",
         func=lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
-        args=(),
+        args=(ARG_INCLUDE_DAGS,),
     ),
     ActionCommand(
         name='rotate-fernet-key',
@@ -1593,6 +1603,12 @@ airflow_commands: List[CLICommand] = [
             'https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
+    ),
+    ActionCommand(
+        name='standalone',
+        help='Run an all-in-one copy of Airflow',
+        func=lazy_load_command('airflow.cli.commands.standalone_command.standalone'),
+        args=tuple(),
     ),
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}

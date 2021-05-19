@@ -31,7 +31,6 @@ from uuid import uuid4
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 def _convert_item_to_json_bytes(item: Dict[str, Any]) -> bytes:
@@ -97,7 +96,6 @@ class DynamoDBToS3Operator(BaseOperator):
     :type process_func: Callable[[Dict[str, Any]], bytes]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -121,16 +119,15 @@ class DynamoDBToS3Operator(BaseOperator):
         table = AwsDynamoDBHook().get_conn().Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
-        f = NamedTemporaryFile()
-        try:
-            f = self._scan_dynamodb_and_upload_to_s3(f, scan_kwargs, table)
-        except Exception as e:
-            err = e
-            raise e
-        finally:
-            if err is None:
-                _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
-            f.close()
+        with NamedTemporaryFile() as f:
+            try:
+                f = self._scan_dynamodb_and_upload_to_s3(f, scan_kwargs, table)
+            except Exception as e:
+                err = e
+                raise e
+            finally:
+                if err is None:
+                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix)
 
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
@@ -150,5 +147,6 @@ class DynamoDBToS3Operator(BaseOperator):
             if getsize(temp_file.name) >= self.file_size:
                 _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix)
                 temp_file.close()
+                # pylint: disable=consider-using-with
                 temp_file = NamedTemporaryFile()
         return temp_file

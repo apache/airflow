@@ -27,7 +27,6 @@ from MySQLdb.constants import FIELD_TYPE
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
@@ -37,7 +36,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MySQLToGCSOperator`
 
-    :param mysql_conn_id: Reference to a specific MySQL hook.
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the MySQL server's
@@ -65,7 +64,6 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         FIELD_TYPE.YEAR: 'INTEGER',
     }
 
-    @apply_defaults
     def __init__(self, *, mysql_conn_id='mysql_default', ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id

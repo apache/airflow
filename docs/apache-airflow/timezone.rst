@@ -49,7 +49,7 @@ By default the Web UI will show times in UTC. It is possible to change the timez
 
 "Local" is detected from the browser's timezone. The "Server" value comes from the ``default_timezone`` setting in the ``[core]`` section.
 
-The users' selected timezone is stored in LocalStorage so is a pre-browser setting.
+The users' selected timezone is stored in LocalStorage so is a per-browser setting.
 
 .. note::
 

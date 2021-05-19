@@ -22,7 +22,6 @@ from qds_sdk.sensors import FileSensor, PartitionSensor
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class QuboleSensor(BaseSensorOperator):
@@ -32,7 +31,6 @@ class QuboleSensor(BaseSensorOperator):
 
     template_ext = ('.txt',)
 
-    @apply_defaults
     def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
         self.qubole_conn_id = qubole_conn_id
@@ -83,7 +81,6 @@ class QuboleFileSensor(QuboleSensor):
         also use ``.txt`` files for template-driven use cases.
     """
 
-    @apply_defaults
     def __init__(self, **kwargs) -> None:
         self.sensor_class = FileSensor
         super().__init__(**kwargs)
@@ -106,7 +103,6 @@ class QubolePartitionSensor(QuboleSensor):
         also use ``.txt`` files for template-driven use cases.
     """
 
-    @apply_defaults
     def __init__(self, **kwargs) -> None:
         self.sensor_class = PartitionSensor
         super().__init__(**kwargs)

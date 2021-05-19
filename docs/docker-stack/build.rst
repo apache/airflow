@@ -89,6 +89,11 @@ You should be aware, about a few things:
   PIP packages are installed to ``~/.local`` folder as if the ``--user`` flag was specified when running PIP.
   Note also that using ``--no-cache-dir`` is a good idea that can help to make your image smaller.
 
+.. note::
+  Only as of ``2.0.1`` image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment
+  variable to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``. In the
+  2.0.0 image you had to add the ``--user`` flag as ``pip install --user`` command.
+
 * If your apt, or PyPI dependencies require some of the ``build-essential`` or other packages that need
   to compile your python dependencies, then your best choice is to follow the "Customize the image" route,
   because you can build a highly-optimized (for size) image this way. However it requires to checkout sources
@@ -103,10 +108,26 @@ You should be aware, about a few things:
   a command ``docker build . --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
+* If your way of extending image requires to create writable directories, you MUST remember about adding
+  ``umask 0002`` step in your RUN command. This is necessary in order to accommodate our approach for
+  running the image with an arbitrary user. Such user will always run with ``GID=0`` -
+  the entrypoint will prevent non-root GIDs. You can read more about it in
+  :ref:`arbitrary docker user <arbitrary-docker-user>` documentation for the entrypoint. The
+  ``umask 0002`` is set as default when you enter the image, so any directories you create by default
+  in runtime, will have ``GID=0`` and will be group-writable.
+
 .. note::
-  As of 2.0.1 image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment variable
-  to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``. In the
-  2.0.0 image you had to add the ``--user`` flag as ``pip install --user`` command.
+  When you build image for Airflow version < ``2.1`` (for example 2.0.2 or 1.10.15) the image is build with
+  PIP 20.2.4 because ``PIP21+`` is only supported for ``Airflow 2.1+``
+
+.. note::
+  Only as of ``2.0.2`` the default group of ``airflow`` user is ``root``. Previously it was ``airflow``,
+  so if you are building your images based on an earlier image, you need to manually change the default
+  group for airflow user:
+
+.. code-block:: docker
+
+    RUN usermod -g 0 airflow
 
 Examples of image extending
 ---------------------------
@@ -130,6 +151,18 @@ The following example adds ``lxml`` python package from PyPI to the image.
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+A ``umask`` requiring example
+.............................
+
+The following example adds a new directory that is supposed to be writable for any arbitrary user
+running the container.
+
+.. exampleinclude:: docker-examples/extending/writable-directory/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 
 A ``build-essential`` requiring package example
 ...............................................
@@ -216,8 +249,8 @@ Additional explanation is needed for the last point. Airflow uses constraints to
 that it can be predictably installed, even if some new versions of Airflow dependencies are
 released (or even dependencies of our dependencies!). The docker image and accompanying scripts
 usually determine automatically the right versions of constraints to be used based on the Airflow
-version installed and Python version. For example 2.0.1 version of Airflow installed from PyPI
-uses constraints from ``constraints-2.0.1`` tag). However in some cases - when installing airflow from
+version installed and Python version. For example 2.0.2 version of Airflow installed from PyPI
+uses constraints from ``constraints-2.0.2`` tag). However in some cases - when installing airflow from
 GitHub for example - you have to manually specify the version of constraints used, otherwise
 it will default to the latest version of the constraints which might not be compatible with the
 version of Airflow you use.
@@ -241,15 +274,15 @@ Building from PyPI packages
 This is the basic way of building the custom images from sources.
 
 The following example builds the production image in version ``3.6`` with latest PyPI-released Airflow,
-with default set of Airflow extras and dependencies. The ``2.0.1`` constraints are used automatically.
+with default set of Airflow extras and dependencies. The ``2.0.2`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.7`` with default extras from ``2.0.1`` PyPI
-package. The ``2.0.1`` constraints are used automatically.
+The following example builds the production image in version ``3.7`` with default extras from ``2.0.2`` PyPI
+package. The ``2.0.2`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
     :language: bash
@@ -257,7 +290,7 @@ package. The ``2.0.1`` constraints are used automatically.
     :end-before: [END build]
 
 The following example builds the production image in version ``3.8`` with additional airflow extras
-(``mssql,hdfs``) from ``2.0.1`` PyPI package, and additional dependency (``oauth2client``).
+(``mssql,hdfs``) from ``2.0.2`` PyPI package, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
     :language: bash
@@ -283,7 +316,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example the production image in version ``3.6`` with additional airflow extras from ``2.0.1``
+The following example the production image in version ``3.6`` with additional airflow extras from ``2.0.2``
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling

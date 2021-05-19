@@ -23,7 +23,7 @@ mergeable:
         # Do not merge when it is marked work in progress (WIP)
         or:
           - must_exclude:
-              regex: ^\[WIP\]
+              regex: \[WIP\]|\bWIP\b|🚧
               message: This is work in progress. Do not merge yet.
           - must_exclude:
               regex: ^\[DONT-MERGE\]

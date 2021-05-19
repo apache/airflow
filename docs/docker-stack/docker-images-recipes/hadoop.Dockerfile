@@ -48,6 +48,7 @@ RUN HADOOP_URL="https://archive.apache.org/dist/hadoop/common/hadoop-$HADOOP_VER
     && curl -fSL "$HADOOP_URL" -o /tmp/hadoop.tar.gz \
     && curl -fSL "$HADOOP_URL.asc" -o /tmp/hadoop.tar.gz.asc \
     && gpg --verify /tmp/hadoop.tar.gz.asc \
+    && mkdir -p "${HADOOP_HOME}" \
     && tar -xvf /tmp/hadoop.tar.gz -C "${HADOOP_HOME}" --strip-components=1 \
     && rm /tmp/hadoop.tar.gz /tmp/hadoop.tar.gz.asc \
     && ln -s "${HADOOP_HOME}/etc/hadoop" /etc/hadoop \

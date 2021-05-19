@@ -23,7 +23,6 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToGCSOperator(S3ListOperator):
@@ -111,7 +110,6 @@ class S3ToGCSOperator(S3ListOperator):
     ui_color = '#e09411'
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

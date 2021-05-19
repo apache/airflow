@@ -19,7 +19,6 @@ from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureDataLakeStorageDeleteOperator(BaseOperator):
@@ -36,12 +35,13 @@ class AzureDataLakeStorageDeleteOperator(BaseOperator):
     :type recursive: bool
     :param ignore_not_found: Whether to raise error if file to delete is not found
     :type ignore_not_found: bool
+    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
+    :type azure_data_lake_conn_id: str
     """
 
     template_fields: Sequence[str] = ('path',)
     ui_color = '#901dd2'
 
-    @apply_defaults
     def __init__(
         self,
         *,

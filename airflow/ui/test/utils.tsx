@@ -17,10 +17,12 @@
  * under the License.
  */
 
+import { ChakraProvider } from '@chakra-ui/react';
 import { createMemoryHistory } from 'history';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Router } from 'react-router-dom';
+import theme from 'theme';
 
 export const url: string = `${process.env.WEBSERVER_URL}/api/v1/` || '';
 
@@ -44,3 +46,7 @@ export const RouterWrapper: React.FC<{}> = ({ children }) => {
   const history = createMemoryHistory();
   return <Router history={history}>{children}</Router>;
 };
+
+export const ChakraWrapper: React.FC<{}> = ({ children }) => (
+  <ChakraProvider theme={theme}>{children}</ChakraProvider>
+);

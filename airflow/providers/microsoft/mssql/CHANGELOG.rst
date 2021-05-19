@@ -19,6 +19,15 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove odbc dependency in microsoft.mssql provider (#15594)``
+
+
 1.0.1
 .....
 

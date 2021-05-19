@@ -21,11 +21,11 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
 from docker import APIClient, tls
+from docker.types import Mount
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -96,16 +96,18 @@ class DockerOperator(BaseOperator):
     :type tmp_dir: str
     :param user: Default user inside the docker container.
     :type user: int or str
-    :param volumes: List of volumes to mount into the container, e.g.
-        ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
-    :type volumes: list
+    :param mounts: List of volumes to mount into the container. Each item should
+        be a :py:class:`docker.types.Mount` instance.
+    :type mounts: list[docker.types.Mount]
+    :param entrypoint: Overwrite the default ENTRYPOINT of the image
+    :type entrypoint: str or list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
     :type xcom_all: bool
-    :param docker_conn_id: ID of the Airflow connection to use
+    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :type docker_conn_id: str
     :param dns: Docker custom DNS servers
     :type dns: list[str]
@@ -134,7 +136,6 @@ class DockerOperator(BaseOperator):
     )
 
     # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -157,7 +158,8 @@ class DockerOperator(BaseOperator):
         tls_ssl_version: Optional[str] = None,
         tmp_dir: str = '/tmp/airflow',
         user: Optional[Union[str, int]] = None,
-        volumes: Optional[List[str]] = None,
+        mounts: Optional[List[Mount]] = None,
+        entrypoint: Optional[Union[str, List[str]]] = None,
         working_dir: Optional[str] = None,
         xcom_all: bool = False,
         docker_conn_id: Optional[str] = None,
@@ -195,7 +197,8 @@ class DockerOperator(BaseOperator):
         self.tls_ssl_version = tls_ssl_version
         self.tmp_dir = tmp_dir
         self.user = user
-        self.volumes = volumes or []
+        self.mounts = mounts or []
+        self.entrypoint = entrypoint
         self.working_dir = working_dir
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
@@ -228,17 +231,16 @@ class DockerOperator(BaseOperator):
         self.log.info('Starting docker container from image %s', self.image)
 
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-            self.volumes.append(f'{host_tmp_dir}:{self.tmp_dir}')
-
             if not self.cli:
                 raise Exception("The 'cli' should be initialized before!")
+            tmp_mount = Mount(self.tmp_dir, host_tmp_dir, "bind")
             self.container = self.cli.create_container(
-                command=self.get_command(),
+                command=self.format_command(self.command),
                 name=self.container_name,
                 environment={**self.environment, **self._private_environment},
                 host_config=self.cli.create_host_config(
                     auto_remove=False,
-                    binds=self.volumes,
+                    mounts=self.mounts + [tmp_mount],
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
                     dns=self.dns,
@@ -251,37 +253,42 @@ class DockerOperator(BaseOperator):
                 ),
                 image=self.image,
                 user=self.user,
+                entrypoint=self.format_command(self.entrypoint),
                 working_dir=self.working_dir,
                 tty=self.tty,
             )
 
             lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
 
-            self.cli.start(self.container['Id'])
+            try:
+                self.cli.start(self.container['Id'])
 
-            line = ''
-            for line in lines:
-                line = line.strip()
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
-                self.log.info(line)
+                line = ''
+                res_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if hasattr(line, 'decode'):
+                        # Note that lines returned can also be byte sequences so we have to handle decode here
+                        line = line.decode('utf-8')
+                    res_lines.append(line)
+                    self.log.info(line)
 
-            result = self.cli.wait(self.container['Id'])
-            if result['StatusCode'] != 0:
+                result = self.cli.wait(self.container['Id'])
+                if result['StatusCode'] != 0:
+                    res_lines = "\n".join(res_lines)
+                    raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
+
+                ret = None
+                if self.do_xcom_push:
+                    ret = (
+                        self.cli.logs(container=self.container['Id'])
+                        if self.xcom_all
+                        else line.encode('utf-8')
+                    )
+                return ret
+            finally:
                 if self.auto_remove:
                     self.cli.remove_container(self.container['Id'])
-                raise AirflowException('docker container failed: ' + repr(result))
-
-            # duplicated conditional logic because of expensive operation
-            ret = None
-            if self.do_xcom_push:
-                ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
-
-            if self.auto_remove:
-                self.cli.remove_container(self.container['Id'])
-
-            return ret
 
     def execute(self, context) -> Optional[str]:
         self.cli = self._get_cli()
@@ -318,18 +325,20 @@ class DockerOperator(BaseOperator):
             tls_config = self.__get_tls_config()
             return APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
-    def get_command(self) -> Union[List[str], str]:
+    @staticmethod
+    def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
+
+        :param command: Docker command or entrypoint
+        :type command: str | List[str]
 
         :return: the command (or commands)
         :rtype: str | List[str]
         """
-        if isinstance(self.command, str) and self.command.strip().find('[') == 0:
-            commands = ast.literal_eval(self.command)
-        else:
-            commands = self.command
-        return commands
+        if isinstance(command, str) and command.strip().find('[') == 0:
+            return ast.literal_eval(command)
+        return command
 
     def on_kill(self) -> None:
         if self.cli is not None:

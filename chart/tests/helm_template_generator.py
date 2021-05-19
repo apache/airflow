@@ -83,16 +83,17 @@ def validate_k8s_object(instance):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None):
+def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=None):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
     values = values or {}
+    chart_dir = chart_dir or sys.path[0]
     with NamedTemporaryFile() as tmp_file:
         content = yaml.dump(values)
         tmp_file.write(content.encode())
         tmp_file.flush()
-        command = ["helm", "template", name, sys.path[0], '--values', tmp_file.name]
+        command = ["helm", "template", name, chart_dir, '--values', tmp_file.name]
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])

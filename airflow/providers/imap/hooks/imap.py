@@ -18,7 +18,7 @@
 """
 This module provides everything to be able to search in mails for a specific attachment
 and also to download it.
-It uses the imaplib library that is already integrated in python 2 and 3.
+It uses the imaplib library that is already integrated in python 3.
 """
 import email
 import imaplib
@@ -38,7 +38,8 @@ class ImapHook(BaseHook):
     .. note:: Please call this Hook as context manager via `with`
         to automatically open and close the connection to the mail server.
 
-    :param imap_conn_id: The connection id that contains the information used to authenticate the client.
+    :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>`
+        that contains the information used to authenticate the client.
     :type imap_conn_id: str
     """
 

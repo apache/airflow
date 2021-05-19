@@ -22,7 +22,6 @@ import itertools
 import logging
 import multiprocessing
 import os
-import sched
 import signal
 import sys
 import threading
@@ -31,7 +30,7 @@ from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
+from typing import DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_, tuple_
@@ -60,6 +59,7 @@ from airflow.utils.callback_requests import (
 )
 from airflow.utils.dag_processing import AbstractDagFileProcessorProcess, DagFileProcessorAgent
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -678,10 +678,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     If so, it creates appropriate TaskInstances and sends run commands to the
     executor. It does this for each task in each DAG and repeats.
 
-    :param dag_id: if specified, only schedule tasks with this DAG ID
-    :type dag_id: str
-    :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :type dag_ids: list[str]
     :param subdir: directory containing Python files with Airflow DAG
         definitions, or a specific path to a file
     :type subdir: str
@@ -698,6 +694,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
     :type do_pickle: bool
+    :param log: override the default Logger
+    :type log: logging.Logger
     """
 
     __mapper_args__ = {'polymorphic_identity': 'SchedulerJob'}
@@ -710,7 +708,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         num_times_parse_dags: int = -1,
         processor_poll_interval: float = conf.getfloat('scheduler', 'processor_poll_interval'),
         do_pickle: bool = False,
-        log: Any = None,
+        log: logging.Logger = None,
         *args,
         **kwargs,
     ):
@@ -1299,13 +1297,19 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
                 models.DAG.deactivate_stale_dags(execute_start_time)
 
-            self.executor.end()
-
             settings.Session.remove()  # type: ignore
         except Exception:  # pylint: disable=broad-except
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
+            raise
         finally:
-            self.processor_agent.end()
+            try:
+                self.executor.end()
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception("Exception when executing Executor.end")
+            try:
+                self.processor_agent.end()
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
     @staticmethod
@@ -1341,37 +1345,22 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
-        timers = sched.scheduler()
-
-        def call_regular_interval(
-            delay: float,
-            action: Callable,
-            arguments=(),
-            kwargs={},
-        ):  # pylint: disable=dangerous-default-value
-            def repeat(*args, **kwargs):
-                action(*args, **kwargs)
-                # This is not perfect. If we want a timer every 60s, but action
-                # takes 10s to run, this will run it every 70s.
-                # Good enough for now
-                timers.enter(delay, 1, repeat, args, kwargs)
-
-            timers.enter(delay, 1, repeat, arguments, kwargs)
+        timers = EventScheduler()
 
         # Check on start up, then every configured interval
         self.adopt_or_reset_orphaned_tasks()
 
-        call_regular_interval(
+        timers.call_regular_interval(
             conf.getfloat('scheduler', 'orphaned_tasks_check_interval', fallback=300.0),
             self.adopt_or_reset_orphaned_tasks,
         )
 
-        call_regular_interval(
+        timers.call_regular_interval(
             conf.getfloat('scheduler', 'pool_metrics_interval', fallback=5.0),
             self._emit_pool_metrics,
         )
 
-        call_regular_interval(
+        timers.call_regular_interval(
             conf.getfloat('scheduler', 'clean_tis_without_dagrun_interval', fallback=15.0),
             self._clean_tis_without_dagrun,
         )

@@ -20,7 +20,7 @@ Documentation
 
 This directory contains documentation for the Apache Airflow project and other packages that are closely related to it ie. providers packages.  Documentation is built using `Sphinx <https://www.sphinx-doc.org/>`__.
 
-For Helm Chart, see: `/chart/README.md <../chart/READMe.md>`__
+For Helm Chart, see: `/chart/README.md <../chart/README.md>`__
 
 Development documentation preview
 ==================================

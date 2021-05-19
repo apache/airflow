@@ -32,6 +32,19 @@ svg {
   stroke: #017cee !important;
 }
 
+.edgeLabel {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.edgeLabel > .label {
+  font-weight: normal;
+  font-size: 10px;
+}
+
+.edgeLabel text {
+  transform: translate(16px, 0);
+}
+
 .edgeLabel rect {
   fill: #fff;
 }
@@ -43,7 +56,9 @@ svg {
   transition: stroke 0.2s ease-in-out, opacity 0.2s ease-in-out;
 }
 
-.edgePath[data-highlight="fade"] {
+.edgePath[data-highlight="fade"],
+.edgePaths[data-highlight="fade"] > .edgePath,
+.edgeLabel[data-highlight="fade"] {
   opacity: 0.2 !important;
 }
 
@@ -151,19 +166,29 @@ g.node.removed rect {
   cursor: move;
 }
 
-.refresh-actions {
-  float: right;
-  display: inline-flex;
-  align-items: center;
-  top: 10px;
-  right: 10px;
-  position: relative;
+.legend-item.dag {
+  float: left;
+  background-color: #e8f7e4;
 }
 
-.refresh-actions > .switch-label {
-  margin: 0 10px 0 20px;
+.legend-item.trigger {
+  float: left;
+  background-color: #ffefeb;
 }
 
-.loading-dots.refresh-loading {
-  display: none;
+.legend-item.sensor {
+  float: left;
+  background-color: #e6f1f2;
+}
+
+g.node.dag rect {
+  fill: #e8f7e4;
+}
+
+g.node.trigger rect {
+  fill: #ffefeb;
+}
+
+g.node.sensor rect {
+  fill: #e6f1f2;
 }

@@ -26,7 +26,8 @@ from typing import Dict, List, Optional
 
 import requests
 import yaml
-from jsonschema.validators import validator_for
+from jsonschema.exceptions import ValidationError
+from jsonschema.validators import extend, validator_for
 
 if __name__ != "__main__":
     raise Exception(
@@ -107,6 +108,9 @@ def load_file(file_path: str):
 
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Validates the file using JSON Schema specifications')
+    parser.add_argument(
+        '--enforce-defaults', action='store_true', help="Values must match the default in the schema"
+    )
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--spec-file', help="The path to specification")
@@ -128,10 +132,18 @@ def _process_files(validator, file_paths: List[str]):
     return exit_code
 
 
-def _create_validator(schema):
+def _create_validator(schema, enforce_defaults: bool):
     cls = validator_for(schema)
     cls.check_schema(schema)
+    if enforce_defaults:
+        cls = extend(cls, {"default": _default_validator})
     return cls(schema)
+
+
+def _default_validator(validator, default, instance, schema):
+    # We will also accept a "See values.yaml" default
+    if default != instance and default != "See values.yaml":
+        yield ValidationError(f"{instance} is not equal to the default of {default}")
 
 
 def _load_spec(spec_file: Optional[str], spec_url: Optional[str]):
@@ -150,10 +162,11 @@ def main() -> int:
     args = parser.parse_args()
     spec_url = args.spec_url
     spec_file = args.spec_file
+    enforce_defaults = args.enforce_defaults
 
     schema = _load_spec(spec_file, spec_url)
 
-    validator = _create_validator(schema)
+    validator = _create_validator(schema, enforce_defaults)
 
     file_paths = args.file
     exit_code = _process_files(validator, file_paths)

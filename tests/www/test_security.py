@@ -29,10 +29,11 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
 from airflow.www.utils import CustomSQLAInterface
-from tests.test_utils import fab_utils
+from tests.test_utils import api_connexion_utils
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
@@ -100,7 +101,7 @@ class TestSecurity(unittest.TestCase):
     @classmethod
     def delete_roles(cls):
         for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2']:
-            fab_utils.delete_role(cls.app, role_name)
+            api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
         self.security_manager.bulk_sync_roles([{'role': rolename, 'perms': []}])
@@ -124,7 +125,7 @@ class TestSecurity(unittest.TestCase):
     def _has_dag_perm(self, perm, dag_id, user):
         # if not user:
         #     user = self.user
-        return self.security_manager.has_access(perm, self.security_manager.prefixed_dag_id(dag_id), user)
+        return self.security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
 
     def _create_dag(self, dag_id):
         dag_model = DagModel(dag_id=dag_id)
@@ -189,7 +190,9 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.bulk_sync_roles(mock_roles)
         role = self.security_manager.find_role(role_name)
 
-        perm = self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_EDIT, 'RoleModelView')
+        perm = self.security_manager.find_permission_view_menu(
+            permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE
+        )
         self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
@@ -278,11 +281,12 @@ class TestSecurity(unittest.TestCase):
 
     def test_get_user_roles_for_anonymous_user(self):
         viewer_role_perms = {
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
@@ -290,6 +294,10 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
@@ -299,17 +307,6 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
-            (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-            (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-            (permissions.ACTION_RESETMYPASSWORD, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-            (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-            (permissions.ACTION_USERINFOEDIT, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_DB_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OID_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_LDAP_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OAUTH_MODELVIEW),
-            (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_REMOTEUSER_MODELVIEW),
         }
         self.app.config['AUTH_ROLE_PUBLIC'] = 'Viewer'
 
@@ -332,7 +329,7 @@ class TestSecurity(unittest.TestCase):
         username = 'get_current_user_permissions'
 
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
@@ -354,7 +351,7 @@ class TestSecurity(unittest.TestCase):
         dag_id = 'dag_id'
         username = "ElUser"
 
-        user = fab_utils.create_user(
+        user = api_connexion_utils.create_user(
             self.app,
             username,
             role_name,
@@ -382,7 +379,7 @@ class TestSecurity(unittest.TestCase):
         permission_action = [permissions.ACTION_CAN_EDIT]
         dag_id = "dag_id"
 
-        user = fab_utils.create_user(
+        user = api_connexion_utils.create_user(
             self.app,
             username,
             role_name,
@@ -436,7 +433,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_access_control_with_non_existent_role(self):
         with pytest.raises(AirflowException) as ctx:
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 dag_id='access-control-test',
                 access_control={
                     'this-role-does-not-exist': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
@@ -448,7 +445,7 @@ class TestSecurity(unittest.TestCase):
         username = 'dag_access_user'
         role_name = 'dag_access_role'
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
@@ -470,7 +467,7 @@ class TestSecurity(unittest.TestCase):
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
-        user = fab_utils.create_user(
+        user = api_connexion_utils.create_user(
             self.app,
             username=username,
             role_name='team-a',
@@ -478,7 +475,7 @@ class TestSecurity(unittest.TestCase):
         for permission in invalid_permissions:
             self.expect_user_is_in_role(user, rolename='team-a')
             with pytest.raises(AirflowException) as ctx:
-                self.security_manager.sync_perm_for_dag(
+                self.security_manager._sync_dag_view_permissions(
                     'access_control_test', access_control={'team-a': {permission}}
                 )
             assert "invalid permissions" in str(ctx.value)
@@ -487,14 +484,14 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_is_set_on_init'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 'access_control_test',
                 access_control={'team-a': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
             )
@@ -515,19 +512,19 @@ class TestSecurity(unittest.TestCase):
         username = 'access_control_stale_perms_are_revoked'
         role_name = 'team-a'
         with self.app.app_context():
-            user = fab_utils.create_user(
+            user = api_connexion_utils.create_user(
                 self.app,
                 username,
                 role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_WRITE}
             )
             self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id='access_control_test', user=user)
 
-            self.security_manager.sync_perm_for_dag(
+            self.security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
             self.assert_user_has_dag_perms(
@@ -567,24 +564,46 @@ class TestSecurity(unittest.TestCase):
                     f"on {permissions.RESOURCE_CONFIG}"
                 )
 
-    def test_create_dag_specific_permissions(self):
-        dag_id = 'some_dag_id'
-        dag_permission_name = self.security_manager.prefixed_dag_id(dag_id)
-        assert ('can_read', dag_permission_name) not in self.security_manager.get_all_permissions()
+    @mock.patch("airflow.www.security.DagBag")
+    def test_create_dag_specific_permissions(self, dagbag_mock):
+        access_control = {'Public': {permissions.ACTION_CAN_READ}}
+        dags = [
+            DAG('has_access_control', access_control=access_control),
+            DAG('no_access_control'),
+        ]
 
-        dag_model = DagModel(
-            dag_id=dag_id, fileloc='/tmp/dag_.py', schedule_interval='2 2 * * *', is_paused=True
-        )
-        self.session.add(dag_model)
-        self.session.commit()
+        collect_dags_from_db_mock = mock.Mock()
+        dagbag = mock.Mock()
+
+        dagbag.dags = {dag.dag_id: dag for dag in dags}
+        dagbag.collect_dags_from_db = collect_dags_from_db_mock
+        dagbag_mock.return_value = dagbag
+
+        self.security_manager._sync_dag_view_permissions = mock.Mock()
+
+        for dag in dags:
+            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+            all_perms = self.security_manager.get_all_permissions()
+            assert ('can_read', dag_resource_name) not in all_perms
+            assert ('can_edit', dag_resource_name) not in all_perms
 
         self.security_manager.create_dag_specific_permissions()
-        self.session.commit()
 
-        assert ('can_read', dag_permission_name) in self.security_manager.get_all_permissions()
+        dagbag_mock.assert_called_once_with(read_dags_from_db=True)
+        collect_dags_from_db_mock.assert_called_once_with()
 
-        # Make sure we short circuit when the perms already exist
-        with assert_queries_count(2):  # One query to get DagModels, one query to get all perms
+        for dag in dags:
+            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+            all_perms = self.security_manager.get_all_permissions()
+            assert ('can_read', dag_resource_name) in all_perms
+            assert ('can_edit', dag_resource_name) in all_perms
+
+        self.security_manager._sync_dag_view_permissions.assert_called_once_with(
+            permissions.resource_name_for_dag('has_access_control'), access_control
+        )
+
+        del dagbag.dags["has_access_control"]
+        with assert_queries_count(1):  # one query to get all perms; dagbag is mocked
             self.security_manager.create_dag_specific_permissions()
 
     def test_get_all_permissions(self):
@@ -620,3 +639,13 @@ class TestSecurity(unittest.TestCase):
             assert isinstance(role, self.security_manager.role_model)
 
         assert 'Admin' in roles
+
+    def test_prefixed_dag_id_is_deprecated(self):
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "`prefixed_dag_id` has been deprecated. "
+                "Please use `airflow.security.permissions.resource_name_for_dag` instead."
+            ),
+        ):
+            self.security_manager.prefixed_dag_id("hello")

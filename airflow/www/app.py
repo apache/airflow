@@ -35,7 +35,7 @@ from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
-from airflow.www.extensions.init_session import init_permanent_session
+from airflow.www.extensions.init_session import init_airflow_session_interface, init_permanent_session
 from airflow.www.extensions.init_views import (
     init_api_connexion,
     init_api_experimental,
@@ -135,6 +135,7 @@ def create_app(config=None, testing=False):
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_permanent_session(flask_app)
+        init_airflow_session_interface(flask_app)
     return flask_app
 
 

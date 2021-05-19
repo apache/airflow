@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``S3Hook.load_file should accept Path object in addition to str (#15232)``
+* ``Add Connection Documentation for Providers (#15499)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+* ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
+* ``Update Docstrings of Modules with Missing Params (#15391)``
+* ``Add links to new modules for deprecated modules (#15316)``
+* ``Fixes doc for SQSSensor (#15323)``
+
 1.3.0
 .....
 
