@@ -1884,13 +1884,12 @@ class DAG(LoggingMixin):
             dag = dag_by_ids[orm_dag.dag_id]
             if dag.is_subdag:
                 orm_dag.is_subdag = True
-                orm_dag.fileloc = dag.parent_dag.fileloc  # type: ignore
                 orm_dag.root_dag_id = dag.parent_dag.dag_id  # type: ignore
                 orm_dag.owners = dag.parent_dag.owner  # type: ignore
             else:
                 orm_dag.is_subdag = False
-                orm_dag.fileloc = dag.fileloc
                 orm_dag.owners = dag.owner
+            orm_dag.fileloc = dag.fileloc
             orm_dag.is_active = True
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view

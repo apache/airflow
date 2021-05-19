@@ -79,6 +79,7 @@ class TestTaskInstanceEndpoint:
         clear_db_sla_miss()
         DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
         self.dagbag = DagBag(include_examples=True, read_dags_from_db=True)
+        configured_app.dag_bag = self.dagbag
 
     def create_task_instances(
         self,
