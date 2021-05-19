@@ -19,7 +19,7 @@ LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 source "${LIBRARIES_DIR}/_all_libs.sh"
 
-export SEMAPHORE_NAME="kubernetes-tests"
+export SEMAPHORE_NAME="kubernetes-tests-upgrade"
 
 initialization::set_output_color_variables
 
@@ -29,8 +29,7 @@ parallel::make_sure_kubernetes_versions_are_specified
 
 parallel::get_maximum_parallel_k8s_jobs
 parallel::run_helm_tests_in_parallel \
-    "$(dirname "${BASH_SOURCE[0]}")/ci_setup_cluster_and_run_kubernetes_tests_single_job.sh" "${@}"
-
+    "$(dirname "${BASH_SOURCE[0]}")/ci_upgrade_cluster_with_different_executors_single_job.sh" "${@}"
 
 # this will exit with error code in case some of the tests failed
 parallel::print_job_summary_and_return_status_code

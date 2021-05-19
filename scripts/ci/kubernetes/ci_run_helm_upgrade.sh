@@ -15,22 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
-# shellcheck source=scripts/ci/libraries/_all_libs.sh
-source "${LIBRARIES_DIR}/_all_libs.sh"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-export SEMAPHORE_NAME="kubernetes-tests"
-
-initialization::set_output_color_variables
-
-parallel::make_sure_gnu_parallel_is_installed
-parallel::make_sure_python_versions_are_specified
-parallel::make_sure_kubernetes_versions_are_specified
-
-parallel::get_maximum_parallel_k8s_jobs
-parallel::run_helm_tests_in_parallel \
-    "$(dirname "${BASH_SOURCE[0]}")/ci_setup_cluster_and_run_kubernetes_tests_single_job.sh" "${@}"
-
-
-# this will exit with error code in case some of the tests failed
-parallel::print_job_summary_and_return_status_code
+# We started with KubernetesExecutor. Let's run tests first
+"$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+for mode in CeleryExecutor KubernetesExecutor
+do
+    kind::upgrade_airflow_with_helm "${mode}"
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+done
