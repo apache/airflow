@@ -343,7 +343,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
                         operator: In
                         values:
                         - foo
-                        - bar 
+                        - bar
                   preferredDuringSchedulingIgnoredDuringExecution:
                   - weight: 1
                     preference:
