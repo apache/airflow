@@ -18,6 +18,7 @@
 
 import os
 from contextlib import closing
+from copy import deepcopy
 from typing import Iterable, Optional, Tuple, Union
 
 import psycopg2
@@ -84,7 +85,7 @@ class PostgresHook(DbApiHook):
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
         conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = deepcopy(self.connection or self.get_connection(conn_id))
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get('iam', False):

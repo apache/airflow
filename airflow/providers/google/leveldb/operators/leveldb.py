@@ -18,7 +18,6 @@ from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
-from airflow.utils.decorators import apply_defaults
 
 
 class LevelDBOperator(BaseOperator):
@@ -49,7 +48,6 @@ class LevelDBOperator(BaseOperator):
         :type create_db_extra_options: Optional[Dict[str, Any]]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,

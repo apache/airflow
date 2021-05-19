@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, postAsForm, isoDateToTimeEl, confirm */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, */
 
 import getMetaValue from './meta_value';
 
@@ -80,18 +80,6 @@ $('#page_size').on('change', function onPageSizeChange() {
   const pSize = $(this).val();
   window.location = `${DAGS_INDEX}?page_size=${pSize}`;
 });
-
-// eslint-disable-next-line no-unused-vars
-function confirmDeleteDag(link, dagId) {
-  // eslint-disable-next-line no-alert, no-restricted-globals
-  if (confirm(`Are you sure you want to delete '${dagId}' now?\n\
-    This option will delete ALL metadata, DAG runs, etc.\n\
-    EXCEPT Log.\n\
-    This cannot be undone.`)) {
-    postAsForm(link.href, {});
-  }
-  return false;
-}
 
 const encodedDagIds = new URLSearchParams();
 

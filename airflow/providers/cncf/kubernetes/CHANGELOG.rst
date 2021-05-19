@@ -19,6 +19,21 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Require 'name' with KubernetesPodOperator (#15373)``
+* ``Change KPO node_selectors warning to proper deprecationwarning (#15507)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
+* ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
+
 1.1.0
 .....
 

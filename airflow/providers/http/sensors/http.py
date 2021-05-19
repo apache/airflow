@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class HttpSensor(BaseSensorOperator):
@@ -74,7 +73,6 @@ class HttpSensor(BaseSensorOperator):
 
     template_fields = ('endpoint', 'request_params', 'headers')
 
-    @apply_defaults
     def __init__(
         self,
         *,

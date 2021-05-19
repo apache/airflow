@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GrpcOperator(BaseOperator):
@@ -53,7 +52,6 @@ class GrpcOperator(BaseOperator):
     template_fields = ('stub_class', 'call_func', 'data')
     template_fields_renderers = {"data": "py"}
 
-    @apply_defaults
     def __init__(
         self,
         *,

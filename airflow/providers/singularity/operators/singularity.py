@@ -25,7 +25,6 @@ from spython.main import Client
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SingularityOperator(BaseOperator):
@@ -72,7 +71,6 @@ class SingularityOperator(BaseOperator):
     )
     template_fields_renderers = {"command": "bash", "environment": "json"}
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

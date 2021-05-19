@@ -74,3 +74,20 @@ class GitSyncWorkerTest(unittest.TestCase):
         )
 
         assert "git-sync" != jmespath.search("spec.template.spec.containers[1].name", docs[0])
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )

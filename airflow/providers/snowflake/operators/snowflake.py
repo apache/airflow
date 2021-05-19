@@ -19,7 +19,6 @@ from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SnowflakeOperator(BaseOperator):
@@ -71,7 +70,6 @@ class SnowflakeOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -98,6 +96,7 @@ class SnowflakeOperator(BaseOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
+        self.query_ids = []
 
     def get_hook(self) -> SnowflakeHook:
         """
@@ -120,3 +119,4 @@ class SnowflakeOperator(BaseOperator):
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        self.query_ids = hook.query_ids

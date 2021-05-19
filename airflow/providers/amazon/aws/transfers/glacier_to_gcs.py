@@ -21,7 +21,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GlacierToGCSOperator(BaseOperator):
@@ -68,7 +67,6 @@ class GlacierToGCSOperator(BaseOperator):
 
     template_fields = ("vault_name", "bucket_name", "object_name")
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -19,7 +19,6 @@ from typing import Dict, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.segment.hooks.segment import SegmentHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SegmentTrackEventOperator(BaseOperator):
@@ -42,7 +41,6 @@ class SegmentTrackEventOperator(BaseOperator):
     template_fields = ('user_id', 'event', 'properties')
     ui_color = '#ffd700'
 
-    @apply_defaults
     def __init__(
         self,
         *,

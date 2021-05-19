@@ -676,6 +676,178 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         assert "fields" in result
         assert len(result["fields"]) == 2
 
+    @mock.patch('airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema')
+    @mock.patch('airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_table')
+    def test_update_table_schema_with_policy_tags(self, mock_update, mock_get_schema):
+        mock_get_schema.return_value = {
+            "fields": [
+                {'name': 'emp_name', 'type': 'STRING', 'mode': 'REQUIRED'},
+                {
+                    'name': 'salary',
+                    'type': 'INTEGER',
+                    'mode': 'REQUIRED',
+                    'policyTags': {'names': ['sensitive']},
+                },
+                {'name': 'not_changed', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+                {
+                    'name': 'subrecord',
+                    'type': 'RECORD',
+                    'mode': 'REQUIRED',
+                    'fields': [
+                        {
+                            'name': 'field_1',
+                            'type': 'STRING',
+                            'mode': 'REQUIRED',
+                            'policyTags': {'names': ['sensitive']},
+                        },
+                    ],
+                },
+            ]
+        }
+
+        schema_fields_updates = [
+            {'name': 'emp_name', 'description': 'Name of employee', 'policyTags': {'names': ['sensitive']}},
+            {
+                'name': 'salary',
+                'description': 'Monthly salary in USD',
+                'policyTags': {},
+            },
+            {
+                'name': 'subrecord',
+                'description': 'Some Desc',
+                'fields': [
+                    {'name': 'field_1', 'description': 'Some nested desc'},
+                ],
+            },
+        ]
+
+        expected_result_schema = {
+            'fields': [
+                {
+                    'name': 'emp_name',
+                    'type': 'STRING',
+                    'mode': 'REQUIRED',
+                    'description': 'Name of employee',
+                    'policyTags': {'names': ['sensitive']},
+                },
+                {
+                    'name': 'salary',
+                    'type': 'INTEGER',
+                    'mode': 'REQUIRED',
+                    'description': 'Monthly salary in USD',
+                    'policyTags': {},
+                },
+                {'name': 'not_changed', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+                {
+                    'name': 'subrecord',
+                    'type': 'RECORD',
+                    'mode': 'REQUIRED',
+                    'description': 'Some Desc',
+                    'fields': [
+                        {
+                            'name': 'field_1',
+                            'type': 'STRING',
+                            'mode': 'REQUIRED',
+                            'description': 'Some nested desc',
+                            'policyTags': {'names': ['sensitive']},
+                        }
+                    ],
+                },
+            ]
+        }
+
+        self.hook.update_table_schema(
+            schema_fields_updates=schema_fields_updates,
+            include_policy_tags=True,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+        )
+
+        mock_update.assert_called_once_with(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            project_id=PROJECT_ID,
+            table_resource={'schema': expected_result_schema},
+            fields=['schema'],
+        )
+
+    @mock.patch('airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema')
+    @mock.patch('airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_table')
+    def test_update_table_schema_without_policy_tags(self, mock_update, mock_get_schema):
+        mock_get_schema.return_value = {
+            "fields": [
+                {'name': 'emp_name', 'type': 'STRING', 'mode': 'REQUIRED'},
+                {'name': 'salary', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+                {'name': 'not_changed', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+                {
+                    'name': 'subrecord',
+                    'type': 'RECORD',
+                    'mode': 'REQUIRED',
+                    'fields': [
+                        {'name': 'field_1', 'type': 'STRING', 'mode': 'REQUIRED'},
+                    ],
+                },
+            ]
+        }
+
+        schema_fields_updates = [
+            {'name': 'emp_name', 'description': 'Name of employee'},
+            {
+                'name': 'salary',
+                'description': 'Monthly salary in USD',
+                'policyTags': {'names': ['sensitive']},
+            },
+            {
+                'name': 'subrecord',
+                'description': 'Some Desc',
+                'fields': [
+                    {'name': 'field_1', 'description': 'Some nested desc'},
+                ],
+            },
+        ]
+
+        expected_result_schema = {
+            'fields': [
+                {'name': 'emp_name', 'type': 'STRING', 'mode': 'REQUIRED', 'description': 'Name of employee'},
+                {
+                    'name': 'salary',
+                    'type': 'INTEGER',
+                    'mode': 'REQUIRED',
+                    'description': 'Monthly salary in USD',
+                },
+                {'name': 'not_changed', 'type': 'INTEGER', 'mode': 'REQUIRED'},
+                {
+                    'name': 'subrecord',
+                    'type': 'RECORD',
+                    'mode': 'REQUIRED',
+                    'description': 'Some Desc',
+                    'fields': [
+                        {
+                            'name': 'field_1',
+                            'type': 'STRING',
+                            'mode': 'REQUIRED',
+                            'description': 'Some nested desc',
+                        }
+                    ],
+                },
+            ]
+        }
+
+        self.hook.update_table_schema(
+            schema_fields_updates=schema_fields_updates,
+            include_policy_tags=False,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+        )
+
+        mock_update.assert_called_once_with(
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            project_id=PROJECT_ID,
+            table_resource={'schema': expected_result_schema},
+            fields=['schema'],
+        )
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_invalid_source_format(self, mock_get_service):
         with pytest.raises(

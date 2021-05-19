@@ -27,12 +27,13 @@ import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql import exists
+from sqlalchemy.sql.expression import func
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -274,6 +275,17 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def get_max_last_updated_datetime(cls, session: Session = None) -> datetime:
+        """
+        Get the maximum date when any DAG was last updated in serialized_dag table
+
+        :param session: ORM Session
+        :type session: Session
+        """
+        return session.query(func.max(cls.last_updated)).scalar()
+
+    @classmethod
+    @provide_session
     def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
         """
         Get the latest DAG version for a given DAG ID.
@@ -286,3 +298,26 @@ class SerializedDagModel(Base):
         :rtype: str
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    @provide_session
+    def get_dag_dependencies(cls, session: Session = None) -> Dict[str, List['DagDependency']]:
+        """
+        Get the dependencies between DAGs
+
+        :param session: ORM Session
+        :type session: Session
+        """
+        dependencies = {}
+
+        if session.bind.dialect.name in ["sqlite", "mysql"]:
+            for row in session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies")).all():
+                dependencies[row[0]] = [DagDependency(**d) for d in json.loads(row[1])]
+
+        else:
+            for row in session.query(
+                cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies")
+            ).all():
+                dependencies[row[0]] = [DagDependency(**d) for d in row[1]]
+
+        return dependencies

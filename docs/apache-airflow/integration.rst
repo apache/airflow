@@ -33,4 +33,4 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Web UI Authentication backends </security/api>`
 
 It also has integration with :doc:`Sentry </logging-monitoring/errors>` service for error tracking. Other applications can also integrate using
-the :doc:`REST API <rest-api-ref>`.
+the :doc:`REST API <stable-rest-api-ref>`.

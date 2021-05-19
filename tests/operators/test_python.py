@@ -1025,6 +1025,19 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=None)
 
+    def test_deepcopy(self):
+        """Test that PythonVirtualenvOperator are deep-copyable."""
+
+        def f():
+            return 1
+
+        task = PythonVirtualenvOperator(
+            python_callable=f,
+            task_id='task',
+            dag=self.dag,
+        )
+        copy.deepcopy(task)
+
 
 DEFAULT_ARGS = {
     "owner": "test",

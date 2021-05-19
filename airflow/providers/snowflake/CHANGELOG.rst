@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Expose snowflake query_id in snowflake hook and operator (#15533)``
+
 1.2.0
 .....
 

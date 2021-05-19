@@ -905,6 +905,13 @@ class TestTaskInstance(unittest.TestCase):
             ['one_success', 2, 0, 0, 0, 2, True, None, True],
             ['one_success', 2, 0, 1, 0, 3, True, None, True],
             ['one_success', 2, 1, 0, 0, 3, True, None, True],
+            ['one_success', 0, 5, 0, 0, 5, True, State.SKIPPED, False],
+            ['one_success', 0, 4, 1, 0, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 3, 1, 1, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 4, 0, 1, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 5, 0, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 4, 1, 5, True, State.UPSTREAM_FAILED, False],
+            ['one_success', 0, 0, 0, 5, 5, True, State.UPSTREAM_FAILED, False],
             #
             # Tests for all_failed
             #
@@ -932,15 +939,15 @@ class TestTaskInstance(unittest.TestCase):
     )
     def test_check_task_dependencies(
         self,
-        trigger_rule,
-        successes,
-        skipped,
-        failed,
-        upstream_failed,
-        done,
-        flag_upstream_failed,
-        expect_state,
-        expect_completed,
+        trigger_rule: str,
+        successes: int,
+        skipped: int,
+        failed: int,
+        upstream_failed: int,
+        done: int,
+        flag_upstream_failed: bool,
+        expect_state: State,
+        expect_completed: bool,
     ):
         start_date = timezone.datetime(2016, 2, 1, 0, 0, 0)
         dag = models.DAG('test-dag', start_date=start_date)
@@ -2073,8 +2080,8 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
     @parameterized.expand(
         [
             # Expected queries, mark_success
-            (10, False),
-            (5, True),
+            (12, False),
+            (7, True),
         ]
     )
     def test_execute_queries_count(self, expected_query_count, mark_success):
@@ -2110,7 +2117,7 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
                 session=session,
             )
 
-        with assert_queries_count(10):
+        with assert_queries_count(12):
             ti._run_raw_task()
 
     def test_operator_field_with_serialization(self):

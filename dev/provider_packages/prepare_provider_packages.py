@@ -153,6 +153,11 @@ option_verbose = click.option(
     is_flag=True,
     help="Print verbose information about performed steps",
 )
+option_force = click.option(
+    "--force",
+    is_flag=True,
+    help="Forces regeneration of already generated documentation",
+)
 argument_package_id = click.argument('package_id')
 
 
@@ -312,6 +317,16 @@ def get_pip_package_name(provider_package_id: str) -> str:
     return "apache-airflow-providers-" + provider_package_id.replace(".", "-")
 
 
+def get_wheel_package_name(provider_package_id: str) -> str:
+    """
+    Returns PIP package name for the package id.
+
+    :param provider_package_id: id of the package
+    :return: the name of pip package
+    """
+    return "apache_airflow_providers_" + provider_package_id.replace(".", "_")
+
+
 def get_long_description(provider_package_id: str) -> str:
     """
     Gets long description of the package.
@@ -348,7 +363,7 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     :return: install requirements of the package
     """
     dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-    airflow_dependency = 'apache-airflow>=2.0.0'
+    airflow_dependency = 'apache-airflow>=2.1.0.dev0'
     # Avoid circular dependency for the preinstalled packages
     install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
     install_requires.extend(dependencies)
@@ -1396,16 +1411,20 @@ def get_all_changes_for_package(
             if os.path.exists(doc_only_change_file):
                 with open(doc_only_change_file) as f:
                     last_doc_only_hash = f.read().strip()
-                changes_since_last_doc_only_check = subprocess.check_output(
-                    get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
-                    cwd=source_provider_package_path,
-                    universal_newlines=True,
-                )
-                if not changes_since_last_doc_only_check:
-                    print()
-                    print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
-                    # Returns 66 in case of doc-only changes
-                    sys.exit(66)
+                try:
+                    changes_since_last_doc_only_check = subprocess.check_output(
+                        get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
+                        cwd=source_provider_package_path,
+                        universal_newlines=True,
+                    )
+                    if not changes_since_last_doc_only_check:
+                        print()
+                        print("[yellow]The provider has doc-only changes since the last release. Skipping[/]")
+                        # Returns 66 in case of doc-only changes
+                        sys.exit(66)
+                except subprocess.CalledProcessError:
+                    # ignore when the commit mentioned as last doc-only change is obsolete
+                    pass
             print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             print()
             print(
@@ -1457,7 +1476,7 @@ def get_all_changes_for_package(
     changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, array_of_changes[0], changes_table
+    return True, array_of_changes[0] if len(array_of_changes) > 0 else None, changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
@@ -1499,6 +1518,7 @@ def get_provider_jinja_context(
         "README_FILE": "README.rst",
         "PROVIDER_PACKAGE_ID": provider_details.provider_package_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_package_id),
+        "PACKAGE_WHEEL_NAME": get_wheel_package_name(provider_details.provider_package_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
         "PROVIDER_PATH": provider_details.full_package_name.replace(".", "/"),
         "RELEASE": current_release_version,
@@ -1571,6 +1591,7 @@ def mark_latest_changes_as_documentation_only(
 def update_release_notes(
     provider_package_id: str,
     version_suffix: str,
+    force: bool,
     verbose: bool,
     interactive: bool,
 ) -> bool:
@@ -1579,6 +1600,7 @@ def update_release_notes(
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
+    :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
     :param interactive: whether the script should ask the user in case of doubt
     :returns False if the package should be skipped, True if everything generated properly
@@ -1599,18 +1621,21 @@ def update_release_notes(
         provider_details.source_provider_package_path,
         verbose,
     )
-    if proceed:
-        if interactive and not confirm("Provider marked for release. Proceed?"):
+    if not force:
+        if proceed:
+            if interactive and not confirm("Provider marked for release. Proceed?"):
+                return False
+        elif not latest_change:
+            print()
+            print(
+                f"[yellow]Provider: {provider_package_id} - skipping documentation generation. No changes![/]"
+            )
+            print()
             return False
-    elif not latest_change:
-        print()
-        print(f"[yellow]Provider: {provider_package_id} - skipping documentation generation. No changes![/]")
-        print()
-        return False
-    else:
-        if interactive and confirm("Are those changes documentation-only?"):
-            mark_latest_changes_as_documentation_only(provider_details, latest_change)
-        return False
+        else:
+            if interactive and confirm("Are those changes documentation-only?"):
+                mark_latest_changes_as_documentation_only(provider_details, latest_change)
+            return False
 
     jinja_context["DETAILED_CHANGES_RST"] = changes
     jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
@@ -1635,7 +1660,7 @@ def update_setup_files(
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
-    :returns False if the package should be skipped, Tre if everything generated properly
+    :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
     provider_details = get_provider_details(provider_package_id)
@@ -1838,12 +1863,14 @@ def list_providers_packages():
 @option_git_update
 @option_interactive
 @argument_package_id
+@option_force
 @option_verbose
 def update_package_documentation(
     version_suffix: str,
     git_update: bool,
     interactive: bool,
     package_id: str,
+    force: bool,
     verbose: bool,
 ):
     """
@@ -1857,7 +1884,7 @@ def update_package_documentation(
         print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if not update_release_notes(
-            provider_package_id, version_suffix, verbose=verbose, interactive=interactive
+            provider_package_id, version_suffix, force=force, verbose=verbose, interactive=interactive
         ):
             # Returns 64 in case of skipped package
             sys.exit(64)

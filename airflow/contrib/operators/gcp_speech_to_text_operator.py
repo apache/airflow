@@ -42,6 +42,6 @@ class GcpSpeechToTextRecognizeSpeechOperator(CloudSpeechToTextRecognizeSpeechOpe
             `airflow.providers.google.cloud.operators.speech_to_text
             .CloudSpeechToTextRecognizeSpeechOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

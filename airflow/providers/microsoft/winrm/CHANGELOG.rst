@@ -19,6 +19,11 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+* ``Display explicit error in case UID has no actual username (#15212)``
+
 1.1.0
 .....
 

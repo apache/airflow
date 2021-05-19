@@ -25,6 +25,10 @@ test -v AIRFLOW_INSTALL_USER_FLAG
 test -v AIRFLOW_PIP_VERSION
 test -v CONTINUE_ON_PIP_CHECK_FAILURE
 
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
+
 set -x
 
 # Installs additional dependencies passed as Argument to the Docker build command
@@ -50,5 +54,9 @@ function install_additional_dependencies() {
         pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
     fi
 }
+
+common::get_airflow_version_specification
+common::override_pip_version_if_needed
+common::get_constraints_location
 
 install_additional_dependencies

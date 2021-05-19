@@ -17,11 +17,9 @@
 # under the License.
 """Default authentication backend - everything is allowed"""
 from functools import wraps
-from typing import Callable, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
-from requests.auth import AuthBase
-
-CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = None
+CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
 
 
 def init_app(_):

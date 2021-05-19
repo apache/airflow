@@ -21,7 +21,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleDriveToGCSOperator(BaseOperator):
@@ -76,7 +75,6 @@ class GoogleDriveToGCSOperator(BaseOperator):
         "impersonation_chain",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -15,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _custom_operator:
 
 Creating a custom Operator
 ==========================
@@ -28,22 +29,25 @@ You can create any operator you want by extending the :class:`airflow.models.bas
 There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
-  Use ``@apply_defaults`` decorator function to fill unspecified arguments with ``default_args``. You can specify the ``default_args``
-  in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
+  You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
   airflow context as a parameter that can be used to read config values.
+
+.. note::
+
+    When implementing custom operators, do not make any expensive operations in the ``__init__`` method. The operators
+    will instantiated once per scheduler cycle per task using them, and making database calls can significantly slow
+    down scheduling and waste resources.
 
 Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:
 
 .. code-block:: python
 
         from airflow.models.baseoperator import BaseOperator
-        from airflow.utils.decorators import apply_defaults
 
         class HelloOperator(BaseOperator):
 
-            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -107,7 +111,6 @@ Let's extend our previous example to fetch name from MySQL:
 
     class HelloDBOperator(BaseOperator):
 
-            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -162,7 +165,6 @@ the operator.
 
             template_fields = ['name']
 
-            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -198,7 +200,6 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
             template_fields = ['guest_name']
             template_ext = ['.sql']
 
-            @apply_defaults
             def __init__(
                     self,
                     name: str,
@@ -217,7 +218,6 @@ from template field renders in Web UI. For example:
             template_fields = ['request_body']
             template_fields_renderers = {'request_body': 'json'}
 
-            @apply_defaults
             def __init__(
                     self,
                     request_body: str,

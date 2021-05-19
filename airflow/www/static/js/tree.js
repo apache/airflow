@@ -19,9 +19,10 @@
  * under the License.
  */
 
-/* global treeData, document, window, $, d3, moment, call_modal_dag, call_modal, localStorage */
+/* global treeData, document, window, $, d3, moment, localStorage */
 import { escapeHtml } from './main';
 import tiTooltip from './task_instances';
+import { callModal, callModalDag } from './dag';
 import getMetaValue from './meta_value';
 
 // dagId comes from dag.html
@@ -259,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('task_id', (d) => d.name)
       .on('click', toggles);
 
-    const text = nodeEnter.append('text')
+    nodeEnter.append('text')
       .attr('dy', 3.5)
       .attr('dx', barHeight / 2)
       .text((d) => d.name);
@@ -273,10 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .enter()
       .append('rect')
       .on('click', (d) => {
-        if (d.task_id === undefined) call_modal_dag(d);
+        if (d.task_id === undefined) callModalDag(d);
         else if (nodeobj[d.task_id].operator === 'SubDagOperator') {
-          // I'm pretty sure that true is not a valid subdag id, which is what call_modal wants
-          call_modal(
+          // I'm pretty sure that true is not a valid subdag id, which is what callModal wants
+          callModal(
             d.task_id,
             d.execution_date,
             nodeobj[d.task_id].extra_links,
@@ -284,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             true,
           );
         } else {
-          call_modal(
+          callModal(
             d.task_id,
             d.execution_date,
             nodeobj[d.task_id].extra_links,

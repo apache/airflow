@@ -202,6 +202,8 @@ def task_run(args, dag=None):
         conf.read_dict(conf_dict, source=args.cfg_path)
         settings.configure_vars()
 
+    settings.MASK_SECRETS_IN_LOGS = True
+
     # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
     # behind multiple open sleeping connections while heartbeating, which could
     # easily exceed the database connection limit when
@@ -357,6 +359,9 @@ def task_test(args, dag=None):
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
+
+    settings.MASK_SECRETS_IN_LOGS = True
+
     handlers = logging.getLogger('airflow.task').handlers
     already_has_stream_handler = False
     for handler in handlers:

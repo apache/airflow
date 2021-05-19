@@ -1374,6 +1374,101 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return {"fields": [s.to_api_repr() for s in table.schema]}
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def update_table_schema(
+        self,
+        schema_fields_updates: List[Dict[str, Any]],
+        include_policy_tags: bool,
+        dataset_id: str,
+        table_id: str,
+        project_id: Optional[str] = None,
+    ) -> None:
+        """
+        Update fields within a schema for a given dataset and table. Note that
+        some fields in schemas are immutable and trying to change them will cause
+        an exception.
+        If a new field is included it will be inserted which requires all required fields to be set.
+        See https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
+
+        :param include_policy_tags: If set to True policy tags will be included in
+            the update request which requires special permissions even if unchanged
+            see https://cloud.google.com/bigquery/docs/column-level-security#roles
+        :type include_policy_tags: bool
+        :param dataset_id: the dataset ID of the requested table to be updated
+        :type dataset_id: str
+        :param table_id: the table ID of the table to be updated
+        :type table_id: str
+        :param schema_fields_updates: a partial schema resource. see
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
+
+        **Example**: ::
+
+            schema_fields_updates=[
+                {"name": "emp_name", "description": "Some New Description"},
+                {"name": "salary", "description": "Some New Description"},
+                {"name": "departments", "fields": [
+                    {"name": "name", "description": "Some New Description"},
+                    {"name": "type", "description": "Some New Description"}
+                ]},
+            ]
+
+        :type schema_fields_updates: List[dict]
+        :param project_id: The name of the project where we want to update the table.
+        :type project_id: str
+        """
+
+        def _build_new_schema(
+            current_schema: List[Dict[str, Any]], schema_fields_updates: List[Dict[str, Any]]
+        ) -> List[Dict[str, Any]]:
+
+            # Turn schema_field_updates into a dict keyed on field names
+            schema_fields_updates = {field["name"]: field for field in deepcopy(schema_fields_updates)}
+
+            # Create a new dict for storing the new schema, initated based on the current_schema
+            # as of Python 3.6, dicts retain order.
+            new_schema = {field["name"]: field for field in deepcopy(current_schema)}
+
+            # Each item in schema_fields_updates contains a potential patch
+            # to a schema field, iterate over them
+            for field_name, patched_value in schema_fields_updates.items():
+                # If this field already exists, update it
+                if field_name in new_schema:
+                    # If this field is of type RECORD and has a fields key we need to patch it recursively
+                    if "fields" in patched_value:
+                        patched_value["fields"] = _build_new_schema(
+                            new_schema[field_name]["fields"], patched_value["fields"]
+                        )
+                    # Update the new_schema with the patched value
+                    new_schema[field_name].update(patched_value)
+                # This is a new field, just include the whole configuration for it
+                else:
+                    new_schema[field_name] = patched_value
+
+            return list(new_schema.values())
+
+        def _remove_policy_tags(schema: List[Dict[str, Any]]):
+            for field in schema:
+                if "policyTags" in field:
+                    del field["policyTags"]
+                if "fields" in field:
+                    _remove_policy_tags(field["fields"])
+
+        current_table_schema = self.get_schema(
+            dataset_id=dataset_id, table_id=table_id, project_id=project_id
+        )["fields"]
+        new_schema = _build_new_schema(current_table_schema, schema_fields_updates)
+
+        if not include_policy_tags:
+            _remove_policy_tags(new_schema)
+
+        self.update_table(
+            table_resource={"schema": {"fields": new_schema}},
+            fields=["schema"],
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
         self,
         job_id: str,

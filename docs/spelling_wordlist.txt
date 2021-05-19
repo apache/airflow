@@ -17,6 +17,7 @@ Ansible
 AppBuilder
 Arg
 Args
+Asana
 Async
 Atlassian
 Auth
@@ -71,6 +72,7 @@ Colour
 ComputeNodeState
 Computenodes
 Config
+ConfigMaps
 Configs
 ContainerPort
 Cron
@@ -148,7 +150,6 @@ Flink
 FluentD
 Fokko
 Formaturas
-Fspark
 Fundera
 GCS
 GH
@@ -179,6 +180,7 @@ Hitesh
 Hiveserver
 Hoc
 Homan
+HostAliases
 Hostname
 Hou
 Http
@@ -237,6 +239,7 @@ Lifecycle
 LineItem
 ListGenerator
 ListInfoTypesResponse
+Liveness
 Logstash
 Lowin
 Lyft
@@ -285,6 +288,7 @@ Paramiko
 Params
 Paxos
 Pem
+PgBouncer
 Pinot
 Popen
 Postgres
@@ -354,6 +358,7 @@ StatefulSet
 StatefulSets
 StatsD
 Statsd
+StorageClass
 StoredInfoType
 Stringified
 Subclasses
@@ -467,6 +472,7 @@ args
 arn
 arraysize
 artwr
+asana
 asc
 ascii
 asciiart
@@ -559,7 +565,9 @@ cgroupspy
 changelog
 charset
 checklicence
+checksums
 chmod
+chown
 ci
 cid
 ciphertext
@@ -806,6 +814,7 @@ getsource
 gevent
 gid
 gif
+gitSync
 github
 gitignore
 gitpython
@@ -853,6 +862,7 @@ http
 httpbin
 httplib
 https
+httpx
 hvac
 hyperparameter
 iPython
@@ -959,6 +969,7 @@ licence
 licences
 lifecycle
 lineterminator
+linter
 linux
 livy
 localExecutor
@@ -1039,6 +1050,7 @@ nodeName
 nodeSelector
 nonterminal
 noqa
+nosasl
 notificationChannels
 npm
 ntlm
@@ -1099,6 +1111,7 @@ podSpec
 podspec
 poller
 polyfill
+pooler
 postMessage
 postfix
 postgres
@@ -1286,6 +1299,7 @@ stmts
 storedInfoType
 str
 stringified
+subchart
 subclasses
 subclassing
 subcommand

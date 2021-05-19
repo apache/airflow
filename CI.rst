@@ -21,7 +21,7 @@ CI Environment
 ==============
 
 Continuous Integration is important component of making Apache Airflow robust and stable. We are running
-a lot of tests for every pull request, for master and v1-10-test branches and regularly as CRON jobs.
+a lot of tests for every pull request, for master and v2-0-test branches and regularly as CRON jobs.
 
 Our execution environment for CI is `GitHub Actions <https://github.com/features/actions>`_. GitHub Actions
 (GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/202 to become
@@ -106,7 +106,7 @@ Default is the GitHub Package Registry one. The Pull Request forks have no acces
 auto-detect the registry used when they wait for the images.
 
 You can interact with the GitHub Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - you can
-pass ``--github-registry`` flag wih  either ``docker.pkg.github.com`` for GitHub Package Registry or
+pass ``--github-registry`` flag with either ``docker.pkg.github.com`` for GitHub Package Registry or
 ``ghcr.io`` for GitHub Container Registry and pull/push operations will be performed using the chosen
 registry, using appropriate naming convention. This allows building and pushing the images locally by
 committers who have access to push/pull those images.
@@ -258,9 +258,6 @@ You can use those variables when you try to reproduce the build locally.
 | ``VERSION_SUFFIX_FOR_PYPI``             |             |             |            | Version suffix used during provider             |
 |                                         |             |             |            | package preparation for PyPI builds.            |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_SVN``              |             |             |            | Version suffix used during provider             |
-|                                         |             |             |            | package preparation for SVN builds.             |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                           |
 +-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
 | COMMIT_SHA                              |             | GITHUB_SHA  | GITHUB_SHA | SHA of the commit of the build is run           |
@@ -307,7 +304,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | tested set of dependency constraints            |
 |                                         |             |             |            | stored in separated "orphan" branches           |
 |                                         |             |             |            | of the airflow repository                       |
-|                                         |             |             |            | ("constraints-master, "constraints-1-10")       |
+|                                         |             |             |            | ("constraints-master, "constraints-2-0")        |
 |                                         |             |             |            | but when this flag is set to anything but false |
 |                                         |             |             |            | (for example commit SHA), they are not used     |
 |                                         |             |             |            | used and "eager" upgrade strategy is used       |
@@ -604,6 +601,23 @@ describes the workflows that execute for each run.
 Those runs and their corresponding ``Build Images`` runs are only executed in main ``apache/airflow``
 repository, they are not executed in forks - we want to be nice to the contributors and not use their
 free build minutes on GitHub Actions.
+
+Sometimes (bugs in DockerHub or prolonged periods when the scheduled builds are failing)
+the automated build for nightly master is not executed for a long time. Such builds can be manually
+prepared and pushed by a maintainer who has the rights to push images to DockerHub (committers need
+to file JIRA ticket to Apache Infra in order to get an access).
+
+.. code-block:: bash
+
+  export BRANCH=master
+  export DOCKER_REPO=docker.io/apache/airflow
+  for python_version in "3.6" "3.7" "3.8"
+  (
+    export DOCKER_TAG=${BRANCH}-python${python_version}
+    ./scripts/ci/images/ci_build_dockerhub.sh
+  )
+
+
 
 Workflows
 =========
