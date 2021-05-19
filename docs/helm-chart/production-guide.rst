@@ -72,6 +72,38 @@ DAG Files
 
 See :doc:`manage-dags-files`.
 
+.. _production-guide:knownhosts:
+
+knownHosts
+^^^^^^^^^^
+
+If you are using ``dags.gitSync.sshKeySecret``, you should also set ``dags.gitSync.knownHosts``. Here we will show the process
+for GitHub, but the same can be done for any provider:
+
+Grab GitHub's public key:
+
+.. code-block:: bash
+
+    ssh-keyscan -t rsa github.com > github_public_key
+
+Next, print the fingerprint for the public key:
+
+.. code-block:: bash
+
+    ssh-keygen -lf github_public_key
+
+Compare that output with `GitHub's SSH key fingerprints <https://docs.github.com/en/github/authenticating-to-github/githubs-ssh-key-fingerprints>`_.
+
+They match, right? Good. Now, add the public key to your values. It'll look something like this:
+
+.. code-block:: yaml
+
+    dags:
+      gitSync:
+        knownHosts: |
+          github.com ssh-rsa AAAA...FAaQ==
+
+
 Accessing the Airflow UI
 ------------------------
 

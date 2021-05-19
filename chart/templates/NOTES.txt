@@ -65,3 +65,17 @@ You can get Fernet Key value by running the following:
     echo Fernet Key: $(kubectl get secret --namespace {{ .Release.Namespace }} {{ .Release.Name }}-fernet-key -o jsonpath="{.data.fernet-key}" | base64 --decode)
 
 {{- end }}
+
+{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret (not .Values.dags.gitSync.knownHosts)}}
+
+#####################################################
+#  WARNING: You should set dags.gitSync.knownHosts  #
+#####################################################
+
+You are using ssh authentication for your gitsync repo, however you currently have SSH known_hosts verification disabled,
+making you susceptible to man-in-the-middle attacks!
+
+Information on how to set knownHosts can be found here:
+https://airflow.apache.org/docs/helm-chart/latest/production-guide.html#knownhosts
+
+{{- end }}
