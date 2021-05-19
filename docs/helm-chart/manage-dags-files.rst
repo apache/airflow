@@ -1,19 +1,19 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
 
 Manage DAGs files
 =================
@@ -136,3 +136,65 @@ In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany
       --set dags.persistence.enabled=true \
       --set dags.persistence.existingClaim=my-volume-claim
       --set dags.gitSync.enabled=false
+
+Mounting DAGs from a private Github repo using Git-Sync sidecar
+---------------------------------------------------------------
+Create a private repo on Github if you have not created one already.
+
+Then create your ssh keys:
+
+.. code-block:: bash
+
+    ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+
+and add the public key to your private repo (under ``Settings > Deploy keys``).
+
+Now, you have to create a Kubernetes Secret object with which the Git-Sync sidecar will authenticate when
+fetching or syncing your DAGs from your private Github repo.
+
+You have to convert the private ssh key to a base64. You can convert the private ssh key file like so:
+
+.. code-block:: bash
+
+    base64 <my-private-ssh-key> -w 0 > temp.txt
+
+Then copy the string from the ``temp.txt`` file and add it to a yaml file to create your secret object.
+For example, ``my-ssh-secret.yaml`` should look like this:
+
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: airflow-ssh-secret
+    data:
+      gitSshKey: '<base64-converted-ssh-private-key>'
+
+And from a terminal then run:
+
+.. code-block:: bash
+
+    kubectl create -f my-ssh-secret.yaml --namespace <your-airflow-namespace>
+
+You can easily create a yaml file to override values of interest in the ``values.yaml`` file. In this example, I will
+create a yaml file called ``override-values.yaml`` to override values in the ``values.yaml`` file.
+
+.. code-block:: yaml
+
+    dags:
+      gitSync:
+        enabled: true
+        repo: ssh://git@github.com/<username>/<private-repo-name>.git
+        branch: <branch-name>
+        subPath: ""
+        sshKeySecret: airflow-ssh-secret
+
+
+Finally, from the context of your Airflow Helm chart directory, you can install Airflow:
+
+.. code-block:: bash
+
+    helm install airflow --namespace <your-airflow-namespace> . -f override-values.yaml
+
+If you have done everything correctly, Git-Sync will pick up the changes you make to the DAGs
+in your private Github repo.
