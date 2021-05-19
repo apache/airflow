@@ -21,7 +21,7 @@ CI Environment
 ==============
 
 Continuous Integration is important component of making Apache Airflow robust and stable. We are running
-a lot of tests for every pull request, for master and v2-0-test branches and regularly as CRON jobs.
+a lot of tests for every pull request, for master and v2-*-test branches and regularly as CRON jobs.
 
 Our execution environment for CI is `GitHub Actions <https://github.com/features/actions>`_. GitHub Actions
 (GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/202 to become
@@ -812,15 +812,15 @@ The image names follow the patterns:
 |              |                            | <COMMIT_SHA>                   | It contains only compiled libraries and minimal set of dependencies to run Airflow.        |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
-* <BRANCH> might be either "master" or "v1-10-test" or "v2-0-test"
-* <X.Y> - Python version (Major + Minor). For "master" and "v2-0-test" should be in ["3.6", "3.7", "3.8"]. For
+* <BRANCH> might be either "master" or "v1-10-test" or "v2-*-test"
+* <X.Y> - Python version (Major + Minor). For "master" and "v2-*-test" should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
 * <RUN_ID> - GitHub Actions RUN_ID. You can get it from CI action job outputs (run id is printed in
   logs and displayed as part of the step name. All PRs belong to some RUN_ID and this way you can
   pull the very exact version of image used in that RUN_ID
-* <COMMIT_SHA> - for images that get merged to "master", "v2-0-test" of "v1-10-test" the images are also tagged
+* <COMMIT_SHA> - for images that get merged to "master", "v2-*-test" of "v1-10-test" the images are also tagged
   with the commit SHA of that particular commit. This way you can easily find the image that was used
-  for testing for that "master", "v2-0-test" or "v1-10-test" test run.
+  for testing for that "master", "v2-*-test" or "v1-10-test" test run.
 
 Reproducing CI Runs locally
 ===========================
@@ -921,7 +921,7 @@ In order to add a new version the following operations should be done (example u
 +=============+================+=======================+=====================+===============+===========+===============+========================================================================+
 | Tag         | nightly-master | master-python3.9      | Dockerfile          | /             | x         | -             | Nightly CI/PROD images from successful scheduled master nightly builds |
 +-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
-| Branch      | v2-0-stable    | v2-0-stable-python3.9 | Dockerfile          | /             | x         |               | CI/PROD images automatically built pushed stable branch                |
+| Branch      | v2-*-stable    | v2-*-stable-python3.9 | Dockerfile          | /             | x         |               | CI/PROD images automatically built pushed stable branch                |
 +-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
 | Tag         | /^([1-2].*)$/  | {\1}-python3.9        | Dockerfile          | /             | x         |               | CI/PROD images automatically built from pushed release tags            |
 +-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+

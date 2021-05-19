@@ -963,7 +963,7 @@ dags:
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-0-stable
+    branch: v2-1-stable
     rev: HEAD
     root: "/git"
     dest: "repo"

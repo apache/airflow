@@ -2426,7 +2426,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         Installs Airflow directly from reference in GitHub when building PROD image.
-        This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
+        This can be a GitHub branch like master or v2-1-test, or a tag like 2.1.0a1.
 
 --installation-method INSTALLATION_METHOD
         Method of installing Airflow in PROD image - either from the sources ('.')
@@ -3099,14 +3099,18 @@ function breeze::read_saved_environment_variables() {
 #######################################################################################################
 function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION" "Python version" "--python"
-
+    # TODO: Generalize me (make it automatically use matching versions)
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
             export BRANCH_NAME="v2-0-test"
+        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_1* ]]; then
+            export BRANCH_NAME="v2-1-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
             export BRANCH_NAME="v2-0-test"
+        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.1* ]]; then
+            export BRANCH_NAME="v2-1-test"
         fi
     fi
 

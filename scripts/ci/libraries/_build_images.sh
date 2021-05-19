@@ -54,13 +54,18 @@ function build_images::add_build_args_for_remote_install() {
         )
     fi
     # Depending on the version built, we choose the right branch for preloading the packages from
-    # For v2-0-test we choose v2-0-test
-    # all other builds when you choose a specific version (1.0 or 2.0 series) should choose stable branch
+    # For v2-*-test we choose v2-*-test
+    # all other builds when you choose a specific version (1.0, 2.0, 2.1. series) should choose stable branch
     # to preload. For all other builds we use the default branch defined in _initialization.sh
+    # TODO: Generalize me
     if [[ ${AIRFLOW_VERSION} == 'v2-0-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
-    elif [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+    elif [[ ${AIRFLOW_VERSION} == 'v2-1-test' ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-test"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2\.0* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2\.1* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-stable"
     else
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
