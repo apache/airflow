@@ -352,3 +352,15 @@ function kind::deploy_test_kubernetes_resources() {
     kubectl apply -f "scripts/ci/kubernetes/volumes.yaml" --namespace default
     kubectl apply -f "scripts/ci/kubernetes/nodeport.yaml" --namespace airflow
 }
+
+function kind::upgrade_airflow_with_helm() {
+    local mode = $1
+    helm upgrade airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
+        --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
+        --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
+        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.logging.logging_level=DEBUG" \
+        --set "executor=${mode}"
+}
