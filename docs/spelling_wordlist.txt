@@ -1430,6 +1430,7 @@ utils
 uuid
 validator
 vals
+ve
 vendored
 venvs
 versionable
