@@ -122,42 +122,29 @@ class PodTemplateFileTest(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ({"gitSync": {"enabled": True}},),
-            ({"persistence": {"enabled": True}},),
+            ({"gitSync": {"enabled": True}}, True),
+            ({"persistence": {"enabled": True}}, False),
             (
                 {
                     "gitSync": {"enabled": True},
                     "persistence": {"enabled": True},
                 },
+                True,
             ),
         ]
     )
-    def test_dags_mount(self, dag_values):
+    def test_dags_mount(self, dag_values, expected_read_only):
         docs = render_chart(
             values={"dags": dag_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
-            "spec.containers[0].volumeMounts", docs[0]
-        )
-
-    def test_dags_mount_with_gitsync_and_persistence(self):
-        docs = render_chart(
-            values={
-                "dags": {
-                    "gitSync": {"enabled": True},
-                    "persistence": {"enabled": True},
-                }
-            },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
-            "spec.containers[0].volumeMounts", docs[0]
-        )
+        assert {
+            "mountPath": "/opt/airflow/dags",
+            "name": "dags",
+            "readOnly": expected_read_only,
+        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(

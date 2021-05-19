@@ -66,9 +66,7 @@ spec:
           subPath: ssh
 {{- end }}
 {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-        - mountPath: {{ include "airflow_dags_mount_path" . }}
-          name: dags
-          readOnly: true
+        {{- include "airflow_dags_mount" . | nindent 8 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
