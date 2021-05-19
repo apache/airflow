@@ -20,7 +20,6 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pendulum
-import json
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
