@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==2.1.0.dev0)
+# Editable install with no version control (apache-airflow==2.2.0.dev0)
 Babel==2.9.1
 Flask-AppBuilder==3.3.0
 Flask-Babel==1.0.0
@@ -95,6 +95,7 @@ openapi-spec-validator==0.3.1
 pandas==1.2.4
 partd==1.2.0
 pendulum==2.1.2
+plyvel==1.3.0
 prison==0.1.3
 prometheus-client==0.8.0
 psutil==5.8.0
@@ -140,7 +141,7 @@ unicodecsv==0.14.1
 urllib3==1.25.11
 vine==1.3.0
 virtualenv==20.4.6
-websocket-client==0.59.0
+websocket-client==1.0.0
 zict==2.0.0
 zipp==3.4.1
 zope.event==4.5.0
