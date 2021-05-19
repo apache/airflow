@@ -85,6 +85,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/rtd-deprecation/_build/
 docs/_doctrees/
 docs/_inventory_cache/
 docs/*/_api/
