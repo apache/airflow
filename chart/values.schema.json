@@ -2344,16 +2344,6 @@
                             "type": "string",
                             "default": "HEAD"
                         },
-                        "root": {
-                            "description": "Root directory.",
-                            "type": "string",
-                            "default": "/git"
-                        },
-                        "dest": {
-                            "description": "Destination folder.",
-                            "type": "string",
-                            "default": "repo"
-                        },
                         "depth": {
                             "description": "Repository depth.",
                             "type": "integer",

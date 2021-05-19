@@ -176,9 +176,9 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_DEPTH
       value: {{ .Values.dags.gitSync.depth | quote }}
     - name: GIT_SYNC_ROOT
-      value: {{ .Values.dags.gitSync.root | quote }}
+      value: "/git"
     - name: GIT_SYNC_DEST
-      value: {{ .Values.dags.gitSync.dest | quote }}
+      value: "repo"
     - name: GIT_SYNC_ADD_USER
       value: "true"
     - name: GIT_SYNC_WAIT
@@ -195,7 +195,7 @@ If release name contains chart name it will be used as a full name.
     {{- end }}
   volumeMounts:
   - name: dags
-    mountPath: {{ .Values.dags.gitSync.root }}
+    mountPath: /git
   {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
@@ -363,7 +363,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{ define "airflow_dags" -}}
 {{- if .Values.dags.gitSync.enabled -}}
-{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.dags.gitSync.dest .Values.dags.gitSync.subPath ) }}
+{{ (printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath) }}
 {{- else -}}
 {{ (printf "%s/dags" .Values.airflowHome) }}
 {{- end -}}

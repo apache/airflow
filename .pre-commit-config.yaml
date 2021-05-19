@@ -147,7 +147,8 @@ repos:
     hooks:
       - id: doctoc
         name: Add TOC for md files
-        files: ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+        files:
+          ^README\.md$|^CONTRIBUTING\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
         exclude: ^airflow/_vendor/
         args:
           - "--maxlevel"

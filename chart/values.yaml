@@ -965,8 +965,6 @@ dags:
     repo: https://github.com/apache/airflow.git
     branch: v2-1-stable
     rev: HEAD
-    root: "/git"
-    dest: "repo"
     depth: 1
     # the number of consecutive failures allowed before aborting
     maxFailures: 0
