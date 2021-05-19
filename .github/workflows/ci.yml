@@ -23,7 +23,7 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches: ['master', 'v*-*-test']
   pull_request:
-    branches: ['master', 'v*-*-test', 'v*-*-stable']
+    branches: ['master', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
 
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
