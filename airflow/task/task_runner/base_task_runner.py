@@ -85,6 +85,7 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._error_file = NamedTemporaryFile(delete=True)
+        os.chmod(self._error_file.name, 0o0777)
         self._cfg_path = cfg_path
         self._command = (
             popen_prepend
