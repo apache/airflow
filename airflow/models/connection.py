@@ -306,6 +306,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'grpc':
             from airflow.contrib.hooks.grpc_hook import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)
+        elif self.conn_type == 'snowflake':
+            from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
+            return SnowflakeHook(snowflake_conn_id=self.conn_id)
         raise AirflowException("Unknown hook type {}".format(self.conn_type))
 
     def __repr__(self):
