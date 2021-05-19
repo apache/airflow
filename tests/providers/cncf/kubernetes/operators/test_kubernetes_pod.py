@@ -386,43 +386,34 @@ class TestKubernetesPodOperator(unittest.TestCase):
             assert pod.spec.containers[0].image == "ubuntu:16.04"
             assert pod.spec.containers[0].command == ["something"]
             affinity = {
-                       'node_affinity': {
-                           'preferred_during_scheduling_ignored_during_execution': [
-                               {
-                                   'preference': {
-                                        'match_expressions': [
-                                            {
-                                                'key': 'kubernetes.io/role',
-                                                'operator': 'In',
-                                                'values': ['foo', 'bar']
-                                            }
-                                        ],
-                                        'match_fields': None
-                                   },
-                                   'weight': 1
-                               }
-                           ],
-                           'required_during_scheduling_ignored_during_execution': {
-                               'node_selector_terms': [
-                                   {
-                                       'match_expressions': [
-                                           {
-                                               'key': 'kubernetes.io/role',
-                                               'operator': 'In',
-                                               'values': ['foo', 'bar']
-                                           }
-                                        ],
-                                        'match_fields': None
-                                   }
-                               ]
-                           }
-                       },
-                       'pod_affinity': None,
-                       'pod_anti_affinity': None
-                   }
+                'node_affinity': {
+                    'preferred_during_scheduling_ignored_during_execution': [
+                        {
+                            'preference': {
+                                'match_expressions': [
+                                    {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
+                                ],
+                                'match_fields': None,
+                            },
+                            'weight': 1,
+                        }
+                    ],
+                    'required_during_scheduling_ignored_during_execution': {
+                        'node_selector_terms': [
+                            {
+                                'match_expressions': [
+                                    {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
+                                ],
+                                'match_fields': None,
+                            }
+                        ]
+                    },
+                },
+                'pod_affinity': None,
+                'pod_anti_affinity': None,
+            }
 
             assert pod.spec.affinity.to_dict() == affinity
-
 
             # kwargs take precedence, however
             image = "some.custom.image:andtag"
