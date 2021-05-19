@@ -36,7 +36,7 @@ or by creating a corresponding environment variable:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_string
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
 
 You can also derive the connection string at run time by appending ``_cmd`` to
 the key like this:
@@ -76,14 +76,14 @@ the same way the usual config options can. For example:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
 
 Similarly, ``_secret`` config options can also be set using a corresponding environment variable.
 For example:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET=sql_alchemy_conn
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET=sql_alchemy_conn
 
 .. note::
     The config options must follow the config prefix naming convention defined within the secrets backend. This means that ``sql_alchemy_conn`` is not defined with a connection prefix, but with config prefix. For example it should be named as ``airflow/config/sql_alchemy_conn``
@@ -92,9 +92,9 @@ The idea behind this is to not store passwords on boxes in plain text files.
 
 The universal order of precedence for all configuration options is as follows:
 
-#. set as an environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN``)
-#. set as a command environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD``)
-#. set as a secret environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET``)
+#. set as an environment variable (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``)
+#. set as a command environment variable (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD``)
+#. set as a secret environment variable (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET``)
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
 #. secret key in ``airflow.cfg``

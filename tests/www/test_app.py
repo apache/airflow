@@ -211,11 +211,11 @@ class TestApp(unittest.TestCase):
 
     @conf_vars(
         {
-            ('core', 'sql_alchemy_pool_enabled'): 'True',
-            ('core', 'sql_alchemy_pool_size'): '3',
-            ('core', 'sql_alchemy_max_overflow'): '5',
-            ('core', 'sql_alchemy_pool_recycle'): '120',
-            ('core', 'sql_alchemy_pool_pre_ping'): 'True',
+            ('database', 'sql_alchemy_pool_enabled'): 'True',
+            ('database', 'sql_alchemy_pool_size'): '3',
+            ('database', 'sql_alchemy_max_overflow'): '5',
+            ('database', 'sql_alchemy_pool_recycle'): '120',
+            ('database', 'sql_alchemy_pool_pre_ping'): 'True',
         }
     )
     @dont_initialize_flask_app_submodules

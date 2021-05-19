@@ -23,7 +23,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.configuration import conf
 
-SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
+SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
 metadata = (
     None if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace() else MetaData(schema=SQL_ALCHEMY_SCHEMA)
@@ -40,7 +40,7 @@ class Operator:
 
 def get_id_collation_args():
     """Get SQLAlchemy args to use for COLLATION"""
-    collation = conf.get('core', 'sql_engine_collation_for_ids', fallback=None)
+    collation = conf.get('database', 'sql_engine_collation_for_ids', fallback=None)
     if collation:
         return {'collation': collation}
     else:

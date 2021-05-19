@@ -565,7 +565,7 @@ def initdb():
     """Initialize Airflow database."""
     upgradedb()
 
-    if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
+    if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections()
 
     dagbag = DagBag()

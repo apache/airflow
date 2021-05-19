@@ -201,11 +201,11 @@ function wait_for_airflow_db() {
         # then uses netcat to check that the host is reachable.
         # This is only used by Airflow 1.10+ as there are no built-in commands to check the db connection.
         local connection_url
-        if [[ -n "${AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=}" ]]; then
-            connection_url="$(eval "${AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD}")"
+        if [[ -n "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD=}" ]]; then
+            connection_url="$(eval "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD}")"
         else
             # if no DB configured - use sqlite db by default
-            connection_url="${AIRFLOW__CORE__SQL_ALCHEMY_CONN:="sqlite:///${AIRFLOW_HOME}/airflow.db"}"
+            connection_url="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:="sqlite:///${AIRFLOW_HOME}/airflow.db"}"
         fi
         # SQLite doesn't require a remote connection, so we don't have to wait.
         if [[ ${connection_url} != sqlite* ]]; then

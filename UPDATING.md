@@ -110,6 +110,23 @@ The method `set_dag_runs_state` is no longer needed after a bug fix in PR: [#153
 
 ## Airflow 2.1.0
 
+### Database configuration has been moved to new section
+
+The following configurations have been moved from `[core]` to the new `[database]` section.
+
+- `sql_alchemy_conn`
+- `sql_engine_encoding`
+- `sql_engine_collation_for_ids`
+- `sql_alchemy_pool_enabled`
+- `sql_alchemy_pool_size`
+- `sql_alchemy_max_overflow`
+- `sql_alchemy_pool_recycle`
+- `sql_alchemy_pool_pre_ping`
+- `sql_alchemy_schema`
+- `sql_alchemy_connect_args`
+- `load_default_connections`
+- `max_db_retries`
+
 ### New "deprecated_api" extra
 
 We have a new '[deprecated_api]' extra that should be used when installing airflow when the deprecated API

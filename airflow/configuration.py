@@ -111,7 +111,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
     sensitive_config_values = {
-        ('core', 'sql_alchemy_conn'),
+        ('database', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
         ('celery', 'flower_basic_auth'),
@@ -162,6 +162,17 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('core', 'hide_sensitive_var_conn_fields'): ('admin', 'hide_sensitive_variable_fields', '2.1.0'),
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
         ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
+        ('database', 'sql_alchemy_conn'): ('core', 'sql_alchemy_conn', '2.1.0'),
+        ('database', 'sql_engine_encoding'): ('core', 'sql_engine_encoding', '2.1.0'),
+        ('database', 'sql_alchemy_pool_enabled'): ('core', 'sql_alchemy_pool_enabled', '2.1.0'),
+        ('database', 'sql_alchemy_pool_size'): ('core', 'sql_alchemy_pool_size', '2.1.0'),
+        ('database', 'sql_alchemy_max_overflow'): ('core', 'sql_alchemy_max_overflow', '2.1.0'),
+        ('database', 'sql_alchemy_pool_recycle'): ('core', 'sql_alchemy_pool_recycle', '2.1.0'),
+        ('database', 'sql_alchemy_pool_pre_ping'): ('core', 'sql_alchemy_pool_pre_ping', '2.1.0'),
+        ('database', 'sql_alchemy_schema'): ('core', 'sql_alchemy_schema', '2.1.0'),
+        ('database', 'sql_alchemy_connect_args'): ('core', 'sql_alchemy_connect_args', '2.1.0'),
+        ('database', 'load_default_connections'): ('core', 'load_default_connections', '2.1.0'),
+        ('database', 'max_db_retries'): ('core', 'max_db_retries', '2.1.0'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -227,7 +238,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
             'DebugExecutor',
             'SequentialExecutor',
         )
-        is_sqlite = "sqlite" in self.get('core', 'sql_alchemy_conn')
+        is_sqlite = "sqlite" in self.get('database', 'sql_alchemy_conn')
         if is_sqlite and is_executor_without_sqlite_support:
             raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
         if is_sqlite:

@@ -38,9 +38,9 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
-echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS=}" ]]; then
-    echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
+echo "Airflow core SQL connection: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:=}"
+if [[ -n "${AIRFLOW__DATABASE__SQL_ENGINE_COLLATION_FOR_IDS=}" ]]; then
+    echo "Airflow collation for IDs: ${AIRFLOW__DATABASE__SQL_ENGINE_COLLATION_FOR_IDS}"
 fi
 
 echo
@@ -188,7 +188,7 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 cd "${AIRFLOW_SOURCES}"
 
 if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
-    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+    export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
     # shellcheck source=scripts/in_container/bin/run_tmux
     exec run_tmux
