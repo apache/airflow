@@ -744,6 +744,7 @@ enum
 env
 envFrom
 envvar
+eol
 eols
 ephraimbuddy
 errno
