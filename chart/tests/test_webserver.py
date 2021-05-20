@@ -282,3 +282,42 @@ class WebserverDeploymentTest(unittest.TestCase):
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+
+class WebserverServiceTest(unittest.TestCase):
+    def test_default_service(self):
+        docs = render_chart(
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert "RELEASE-NAME-webserver" == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0]) is None
+        assert {"tier": "airflow", "component": "webserver", "release": "RELEASE-NAME"} == jmespath.search(
+            "spec.selector", docs[0]
+        )
+        assert "ClusterIP" == jmespath.search("spec.type", docs[0])
+        assert {"name": "airflow-ui", "protocol": "TCP", "port": 8080} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+
+    def test_overrides(self):
+        docs = render_chart(
+            values={
+                "ports": {"airflowUI": 9000},
+                "webserver": {
+                    "service": {
+                        "type": "LoadBalancer",
+                        "loadBalancerIP": "127.0.0.1",
+                        "annotations": {"foo": "bar"},
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
+        assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
+        assert {"name": "airflow-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+        assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])

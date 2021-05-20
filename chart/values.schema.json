@@ -1465,6 +1465,14 @@
                             "description": "Annotations for the webserver Service.",
                             "type": "object",
                             "default": {}
+                        },
+                        "loadBalancerIP": {
+                            "description": "Webserver Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -1554,6 +1562,19 @@
                             "description": "Flower Service type.",
                             "type": "string",
                             "default": "ClusterIP"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the flower Service.",
+                            "type": "object",
+                            "default": {}
+                        },
+                        "loadBalancerIP": {
+                            "description": "Flower Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
