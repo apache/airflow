@@ -18,12 +18,10 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-kind::make_sure_kubernetes_tools_are_installed
-kind::get_kind_cluster_name
-
-traps::add_trap kind::dump_kind_logs EXIT HUP INT TERM
-
-for mode in CeleryExecutor LocalExecutor
+# We started with CeleryExecutor. Let's run tests first
+"$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+for mode in KubernetesExecutor CeleryExecutor
 do
     kind::upgrade_airflow_with_helm "${mode}"
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
 done

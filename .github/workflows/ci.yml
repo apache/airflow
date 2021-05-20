@@ -1097,6 +1097,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
             coverage-k8s-
           path: "./files/coverage*.xml"
           retention-days: 7
+
   tests-helm-upgrade:
     timeout-minutes: 50
     name: Helm Chart Upgrade test
@@ -1108,7 +1109,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
       KUBERNETES_MODE: "image"
-      EXECUTOR: "KubernetesExecutor"
+      EXECUTOR: "CeleryExecutor"
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
       GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
@@ -1135,21 +1136,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: ".build/.kubernetes_venv"
           key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
-  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
-  -${{needs.build-info.outputs.pythonVersionsListAsString}}
-  -${{ hashFiles('setup.py','setup.cfg') }}"
+    -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+    -${{needs.build-info.outputs.pythonVersionsListAsString}}
+    -${{ hashFiles('setup.py','setup.cfg') }}"
           restore-keys: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}-\
-  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
-  -${{needs.build-info.outputs.pythonVersionsListAsString}}"
+    -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+    -${{needs.build-info.outputs.pythonVersionsListAsString}}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
         with:
           path: ".build/kubernetes-bin"
           key: "kubernetes-binaries
-  -${{ needs.build-info.outputs.defaultKindVersion }}\
-  -${{ needs.build-info.outputs.defaultHelmVersion }}"
+-${{ needs.build-info.outputs.defaultKindVersion }}\
+-${{ needs.build-info.outputs.defaultHelmVersion }}"
           restore-keys: "kubernetes-binaries"
-      - name: "Kubernetes Tests"
+      - name: "Kubernetes Helm Chart Tests"
         run: ./scripts/ci/kubernetes/ci_upgrade_cluster_with_different_executors_in_parallel.sh
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
@@ -1184,7 +1185,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-kubernetes
       - prod-images
       - docs
-    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
@@ -1248,7 +1248,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-kubernetes
       - ci-images
       - docs
-    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
@@ -1300,7 +1299,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
     # Only run it for direct pushes
-    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test'
