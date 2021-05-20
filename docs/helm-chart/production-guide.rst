@@ -30,7 +30,7 @@ found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-databa
 .. code-block:: yaml
 
   # Don't deploy postgres
-  postgre:
+  postgresql:
     enabled: false
 
   # Use an external database
