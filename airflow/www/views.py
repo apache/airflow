@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import collections
 import copy
 import itertools
 import json
@@ -3808,12 +3809,11 @@ class TaskInstanceModelView(AirflowModelView):
     def action_clear(self, task_instances, session=None):
         """Clears the action."""
         try:
-            dag_to_tis = {}
+            dag_to_tis = collections.defaultdict(list)
 
             for ti in task_instances:
                 dag = current_app.dag_bag.get_dag(ti.dag_id)
-                task_instances_to_clean = dag_to_tis.setdefault(dag, [])
-                task_instances_to_clean.append(ti)
+                dag_to_tis[dag].append(ti)
 
             for dag, task_instances_list in dag_to_tis.items():
                 models.clear_task_instances(task_instances_list, session, dag=dag)
