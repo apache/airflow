@@ -43,7 +43,7 @@ with DAG(
     # [START run_asana_create_task_operator]
     # Create a task. `task_parameters` is used to specify attributes the new task should have.
     # You must specify at least one of 'workspace', 'projects', or 'parent' in `task_parameters`
-    # unless these are specified in the connction. Any attributes you specify in
+    # unless these are specified in the connection. Any attributes you specify in
     # `task_parameters` will override values from the connection.
     create = AsanaCreateTaskOperator(
         task_id="run_asana_create_task",
