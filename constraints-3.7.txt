@@ -152,9 +152,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.5b1
 blinker==1.4
-boto3==1.17.75
+boto3==1.17.76
 boto==2.49.0
-botocore==1.20.75
+botocore==1.20.76
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
@@ -265,7 +265,7 @@ httpcore==0.13.3
 httplib2==0.17.4
 httpx==0.18.1
 humanize==3.5.0
-hvac==0.10.11
+hvac==0.10.12
 identify==2.2.4
 idna==2.10
 imagesize==1.2.0
@@ -312,7 +312,7 @@ more-itertools==8.7.0
 moreorless==0.4.0
 moto==2.0.6
 msal-extensions==0.3.0
-msal==1.11.0
+msal==1.12.0
 msgpack==1.0.2
 msrest==0.6.21
 msrestazure==0.6.4
@@ -424,7 +424,7 @@ requests-toolbelt==0.9.1
 requests==2.25.1
 responses==0.13.3
 rfc3986==1.5.0
-rich==10.2.1
+rich==10.2.2
 rsa==4.7.2
 s3transfer==0.4.2
 sasl==0.2.1
