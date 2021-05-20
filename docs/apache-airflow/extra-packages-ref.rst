@@ -50,6 +50,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                               |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| deprecated_api      | ``pip install 'apache-airflow[deprecated_api]'``    | Deprecated, experimental API that is replaced with the new REST API        |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github_enterprise   | ``pip install 'apache-airflow[github_enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google_auth         | ``pip install 'apache-airflow[google_auth]'``       | Google auth backend                                                        |
@@ -57,6 +59,8 @@ python dependencies for the provided package.
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -145,6 +149,8 @@ Those are extras that add dependencies needed for integration with external serv
 | airbyte             | ``pip install 'apache-airflow[airbyte]'``           | Airbyte hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | amazon              | ``pip install 'apache-airflow[amazon]'``            | Amazon Web Services                                 |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -252,7 +258,7 @@ Those are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | grpc                | ``pip install 'apache-airflow[grpc]'``              | Grpc hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |      *       |
+| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | imap                | ``pip install 'apache-airflow[imap]'``              | IMAP hooks and sensors               |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

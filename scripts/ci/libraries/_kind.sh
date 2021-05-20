@@ -131,10 +131,6 @@ function kind::perform_kind_cluster_operation() {
     echo "Kubernetes mode: ${KUBERNETES_MODE}"
     echo
 
-    echo
-    echo "Executor: ${EXECUTOR}"
-    echo
-
     if [[ ${OPERATION} == "status" ]]; then
         if [[ ${ALL_CLUSTERS} == *"${KIND_CLUSTER_NAME}"* ]]; then
             echo

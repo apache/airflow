@@ -162,16 +162,15 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
-{{- if .Values.airflowLocalSettings }}
+            {{- if .Values.airflowLocalSettings }}
             - name: config
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py
               readOnly: true
-{{- end }}
-{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-            - name: dags
-              mountPath: {{ template "airflow_dags_mount_path" . }}
-{{- end }}
+            {{- end }}
+            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
+            {{- include "airflow_dags_mount" . | nindent 12 }}
+            {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}

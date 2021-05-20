@@ -17,6 +17,7 @@ Ansible
 AppBuilder
 Arg
 Args
+Asana
 Async
 Atlassian
 Auth
@@ -149,7 +150,6 @@ Flink
 FluentD
 Fokko
 Formaturas
-Fspark
 Fundera
 GCS
 GH
@@ -472,6 +472,7 @@ args
 arn
 arraysize
 artwr
+asana
 asc
 ascii
 asciiart
@@ -564,6 +565,7 @@ cgroupspy
 changelog
 charset
 checklicence
+checksums
 chmod
 chown
 ci
@@ -742,6 +744,7 @@ enum
 env
 envFrom
 envvar
+eol
 eols
 ephraimbuddy
 errno
@@ -860,6 +863,7 @@ http
 httpbin
 httplib
 https
+httpx
 hvac
 hyperparameter
 iPython
@@ -942,6 +946,7 @@ keytab
 killMode
 kinit
 kms
+knownHosts
 krb
 kube
 kubeclient
@@ -966,6 +971,7 @@ licence
 licences
 lifecycle
 lineterminator
+linter
 linux
 livy
 localExecutor
@@ -1107,6 +1113,7 @@ podSpec
 podspec
 poller
 polyfill
+pooler
 postMessage
 postfix
 postgres
@@ -1425,6 +1432,7 @@ utils
 uuid
 validator
 vals
+ve
 vendored
 venvs
 versionable

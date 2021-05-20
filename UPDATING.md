@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Master](#master)
+- [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
 - [Airflow 2.0.0](#airflow-200)
@@ -70,6 +71,20 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.1.0
+
+### New "deprecated_api" extra
+
+We have a new '[deprecated_api]' extra that should be used when installing airflow when the deprecated API
+is going to be used. This is now an optional feature of Airflow now because it pulls in `requests` which
+(as of 14 May 2021) pulls LGPL `chardet` dependency.
+
+### The `http` provider is not installed by default
+
+The `http` provider is now optional and not installed by default, until `chardet` becomes an optional
+dependency of `requests`.
+See [PR to replace chardet with charset-normalizer](https://github.com/psf/requests/pull/5797)
 
 ### `@apply_default` decorator isn't longer necessary
 

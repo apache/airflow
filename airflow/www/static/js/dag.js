@@ -42,6 +42,7 @@ export const dagTZ = getMetaValue('dag_timezone');
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 const extraLinksUrl = getMetaValue('extra_links_url');
+const pausedUrl = getMetaValue('paused_url');
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
@@ -210,9 +211,10 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
 export function callModalDag(dag) {
   $('#dagModal').modal({});
   $('#dagModal').css('margin-top', '0');
+  executionDate = dag.execution_date;
   updateButtonUrl(buttons.dag_graph_view, {
-    dag_id: dag && dag.execution_date,
-    execution_date: dag && dag.dag_id,
+    dag_id: dag && dag.dag_id,
+    execution_date: dag && dag.execution_date,
   });
 }
 
@@ -220,32 +222,38 @@ export function callModalDag(dag) {
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  form.execution_date.value = executionDate;
-  form.origin.value = window.location;
-  if (form.task_id) {
-    form.task_id.value = taskId;
+  // Somehow submit is fired twice. Only once is the executionDate valid
+  if (executionDate) {
+    form.execution_date.value = executionDate;
+    form.origin.value = window.location;
+    if (form.task_id) {
+      form.task_id.value = taskId;
+    }
+    form.action = $(this).data('action');
+    form.submit();
   }
-  form.action = $(this).data('action');
-  form.submit();
 });
 
 // DAG Modal actions
 $('form button[data-action]').on('click', function onClick() {
   const form = $(this).closest('form').get(0);
-  form.execution_date.value = executionDate;
-  form.origin.value = window.location;
-  if (form.task_id) {
-    form.task_id.value = taskId;
+  // Somehow submit is fired twice. Only once is the executionDate valid
+  if (executionDate) {
+    form.execution_date.value = executionDate;
+    form.origin.value = window.location;
+    if (form.task_id) {
+      form.task_id.value = taskId;
+    }
+    form.action = $(this).data('action');
+    form.submit();
   }
-  form.action = $(this).data('action');
-  form.submit();
 });
 
 $('#pause_resume').on('change', function onChange() {
   const $input = $(this);
   const id = $input.data('dag-id');
   const isPaused = $input.is(':checked');
-  const url = `{{ url_for('Airflow.paused') }}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
+  const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
   $input.removeClass('switch-input--error');
   $.post(url).fail(() => {
     setTimeout(() => {

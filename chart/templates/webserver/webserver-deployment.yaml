@@ -108,9 +108,6 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
       containers:
-{{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
-{{- include "git_sync_container" . | indent 8 }}
-{{- end }}
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
@@ -135,8 +132,7 @@ spec:
               readOnly: true
 {{- end }}
 {{- if or (and .Values.dags.gitSync.enabled (semverCompare "<2.0.0" .Values.airflowVersion)) .Values.dags.persistence.enabled }}
-            - name: dags
-              mountPath: {{ template "airflow_dags_mount_path" . }}
+            {{- include "airflow_dags_mount" . | nindent 12 }}
 {{- end }}
 {{- if .Values.logs.persistence.enabled }}
             - name: logs
@@ -179,6 +175,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+{{- include "git_sync_container" . | indent 8 }}
+{{- end }}
 {{- if .Values.webserver.extraContainers }}
 {{- toYaml .Values.webserver.extraContainers | nindent 8 }}
 {{- end }}

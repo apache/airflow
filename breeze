@@ -1190,12 +1190,6 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
-        -N | --version-suffix-for-svn)
-            export VERSION_SUFFIX_FOR_SVN="${2}"
-            echo "Version suffix for SVN ${VERSION_SUFFIX_FOR_SVN}"
-            echo
-            shift 2
-            ;;
         --load-example-dags)
             export LOAD_EXAMPLES="true"
             echo "Include Airflow sample dags"
@@ -1880,18 +1874,13 @@ ${CMDNAME} prepare-airflow-packages [FLAGS]
       prepare-provider-packages command cleans up the dist folder, so if you want also
       to generate provider packages, make sure you run prepare-provider-packages first,
       and prepare-airflow-packages second. You can specify optional
-      --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
-      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
-      provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
-      dist folder
+      --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+      The packages are prepared in dist folder
 
       Examples:
 
       '${CMDNAME} prepare-airflow-packages --package-format wheel' or
-      '${CMDNAME} prepare-airflow-packages --version-suffix-for-svn rc1' or
       '${CMDNAME} prepare-airflow-packages --version-suffix-for-pypi rc1'
-      '${CMDNAME} prepare-airflow-packages --version-suffix-for-pypi a1
-                                            --version-suffix-for-svn a1'
 
 Flags:
 $(breeze::flag_packages)
@@ -2437,7 +2426,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         Installs Airflow directly from reference in GitHub when building PROD image.
-        This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
+        This can be a GitHub branch like master or v2-1-test, or a tag like 2.1.0a1.
 
 --installation-method INSTALLATION_METHOD
         Method of installing Airflow in PROD image - either from the sources ('.')
@@ -3110,14 +3099,18 @@ function breeze::read_saved_environment_variables() {
 #######################################################################################################
 function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "PYTHON_MAJOR_MINOR_VERSION" "Python version" "--python"
-
+    # TODO: Generalize me (make it automatically use matching versions)
     if [[ -n "${INSTALL_AIRFLOW_REFERENCE=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_0* ]]; then
             export BRANCH_NAME="v2-0-test"
+        elif [[ ${INSTALL_AIRFLOW_REFERENCE=} == *2_1* ]]; then
+            export BRANCH_NAME="v2-1-test"
         fi
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         if [[ ${INSTALL_AIRFLOW_VERSION=} == *2.0* ]]; then
             export BRANCH_NAME="v2-0-test"
+        elif [[ ${INSTALL_AIRFLOW_VERSION=} == *2.1* ]]; then
+            export BRANCH_NAME="v2-1-test"
         fi
     fi
 

@@ -541,7 +541,7 @@ For all development tasks, unit tests, integration tests, and static code checks
 **CI image** maintained on the DockerHub in the ``apache/airflow`` repository.
 This Docker image contains a lot of test-related packages (size of ~1GB).
 Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
-(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v2-0-test-python3.6-ci``).
+(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v2-1-test-python3.6-ci``).
 The image is built using the `<Dockerfile.ci>`_ Dockerfile.
 
 The CI image is built automatically as needed, however it can be rebuilt manually with
@@ -638,7 +638,7 @@ The **Production image** is also maintained on the DockerHub in the
 ``apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
 installation with selected extras and dependencies. Its tag follows the pattern of
 ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
-or ``apache/airflow:v2-0-test-python3.6``).
+or ``apache/airflow:v2-1-test-python3.6``).
 
 However in many cases you want to add your own custom version of the image - with added apt dependencies,
 python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
@@ -1279,7 +1279,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
+          This can be a GitHub branch like master or v2-1-test, or a tag like 2.1.0a1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -1717,18 +1717,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
         prepare-provider-packages command cleans up the dist folder, so if you want also
         to generate provider packages, make sure you run prepare-provider-packages first,
         and prepare-airflow-packages second. You can specify optional
-        --version-suffix-for-svn flag to generate rc candidate packages to upload to SVN or
-        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages. You can also
-        provide both suffixes in case you prepare alpha/beta versions. The packages are prepared in
-        dist folder
+        --version-suffix-for-pypi flag to generate rc candidates for PyPI packages.
+        The packages are prepared in dist folder
 
         Examples:
 
         'breeze prepare-airflow-packages --package-format wheel' or
-        'breeze prepare-airflow-packages --version-suffix-for-svn rc1' or
         'breeze prepare-airflow-packages --version-suffix-for-pypi rc1'
-        'breeze prepare-airflow-packages --version-suffix-for-pypi a1
-                                              --version-suffix-for-svn a1'
 
   Flags:
 
@@ -2265,8 +2260,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 pre-commit-hook-names provide-create-sessions providers-init-file provider-yamls
-                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
+                 pre-commit-hook-names pretty-format-json provide-create-sessions providers-init-file
+                 provider-yamls pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
                  restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
                  sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
                  update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
@@ -2509,7 +2504,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like master or v2-0-test, or a tag like 2.0.0a1.
+          This can be a GitHub branch like master or v2-1-test, or a tag like 2.1.0a1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')

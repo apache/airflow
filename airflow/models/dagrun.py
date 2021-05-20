@@ -41,7 +41,6 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -633,6 +632,8 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         :type session: Session
         """
+        from airflow.settings import task_instance_mutation_hook
+
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 

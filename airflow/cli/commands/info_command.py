@@ -24,7 +24,7 @@ import sys
 from typing import List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
-import requests
+import httpx
 import tenacity
 
 from airflow import configuration
@@ -349,8 +349,8 @@ class FileIoException(Exception):
 )
 def _upload_text_to_fileio(content):
     """Upload text file to File.io service and return lnk"""
-    resp = requests.post("https://file.io", data={"text": content})
-    if not resp.ok:
+    resp = httpx.post("https://file.io", content=content)
+    if resp.status_code not in [200, 201]:
         print(resp.json())
         raise FileIoException("Failed to send report to file.io service.")
     try:

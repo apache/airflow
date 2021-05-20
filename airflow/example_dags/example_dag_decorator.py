@@ -16,10 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 from typing import Any, Dict
 
-import requests
+import httpx
 
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
@@ -37,7 +36,7 @@ class GetRequestOperator(BaseOperator):
         self.url = url
 
     def execute(self, context):
-        return requests.get(self.url).json()
+        return httpx.get(self.url).json()
 
 
 # [START dag_decorator_usage]

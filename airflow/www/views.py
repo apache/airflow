@@ -3942,7 +3942,7 @@ class DagModelView(AirflowModelView):
         query = unquote(request.args.get('query', ''))
 
         if not query:
-            wwwutils.json_response([])
+            return wwwutils.json_response([])
 
         # Provide suggestions of dag_ids and owners
         dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(  # pylint: disable=no-member
@@ -4162,7 +4162,7 @@ class CustomUserDBModelView(UserDBModelView):
         """Returns appropriate permission name depending on request method name."""
         if request:
             action_name = request.view_args.get("name")
-            _, method_name = request.url_rule.endpoint.split(".")
+            _, method_name = request.url_rule.endpoint.rsplit(".", 1)
             if method_name == 'action' and action_name:
                 return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
             if method_name:
@@ -4194,6 +4194,7 @@ class CustomUserStatsChartView(UserStatsChartView):
     route_base = "/userstatschartview"
     method_permission_name = {
         'chart': 'read',
+        'list': 'read',
     }
     base_permissions = [permissions.ACTION_CAN_READ]
 
@@ -4204,6 +4205,7 @@ class CustomUserLDAPModelView(UserLDAPModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4216,6 +4218,7 @@ class CustomUserOAuthModelView(UserOAuthModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4228,6 +4231,7 @@ class CustomUserOIDModelView(UserOIDModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
@@ -4240,6 +4244,7 @@ class CustomUserRemoteUserModelView(UserRemoteUserModelView):
     class_permission_name = permissions.RESOURCE_MY_PROFILE
     method_permission_name = {
         'userinfo': 'read',
+        'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,

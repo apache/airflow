@@ -43,6 +43,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
+- [Version Life Cycle](#version-life-cycle)
 - [Requirements](#requirements)
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Getting started](#getting-started)
@@ -73,6 +74,23 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 - **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+
+## Version Life Cycle
+
+Apache Airflow version life cycle:
+
+| Version | Current Patch/Minor | State           | First Release | Limited Support | EOL/Terminated |
+|---------|---------------------|-----------------|---------------|-----------------|----------------|
+| 2       | 2.1.0               | Supported       | Dec 17, 2020  | Dec 2021        | TBD            |
+| 1.10    | 1.10.15             | Limited Support | Aug 27, 2018  | Dec 17, 2020    | June 2021      |
+| 1.9     | 1.9.0               | EOL             | Jan 03, 2018  | Aug 27, 2018    | Aug 2018       |
+| 1.8     | 1.8.2               | EOL             | Mar 19, 2017  | Jan 03, 2018    | Jan 2018       |
+| 1.7     | 1.7.1.2             | EOL             | Mar 28, 2016  | Mar 19, 2017    | Mar 2017       |
+
+Limited support versions will be supported with security and critical bug fix only.
+EOL versions will not get any fixes nor support.
+We always recommend that all users run the latest available minor release for whatever major version is in use.
+We **highly** recommend upgrading to the latest Airflow major release at the earliest convenient time and before EOL date.
 
 ## Requirements
 

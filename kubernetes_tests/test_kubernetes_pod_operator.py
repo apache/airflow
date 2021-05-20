@@ -41,6 +41,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.version import version as airflow_version
+from kubernetes_tests.test_base import EXECUTOR
 
 
 def create_context(task):
@@ -63,6 +64,7 @@ def get_kubeconfig_path():
     return kubeconfig_path if kubeconfig_path else os.path.expanduser('~/.kube/config')
 
 
+@pytest.mark.skipif(EXECUTOR != 'KubernetesExecutor', reason="Only runs on KubernetesExecutor")
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)

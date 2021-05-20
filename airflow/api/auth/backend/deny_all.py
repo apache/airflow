@@ -17,12 +17,11 @@
 # under the License.
 """Authentication backend that denies all requests"""
 from functools import wraps
-from typing import Callable, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
 from flask import Response
-from requests.auth import AuthBase
 
-CLIENT_AUTH: Optional[Union[Tuple[str, str], AuthBase]] = None
+CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = None
 
 
 def init_app(_):

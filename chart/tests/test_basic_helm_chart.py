@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+import warnings
 from subprocess import CalledProcessError
 from typing import Any, Dict, List, Union
 from unittest import mock
@@ -133,6 +134,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
+                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
         )
         kind_k8s_obj_labels_tuples = {
@@ -142,16 +144,36 @@ class TestBaseChartTest(unittest.TestCase):
 
         kind_names_tuples = [
             (f"{release_name}-airflow-config", "ConfigMap", "config"),
+            (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
+            (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
+            (f"{release_name}-airflow-metadata", "Secret", None),
+            (f"{release_name}-airflow-migrate-database-job", "ServiceAccount", "run-airflow-migrations"),
+            (f"{release_name}-airflow-pgbouncer", "ServiceAccount", "pgbouncer"),
+            (f"{release_name}-airflow-result-backend", "Secret", None),
+            (f"{release_name}-airflow-redis", "ServiceAccount", "redis"),
+            (f"{release_name}-airflow-scheduler", "ServiceAccount", "scheduler"),
+            (f"{release_name}-airflow-statsd", "ServiceAccount", "statsd"),
+            (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
+            (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
+            (f"{release_name}-broker-url", "Secret", "redis"),
             (f"{release_name}-create-user", "Job", "create-user-job"),
+            (f"{release_name}-fernet-key", "Secret", None),
             (f"{release_name}-flower", "Deployment", "flower"),
             (f"{release_name}-flower", "Service", "flower"),
             (f"{release_name}-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
             (f"{release_name}-pgbouncer", "Deployment", "pgbouncer"),
             (f"{release_name}-pgbouncer", "Service", "pgbouncer"),
+            (f"{release_name}-pgbouncer-config", "Secret", "pgbouncer"),
             (f"{release_name}-pgbouncer-policy", "NetworkPolicy", "airflow-pgbouncer-policy"),
+            (f"{release_name}-pgbouncer-stats", "Secret", "pgbouncer"),
+            (f"{release_name}-pod-launcher-role", "Role", None),
+            (f"{release_name}-pod-launcher-rolebinding", "RoleBinding", None),
+            (f"{release_name}-pod-log-reader-role", "Role", None),
+            (f"{release_name}-pod-log-reader-rolebinding", "RoleBinding", None),
             (f"{release_name}-redis", "Service", "redis"),
             (f"{release_name}-redis", "StatefulSet", "redis"),
             (f"{release_name}-redis-policy", "NetworkPolicy", "redis-policy"),
+            (f"{release_name}-redis-password", "Secret", "redis"),
             (f"{release_name}-run-airflow-migrations", "Job", "run-airflow-migrations"),
             (f"{release_name}-scheduler", "Deployment", "scheduler"),
             (f"{release_name}-scheduler-policy", "NetworkPolicy", "airflow-scheduler-policy"),
@@ -166,15 +188,20 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
         ]
         for k8s_object_name, kind, component in kind_names_tuples:
-            assert kind_k8s_obj_labels_tuples[(k8s_object_name, kind)] == {
+            expected_labels = {
                 "label1": "value1",
                 "label2": "value2",
                 "tier": "airflow",
                 "release": release_name,
-                "component": component,
                 "heritage": "Helm",
                 "chart": mock.ANY,
             }
+            if component:
+                expected_labels["component"] = component
+            assert kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind)) == expected_labels
+
+        if kind_k8s_obj_labels_tuples:
+            warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
 
     def test_annotations_on_airflow_pods_in_deployment(self):
         """
@@ -184,23 +211,22 @@ class TestBaseChartTest(unittest.TestCase):
         release_name = "TEST-BASIC"
         k8s_objects = render_chart(
             name=release_name,
-            values={
-                "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
-                "executor": "CeleryExecutor",
-            },
+            values={"airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"}},
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/flower/flower-deployment.yaml",
             ],
         )
+        # pod_template_file is tested separately as it has extra setup steps
 
-        assert len(k8s_objects) == 3
+        assert 4 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
             assert "test-annotation/safe-to-evict" in annotations
-            assert "true" in annotations.get("test-annotation/safe-to-evict")
+            assert "true" in annotations["test-annotation/safe-to-evict"]
 
     def test_chart_is_consistent_with_official_airflow_image(self):
         def get_k8s_objs_with_image(obj: Union[List[Any], Dict[str, Any]]) -> List[Dict[str, Any]]:

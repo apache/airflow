@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -15,19 +16,12 @@
     specific language governing permissions and limitations
     under the License.
 
-External Redis
---------------
 
-When using the ``CeleryExecutor`` or the ``CeleryKubernetesExecutor``
-the chart will by default create a redis Deployment/StatefulSet
-alongside airflow. You can also use “your own” redis instance by
-providing the ``data.brokerUrl`` (or ``data.brokerUrlSecretName``) value
-directly:
+Package apache-airflow-providers-asana
+------------------------------------------------------
 
-.. code-block:: bash
+`Asana <https://developers.asana.com/>`__
 
-   helm install airflow . \
-       --namespace airflow \
-       --set executor=CeleryExecutor \
-       --set redis.enabled=false \
-       --set data.brokerUrl=redis://redis-user:password@redis-host:6379/0
+
+This is detailed commit list of changes for versions provider package: ``asana``.
+For high-level changelog, see :doc:`package information including changelog <index>`.

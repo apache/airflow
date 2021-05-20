@@ -353,12 +353,12 @@ constraints are taken from latest version of the constraints-master branch in Gi
     :end-before: [END build]
 
 The following example builds the production image with default extras from the
-latest ``v2-0-test`` version and constraints are taken from the latest version of
-the ``constraints-2-0`` branch in GitHub. Note that this command might fail occasionally as only
-the "released version" constraints when building a version and "master" constraints when building
-master are guaranteed to work.
+latest ``v2-*-test`` version and constraints are taken from the latest version of
+the ``constraints-2-*`` branch in GitHub (for example ``v2-1-test`` branch matches ``constraints-2-1``).
+Note that this command might fail occasionally as only the "released version" constraints when building a
+version and "master" constraints when building master are guaranteed to work.
 
-.. exampleinclude:: docker-examples/customizing/github-v2-0-test.sh
+.. exampleinclude:: docker-examples/customizing/github-v2-1-test.sh
     :language: bash
     :start-after: [START build]
     :end-before: [END build]

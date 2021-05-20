@@ -58,7 +58,7 @@ class GitSyncWebserverTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "git-sync" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "git-sync" == jmespath.search("spec.template.spec.containers[1].name", docs[0])
 
     def test_should_have_service_account_defined(self):
         docs = render_chart(
@@ -146,5 +146,5 @@ class GitSyncWebserverTest(unittest.TestCase):
         )
 
         assert {"name": "FOO", "value": "bar"} in jmespath.search(
-            "spec.template.spec.containers[0].env", docs[0]
+            "spec.template.spec.containers[1].env", docs[0]
         )

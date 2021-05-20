@@ -71,6 +71,9 @@ class S3ToSnowflakeOperator(BaseOperator):
     :type session_parameters: dict
     """
 
+    template_fields = ("s3_keys",)
+    template_fields_renderers = {"s3_keys": "json"}
+
     def __init__(
         self,
         *,

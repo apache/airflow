@@ -30,8 +30,10 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
         "user": "someuser",
         "pass": "somepass",
         "host": "somehost",
+        "protocol": "postgresql",
         "port": 7777,
         "db": "somedb",
+        "sslmode": "allow",
     }
 
     def test_should_not_generate_a_document_if_using_existing_secret(self):
@@ -73,6 +75,19 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
             == connection
         )
 
+    def test_should_default_to_custom_metadata_db_connection_with_pgbouncer_overrides(self):
+        values = {
+            "pgbouncer": {"enabled": True},
+            "data": {"metadataConnection": {**self.non_chart_database_values}},
+        }
+        connection = self._get_connection(values)
+
+        # host, port, dbname still get overridden
+        assert (
+            "db+postgresql://someuser:somepass@RELEASE-NAME-pgbouncer:6543"
+            "/RELEASE-NAME-result-backend?sslmode=allow" == connection
+        )
+
     def test_should_set_pgbouncer_overrides_when_enabled(self):
         values = {"pgbouncer": {"enabled": True}}
         connection = self._get_connection(values)
@@ -93,21 +108,22 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
         # host, port, dbname still get overridden even with an non-chart db
         assert (
             "db+postgresql://someuser:somepass@RELEASE-NAME-pgbouncer:6543"
-            "/RELEASE-NAME-result-backend?sslmode=disable" == connection
+            "/RELEASE-NAME-result-backend?sslmode=allow" == connection
         )
 
-    def test_should_correctly_use_non_chart_database(self):
+    def test_should_default_to_custom_metadata_db_connection(self):
         values = {
-            "data": {
-                "resultBackendConnection": {
-                    **self.non_chart_database_values,
-                    "sslmode": "require",
-                }
-            }
+            "data": {"metadataConnection": {**self.non_chart_database_values}},
         }
         connection = self._get_connection(values)
 
-        assert "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require" == connection
+        assert "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow" == connection
+
+    def test_should_correctly_use_non_chart_database(self):
+        values = {"data": {"resultBackendConnection": {**self.non_chart_database_values}}}
+        connection = self._get_connection(values)
+
+        assert "db+postgresql://someuser:somepass@somehost:7777/somedb?sslmode=allow" == connection
 
     def test_should_support_non_postgres_db(self):
         values = {
@@ -122,3 +138,18 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
 
         # sslmode is only added for postgresql
         assert "db+mysql://someuser:somepass@somehost:7777/somedb" == connection
+
+    def test_should_correctly_use_non_chart_database_when_both_db_are_external(self):
+        values = {
+            "data": {
+                "metadataConnection": {**self.non_chart_database_values},
+                "resultBackendConnection": {
+                    **self.non_chart_database_values,
+                    "user": "anotheruser",
+                    "pass": "anotherpass",
+                },
+            }
+        }
+        connection = self._get_connection(values)
+
+        assert "db+postgresql://anotheruser:anotherpass@somehost:7777/somedb?sslmode=allow" == connection

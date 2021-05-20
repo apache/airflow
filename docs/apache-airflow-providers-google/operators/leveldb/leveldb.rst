@@ -17,6 +17,8 @@
 
 
 
+.. _howto/operator:LevelDBOperator:
+
 Google LevelDB Operator
 ================================
 
@@ -27,7 +29,10 @@ an ordered mapping from string keys to string values.
   :depth: 1
   :local:
 
-.. _howto/operator:LevelDBOperator:
+.. note::
+
+    To use LevelDB hooks and operators you must requires installation of ``plyvel``.  It will be
+    installed if you specify the extra ``apache-airflow-providers-google[leveldb]``.
 
 Put key
 ^^^^^^^^^^^^^^^

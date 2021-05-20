@@ -34,6 +34,7 @@
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
   <meta name="external_log_url" content="{{ url_for('Airflow.redirect_to_external_log') }}">
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
+  <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   {% if show_external_log_redirect is defined %}
     <meta name="show_external_log_redirect" content="{{ show_external_log_redirect }}">
   {% endif %}

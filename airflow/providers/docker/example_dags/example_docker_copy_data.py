@@ -27,6 +27,8 @@ TODO: Review the workflow, change it accordingly to
 
 from datetime import timedelta
 
+from docker.types import Mount
+
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import ShortCircuitOperator
@@ -80,9 +82,9 @@ t_move = DockerOperator(
     docker_url="tcp://localhost:2375",  # replace it with swarm/docker endpoint
     image="centos:latest",
     network_mode="bridge",
-    volumes=[
-        "/your/host/input_dir/path:/your/input_dir/path",
-        "/your/host/output_dir/path:/your/output_dir/path",
+    mounts=[
+        Mount(source="/your/host/input_dir/path", target="/your/input_dir/path", type="bind"),
+        Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind"),
     ],
     command=[
         "/bin/bash",
@@ -105,7 +107,7 @@ t_print = DockerOperator(
     api_version="1.19",
     docker_url="tcp://localhost:2375",
     image="centos:latest",
-    volumes=["/your/host/output_dir/path:/your/output_dir/path"],
+    mounts=[Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind")],
     command=print_templated_cmd,
     task_id="print",
     dag=dag,
