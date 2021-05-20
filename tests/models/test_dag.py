@@ -732,12 +732,14 @@ class TestDag(unittest.TestCase):
             'dag',
             start_date=DEFAULT_DATE,
         )
+        dag.fileloc = 'dag_dummy_path'
         with dag:
             DummyOperator(task_id='task', owner='owner1')
             subdag = DAG(
                 'dag.subtask',
                 start_date=DEFAULT_DATE,
             )
+            subdag.fileloc = 'subdag_dummy_path'
             # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
             subdag.parent_dag = dag
             subdag.is_subdag = True
@@ -751,12 +753,13 @@ class TestDag(unittest.TestCase):
         assert orm_dag.default_view is not None
         assert orm_dag.default_view == conf.get('webserver', 'dag_default_view').lower()
         assert orm_dag.safe_dag_id == 'dag'
+        assert orm_dag.fileloc == 'dag_dummy_path'
 
         orm_subdag = session.query(DagModel).filter(DagModel.dag_id == 'dag.subtask').one()
         assert set(orm_subdag.owners.split(', ')) == {'owner1', 'owner2'}
         assert orm_subdag.is_active
         assert orm_subdag.safe_dag_id == 'dag__dot__subtask'
-        assert orm_subdag.fileloc == orm_dag.fileloc
+        assert orm_subdag.fileloc == 'subdag_dummy_path'
         session.close()
 
     def test_sync_to_db_default_view(self):
