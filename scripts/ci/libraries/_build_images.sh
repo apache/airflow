@@ -386,39 +386,6 @@ function build_images::get_docker_image_names() {
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # This is 1-1 mapping of image names of Apache Airflow stored in DockerHub vs. the same images stored
-    # in GitHub Registries (either GitHub Container Registry or GitHub Packages)
-    #
-    # We have to apply naming conventions used by the registries and keep multiple RUN_ID tags. We use
-    # common suffix ('gcr-v1') to be able to switch to different set of cache images if needed
-    # - for example when some images gets broken (might happen with GitHub Actions Registries) or when
-    # the storage capacity per image is reached (though it is apparently unlimited)
-    #
-    # Some examples:
-    #
-    # In case of GitHub Container Registry:
-    #
-    # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow-master-python3.8-gcr-v1:<RUN_ID>"
-    # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow-master-python3.8-build-gcr-v1:<RUN_ID>"
-    # * CI build image: "apache/airflow:master-python3.8-ci" ->  "apache/airflow-master-python3.8-ci-gcr-v1:<RUN_ID>"
-    #
-    # The python base image/tag mapping is slightly different (the base images are shared by all Prod/Build/CI images)
-    # And python version is part of the tag.
-    #
-    # "apache/airflow:python-3.6 ->  "apache/airflow-python-gcr-v1:3.6-slim-buster-<RUN_ID>"
-    #
-    # In case of GitHub Packages image must be part of the repository:
-    #
-    # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow/master-python3.8-gcr-v1:<RUN_ID>"
-    # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow/master-python3.8-build-gcr-v1:<RUN_ID>"
-    # * CI build image: "apache/airflow:master-python3.8-ci" ->  "apache/airflow/master-python3.8-ci-gcr-v1:<RUN_ID>"
-    #
-    # The python base image/tag mapping is slightly different (the base images are shared by all
-    # Prod/Build/CI images) and python version is part of the tag.
-    #
-    # "apache/airflow:python-3.6 ->  "apache/airflow/python/gcr-v1:3.6-slim-buster-<RUN_ID>"
-
-
     local image_name
     image_name="${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)"
     local image_separator
@@ -433,10 +400,24 @@ function build_images::get_docker_image_names() {
         exit 1
     fi
 
+    # Example:
+    #  docker.pkg.github.com/apache/airflow/master-python3.6-v2
+    #  ghcr.io/apache/airflow-v2-1-test-python-v2:3.6-slim-buster
+    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
     export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    # Example:
+    #   docker.pkg.github.com/apache/airflow/master-python3.6-build-v2
+    #   ghcr.io/apache/airflow-master-python3.6-build-v2
     export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+
+    # Example:
+    #  docker.pkg.github.com/apache/airflow/python-v2:3.6-slim-buster
+    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster
+    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
+    # Example:
+    #  docker.pkg.github.com/apache/airflow/master-python3.8-ci-v2
     export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
 }
 
