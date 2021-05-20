@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example showing how to use Asana CreateTaskOperator.
+Example DAG showing how to use Asana TaskOperators.
 """
 
 from airflow import DAG
@@ -41,23 +41,34 @@ with DAG(
     conn_id = "asana_test"
 
     # [START run_asana_create_task_operator]
+    # Create a task. `task_parameters` is used to specify attributes the new task should have.
+    # You must specify at least one of 'workspace', 'projects', or 'parent' in `task_parameters`
+    # unless these are specified in the connction. Any attributes you specify in
+    # `task_parameters` will override values from the connection.
     create = AsanaCreateTaskOperator(
         task_id="run_asana_create_task",
-        task_parameters={"projects": "your_project"},
+        task_parameters={"notes": "Some notes about the task."},
         conn_id=conn_id,
-        name="Test Task Create",
+        name="New Task Name",
     )
     # [END run_asana_create_task_operator]
 
     # [START run_asana_find_task_operator]
+    # Find tasks matching search criteria. `search_parameters` is used to specify these criteria.
+    # You must specify `project`, `section`, `tag`, `user_task_list`, or both
+    # `assignee` and `workspace` in `search_parameters` or in the connection.
+    # This example shows how you can override a project specified in the connection by
+    # passing a different value for project into `search_parameters`
     find = AsanaFindTaskOperator(
         task_id="run_asana_find_task",
-        search_parameters={"project": "your_project"},
+        search_parameters={"project": "your_project", "modified_since": "2021-04-10"},
         conn_id=conn_id,
     )
     # [END run_asana_find_task_operator]
 
     # [START run_asana_update_task_operator]
+    # Update a task. `task_parameters` is used to specify the new values of
+    # task attributes you want to update.
     update = AsanaUpdateTaskOperator(
         task_id="run_asana_update_task",
         asana_task_gid="your_task_id",
@@ -67,6 +78,7 @@ with DAG(
     # [END run_asana_update_task_operator]
 
     # [START run_asana_delete_task_operator]
+    # Delete a task. This task will complete successfully even if `asana_task_gid` does not exist.
     delete = AsanaDeleteTaskOperator(
         task_id="run_asana_delete_task",
         conn_id=conn_id,
