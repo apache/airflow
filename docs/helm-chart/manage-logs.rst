@@ -27,7 +27,7 @@ With this option, Airflow will log locally to each pod. As such, the logs will o
 
 .. code-block:: bash
 
-    helm upgrade airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set logs.persistence.enabled=false
       # --set workers.persistence.enabled=false (also needed if using ``CeleryExecutor``)
 
@@ -40,7 +40,7 @@ You can modify the template:
 
 .. code-block:: bash
 
-    helm upgrade airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set executor=CeleryExecutor \
       --set workers.persistence.size=10Gi
 
@@ -58,7 +58,7 @@ for details.
 
 .. code-block:: bash
 
-    helm upgrade airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set logs.persistence.enabled=true
       # you can also override the other persistence
       # by setting the logs.persistence.* values
@@ -71,7 +71,7 @@ In this approach, Airflow will log to an existing ``ReadWriteMany`` PVC. You pas
 
 .. code-block:: bash
 
-    helm upgrade airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set logs.persistence.enabled=true \
       --set logs.persistence.existingClaim=my-volume-claim
 
@@ -83,7 +83,7 @@ See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsea
 
 .. code-block:: bash
 
-    helm upgrade airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set elasticsearch.enabled=true \
       --set elasticsearch.secretName=my-es-secret
       # Other choices exist. Please refer to values.yaml for details.
