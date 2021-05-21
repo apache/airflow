@@ -638,7 +638,7 @@ class DAG(LoggingMixin):
         using_end_date = end_date
 
         # dates for dag runs
-        using_start_date = using_start_date or min([t.start_date for t in self.tasks])
+        using_start_date = using_start_date or min(t.start_date for t in self.tasks)
         using_end_date = using_end_date or timezone.utcnow()
 
         # next run date for a subdag isn't relevant (schedule_interval for subdags
@@ -1329,7 +1329,7 @@ class DAG(LoggingMixin):
         if count == 0:
             return 0
         if confirm_prompt:
-            ti_list = "\n".join([str(t) for t in tis])
+            ti_list = "\n".join(str(t) for t in tis)
             question = (
                 "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
             ).format(count=count, ti_list=ti_list)
@@ -1395,7 +1395,7 @@ class DAG(LoggingMixin):
             print("Nothing to clear.")
             return 0
         if confirm_prompt:
-            ti_list = "\n".join([str(t) for t in all_tis])
+            ti_list = "\n".join(str(t) for t in all_tis)
             question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? (yes/no): "
             do_it = utils.helpers.ask_yesno(question)
 

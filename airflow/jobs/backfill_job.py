@@ -897,7 +897,7 @@ class BackfillJob(BaseJob):
 
         reset_tis = helpers.reduce_in_chunks(query, tis_to_reset, [], self.max_tis_per_query)
 
-        task_instance_str = '\n\t'.join([repr(x) for x in reset_tis])
+        task_instance_str = '\n\t'.join(repr(x) for x in reset_tis)
         session.commit()
 
         self.log.info("Reset the following %s TaskInstances:\n\t%s", len(reset_tis), task_instance_str)

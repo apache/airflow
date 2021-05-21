@@ -851,7 +851,7 @@ def get_provider_package_from_package_id(package_id: str):
 
 def get_all_provider_packages():
     """Returns all provider packages configured in setup.py"""
-    return " ".join([get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS])
+    return " ".join(get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS)
 
 
 class AirflowDistribution(Distribution):

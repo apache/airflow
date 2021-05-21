@@ -1801,7 +1801,7 @@ class TestDataflow(unittest.TestCase):
         name_func=lambda func, num, p: f"{func.__name__}_{num}",
     )
     def test_data_flow_valid_job_id(self, log):
-        echos = ";".join([f"echo {shlex.quote(line)}" for line in log.split("\n")])
+        echos = ";".join(f"echo {shlex.quote(line)}" for line in log.split("\n"))
         cmd = ["bash", "-c", echos]
         found_job_id = None
 

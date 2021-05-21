@@ -410,7 +410,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
-        return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
+        return ','.join(label_id + '=' + label for label_id, label in sorted(filtered_labels.items()))
 
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:

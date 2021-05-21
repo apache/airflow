@@ -1279,7 +1279,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
             self.log.info(
                 "Exporting the following env vars:\n%s",
-                '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+                '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
             )
 
             os.environ.update(airflow_context_vars)
