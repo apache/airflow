@@ -3349,11 +3349,7 @@ class VariableModelView(AirflowModelView):
     def varimport(self):
         """Import variables"""
         try:
-            out = request.files['file'].read()
-            if isinstance(out, bytes):
-                variable_dict = json.loads(out.decode('utf-8'))
-            else:
-                variable_dict = json.loads(out)
+            variable_dict = json.loads(request.files['file'].read())
         except Exception:  # noqa pylint: disable=broad-except
             self.update_redirect()
             flash("Missing file or syntax error.", 'error')
