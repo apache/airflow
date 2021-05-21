@@ -493,64 +493,49 @@ class MockTask:
     here because it's not picklable.
     """
 
-    def __init__(self, duration=None):
-        self.duration = duration
-
     def apply_async(self, *args, **kwargs):
-        import time
-
-        if self.duration:
-            time.sleep(self.duration)
-
         return 1
 
 
-def test_send_tasks_to_celery_hang():
-    def _exit_gracefully(signum, _):
-        print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
-        sys.exit(signum)
+def _exit_gracefully(signum, _):
+    print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
+    sys.exit(signum)
 
-    def register_signals():
-        """Register signals that stop child processes"""
 
-        print(f"{os.getpid()} register_signals()")
+@pytest.fixture
+def register_signals():
+    """
+    Register the same signals as scheduler does to test celery_executor to make sure it does not
+    hang.
+    """
 
-        signal.signal(signal.SIGINT, _exit_gracefully)
-        signal.signal(signal.SIGTERM, _exit_gracefully)
-        signal.signal(signal.SIGUSR2, _exit_gracefully)
+    print(f"{os.getpid()} register_signals()")
 
-    register_signals()
+    orig_sigint = orig_sigterm = orig_sigusr2 = signal.SIG_DFL
 
+    orig_sigint = signal.signal(signal.SIGINT, _exit_gracefully)
+    orig_sigterm = signal.signal(signal.SIGTERM, _exit_gracefully)
+    orig_sigusr2 = signal.signal(signal.SIGUSR2, _exit_gracefully)
+
+    yield
+
+    # Restore original signal handlers after test
+    signal.signal(signal.SIGINT, orig_sigint)
+    signal.signal(signal.SIGTERM, orig_sigterm)
+    signal.signal(signal.SIGUSR2, orig_sigusr2)
+
+
+def test_send_tasks_to_celery_hang(register_signals):  # pylint: disable=unused-argument
+    """
+    Test that celery_executor does not hang after many runs.
+    """
     executor = celery_executor.CeleryExecutor()
-    task_tuples_to_send = [
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-        (None, None, None, None, MockTask()),
-    ]
+
+    task = MockTask()
+    task_tuples_to_send = [(None, None, None, None, task) for _ in range(26)]
 
     for _ in range(500):
+        # This loop can hang on Linux if celery_executor does something wrong with
+        # multiprocessing.
         results = executor._send_tasks_to_celery(task_tuples_to_send)
         assert results == [(None, None, 1) for _ in task_tuples_to_send]
