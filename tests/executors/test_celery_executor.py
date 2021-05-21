@@ -503,6 +503,15 @@ class MockTask:
 
         return 1
 
+import signal
+
+def handle_pdb(sig, frame):
+    print('handle_pdb')
+    import pdb
+    pdb.Pdb().set_trace(frame)
+
+signal.signal(signal.SIGUSR1, handle_pdb)
+
 def test_send_tasks_to_celery_hang():
     def _exit_gracefully(signum, frame):
         print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
@@ -510,7 +519,6 @@ def test_send_tasks_to_celery_hang():
 
     def register_signals():
         """Register signals that stop child processes"""
-        import signal
 
         print(f"{os.getpid()} register_signals()")
 
