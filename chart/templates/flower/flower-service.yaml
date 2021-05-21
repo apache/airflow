@@ -33,6 +33,10 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+{{- with .Values.flower.service.annotations }}
+  annotations:
+{{- toYaml . | nindent 4 }}
+{{- end }}
 spec:
   type: {{ .Values.flower.service.type }}
   selector:

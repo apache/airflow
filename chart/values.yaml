@@ -618,6 +618,9 @@ flower:
 
   service:
     type: ClusterIP
+    ## service annotations
+    annotations: {}
+
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}

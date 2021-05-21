@@ -1554,6 +1554,11 @@
                             "description": "Flower Service type.",
                             "type": "string",
                             "default": "ClusterIP"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the flower service.",
+                            "type": "object",
+                            "default": {}
                         }
                     }
                 },
