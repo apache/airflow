@@ -17,6 +17,7 @@
 
 import jmespath
 import pytest
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -182,6 +183,19 @@ class TestFlower:
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    @parameterized.expand(
+        [
+            ({'my.custom.annotation': 'true', 'other.annotation': 'any-val'},),
+            (None,),
+        ]
+    )
+    def test_flower_service_annotations(self, annotations):
+        docs = render_chart(
+            values={"flower": {"service": {"annotations": annotations}}} if annotations else None,
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+        assert annotations == jmespath.search("metadata.annotations", docs[0])
 
     def test_flower_resources_are_not_added_by_default(self):
         docs = render_chart(
