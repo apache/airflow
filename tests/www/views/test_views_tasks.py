@@ -615,3 +615,63 @@ def test_task_instance_clear(session, admin_client):
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
     assert state == State.NONE
+
+
+@pytest.mark.xfail(reason="until #15980 is merged")
+def test_task_instance_clear_failure(admin_client):
+    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": "clear", "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    check_content_in_response("Failed to clear state", resp)
+
+
+@pytest.mark.parametrize(
+    "action, expected_state",
+    [
+        ("set_running", State.RUNNING),
+        ("set_failed", State.FAILED),
+        ("set_success", State.SUCCESS),
+        ("set_retry", State.UP_FOR_RETRY),
+    ],
+    ids=["running", "failed", "success", "retry"],
+)
+def test_task_instance_set_state(session, admin_client, action, expected_state):
+    task_id = "runme_0"
+
+    # Send a request to clear.
+    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # Now the state should be modified.
+    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    assert state == expected_state
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "set_running",
+        "set_failed",
+        "set_success",
+        "set_retry",
+    ],
+)
+def test_task_instance_set_state_failure(admin_client, action):
+    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    check_content_in_response("Failed to set state", resp)
