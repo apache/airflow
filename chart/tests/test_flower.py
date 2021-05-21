@@ -195,7 +195,7 @@ class TestFlower:
             values={"flower": {"service": {"annotations": annotations}}} if annotations else None,
             show_only=["templates/flower/flower-service.yaml"],
         )
-        assert annotations == jmespath.search("metadata.annotations", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0]) == annotations
 
     def test_flower_resources_are_not_added_by_default(self):
         docs = render_chart(
