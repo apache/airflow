@@ -127,3 +127,14 @@ def test_action_export(admin_client, variable):
     assert resp.headers["Content-Type"] == "application/json; charset=utf-8"
     assert resp.headers["Content-Disposition"] == "attachment; filename=variables.json"
     assert resp.json == {"test_key": "text_val"}
+
+
+def test_action_muldelete(session, admin_client, variable):
+    var_id = variable.id
+    resp = admin_client.post(
+        "/variable/action_post",
+        data={"action": "muldelete", "rowid": [var_id]},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert session.query(Variable).filter(Variable.id == var_id).count() == 0
