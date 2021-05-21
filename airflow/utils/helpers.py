@@ -21,7 +21,7 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
 from urllib import parse
 
 from flask import url_for
