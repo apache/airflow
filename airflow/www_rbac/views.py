@@ -65,7 +65,8 @@ from airflow import settings, configuration
 from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors, \
+    TaskInstance
 from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
 from airflow.models.error_tag import ErrorTag
@@ -95,7 +96,6 @@ import logging
 import os
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
-
 
 _logger = logging.getLogger(__name__)
 csrf = CSRFProtect()
@@ -496,7 +496,8 @@ class Airflow(AirflowBaseView):
             new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
                                                                curve_idx)
             msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                           current_user, getattr(current_user, 'last_name', ''), CUSTOM_EVENT_NAME_MAP['DELETE'],
+                                           current_user, getattr(current_user, 'last_name', ''),
+                                           CUSTOM_EVENT_NAME_MAP['DELETE'],
                                            CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '删除曲线模板')
             logging.info(msg)
             return {'data': new_template}
@@ -2278,16 +2279,16 @@ class CurvesView(BaseCRUDView):
             try:
                 error_tags = json.loads(t.error_tag or '[]')
                 if not error_tags:
-                     t.view_error_tags = u'无异常标签'
-                     continue
+                    t.view_error_tags = u'无异常标签'
+                    continue
                 for tag in error_tags:
-                    v= error_tag_vals.get(str(tag), '')
+                    v = error_tag_vals.get(str(tag), '')
                     if not v:
                         continue
                     ret.append(v)
             except Exception as e:
-                 t.view_error_tags = ','.join(ret)
-            t.view_error_tags =  ','.join(ret)
+                t.view_error_tags = ','.join(ret)
+            t.view_error_tags = ','.join(ret)
 
         selected_tasks = {}
         tasks = list(get_task_instances_by_entity_ids(curves_list))
@@ -2395,6 +2396,14 @@ class DagFilter(BaseFilter):
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
+
+class TrackNoNotNullFilter(BaseFilter):
+    def apply(self, query, func):  # noqa
+        return query.filter(self.model.car_code.isnot(None))
+
+class BoltNoNotNullFilter(BaseFilter):
+    def apply(self, query, func):  # noqa
+        return query.filter(self.model.bolt_number.isnot(None))
 
 class ErrorTagFilter(BaseFilter):
 
@@ -3168,7 +3177,7 @@ class TaskInstanceModelView(AirflowModelView):
                 return u'无异常标签'
             error_tag_vals = ErrorTag.get_all_dict() or {}
             for tag in error_tags:
-                v= error_tag_vals.get(str(tag), '')
+                v = error_tag_vals.get(str(tag), '')
                 if not v:
                     continue
                 ret.append(v)
@@ -3375,3 +3384,31 @@ class DagModelView(AirflowModelView):
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
         return wwwutils.json_response(payload)
+
+
+class CurveAnalysisTrackNoView(TaskInstanceModelView):
+    route_base = '/curves_analysis_track'
+
+    list_title = lazy_gettext("Analysis Via Track No")
+
+    list_columns = ['car_code', 'measure_result', 'type',
+                    'start_date', 'bolt_number',
+                    'final_state', 'end_date', 'log_url']
+
+    search_columns = ['car_code']
+
+    label_columns = TaskInstanceModelView.label_columns.update({
+        'car_code': lazy_gettext('Car Code'),
+        'bolt_number': lazy_gettext('Bolt Number'),
+    })
+
+    base_filters = [['car_code', TrackNoNotNullFilter, lambda: []]]
+
+
+class CurveAnalysisBoltNoView(CurveAnalysisTrackNoView):
+    route_base = '/curves_analysis_bolt'
+
+    list_title = lazy_gettext("Analysis Via Bolt No")
+
+    base_filters = [['bolt_number', BoltNoNotNullFilter, lambda: []]]
+

@@ -166,12 +166,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.ConnectionModelView,
                                 gettext("Connections"),
                                 category=gettext("Admin"))
-            appbuilder.add_view(views.ErrorTagModelView,
-                                gettext("Error Tags"),
-                                category=gettext("Admin"))
-            appbuilder.add_view(views.TighteningControllerView,
-                                gettext("Tightening Controller"),
-                                category=gettext("Admin"))
             appbuilder.add_view(views.PoolModelView,
                                 gettext("Pools"),
                                 category=gettext("Admin"))
@@ -181,6 +175,23 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 gettext("XComs"),
                                 category=gettext("Admin"))
+
+            # MDM 主数据管理
+            appbuilder.add_view(views.TighteningControllerView,
+                                gettext("Tightening Controller"),
+                                category=gettext("Master Data Management"))
+            appbuilder.add_view(views.ErrorTagModelView,
+                                gettext("Error Tags"),
+                                category=gettext("Master Data Management"))
+            # 分析相关
+            # appbuilder.add_view(views.XComModelView,
+            #                     gettext("Analysis"))
+            appbuilder.add_view(views.CurveAnalysisTrackNoView,
+                                gettext("Analysis Via Track No"),
+                                category=gettext("Analysis"))
+            appbuilder.add_view(views.CurveAnalysisBoltNoView,
+                                gettext("Analysis Via Bolt No"),
+                                category=gettext("Analysis"))
 
             if "dev" in version.version:
                 airflow_doc_site = "https://airflow.readthedocs.io/en/latest"

@@ -339,7 +339,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'DAG运行',
         'DagRunModelView',
         '任务实例',
-        'TaskInstanceModelView'
+        'TaskInstanceModelView',
+        'Analysis',
+        '分析'
     }
 
     BASE_PERMS = {
