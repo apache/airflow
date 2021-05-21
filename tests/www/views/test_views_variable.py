@@ -102,3 +102,28 @@ def test_description_retrieval(session, admin_client):
 
     row = session.query(Variable.key, Variable.description).first()
     assert row.key == 'test_key' and row.description == 'test_description'
+
+
+@pytest.fixture()
+def variable(session):
+    variable = Variable(
+        key=VARIABLE["key"],
+        val=VARIABLE["val"],
+        description=VARIABLE["description"],
+    )
+    session.add(variable)
+    session.commit()
+    yield variable
+    session.query(Variable).filter(Variable.key == VARIABLE["key"]).delete()
+    session.commit()
+
+
+def test_action_export(admin_client, variable):
+    resp = admin_client.post(
+        "/variable/action_post",
+        data={"action": "varexport", "rowid": [variable.id]},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["Content-Type"] == "application/json; charset=utf-8"
+    assert resp.headers["Content-Disposition"] == "attachment; filename=variables.json"
+    assert resp.json == {"test_key": "text_val"}
