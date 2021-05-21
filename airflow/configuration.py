@@ -162,6 +162,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
         ('operators', 'default_queue'): ('celery', 'default_queue', '2.1.0'),
         ('core', 'hide_sensitive_var_conn_fields'): ('admin', 'hide_sensitive_variable_fields', '2.1.0'),
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
+        ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
     }
 
     # A mapping of old default values that we want to change and warn the user

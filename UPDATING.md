@@ -72,6 +72,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Default Task Pools Slots can be updated using ``[core] default_pool_task_slot_count``
+
+By default tasks are running in `default_pool`. `default_pool` is initialized with `128` slots and user can change the
+number of slots through UI/CLI/API for an existing deployment.
+
+For new deployments, you can use `default_pool_task_slot_count` setting in `[core]` section. This setting would
+not have any effect in an existing deployment where the ``default_pool`` already exists.
+
+Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
+
 ## Airflow 2.1.0
 
 ### New "deprecated_api" extra
