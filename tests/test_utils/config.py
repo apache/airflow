@@ -32,6 +32,13 @@ def conf_vars(overrides):
         env = conf._env_var_name(section, key)
         if env in os.environ:
             original_env_vars[env] = os.environ.pop(env)
+        deprecated_section, deprecated_key, _ = conf.deprecated_options.get(
+            (section, key), (None, None, None)
+        )
+        if deprecated_section:
+            env_var = conf._env_var_name(deprecated_section, deprecated_key)
+            if env_var in os.environ:
+                original_env_vars[env_var] = os.environ.pop(env_var)
 
         if conf.has_option(section, key):
             original[(section, key)] = conf.get(section, key)

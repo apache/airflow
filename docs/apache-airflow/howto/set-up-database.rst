@@ -43,18 +43,18 @@ Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
-You can do this in option ``sql_alchemy_conn`` in section ``[core]``. It is also common to configure
+You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
 this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
 
-If you want to check the current value, you can use ``airflow config get-value core sql_alchemy_conn`` command as in
+If you want to check the current value, you can use ``airflow config get-value database sql_alchemy_conn`` command as in
 the example below.
 
 .. code-block:: bash
 
-    $ airflow config get-value core sql_alchemy_conn
+    $ airflow config get-value database sql_alchemy_conn
     sqlite:////tmp/airflow/airflow.db
 
 The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
@@ -225,7 +225,7 @@ For more information regarding setup of the PostgresSQL connection, see `Postgre
 Other configuration options
 ---------------------------
 
-There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:database>` for ``sqlalchemy_*`` option in ``[database]`` section.
 
 Initialize the database
 -----------------------

@@ -29,7 +29,7 @@ For example, the metadata database connection string can either be set in ``airf
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn = my_conn_string
 
 or by creating a corresponding environment variable:
@@ -43,7 +43,7 @@ the key like this:
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn_cmd = bash_command_to_run
 
 You can also derive the connection string at run time by appending ``_secret`` to
@@ -51,18 +51,18 @@ the key like this:
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn_secret = sql_alchemy_conn
     # You can also add a nested path
     # example:
-    # sql_alchemy_conn_secret = core/sql_alchemy_conn
+    # sql_alchemy_conn_secret = database/sql_alchemy_conn
 
 This will retrieve config option from Secret Backends e.g Hashicorp Vault. See
 :ref:`Secrets Backends<secrets_backend_configuration>` for more details.
 
 The following config options support this ``_cmd`` and ``_secret`` version:
 
-* ``sql_alchemy_conn`` in ``[core]`` section
+* ``sql_alchemy_conn`` in ``[database]`` section
 * ``fernet_key`` in ``[core]`` section
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
