@@ -38,7 +38,7 @@ Werkzeug==1.0.1
 adal==1.2.7
 aiohttp==3.7.4.post0
 alabaster==0.7.12
-alembic==1.6.2
+alembic==1.6.3
 amqp==2.6.1
 analytics-python==1.3.1
 ansiwrap==0.8.4
@@ -152,9 +152,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.5b1
 blinker==1.4
-boto3==1.17.77
+boto3==1.17.78
 boto==2.49.0
-botocore==1.20.77
+botocore==1.20.78
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
@@ -224,7 +224,7 @@ google-auth==1.30.0
 google-cloud-automl==2.3.0
 google-cloud-bigquery-datatransfer==3.1.1
 google-cloud-bigquery-storage==2.4.0
-google-cloud-bigquery==2.16.1
+google-cloud-bigquery==2.17.0
 google-cloud-bigtable==1.7.0
 google-cloud-container==1.0.1
 google-cloud-core==1.6.0
@@ -495,7 +495,7 @@ virtualenv==20.4.6
 volatile==2.1.0
 watchtower==0.7.3
 wcwidth==0.2.5
-websocket-client==1.0.0
+websocket-client==1.0.1
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.1
