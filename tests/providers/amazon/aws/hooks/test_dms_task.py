@@ -21,8 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.dms import DmsHook
+from airflow.providers.amazon.aws.hooks.dms import DmsHook, DmsTaskWaiterStatus
 
 MOCK_DATA = {
     'replication_task_id': 'test_task',
@@ -183,12 +182,12 @@ class TestDmsHook(unittest.TestCase):
 
     @mock.patch.object(DmsHook, 'get_conn')
     def test_wait_for_task_status_with_unknown_target_status(self, mock_conn):
-        with pytest.raises(AirflowException, match='Unable to wait for status'):
+        with pytest.raises(TypeError, match='Status must be an instance of DmsTaskWaiterStatus'):
             self.dms.wait_for_task_status(MOCK_TASK_ARN, 'unknown_status')
 
     @mock.patch.object(DmsHook, 'get_conn')
     def test_wait_for_task_status(self, mock_conn):
-        self.dms.wait_for_task_status(replication_task_arn=MOCK_TASK_ARN, status='deleted')
+        self.dms.wait_for_task_status(replication_task_arn=MOCK_TASK_ARN, status=DmsTaskWaiterStatus.DELETED)
 
         expected_waiter_call_params = {
             'Filters': [{'Name': 'replication-task-arn', 'Values': [MOCK_TASK_ARN]}],

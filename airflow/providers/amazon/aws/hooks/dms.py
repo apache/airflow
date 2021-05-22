@@ -16,10 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+from enum import Enum
 from typing import Optional
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+
+class DmsTaskWaiterStatus(str, Enum):
+    """Available AWS DMS Task Waiter statuses."""
+
+    DELETED = 'deleted'
+    READY = 'ready'
+    RUNNING = 'running'
+    STOPPED = 'stopped'
 
 
 class DmsHook(AwsBaseHook):
@@ -139,7 +148,7 @@ class DmsHook(AwsBaseHook):
         )
 
         replication_task_arn = create_task_response['ReplicationTask']['ReplicationTaskArn']
-        self.wait_for_task_status(replication_task_arn, 'ready')
+        self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.READY)
 
         return replication_task_arn
 
@@ -188,24 +197,20 @@ class DmsHook(AwsBaseHook):
         dms_client = self.get_conn()
         dms_client.delete_replication_task(ReplicationTaskArn=replication_task_arn)
 
-        self.wait_for_task_status(replication_task_arn, 'deleted')
+        self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.DELETED)
 
-    def wait_for_task_status(self, replication_task_arn: str, status: str):
+    def wait_for_task_status(self, replication_task_arn: str, status: DmsTaskWaiterStatus):
         """
         Waits for replication task to reach status.
         Supported statuses: deleted, ready, running, stopped.
 
         :param status: Status to wait for
-        :type status: str
+        :type status: DmsTaskWaiterStatus
         :param replication_task_arn: Replication task ARN
         :type replication_task_arn: str
         """
-        available_statuses = ['deleted', 'ready', 'running', 'stopped']
-
-        if status not in available_statuses:
-            raise AirflowException(
-                f'Unable to wait for status {status}. Available statuses: {",".join(available_statuses)}'
-            )
+        if not isinstance(status, DmsTaskWaiterStatus):
+            raise TypeError('Status must be an instance of DmsTaskWaiterStatus')
 
         dms_client = self.get_conn()
         waiter = dms_client.get_waiter(f'replication_task_{status}')
