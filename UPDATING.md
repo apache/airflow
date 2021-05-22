@@ -72,7 +72,7 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Default Task Pools Slots can be updated using ``[core] default_pool_task_slot_count``
+### Default Task Pools Slots can be set using ``[core] default_pool_task_slot_count``
 
 By default tasks are running in `default_pool`. `default_pool` is initialized with `128` slots and user can change the
 number of slots through UI/CLI/API for an existing deployment.
