@@ -101,7 +101,7 @@ class DiscordWebhookHook(HttpHook):
                 'Expected Discord webhook endpoint in the form of "webhooks/{webhook.id}/{webhook.token}".'
             )
 
-        return endpoint
+        return f'https://discord.com/api/{endpoint}'
 
     def _build_discord_payload(self) -> str:
         """
