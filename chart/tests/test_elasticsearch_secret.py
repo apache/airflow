@@ -46,6 +46,6 @@ class ElasticsearchSecretTest(unittest.TestCase):
         )
 
         assert (
-            "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@elastichostname:80"
-            == connection
+            "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@"
+            "elastichostname:80" == connection
         )

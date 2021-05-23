@@ -167,6 +167,6 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
         connection = self._get_connection(values)
 
         assert (
-            "db+postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/somedb?sslmode=allow"
-            == connection
+            "db+postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
+            "somedb?sslmode=allow" == connection
         )
