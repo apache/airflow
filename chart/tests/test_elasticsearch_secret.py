@@ -45,8 +45,8 @@ class ElasticsearchSecretTest(unittest.TestCase):
                 show_only=["templates/secrets/elasticsearch-secret.yaml"],
             )
         assert (
-            "You must set one of the values elasticsearch.secretName or elasticsearch.connection when using a Elasticsearch"
-            in ex_ctx.exception.stderr.decode()
+            "You must set one of the values elasticsearch.secretName or elasticsearch.connection "
+            "when using a Elasticsearch" in ex_ctx.exception.stderr.decode()
         )
 
     def test_should_raise_error_when_conflicting_options(self):
