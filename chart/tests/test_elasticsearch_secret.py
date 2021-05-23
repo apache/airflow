@@ -24,7 +24,6 @@ from tests.helm_template_generator import render_chart
 
 
 class ElasticsearchSecretTest(unittest.TestCase):
-
     def _get_connection(self, values: dict) -> str:
         docs = render_chart(
             values=values,
@@ -34,15 +33,17 @@ class ElasticsearchSecretTest(unittest.TestCase):
         return base64.b64decode(encoded_connection).decode()
 
     def test_should_correctly_handle_password_with_special_characters(self):
-        connection = self._get_connection({
-            "elasticsearch": {
-                "connection": {
-                    "user": "username!@#$%%^&*()",
-                    "pass": "password!@#$%%^&*()",
-                    "host": "elastichostname",
+        connection = self._get_connection(
+            {
+                "elasticsearch": {
+                    "connection": {
+                        "user": "username!@#$%%^&*()",
+                        "pass": "password!@#$%%^&*()",
+                        "host": "elastichostname",
+                    }
                 }
             }
-        })
+        )
 
         assert (
             "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@elastichostname:80"
