@@ -27,7 +27,7 @@ and autoscaling options that Kubernetes provides.
 Helm Chart for Kubernetes
 =========================
 
-We maintain :doc:`official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment.
+We maintain :doc:`official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment. The Helm Chart uses :doc:`official Docker image and Dockerfile <docker-stack:index>` that is also maintained and released by the community.
 
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
