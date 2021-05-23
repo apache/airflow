@@ -121,5 +121,5 @@ class MetadataConnectionSecretTest(unittest.TestCase):
 
         # sslmode is only added for postgresql
         assert (
-            "postgresql://username%40123123:password%40%21@somehost:7777/somedb?sslmode=disable" == connection
+            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/somedb?sslmode=disable" == connection
         )
