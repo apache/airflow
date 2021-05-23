@@ -44,7 +44,6 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
     """
     A utility to manage waiters for AWS batch services.
 
-    Examples:
     .. code-block:: python
 
         import random
