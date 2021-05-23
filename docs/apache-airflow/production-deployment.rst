@@ -124,7 +124,7 @@ Helm Chart for Kubernetes
 =========================
 
 `The Helm <https://helm.sh/>`__ provides a simple mechanism to deploy software to a Kubernetes cluster. We maintain
-:doc:`official Helm chart <helm-chart:index>` for Airflow that help you define, install, and upgrade deployment.
+:doc:`official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment.
 
 .. _production-deployment:kerberos:
 
