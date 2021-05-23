@@ -60,6 +60,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``black``                             Runs Black (the uncompromising Python code formatter)
 ----------------------------------- ---------------------------------------------------------------- ------------
+``blacken-docs``                      Run black on python code blocks in documentation files
+----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for mypy, pylint, flake8                                *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``      Regenerates the JSON file with cross-provider dependencies
@@ -334,6 +336,7 @@ These are guidelines for fixing errors reported by pylint:
 
 -   If there is a single line where you need to disable a particular error,
     consider adding a comment to the line that causes the problem. For example:
+
 
 .. code-block:: python
 

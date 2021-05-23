@@ -83,6 +83,7 @@ base-operator
 bats-tests
 bats-in-container-tests
 black
+blacken-docs
 build
 build-providers-dependencies
 check-apache-license

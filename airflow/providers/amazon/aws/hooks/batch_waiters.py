@@ -158,7 +158,8 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
         The ``.waiter_model`` is combined with the ``.client`` to get a specific waiter and
         the properties of that waiter can be modified without any accidental impact on the
         generation of new waiters from the ``.waiter_model``, e.g.
-        .. code-block::
+
+        .. code-block:: python
 
             waiters.get_waiter("JobExists").config.delay  # -> 5
             waiter = waiters.get_waiter("JobExists")  # a new waiter object
@@ -166,9 +167,11 @@ class AwsBatchWaitersHook(AwsBatchClientHook):
             waiters.get_waiter("JobExists").config.delay  # -> 5 as defined by waiter_model
 
         To use a specific waiter, update the config and call the `wait()` method for jobId, e.g.
-        .. code-block::
+
+        .. code-block:: python
 
             import random
+
             waiter = waiters.get_waiter("JobExists")  # a new waiter object
             waiter.config.delay = random.uniform(1, 10)  # seconds
             waiter.config.max_attempts = 10

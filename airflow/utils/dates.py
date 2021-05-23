@@ -50,11 +50,17 @@ def date_range(
         >>> from airflow.utils.dates import datterange
         >>> from datetime import datetime, timedelta
         >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
-        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2016, 1, 2, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2016, 1, 3, 0, 0, tzinfo=Timezone('UTC'))]
+        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 2, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 3, 0, 0, tzinfo=Timezone('UTC'))]
         >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta="0 0 * * *")
-        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2016, 1, 2, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2016, 1, 3, 0, 0, tzinfo=Timezone('UTC'))]
+        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 2, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 3, 0, 0, tzinfo=Timezone('UTC'))]
         >>> date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
-        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2016, 2, 1, 0, 0, tzinfo=Timezone('UTC')), datetime.datetime(2016, 3, 1, 0, 0, tzinfo=Timezone('UTC'))]
+        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 2, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 3, 1, 0, 0, tzinfo=Timezone('UTC'))]
 
     :param start_date: anchor date to start the series from
     :type start_date: datetime.datetime

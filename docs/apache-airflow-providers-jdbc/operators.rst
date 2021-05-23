@@ -36,7 +36,7 @@ To use this operator you need:
   * Install the python module jaydebeapi:
     .. code-block:: bash
 
-      pip instaall apache-airflow[jdbc]
+        pip instaall apache-airflow[jdbc]
 
 
   * Install a `JVM <https://adoptopenjdk.net/installation.html>`_ and
