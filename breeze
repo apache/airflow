@@ -3559,7 +3559,7 @@ function breeze::run_breeze_command() {
         ;;
     perform_prepare_provider_documentation)
         docker_engine_resources::check_all_resources
-        runs::run_prepare_provider_documentation_interactively "${@}"
+        runs::run_prepare_provider_documentation "${@}"
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then

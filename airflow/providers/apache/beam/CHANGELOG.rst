@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename the main branch of the Airflow repo to be main (#16149)``
+   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+
 2.0.0
 .....
 

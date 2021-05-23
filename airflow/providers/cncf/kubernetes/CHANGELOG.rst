@@ -19,15 +19,29 @@
 Changelog
 ---------
 
-
-1.2.1
+2.0.0
 .....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+* ``Save pod name to xcom for KubernetesPodOperator (#15755)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Remove image_pull_policy 'IfNotPresent' default as k8s already defaults to 'Always' if :latest tag is specified, or 'IfNotPresent' otherwise (#15388)``
-* ``Remove service_account_name 'default' default as k8s already defaults to 'default' if not set (#15388)``
+* ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
+* ``Bug Pod Template File Values Ignored (#16095)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 
 1.2.0
 .....
