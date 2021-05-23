@@ -2375,11 +2375,12 @@ class DagContext:
     .. code-block:: python
 
         with DAG(
-            dag_id='example_dag',
+            dag_id="example_dag",
             default_args=default_args,
-            schedule_interval='0 0 * * *',
-            dagrun_timeout=timedelta(minutes=60)
+            schedule_interval="0 0 * * *",
+            dagrun_timeout=timedelta(minutes=60),
         ) as dag:
+            ...
 
     If you do this the context stores the DAG and whenever new task is created, it will use
     such stored DAG as the parent DAG.

@@ -333,18 +333,26 @@ The old syntax of passing `context` as a dictionary will continue to work with t
 
 ```python
 def execution_date_fn(execution_date, ctx):
+    ...
 ```
 
 `execution_date_fn` can take in any number of keyword arguments available in the task context dictionary. The following forms of `execution_date_fn` are all supported:
 
 ```python
 def execution_date_fn(dt):
+    ...
+
 
 def execution_date_fn(execution_date):
+    ...
+
 
 def execution_date_fn(execution_date, ds_nodash):
+    ...
+
 
 def execution_date_fn(execution_date, ds_nodash, dag):
+    ...
 ```
 
 ### The default value for `[webserver] cookie_samesite` has been changed to `Lax`
@@ -535,6 +543,7 @@ If your plugin looked like this and was available through the `test_plugin` path
 def my_stat_name_handler(stat):
     return stat
 
+
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
     stat_name_handler = my_stat_name_handler
@@ -710,8 +719,8 @@ If want to use them, or your custom hook inherit them, please use ``airflow.hook
 Previously, you could assign a task to a DAG as follows:
 
 ```python
-dag = DAG('my_dag')
-dummy = DummyOperator(task_id='dummy')
+dag = DAG("my_dag")
+dummy = DummyOperator(task_id="dummy")
 
 dag >> dummy
 ```
@@ -719,8 +728,8 @@ dag >> dummy
 This is no longer supported. Instead, we recommend using the DAG as context manager:
 
 ```python
-with DAG('my_dag') as dag:
-    dummy = DummyOperator(task_id='dummy')
+with DAG("my_dag") as dag:
+    dummy = DummyOperator(task_id="dummy")
 ```
 
 #### Removed deprecated import mechanism
@@ -805,7 +814,8 @@ As a result, the `python_callable` argument was removed. PR: https://github.com/
 def myfunc(execution_date):
     print(execution_date)
 
-python_operator = PythonOperator(task_id='mytask', python_callable=myfunc, dag=dag)
+
+python_operator = PythonOperator(task_id="mytask", python_callable=myfunc, dag=dag)
 ```
 
 Notice you don't have to set provide_context=True, variables from the task context are now automatically detected and provided.
@@ -816,7 +826,8 @@ All context variables can still be provided with a double-asterisk argument:
 def myfunc(**context):
     print(context)  # all variables will be provided to context
 
-python_operator = PythonOperator(task_id='mytask', python_callable=myfunc)
+
+python_operator = PythonOperator(task_id="mytask", python_callable=myfunc)
 ```
 
 The task context variable names are reserved names in the callable function, hence a clash with `op_args` and `op_kwargs` results in an exception:
@@ -825,9 +836,11 @@ The task context variable names are reserved names in the callable function, hen
 def myfunc(dag):
     # raises a ValueError because "dag" is a reserved name
     # valid signature example: myfunc(mydag)
+    print("output")
+
 
 python_operator = PythonOperator(
-    task_id='mytask',
+    task_id="mytask",
     op_args=[1],
     python_callable=myfunc,
 )
@@ -969,28 +982,34 @@ This change is caused by adding `run_type` column to `DagRun`.
 Previous signature:
 
 ```python
-def create_dagrun(self,
-                  run_id,
-                  state,
-                  execution_date=None,
-                  start_date=None,
-                  external_trigger=False,
-                  conf=None,
-                  session=None):
+def create_dagrun(
+    self,
+    run_id,
+    state,
+    execution_date=None,
+    start_date=None,
+    external_trigger=False,
+    conf=None,
+    session=None,
+):
+    ...
 ```
 
 current:
 
 ```python
-def create_dagrun(self,
-                  state,
-                  execution_date=None,
-                  run_id=None,
-                  start_date=None,
-                  external_trigger=False,
-                  conf=None,
-                  run_type=None,
-                  session=None):
+def create_dagrun(
+    self,
+    state,
+    execution_date=None,
+    run_id=None,
+    start_date=None,
+    external_trigger=False,
+    conf=None,
+    run_type=None,
+    session=None,
+):
+    ...
 ```
 
 If user provides `run_id` then the `run_type` will be derived from it by checking prefix, allowed types
@@ -1015,7 +1034,7 @@ Previously, there were defined in various places, example as `ID_PREFIX` class v
 
 Was:
 
-```python
+```pycon
 >> from airflow.models.dagrun import DagRun
 >> DagRun.ID_PREFIX
 scheduled__
@@ -1023,7 +1042,7 @@ scheduled__
 
 Replaced by:
 
-```python
+```pycon
 >> from airflow.utils.types import DagRunType
 >> DagRunType.SCHEDULED.value
 scheduled
@@ -1084,8 +1103,9 @@ from airflow.utils.log.logging_mixin import StreamLogWriter
 
 logger = logging.getLogger("custom-logger")
 
-with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
-        redirect_stderr(StreamLogWriter(logger, logging.WARN)):
+with redirect_stdout(StreamLogWriter(logger, logging.INFO)), redirect_stderr(
+    StreamLogWriter(logger, logging.WARN)
+):
     print("I Love Airflow")
 ```
 
@@ -1107,23 +1127,25 @@ are deprecated and will be removed in future versions.
 **Previous signature**:
 
 ```python
-DagBag(
+def __init__(
     dag_folder=None,
-    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-    store_serialized_dags=False
+    include_examples=conf.getboolean("core", "LOAD_EXAMPLES"),
+    safe_mode=conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
+    store_serialized_dags=False,
 ):
+    ...
 ```
 
 **current**:
 
 ```python
-DagBag(
+def __init__(
     dag_folder=None,
-    include_examples=conf.getboolean('core', 'LOAD_EXAMPLES'),
-    safe_mode=conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE'),
-    read_dags_from_db=False
+    include_examples=conf.getboolean("core", "LOAD_EXAMPLES"),
+    safe_mode=conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
+    read_dags_from_db=False,
 ):
+    ...
 ```
 
 If you were using positional arguments, it requires no change but if you were using keyword
@@ -1616,13 +1638,23 @@ We changed signature of BigQueryGetDatasetTablesOperator.
 Before:
 
 ```python
-BigQueryGetDatasetTablesOperator(dataset_id: str, dataset_resource: dict, ...)
+def __init__(
+    dataset_id: str,
+    dataset_resource: dict,
+    # ...
+):
+    ...
 ```
 
 After:
 
 ```python
-BigQueryGetDatasetTablesOperator(dataset_resource: dict, dataset_id: Optional[str] = None, ...)
+def __init__(
+    dataset_resource: dict,
+    dataset_id: Optional[str] = None,
+    # ...
+):
+    ...
 ```
 
 ### Changes in `amazon` provider package
@@ -1783,7 +1815,7 @@ For example:
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
 with CloudantHook().get_conn() as cloudant_session:
-    database = cloudant_session['database_name']
+    database = cloudant_session["database_name"]
 ```
 
 See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
@@ -2091,8 +2123,8 @@ back was ``None``. This will now return an empty string (`'''`)
 Example:
 
 ```python
->> Variable.set('test_key', '')
->> Variable.get('test_key')
+Variable.set("test_key", "")
+Variable.get("test_key")
 ```
 
 The above code returned `None` previously, now it will return `''`.
@@ -2158,8 +2190,8 @@ the `attr` argument is no longer required (or accepted).
 In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
 
 ```python
-result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
-...
+result = self.render_template("myattr", self.myattr, context)  # Pre-1.10.6 call
+# ...
 result = self.render_template(self.myattr, context)  # Post-1.10.6 call
 ```
 
@@ -2248,6 +2280,7 @@ Old signature:
 
 ```python
 def get_task_instances(self, session, start_date=None, end_date=None):
+    ...
 ```
 
 New signature:
@@ -2255,6 +2288,7 @@ New signature:
 ```python
 @provide_session
 def get_task_instances(self, start_date=None, end_date=None, session=None):
+    ...
 ```
 
 #### For `DAG`
@@ -2262,16 +2296,16 @@ def get_task_instances(self, start_date=None, end_date=None, session=None):
 Old signature:
 
 ```python
-def get_task_instances(
-    self, session, start_date=None, end_date=None, state=None):
+def get_task_instances(self, session, start_date=None, end_date=None, state=None):
+    ...
 ```
 
 New signature:
 
 ```python
 @provide_session
-def get_task_instances(
-    self, start_date=None, end_date=None, state=None, session=None):
+def get_task_instances(self, start_date=None, end_date=None, state=None, session=None):
+    ...
 ```
 
 In either case, it is necessary to rewrite calls to the `get_task_instances` method that currently provide the `session` positional argument. New calls to this method look like:
@@ -2403,23 +2437,25 @@ Old signature:
 
 ```python
 def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
+    ...
 ```
 
 New signature:
 
 ```python
 def create_transfer_job(self, body):
+    ...
 ```
 
 It is necessary to rewrite calls to method. The new call looks like this:
 
 ```python
 body = {
-  'status': 'ENABLED',
-  'projectId': project_id,
-  'description': description,
-  'transferSpec': transfer_spec,
-  'schedule': schedule,
+    "status": "ENABLED",
+    "projectId": project_id,
+    "description": description,
+    "transferSpec": transfer_spec,
+    "schedule": schedule,
 }
 gct_hook.create_transfer_job(body)
 ```
@@ -2434,12 +2470,16 @@ Old signature:
 
 ```python
 def wait_for_transfer_job(self, job):
+    ...
 ```
 
 New signature:
 
 ```python
-def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
+def wait_for_transfer_job(
+    self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)
+):
+    ...
 ```
 
 The behavior of `wait_for_transfer_job` has changed:
@@ -2532,7 +2572,7 @@ previously you had this in your user class
 
 ```python
 def is_active(self):
-  return self.active
+    return self.active
 ```
 
 then you need to change it like this
@@ -2540,7 +2580,7 @@ then you need to change it like this
 ```python
 @property
 def is_active(self):
-  return self.active
+    return self.active
 ```
 
 ### Support autodetected schemas to GoogleCloudStorageToBigQueryOperator
@@ -2553,24 +2593,27 @@ define a schema_fields:
 
 ```python
 gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-  ...
-  schema_fields={...})
+    # ...
+    schema_fields={...}
+)
 ```
 
 or define a schema_object:
 
 ```python
 gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-  ...
-  schema_object='path/to/schema/object')
+    # ...
+    schema_object="path/to/schema/object"
+)
 ```
 
 or enabled autodetect of schema:
 
 ```python
 gcs_to_bq.GoogleCloudStorageToBigQueryOperator(
-  ...
-  autodetect=True)
+    # ...
+    autodetect=True
+)
 ```
 
 ## Airflow 1.10.1

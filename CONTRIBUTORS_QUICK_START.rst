@@ -511,10 +511,11 @@ Setting up Debug
 
   .. code-block:: python
 
-    if __name__ == '__main__':
-      from airflow.utils.state import State
-      dag.clear(dag_run_state=State.NONE)
-      dag.run()
+    if __name__ == "__main__":
+        from airflow.utils.state import State
+
+        dag.clear(dag_run_state=State.NONE)
+        dag.run()
 
 - Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
 

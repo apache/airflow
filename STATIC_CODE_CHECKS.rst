@@ -329,7 +329,7 @@ These are guidelines for fixing errors reported by pylint:
 
 .. code-block:: python
 
-    import airflow.*  # pylint: disable=wildcard-import
+    from airflow import *  # pylint: disable=wildcard-import
 
 
 -   If there is a single line where you need to disable a particular error,
@@ -337,7 +337,8 @@ These are guidelines for fixing errors reported by pylint:
 
 .. code-block:: python
 
-    def  MakeSummary(pcoll, metric_fn, metric_keys): # pylint: disable=invalid-name
+    def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
+        ...
 
 
 -   For multiple lines/block of code, to disable an error, you can surround the
@@ -346,10 +347,13 @@ These are guidelines for fixing errors reported by pylint:
 .. code-block:: python
 
     # pylint: disable=too-few-public-methods
-    class  LoginForm(Form):
+    class LoginForm(Form):
         """Form for the user"""
-        username = StringField('Username', [InputRequired()])
-        password = PasswordField('Password', [InputRequired()])
+
+        username = StringField("Username", [InputRequired()])
+        password = PasswordField("Password", [InputRequired()])
+
+
     # pylint: enable=too-few-public-methods
 
 

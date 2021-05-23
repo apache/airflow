@@ -751,11 +751,12 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     .. code-block:: python
 
        s3_to_gcs_transfer_op = S3ToGoogleCloudStorageTransferOperator(
-            task_id='s3_to_gcs_transfer_example',
-            s3_bucket='my-s3-bucket',
-            project_id='my-gcp-project',
-            gcs_bucket='my-gcs-bucket',
-            dag=my_dag)
+           task_id="s3_to_gcs_transfer_example",
+           s3_bucket="my-s3-bucket",
+           project_id="my-gcp-project",
+           gcs_bucket="my-gcs-bucket",
+           dag=my_dag,
+       )
 
     :param s3_bucket: The S3 bucket where to find the objects. (templated)
     :type s3_bucket: str
@@ -921,11 +922,12 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     .. code-block:: python
 
        gcs_to_gcs_transfer_op = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
-            task_id='gcs_to_gcs_transfer_example',
-            source_bucket='my-source-bucket',
-            destination_bucket='my-destination-bucket',
-            project_id='my-gcp-project',
-            dag=my_dag)
+           task_id="gcs_to_gcs_transfer_example",
+           source_bucket="my-source-bucket",
+           destination_bucket="my-destination-bucket",
+           project_id="my-gcp-project",
+           dag=my_dag,
+       )
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)

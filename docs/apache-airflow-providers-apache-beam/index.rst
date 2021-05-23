@@ -146,17 +146,19 @@ This is the extra for the ``google`` provider:
 
 .. code-block:: python
 
-        extras_require={
-            ...
-            'apache.beam': ['apache-airflow-providers-apache-beam', 'apache-beam[gcp]'],
-            ....
-        },
+        extras_require = (
+            {
+                # ...
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                # ....
+            },
+        )
 
 And likewise this is the extra for the ``apache.beam`` provider:
 
 .. code-block:: python
 
-        extras_require={'google': ['apache-airflow-providers-google', 'apache-beam[gcp]']},
+        extras_require = ({"google": ["apache-airflow-providers-google", "apache-beam[gcp]"]},)
 
 You can still run this with PIP version <= 20.2.4 and go back to the previous behaviour:
 

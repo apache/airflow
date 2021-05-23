@@ -196,15 +196,15 @@ any dependency add a empty list.
   .. code-block:: python
 
       PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-          ...
-          'microsoft.winrm': winrm,
-          'mongo': mongo,
-          'mysql': mysql,
-          'neo4j': neo4j,
-          '<NEW_PROVIDER>': [],
-          'odbc': odbc,
-          ...
-          }
+          # ...
+          "microsoft.winrm": winrm,
+          "mongo": mongo,
+          "mysql": mysql,
+          "neo4j": neo4j,
+          "<NEW_PROVIDER>": [],
+          "odbc": odbc,
+          # ...
+      }
 
 In the ``CONTRIBUTING.rst`` adds:
 

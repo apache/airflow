@@ -159,6 +159,12 @@ repos:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
+  - repo: https://github.com/asottile/blacken-docs
+    rev: v1.10.0
+    hooks:
+      - id: blacken-docs
+        alias: black
+        additional_dependencies: [black==21.4b2]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0
     hooks:

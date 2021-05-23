@@ -101,21 +101,24 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
 
         def get_metric_fn_and_keys():
             import math  # imports should be outside of the metric_fn below.
+
             def error_and_squared_error(inst):
-                label = float(inst['input_label'])
-                classes = float(inst['classes'])  # 0 or 1
-                err = abs(classes-label)
-                squared_err = math.pow(classes-label, 2)
+                label = float(inst["input_label"])
+                classes = float(inst["classes"])  # 0 or 1
+                err = abs(classes - label)
+                squared_err = math.pow(classes - label, 2)
                 return (err, squared_err)  # returns a tuple.
-            return error_and_squared_error, ['err', 'mse']  # key order must match.
+
+            return error_and_squared_error, ["err", "mse"]  # key order must match.
+
 
         def validate_err_and_count(summary):
-            if summary['err'] > 0.2:
-                raise ValueError('Too high err>0.2; summary=%s' % summary)
-            if summary['mse'] > 0.05:
-                raise ValueError('Too high mse>0.05; summary=%s' % summary)
-            if summary['count'] < 1000:
-                raise ValueError('Too few instances<1000; summary=%s' % summary)
+            if summary["err"] > 0.2:
+                raise ValueError("Too high err>0.2; summary=%s" % summary)
+            if summary["mse"] > 0.05:
+                raise ValueError("Too high mse>0.05; summary=%s" % summary)
+            if summary["count"] < 1000:
+                raise ValueError("Too few instances<1000; summary=%s" % summary)
             return summary
 
     For the details on the other BatchPrediction-related arguments (project_id,
