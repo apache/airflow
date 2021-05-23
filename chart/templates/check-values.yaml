@@ -50,7 +50,7 @@ The sole purpose of this yaml file is it to check the values file is consistent 
 
   {{- end }}
 
-  {{- if and .Values.elasticsearch.enabled  }}
+  {{- if .Values.elasticsearch.enabled  }}
     {{- if and .Values.elasticsearch.secretName .Values.elasticsearch.connection }}
       {{ required "You must not set both values elasticsearch.secretName and elasticsearch.connection" nil }}
     {{- end }}
