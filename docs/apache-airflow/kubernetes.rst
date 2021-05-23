@@ -20,6 +20,15 @@
 Kubernetes
 ----------
 
+Apache Airflow aims to be a very Kubernetes-friendly project, and many users run Airflow
+from within a Kubernetes cluster in order to take advantage of the increased stability
+and autoscaling options that Kubernetes provides.
+
+Helm Chart for Kubernetes
+=========================
+
+We maintain :doc:`official Helm chart <helm-chart:index>` for Airflow that help you define, install, and upgrade deployment.
+
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
