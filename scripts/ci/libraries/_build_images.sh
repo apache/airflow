@@ -963,7 +963,7 @@ function build_images::build_prod_images() {
 function build_images::wait_for_image_tag() {
 
     local image_name="${1}"
-    local image_suffix=${2}
+    local image_suffix="${2}"
     shift 2
 
     local image_to_wait_for="${image_name}${image_suffix}"
