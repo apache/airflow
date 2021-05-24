@@ -76,7 +76,6 @@ $(document).ready(function () {
   const testConnBtn = $('<button id="test-connection" type="button" class="btn btn-sm btn-primary" ' +
     'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>');
 
-  // eslint-disable-next-line no-undef
   if (!restApiEnabled) {
     $(testConnBtn).addClass('disabled')
       .attr('title', 'Airflow REST APIs have been disabled. '
