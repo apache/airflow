@@ -82,6 +82,10 @@ but identifies logs based on labels.  For this reason, we decided to delete this
 If you need to read logs, you can use `airflow.utils.log.log_reader.TaskLogReader` class, which does not have
 the above restrictions.
 
+### If a sensor times out, it will not retry
+
+Previously, a sensor is retried when it times out until the number of ``retries`` are exhausted. So the effective timeout of a sensor is ``timeout * (retries + 1)``. This behaviour is now changed. A sensor will immediately fail without retrying if ``timeout`` is reached. If it's desirable to let the sensor continue running for longer time, set a larger ``timeout`` instead.
+
 ### Default Task Pools Slots can be set using ``[core] default_pool_task_slot_count``
 
 By default tasks are running in `default_pool`. `default_pool` is initialized with `128` slots and user can change the
@@ -317,10 +321,6 @@ It is still possible (but not required) to "register" hooks in plugins. This is 
 See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
 
 ### Adding Operators and Sensors via plugins is no longer supported
-
-### If a sensor times out, it will not retry
-
-Previously, a sensor is retried when it times out until the number of ``retries`` are exhausted. So the effective timeout of a sensor is ``timeout * (retries + 1)``. This behaviour is now changed. A sensor will immediately fail without retrying if ``timeout`` is reached. If it's desirable to let the sensor continue running for longer time, set a larger ``timeout`` instead.
 
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
