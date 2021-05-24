@@ -53,7 +53,6 @@ def init_jinja_globals(app):
 
     git_version = get_airflow_git_version()
 
-
     def prepare_jinja_globals():
         extra_globals = {
             'server_timezone': server_timezone,
