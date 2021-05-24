@@ -934,22 +934,24 @@ class DAG(LoggingMixin):
         return query.scalar()
 
     @provide_session
-    def get_dagrun(self, execution_date, session=None):
+    def get_dagrun(self, execution_date: str = None, run_id: str = None, session=None):
         """
-        Returns the dag run for a given execution date if it exists, otherwise
+        Returns the dag run for a given execution date or run_id if it exists, otherwise
         none.
 
         :param execution_date: The execution date of the DagRun to find.
+        :param run_id: The run_id of the DagRun to find.
         :param session:
         :return: The DagRun if found, otherwise None.
         """
-        dagrun = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
-            .first()
-        )
-
-        return dagrun
+        if not (execution_date or run_id):
+            raise AirflowException("You must provide either the execution_date or the run_id")
+        query = session.query(DagRun)
+        if execution_date:
+            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
+        if run_id:
+            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.run_id == run_id)
+        return query.first()
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=None):

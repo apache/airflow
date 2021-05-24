@@ -45,6 +45,17 @@ from airflow.utils.cli import (
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
+from airflow.utils.state import State
+
+
+def _get_ti(dag, task_id, run_id):
+    task = dag.get_task(task_id=task_id)
+    dag_run = dag.get_dagrun(run_id=run_id)
+    if not dag_run:
+        dag_run = dag.create_dagrun(state=State.NONE, run_id=run_id)
+    ti = dag_run.get_task_instance(task_id)
+    ti.task = task
+    return ti
 
 
 def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
@@ -222,8 +233,7 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
 
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(dag, args.task_id, args.dag_run_id)
     ti.refresh_from_db()
     ti.init_run_context(raw=args.raw)
 
@@ -251,8 +261,7 @@ def task_failed_deps(args):
     to have succeeded, but found 1 non-success(es).
     """
     dag = get_dag(args.subdir, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(dag, args.task_id, args.dag_run_id)
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -274,8 +283,7 @@ def task_state(args):
     success
     """
     dag = get_dag(args.subdir, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(dag, args.task_id, args.dag_run_id)
     print(ti.current_state())
 
 
@@ -384,7 +392,7 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(dag, task_id=args.task_id, run_id=args.dag_run_id)
 
     try:
         if args.dry_run:
@@ -409,8 +417,8 @@ def task_test(args, dag=None):
 def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(dag, task_id=args.task_id, run_id=args.dag_run_id)
+    task = ti.task
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(
