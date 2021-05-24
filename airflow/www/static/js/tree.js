@@ -27,6 +27,7 @@ import getMetaValue from './meta_value';
 
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
+const treeDataUrl = getMetaValue('tree_data');
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -409,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function handleRefresh() {
     $('#loading-dots').css('display', 'inline-block');
-    $.get(`/object/tree_data?dag_id=${dagId}`)
+    $.get(`${treeDataUrl}?dag_id=${dagId}`)
       .done(
         (runs) => {
           const newData = {
