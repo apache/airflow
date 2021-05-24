@@ -20,6 +20,10 @@
  * Created by janomar on 23/07/15.
  */
 
+import getMetaValue from './meta_value';
+
+const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
+
 function decode(str) {
   return new DOMParser().parseFromString(str, "text/html").documentElement.textContent
 }
@@ -178,7 +182,7 @@ $(document).ready(function () {
    * Displays the Flask style alert on UI via JS
    *
    * @param {boolean} status - true for success, false for error
-   * @param {strinf} message - The text message to show in alert box
+   * @param {string} message - The text message to show in alert box
    */
   function displayAlert(status, message) {
     const alertClass = status ? 'alert-success' : 'alert-error';

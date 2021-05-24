@@ -59,7 +59,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert templates[0].name == 'airflow/redoc.html'
     assert templates[0].local_context == {
         'openapi_spec_url': '/api/v1/openapi.yaml',
-        'rest_api_enabled': True
+        'rest_api_enabled': True,
     }
 
 

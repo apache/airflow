@@ -19,12 +19,13 @@
 
 {% extends 'appbuilder/general/model/add.html' %}
 
+{% block head_css %}
+  {{ super() }}
+  <meta name="rest_api_enabled" content="{{ rest_api_enabled }}">
+{% endblock %}
+
 {% block tail %}
   {{ super() }}
-  <script>
-    // eslint-disable-next-line no-unused-vars
-    const restApiEnabled = '{{ rest_api_enabled }}' === 'True';
-  </script>
   <script src="{{ url_for_asset('connectionForm.js') }}"></script>
   <script id="field_behaviours" type="text/json">{{ widgets["add"].field_behaviours }}</script>
 {% endblock %}
