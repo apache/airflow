@@ -51,7 +51,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -60,7 +60,7 @@ class TestDataprocJobSensor(unittest.TestCase):
         ret = sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
         assert ret
 
@@ -72,7 +72,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -83,7 +83,7 @@ class TestDataprocJobSensor(unittest.TestCase):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -94,7 +94,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -103,7 +103,7 @@ class TestDataprocJobSensor(unittest.TestCase):
         ret = sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
         assert not ret
 
@@ -115,7 +115,7 @@ class TestDataprocJobSensor(unittest.TestCase):
 
         sensor = DataprocJobSensor(
             task_id=TASK_ID,
-            location=GCP_LOCATION,
+            region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             dataproc_job_id=job_id,
             gcp_conn_id=GCP_CONN_ID,
@@ -125,5 +125,5 @@ class TestDataprocJobSensor(unittest.TestCase):
             sensor.poke(context={})
 
         mock_hook.return_value.get_job.assert_called_once_with(
-            job_id=job_id, location=GCP_LOCATION, project_id=GCP_PROJECT
+            job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
