@@ -13,7 +13,7 @@ Flask-OpenID==1.2.5
 Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.14.3
 Flask==1.1.4
-GitPython==3.1.14
+GitPython==3.1.17
 HeapDict==1.0.1
 JPype1==1.2.1
 JayDeBeApi==1.2.3
@@ -163,7 +163,7 @@ cattrs==1.6.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
-cfgv==3.2.0
+cfgv==3.3.0
 cgroupspy==0.1.6
 chardet==3.0.4
 click==7.1.2
@@ -266,7 +266,7 @@ httplib2==0.17.4
 httpx==0.18.1
 humanize==3.5.0
 hvac==0.10.14
-identify==2.2.4
+identify==2.2.5
 idna==2.10
 imagesize==1.2.0
 importlib-metadata==1.7.0
@@ -308,9 +308,9 @@ matplotlib-inline==0.1.2
 mccabe==0.6.1
 mongomock==3.22.1
 monotonic==1.6
-more-itertools==8.7.0
+more-itertools==8.8.0
 moreorless==0.4.0
-moto==2.0.6
+moto==2.0.8
 msal-extensions==0.3.0
 msal==1.12.0
 msgpack==1.0.2
@@ -355,7 +355,7 @@ pluggy==0.13.1
 ply==3.11
 plyvel==1.3.0
 portalocker==1.7.1
-pre-commit==2.12.1
+pre-commit==2.13.0
 presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
@@ -390,7 +390,7 @@ pyparsing==2.4.7
 pyrsistent==0.17.3
 pysftp==0.2.9
 pyspark==3.1.1
-pytest-cov==2.11.1
+pytest-cov==2.12.0
 pytest-forked==1.3.0
 pytest-httpx==0.12.0
 pytest-instafail==0.4.2
@@ -455,12 +455,12 @@ sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-dotnetdomain==0.4
 sphinxcontrib-golangdomain==0.2.0.dev0
-sphinxcontrib-htmlhelp==1.0.3
+sphinxcontrib-htmlhelp==2.0.0
 sphinxcontrib-httpdomain==1.7.0
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
-sphinxcontrib-serializinghtml==1.1.4
+sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==5.2.1
 spython==0.1.13
 sshtunnel==0.1.5
