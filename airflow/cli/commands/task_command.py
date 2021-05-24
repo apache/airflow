@@ -57,8 +57,6 @@ def _get_ti(task, exec_date_or_run_id):
     if not dag_run:
         try:
             execution_date = timezone.parse(exec_date_or_run_id)
-            # print("Warning: execution_date will be removed in
-            # tasks command in the future. Please use DagRun.run_id")
             ti = TaskInstance(task, execution_date)
             ti.refresh_from_db()
             return ti
@@ -66,7 +64,6 @@ def _get_ti(task, exec_date_or_run_id):
             raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
     ti = dag_run.get_task_instance(task.task_id)
     ti.task = task
-    ti.refresh_from_db()
     return ti
 
 
