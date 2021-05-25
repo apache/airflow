@@ -67,8 +67,7 @@ we can override values of interest in the ``env`` section of the ``values.yaml``
        value: "value_2"
 
 
-You can also utilize the ``extraEnv`` and ``extraEnvFrom`` to set more possibly "templatable" values for your airflow
-deployment.
+You can also utilize ``extraEnv`` and ``extraEnvFrom`` if you need the name or value to be templated.
 
 .. code-block:: yaml
 
