@@ -1199,6 +1199,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the create user job pod.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1231,6 +1236,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",

@@ -475,6 +475,9 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Annotations on the create user job pod
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -488,6 +491,8 @@ createUserJob:
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  # Annotations on the database migration pod
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:
