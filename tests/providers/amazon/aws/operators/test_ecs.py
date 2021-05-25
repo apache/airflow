@@ -305,7 +305,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.describe_task_definition.assert_called_once_with('t')
 
         client_mock.list_tasks.assert_called_once_with(
-            cluster='c', launchType=launch_type, desiredStatus='RUNNING', family='f'
+            cluster='c', desiredStatus='RUNNING', family='f'
         )
 
         start_mock.assert_not_called()
