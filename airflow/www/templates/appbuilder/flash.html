@@ -64,11 +64,11 @@
 
         <div id="alerts" class="panel-collapse collapse">
           <div class="panel-body">
-            <div class="alert alert-error">
-              {% for category, m in dag_import_errors %}
+            {% for category, m in dag_import_errors %}
+              <div class="alert alert-error">
                 <div class="dag-import-error" onclick="toggleErrorMessage.call(this)">{{ m }}</div>
-              {% endfor %}
-            </div>
+              </div>
+            {% endfor %}
           </div>
         </div>
       </div>
