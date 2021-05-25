@@ -204,11 +204,11 @@ function push_pull_remove_images::push_ci_images_to_dockerhub() {
 
 
 # Push image to GitHub registry with the push tag:
-#     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
-#     "latest"           - in case of push builds
+#     "${COMMIT_SHA}" - in case of pull-request triggered 'workflow_run' builds
+#     "latest"        - in case of push builds
 # Push python image to GitHub registry with the push tag:
-#     X.Y-slim-buster-"${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
-#     X.Y-slim-buster                    - in case of push builds
+#     X.Y-slim-buster-"${COMMIT_SHA}" - in case of pull-request triggered 'workflow_run' builds
+#     X.Y-slim-buster                 - in case of push builds
 function push_pull_remove_images::push_python_image_to_github() {
     local python_tag_suffix=""
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
@@ -262,8 +262,8 @@ function push_pull_remove_images::push_prod_images_to_dockerhub () {
 # Pushes PROD image to and their tags to registry in GitHub
 # Push image to GitHub registry with chosen push tag
 # the PUSH tag might be:
-#     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
-#     "latest"           - in case of push builds
+#     "${COMMIT_SHA}" - in case of pull-request triggered 'workflow_run' builds
+#     "latest"        - in case of push builds
 function push_pull_remove_images::push_prod_images_to_github () {
     local airflow_prod_tagged_image="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker_v tag "${AIRFLOW_PROD_IMAGE}" "${airflow_prod_tagged_image}"
