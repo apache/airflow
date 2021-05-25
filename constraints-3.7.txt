@@ -152,9 +152,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.5b1
 blinker==1.4
-boto3==1.17.79
+boto3==1.17.80
 boto==2.49.0
-botocore==1.20.79
+botocore==1.20.80
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
