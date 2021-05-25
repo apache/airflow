@@ -31,15 +31,7 @@ class TestSnowflakeHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock(rowcount=0)
-        self.cur2 = mock.MagicMock(rowcount=0)
-
-        self.cur.sfqid = 'uuid'
-        self.cur2.sfqid = 'uuid2'
-
         self.conn = conn = mock.MagicMock()
-        self.conn.cursor.return_value = self.cur
-        self.conn.execute_string.return_value = [self.cur, self.cur2]
 
         self.conn.login = 'user'
         self.conn.password = 'pw'
@@ -96,17 +88,26 @@ class TestSnowflakeHook(unittest.TestCase):
         assert uri_shouldbe == self.db_hook.get_uri()
 
     def test_single_element_list_calls_execute(self):
-        self.db_hook.run(['select * from table'])
-        self.cur.execute.assert_called()
+        cur = mock.MagicMock(rowcount=0)
+        self.conn.cursor.return_value = cur
+        mock_sql_statement = 'select * from table'
+        type(cur).sfqid = mock.PropertyMock(side_effect=['uuid', 'uuid'])
+
+        self.db_hook.run([mock_sql_statement])
+        cur.execute.assert_called_with(mock_sql_statement)
         assert self.db_hook.query_ids == ['uuid']
+        cur.close.assert_called()
 
-    def test_passed_string_calls_execute_string(self):
-        self.db_hook.run('select * from table; select * from table2')
+    def test_passed_string_splits_and_calls_execute(self):
+        cur = mock.MagicMock(rowcount=0)
+        self.conn.cursor.return_value = cur
+        mock_sql_statements = ['select * from table;', 'select * from table2']
+        type(cur).sfqid = mock.PropertyMock(side_effect=['uuid', 'uuid', 'uuid2', 'uuid2'])
 
+        self.db_hook.run(' '.join(mock_sql_statements))
+        cur.execute.assert_has_calls([mock.call(sql) for sql in mock_sql_statements])
         assert self.db_hook.query_ids == ['uuid', 'uuid2']
-        self.conn.execute_string.assert_called()
-        self.cur.close.assert_called()
-        self.cur2.close.assert_called()
+        cur.close.assert_called()
 
     def test_get_conn_params(self):
         conn_params_shouldbe = {
