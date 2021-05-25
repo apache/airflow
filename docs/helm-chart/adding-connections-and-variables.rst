@@ -17,7 +17,7 @@
 
 
 Adding Connections, Secrets and Environment Variables
-==================================================
+=====================================================
 
 You can programmatically add Connections, Secrets and Environment Variables to your
 airflow deployment using Helm chart.
