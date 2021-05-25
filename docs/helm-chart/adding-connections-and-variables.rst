@@ -53,7 +53,7 @@ Variables
 Airflow supports Variables which enable users to craft dynamic DAGs. You can set Variables in Airflow in three ways - UI,
 commandline, and within your DAG file. See :doc:`/howto/variable` for more.
 
-With Helm chart, you can also inject environment variables into airflow. For example, in a yaml file to
+With the Helm chart, you can also inject environment variables into Airflow. For example, in a yaml file to
 override values of interest in the ``env`` section of the ``values.yaml`` file.
 
 .. code-block:: yaml
