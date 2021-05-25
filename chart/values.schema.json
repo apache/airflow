@@ -2345,11 +2345,6 @@
                             "type": "boolean",
                             "default": false
                         },
-                        "excludeWebserver": {
-                            "description": "Disable Git sync on webserver as it is not needed when DAG Serialization is enabled.",
-                            "type": "boolean",
-                            "default": false
-                        },
                         "repo": {
                             "description": "Git repository.",
                             "type": "string",
