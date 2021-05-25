@@ -17,19 +17,21 @@
 
 
 Adding Connections, Variables and Environment Variables
-=====================================================
+=======================================================
 
 You can programmatically add Connections, Variables and arbitrary Environment Variables to your
 Airflow deployment using the Helm chart.
 
 
 Connections and Sensitive Environment Variables
------------------------
-Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml`` you can pass connection strings and sensitive environemt variables
-into Airflow using the Helm chart. To illustrate, lets create a yaml file to override values under these sections of the
-``values.yaml`` file.
+-----------------------------------------------
+Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml`` you can pass connection strings and sensitive
+environment variables into Airflow using the Helm chart. To illustrate, lets create a yaml file called ``override.yaml``
+to override values under these sections of the ``values.yaml`` file.
 
 .. code-block:: yaml
+
+   # override.yaml
 
    secret:
      - envName: "AIRFLOW_CONN_GCP"
@@ -39,7 +41,7 @@ into Airflow using the Helm chart. To illustrate, lets create a yaml file to ove
         secretName: "my-secret-name"
         secretKey: "my-secret-key"
 
-  extraSecrets:
+   extraSecrets:
      my-airflow-connections:
        data: |
          AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
@@ -53,8 +55,8 @@ Variables
 Airflow supports Variables which enable users to craft dynamic DAGs. You can set Variables in Airflow in three ways - UI,
 commandline, and within your DAG file. See :doc:`/howto/variable` for more.
 
-With the Helm chart, you can also inject environment variables into Airflow. For example, in a yaml file to
-override values of interest in the ``env`` section of the ``values.yaml`` file.
+With the Helm chart, you can also inject environment variables into Airflow. So in the example ``override.yaml`` file,
+we can override values of interest in the ``env`` section of the ``values.yaml`` file.
 
 .. code-block:: yaml
 
@@ -78,7 +80,7 @@ deployment.
    extraEnvFrom: |
      - configMapRef:
          name: '{{ .Release.Name }}-airflow-variables'
-         
+
    extraConfigMaps:
      '{{ .Release.Name }}-airflow-variables':
        data: |
