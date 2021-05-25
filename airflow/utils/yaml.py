@@ -30,7 +30,7 @@ import sys
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO, Union, cast
 
 if TYPE_CHECKING:
-    from yaml.error import MarkedYAMLError  # noqa
+    from yaml.error import MarkedYAMLError, YAMLError  # noqa
 
 
 def safe_load(stream: Union[bytes, str, BinaryIO, TextIO]) -> Any:
