@@ -50,7 +50,7 @@ into Airflow using Helm chart. To illustrate, lets create a yaml file to overrid
 
 Variables
 ---------
-Airflow supports Variables which enable users craft dynamic DAGs. You can set variables in Airflow in three ways - UI,
+Airflow supports Variables which enable users to craft dynamic DAGs. You can set Variables in Airflow in three ways - UI,
 commandline, and within your DAG file. See:doc:`/howto/variable`.` for more.
 
 With Helm chart, you can also inject environment variables into airflow. For example, in a yaml file to
