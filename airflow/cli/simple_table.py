@@ -24,8 +24,8 @@ from rich.syntax import Syntax
 from rich.table import Table
 from tabulate import tabulate
 
-import airflow.utils.yaml as yaml
 from airflow.plugins_manager import PluginsDirectorySource
+from airflow.utils import yaml
 from airflow.utils.platform import is_tty
 
 
