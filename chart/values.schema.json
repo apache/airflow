@@ -235,7 +235,7 @@
             "x-docsSection": "Kubernetes"
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string.",
+            "description": "`airflow_local_settings` file as a string (can be templated).",
             "type": [
                 "string",
                 "null"
@@ -1450,7 +1450,7 @@
                     "default": []
                 },
                 "webserverConfig": {
-                    "description": "This will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
                     "type": [
                         "string",
                         "null"

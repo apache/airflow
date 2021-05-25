@@ -321,3 +321,22 @@ class WebserverServiceTest(unittest.TestCase):
             "spec.ports", docs[0]
         )
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+
+
+class WebserverConfigmapTest(unittest.TestCase):
+    def test_no_webserver_config_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
+        assert 0 == len(docs)
+
+    def test_webserver_config_configmap(self):
+        docs = render_chart(
+            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+
+        assert "ConfigMap" == docs[0]["kind"]
+        assert "RELEASE-NAME-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert (
+            "CSRF_ENABLED = True  # RELEASE-NAME"
+            == jmespath.search('data."webserver_config.py"', docs[0]).strip()
+        )

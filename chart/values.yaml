@@ -152,7 +152,7 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
-# `airflow_local_settings` file as a string.
+# `airflow_local_settings` file as a string (can be templated).
 airflowLocalSettings: ~
 
 # Enable RBAC (default on most clusters these days)
@@ -565,9 +565,8 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image
-  # instead
+  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
+  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
