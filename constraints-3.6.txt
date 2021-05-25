@@ -502,7 +502,7 @@ websocket-client==1.0.1
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.1
-yandexcloud==0.85.0
+yandexcloud==0.86.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
