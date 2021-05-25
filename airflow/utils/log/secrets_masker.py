@@ -155,7 +155,7 @@ class SecretsMasker(logging.Filter):
                 if k in self._record_attrs_to_ignore:
                     continue
                 record.__dict__[k] = self.redact(v)
-            if record.exc_info:
+            if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
                 # I'm not sure if this is a good idea!
                 exc.args = (self.redact(v) for v in exc.args)
