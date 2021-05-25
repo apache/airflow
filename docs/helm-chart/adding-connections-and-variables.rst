@@ -71,8 +71,8 @@ deployment.
 .. code-block:: yaml
 
    extraEnv: |
-     - name: AIRFLOW__CORE__LOAD_EXAMPLES
-       value: 'True'
+     - name: AIRFLOW_VAR_HELM_RELEASE_NAME
+       value: '{{ .Release.Name }}'
 
 
    extraEnvFrom: |
