@@ -214,6 +214,8 @@ class SecretsMasker(logging.Filter):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
+            if not secret:
+                return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                 self.patterns.add(pattern)
