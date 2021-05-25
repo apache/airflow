@@ -27,6 +27,7 @@ Helm Chart for Apache Airflow
     Home <self>
     quick-start
     airflow-configuration
+    adding-connections-and-variables
     manage-dags-files
     manage-logs
     keda
