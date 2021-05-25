@@ -904,14 +904,14 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             return None
 
         task = self._run_as_operator(f)
-        assert task.execute_callable is None
+        assert task.execute_callable() is None
 
     def test_return_false(self):
         def f():
             return False
 
         task = self._run_as_operator(f)
-        assert task.execute_callable == False
+        assert task.execute_callable() == False
 
     def test_lambda(self):
         with pytest.raises(AirflowException):
