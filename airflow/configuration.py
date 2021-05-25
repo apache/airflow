@@ -36,6 +36,7 @@ from typing import Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
+from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -97,8 +98,6 @@ def default_config_yaml() -> dict:
 
     :return: Python dictionary containing configs & their info
     """
-    import airflow.utils.yaml as yaml
-
     with open(_default_config_file_path('config.yml')) as config_file:
         return yaml.safe_load(config_file)
 

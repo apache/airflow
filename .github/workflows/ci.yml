@@ -49,7 +49,7 @@ env:
   # In builds from forks, this token is empty, and this is good because such builds do not even try
   # to push images to the registry.
   CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
-  GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
+  GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
@@ -67,6 +67,10 @@ env:
   # You can also switch back to building images locally and disabling the "Build Images" workflow
   # by defining AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE secret with value set to "false"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
@@ -185,14 +189,6 @@ jobs:
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: >
-          Event: ${{ github.event_name }}
-          Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
-          Branch: ${{ github.head_ref }}
-          Run id: ${{ github.run_id }}
-          Sha: ${{ github.sha }}
-          Ref: ${{ github.ref }}
-        run: printenv
       - name: Set wait for image
         id: wait-for-image
         run: |
@@ -413,6 +409,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
           VERBOSE: false
+      - run: sleep 600
 
 
   static-checks-pylint:

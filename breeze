@@ -1164,7 +1164,7 @@ function breeze::parse_arguments() {
             echo "GitHub image id: ${2}"
             echo
             echo "Force pulling the image, using GitHub registry and skip mounting local sources."
-            echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
+            echo "This is in order to get the exact same version as used in CI environment for SHA!."
             echo "You can specify --skip-mounting-local-sources to not mount local sources to get exact. "
             echo "behaviour as in the CI environment."
             echo
@@ -1716,20 +1716,15 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
       '${CMDNAME} shell -- -c \"ls -la\"'
       '${CMDNAME} -- -c \"ls -la\"'
 
-      For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
+      For DockerHub pull: --dockerhub-user and --dockerhub-repo flags can be used to specify
       the repository to pull from. For GitHub repository, the --github-repository
-      flag can be used for the same purpose. You can also use
-      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image
-      with specific COMMIT_SHA tag or RUN_ID.
+      flag can be used for the same purpose. You can also use --github-image-id <COMMIT_SHA> in case
+      you want to pull the image with specific COMMIT_SHA tag.
 
       '${CMDNAME} shell \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
       '${CMDNAME} \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
-      '${CMDNAME} shell \\
-            --github-image-id 209845560' - pull/use image with RUN_ID
-      '${CMDNAME} \\
-            --github-image-id 209845560' - pull/use image with RUN_ID
 
 Most flags are applicable to the shell command as it will run build when needed.
 "
@@ -1772,18 +1767,15 @@ ${CMDNAME} build-image [FLAGS]
 
       You can also pass '--production-image' flag to build production image rather than CI image.
 
-      For DockerHub pull. '--dockerhub-user' and '--dockerhub-repo' flags can be used to specify
-      the repository to pull from. For GitHub repository, the '--github-repository'
-      flag can be used for the same purpose. You can also use
-      '--github-image-id <COMMIT_SHA>|<RUN_ID>' in case you want to pull the image with
-      specific COMMIT_SHA tag or RUN_ID.
-
+      For DockerHub pulling of base images: '--dockerhub-user' and '--dockerhub-repo' flags can be
+      used to specify the repository to pull from. For GitHub repository, the '--github-repository'
+      flag can be used for the same purpose.
 Flags:
 $(breeze::flag_airflow_variants)
 $(breeze::flag_build_different_airflow_version)
 $(breeze::flag_production_image)
 $(breeze::flag_build_docker_images)
-$(breeze::flag_pull_push_docker_images)
+$(breeze::flag_pull_push_docker_images "no_show_sha")
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_BUILD_IMAGE
@@ -1946,11 +1938,11 @@ ${CMDNAME} push_image [FLAGS]
       Pushes images to docker registry. You can push the images to DockerHub registry (default)
       or to the GitHub registry (if --use-github-registry flag is used).
 
-      For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+      For DockerHub pushes: --dockerhub-user and --dockerhub-repo flags can be used to specify
       the repository to push to. For GitHub repository, the --github-repository
       flag can be used for the same purpose. You can also add
-      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
-      SHA tag or run id. In case you specify --github-repository or --github-image-id, you
+      --github-image-id <COMMIT_SHA> in case you want to push image with specific
+      SHA tag. In case you specify --github-repository or --github-image-id, you
       do not need to specify --use-github-registry flag.
 
       You can also add --production-image flag to switch to production image (default is CI one)
@@ -1965,8 +1957,6 @@ ${CMDNAME} push_image [FLAGS]
             --github-repository user/airflow' - to push to your user's fork
       '${CMDNAME} push-image \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - to push with COMMIT_SHA
-      '${CMDNAME} push-image \\
-            --github-image-id 209845560' - to push with RUN_ID
 
 Flags:
 $(breeze::flag_pull_push_docker_images)
@@ -2785,6 +2775,7 @@ Build options:
 #    Flag information.
 #######################################################################################################
 function breeze::flag_pull_push_docker_images() {
+    local show_sha="${1-'show_sha'}"
     echo "
 -D, --dockerhub-user DOCKERHUB_USER
         DockerHub user used to pull, push and build images. Default: ${_breeze_default_dockerhub_user:=}.
@@ -2813,15 +2804,18 @@ ${FORMATTED_GITHUB_REGISTRY}
 
         If you use this flag, automatically --use-github-registry flag is enabled.
 
--s, --github-image-id COMMIT_SHA|RUN_ID
-        <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
+"
+
+    [[ "$show_sha" != "no_show_sha" ]] && echo "
+
+-s, --github-image-id COMMIT_SHA
+        <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
         to be able to easily find the image for particular CI runs. Once you know the
-        <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
+        <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
         automatically pull and use that image so that you can easily reproduce a problem
         that occurred in CI.
 
         If you use this flag, automatically --use-github-registry is enabled.
-
 
         Default: ${_breeze_default_github_image_id:=}.
 
