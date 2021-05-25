@@ -76,7 +76,6 @@ deployment.
      - name: AIRFLOW_VAR_HELM_RELEASE_NAME
        value: '{{ .Release.Name }}'
 
-
    extraEnvFrom: |
      - configMapRef:
          name: '{{ .Release.Name }}-airflow-variables'
