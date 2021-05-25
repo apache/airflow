@@ -16,7 +16,7 @@
     under the License.
 
 
-Adding Connections, Secrets and Environment Variables
+Adding Connections, Variables and Environment Variables
 =====================================================
 
 You can programmatically add Connections, Variables and arbitrary Environment Variables to your
