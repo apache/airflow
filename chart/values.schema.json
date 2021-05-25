@@ -1088,6 +1088,22 @@
                     "type": "integer",
                     "default": 1
                 },
+                "updateStrategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet (when using LocalExecutor and workers.persistence).",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment (when not using LocalExecutor and workers.persistence).",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",

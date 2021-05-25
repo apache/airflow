@@ -215,3 +215,56 @@ class SchedulerTest(unittest.TestCase):
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            ("LocalExecutor", True, None, None),
+        ]
+    )
+    def test_scheduler_update_strategy(
+        self, executor, persistence, update_strategy, expected_update_strategy
+    ):
+        """updateStrategy should only be used when we have LocalExecutor and workers.persistence"""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"persistence": {"enabled": persistence}},
+                "scheduler": {"updateStrategy": update_strategy},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+
+    @parameterized.expand(
+        [
+            ("LocalExecutor", False, None, None),
+            ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
+            ("LocalExecutor", True, {"type": "Recreate"}, None),
+            ("CeleryExecutor", True, None, None),
+            ("CeleryExecutor", False, None, None),
+            ("CeleryExecutor", True, {"type": "Recreate"}, {"type": "Recreate"}),
+            (
+                "CeleryExecutor",
+                False,
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+        ]
+    )
+    def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
+        """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"persistence": {"enabled": persistence}},
+                "scheduler": {"strategy": strategy},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert expected_strategy == jmespath.search("spec.strategy", docs[0])
