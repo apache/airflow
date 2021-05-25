@@ -1194,7 +1194,7 @@ class DAG(LoggingMixin):
         :param visited_external_tis: A set used internally to keep track of the visited TaskInstance when
             clearing tasks across multiple DAGs linked by ExternalTaskMarker to avoid redundant work.
         :type visited_external_tis: set
-        :param exclude_task_ids: A set of task_id that should not be cleared
+        :param exclude_task_ids: A set of ``task_id`` that should not be cleared
         :type exclude_task_ids: frozenset
         """
         TI = TaskInstance
