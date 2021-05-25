@@ -20,20 +20,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
 
-try:
-    # 3.8+
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
-try:
-    # 3.9+
-    from functools import cache
-except ImportError:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
-
+from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType

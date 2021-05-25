@@ -31,7 +31,7 @@ from kubernetes.client import Configuration
 from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
 
-import airflow.utils.yaml as yaml
+from airflow.utils import yaml
 
 
 def _parse_timestamp(ts_str: str) -> int:
