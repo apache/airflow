@@ -61,7 +61,6 @@ override values of interest in the ``env`` section of the ``values.yaml`` file.
    env:
      - name: "AIRFLOW_VAR_KEY"
        value: "value_1"
-
      - name: "AIRFLOW_VAR_ANOTHER_KEY"
        value: "value_2"
 
