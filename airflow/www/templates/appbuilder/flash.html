@@ -64,12 +64,22 @@
 
         <div id="alerts" class="panel-collapse collapse">
           <div class="panel-body">
-            {% for category, m in dag_import_errors %}
-              <div class="alert alert-error dag-import-error">{{ m }}</div>
-            {% endfor %}
+            <div class="alert alert-error">
+              {% for category, m in dag_import_errors %}
+                <div class="dag-import-error" onclick="toggleErrorMessage.call(this)">{{ m }}</div>
+              {% endfor %}
+            </div>
           </div>
         </div>
       </div>
     </div>
   {% endif %}
 {% endwith %}
+
+{% block tail %}
+  <script>
+    function toggleErrorMessage() {
+      $(this).toggleClass('expanded-error');
+    }
+  </script>
+{% endblock %}

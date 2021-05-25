@@ -36,3 +36,16 @@
 #errorHeading {
   background-color: #d6d8d9; /* same color as Bootstrap's Dark Alert */
 }
+
+.dag-import-error {
+  white-space: pre;
+  height: 14px;
+  line-height: 14px; /* show only one line of 14px text */
+  overflow: hidden;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+.expanded-error {
+  height: 100%;
+}
