@@ -2066,7 +2066,8 @@ def test_refresh_from_db():
     ti = TI(task=task, execution_date=datetime.datetime.now())
 
     # We only care about columns that are not primary keys
-    columns = [column for column in ti.__table__.columns if not column.primary_key]
+    # pylint: disable=no-member
+    columns = [column for column in TI.__table__.columns if not column.primary_key]
 
     for column in columns:
         setattr(ti, column.name, 'NOT_REFRESHED')
