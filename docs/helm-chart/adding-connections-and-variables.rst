@@ -25,8 +25,8 @@ Airflow deployment using the Helm chart.
 
 Connections and Sensitive Environment Variables
 -----------------------
-Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml`` you can pass connection strings and secrets
-into Airflow using Helm chart. To illustrate, lets create a yaml file to override values under these sections of the
+Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml`` you can pass connection strings and sensitive environemt variables
+into Airflow using the Helm chart. To illustrate, lets create a yaml file to override values under these sections of the
 ``values.yaml`` file.
 
 .. code-block:: yaml
