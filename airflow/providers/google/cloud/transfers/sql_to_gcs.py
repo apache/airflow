@@ -20,7 +20,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -289,7 +289,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Execute DBAPI query."""
 
     @abc.abstractmethod
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod
