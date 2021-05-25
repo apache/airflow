@@ -77,7 +77,10 @@ deployment.
 
 
    extraEnvFrom: |
-     - secretRef:
-         name: '{{ .Release.Name }}-airflow-connections'
      - configMapRef:
          name: '{{ .Release.Name }}-airflow-variables'
+         
+   extraConfigMaps:
+     '{{ .Release.Name }}-airflow-variables':
+       data: |
+         AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
