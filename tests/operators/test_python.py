@@ -911,7 +911,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             return False
 
         task = self._run_as_operator(f)
-        assert task.execute_callable() == False
+        assert task.execute_callable() is False
 
     def test_lambda(self):
         with pytest.raises(AirflowException):
