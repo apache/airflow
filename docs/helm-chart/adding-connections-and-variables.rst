@@ -23,7 +23,7 @@ You can programmatically add Connections, Variables and arbitrary Environment Va
 Airflow deployment using the Helm chart.
 
 
-Connections and Secrets
+Connections and Sensitive Environment Variables
 -----------------------
 Under the ``secret`` and ``extraSecret`` sections of the ``values.yaml`` you can pass connection strings and secrets
 into Airflow using Helm chart. To illustrate, lets create a yaml file to override values under these sections of the
