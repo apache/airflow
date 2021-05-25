@@ -156,6 +156,8 @@ class TestSecretsMasker:
             # When the "sensitive value" is a dict, don't mask anything
             # (Or should this be mask _everything_ under it ?
             ("api_key", {"other": "innoent"}, set()),
+            (None, {"password": ""}, set()),
+            (None, "", set()),
         ],
     )
     def test_mask_secret(self, name, value, expected_mask):
