@@ -67,8 +67,6 @@ class GitSyncSchedulerTest(unittest.TestCase):
                         "wait": 66,
                         "maxFailures": 70,
                         "subPath": "path1/path2",
-                        "dest": "test-dest",
-                        "root": "/git-root",
                         "rev": "HEAD",
                         "depth": 1,
                         "repo": "https://github.com/apache/airflow.git",
@@ -93,13 +91,13 @@ class GitSyncSchedulerTest(unittest.TestCase):
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git-root"},
-                {"name": "GIT_SYNC_DEST", "value": "test-dest"},
+                {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                {"name": "GIT_SYNC_DEST", "value": "repo"},
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GIT_SYNC_WAIT", "value": "66"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
             ],
-            "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
+            "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
         } == jmespath.search("spec.template.spec.containers[1]", docs[0])
 
     def test_validate_if_ssh_params_are_added(self):

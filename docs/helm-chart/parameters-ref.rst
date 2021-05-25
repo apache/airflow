@@ -62,6 +62,6 @@ Specify each parameter using the ``--set key=value[,key=value]`` argument to ``h
 
 .. code-block:: bash
 
-  helm install --name my-release \
+  helm install my-release apache-airflow/airflow \
     --set executor=CeleryExecutor \
     --set enablePodLaunching=false .

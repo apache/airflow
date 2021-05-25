@@ -324,7 +324,7 @@ The packages are available at the
 The |version| downloads are available at:
 
 * `Apache Airflow |version| sdist package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.sha512>`__)
-* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-py3-none-any.whl.sha512>`__)
+* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.sha512>`__)
 * `Apache Airflow |version| sources <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.sha512>`__)
 
 

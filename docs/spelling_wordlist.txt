@@ -974,6 +974,7 @@ lineterminator
 linter
 linux
 livy
+loadBalancerIP
 localExecutor
 localexecutor
 localhost
@@ -1151,6 +1152,7 @@ pty
 pubsub
 py
 pyMongo
+pyarrow
 pydruid
 pyexasol
 pyhive

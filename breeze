@@ -1523,6 +1523,12 @@ function breeze::parse_arguments() {
 #
 #######################################################################################################
 function breeze::prepare_formatted_versions() {
+    if [[ -n "${_breeze_formatted_versions_prepared:-}" ]]; then
+        return
+    fi
+
+    _breeze_formatted_versions_prepared=1
+
     local indent=15
     local list_prefix
     list_prefix=$(printf "%-${indent}s" " ")
@@ -1628,6 +1634,14 @@ function breeze::prepare_formatted_versions() {
 # shellcheck disable=SC2034,SC2090,SC2089,SC2155
 
 function breeze::prepare_usage() {
+    if [[ -n "${_breeze_usage_prepared:-}" ]]; then
+        return
+    fi
+
+    _breeze_usage_prepared=1
+
+    breeze::prepare_formatted_versions
+
     # Note that MacOS uses Bash 3.* and we cannot use associative arrays
     export USAGE_SHELL="[Default] Enters interactive shell in the container"
     readonly USAGE_SHELL
@@ -2129,6 +2143,7 @@ function breeze::get_variable_from_lowercase_name() {
 #    usage information for the command.
 #######################################################################################################
 function breeze::get_usage() {
+    breeze::prepare_usage
     breeze::get_variable_from_lowercase_name "USAGE" "${1}"
 }
 
@@ -2141,6 +2156,7 @@ function breeze::get_usage() {
 #    Detailed usage information for the command.
 #######################################################################################################
 function breeze::get_detailed_usage() {
+    breeze::prepare_usage
     breeze::get_variable_from_lowercase_name "DETAILED_USAGE" "${1}"
 }
 
@@ -2158,6 +2174,7 @@ function breeze::get_detailed_usage() {
 #    General usage information for all commands.
 #######################################################################################################
 function breeze::usage() {
+    breeze::prepare_usage
     echo "
 
 usage: ${CMDNAME} [FLAGS] [COMMAND] -- <EXTRA_ARGS>
@@ -2892,6 +2909,8 @@ ${FORMATTED_TEST_TYPES}
 #    Flag information.
 #######################################################################################################
 function breeze::flags() {
+    breeze::prepare_formatted_versions
+
     echo "
 $(breeze::print_line)
 
@@ -3631,10 +3650,6 @@ sanity_checks::basic_sanity_checks
 start_end::script_start
 
 traps::add_trap start_end::script_end EXIT
-
-breeze::prepare_formatted_versions
-
-breeze::prepare_usage
 
 set +u
 breeze::parse_arguments "${@}"

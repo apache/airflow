@@ -1006,7 +1006,7 @@ class DataflowHook(GoogleBaseHook):
             f"--region={location}",
             *(beam_options_to_args(options)),
         ]
-        self.log.info("Executing command: %s", " ".join([shlex.quote(c) for c in cmd]))
+        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
         with self.provide_authorized_gcloud():
             proc = subprocess.run(  # pylint: disable=subprocess-run-check
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE

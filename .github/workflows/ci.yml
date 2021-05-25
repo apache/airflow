@@ -557,7 +557,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
-        if: false
 
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40

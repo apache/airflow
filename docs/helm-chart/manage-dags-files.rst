@@ -65,7 +65,7 @@ Finally, update the Airflow pods with that image:
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78
 
@@ -73,7 +73,7 @@ If you are deploying an image with a constant tag, you need to make sure that th
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78 \
       --set images.airflow.pullPolicy=Always
@@ -90,7 +90,7 @@ for details.
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=true \
       --set dags.gitSync.enabled=true
       # you can also override the other persistence or gitSync values
@@ -99,7 +99,7 @@ for details.
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=true \
       --set dags.gitSync.enabled=true \
       # you can also override the other persistence or gitSync values
@@ -116,7 +116,7 @@ seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an in
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=false \
       --set dags.gitSync.enabled=true
       # you can also override the other gitSync values
@@ -133,7 +133,7 @@ In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . \
+    helm upgrade --install airflow apache-airflow/airflow \
       --set dags.persistence.enabled=true \
       --set dags.persistence.existingClaim=my-volume-claim
       --set dags.gitSync.enabled=false
@@ -181,10 +181,10 @@ Finally, from the context of your Airflow Helm chart directory, you can install 
 
 .. code-block:: bash
 
-    helm upgrade --install airflow . -f override-values.yaml
+    helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
 
 If you have done everything correctly, Git-Sync will pick up the changes you make to the DAGs
 in your private Github repo.
 
-You should take this a step further and set ``dags.gitSycn.knownHosts`` so you are not susceptible to man-in-the-middle
+You should take this a step further and set ``dags.gitSync.knownHosts`` so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.

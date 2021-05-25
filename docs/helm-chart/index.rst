@@ -72,13 +72,13 @@ Features
 Installing the Chart
 --------------------
 
-To install this repository from source (using helm 3)
+To install this chart using helm 3, run the following commands:
 
 .. code-block:: bash
 
     kubectl create namespace airflow
-    helm dep update
-    helm install airflow . --namespace airflow
+    helm repo add apache-airflow https://airflow.apache.org
+    helm install airflow apache-airflow/airflow --namespace airflow
 
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.
@@ -93,7 +93,7 @@ To upgrade the chart with the release name ``airflow``:
 
 .. code-block:: bash
 
-    helm upgrade airflow . --namespace airflow
+    helm upgrade airflow apache-airflow/airflow --namespace airflow
 
 Uninstalling the Chart
 ----------------------

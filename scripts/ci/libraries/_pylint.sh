@@ -20,16 +20,18 @@
 function pylint::filter_out_files_from_pylint_todo_list() {
   FILTERED_FILES=()
   set +e
-  for FILE in "$@"
+  local file
+  for file in "$@"
   do
-      if [[ ${FILE} == "airflow/migrations/versions/"* ]]; then
+      if [[ ${file} == "airflow/migrations/versions/"* ]]; then
           # Skip all generated migration scripts
           continue
       fi
-      if ! grep -x "./${FILE}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
-          FILTERED_FILES+=("${FILE}")
+      if ! grep -x "./${file}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
+          FILTERED_FILES+=("${file}")
       fi
   done
   set -e
   export FILTERED_FILES
+  readonly FILTERED_FILES
 }

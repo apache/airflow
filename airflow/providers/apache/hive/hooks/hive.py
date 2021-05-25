@@ -429,16 +429,16 @@ class HiveCliHook(BaseHook):
         if create or recreate:
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
-            fields = ",\n    ".join([f"`{k.strip('`')}` {v}" for k, v in field_dict.items()])
+            fields = ",\n    ".join(f"`{k.strip('`')}` {v}" for k, v in field_dict.items())
             hql += f"CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
             if partition:
-                pfields = ",\n    ".join([p + " STRING" for p in partition])
+                pfields = ",\n    ".join(p + " STRING" for p in partition)
                 hql += f"PARTITIONED BY ({pfields})\n"
             hql += "ROW FORMAT DELIMITED\n"
             hql += f"FIELDS TERMINATED BY '{delimiter}'\n"
             hql += "STORED AS textfile\n"
             if tblproperties is not None:
-                tprops = ", ".join([f"'{k}'='{v}'" for k, v in tblproperties.items()])
+                tprops = ", ".join(f"'{k}'='{v}'" for k, v in tblproperties.items())
                 hql += f"TBLPROPERTIES({tprops})\n"
             hql += ";"
             self.log.info(hql)
@@ -448,7 +448,7 @@ class HiveCliHook(BaseHook):
             hql += "OVERWRITE "
         hql += f"INTO TABLE {table} "
         if partition:
-            pvals = ", ".join([f"{k}='{v}'" for k, v in partition.items()])
+            pvals = ", ".join(f"{k}='{v}'" for k, v in partition.items())
             hql += f"PARTITION ({pvals})"
 
         # As a workaround for HIVE-10541, add a newline character

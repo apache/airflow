@@ -49,38 +49,38 @@ function push_pull_remove_images::push_image_with_retries() {
 # Parameters:
 #   $1 -> image to pull
 function push_pull_remove_images::pull_image_if_not_present_or_forced() {
-    local IMAGE_TO_PULL="${1}"
-    local IMAGE_HASH
-    IMAGE_HASH=$(docker images -q "${IMAGE_TO_PULL}" 2> /dev/null || true)
-    local PULL_IMAGE=${FORCE_PULL_IMAGES}
+    local image_to_pull="${1}"
+    local image_hash
+    image_hash=$(docker images -q "${image_to_pull}" 2> /dev/null || true)
+    local pull_image=${FORCE_PULL_IMAGES}
 
-    if [[ -z "${IMAGE_HASH=}" ]]; then
-        PULL_IMAGE="true"
+    if [[ -z "${image_hash=}" ]]; then
+        pull_image="true"
     fi
-    if [[ "${PULL_IMAGE}" == "true" ]]; then
+    if [[ "${pull_image}" == "true" ]]; then
         echo
-        echo "Pulling the image ${IMAGE_TO_PULL}"
+        echo "Pulling the image ${image_to_pull}"
         echo
-        docker_v pull "${IMAGE_TO_PULL}"
-        EXIT_VALUE="$?"
-        if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
+        docker_v pull "${image_to_pull}"
+        local exit_value="$?"
+        if [[ ${exit_value} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
             echo
             echo """
 ${COLOR_RED}ERROR: Exiting on docker pull error
 
 If you have authorisation problems, you might want to run:
 
-docker login ${IMAGE_TO_PULL%%\/*}
+docker login ${image_to_pull%%\/*}
 
 You need to use generate token as the password, not your personal password.
 You can generate one at https://github.com/settings/tokens
 Make sure to choose 'read:packages' scope.
 ${COLOR_RESET}
 """
-            exit ${EXIT_VALUE}
+            exit ${exit_value}
         fi
         echo
-        return ${EXIT_VALUE}
+        return ${exit_value}
     fi
 }
 
@@ -91,15 +91,15 @@ ${COLOR_RESET}
 #   $1 -> DockerHub image to pull
 #   $2 -> GitHub image to try to pull first
 function push_pull_remove_images::pull_image_github_dockerhub() {
-    local DOCKERHUB_IMAGE="${1}"
-    local GITHUB_IMAGE="${2}"
+    local dockerhub_image="${1}"
+    local github_image="${2}"
 
     set +e
-    if push_pull_remove_images::pull_image_if_not_present_or_forced "${GITHUB_IMAGE}"; then
+    if push_pull_remove_images::pull_image_if_not_present_or_forced "${github_image}"; then
         # Tag the image to be the DockerHub one
-        docker_v tag "${GITHUB_IMAGE}" "${DOCKERHUB_IMAGE}"
+        docker_v tag "${github_image}" "${dockerhub_image}"
     else
-        push_pull_remove_images::pull_image_if_not_present_or_forced "${DOCKERHUB_IMAGE}"
+        push_pull_remove_images::pull_image_if_not_present_or_forced "${dockerhub_image}"
     fi
     set -e
 }
@@ -137,12 +137,12 @@ function push_pull_remove_images::pull_base_python_image() {
 " > "${DETECTED_TERMINAL}"
     fi
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        PYTHON_TAG_SUFFIX=""
+        local python_tag_suffix=""
         if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
-            PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
         push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PYTHON_BASE_IMAGE}" \
-            "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+            "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${python_tag_suffix}"
     else
         docker_v pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
     fi
@@ -210,14 +210,14 @@ function push_pull_remove_images::push_ci_images_to_dockerhub() {
 #     X.Y-slim-buster-"${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
 #     X.Y-slim-buster                    - in case of push builds
 function push_pull_remove_images::push_python_image_to_github() {
-    PYTHON_TAG_SUFFIX=""
+    local python_tag_suffix=""
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} != "latest" ]]; then
-        PYTHON_TAG_SUFFIX="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+        python_tag_suffix="-${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     fi
     docker_v tag "${AIRFLOW_PYTHON_BASE_IMAGE}" \
-        "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+        "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${python_tag_suffix}"
     push_pull_remove_images::push_image_with_retries \
-        "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
+        "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${python_tag_suffix}"
 }
 
 # Pushes Ci images and their tags to registry in GitHub
@@ -225,14 +225,14 @@ function push_pull_remove_images::push_ci_images_to_github() {
     if [[ "${PUSH_PYTHON_BASE_IMAGE=}" != "false" ]]; then
         push_pull_remove_images::push_python_image_to_github
     fi
-    AIRFLOW_CI_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_TAGGED_IMAGE}"
-    push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_TAGGED_IMAGE}"
+    local airflow_ci_tagged_image="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    docker_v tag "${AIRFLOW_CI_IMAGE}" "${airflow_ci_tagged_image}"
+    push_pull_remove_images::push_image_with_retries "${airflow_ci_tagged_image}"
     if [[ -n ${GITHUB_SHA=} ]]; then
         # Also push image to GitHub registry with commit SHA
-        AIRFLOW_CI_SHA_IMAGE="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${COMMIT_SHA}"
-        docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_SHA_IMAGE}"
-        push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_SHA_IMAGE}"
+        local airflow_ci_sha_image="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${COMMIT_SHA}"
+        docker_v tag "${AIRFLOW_CI_IMAGE}" "${airflow_ci_sha_image}"
+        push_pull_remove_images::push_image_with_retries "${airflow_ci_sha_image}"
     fi
 }
 
@@ -265,19 +265,19 @@ function push_pull_remove_images::push_prod_images_to_dockerhub () {
 #     "${GITHUB_RUN_ID}" - in case of pull-request triggered 'workflow_run' builds
 #     "latest"           - in case of push builds
 function push_pull_remove_images::push_prod_images_to_github () {
-    AIRFLOW_PROD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker_v tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_TAGGED_IMAGE}"
+    local airflow_prod_tagged_image="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    docker_v tag "${AIRFLOW_PROD_IMAGE}" "${airflow_prod_tagged_image}"
     push_pull_remove_images::push_image_with_retries "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     if [[ -n ${COMMIT_SHA=} ]]; then
         # Also push image to GitHub registry with commit SHA
-        AIRFLOW_PROD_SHA_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${COMMIT_SHA}"
-        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${AIRFLOW_PROD_SHA_IMAGE}"
-        push_pull_remove_images::push_image_with_retries "${AIRFLOW_PROD_SHA_IMAGE}"
+        local airflow_prod_sha_image="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${COMMIT_SHA}"
+        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${airflow_prod_sha_image}"
+        push_pull_remove_images::push_image_with_retries "${airflow_prod_sha_image}"
     fi
     # Also push prod build image
-    AIRFLOW_PROD_BUILD_TAGGED_IMAGE="${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker_v tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
-    push_pull_remove_images::push_image_with_retries "${AIRFLOW_PROD_BUILD_TAGGED_IMAGE}"
+    local airflow_prod_build_tagged_image="${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    docker_v tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${airflow_prod_build_tagged_image}"
+    push_pull_remove_images::push_image_with_retries "${airflow_prod_build_tagged_image}"
 }
 
 

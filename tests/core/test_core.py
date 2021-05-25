@@ -385,7 +385,7 @@ class TestCore(unittest.TestCase):
 
         assert 0 == len(op1_fails)
         assert 1 == len(op2_fails)
-        assert sum([f.duration for f in op2_fails]) >= 3
+        assert sum(f.duration for f in op2_fails) >= 3
 
     def test_externally_triggered_dagrun(self):
         TI = TaskInstance

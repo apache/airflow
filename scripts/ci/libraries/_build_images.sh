@@ -558,10 +558,12 @@ function build_images::rebuild_ci_image_if_needed() {
             build_images::confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
-            SYSTEM=$(uname -s)
-            if [[ ${SYSTEM} != "Darwin" ]]; then
-                ROOT_FILES_COUNT=$(find "airflow" "tests" -user root | wc -l | xargs)
-                if [[ ${ROOT_FILES_COUNT} != "0" ]]; then
+            local system
+            system=$(uname -s)
+            if [[ ${system} != "Darwin" ]]; then
+                local root_files_count
+                root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
+                if [[ ${root_files_count} != "0" ]]; then
                     ./scripts/ci/tools/ci_fix_ownership.sh
                 fi
             fi
@@ -649,14 +651,15 @@ function get_github_container_registry_image_prefix() {
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
 function build_images::build_ci_image() {
+    local spin_pid
     build_images::print_build_info
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
-        SPIN_PID=$!
+        spin_pid=$!
         # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
+        traps::add_trap '$(kill '${spin_pid}' || true)' EXIT HUP INT TERM
     fi
     push_pull_remove_images::pull_ci_images_if_needed
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
@@ -686,18 +689,18 @@ function build_images::build_ci_image() {
         )
     fi
 
-    if [[ -n ${SPIN_PID=} ]]; then
-        kill -HUP "${SPIN_PID}" || true
-        wait "${SPIN_PID}" || true
+    if [[ -n ${spin_pid=} ]]; then
+        kill -HUP "${spin_pid}" || true
+        wait "${spin_pid}" || true
         echo >"${DETECTED_TERMINAL}"
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
-        SPIN_PID=$!
+        spin_pid=$!
         # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
+        traps::add_trap '$(kill '${spin_pid}' || true)' EXIT HUP INT TERM
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "
@@ -760,9 +763,9 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
-    if [[ -n ${SPIN_PID=} ]]; then
-        kill -HUP "${SPIN_PID}" || true
-        wait "${SPIN_PID}" || true
+    if [[ -n ${spin_pid=} ]]; then
+        kill -HUP "${spin_pid}" || true
+        wait "${spin_pid}" || true
         echo >"${DETECTED_TERMINAL}"
     fi
 }
@@ -959,23 +962,23 @@ function build_images::build_prod_images() {
 #  $3, $4, ... - target tags to tag the image with
 function build_images::wait_for_image_tag() {
 
-    IMAGE_NAME="${1}"
-    IMAGE_SUFFIX=${2}
+    local image_name="${1}"
+    local image_suffix="${2}"
     shift 2
 
-    IMAGE_TO_WAIT_FOR="${IMAGE_NAME}${IMAGE_SUFFIX}"
-    start_end::group_start "Wait for image tag ${IMAGE_TO_WAIT_FOR}"
+    local image_to_wait_for="${image_name}${image_suffix}"
+    start_end::group_start "Wait for image tag ${image_to_wait_for}"
     while true; do
         set +e
-        echo "${COLOR_BLUE}Docker pull ${IMAGE_TO_WAIT_FOR} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-        docker_v pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
+        echo "${COLOR_BLUE}Docker pull ${image_to_wait_for} ${COLOR_RESET}" >"${OUTPUT_LOG}"
+        docker_v pull "${image_to_wait_for}" >>"${OUTPUT_LOG}" 2>&1
         set -e
         local image_hash
-        echo "${COLOR_BLUE} Docker images -q ${IMAGE_TO_WAIT_FOR}${COLOR_RESET}" >>"${OUTPUT_LOG}"
-        image_hash="$(docker images -q "${IMAGE_TO_WAIT_FOR}" 2>>"${OUTPUT_LOG}" || true)"
+        echo "${COLOR_BLUE} Docker images -q ${image_to_wait_for}${COLOR_RESET}" >>"${OUTPUT_LOG}"
+        image_hash="$(docker images -q "${image_to_wait_for}" 2>>"${OUTPUT_LOG}" || true)"
         if [[ -z "${image_hash}" ]]; then
             echo
-            echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. No local hash for the image. Waiting."
+            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image. Waiting."
             echo
             echo "Last log:"
             cat "${OUTPUT_LOG}" || true
@@ -983,17 +986,17 @@ function build_images::wait_for_image_tag() {
             sleep 10
         else
             echo
-            echo "The image ${IMAGE_TO_WAIT_FOR} with '${IMAGE_NAME}' tag"
+            echo "The image ${image_to_wait_for} with '${image_name}' tag"
             echo
             echo
-            echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${IMAGE_NAME}."
+            echo "Tagging ${image_to_wait_for} as ${image_name}."
             echo
-            docker_v tag "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
+            docker_v tag "${image_to_wait_for}" "${image_name}"
             for TARGET_TAG in "${@}"; do
                 echo
-                echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${TARGET_TAG}."
+                echo "Tagging ${image_to_wait_for} as ${TARGET_TAG}."
                 echo
-                docker_v tag "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
+                docker_v tag "${image_to_wait_for}" "${TARGET_TAG}"
             done
             break
         fi

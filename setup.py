@@ -416,7 +416,7 @@ pinot = [
     'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
-    'arrow>=0.16.0,<1.0.0',
+    'arrow>=0.16.0',
 ]
 postgres = [
     'psycopg2-binary>=2.7.4',
@@ -851,7 +851,7 @@ def get_provider_package_from_package_id(package_id: str):
 
 def get_all_provider_packages():
     """Returns all provider packages configured in setup.py"""
-    return " ".join([get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS])
+    return " ".join(get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS)
 
 
 class AirflowDistribution(Distribution):

@@ -461,9 +461,9 @@ class DagFileProcessor(LoggingMixin):
                     session.delete(ti)
                     session.commit()
 
-            task_list = "\n".join([sla.task_id + ' on ' + sla.execution_date.isoformat() for sla in slas])
+            task_list = "\n".join(sla.task_id + ' on ' + sla.execution_date.isoformat() for sla in slas)
             blocking_task_list = "\n".join(
-                [ti.task_id + ' on ' + ti.execution_date.isoformat() for ti in blocking_tis]
+                ti.task_id + ' on ' + ti.execution_date.isoformat() for ti in blocking_tis
             )
             # Track whether email or any alert notification sent
             # We consider email or the alert callback as notifications
@@ -943,7 +943,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             return executable_tis
 
         # Put one task instance on each line
-        task_instance_str = "\n\t".join([repr(x) for x in task_instances_to_examine])
+        task_instance_str = "\n\t".join(repr(x) for x in task_instances_to_examine)
         self.log.info("%s tasks up for execution:\n\t%s", len(task_instances_to_examine), task_instance_str)
 
         pool_to_task_instances: DefaultDict[str, List[models.Pool]] = defaultdict(list)
@@ -1065,7 +1065,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
         Stats.gauge('scheduler.tasks.executable', len(executable_tis))
 
-        task_instance_str = "\n\t".join([repr(x) for x in executable_tis])
+        task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
         self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
 
         # set TIs to queued state
@@ -1239,12 +1239,14 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     "task says its %s. (Info: %s) Was the task killed externally?"
                 )
                 self.log.error(msg, ti, state, ti.state, info)
+
                 request = TaskCallbackRequest(
                     full_filepath=ti.dag_model.fileloc,
                     simple_task_instance=SimpleTaskInstance(ti),
                     msg=msg % (ti, state, ti.state, info),
                 )
-
+                self.log.info('Setting task instance %s state to %s as reported by executor', ti, state)
+                ti.set_state(state)
                 self.processor_agent.send_callback_to_execute(request)
 
         return len(event_buffer)

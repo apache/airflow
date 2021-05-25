@@ -132,7 +132,7 @@ def execute_in_subprocess(cmd: List[str]):
     :param cmd: command and arguments to run
     :type cmd: List[str]
     """
-    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True
     ) as proc:
@@ -153,7 +153,7 @@ def execute_interactive(cmd: List[str], **kwargs):
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
     the process is completed.
     """
-    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
 
     old_tty = termios.tcgetattr(sys.stdin)
     tty.setraw(sys.stdin.fileno())
