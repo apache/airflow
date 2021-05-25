@@ -905,6 +905,12 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f)
 
+    def test_return_false(self):
+        def f():
+            return False
+
+        self._run_as_operator(f)
+
     def test_lambda(self):
         with pytest.raises(AirflowException):
             PythonVirtualenvOperator(python_callable=lambda x: 4, task_id='task', dag=self.dag)
