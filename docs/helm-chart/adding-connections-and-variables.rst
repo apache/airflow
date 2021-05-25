@@ -32,20 +32,20 @@ into Airflow using the Helm chart. To illustrate, lets create a yaml file to ove
 .. code-block:: yaml
 
    secret:
+     - envName: "AIRFLOW_CONN_GCP"
+        secretName: "my-airflow-connections"
+        secretKey: "AIRFLOW_CONN_GCP"
       - envName: "my-env"
         secretName: "my-secret-name"
         secretKey: "my-secret-key"
 
-
   extraSecrets:
-     {{ .Release.Name }}-airflow-connections:
+     my-airflow-connections:
        data: |
          AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
-         AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
+     my-secret-name: |
        stringData: |
-         AIRFLOW_CONN_OTHER: 'other_conn'
-     {{ .Release.Name }}-other-secret-name-suffix: |
-       data: |
+         my-secret-key: my-secret
 
 
 Variables
