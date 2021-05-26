@@ -334,6 +334,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
               labels:
                 foo: bar
             spec:
+              serviceAccountName: foo
               affinity:
                 nodeAffinity:
                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -385,6 +386,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             assert pod.metadata.namespace == "mynamespace"
             assert pod.spec.containers[0].image == "ubuntu:16.04"
             assert pod.spec.containers[0].command == ["something"]
+            assert pod.spec.service_account_name == "foo"
             affinity = {
                 'node_affinity': {
                     'preferred_during_scheduling_ignored_during_execution': [
