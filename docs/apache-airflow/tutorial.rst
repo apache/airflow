@@ -377,18 +377,18 @@ Here's a few things you might want to do next:
       - Review the :ref:`Macros reference<macros>`
     - Write your first pipeline!
 
-
+Another Example
+---------------
 Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
 
-Initial setup
-'''''''''''''
-We need to have docker and postgres installed.
-We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
+Inital setup
+''''''''''''
+We need to have docker and postgres installed. We will be using this [docker file](https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml)
 Follow the instructions properly to set up Airflow.
 
 Create a Employee table in postgres using this
 
-.. code-block:: bash
+.. code-block:: sql
 
   create table "Employees"
   (
