@@ -67,7 +67,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_suc
                                                         set_dag_run_state_to_failed)
 from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors, \
     TaskInstance
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.dagcode import DagCode
 from airflow.models.error_tag import ErrorTag
 from airflow.models.tightening_controller import TighteningController
@@ -2249,9 +2249,7 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
-    @expose('/<string:bolt_no>/<string:craft_type>')
-    @has_access
-    def view_curves(self, bolt_no, craft_type):
+    def do_render(self, track_no=None, bolt_no=None, craft_type=None):
         view_name = 'curves'
         curves = request.args.get('curves')
         curves_list = curves.replace('@', '/').split(',') if curves is not None else []
@@ -2259,9 +2257,13 @@ class CurvesView(BaseCRUDView):
         pages = get_page_args()
         page = pages.get(view_name, 0)
         get_filter_args(self._filters)
-        self._filters.add_filter(column_name='bolt_number', filter_class=self.datamodel.FilterEqual, value=bolt_no)
-        self._filters.add_filter(column_name='craft_type', filter_class=self.datamodel.FilterEqual,
-                                 value=int(craft_type))
+        if bolt_no:
+            self._filters.add_filter(column_name='bolt_number', filter_class=self.datamodel.FilterEqual, value=bolt_no)
+        if craft_type:
+            self._filters.add_filter(column_name='craft_type', filter_class=self.datamodel.FilterEqual,
+                                     value=int(craft_type))
+        if track_no:
+            self._filters.add_filter(column_name='car_code', filter_class=self.datamodel.FilterEqual, value=track_no)
         joined_filters = self._filters.get_joined_filters(self._base_filters)
         order_column, order_direction = "execution_date", "desc"
         page_size = PAGE_SIZE
@@ -2312,6 +2314,29 @@ class CurvesView(BaseCRUDView):
                                     selected_curves=curves_list,
                                     selected_tasks=selected_tasks,
                                     widgets=widgets)
+
+    @expose('/analysis')
+    @has_access
+    def view_curves_analysis(self):
+        track_no = request.args.get('track_no', default=None)
+        bolt_no = request.args.get('bolt_no', default=None)
+        analysis_type = request.args.get('analysis_type', default=None)
+        ret = None
+        if not analysis_type:
+            raise AirflowNotFoundException
+        if analysis_type == 'track_no' and track_no:
+            ret = self.do_render(track_no=track_no)
+        elif analysis_type == 'bolt_no' and bolt_no:
+            ret = self.do_render(bolt_no=bolt_no)
+        if not ret:
+            raise AirflowNotFoundException
+        return ret
+
+    @expose('/<string:bolt_no>/<string:craft_type>')
+    @has_access
+    def view_curves(self, bolt_no, craft_type):
+        ret = self.do_render(bolt_no=bolt_no, craft_type=craft_type)
+        return ret
 
 
 class VersionView(AirflowBaseView):
@@ -2399,11 +2424,21 @@ class DagFilter(BaseFilter):
 
 class TrackNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
-        return query.filter(self.model.car_code.isnot(None))
+        session = query.session
+        ti = self.model
+        # ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
+        # return ret
+        # return session.query(sqla.func.distinct(ti.car_code)).filter(ti.car_code.isnot(None))
+        # return session.query(ti.car_code).distinct(ti.car_code).filter(ti.car_code.isnot(None)).group_by(ti.car_code)
+        # .group_by(
+        # ti.car_code)
+
 
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
-        return query.filter(self.model.bolt_number.isnot(None))
+        ti = self.model
+        return query.filter(ti.bolt_number.isnot(None))
+
 
 class ErrorTagFilter(BaseFilter):
 
@@ -2594,6 +2629,23 @@ class ErrorTagModelView(AirflowModelView):
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DELETE'], CUSTOM_PAGE_NAME_MAP['ERROR_TAG'], '删除错误标签')
         logging.info(msg)
+
+    @action('export_analysis', "Export Statistics", '', single=False)
+    @provide_session
+    def action_export_error_tag_statistics(self, error_tags, session=None):
+        ret = {}
+        d = json.JSONDecoder()
+        for var in error_tags:
+            try:
+                val = d.decode(var.val)
+            except Exception:
+                val = var.val
+            ret[var.key] = val
+
+        response = make_response(json.dumps(ret, sort_keys=True, indent=4, ensure_ascii=False))
+        response.headers["Content-Disposition"] = "attachment; filename=错误标签分析.json"
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
+        return response
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
@@ -3386,23 +3438,30 @@ class DagModelView(AirflowModelView):
         return wwwutils.json_response(payload)
 
 
+class CurveAnalysisListWidget(AirflowModelListWidget):
+    template = 'airflow/curve_analysis_list.html'
+
+
 class CurveAnalysisTrackNoView(TaskInstanceModelView):
     route_base = '/curves_analysis_track'
 
+    base_permissions = ['can_list', 'can_show']
+
+    list_widget = CurveAnalysisListWidget
+
     list_title = lazy_gettext("Analysis Via Track No")
 
-    list_columns = ['car_code', 'measure_result', 'type',
-                    'start_date', 'bolt_number',
-                    'final_state', 'end_date', 'log_url']
+    list_columns = ['car_code']
 
     search_columns = ['car_code']
 
     label_columns = TaskInstanceModelView.label_columns.update({
-        'car_code': lazy_gettext('Car Code'),
-        'bolt_number': lazy_gettext('Bolt Number'),
+        'car_code': lazy_gettext('Car Code')
     })
 
     base_filters = [['car_code', TrackNoNotNullFilter, lambda: []]]
+
+    base_order = ('car_code', 'asc')
 
 
 class CurveAnalysisBoltNoView(CurveAnalysisTrackNoView):
@@ -3410,5 +3469,10 @@ class CurveAnalysisBoltNoView(CurveAnalysisTrackNoView):
 
     list_title = lazy_gettext("Analysis Via Bolt No")
 
+    list_columns = ['bolt_number']
+
+    search_columns = ['bolt_number']
+
     base_filters = [['bolt_number', BoltNoNotNullFilter, lambda: []]]
 
+    base_order = ('bolt_number', 'asc')

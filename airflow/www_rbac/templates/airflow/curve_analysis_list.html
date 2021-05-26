@@ -1,0 +1,46 @@
+{% extends 'airflow/model_list.html' %}
+
+{% block begin_loop_values %}
+  {% for item in value_columns %}
+    {% set pk = pks[loop.index-1] %}
+    <tr>
+      {% if actions %}
+        <td>
+          <input id="{{ pk }}" class="action_check" name="rowid" value="{{ pk }}" type="checkbox">
+        </td>
+      {% endif %}
+      {% if can_show or can_edit or can_delete %}
+        <td>
+          <center>
+            {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
+          </center>
+          {% if modelview_name == 'CurveAnalysisBoltNoView' %}
+            <a href="{{ url_for('Airflow.view_curve_template',bolt_no=item.bolt_number,craft_type=item.craft_type) }}"
+               target="_blank" style="display:block">查看曲线模板</a>
+          {% endif %}
+          {% if modelview_name == 'CurveAnalysisTrackNoView' %}
+            <a href="{{ url_for('CurvesView.view_curves_analysis',track_no=item.car_code, analysis_type='track_no') }}"
+               target="_blank" style="display:block">查看相关曲线</a>
+          {% endif %}
+          {% if modelview_name == 'CurveAnalysisBoltNoView' %}
+            <a href="{{ url_for('CurvesView.view_curves_analysis',bolt_no=item.bolt_number, analysis_type='bolt_no') }}"
+               target="_blank" style="display:block">查看相关曲线</a>
+          {% endif %}
+        </td>
+      {% endif %}
+      {% for value in include_columns %}
+        {% set formatter = formatters_columns.get(value) %}
+        {% if formatter and formatter(item) %}
+          <td><p style="text-overflow:ellipsis;overflow:auto;line-height:2rem;max-height:10rem;padding:3px;margin:0;">
+            {{ formatter(item) }}
+          </p>
+          </td>
+        {% elif item[value] != None %}
+          <td>{{ item[value]|safe }}</td>
+        {% else %}
+          <td></td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+  {% endfor %}
+{% endblock %}
