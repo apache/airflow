@@ -1334,14 +1334,8 @@ class TestDag(unittest.TestCase):
         dagrun = dagruns[0]  # type: DagRun
         assert dagrun.state == dag_run_state
 
-    @parameterized.expand(
-        [
-            (State.NONE,),
-            (State.RUNNING,),
-        ]
-    )
-    def test_clear_set_dagrun_state_for_subdag(self, dag_run_state):
-        dag_id = 'test_clear_set_dagrun_state_subdag'
+    def _make_test_subdag(self, session):
+        dag_id = 'test_subdag'
         self._clean_up(dag_id)
         task_id = 't1'
         dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
@@ -1349,27 +1343,43 @@ class TestDag(unittest.TestCase):
         subdag = DAG(dag_id + '.test', start_date=DEFAULT_DATE, max_active_runs=1)
         SubDagOperator(task_id='test', subdag=subdag, dag=dag)
         t_2 = DummyOperator(task_id='task', dag=subdag)
+        subdag.parent_dag = dag
+        subdag.is_subdag = True
+
+        dag.sync_to_db()
 
         session = settings.Session()
-        dagrun_1 = dag.create_dagrun(
-            run_type=DagRunType.BACKFILL_JOB,
+        dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
             state=State.FAILED,
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
+            session=session,
         )
-        dagrun_2 = subdag.create_dagrun(
-            run_type=DagRunType.BACKFILL_JOB,
+        subdag.create_dagrun(
+            run_type=DagRunType.MANUAL,
             state=State.FAILED,
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
+            session=session,
         )
-        session.merge(dagrun_1)
-        session.merge(dagrun_2)
         task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
         task_instance_2 = TI(t_2, execution_date=DEFAULT_DATE, state=State.RUNNING)
         session.merge(task_instance_1)
         session.merge(task_instance_2)
-        session.commit()
+
+        return dag, subdag
+
+    @parameterized.expand(
+        [
+            (State.NONE,),
+            (State.RUNNING,),
+        ]
+    )
+    def test_clear_set_dagrun_state_for_subdag(self, dag_run_state):
+        session = settings.Session()
+        dag, subdag = self._make_test_subdag(session)
+        session.flush()
 
         dag.clear(
             start_date=DEFAULT_DATE,
@@ -1388,6 +1398,7 @@ class TestDag(unittest.TestCase):
             .one()
         )
         assert dagrun.state == dag_run_state
+        session.rollback()
 
     @parameterized.expand(
         [
@@ -1396,37 +1407,9 @@ class TestDag(unittest.TestCase):
         ]
     )
     def test_clear_set_dagrun_state_for_parent_dag(self, dag_run_state):
-        dag_id = 'test_clear_set_dagrun_state_parent_dag'
-        self._clean_up(dag_id)
-        task_id = 't1'
-        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = DummyOperator(task_id=task_id, dag=dag)
-        subdag = DAG(dag_id + '.test', start_date=DEFAULT_DATE, max_active_runs=1)
-        SubDagOperator(task_id='test', subdag=subdag, dag=dag)
-        t_2 = DummyOperator(task_id='task', dag=subdag)
-        subdag.parent_dag = dag
-        subdag.is_subdag = True
-
         session = settings.Session()
-        dagrun_1 = dag.create_dagrun(
-            run_type=DagRunType.BACKFILL_JOB,
-            state=State.FAILED,
-            start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
-        )
-        dagrun_2 = subdag.create_dagrun(
-            run_type=DagRunType.BACKFILL_JOB,
-            state=State.FAILED,
-            start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
-        )
-        session.merge(dagrun_1)
-        session.merge(dagrun_2)
-        task_instance_1 = TI(t_1, execution_date=DEFAULT_DATE, state=State.RUNNING)
-        task_instance_2 = TI(t_2, execution_date=DEFAULT_DATE, state=State.RUNNING)
-        session.merge(task_instance_1)
-        session.merge(task_instance_2)
-        session.commit()
+        dag, subdag = self._make_test_subdag(session)
+        session.flush()
 
         subdag.clear(
             start_date=DEFAULT_DATE,
@@ -1441,7 +1424,7 @@ class TestDag(unittest.TestCase):
             session.query(
                 DagRun,
             )
-            .filter(DagRun.dag_id == dag_id)
+            .filter(DagRun.dag_id == dag.dag_id)
             .one()
         )
         assert dagrun.state == dag_run_state
