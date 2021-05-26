@@ -18,7 +18,7 @@
 #
 
 import warnings
-from typing import Dict, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
@@ -235,7 +235,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             perm_view = self.add_permission_view_menu(perm_name, view_name)
             self.add_permission_role(role, perm_view)
 
-    def get_resource(self, name):
+    def get_resource(self, name: str) -> ViewMenu:
         """
         Returns a resource record by name, if it exists.
         :param name: Name of resource
@@ -245,7 +245,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         return self.find_view_menu(name)
 
-    def get_all_resources(self):
+    def get_all_resources(self) -> List[ViewMenu]:
         """
         Gets all existing resource records.
         :return: List of all resources
@@ -253,7 +253,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         return self.get_all_view_menu()
 
-    def get_action(self, name):
+    def get_action(self, name: str) -> Permission:
         """
         Gets an existing action record.
         :param name: name
@@ -261,9 +261,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         :return: Action record, if it exists
         :rtype: Permission
         """
-        return super().find_permission(name)
+        return self.find_permission(name)
 
-    def get_permission(self, action_name, resource_name):
+    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
         :param action_name: Name of action
@@ -275,7 +275,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         return self.find_permission_view_menu(action_name, resource_name)
 
-    def create_permission(self, action_name, resource_name):
+    def create_permission(self, action_name: str, resource_name: str) -> PermissionView:
         """
         Creates a permission linking an action and resource.
         :param action_name: Name of existing action
@@ -287,7 +287,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         return self.add_permission_view_menu(action_name, resource_name)
 
-    def delete_permission(self, action_name, resource_name):
+    def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
         Deletes the permission linking an action->resource pair. Doesn't delete the
         underlying action or resource.
@@ -482,19 +482,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         return has_access
 
-    def _has_access(self, user, action, resource) -> bool:
+    def _has_access(self, user: User, action_name: str, resource_name: str) -> bool:
         """
         Wraps the FAB built-in view access method. Won't work for AllDag access.
-        :param user: user name
-        :type user: str
-        :param action: action on resource (e.g can_read, can_edit).
-        :type action: str
-        :param resource: name of resource or resource.
-        :type resource: str
+        :param user: user object
+        :type user: User
+        :param action_name: action_name on resource (e.g can_read, can_edit).
+        :type action_name: str
+        :param resource_name: name of resource.
+        :type resource_name: str
         :return: a bool whether user could perform certain action on the resource.
         :rtype bool
         """
-        return bool(self._has_view_access(user, action, resource))
+        return bool(self._has_view_access(user, action_name, resource_name))
 
     def _get_and_cache_perms(self):
         """Cache permissions-views"""
@@ -589,7 +589,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         self.get_session.commit()
 
-    def add_permission_to_role(self, role, permission):
+    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
         """
         Add an existing permission pair to a role.
         :param role: The role about to get a new permission.
@@ -601,7 +601,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         self.add_permission_role(role, permission)
 
-    def remove_permission_from_role(self, role, permission):
+    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
         """
         Remove a permission pair from a role.
         :param role: User role containing permissions.
@@ -611,15 +611,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         self.del_permission_role(role, permission)
 
-    def delete_action(self, action_name) -> bool:
+    def delete_action(self, name: str) -> bool:
         """
         Deletes a permission action.
-        :param action_name: Name of action to delete (e.g. can_read).
-        :type action_name: str
+        :param name: Name of action to delete (e.g. can_read).
+        :type name: str
         :return: Whether or not delete was successful.
         :rtype: bool
         """
-        return self.del_permission(action_name)
+        return self.del_permission(name)
 
     def get_all_permissions(self) -> Set[Tuple[str, str]]:
         """Returns all permissions as a set of tuples with the perm name and view menu name"""
@@ -758,7 +758,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         if access_control:
             self._sync_dag_view_permissions(dag_resource_name, access_control)
 
-    def get_resource_permissions(self, resource):
+    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
         """
         Retrieve permission pairs associated with a specific resource object.
         :param resource: Object representing a single resource.
@@ -828,14 +828,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
                 dag_perm = _get_or_create_dag_permission(perm_name)
                 self.add_permission_role(role, dag_perm)
 
-    def create_resource(self, resource_name):
+    def create_resource(self, name: str) -> ViewMenu:
         """
-        :param resource_name: The name of the resource to create created.
-        :type resource_name: str
+        :param name: The name of the resource to create created.
+        :type name: str
         :return: The FAB resource created.
         :rtype: ViewMenu
         """
-        return self.add_view_menu(resource_name)
+        return self.add_view_menu(name)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
@@ -870,7 +870,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         return True
 
-    def reset_all_permissions(self):
+    def reset_all_permissions(self) -> None:
         """
         Deletes all permission records and removes from roles,
         then re-syncs them.
