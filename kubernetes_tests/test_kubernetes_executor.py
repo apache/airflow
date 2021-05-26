@@ -36,7 +36,7 @@ class TestKubernetesExecutor(TestBase):
             dag_id=dag_id,
             task_id='start_task',
             expected_final_state='success',
-            timeout=300,
+            timeout=30,
         )
 
         self.ensure_dag_expected_state(
@@ -44,7 +44,7 @@ class TestKubernetesExecutor(TestBase):
             execution_date=execution_date,
             dag_id=dag_id,
             expected_final_state='success',
-            timeout=300,
+            timeout=30,
         )
 
     def test_integration_run_dag_with_scheduler_failure(self):
@@ -63,7 +63,7 @@ class TestKubernetesExecutor(TestBase):
             dag_id=dag_id,
             task_id='start_task',
             expected_final_state='success',
-            timeout=300,
+            timeout=30,
         )
 
         self.monitor_task(
@@ -72,7 +72,7 @@ class TestKubernetesExecutor(TestBase):
             dag_id=dag_id,
             task_id='other_namespace_task',
             expected_final_state='success',
-            timeout=300,
+            timeout=30,
         )
 
         self.ensure_dag_expected_state(
@@ -80,7 +80,7 @@ class TestKubernetesExecutor(TestBase):
             execution_date=execution_date,
             dag_id=dag_id,
             expected_final_state='success',
-            timeout=300,
+            timeout=30,
         )
 
         assert self._num_pods_in_namespace('test-namespace') == 0, "failed to delete pods in other namespace"
@@ -98,7 +98,7 @@ class TestKubernetesExecutor(TestBase):
             dag_id=dag_id,
             task_id='start_task',
             expected_final_state='failed',
-            timeout=300,
+            timeout=30,
         )
         self.monitor_task(
             host=self.host,
@@ -106,45 +106,13 @@ class TestKubernetesExecutor(TestBase):
             dag_id=dag_id,
             task_id='other_namespace_task',
             expected_final_state='upstream_failed',
-            timeout=300,
+            timeout=30,
         )
         self.ensure_dag_expected_state(
             host=self.host,
             execution_date=execution_date,
             dag_id=dag_id,
             expected_final_state='failed',
-            timeout=300,
-        )
-        assert self._num_pods_in_namespace('test-namespace') == 0, "failed to delete pods in other namespace"
-
-    def test_integration_run_dag_with_container_creating_task_pod_kill(self):
-        # This tests that when a task pod is killed while it's still creating, then
-        # the task is marked failed and downstream tasks are marked as upstream failed as well
-        dag_id = 'example_kubernetes_executor_config'
-        pod_name = 'examplekubernetesexecutorconfigstarttask'
-        dag_run_id, execution_date = self.start_dag(dag_id=dag_id, host=self.host)
-        self._delete_task_pod(pod_name, type='ContainerCreating')
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id='start_task',
-            expected_final_state='failed',
-            timeout=300,
-        )
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id='other_namespace_task',
-            expected_final_state='upstream_failed',
-            timeout=300,
-        )
-        self.ensure_dag_expected_state(
-            host=self.host,
-            execution_date=execution_date,
-            dag_id=dag_id,
-            expected_final_state='failed',
-            timeout=300,
+            timeout=30,
         )
         assert self._num_pods_in_namespace('test-namespace') == 0, "failed to delete pods in other namespace"
