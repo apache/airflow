@@ -121,7 +121,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
                 )
             )
 
-            return '\n'.join([self._event_to_str(event) for event in events])
+            return '\n'.join(self._event_to_str(event) for event in events)
         except Exception:  # pylint: disable=broad-except
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name

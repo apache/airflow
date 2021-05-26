@@ -30,6 +30,19 @@ Follow these steps to install the necessary tools.
 
 Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
 
+.. warning::
+    Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
+    If you have not enough memory available it might lead to airflow webserver continuously restarting.
+    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
+
+    You can also check if you have enough memory by running this command:
+
+    .. code-block:: bash
+
+        docker run --rm "debian:buster-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+
+
 ``docker-compose.yaml``
 =======================
 

@@ -111,7 +111,7 @@ class RedisTest(unittest.TestCase):
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
             expected_password_match=r"\w+",
-            expected_broker_url_match=fr"redis://:\w+@{RELEASE_NAME_REDIS}-redis:6379/0",
+            expected_broker_url_match=fr"redis://:.+@{RELEASE_NAME_REDIS}-redis:6379/0",
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)
@@ -123,7 +123,7 @@ class RedisTest(unittest.TestCase):
             {
                 "executor": executor,
                 "networkPolicies": {"enabled": True},
-                "redis": {"enabled": True, "password": "test-redis-password"},
+                "redis": {"enabled": True, "password": "test-redis-password!@#$%^&*()_+"},
             },
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
@@ -134,7 +134,9 @@ class RedisTest(unittest.TestCase):
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
             expected_password_match="test-redis-password",
-            expected_broker_url_match=f"redis://:test-redis-password@{RELEASE_NAME_REDIS}-redis:6379/0",
+            expected_broker_url_match=re.escape(
+                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@TEST-REDIS-redis:6379/0"
+            ),
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)

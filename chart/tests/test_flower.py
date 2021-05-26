@@ -21,7 +21,7 @@ import pytest
 from tests.helm_template_generator import render_chart
 
 
-class TestFlower:
+class TestFlowerDeployment:
     @pytest.mark.parametrize(
         "executor,flower_enabled,created",
         [
@@ -188,3 +188,63 @@ class TestFlower:
             show_only=["templates/flower/flower-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+
+class TestFlowerService:
+    @pytest.mark.parametrize(
+        "executor,flower_enabled,created",
+        [
+            ("CeleryExecutor", False, False),
+            ("CeleryKubernetesExecutor", False, False),
+            ("KubernetesExecutor", False, False),
+            ("CeleryExecutor", True, True),
+            ("CeleryKubernetesExecutor", True, True),
+            ("KubernetesExecutor", True, False),
+        ],
+    )
+    def test_create_flower(self, executor, flower_enabled, created):
+        docs = render_chart(
+            values={"executor": executor, "flower": {"enabled": flower_enabled}},
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+
+        assert bool(docs) is created
+        if created:
+            assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+
+    def test_default_service(self):
+        docs = render_chart(
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+
+        assert "RELEASE-NAME-flower" == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0]) is None
+        assert {"tier": "airflow", "component": "flower", "release": "RELEASE-NAME"} == jmespath.search(
+            "spec.selector", docs[0]
+        )
+        assert "ClusterIP" == jmespath.search("spec.type", docs[0])
+        assert {"name": "flower-ui", "protocol": "TCP", "port": 5555} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+
+    def test_overrides(self):
+        docs = render_chart(
+            values={
+                "ports": {"flowerUI": 9000},
+                "flower": {
+                    "service": {
+                        "type": "LoadBalancer",
+                        "loadBalancerIP": "127.0.0.1",
+                        "annotations": {"foo": "bar"},
+                    }
+                },
+            },
+            show_only=["templates/flower/flower-service.yaml"],
+        )
+
+        assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
+        assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
+        assert {"name": "flower-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+        assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])

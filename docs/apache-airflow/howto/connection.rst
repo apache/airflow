@@ -31,6 +31,8 @@ variables.
 See the :doc:`Connections Concepts </concepts/connections>` documentation for
 more information.
 
+.. _creating_connection_ui:
+
 Creating a Connection with the UI
 ---------------------------------
 
@@ -47,6 +49,8 @@ to create a new connection.
    :ref:`manage-connections-connection-types` for a description of the fields
    belonging to the different connection types.
 4. Click the ``Save`` button to create the connection.
+
+.. _editing_connection_ui:
 
 Editing a Connection with the UI
 --------------------------------
@@ -358,6 +362,24 @@ Passwords cannot be manipulated or read without the key. For information on conf
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
 an secrets backend to retrieve connections. For more details see :doc:`/security/secrets/secrets-backend/index`.
+
+
+Test Connections
+----------------
+
+Airflow Web UI & API allows to test connections. The test connection feature can be used from
+:ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page, or through calling
+:doc:`Connections REST API </stable-rest-api-ref/>`.
+
+To test a connection Airflow calls out the ``test_connection`` method from the associated hook class and reports the
+results of it. It may happen that the connection type does not have any associated hook or the hook doesn't have the
+``test_connection`` method implementation, in either case the error message will throw the proper error message.
+
+One important point to note is that the connections will be tested from the webserver only, so this feature is
+subject to network egress rules setup for your webserver. Also, if webserver & worker machines have different libs or
+provider packages installed then the test results might differ.
+
+Last caveat is that this feature won't be available for the connections coming out of the secrets backends.
 
 
 Custom connection types

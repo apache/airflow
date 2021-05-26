@@ -374,7 +374,7 @@ class CeleryExecutor(BaseExecutor):
                 "Adopted tasks were still pending after %s, assuming they never made it to celery and "
                 "clearing:\n\t%s",
                 self.task_adoption_timeout,
-                "\n\t".join([repr(x) for x in timedout_keys]),
+                "\n\t".join(repr(x) for x in timedout_keys),
             )
             for key in timedout_keys:
                 self.event_buffer[key] = (State.FAILED, None)

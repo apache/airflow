@@ -22,6 +22,7 @@
 
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
@@ -125,6 +126,30 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
+
+## [\Optional\] Create new release branch
+
+When you just released the `X.Y.0` version (first release of new minor version) you need to create release
+branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
+`v2-1-stable` branches):
+
+
+   ```shell script
+   # First clone the repo
+   BRANCH_PREFIX=v2-1
+   git branch ${BRANCH_PREFIX}-test
+   git branch ${BRANCH_PREFIX}-stable
+   git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
+   ```
+
+Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
+
+Run script to re-tag images from the ``master`` branch to the  ``vX-Y-test`` branch:
+
+   ```shell script
+   ./dev/retag_docker_images.py --source-branch master --target-branch ${BRANCH_PREFIX}-test
+   ```
+
 
 ## Prepare PyPI convenience "snapshot" packages
 

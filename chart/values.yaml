@@ -152,7 +152,7 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
-# `airflow_local_settings` file as a string.
+# `airflow_local_settings` file as a string (can be templated).
 airflowLocalSettings: ~
 
 # Enable RBAC (default on most clusters these days)
@@ -429,6 +429,12 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+  # Update Strategy when scheduler is deployed as a StatefulSet
+  # (when using LocalExecutor and workers.persistence)
+  updateStrategy: ~
+  # Update Strategy when scheduler is deployed as a Deployment
+  # (when not using LocalExecutor and workers.persistence)
+  strategy: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -475,6 +481,9 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Annotations on the create user job pod
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -488,6 +497,8 @@ createUserJob:
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  # Annotations on the database migration pod
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -560,9 +571,8 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image
-  # instead
+  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
+  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -577,6 +587,7 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
@@ -618,6 +629,9 @@ flower:
 
   service:
     type: ClusterIP
+    ## service annotations
+    annotations: {}
+    loadBalancerIP: ~
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
@@ -963,10 +977,8 @@ dags:
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-0-stable
+    branch: v2-1-stable
     rev: HEAD
-    root: "/git"
-    dest: "repo"
     depth: 1
     # the number of consecutive failures allowed before aborting
     maxFailures: 0
@@ -1013,6 +1025,13 @@ dags:
     uid: 65533
     extraVolumeMounts: []
     env: []
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 logs:
   persistence:

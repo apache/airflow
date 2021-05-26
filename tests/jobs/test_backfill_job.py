@@ -767,7 +767,7 @@ class TestBackfillJob(unittest.TestCase):
         # test executor history keeps a list
         history = executor.history
 
-        assert [sorted([item[-1].key[1:3] for item in batch]) for batch in history] == [
+        assert [sorted(item[-1].key[1:3] for item in batch) for batch in history] == [
             [
                 ('leave1', date0),
                 ('leave1', date1),

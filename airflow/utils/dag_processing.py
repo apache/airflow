@@ -1054,14 +1054,20 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             if is_mtime_mode:
                 files_with_mtime[file_path] = os.path.getmtime(file_path)
+                file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
             else:
                 file_paths.append(file_path)
+                file_modified_time = None
 
-            # Find file paths that were recently processed
+            # Find file paths that were recently processed to exclude them
+            # from being added to file_path_queue
+            # unless they were modified recently and parsing mode is "modified_time"
+            # in which case we don't honor "self._file_process_interval" (min_file_process_interval)
             last_finish_time = self.get_last_finish_time(file_path)
             if (
                 last_finish_time is not None
                 and (now - last_finish_time).total_seconds() < self._file_process_interval
+                and not (is_mtime_mode and file_modified_time and (file_modified_time > last_finish_time))
             ):
                 file_paths_recently_processed.append(file_path)
 

@@ -67,7 +67,7 @@ class PlexusHook(BaseHook):
     def token(self) -> Any:
         """Returns users token"""
         if self.__token is not None:
-            if arrow.get(self.__token_exp) <= arrow.now():
+            if not self.__token_exp or arrow.get(self.__token_exp) <= arrow.now():
                 self.__token = self._generate_token()
             return self.__token
         else:

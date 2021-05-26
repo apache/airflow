@@ -54,13 +54,18 @@ function build_images::add_build_args_for_remote_install() {
         )
     fi
     # Depending on the version built, we choose the right branch for preloading the packages from
-    # For v2-0-test we choose v2-0-test
-    # all other builds when you choose a specific version (1.0 or 2.0 series) should choose stable branch
+    # For v2-*-test we choose v2-*-test
+    # all other builds when you choose a specific version (1.0, 2.0, 2.1. series) should choose stable branch
     # to preload. For all other builds we use the default branch defined in _initialization.sh
+    # TODO: Generalize me
     if [[ ${AIRFLOW_VERSION} == 'v2-0-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
-    elif [[ ${AIRFLOW_VERSION} =~ v?2.* ]]; then
+    elif [[ ${AIRFLOW_VERSION} == 'v2-1-test' ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-test"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2\.0* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2\.1* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-stable"
     else
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
@@ -381,39 +386,6 @@ function build_images::get_docker_image_names() {
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # This is 1-1 mapping of image names of Apache Airflow stored in DockerHub vs. the same images stored
-    # in GitHub Registries (either GitHub Container Registry or GitHub Packages)
-    #
-    # We have to apply naming conventions used by the registries and keep multiple RUN_ID tags. We use
-    # common suffix ('gcr-v1') to be able to switch to different set of cache images if needed
-    # - for example when some images gets broken (might happen with GitHub Actions Registries) or when
-    # the storage capacity per image is reached (though it is apparently unlimited)
-    #
-    # Some examples:
-    #
-    # In case of GitHub Container Registry:
-    #
-    # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow-master-python3.8-gcr-v1:<RUN_ID>"
-    # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow-master-python3.8-build-gcr-v1:<RUN_ID>"
-    # * CI build image: "apache/airflow:master-python3.8-ci" ->  "apache/airflow-master-python3.8-ci-gcr-v1:<RUN_ID>"
-    #
-    # The python base image/tag mapping is slightly different (the base images are shared by all Prod/Build/CI images)
-    # And python version is part of the tag.
-    #
-    # "apache/airflow:python-3.6 ->  "apache/airflow-python-gcr-v1:3.6-slim-buster-<RUN_ID>"
-    #
-    # In case of GitHub Packages image must be part of the repository:
-    #
-    # * Prod Image: "apache/airflow:master-python3.8" ->  "apache/airflow/master-python3.8-gcr-v1:<RUN_ID>"
-    # * Prod build image: "apache/airflow:master-python3.8-build" ->  "apache/airflow/master-python3.8-build-gcr-v1:<RUN_ID>"
-    # * CI build image: "apache/airflow:master-python3.8-ci" ->  "apache/airflow/master-python3.8-ci-gcr-v1:<RUN_ID>"
-    #
-    # The python base image/tag mapping is slightly different (the base images are shared by all
-    # Prod/Build/CI images) and python version is part of the tag.
-    #
-    # "apache/airflow:python-3.6 ->  "apache/airflow/python/gcr-v1:3.6-slim-buster-<RUN_ID>"
-
-
     local image_name
     image_name="${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)"
     local image_separator
@@ -428,10 +400,24 @@ function build_images::get_docker_image_names() {
         exit 1
     fi
 
+    # Example:
+    #  docker.pkg.github.com/apache/airflow/master-python3.6-v2
+    #  ghcr.io/apache/airflow-v2-1-test-python-v2:3.6-slim-buster
+    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
     export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    # Example:
+    #   docker.pkg.github.com/apache/airflow/master-python3.6-build-v2
+    #   ghcr.io/apache/airflow-master-python3.6-build-v2
     export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+
+    # Example:
+    #  docker.pkg.github.com/apache/airflow/python-v2:3.6-slim-buster
+    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster
+    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
+    # Example:
+    #  docker.pkg.github.com/apache/airflow/master-python3.8-ci-v2
     export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
 }
 
@@ -553,10 +539,12 @@ function build_images::rebuild_ci_image_if_needed() {
             build_images::confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
-            SYSTEM=$(uname -s)
-            if [[ ${SYSTEM} != "Darwin" ]]; then
-                ROOT_FILES_COUNT=$(find "airflow" "tests" -user root | wc -l | xargs)
-                if [[ ${ROOT_FILES_COUNT} != "0" ]]; then
+            local system
+            system=$(uname -s)
+            if [[ ${system} != "Darwin" ]]; then
+                local root_files_count
+                root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
+                if [[ ${root_files_count} != "0" ]]; then
                     ./scripts/ci/tools/ci_fix_ownership.sh
                 fi
             fi
@@ -644,14 +632,15 @@ function get_github_container_registry_image_prefix() {
 # it also passes the right Build args depending on the configuration of the build
 # selected by Breeze flags or environment variables.
 function build_images::build_ci_image() {
+    local spin_pid
     build_images::print_build_info
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
-        SPIN_PID=$!
+        spin_pid=$!
         # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
+        traps::add_trap '$(kill '${spin_pid}' || true)' EXIT HUP INT TERM
     fi
     push_pull_remove_images::pull_ci_images_if_needed
     if [[ "${DOCKER_CACHE}" == "disabled" ]]; then
@@ -681,18 +670,18 @@ function build_images::build_ci_image() {
         )
     fi
 
-    if [[ -n ${SPIN_PID=} ]]; then
-        kill -HUP "${SPIN_PID}" || true
-        wait "${SPIN_PID}" || true
+    if [[ -n ${spin_pid=} ]]; then
+        kill -HUP "${spin_pid}" || true
+        wait "${spin_pid}" || true
         echo >"${DETECTED_TERMINAL}"
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "Preparing ${AIRFLOW_CI_IMAGE}.
         " >"${DETECTED_TERMINAL}"
         spinner::spin "${OUTPUT_LOG}" &
-        SPIN_PID=$!
+        spin_pid=$!
         # shellcheck disable=SC2064,SC2016
-        traps::add_trap '$(kill '${SPIN_PID}' || true)' EXIT HUP INT TERM
+        traps::add_trap '$(kill '${spin_pid}' || true)' EXIT HUP INT TERM
     fi
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
         echo -n "
@@ -755,9 +744,9 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
     fi
-    if [[ -n ${SPIN_PID=} ]]; then
-        kill -HUP "${SPIN_PID}" || true
-        wait "${SPIN_PID}" || true
+    if [[ -n ${spin_pid=} ]]; then
+        kill -HUP "${spin_pid}" || true
+        wait "${spin_pid}" || true
         echo >"${DETECTED_TERMINAL}"
     fi
 }
@@ -954,23 +943,23 @@ function build_images::build_prod_images() {
 #  $3, $4, ... - target tags to tag the image with
 function build_images::wait_for_image_tag() {
 
-    IMAGE_NAME="${1}"
-    IMAGE_SUFFIX=${2}
+    local image_name="${1}"
+    local image_suffix="${2}"
     shift 2
 
-    IMAGE_TO_WAIT_FOR="${IMAGE_NAME}${IMAGE_SUFFIX}"
-    start_end::group_start "Wait for image tag ${IMAGE_TO_WAIT_FOR}"
+    local image_to_wait_for="${image_name}${image_suffix}"
+    start_end::group_start "Wait for image tag ${image_to_wait_for}"
     while true; do
         set +e
-        echo "${COLOR_BLUE}Docker pull ${IMAGE_TO_WAIT_FOR} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-        docker_v pull "${IMAGE_TO_WAIT_FOR}" >>"${OUTPUT_LOG}" 2>&1
+        echo "${COLOR_BLUE}Docker pull ${image_to_wait_for} ${COLOR_RESET}" >"${OUTPUT_LOG}"
+        docker_v pull "${image_to_wait_for}" >>"${OUTPUT_LOG}" 2>&1
         set -e
         local image_hash
-        echo "${COLOR_BLUE} Docker images -q ${IMAGE_TO_WAIT_FOR}${COLOR_RESET}" >>"${OUTPUT_LOG}"
-        image_hash="$(docker images -q "${IMAGE_TO_WAIT_FOR}" 2>>"${OUTPUT_LOG}" || true)"
+        echo "${COLOR_BLUE} Docker images -q ${image_to_wait_for}${COLOR_RESET}" >>"${OUTPUT_LOG}"
+        image_hash="$(docker images -q "${image_to_wait_for}" 2>>"${OUTPUT_LOG}" || true)"
         if [[ -z "${image_hash}" ]]; then
             echo
-            echo "The image ${IMAGE_TO_WAIT_FOR} is not yet available. No local hash for the image. Waiting."
+            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image. Waiting."
             echo
             echo "Last log:"
             cat "${OUTPUT_LOG}" || true
@@ -978,17 +967,17 @@ function build_images::wait_for_image_tag() {
             sleep 10
         else
             echo
-            echo "The image ${IMAGE_TO_WAIT_FOR} with '${IMAGE_NAME}' tag"
+            echo "The image ${image_to_wait_for} with '${image_name}' tag"
             echo
             echo
-            echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${IMAGE_NAME}."
+            echo "Tagging ${image_to_wait_for} as ${image_name}."
             echo
-            docker_v tag "${IMAGE_TO_WAIT_FOR}" "${IMAGE_NAME}"
+            docker_v tag "${image_to_wait_for}" "${image_name}"
             for TARGET_TAG in "${@}"; do
                 echo
-                echo "Tagging ${IMAGE_TO_WAIT_FOR} as ${TARGET_TAG}."
+                echo "Tagging ${image_to_wait_for} as ${TARGET_TAG}."
                 echo
-                docker_v tag "${IMAGE_TO_WAIT_FOR}" "${TARGET_TAG}"
+                docker_v tag "${image_to_wait_for}" "${TARGET_TAG}"
             done
             break
         fi

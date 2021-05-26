@@ -286,7 +286,7 @@ class AzureBatchHook(BaseHook):
             # refresh pool to ensure that there is no resize error
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
-                resize_errors = "\n".join([repr(e) for e in pool.resize_errors])
+                resize_errors = "\n".join(repr(e) for e in pool.resize_errors)
                 raise RuntimeError(f'resize error encountered for pool {pool.id}:\n{resize_errors}')
             nodes = list(self.connection.compute_node.list(pool.id))
             if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):

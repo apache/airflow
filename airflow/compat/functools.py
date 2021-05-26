@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+if sys.version_info >= (3, 8):
+    from functools import cached_property  # pylint: disable=no-name-in-module
+else:
+    from cached_property import cached_property
 
-# [START build]
-docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/v2-0-test.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
-    --tag "$(basename "$0")"
-# [END build]
-docker rmi --force "$(basename "$0")"
+if sys.version_info >= (3, 9):
+    from functools import cache  # pylint: disable=no-name-in-module
+else:
+    from functools import lru_cache
+
+    cache = lru_cache(maxsize=None)
+
+
+__all__ = ["cache", "cached_property"]
