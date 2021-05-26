@@ -1015,6 +1015,13 @@ dags:
     uid: 65533
     extraVolumeMounts: []
     env: []
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 logs:
   persistence:

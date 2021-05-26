@@ -102,6 +102,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
         } == jmespath.search("spec.initContainers[0]", docs[0])
 
     def test_should_not_add_init_container_if_dag_persistence_is_true(self):

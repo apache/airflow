@@ -2454,6 +2454,23 @@
                                     "value": "60"
                                 }
                             ]
+                        },
+                        "resources": {
+                            "description": "Resources on workers git-sync sidecar",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
