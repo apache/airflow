@@ -30,7 +30,6 @@ import {
   Tr,
   Th,
   Td,
-  chakra,
   IconButton,
   Text,
   useColorModeValue,
@@ -39,8 +38,11 @@ import {
   useTable, useSortBy, Column, usePagination, SortingRule,
 } from 'react-table';
 import {
-  MdArrowDropDown, MdArrowDropUp, MdKeyboardArrowLeft, MdKeyboardArrowRight,
+  MdKeyboardArrowLeft, MdKeyboardArrowRight,
 } from 'react-icons/md';
+import {
+  TiArrowUnsorted, TiArrowSortedDown, TiArrowSortedUp,
+} from 'react-icons/ti';
 
 interface Props {
   data: any[];
@@ -69,6 +71,9 @@ const Table: React.FC<Props> = ({
   const hoverColor = useColorModeValue('gray.100', 'gray.700');
 
   const pageCount = totalEntries ? (Math.ceil(totalEntries / pageSize) || 1) : data.length;
+
+  const lowerCount = (offset || 0) + 1;
+  const upperCount = lowerCount + data.length - 1;
 
   const {
     getTableProps,
@@ -121,17 +126,15 @@ const Table: React.FC<Props> = ({
                 {...column.getHeaderProps(column.getSortByToggleProps())}
               >
                 {column.render('Header')}
-                <chakra.span pl="2">
-                  {column.isSorted && (
-                    column.isSortedDesc ? (
-                      <MdArrowDropDown aria-label="sorted descending" style={{ display: 'inline' }} size="2em" />
-                    ) : (
-                      <MdArrowDropUp aria-label="sorted ascending" style={{ display: 'inline' }} size="2em" />
-                    )
-                  )}
-                </chakra.span>
+                {column.isSorted && (
+                  column.isSortedDesc ? (
+                    <TiArrowSortedDown aria-label="sorted descending" style={{ display: 'inline' }} size="1em" />
+                  ) : (
+                    <TiArrowSortedUp aria-label="sorted ascending" style={{ display: 'inline' }} size="1em" />
+                  )
+                )}
+                {(!column.isSorted && column.canSort) && (<TiArrowUnsorted aria-label="unsorted" style={{ display: 'inline' }} size="1em" />)}
               </Th>
-
             ))}
           </Tr>
         </Thead>
@@ -170,9 +173,11 @@ const Table: React.FC<Props> = ({
           <MdKeyboardArrowRight />
         </IconButton>
         <Text>
-          {pageIndex + 1}
+          {lowerCount}
+          -
+          {upperCount}
           {' of '}
-          {pageCount}
+          {totalEntries}
         </Text>
       </Flex>
     </>
