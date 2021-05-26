@@ -300,7 +300,6 @@ class BackfillJob(BaseJob):
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
         # check if we are scheduling on top of a already existing dag_run
-        # we could find a "scheduled" run instead of a "backfill"
         runs = DagRun.find(dag_id=dag.dag_id, execution_date=run_date, session=session)
         run: Optional[DagRun]
         if runs:
@@ -689,6 +688,9 @@ class BackfillJob(BaseJob):
 
         return err
 
+    def _get_dag_with_subdags(self):
+        return [self.dag] + self.dag.subdags
+
     @provide_session
     def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id, start_date, session=None):
         """
@@ -710,7 +712,7 @@ class BackfillJob(BaseJob):
         :type session: sqlalchemy.orm.session.Session
         """
         for next_run_date in run_dates:
-            for dag in [self.dag] + self.dag.subdags:
+            for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(next_run_date, dag, session=session)
                 tis_map = self._task_instances_for_dag_run(dag_run, session=session)
                 if dag_run is None:
@@ -769,6 +771,25 @@ class BackfillJob(BaseJob):
 
         if len(run_dates) == 0:
             self.log.info("No run dates were found for the given dates and dag interval.")
+            return
+
+        dag_with_subdags_ids = [d.dag_id for d in self._get_dag_with_subdags()]
+
+        running_dagruns = DagRun.find(dag_id=dag_with_subdags_ids,
+                                      execution_start_date=self.bf_start_date,
+                                      execution_end_date=self.bf_end_date,
+                                      no_backfills=True,
+                                      state=State.RUNNING,
+                                      session=session)
+        if running_dagruns:
+            for run in running_dagruns:
+                self.log.error(f"Backfill cannot be created for DagRun {run.dag_id} in "
+                               f"""{run.execution_date.strftime("%Y-%m-%dT%H:%M:%S")}, """
+                               f"as there's already {run.run_type} in a RUNNING state. """
+                               "Changing DagRun into BACKFILL would cause scheduler to lose track of executing tasks. "
+                               "Not changing DagRun type into BACKFILL, and trying insert another DagRun into database "
+                               "would cause database constraint violation for dag_id + execution_date combination. "
+                               "Please adjust backfill dates or wait for this DagRun to finish.")
             return
 
         # picklin'
