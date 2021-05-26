@@ -162,7 +162,7 @@ const Table: React.FC<Props> = ({
           })}
         </Tbody>
       </ChakraTable>
-      <Flex alignItems="center" justifyContent="flex-end">
+      <Flex alignItems="center" justifyContent="flex-start" my={4}>
         <IconButton variant="ghost" onClick={handlePrevious} disabled={!canPreviousPage} aria-label="Previous Page">
           <MdKeyboardArrowLeft />
         </IconButton>
