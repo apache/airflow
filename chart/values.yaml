@@ -397,6 +397,8 @@ workers:
 
   # Launch additional containers into worker.
   extraContainers: []
+  # Add additional init containers into workers.
+  extraInitContainers: []
 
   # Mount additional volumes into worker.
   extraVolumes: []
@@ -469,6 +471,8 @@ scheduler:
 
   # Launch additional containers into scheduler.
   extraContainers: []
+  # Add additional init containers into scheduler.
+  extraInitContainers: []
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -566,6 +570,8 @@ webserver:
 
   # Launch additional containers into webserver.
   extraContainers: []
+  # Add additional init containers into webserver.
+  extraInitContainers: []
 
   # Mount additional volumes into webserver.
   extraVolumes: []

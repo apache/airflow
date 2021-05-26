@@ -132,18 +132,34 @@ class WebserverDeploymentTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(

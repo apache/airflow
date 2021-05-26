@@ -55,18 +55,34 @@ class SchedulerTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(

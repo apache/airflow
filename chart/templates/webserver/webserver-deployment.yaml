@@ -107,6 +107,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- if .Values.webserver.extraInitContainers }}
+        {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
+        {{- end }}
       containers:
         - name: webserver
           image: {{ template "airflow_image" . }}

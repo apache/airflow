@@ -1001,6 +1001,11 @@
                     "type": "array",
                     "default": []
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into workers.",
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
                     "type": "array",
@@ -1176,6 +1181,11 @@
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into scheduler.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into scheduler.",
                     "type": "array",
                     "default": []
                 },
@@ -1452,6 +1462,11 @@
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into webserver.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into webserver.",
                     "type": "array",
                     "default": []
                 },
