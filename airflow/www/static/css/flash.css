@@ -63,11 +63,5 @@
 
 .dag-import-error.expanded-error::after {
   /* symbol for "closing" panels */
-  font-family: FontAwesome;/* stylelint-disable-line font-family-no-missing-generic-family-keyword */
   content: "\f054";
-  float: right;
-  color: #e43921;
-  position: absolute;
-  top: 0;
-  right: 0;
 }
