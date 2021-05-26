@@ -78,9 +78,7 @@ class TestBase(unittest.TestCase):
 
     @staticmethod
     def _delete_task_pod(name, type="Running"):
-        maxtries = 10
-        tries = 0
-        while tries < maxtries:
+        while True:
             air_pod = check_output(['kubectl', 'get', 'pods']).decode()
             air_pod = air_pod.split('\n')
             names = [re.compile(r'\s+').split(x)[0] for x in air_pod if name in x]
@@ -92,7 +90,6 @@ class TestBase(unittest.TestCase):
                 print("Deleting pod: ", name)
                 check_call(['kubectl', 'delete', 'pod', name])
                 break
-            tries += 1
 
     def _get_session_with_retries(self):
         session = requests.Session()
