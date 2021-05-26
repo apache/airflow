@@ -368,8 +368,8 @@ Here's a few things you might want to do next:
 
 .. seealso::
     - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
-    - Take an in-depth tour of the UI - click all the things!
-    - Keep reading the docs!
+        - Take an in-depth tour of the UI - click all the things!
+        - Keep reading the docs!
 
       - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
       - Review the :ref:`Command Line Interface Reference<cli>`
@@ -506,3 +506,135 @@ Go to your browser and go to the site http://localhost:8080/admin/ and trigger y
 
 The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
 Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
+=======
+
+
+Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
+
+**Inital setup:**
+We need to have docker and postgres installed. We will be using this [docker file](https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml)
+Follow the instructions properly to set up Airflow.
+
+Clone this repo to your system using:
+```
+git clone https://github.com/puckel/docker-airflow.git
+cd docker-airflow
+```
+
+Create a Employee table in postgres using this
+```
+create table "Employees"
+(
+    "Serial Number" numeric not null
+ constraint employees\_pk
+            primary key,
+    "Company Name" text,
+    "Employee Markme" text,
+    "Description" text,
+    "Leave" integer
+);
+
+create table "Employees_temp"
+(
+    "Serial Number" numeric not null
+ constraint employees\_pk
+            primary key,
+    "Company Name" text,
+    "Employee Markme" text,
+    "Description" text,
+    "Leave" integer
+);
+```
+
+
+
+I have broken this down into 3 steps get data, insert data, merge data.Lets look at the code:
+
+```
+def get_data():
+    url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
+
+    payload = {}
+    headers = {}
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+
+    with open('/usr/local/airflow/dags/files/employees.csv', 'w') as file:
+        for row in response.text.split('\n'):
+            file.write(row)
+```
+Here we are passing a get request to get the data from the url and save it employees.csv file on our airflow instance
+
+```
+def insert_data():
+    engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
+    df = pd.read_csv('/usr/local/airflow/dags/files/employees.csv')
+    df.to_sql('Employees_temp', con=engine, if_exists='replace')
+```
+Here we are dumping the file into a temporary table before merging the data to the final employees table
+
+```
+def merge_data():
+    query = """
+        delete
+        from "Employees" e using "Employees_temp" et
+        where e."Serial Number" = et."Serial Number";
+
+        insert into "Employees"
+        select *
+        from "Employees_temp";
+    """
+    try:
+        engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
+        session = sessionmaker(bind=engine)()
+        session.execute(query)
+        session.commit()
+        return 0
+    except Exception as e:
+        return 1
+```
+Here we are first looking for duplicate values and removing them before we insert new values in our final table
+
+
+Lets look at our DAG:
+```
+with DAG(
+        dag_id='AirflowExample',
+        schedule_interval='0 0 * * *',
+        start_date=datetime.today() - timedelta(days=2),
+        dagrun_timeout=timedelta(minutes=60)
+) as dag:
+    t1 = PythonOperator(
+        task_id='get_data',
+        python_callable=get_data,
+    )
+
+    t2 = PythonOperator(
+        task_id='insert_data',
+        python_callable=get_data,
+    )
+
+    t3 = PythonOperator(
+        task_id='merge_data',
+        python_callable=get_data,
+    )
+
+    t1 >> t2 >> t3
+```
+
+This dag runs daily at 00:00.
+Add this python file to airflow/dags folder and go back to the main folder and run
+```
+docker-compose -f  docker-compose-LocalExecutor.yml up -d
+```
+
+Go to your browser and go to the site http://localhost:8080/admin/ and trigger your DAG Airflow Example
+
+![DAG LIST](https://user-images.githubusercontent.com/35194828/119649317-1d148300-be40-11eb-9525-33ecf7eb6181.png)
+
+
+
+![DAG RUN](https://user-images.githubusercontent.com/35194828/119649304-1b4abf80-be40-11eb-8632-64f0d2c7dbb2.png)
+
+The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
+Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows.
