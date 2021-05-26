@@ -249,6 +249,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def get_all_resources(self) -> List[ViewMenu]:
         """
         Gets all existing resource records.
+
         :return: List of all resources
         :rtype: List[ViewMenu]
         """
@@ -779,7 +780,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         return self.find_permissions_view_menu(resource)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
-        """Set the access policy on the given DAG's ViewModel.
+        """
+        Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :type dag_id: str
@@ -840,6 +842,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def create_resource(self, name: str) -> ViewMenu:
         """
+        Create a resource with the given name.
+
         :param name: The name of the resource to create created.
         :type name: str
         :return: The FAB resource created.
