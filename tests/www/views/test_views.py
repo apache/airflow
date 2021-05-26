@@ -44,7 +44,8 @@ def test_configuration_do_not_expose_config(admin_client):
 @mock.patch.dict(os.environ, {"AIRFLOW__CORE__UNIT_TEST_MODE": "False"})
 def test_configuration_expose_config(admin_client):
     # make sure config is initialized (without unit test mote)
-    initialize_config()
+    conf = initialize_config()
+    conf.validate()
     with conf_vars({('webserver', 'expose_config'): 'True'}):
         resp = admin_client.get('configuration', follow_redirects=True)
     check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
