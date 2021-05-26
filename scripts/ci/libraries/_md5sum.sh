@@ -22,35 +22,35 @@
 # If you want to rebuild everything from the scratch
 #
 function md5sum::calculate_file_md5sum {
-    local FILE="${1}"
-    local MD5SUM
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
-    mkdir -pv "${MD5SUM_CACHE_DIR}"
-    MD5SUM=$(md5sum "${FILE}")
-    local MD5SUM_FILE
-    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum
-    local MD5SUM_FILE_NEW
-    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum.new
-    echo "${MD5SUM}" > "${MD5SUM_FILE_NEW}"
-    local RET_CODE=0
-    if [[ ! -f "${MD5SUM_FILE}" ]]; then
-        verbosity::print_info "Missing md5sum for ${FILE#${AIRFLOW_SOURCES}} (${MD5SUM_FILE#${AIRFLOW_SOURCES}})"
-        RET_CODE=1
+    local file="${1}"
+    local md5sum
+    local md5sum_cache_dir="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
+    mkdir -pv "${md5sum_cache_dir}"
+    md5sum=$(md5sum "${file}")
+    local md5sum_file
+    md5sum_file="${md5sum_cache_dir}"/$(basename "$(dirname "${file}")")-$(basename "${file}").md5sum
+    local md5sum_file_new
+    md5sum_file_new=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${file}")")-$(basename "${file}").md5sum.new
+    echo "${md5sum}" > "${md5sum_file_new}"
+    local ret_code=0
+    if [[ ! -f "${md5sum_file}" ]]; then
+        verbosity::print_info "Missing md5sum for ${file#${AIRFLOW_SOURCES}} (${md5sum_file#${AIRFLOW_SOURCES}})"
+        ret_code=1
     else
-        diff "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}" >/dev/null
-        RES=$?
-        if [[ "${RES}" != "0" ]]; then
-            verbosity::print_info "The md5sum changed for ${FILE}: was $(cat "${MD5SUM_FILE}") now it is $(cat "${MD5SUM_FILE_NEW}")"
+        diff "${md5sum_file_new}" "${md5sum_file}" >/dev/null
+        local res=$?
+        if [[ "${res}" != "0" ]]; then
+            verbosity::print_info "The md5sum changed for ${file}: was $(cat "${md5sum_file}") now it is $(cat "${md5sum_file_new}")"
             if [[ ${CI} == "true" ]]; then
-                echo "${COLOR_RED}The file has changed: ${FILE}${COLOR_RESET}"
+                echo "${COLOR_RED}The file has changed: ${file}${COLOR_RESET}"
                 echo "${COLOR_BLUE}==============================${COLOR_RESET}"
-                cat "${FILE}"
+                cat "${file}"
                 echo "${COLOR_BLUE}==============================${COLOR_RESET}"
             fi
-            RET_CODE=1
+            ret_code=1
         fi
     fi
-    return ${RET_CODE}
+    return ${ret_code}
 }
 
 #
@@ -58,16 +58,16 @@ function md5sum::calculate_file_md5sum {
 # BUILD_CACHE_DIR - thus updating stored MD5 sum for the file
 #
 function md5sum::move_file_md5sum {
-    local FILE="${1}"
-    local MD5SUM_FILE
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
-    mkdir -pv "${MD5SUM_CACHE_DIR}"
-    MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum
-    local MD5SUM_FILE_NEW
-    MD5SUM_FILE_NEW=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${FILE}")")-$(basename "${FILE}").md5sum.new
-    if [[ -f "${MD5SUM_FILE_NEW}" ]]; then
-        mv "${MD5SUM_FILE_NEW}" "${MD5SUM_FILE}"
-        verbosity::print_info "Updated md5sum file ${MD5SUM_FILE} for ${FILE}: $(cat "${MD5SUM_FILE}")"
+    local file="${1}"
+    local md5sum_file
+    local md5sum_cache_dir="${BUILD_CACHE_DIR}/${BRANCH_NAME}/${PYTHON_MAJOR_MINOR_VERSION}/${THE_IMAGE_TYPE}"
+    mkdir -pv "${md5sum_cache_dir}"
+    md5sum_file="${md5sum_cache_dir}"/$(basename "$(dirname "${file}")")-$(basename "${file}").md5sum
+    local md5sum_file_new
+    md5sum_file_new=${CACHE_TMP_FILE_DIR}/$(basename "$(dirname "${file}")")-$(basename "${file}").md5sum.new
+    if [[ -f "${md5sum_file_new}" ]]; then
+        mv "${md5sum_file_new}" "${md5sum_file}"
+        verbosity::print_info "Updated md5sum file ${md5sum_file} for ${file}: $(cat "${md5sum_file}")"
     fi
 }
 
@@ -80,9 +80,9 @@ function md5sum::update_all_md5() {
     verbosity::print_info
     verbosity::print_info "Updating md5sum files"
     verbosity::print_info
-    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
+    for file in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
-        md5sum::move_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"
+        md5sum::move_file_md5sum "${AIRFLOW_SOURCES}/${file}"
     done
     mkdir -pv "${BUILD_CACHE_DIR}/${BRANCH_NAME}"
     touch "${BUILT_CI_IMAGE_FLAG_FILE}"
@@ -97,9 +97,9 @@ function md5sum::update_all_md5_with_group() {
 function md5sum::calculate_md5sum_for_all_files() {
     FILES_MODIFIED="false"
     set +e
-    for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"
+    for file in "${FILES_FOR_REBUILD_CHECK[@]}"
     do
-        if ! md5sum::calculate_file_md5sum "${AIRFLOW_SOURCES}/${FILE}"; then
+        if ! md5sum::calculate_file_md5sum "${AIRFLOW_SOURCES}/${file}"; then
             FILES_MODIFIED="true"
         fi
     done

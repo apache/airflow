@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* global document, CodeMirror */
+
 const textArea = document.getElementById('json');
 
 CodeMirror.fromTextArea(textArea, {

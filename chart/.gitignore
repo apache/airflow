@@ -7,3 +7,6 @@ repository
 
 # Chart dependencies
 **/charts/*.tgz
+
+# Never check in tmpcharts
+tmpcharts

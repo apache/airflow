@@ -235,7 +235,7 @@
             "x-docsSection": "Kubernetes"
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string.",
+            "description": "`airflow_local_settings` file as a string (can be templated).",
             "type": [
                 "string",
                 "null"
@@ -1088,6 +1088,22 @@
                     "type": "integer",
                     "default": 1
                 },
+                "updateStrategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet (when using LocalExecutor and workers.persistence).",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment (when not using LocalExecutor and workers.persistence).",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1199,6 +1215,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the create user job pod.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1231,6 +1252,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1440,7 +1466,7 @@
                     "default": []
                 },
                 "webserverConfig": {
-                    "description": "This will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
                     "type": [
                         "string",
                         "null"
@@ -1465,6 +1491,14 @@
                             "description": "Annotations for the webserver Service.",
                             "type": "object",
                             "default": {}
+                        },
+                        "loadBalancerIP": {
+                            "description": "Webserver Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -1554,6 +1588,19 @@
                             "description": "Flower Service type.",
                             "type": "string",
                             "default": "ClusterIP"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the flower Service.",
+                            "type": "object",
+                            "default": {}
+                        },
+                        "loadBalancerIP": {
+                            "description": "Flower Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -2324,11 +2371,6 @@
                             "type": "boolean",
                             "default": false
                         },
-                        "excludeWebserver": {
-                            "description": "Disable Git sync on webserver as it is not needed when DAG Serialization is enabled.",
-                            "type": "boolean",
-                            "default": false
-                        },
                         "repo": {
                             "description": "Git repository.",
                             "type": "string",
@@ -2337,22 +2379,12 @@
                         "branch": {
                             "description": "Git branch",
                             "type": "string",
-                            "default": "v2-0-stable"
+                            "default": "v2-1-stable"
                         },
                         "rev": {
                             "description": "Git revision.",
                             "type": "string",
                             "default": "HEAD"
-                        },
-                        "root": {
-                            "description": "Root directory.",
-                            "type": "string",
-                            "default": "/git"
-                        },
-                        "dest": {
-                            "description": "Destination folder.",
-                            "type": "string",
-                            "default": "repo"
                         },
                         "depth": {
                             "description": "Repository depth.",
@@ -2441,6 +2473,23 @@
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                }
+                            ]
+                        },
+                        "resources": {
+                            "description": "Resources on workers git-sync sidecar",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
                                 }
                             ]
                         }

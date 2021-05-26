@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
 import unittest
 
 import jmespath
@@ -25,10 +24,16 @@ from tests.helm_template_generator import render_chart
 
 class MigrateDatabaseJobTest(unittest.TestCase):
     def test_should_run_by_default(self):
+        docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
+        assert "Job" == docs[0]["kind"]
+        assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert 50000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+
+    def test_should_support_annotations(self):
         docs = render_chart(
-            values={},
+            values={"migrateDatabaseJob": {"annotations": {"foo": "bar"}}},
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
-
-        assert re.search("Job", docs[0]["kind"])
-        assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
+        assert "foo" in annotations
+        assert "bar" == annotations["foo"]

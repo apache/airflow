@@ -2042,7 +2042,7 @@ def verify_provider_classes_for_single_provider(imported_classes: List[str], pro
     full_package_name = f"airflow.providers.{provider_package_id}"
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
     total, bad = check_if_classes_are_properly_named(entity_summaries)
-    bad += sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
+    bad += sum(len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values())
     if bad != 0:
         print()
         print(f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]")

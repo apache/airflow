@@ -76,7 +76,7 @@ const replacements = {
 
 moment.fn.strftime = function (format) {
   // Break up format string based on strftime tokens
-  const tokens = format.split(/(%\-?.)/);
+  const tokens = format.split(/(%-?.)/);
   const momentFormat = tokens.map((token) => {
     // Replace strftime tokens with moment formats
     if (token[0] === '%' && !!Object.getOwnPropertyDescriptor(replacements, token.substr(1))) {

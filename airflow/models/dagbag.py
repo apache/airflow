@@ -507,7 +507,7 @@ class DagBag(LoggingMixin):
                         file=filepath.replace(settings.DAGS_FOLDER, ''),
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
-                        task_num=sum([len(dag.tasks) for dag in found_dags]),
+                        task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
                     )
                 )
@@ -540,9 +540,9 @@ class DagBag(LoggingMixin):
         """Prints a report around DagBag loading stats"""
         stats = self.dagbag_stats
         dag_folder = self.dag_folder
-        duration = sum([o.duration for o in stats], timedelta()).total_seconds()
-        dag_num = sum([o.dag_num for o in stats])
-        task_num = sum([o.task_num for o in stats])
+        duration = sum((o.duration for o in stats), timedelta()).total_seconds()
+        dag_num = sum(o.dag_num for o in stats)
+        task_num = sum(o.task_num for o in stats)
         table = tabulate(stats, headers="keys")
 
         report = textwrap.dedent(

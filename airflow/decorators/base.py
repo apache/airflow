@@ -70,11 +70,9 @@ def get_unique_task_id(
         return task_id
     core = re.split(r'__\d+$', task_id)[0]
     suffixes = sorted(
-        [
-            int(re.split(r'^.+__', task_id)[1])
-            for task_id in dag.task_ids
-            if re.match(rf'^{core}__\d+$', task_id)
-        ]
+        int(re.split(r'^.+__', task_id)[1])
+        for task_id in dag.task_ids
+        if re.match(rf'^{core}__\d+$', task_id)
     )
     if not suffixes:
         return f'{core}__1'

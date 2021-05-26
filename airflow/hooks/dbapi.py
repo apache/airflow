@@ -350,3 +350,19 @@ class DbApiHook(BaseHook):
         :type tmp_file: str
         """
         raise NotImplementedError()
+
+    def test_connection(self):
+        """Tests the connection by executing a select 1 query"""
+        status, message = False, ''
+        try:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.execute("select 1")
+                    if cur.fetchone():
+                        status = True
+                        message = 'Connection successfully tested'
+        except Exception as e:  # noqa pylint: disable=broad-except
+            status = False
+            message = str(e)
+
+        return status, message

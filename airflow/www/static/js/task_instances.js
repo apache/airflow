@@ -30,16 +30,16 @@ function makeDateTimeHTML(start, end) {
   return `Started: ${start.format(defaultFormat)}<br>Ended: ${isEnded ? end.format(defaultFormat) : 'Not ended yet'}<br>`;
 }
 
-function generateTooltipDateTimes(startDate, endDate, dagTz) {
-  if (!startDate) {
+function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
+  if (!startTime) {
     return '<br><em>Not yet started</em>';
   }
 
   const tzFormat = 'z (Z)';
   const localTZ = moment.defaultZone.name.toUpperCase();
-  startDate = moment.utc(startDate);
-  endDate = moment.utc(endDate);
-  dagTz = dagTz.toUpperCase();
+  const startDate = moment.utc(startTime);
+  const endDate = moment.utc(endTime);
+  const dagTz = dagTimezone.toUpperCase();
 
   // Generate UTC Start and End Date
   let tooltipHTML = '<br><strong>UTC:</strong><br>';
@@ -54,10 +54,10 @@ function generateTooltipDateTimes(startDate, endDate, dagTz) {
   }
 
   // Generate DAG's Start and End Date
-  if (dagTZ !== 'UTC' && dagTZ !== localTZ) {
-    startDate.tz(dagTZ);
+  if (dagTz !== 'UTC' && dagTz !== localTZ) {
+    startDate.tz(dagTz);
     tooltipHTML += `<br><strong>DAG's TZ: ${startDate.format(tzFormat)}</strong><br>`;
-    const dagTZEndDate = endDate && endDate instanceof moment ? endDate.tz(dagTZ) : endDate;
+    const dagTZEndDate = endDate && endDate instanceof moment ? endDate.tz(dagTz) : endDate;
     tooltipHTML += makeDateTimeHTML(startDate, dagTZEndDate);
   }
 

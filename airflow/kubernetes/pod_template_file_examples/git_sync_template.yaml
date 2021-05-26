@@ -29,7 +29,7 @@ spec:
       image: "k8s.gcr.io/git-sync/git-sync:v3.3.0"
       env:
         - name: GIT_SYNC_BRANCH
-          value: "v2-0-stable"
+          value: "v2-1-stable"
         - name: GIT_SYNC_REPO
           value: "https://github.com/apache/airflow.git"
         - name: GIT_SYNC_DEPTH

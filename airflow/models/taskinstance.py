@@ -514,13 +514,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         return cmd
 
     @property
-    def log_filepath(self):
-        """Filepath for TaskInstance"""
-        iso = self.execution_date.isoformat()
-        the_log = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
-        return f"{the_log}/{self.dag_id}/{self.task_id}/{iso}.log"
-
-    @property
     def log_url(self):
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
@@ -1279,7 +1272,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
             self.log.info(
                 "Exporting the following env vars:\n%s",
-                '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+                '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
             )
 
             os.environ.update(airflow_context_vars)
@@ -1812,7 +1805,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             'Exception:<br>{{exception_html}}<br>'
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
             'Host: {{ti.hostname}}<br>'
-            'Log file: {{ti.log_filepath}}<br>'
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
@@ -1821,7 +1813,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             'Exception:<br>Failed attempt to attach error logs<br>'
             'Log: <a href="{{ti.log_url}}">Link</a><br>'
             'Host: {{ti.hostname}}<br>'
-            'Log file: {{ti.log_filepath}}<br>'
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 

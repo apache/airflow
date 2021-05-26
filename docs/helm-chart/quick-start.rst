@@ -35,8 +35,8 @@ Confirm it’s up:
 
    kubectl cluster-info --context kind-kind
 
-Add Airflow Stable Repo
------------------------
+Add Airflow Helm Stable Repo
+----------------------------
 
 .. code-block:: bash
 
@@ -97,7 +97,6 @@ Build a Docker image from your DAGs
 
     .. code-block:: bash
 
-      # from airflow chart directory
-      helm upgrade $RELEASE_NAME --namespace $NAMESPACE \
+      helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
           --set images.airflow.repository=my-dags \
           --set images.airflow.tag=0.0.1
