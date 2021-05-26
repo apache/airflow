@@ -165,12 +165,8 @@ class GitSyncWebserverTest(unittest.TestCase):
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search(
-            "spec.template.spec.containers[1].resources.limits.memory", docs[0]
-        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[1].resources.requests.memory", docs[0]
         )
-        assert "300m" == jmespath.search(
-            "spec.template.spec.containers[1].resources.requests.cpu", docs[0]
-        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
