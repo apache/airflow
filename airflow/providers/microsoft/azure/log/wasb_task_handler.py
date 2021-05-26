@@ -185,10 +185,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             log = '\n'.join([old_log, log]) if old_log else log
 
         try:
-            self.hook.load_string(
-                log,
-                self.wasb_container,
-                remote_log_location,
-            )
+            self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
         except AzureHttpError:
             self.log.exception('Could not write logs to %s', remote_log_location)
