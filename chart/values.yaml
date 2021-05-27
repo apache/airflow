@@ -682,9 +682,9 @@ statsd:
 
   uid: 65534
 
-# Pgbouncer settings
+# PgBouncer settings
 pgbouncer:
-  # Enable pgbouncer
+  # Enable PgBouncer
   enabled: false
 
   # Create ServiceAccount
@@ -705,7 +705,7 @@ pgbouncer:
   metadataPoolSize: 10
   resultBackendPoolSize: 5
 
-  # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
+  # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
   # supply the name of existing secret with pgbouncer.ini and users.txt defined
@@ -723,7 +723,7 @@ pgbouncer:
   #
   configSecretName: ~
 
-  # Pgbouner pod disruption budget
+  # PgBouncer pod disruption budget
   podDisruptionBudget:
     enabled: false
 
@@ -731,7 +731,7 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
-  # Limit the resources to pgbouncer.
+  # Limit the resources to PgBouncer.
   # When you specify the resource request the k8s scheduler uses this information to decide which node to
   # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
   # that the running container is not allowed to use more of that resource than the limit you set.
@@ -763,7 +763,14 @@ pgbouncer:
     cert: ~
     key: ~
 
-  # Select certain nodes for pgbouncer pods.
+  # Add extra PgBouncer ini configuration in the databases section:
+  # https://www.pgbouncer.org/config.html#section-databases
+  extraIniMetadata: ~
+  extraIniResultBackend: ~
+  # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
+  extraIni: ~
+
+  # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []

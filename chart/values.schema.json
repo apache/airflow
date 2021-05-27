@@ -1918,6 +1918,30 @@
                         }
                     }
                 },
+                "extraIniMetadata": {
+                    "description": "Add extra metadata database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "extraIniResultBackend": {
+                    "description": "Add extra result backend database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "extraIni": {
+                    "description": "Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
