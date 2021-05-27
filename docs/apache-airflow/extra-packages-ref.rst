@@ -60,6 +60,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                       |
@@ -147,6 +149,8 @@ Those are extras that add dependencies needed for integration with external serv
 | airbyte             | ``pip install 'apache-airflow[airbyte]'``           | Airbyte hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | amazon              | ``pip install 'apache-airflow[amazon]'``            | Amazon Web Services                                 |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| asana               | ``pip install 'apache-airflow[asana]'``             | Asana hooks and operators                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | azure               | ``pip install 'apache-airflow[microsoft.azure]'``   | Microsoft Azure                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+

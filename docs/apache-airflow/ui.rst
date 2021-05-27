@@ -36,7 +36,7 @@ For example:
 
 .. code-block:: python
 
-   dag = DAG('dag', tags=['team1', 'sql'])
+   dag = DAG("dag", tags=["team1", "sql"])
 
 
 ------------

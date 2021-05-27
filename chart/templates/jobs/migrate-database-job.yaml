@@ -45,6 +45,15 @@ spec:
         tier: airflow
         component: run-airflow-migrations
         release: {{ .Release.Name }}
+      {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
+      annotations:
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values.migrateDatabaseJob.annotations }}
+        {{- toYaml .Values.migrateDatabaseJob.annotations | nindent 8 }}
+        {{- end }}
+      {{- end }}
     spec:
       securityContext:
           runAsUser: {{ .Values.uid }}

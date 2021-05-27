@@ -34,9 +34,9 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-import airflow.utils.yaml as yaml
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
+from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63

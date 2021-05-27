@@ -46,7 +46,7 @@ function run_prepare_documentation() {
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             update-package-documentation \
-            --version-suffix "${TARGET_VERSION_SUFFIX}" \
+            --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
@@ -110,8 +110,6 @@ setup_provider_packages
 cd "${AIRFLOW_SOURCES}" || exit 1
 
 export PYTHONPATH="${AIRFLOW_SOURCES}"
-
-verify_suffix_versions_for_package_preparation
 
 install_supported_pip_version
 import_all_provider_classes

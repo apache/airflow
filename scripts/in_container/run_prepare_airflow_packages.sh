@@ -20,27 +20,13 @@
 
 function prepare_airflow_packages() {
     echo "-----------------------------------------------------------------------------------"
-    if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' && "${VERSION_SUFFIX_FOR_SVN}" == ''
-            && ${FILE_VERSION_SUFFIX} == '' ]]; then
+    if [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
         echo
         echo "Preparing official version of provider with no suffixes"
         echo
-    elif [[ ${FILE_VERSION_SUFFIX} != '' ]]; then
-        echo
-        echo " Preparing release candidate of providers with file version suffix only (resulting file will be renamed): ${FILE_VERSION_SUFFIX}"
-        echo
-    elif [[ "${VERSION_SUFFIX_FOR_PYPI}" == '' ]]; then
-        echo
-        echo " Package Version of providers of set for SVN version): ${TARGET_VERSION_SUFFIX}"
-        echo
-    elif [[ "${VERSION_SUFFIX_FOR_SVN}" == '' ]]; then
-        echo
-        echo " Package Version of providers suffix set for PyPI version: ${TARGET_VERSION_SUFFIX}"
-        echo
     else
-        # Both SV/PYPI are set to the same version here!
         echo
-        echo " Pre-release version (alpha beta) suffix set in both SVN/PyPI: ${TARGET_VERSION_SUFFIX}"
+        echo " Package Version of providers suffix set for PyPI version: ${VERSION_SUFFIX_FOR_PYPI}"
         echo
     fi
     echo "-----------------------------------------------------------------------------------"
@@ -59,8 +45,7 @@ function prepare_airflow_packages() {
         packages+=("sdist")
     fi
     local tag_build=()
-    if [[ -z "${VERSION_SUFFIX_FOR_SVN}" && -n ${VERSION_SUFFIX_FOR_PYPI} ||
-          -n "${VERSION_SUFFIX_FOR_SVN}" && -n "${VERSION_SUFFIX_FOR_PYPI}" ]]; then
+    if [[ -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
         # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not set
         # (so when rc is prepared)
         # or when they are both set (so when we prepare alpha/beta/dev)
@@ -99,14 +84,9 @@ function prepare_airflow_packages() {
     echo
 }
 
-
-
-verify_suffix_versions_for_package_preparation
-
 install_supported_pip_version
 
 prepare_airflow_packages
-rename_packages_if_needed
 
 echo
 echo "${COLOR_GREEN}All good! Airflow packages are prepared in dist folder${COLOR_RESET}"

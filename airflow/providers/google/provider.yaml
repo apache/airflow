@@ -748,3 +748,4 @@ extra-links:
 
 additional-extras:
   apache.beam: apache-beam[gcp]
+  leveldb: plyvel

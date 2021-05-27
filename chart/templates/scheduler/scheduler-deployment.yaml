@@ -50,6 +50,14 @@ spec:
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
+  {{- if and $stateful .Values.scheduler.updateStrategy }}
+  updateStrategy:
+    {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if and (not $stateful) .Values.scheduler.strategy }}
+  strategy:
+    {{- toYaml .Values.scheduler.strategy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
@@ -105,6 +113,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- if .Values.scheduler.extraInitContainers }}
+        {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
+        {{- end }}
       containers:
         # Always run the main scheduler container.
         - name: scheduler
@@ -162,16 +173,15 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
-{{- if .Values.airflowLocalSettings }}
+            {{- if .Values.airflowLocalSettings }}
             - name: config
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py
               readOnly: true
-{{- end }}
-{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-            - name: dags
-              mountPath: {{ template "airflow_dags_mount_path" . }}
-{{- end }}
+            {{- end }}
+            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
+            {{- include "airflow_dags_mount" . | nindent 12 }}
+            {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}

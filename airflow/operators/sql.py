@@ -18,11 +18,7 @@
 from distutils.util import strtobool
 from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Union
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
@@ -463,7 +459,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         Optional: Send data check info and metadata to an external database.
         Default functionality will log metadata.
         """
-        info = "\n".join([f"""{key}: {item}""" for key, item in meta_data.items()])
+        info = "\n".join(f"""{key}: {item}""" for key, item in meta_data.items())
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 
 

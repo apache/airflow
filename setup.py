@@ -39,7 +39,7 @@ INSTALL_PROVIDERS_FROM_SOURCES = 'INSTALL_PROVIDERS_FROM_SOURCES'
 
 logger = logging.getLogger(__name__)
 
-version = '2.1.0.dev0'
+version = '2.2.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -200,6 +200,7 @@ amazon = [
 apache_beam = [
     'apache-beam>=2.20.0',
 ]
+asana = ['asana>=0.10', 'cached-property>=1.5.2']
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -325,7 +326,6 @@ google = [
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
-    'plyvel',
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -380,6 +380,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
+leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -415,7 +416,7 @@ pinot = [
     'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
-    'arrow>=0.16.0,<1.0.0',
+    'arrow>=0.16.0',
 ]
 postgres = [
     'psycopg2-binary>=2.7.4',
@@ -556,6 +557,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.pinot': pinot,
     'apache.spark': spark,
     'apache.sqoop': [],
+    'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
@@ -634,6 +636,7 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'google_auth': flask_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
+    'leveldb': leveldb,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,
@@ -848,7 +851,7 @@ def get_provider_package_from_package_id(package_id: str):
 
 def get_all_provider_packages():
     """Returns all provider packages configured in setup.py"""
-    return " ".join([get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS])
+    return " ".join(get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS)
 
 
 class AirflowDistribution(Distribution):

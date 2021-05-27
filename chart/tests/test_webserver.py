@@ -132,18 +132,34 @@ class WebserverDeploymentTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -282,3 +298,61 @@ class WebserverDeploymentTest(unittest.TestCase):
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+
+class WebserverServiceTest(unittest.TestCase):
+    def test_default_service(self):
+        docs = render_chart(
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert "RELEASE-NAME-webserver" == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0]) is None
+        assert {"tier": "airflow", "component": "webserver", "release": "RELEASE-NAME"} == jmespath.search(
+            "spec.selector", docs[0]
+        )
+        assert "ClusterIP" == jmespath.search("spec.type", docs[0])
+        assert {"name": "airflow-ui", "protocol": "TCP", "port": 8080} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+
+    def test_overrides(self):
+        docs = render_chart(
+            values={
+                "ports": {"airflowUI": 9000},
+                "webserver": {
+                    "service": {
+                        "type": "LoadBalancer",
+                        "loadBalancerIP": "127.0.0.1",
+                        "annotations": {"foo": "bar"},
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
+        assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
+        assert {"name": "airflow-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+        assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+
+
+class WebserverConfigmapTest(unittest.TestCase):
+    def test_no_webserver_config_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
+        assert 0 == len(docs)
+
+    def test_webserver_config_configmap(self):
+        docs = render_chart(
+            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+
+        assert "ConfigMap" == docs[0]["kind"]
+        assert "RELEASE-NAME-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert (
+            "CSRF_ENABLED = True  # RELEASE-NAME"
+            == jmespath.search('data."webserver_config.py"', docs[0]).strip()
+        )

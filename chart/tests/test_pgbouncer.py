@@ -314,3 +314,44 @@ class PgbouncerConfigTest(unittest.TestCase):
             encoded = jmespath.search(f'data."{key}"', docs[0])
             value = base64.b64decode(encoded).decode()
             assert expected == value
+
+
+class PgbouncerExporterTest(unittest.TestCase):
+    def test_secret_not_created_by_default(self):
+        docs = render_chart(
+            show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],
+        )
+        assert 0 == len(docs)
+
+    def _get_connection(self, values: dict) -> str:
+        docs = render_chart(
+            values=values,
+            show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],
+        )
+        encoded_connection = jmespath.search("data.connection", docs[0])
+        return base64.b64decode(encoded_connection).decode()
+
+    def test_default_exporter_secret(self):
+        connection = self._get_connection({"pgbouncer": {"enabled": True}})
+        assert "postgresql://postgres:postgres@127.0.0.1:6543/pgbouncer?sslmode=disable" == connection
+
+    def test_exporter_secret_with_overrides(self):
+        connection = self._get_connection(
+            {
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "user": "username@123123",
+                        "pass": "password@!@#$^&*()",
+                        "host": "somehost",
+                        "port": 7777,
+                        "db": "somedb",
+                    },
+                },
+                "ports": {"pgbouncer": 1111},
+            }
+        )
+        assert (
+            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
+            "/pgbouncer?sslmode=disable" == connection
+        )

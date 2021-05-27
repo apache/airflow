@@ -29,6 +29,30 @@ installation with other tools as well.
 
     Airflow is also distributed as a Docker image (OCI Image). Consider using it to guarantee that software will always run the same no matter where it is deployed. For more information, see: :doc:`docker-stack:index`.
 
+Version Life Cycle
+''''''''''''''''''
+
+Apache Airflow version life cycle:
+
++---------+-----------------+---------------+-----------------+----------------+
+| Version | State           | First Release | Limited Support | EOL/Terminated |
++---------+-----------------+---------------+-----------------+----------------+
+| 2       | Supported       | Dec 17, 2020  | Dec 2021        | TBD            |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.10    | Limited Support | Aug 27, 2018  | Dec 17, 2020    | June 2021      |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.9     | EOL             | Jan 03, 2018  | Aug 27, 2018    | Aug 2018       |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.8     | EOL             | Mar 19, 2017  | Jan 03, 2018    | Jan 2018       |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.7     | EOL             | Mar 28, 2016  | Mar 19, 2017    | Mar 2017       |
++---------+-----------------+---------------+-----------------+----------------+
+
+Limited support versions will be supported with security and critical bug fix only.
+EOL versions will not get any fixes nor support.
+We **highly** recommend installing the latest Airflow release which has richer features.
+
+
 Prerequisites
 '''''''''''''
 
@@ -41,6 +65,7 @@ Airflow is tested with:
   * PostgreSQL:  9.6, 10, 11, 12, 13
   * MySQL: 5.7, 8
   * SQLite: 3.15.0+
+  * MSSQL(Experimental): 2017, 2019
 
 * Kubernetes: 1.18.15 1.19.7 1.20.2
 
@@ -188,7 +213,7 @@ Installation script
 '''''''''''''''''''
 
 In order to simplify the installation, we have prepared examples that will select
-`the constraints file <installation:constraints>`__ compatible with your Python version.
+:ref:`the constraints file <installation:constraints>` compatible with your Python version.
 
 **Installing Airflow with extras and providers**
 
@@ -300,7 +325,7 @@ The packages are available at the
 The |version| downloads are available at:
 
 * `Apache Airflow |version| sdist package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.sha512>`__)
-* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-py3-none-any.whl.sha512>`__)
+* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.sha512>`__)
 * `Apache Airflow |version| sources <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.sha512>`__)
 
 

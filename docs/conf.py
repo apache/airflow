@@ -521,6 +521,7 @@ intersphinx_mapping = {
     for pkg_name in [
         'boto3',
         'celery',
+        'docker',
         'hdfs',
         'jinja2',
         'mongodb',

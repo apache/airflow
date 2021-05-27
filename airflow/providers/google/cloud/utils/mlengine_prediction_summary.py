@@ -89,16 +89,19 @@ To test outside of the dag:
 
 .. code-block:: python
 
-    subprocess.check_call(["python",
-                           "-m",
-                           "airflow.providers.google.cloud.utils.mlengine_prediction_summary",
-                           "--prediction_path=gs://...",
-                           "--metric_fn_encoded=" + metric_fn_encoded,
-                           "--metric_keys=log_loss,mse",
-                           "--runner=DataflowRunner",
-                           "--staging_location=gs://...",
-                           "--temp_location=gs://...",
-                           ])
+    subprocess.check_call(
+        [
+            "python",
+            "-m",
+            "airflow.providers.google.cloud.utils.mlengine_prediction_summary",
+            "--prediction_path=gs://...",
+            "--metric_fn_encoded=" + metric_fn_encoded,
+            "--metric_keys=log_loss,mse",
+            "--runner=DataflowRunner",
+            "--staging_location=gs://...",
+            "--temp_location=gs://...",
+        ]
+    )
 """
 
 import argparse

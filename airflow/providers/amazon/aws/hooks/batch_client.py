@@ -89,7 +89,8 @@ class AwsBatchProtocol(Protocol):
             .. code-block:: python
 
                 import boto3
-                boto3.client('batch').waiter_names == []
+
+                boto3.client("batch").waiter_names == []
 
         .. seealso::
 
@@ -510,6 +511,7 @@ class AwsBatchClientHook(AwsBaseHook):
                 delay = 1 + pow(tries * 0.6, 2)
                 delay = min(max_interval, delay)
                 print(delay / 3, delay)
+
 
             for tries in range(10):
                 exp(tries)

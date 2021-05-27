@@ -27,6 +27,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
 [![Docker Stars](https://img.shields.io/docker/stars/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/apache-airflow)](https://pypi.org/project/apache-airflow/)
+[![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/apache-airflow)](https://artifacthub.io/packages/search?repo=apache-airflow)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 [![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://s.apache.org/airflow-slack)
@@ -43,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
+- [Version Life Cycle](#version-life-cycle)
 - [Requirements](#requirements)
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Getting started](#getting-started)
@@ -74,17 +76,35 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
+## Version Life Cycle
+
+Apache Airflow version life cycle:
+
+| Version | Current Patch/Minor | State           | First Release | Limited Support | EOL/Terminated |
+|---------|---------------------|-----------------|---------------|-----------------|----------------|
+| 2       | 2.1.0               | Supported       | Dec 17, 2020  | Dec 2021        | TBD            |
+| 1.10    | 1.10.15             | Limited Support | Aug 27, 2018  | Dec 17, 2020    | June 2021      |
+| 1.9     | 1.9.0               | EOL             | Jan 03, 2018  | Aug 27, 2018    | Aug 2018       |
+| 1.8     | 1.8.2               | EOL             | Mar 19, 2017  | Jan 03, 2018    | Jan 2018       |
+| 1.7     | 1.7.1.2             | EOL             | Mar 28, 2016  | Mar 19, 2017    | Mar 2017       |
+
+Limited support versions will be supported with security and critical bug fix only.
+EOL versions will not get any fixes nor support.
+We always recommend that all users run the latest available minor release for whatever major version is in use.
+We **highly** recommend upgrading to the latest Airflow major release at the earliest convenient time and before EOL date.
+
 ## Requirements
 
 Apache Airflow is tested with:
 
-|              | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
-| ------------ | ------------------------- | ------------------------ | -------------------------  |
-| Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
-| Kubernetes   | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
-| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
-| MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
+|                      | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
+| -------------------- | ------------------------- | ------------------------ | -------------------------  |
+| Python               | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
+| Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
+| PostgreSQL           | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
+| MySQL                | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
+| SQLite               | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
+| MSSQL(Experimental)  | 2017,2019                 |                          |                            |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).

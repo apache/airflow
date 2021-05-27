@@ -29,9 +29,9 @@ Tasks can then be associated with one of the existing pools by using the ``pool`
 .. code-block:: python
 
     aggregate_db_message_job = BashOperator(
-        task_id='aggregate_db_message_job',
+        task_id="aggregate_db_message_job",
         execution_timeout=timedelta(hours=3),
-        pool='ep_data_pipeline_db_msg_agg',
+        pool="ep_data_pipeline_db_msg_agg",
         bash_command=aggregate_db_message_job_cmd,
         dag=dag,
     )

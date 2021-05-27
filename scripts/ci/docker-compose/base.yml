@@ -38,3 +38,4 @@ volumes:
   sqlite-db-volume:
   postgres-db-volume:
   mysql-db-volume:
+  mssql-db-volume:

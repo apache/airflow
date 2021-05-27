@@ -189,7 +189,7 @@ def main(check_type: str, path: str, version: str):
     if check_type.upper() == PROVIDERS:
         files = os.listdir(os.path.join(path, "providers"))
         pips = check_providers(files, version)
-        create_docker(PROVIDERS_DOCKER.format("\n".join([f"RUN pip install '{p}'" for p in pips])))
+        create_docker(PROVIDERS_DOCKER.format("\n".join(f"RUN pip install '{p}'" for p in pips)))
         return
 
     if check_type.upper() == AIRFLOW:

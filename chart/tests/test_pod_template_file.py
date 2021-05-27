@@ -69,8 +69,6 @@ class PodTemplateFileTest(unittest.TestCase):
                         "wait": 66,
                         "maxFailures": 70,
                         "subPath": "path1/path2",
-                        "dest": "test-dest",
-                        "root": "/git-root",
                         "rev": "HEAD",
                         "depth": 1,
                         "repo": "https://github.com/apache/airflow.git",
@@ -96,14 +94,15 @@ class PodTemplateFileTest(unittest.TestCase):
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git-root"},
-                {"name": "GIT_SYNC_DEST", "value": "test-dest"},
+                {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                {"name": "GIT_SYNC_DEST", "value": "repo"},
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GIT_SYNC_WAIT", "value": "66"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
             ],
-            "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
+            "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
         } == jmespath.search("spec.initContainers[0]", docs[0])
 
     def test_should_not_add_init_container_if_dag_persistence_is_true(self):
@@ -122,42 +121,29 @@ class PodTemplateFileTest(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ({"gitSync": {"enabled": True}},),
-            ({"persistence": {"enabled": True}},),
+            ({"gitSync": {"enabled": True}}, True),
+            ({"persistence": {"enabled": True}}, False),
             (
                 {
                     "gitSync": {"enabled": True},
                     "persistence": {"enabled": True},
                 },
+                True,
             ),
         ]
     )
-    def test_dags_mount(self, dag_values):
+    def test_dags_mount(self, dag_values, expected_read_only):
         docs = render_chart(
             values={"dags": dag_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
-            "spec.containers[0].volumeMounts", docs[0]
-        )
-
-    def test_dags_mount_with_gitsync_and_persistence(self):
-        docs = render_chart(
-            values={
-                "dags": {
-                    "gitSync": {"enabled": True},
-                    "persistence": {"enabled": True},
-                }
-            },
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
-            "spec.containers[0].volumeMounts", docs[0]
-        )
+        assert {
+            "mountPath": "/opt/airflow/dags",
+            "name": "dags",
+            "readOnly": expected_read_only,
+        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
     def test_validate_if_ssh_params_are_added(self):
         docs = render_chart(
@@ -187,6 +173,12 @@ class PodTemplateFileTest(unittest.TestCase):
         )
         assert {
             "name": "git-sync-ssh-key",
+            "mountPath": "/etc/git-secret/ssh",
+            "subPath": "gitSshKey",
+            "readOnly": True,
+        } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
+        assert {
+            "name": "git-sync-ssh-key",
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.volumes", docs[0])
 
@@ -210,14 +202,15 @@ class PodTemplateFileTest(unittest.TestCase):
             "spec.initContainers[0].env", docs[0]
         )
         assert {
-            "name": "git-sync-known-hosts",
-            "configMap": {"defaultMode": 288, "name": "RELEASE-NAME-airflow-config"},
-        } in jmespath.search("spec.volumes", docs[0])
+            "name": "GIT_SSH_KNOWN_HOSTS_FILE",
+            "value": "/etc/git-secret/known_hosts",
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
-            "name": "git-sync-known-hosts",
+            "name": "config",
             "mountPath": "/etc/git-secret/known_hosts",
             "subPath": "known_hosts",
-        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
+            "readOnly": True,
+        } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
@@ -427,3 +420,21 @@ class PodTemplateFileTest(unittest.TestCase):
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.initContainers[-1]", docs[0])

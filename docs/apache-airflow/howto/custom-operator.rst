@@ -46,12 +46,9 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
 
         from airflow.models.baseoperator import BaseOperator
 
-        class HelloOperator(BaseOperator):
 
-            def __init__(
-                    self,
-                    name: str,
-                    **kwargs) -> None:
+        class HelloOperator(BaseOperator):
+            def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.name = name
 
@@ -75,7 +72,7 @@ You can now use the derived custom operator as follows:
     from custom_operator.hello_operator import HelloOperator
 
     with dag:
-        hello_task = HelloOperator(task_id='sample-task', name='foo_bar')
+        hello_task = HelloOperator(task_id="sample-task", name="foo_bar")
 
 You also can keep using your plugins folder for storing your custom operators. If you have the file
 ``hello_operator.py`` within the plugins folder, you can import the operator as follows:
@@ -110,26 +107,19 @@ Let's extend our previous example to fetch name from MySQL:
 .. code-block:: python
 
     class HelloDBOperator(BaseOperator):
+        def __init__(self, name: str, mysql_conn_id: str, database: str, **kwargs) -> None:
+            super().__init__(**kwargs)
+            self.name = name
+            self.mysql_conn_id = mysql_conn_id
+            self.database = database
 
-            def __init__(
-                    self,
-                    name: str,
-                    mysql_conn_id: str,
-                    database: str,
-                    **kwargs) -> None:
-                super().__init__(**kwargs)
-                self.name = name
-                self.mysql_conn_id = mysql_conn_id
-                self.database = database
-
-            def execute(self, context):
-                hook = MySqlHook(mysql_conn_id=self.mysql_conn_id,
-                         schema=self.database)
-                sql = "select name from user"
-                result = hook.get_first(sql)
-                message = "Hello {}".format(result['name'])
-                print(message)
-                return message
+        def execute(self, context):
+            hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
+            sql = "select name from user"
+            result = hook.get_first(sql)
+            message = "Hello {}".format(result["name"])
+            print(message)
+            return message
 
 When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist.
 The hook retrieves the auth parameters such as username and password from Airflow
@@ -149,9 +139,9 @@ Override ``ui_fgcolor`` to change the color of the label.
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
-            ui_color = '#ff0000'
-            ui_fgcolor = '#000000'
-            ....
+            ui_color = "#ff0000"
+            ui_fgcolor = "#000000"
+            # ...
 
 Templating
 ^^^^^^^^^^^
@@ -163,12 +153,9 @@ the operator.
 
         class HelloOperator(BaseOperator):
 
-            template_fields = ['name']
+            template_fields = ["name"]
 
-            def __init__(
-                    self,
-                    name: str,
-                    **kwargs) -> None:
+            def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.name = name
 
@@ -182,7 +169,9 @@ You can use the template as follows:
 .. code-block:: python
 
         with dag:
-            hello_task = HelloOperator(task_id='task_id_1', dag=dag, name='{{ task_instance.task_id }}')
+            hello_task = HelloOperator(
+                task_id="task_id_1", dag=dag, name="{{ task_instance.task_id }}"
+            )
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_instance.task_id }}`` with
 ``task_id_1``.
@@ -197,13 +186,10 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
 
         class HelloOperator(BaseOperator):
 
-            template_fields = ['guest_name']
-            template_ext = ['.sql']
+            template_fields = ["guest_name"]
+            template_ext = [".sql"]
 
-            def __init__(
-                    self,
-                    name: str,
-                    **kwargs) -> None:
+            def __init__(self, name: str, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.guest_name = name
 
@@ -215,13 +201,10 @@ from template field renders in Web UI. For example:
 .. code-block:: python
 
         class MyRequestOperator(BaseOperator):
-            template_fields = ['request_body']
-            template_fields_renderers = {'request_body': 'json'}
+            template_fields = ["request_body"]
+            template_fields_renderers = {"request_body": "json"}
 
-            def __init__(
-                    self,
-                    request_body: str,
-                    **kwargs) -> None:
+            def __init__(self, request_body: str, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.request_body = request_body
 

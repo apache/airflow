@@ -194,7 +194,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # to prevent it from showing in the UI.
         def concat_logs(lines):
             log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark.strip() else len(lines)
-            return '\n'.join([self._format_msg(lines[i]) for i in range(log_range)])
+            return '\n'.join(self._format_msg(lines[i]) for i in range(log_range))
 
         message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host]
 

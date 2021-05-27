@@ -172,6 +172,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         'pod_template_file',
     )
 
+    template_ext = ('yaml', 'yml', 'json')
+
     # fmt: off
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         # fmt: on
@@ -257,7 +259,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         else:
             self.node_selector = {}
         self.annotations = annotations or {}
-        self.affinity = convert_affinity(affinity) if affinity else k8s.V1Affinity()
+        self.affinity = convert_affinity(affinity) if affinity else {}
         self.k8s_resources = convert_resources(resources) if resources else {}
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
@@ -408,7 +410,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
         filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
-        return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
+        return ','.join(label_id + '=' + label for label_id, label in sorted(filtered_labels.items()))
 
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:

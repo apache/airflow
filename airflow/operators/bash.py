@@ -18,11 +18,7 @@
 import os
 from typing import Dict, Optional
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.models import BaseOperator
@@ -117,8 +113,8 @@ class BashOperator(BaseOperator):
 
         bash_task = BashOperator(
             task_id="bash_task",
-            bash_command='echo "here is the message: \'$message\'"',
-            env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+            bash_command="echo \"here is the message: '$message'\"",
+            env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
         )
 
     """
@@ -162,7 +158,7 @@ class BashOperator(BaseOperator):
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(
             'Exporting the following env vars:\n%s',
-            '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+            '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
         )
         env.update(airflow_context_vars)
         return env

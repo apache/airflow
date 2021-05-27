@@ -52,20 +52,24 @@ function sanity_checks::sanitize_mounted_files() {
 # Checks if core utils required in the host system are installed and explain what needs to be done if not
 #
 function sanity_checks::check_if_coreutils_installed() {
+    local getopt_retval
+    local stat_present
+    local md5sum_present
+
     set +e
     getopt -T >/dev/null
-    GETOPT_RETVAL=$?
+    getopt_retval=$?
 
     if [[ $(uname -s) == 'Darwin' ]] ; then
         command -v gstat >/dev/null
-        STAT_PRESENT=$?
+        stat_present=$?
     else
         command -v stat >/dev/null
-        STAT_PRESENT=$?
+        stat_present=$?
     fi
 
     command -v md5sum >/dev/null
-    MD5SUM_PRESENT=$?
+    md5sum_present=$?
 
     set -e
 
@@ -74,7 +78,7 @@ function sanity_checks::check_if_coreutils_installed() {
     readonly CMDNAME
 
     ####################  Parsing options/arguments
-    if [[ ${GETOPT_RETVAL} != 4 || "${STAT_PRESENT}" != "0" || "${MD5SUM_PRESENT}" != "0" ]]; then
+    if [[ ${getopt_retval} != 4 || "${stat_present}" != "0" || "${md5sum_present}" != "0" ]]; then
         verbosity::print_info
         if [[ $(uname -s) == 'Darwin' ]] ; then
             echo """
