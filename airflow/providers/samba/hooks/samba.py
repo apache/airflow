@@ -42,12 +42,22 @@ class SambaHook(BaseHook):
         You can provide optional parameters in the extra fields of
         your connection.
 
-        :param logdir: Base directory name for log/debug files.
-        :param kerberos: Try to authenticate with kerberos.
-        :param workgroup: Set the SMB domain of the username.
-        :param netbios_name:
-            This option allows you to override the NetBIOS name that
-            Samba uses for itself.
+        Below is an inexhaustive list of these parameters:
+
+        logdir
+          Base directory name for log/debug files.
+
+        kerberos
+          Try to authenticate with kerberos.
+
+        workgroup
+          Set the SMB domain of the username.
+
+        netbios_name
+          This option allows you to override the NetBIOS name that
+          Samba uses for itself.
+
+        For additional details, see `smbclient.SambaClient`.
         """
         samba = SambaClient(
             server=self.conn.host,
