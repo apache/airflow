@@ -432,10 +432,10 @@ Here we are passing a get request to get the data from the url and save it emplo
 
 .. code-block:: python
 
-def insert_data():
-    engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
-    df = pd.read_csv('/usr/local/airflow/dags/files/employees.csv')
-    df.to_sql('Employees_temp', con=engine, if_exists='replace')
+  def insert_data():
+      engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
+      df = pd.read_csv('/usr/local/airflow/dags/files/employees.csv')
+      df.to_sql('Employees_temp', con=engine, if_exists='replace')
 
 Here we are dumping the file into a temporary table before merging the data to the final employees table
 
