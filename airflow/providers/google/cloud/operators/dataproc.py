@@ -1108,11 +1108,11 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     .. code-block:: python
 
         default_args = {
-            'cluster_name': 'cluster-1',
-            'dataproc_pig_jars': [
-                'gs://example/udf/jar/datafu/1.2.0/datafu.jar',
-                'gs://example/udf/jar/gpig/1.2/gpig.jar'
-            ]
+            "cluster_name": "cluster-1",
+            "dataproc_pig_jars": [
+                "gs://example/udf/jar/datafu/1.2.0/datafu.jar",
+                "gs://example/udf/jar/gpig/1.2/gpig.jar",
+            ],
         }
 
     You can pass a pig script as string or file reference. Use variables to pass on

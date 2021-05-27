@@ -50,5 +50,5 @@ res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
 
 # Write output
 with open(sys.argv[2], "wb") as file:
-    if res:
+    if res is not None:
         {{ pickling_library }}.dump(res, file)

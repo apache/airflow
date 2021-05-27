@@ -102,6 +102,7 @@ class PodTemplateFileTest(unittest.TestCase):
                 {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
         } == jmespath.search("spec.initContainers[0]", docs[0])
 
     def test_should_not_add_init_container_if_dag_persistence_is_true(self):
@@ -419,3 +420,21 @@ class PodTemplateFileTest(unittest.TestCase):
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.initContainers[-1]", docs[0])

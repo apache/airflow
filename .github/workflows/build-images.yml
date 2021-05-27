@@ -1,0 +1,337 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Build Images"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '28 0 * * *'
+  pull_request_target:
+  push:
+    branches: ['main', 'master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+env:
+  MOUNT_SELECTED_LOCAL_SOURCES: "false"
+  FORCE_ANSWER_TO_QUESTIONS: "yes"
+  FORCE_PULL_IMAGES: "false"
+  CHECK_IMAGE_FOR_REBUILD: "true"
+  SKIP_CHECK_REMOTE_IMAGE: "true"
+  DB_RESET: "true"
+  VERBOSE: "true"
+  USE_GITHUB_REGISTRY: "true"
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  GITHUB_USERNAME: ${{ github.actor }}
+  # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+  # Airflow one is going to be used
+  CONSTRAINTS_GITHUB_REPOSITORY: >-
+    ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+  # This token is WRITE one - pull_request_target type of events always have the WRITE token
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # This token should not be empty in pull_request_target type of event.
+  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
+  GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+  INSTALL_PROVIDERS_FROM_SOURCES: "true"
+  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
+  TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  build-info:
+    timeout-minutes: 10
+    name: "Build Info"
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
+      targetBranch: ${{ github.event.pull_request.base.ref }}
+      pullRequestLabels: "${{ toJSON(github.event.pull_request.labels.*.name) }}"
+    outputs:
+      runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
+      pythonVersions: "${{ steps.selective-checks.python-versions }}"
+      upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
+      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
+      defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
+      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+      image-build: ${{ steps.dynamic-outputs.outputs.image-build }}
+      cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
+      targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: env
+        run: printenv
+        env:
+          dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
+      - name: Selective checks
+        id: selective-checks
+        env:
+          PR_LABELS: ${{ env.pullRequestLabels }}
+        run: |
+          if [[ ${GITHUB_EVENT_NAME} == "pull_request_target" ]]; then
+            # Run selective checks
+            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
+          else
+            # Run all checks
+            ./scripts/ci/selective_ci_checks.sh
+          fi
+      - name: Compute dynamic outputs
+        id: dynamic-outputs
+        run: |
+          set -x
+          if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
+              echo "::set-output name=targetBranch::${targetBranch}"
+          else
+            # Direct push to branch, or scheduled build
+              echo "::set-output name=targetBranch::${GITHUB_REF#refs/heads/}"
+          fi
+
+          if [[ "${{ github.event_name }}" == 'schedule' ]]; then
+              echo "::set-output name=cacheDirective::disabled"
+          else
+              echo "::set-output name=cacheDirective::pulled"
+          fi
+
+          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" && "$BUILD_IMAGES_OVERRIDE" != "false" ]]; then
+              echo "::set-output name=image-build::true"
+          else
+              echo "::set-output name=image-build::false"
+          fi
+        env:
+          SELECTIVE_CHECKS_IMAGE_BUILD: ${{ steps.selective-checks.outputs.image-build }}
+          BUILD_IMAGES_OVERRIDE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE }}
+
+  build-ci-images:
+    timeout-minutes: 80
+    name: "Build CI images ${{matrix.python-version}}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    strategy:
+      matrix:
+        # We need to attempt to build all possible versions here because pull_request_target
+        # event is run from master for both master and v1-10-tests
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    if: needs.build-info.outputs.image-build == 'true'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      CONTINUE_ON_PIP_CHECK_FAILURE: "true"
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      FORCE_PULL_BASE_PYTHON_IMAGE: >
+        ${{ github.event_name == 'schedule' && 'true' || 'false' }}
+      outputs: ${{toJSON(needs.build-info.outputs) }}
+    steps:
+      - name: Set envs
+        # Can't refer to "global" env to set a var in a job's env context
+        run: |
+          echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ env.TARGET_COMMIT_SHA }}
+          persist-credentials: false
+          submodules: recursive
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # Also 2.7 and 3.5 versions are not allowed to proceed on master
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          if [[ ${DEFAULT_BRANCH} != "v1-10-test" && \
+            ( ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ) \
+          ]]; then
+              echo "::set-output name=proceed::false"
+          else
+              echo "::set-output name=proceed::true"
+          fi
+      - name: >
+          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          persist-credentials: false
+          submodules: recursive
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: >
+          Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        run: |
+          rm -rf "scripts/ci"
+          mv "main-airflow/scripts/ci" "scripts"
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_push_ci_images.sh
+        if: steps.defaults.outputs.proceed == 'true'
+
+  build-prod-images:
+    timeout-minutes: 80
+    name: "Build PROD images ${{matrix.python-version}}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, build-ci-images]
+    strategy:
+      matrix:
+        # We need to attempt to build all possible versions here because pull_request_target
+        # event is run from master for both master and v1-10-tests
+        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
+      fail-fast: true
+    if: needs.build-info.outputs.image-build == 'true'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: postgres
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      FORCE_PULL_BASE_PYTHON_IMAGE: >
+        ${{ github.event_name == 'schedule' && 'true' || 'false' }}
+      VERSION_SUFFIX_FOR_PYPI: ".dev0"
+    steps:
+      - name: Set envs
+        run: |
+          echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
+          echo "GITHUB_REGISTRY_PULL_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ env.TARGET_COMMIT_SHA }}
+          persist-credentials: false
+          submodules: recursive
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # Also 2.7 and 3.5 versions are not allowed to proceed on master
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          if [[ ${DEFAULT_BRANCH} != "v1-10-test" && \
+            ( ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ) \
+          ]]; then
+              echo "::set-output name=proceed::false"
+          else
+              echo "::set-output name=proceed::true"
+          fi
+      - name: >
+          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          persist-credentials: false
+          submodules: recursive
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: >
+          Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        run: |
+          rm -rf "scripts/ci"
+          mv "main-airflow/scripts/ci" "scripts"
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+        # Pull images built in the previous step
+        if: steps.defaults.outputs.proceed == 'true'
+        env:
+          GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
+      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        if: steps.defaults.outputs.proceed == 'true'
+      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_push_production_images.sh
+        if: steps.defaults.outputs.proceed == 'true'
+
+  cancel-on-ci-build:
+    name: "Cancel 'CI Build' jobs on workflow failed/cancelled"
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    if: failure() || cancelled()
+    needs: [build-ci-images, build-prod-images]
+    env:
+      branch: ${{ github.event.pull_request.head.ref }}
+      thisRun: ${{ github.run_id }}
+    steps:
+      - name: Find running CI Build jobs for ${{ env.TARGET_COMMIT_SHA }}
+        run: |
+          if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
+            event_filter="event=pull_request&"
+          else
+            branch="${GITHUB_REF#refs/heads/}"
+            event_filter=""
+          fi
+
+          for cancel_url in $(
+              gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" \
+                  jq -r '
+                    .workflow_runs[] |
+                    select(.head_sha == $ENV.TARGET_COMMIT_SHA and .status != "completed") |
+                    .cancel_url
+                  ' \
+          ); do
+            # One of these URls will be _this_ workflow, so lets exclude that!
+            [[ $cancel_url  == */$thisRun/* ]] && continue
+
+            echo "Cancelling $cancel_url"
+            gh api -X POST --silent "$cancel_url"
+          done

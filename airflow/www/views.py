@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import collections
 import copy
 import itertools
 import json
@@ -76,13 +77,12 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
-from sqlalchemy import and_, desc, func, or_, union_all
+from sqlalchemy import Date, and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
 import airflow
-import airflow.utils.yaml as yaml
 from airflow import models, plugins_manager, settings
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -103,7 +103,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
-from airflow.utils import json as utils_json, timezone
+from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
@@ -2091,6 +2091,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging  # pylint: disable=too-many-locals
     def calendar(self):
         """Get DAG runs as calendar"""
+
+        def _convert_to_date(session, column):
+            """Convert column to date."""
+            if session.bind.dialect.name == 'mssql':
+                return column.cast(Date)
+            else:
+                return func.date(column)
+
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
@@ -2104,13 +2112,13 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         with create_session() as session:
             dag_states = (
                 session.query(
-                    func.date(DagRun.execution_date).label('date'),
+                    (_convert_to_date(session, DagRun.execution_date)).label('date'),
                     DagRun.state,
                     func.count('*').label('count'),
                 )
                 .filter(DagRun.dag_id == dag.dag_id)
-                .group_by(func.date(DagRun.execution_date), DagRun.state)
-                .order_by(func.date(DagRun.execution_date).asc())
+                .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
+                .order_by(_convert_to_date(session, DagRun.execution_date).asc())
                 .all()
             )
 
@@ -3341,11 +3349,7 @@ class VariableModelView(AirflowModelView):
     def varimport(self):
         """Import variables"""
         try:
-            out = request.files['file'].read()
-            if isinstance(out, bytes):
-                variable_dict = json.loads(out.decode('utf-8'))
-            else:
-                variable_dict = json.loads(out)
+            variable_dict = json.loads(request.files['file'].read())
         except Exception:  # noqa pylint: disable=broad-except
             self.update_redirect()
             flash("Missing file or syntax error.", 'error')
@@ -3801,12 +3805,11 @@ class TaskInstanceModelView(AirflowModelView):
     def action_clear(self, task_instances, session=None):
         """Clears the action."""
         try:
-            dag_to_tis = {}
+            dag_to_tis = collections.defaultdict(list)
 
             for ti in task_instances:
                 dag = current_app.dag_bag.get_dag(ti.dag_id)
-                task_instances_to_clean = dag_to_tis.setdefault(dag, [])
-                task_instances_to_clean.append(ti)
+                dag_to_tis[dag].append(ti)
 
             for dag, task_instances_list in dag_to_tis.items():
                 models.clear_task_instances(task_instances_list, session, dag=dag)
