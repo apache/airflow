@@ -16,6 +16,7 @@
 # under the License.
 """Mask sensitive information from logs"""
 import collections
+import io
 import logging
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
@@ -26,6 +27,10 @@ if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
     RedactableItem = TypeVar('RedactableItem')
+
+
+log = logging.getLogger(__name__)
+
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
@@ -173,24 +178,36 @@ class SecretsMasker(logging.Filter):
         is redacted.
 
         """
-        if name and should_hide_value_for_key(name):
-            return self._redact_all(item)
+        try:
+            if name and should_hide_value_for_key(name):
+                return self._redact_all(item)
 
-        if isinstance(item, dict):
-            return {dict_key: self.redact(subval, dict_key) for dict_key, subval in item.items()}
-        elif isinstance(item, str):
-            if self.replacer:
-                # We can't replace specific values, but the key-based redacting
-                # can still happen, so we can't short-circuit, we need to walk
-                # the structure.
-                return self.replacer.sub('***', item)
-            return item
-        elif isinstance(item, (tuple, set)):
-            # Turn set in to tuple!
-            return tuple(self.redact(subval) for subval in item)
-        elif isinstance(item, Iterable):
-            return list(self.redact(subval) for subval in item)
-        else:
+            if isinstance(item, dict):
+                return {dict_key: self.redact(subval, dict_key) for dict_key, subval in item.items()}
+            elif isinstance(item, str):
+                if self.replacer:
+                    # We can't replace specific values, but the key-based redacting
+                    # can still happen, so we can't short-circuit, we need to walk
+                    # the structure.
+                    return self.replacer.sub('***', item)
+                return item
+            elif isinstance(item, (tuple, set)):
+                # Turn set in to tuple!
+                return tuple(self.redact(subval) for subval in item)
+            elif isinstance(item, io.IOBase):
+                return item
+            elif isinstance(item, Iterable):
+                return list(self.redact(subval) for subval in item)
+            else:
+                return item
+        except Exception as e:  # pylint: disable=broad-except
+            log.warning(
+                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
+                "Error was: %s: %s",
+                item,
+                type(e).__name__,
+                str(e),
+            )
             return item
 
     # pylint: enable=too-many-return-statements
