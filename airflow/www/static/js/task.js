@@ -18,15 +18,14 @@
  */
 
 /* global document, moment */
-import { formatDateTime } from './datetime_utils';
 
 // reformat task details to be more human-readable
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.ti-attr').forEach((attr) => {
     const value = attr.innerHTML;
-    if (value.length === 32 && moment(value).isValid()) {
+    if (value.length === 32 && moment(value, 'YYYY-MM-DD').isValid()) {
       // 32 is the length of our timestamps
-      attr.innerHTML = formatDateTime(value);
+      attr.className = 'format-date';
     } else if (value.includes('http')) {
       // very basic url detection
       attr.innerHTML = `<a href=${value}>${value}</a>`;
