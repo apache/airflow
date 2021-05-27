@@ -42,6 +42,7 @@ class SambaHook(BaseHook):
             username=self.conn.login,
             ip=self.conn.host,
             password=self.conn.password,
+            **self.conn.extra_dejson,
         )
         return samba
 
