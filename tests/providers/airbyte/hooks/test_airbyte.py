@@ -44,7 +44,7 @@ class TestAirbyteHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
-                conn_id='airbyte_conn_id_test', conn_type='http', host='http://test-airbyte', port=8001
+                conn_id='airbyte_conn_id_test', conn_type='airbyte', host='http://test-airbyte', port=8001
             )
         )
         self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)

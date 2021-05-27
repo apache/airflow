@@ -61,6 +61,11 @@ class SlackWebhookHook(HttpHook):
     :type proxy: str
     """
 
+    conn_name_attr = 'http_conn_id'
+    default_conn_name = 'slack_default'
+    conn_type = 'slackwebhook'
+    hook_name = 'Slack Webhook'
+
     # pylint: disable=too-many-arguments
     def __init__(
         self,
