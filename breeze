@@ -3071,18 +3071,6 @@ function breeze::read_saved_environment_variables() {
 
     MSSQL_VERSION="${MSSQL_VERSION:=$(parameters::read_from_file MSSQL_VERSION)}"
     MSSQL_VERSION=${MSSQL_VERSION:=${_breeze_default_mssql_version}}
-
-    # Here you read DockerHub user/account that you use
-    # You can populate your own images in DockerHub this way and work with the,
-    # You can override it with "--dockerhub-user" option and it will be stored in .build directory
-    DOCKERHUB_USER="${DOCKERHUB_USER:=$(parameters::read_from_file DOCKERHUB_USER)}"
-    DOCKERHUB_USER="${DOCKERHUB_USER:=${_breeze_default_dockerhub_user}}"
-
-    # Here you read DockerHub repo that you use
-    # You can populate your own images in DockerHub this way and work with them
-    # You can override it with "--dockerhub-repo" option and it will be stored in .build directory
-    DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(parameters::read_from_file DOCKERHUB_REPO)}"
-    DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_breeze_default_dockerhub_repo}}"
 }
 
 #######################################################################################################
@@ -3144,11 +3132,6 @@ function breeze::check_and_save_all_params() {
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
     parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
-
-
-    # Can't verify those - they can be anything, so let's just save them
-    parameters::save_to_file DOCKERHUB_USER
-    parameters::save_to_file DOCKERHUB_REPO
 }
 
 #######################################################################################################

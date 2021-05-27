@@ -491,13 +491,13 @@ If ``USE_GITHUB_REGISTRY`` is set to "false" you can interact directly with Dock
 you pull from/push to "apache/airflow" DockerHub repository, but you can change
 that to your own repository by setting those environment variables:
 
-+----------------+-------------+-----------------------------------+
-| Variable       | Default     | Comment                           |
-+================+=============+===================================+
-| DOCKERHUB_USER | ``apache``  | Name of the DockerHub user to use |
-+----------------+-------------+-----------------------------------+
-| DOCKERHUB_REPO | ``airflow`` | Name of the DockerHub repo to use |
-+----------------+-------------+-----------------------------------+
++----------------+----------------+-----------------------------------+
+| Variable       | Default        | Comment                           |
++================+================+===================================+
+| DOCKERHUB_USER | ``apache``     | Name of the DockerHub user to use |
++----------------+----------------+-----------------------------------+
+| DOCKERHUB_REPO | ``airflow-ci`` | Name of the DockerHub repo to use |
++----------------+----------------+-----------------------------------+
 
 CI Architecture
 ===============
@@ -521,7 +521,7 @@ The following components are part of the CI infrastructure
 * **GitHub Private Image Registry**- image registry used as build cache for CI  jobs.
   It is at https://docker.pkg.github.com/apache/airflow/airflow
 * **DockerHub Public Image Registry** - publicly available image registry at DockerHub.
-  It is at https://hub.docker.com/r/apache/airflow
+  It is at https://hub.docker.com/r/apache/airflow-ci
 * **DockerHub Build Workers** - virtual machines running build jibs at DockerHub
 * **Official Images** (future) - these are official images that are prominently visible in DockerHub.
   We aim our images to become official images so that you will be able to pull them

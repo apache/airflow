@@ -184,7 +184,7 @@ function initialization::initialize_dockerhub_variables() {
 
     # You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
     # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
 }
 
 # Determine available integrations

@@ -212,6 +212,7 @@ In case you need, you can also build and push the images manually:
 ```shell script
 export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
+export DEFAULT_PYTHON_VERSION=3.6
 for python_version in "3.6" "3.7" "3.8"
 (
   export DOCKER_TAG=${VERSION}-python${python_version}
@@ -222,9 +223,21 @@ for python_version in "3.6" "3.7" "3.8"
 Once this succeeds you should push the "${VERSION}" image:
 
 ```shell script
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:${VERSION}
 docker push apache/airflow:${VERSION}
 ```
+
+And latest images:
+
+```shell script
+for python_version in "3.6" "3.7" "3.8"
+(
+    docker tag apache/airflow:${VERSION}-python{python_version} apache/airflow:latest-python{python-version}
+    docker push apache/airflow:latest-python{python-version}
+)
+docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:latest
+```
+
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before the images are pushed.

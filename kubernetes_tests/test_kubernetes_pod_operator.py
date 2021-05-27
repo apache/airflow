@@ -872,7 +872,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'command': ['stress'],
                         'env': [],
                         'envFrom': [],
-                        'image': 'apache/airflow:stress-2021.04.28-1.0.4',
+                        'image': 'apache/airflow-ci:stress-2021.04.28-1.0.4',
                         'imagePullPolicy': 'IfNotPresent',
                         'name': 'base',
                         'ports': [],

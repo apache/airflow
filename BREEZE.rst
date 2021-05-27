@@ -236,7 +236,7 @@ for details.
   ./breeze
 
 The First time you run Breeze, it pulls and builds a local version of Docker images.
-It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
+It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow-ci>`_
 and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
 minutes on a fast connection to start. Subsequent runs should be much faster.
 
@@ -538,10 +538,10 @@ Building CI images
 With Breeze you can build images that are used by Airflow CI and production ones.
 
 For all development tasks, unit tests, integration tests, and static code checks, we use the
-**CI image** maintained on the DockerHub in the ``apache/airflow`` repository.
+**CI image** maintained on the DockerHub in the ``apache/airflow-ci`` repository.
 This Docker image contains a lot of test-related packages (size of ~1GB).
 Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
-(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow:v2-1-test-python3.6-ci``).
+(for example, ``apache/airflow:master-python3.6-ci`` or ``apache/airflow-ci:v2-1-test-python3.6-ci``).
 The image is built using the `<Dockerfile.ci>`_ Dockerfile.
 
 The CI image is built automatically as needed, however it can be rebuilt manually with
@@ -634,11 +634,12 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
 Building Production images
 --------------------------
 
-The **Production image** is also maintained on the DockerHub in the
-``apache/airflow`` repository. This Docker image (and Dockerfile) contains size-optimised Airflow
-installation with selected extras and dependencies. Its tag follows the pattern of
-``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow:master-python3.6``
-or ``apache/airflow:v2-1-test-python3.6``).
+The **Production image** is also maintained on the DockerHub in both ``apache/airflow`` (for tagged and latest
+releases) or ``apache/airflow-ci`` repository (for branches). This Docker image (built using official
+Dockerfile) contains size-optimised Airflow installation with selected extras and dependencies. Its tag follows
+the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow-ci:master-python3.6``
+or ``apache/airflow-ci:v2-1-test-python3.6``) or in case of production images tagged with releases
+``apache/airflow:2.1.2-python3.8`` or ``apache/airflow:latest`` or ``apache/airflow:latest-python3.8``.
 
 However in many cases you want to add your own custom version of the image - with added apt dependencies,
 python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
@@ -1437,7 +1438,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo DOCKERHUB_REPO
-          DockerHub repository used to pull, push, build images. Default: airflow.
+          DockerHub repository used to pull, push, build images. Default: airflow-ci.
 
   -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
@@ -1611,7 +1612,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo DOCKERHUB_REPO
-          DockerHub repository used to pull, push, build images. Default: airflow.
+          DockerHub repository used to pull, push, build images. Default: airflow-ci.
 
   -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
@@ -2676,7 +2677,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           DockerHub user used to pull, push and build images. Default: apache.
 
   -H, --dockerhub-repo DOCKERHUB_REPO
-          DockerHub repository used to pull, push, build images. Default: airflow.
+          DockerHub repository used to pull, push, build images. Default: airflow-ci.
 
   -c, --use-github-registry
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
