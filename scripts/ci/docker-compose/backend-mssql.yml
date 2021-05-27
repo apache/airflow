@@ -31,3 +31,9 @@ services:
       - SA_PASSWORD=Airflow123
     volumes:
       - mssql-db-volume:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "sqlcmd", "-S", "localhost", "-U", "sa", "-P", "$SA_PASSWORD", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: always
