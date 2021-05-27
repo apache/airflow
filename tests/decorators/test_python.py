@@ -411,6 +411,22 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = do_run()
         assert ret.operator.owner == 'airflow'  # pylint: disable=maybe-no-member
 
+        @task_decorator
+        def test_apply_default_raise(unknow):
+            return unknow
+
+        with pytest.raises(TypeError):
+            with self.dag:
+                test_apply_default_raise()  # pylint: disable=no-value-for-parameter
+
+        @task_decorator
+        def test_apply_default(owner):
+            return owner
+
+        with self.dag:
+            ret = test_apply_default()  # pylint: disable=no-value-for-parameter
+        assert 'owner' in ret.operator.op_kwargs
+
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
