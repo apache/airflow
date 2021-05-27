@@ -101,10 +101,11 @@ class TestSnowflakeHook(unittest.TestCase):
         cur = mock.MagicMock(rowcount=0)
         self.conn.cursor.return_value = cur
         type(cur).sfqid = mock.PropertyMock(side_effect=query_ids)
-        self.db_hook.run(sql)
+        mock_params = {"mock_param": "mock_param"}
+        self.db_hook.run(sql, parameters=mock_params)
 
         sql_list = sql if isinstance(sql, list) else re.findall(".*?[;]", sql)
-        cur.execute.assert_has_calls([mock.call(query) for query in sql_list])
+        cur.execute.assert_has_calls([mock.call(query, mock_params) for query in sql_list])
         assert self.db_hook.query_ids == query_ids[::2]
         cur.close.assert_called()
 
