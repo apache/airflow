@@ -2424,15 +2424,9 @@ class DagFilter(BaseFilter):
 
 class TrackNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
-        session = query.session
         ti = self.model
-        # ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
-        # return ret
-        # return session.query(sqla.func.distinct(ti.car_code)).filter(ti.car_code.isnot(None))
-        # return session.query(ti.car_code).distinct(ti.car_code).filter(ti.car_code.isnot(None)).group_by(ti.car_code)
-        # .group_by(
-        # ti.car_code)
-
+        ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
+        return ret
 
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
@@ -3444,6 +3438,8 @@ class CurveAnalysisListWidget(AirflowModelListWidget):
 
 class CurveAnalysisTrackNoView(TaskInstanceModelView):
     route_base = '/curves_analysis_track'
+
+    datamodel = wwwutils.DistinctSQLAInterface(models.TaskInstance)
 
     base_permissions = ['can_list', 'can_show']
 
