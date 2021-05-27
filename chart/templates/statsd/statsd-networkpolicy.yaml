@@ -51,7 +51,7 @@ spec:
 {{- end }}
     ports:
     - protocol: UDP
-      port: {{ .Values.ports.statsdIngest }}
+      port: {{ .Values._ports.statsdIngest }}
     - protocol: TCP
-      port: {{ .Values.ports.statsdScrape }}
+      port: {{ .Values._ports.statsdScrape }}
 {{- end }}

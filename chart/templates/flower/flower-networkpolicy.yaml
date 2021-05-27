@@ -48,7 +48,7 @@ spec:
 {{ toYaml .Values.flower.extraNetworkPolicies | indent 6 }}
       ports:
         - protocol: TCP
-          port: {{ .Values.ports.flowerUI }}
+          port: {{ .Values._ports.flowerUI }}
 {{- end }}
 {{- end }}
 {{- end }}

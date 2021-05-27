@@ -86,13 +86,13 @@ spec:
 {{ toYaml .Values.pgbouncer.resources | indent 12 }}
           ports:
             - name: pgbouncer
-              containerPort: {{ .Values.ports.pgbouncer }}
+              containerPort: {{ .Values._ports.pgbouncer }}
           livenessProbe:
             tcpSocket:
-              port: {{ .Values.ports.pgbouncer }}
+              port: pgbouncer
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.ports.pgbouncer }}
+              port: pgbouncer
           volumeMounts:
             - name: pgbouncer-config
               subPath: pgbouncer.ini
@@ -136,7 +136,7 @@ spec:
                   key: connection
           ports:
             - name: metrics
-              containerPort: {{ .Values.ports.pgbouncerScrape }}
+              containerPort: {{ .Values._ports.pgbouncerScrape }}
           livenessProbe:
             exec:
               command:

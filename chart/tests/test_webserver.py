@@ -326,6 +326,16 @@ class WebserverDeploymentTest(unittest.TestCase):
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    def test_should_not_override_container_port(self):
+        docs = render_chart(
+            values={"ports": {"airflowUI": 9000}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert {
+            "name": "webserver-ui",
+            "containerPort": 8080,
+        } in jmespath.search("spec.template.spec.containers[0].ports", docs[0])
+
 
 class WebserverServiceTest(unittest.TestCase):
     def test_default_service(self):
@@ -339,9 +349,12 @@ class WebserverServiceTest(unittest.TestCase):
             "spec.selector", docs[0]
         )
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
-        assert {"name": "airflow-ui", "protocol": "TCP", "port": 8080} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "airflow-ui",
+            "protocol": "TCP",
+            "port": 8080,
+            "targetPort": "webserver-ui",
+        } in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
         docs = render_chart(
@@ -360,9 +373,12 @@ class WebserverServiceTest(unittest.TestCase):
 
         assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
-        assert {"name": "airflow-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "airflow-ui",
+            "protocol": "TCP",
+            "port": 9000,
+            "targetPort": "webserver-ui",
+        } in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
 
 

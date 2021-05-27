@@ -2348,8 +2348,64 @@
                 }
             }
         },
+        "_ports": {
+            "description": "All container ports used by chart.",
+            "type": "object",
+            "x-docsSection": "Ports",
+            "additionalProperties": false,
+            "properties": {
+                "flowerUI": {
+                    "description": "Flower UI port.",
+                    "type": "integer",
+                    "default": 5555,
+                    "const": 5555
+                },
+                "airflowUI": {
+                    "description": "Airflow UI port.",
+                    "type": "integer",
+                    "default": 8080,
+                    "const": 8080
+                },
+                "workerLogs": {
+                    "description": "Worker logs port.",
+                    "type": "integer",
+                    "default": 8793,
+                    "const": 8793
+                },
+                "redisDB": {
+                    "description": "Redis port.",
+                    "type": "integer",
+                    "default": 6379,
+                    "const": 6379
+                },
+                "statsdIngest": {
+                    "description": "StatsD ingest port.",
+                    "type": "integer",
+                    "default": 9125,
+                    "const": 9125
+                },
+                "statsdScrape": {
+                    "description": "StatsD scrape port.",
+                    "type": "integer",
+                    "default": 9102,
+                    "const": 9102
+                },
+                "pgbouncer": {
+                    "description": "PgBouncer port.",
+                    "type": "integer",
+                    "default": 6543,
+                    "const": 6543
+                },
+                "pgbouncerScrape": {
+                    "description": "PgBouncer scrape port.",
+                    "type": "integer",
+                    "default": 9127,
+                    "const": 9127
+                }
+            }
+        },
         "ports": {
-            "description": "All ports used by chart.",
+            "description": "All service ports used by chart.",
             "type": "object",
             "x-docsSection": "Ports",
             "additionalProperties": false,

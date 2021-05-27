@@ -900,7 +900,18 @@ elasticsearch:
   #   port: ~
   connection: {}
 
-# All ports used by chart
+# All container ports used by chart, hard code here.
+_ports:
+  flowerUI: 5555
+  airflowUI: 8080
+  workerLogs: 8793
+  redisDB: 6379
+  statsdIngest: 9125
+  statsdScrape: 9102
+  pgbouncer: 6543
+  pgbouncerScrape: 9127
+
+# All service ports used by chart
 ports:
   flowerUI: 5555
   airflowUI: 8080
@@ -972,19 +983,22 @@ config:
     colored_console_log: 'False'
   metrics:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: 9125
+    statsd_port: '{{ .Values._ports.statsdIngest }}'
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
+    web_server_port: '{{ .Values._ports.airflowUI }}'
     enable_proxy_fix: 'True'
     # For Airflow 1.10
     rbac: 'True'
   celery:
+    worker_log_server_port: '{{ .Values._ports.workerLogs }}'
+    flower_port: '{{ .Values._ports.flowerUI }}'
     worker_concurrency: 16
   scheduler:
     # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: 9125
+    statsd_port: '{{ .Values._ports.statsdIngest }}'
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.

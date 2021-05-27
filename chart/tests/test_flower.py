@@ -109,10 +109,10 @@ class TestFlowerDeployment:
         assert "AIRFLOW__CELERY__FLOWER_BASIC_AUTH" == jmespath.search(
             "spec.template.spec.containers[0].env[0].name", docs[0]
         )
-        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:7777'] == jmespath.search(
+        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:5555'] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:7777'] == jmespath.search(
+        assert ['curl', '--user', '$AIRFLOW__CELERY__FLOWER_BASIC_AUTH', 'localhost:5555'] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
@@ -128,10 +128,10 @@ class TestFlowerDeployment:
         assert "AIRFLOW__CORE__FERNET_KEY" == jmespath.search(
             "spec.template.spec.containers[0].env[0].name", docs[0]
         )
-        assert ['curl', 'localhost:7777'] == jmespath.search(
+        assert ['curl', 'localhost:5555'] == jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert ['curl', 'localhost:7777'] == jmespath.search(
+        assert ['curl', 'localhost:5555'] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
@@ -238,9 +238,12 @@ class TestFlowerService:
             "spec.selector", docs[0]
         )
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
-        assert {"name": "flower-ui", "protocol": "TCP", "port": 5555} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "flower-ui",
+            "protocol": "TCP",
+            "port": 5555,
+            "targetPort": "flower-ui",
+        } in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
         docs = render_chart(
@@ -259,7 +262,10 @@ class TestFlowerService:
 
         assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
-        assert {"name": "flower-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "flower-ui",
+            "protocol": "TCP",
+            "port": 9000,
+            "targetPort": "flower-ui",
+        } in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])

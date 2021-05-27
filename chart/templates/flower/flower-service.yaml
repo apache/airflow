@@ -47,6 +47,7 @@ spec:
     - name: flower-ui
       protocol: TCP
       port: {{ .Values.ports.flowerUI }}
+      targetPort: flower-ui
   {{- if .Values.flower.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.flower.service.loadBalancerIP }}
   {{- end }}

@@ -42,5 +42,5 @@ spec:
     - name: task-logs
       protocol: TCP
       port: {{ .Values.ports.workerLogs }}
-      targetPort: {{ .Values.ports.workerLogs }}
+      targetPort: worker-logs
 {{- end }}

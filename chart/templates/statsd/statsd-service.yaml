@@ -48,9 +48,9 @@ spec:
     - name: statsd-ingest
       protocol: UDP
       port: {{ .Values.ports.statsdIngest }}
-      targetPort: {{ .Values.ports.statsdIngest }}
+      targetPort: statsd-ingest
     - name: statsd-scrape
       protocol: TCP
       port: {{ .Values.ports.statsdScrape }}
-      targetPort: {{ .Values.ports.statsdScrape }}
+      targetPort: statsd-scrape
 {{- end }}

@@ -42,5 +42,5 @@ spec:
     - name: redis-db
       protocol: TCP
       port: {{ .Values.ports.redisDB }}
-      targetPort: {{ .Values.ports.redisDB }}
+      targetPort: redis-db
 {{- end }}

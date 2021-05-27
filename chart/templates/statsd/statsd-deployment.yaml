@@ -81,20 +81,20 @@ spec:
           ports:
             - name: statsd-ingest
               protocol: UDP
-              containerPort: {{ .Values.ports.statsdIngest }}
+              containerPort: {{ .Values._ports.statsdIngest }}
             - name: statsd-scrape
-              containerPort: {{ .Values.ports.statsdScrape }}
+              containerPort: {{ .Values._ports.statsdScrape }}
           livenessProbe:
             httpGet:
               path: /metrics
-              port: {{ .Values.ports.statsdScrape }}
+              port: statsd-scrape
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /metrics
-              port: {{ .Values.ports.statsdScrape }}
+              port: statsd-scrape
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5

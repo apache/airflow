@@ -301,3 +301,23 @@ class RedisTest(unittest.TestCase):
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_redis_with_custom_ports(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "ports": {
+                    "redisDB": 6666,
+                },
+            },
+            show_only=["templates/redis/redis-service.yaml", "templates/redis/redis-statefulset.yaml"],
+        )
+        assert {
+            "name": "redis-db",
+            "protocol": "TCP",
+            "port": 6666,
+            "targetPort": "redis-db",
+        } in jmespath.search("spec.ports", docs[0])
+        assert {"name": "redis-db", "containerPort": 6379} in jmespath.search(
+            "spec.template.spec.containers[0].ports", docs[1]
+        )

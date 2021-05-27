@@ -57,30 +57,53 @@ class PgbouncerTest(unittest.TestCase):
             "metadata.annotations", docs[0]
         )
 
-        assert {"name": "pgbouncer", "protocol": "TCP", "port": 6543} in jmespath.search(
-            "spec.ports", docs[0]
-        )
-        assert {"name": "pgbouncer-metrics", "protocol": "TCP", "port": 9127} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "pgbouncer",
+            "protocol": "TCP",
+            "port": 6543,
+            "targetPort": "pgbouncer",
+        } in jmespath.search("spec.ports", docs[0])
+        assert {
+            "name": "pgbouncer-metrics",
+            "protocol": "TCP",
+            "port": 9127,
+            "targetPort": "metrics",
+        } in jmespath.search("spec.ports", docs[0])
 
-    def test_pgbouncer_service_with_custom_ports(self):
+    def test_pgbouncer_with_custom_ports(self):
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},
                 "ports": {"pgbouncer": 1111, "pgbouncerScrape": 2222},
             },
-            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+            show_only=[
+                "templates/pgbouncer/pgbouncer-service.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+            ],
         )
 
         assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
         assert "2222" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
-        assert {"name": "pgbouncer", "protocol": "TCP", "port": 1111} in jmespath.search(
-            "spec.ports", docs[0]
-        )
-        assert {"name": "pgbouncer-metrics", "protocol": "TCP", "port": 2222} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {
+            "name": "pgbouncer",
+            "protocol": "TCP",
+            "port": 1111,
+            "targetPort": "pgbouncer",
+        } in jmespath.search("spec.ports", docs[0])
+        assert {
+            "name": "pgbouncer-metrics",
+            "protocol": "TCP",
+            "port": 2222,
+            "targetPort": "metrics",
+        } in jmespath.search("spec.ports", docs[0])
+        assert {
+            "name": "pgbouncer",
+            "containerPort": 6543,
+        } in jmespath.search("spec.template.spec.containers[0].ports", docs[1])
+        assert {
+            "name": "metrics",
+            "containerPort": 9127,
+        } in jmespath.search("spec.template.spec.containers[1].ports", docs[1])
 
     def test_pgbouncer_service_extra_annotations(self):
         docs = render_chart(
@@ -290,7 +313,7 @@ class PgbouncerConfigTest(unittest.TestCase):
         }
         ini = self._get_pgbouncer_ini(values)
 
-        assert "listen_port = 7777" in ini
+        assert "listen_port = 6543" in ini
         assert "stats_users = someuser" in ini
         assert "max_client_conn = 111" in ini
         assert "verbose = 2" in ini
@@ -371,6 +394,6 @@ class PgbouncerExporterTest(unittest.TestCase):
             }
         )
         assert (
-            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
+            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:6543"
             "/pgbouncer?sslmode=disable" == connection
         )

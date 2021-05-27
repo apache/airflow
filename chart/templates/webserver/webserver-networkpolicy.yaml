@@ -46,6 +46,6 @@ spec:
 {{ toYaml .Values.webserver.extraNetworkPolicies | indent 6 }}
       ports:
         - protocol: TCP
-          port: {{ .Values.ports.airflowUI }}
+          port: {{ .Values._ports.airflowUI }}
 {{- end }}
 {{- end }}

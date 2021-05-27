@@ -151,11 +151,11 @@ spec:
 {{- end }}
           ports:
             - name: webserver-ui
-              containerPort: {{ .Values.ports.airflowUI }}
+              containerPort: {{ .Values._ports.airflowUI }}
           livenessProbe:
             httpGet:
               path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
-              port: {{ .Values.ports.airflowUI }}
+              port: webserver-ui
 {{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host
@@ -168,7 +168,7 @@ spec:
           readinessProbe:
             httpGet:
               path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
-              port: {{ .Values.ports.airflowUI }}
+              port: webserver-ui
 {{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host

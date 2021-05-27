@@ -63,7 +63,7 @@ spec:
 {{- end}}
     ports:
     - protocol: TCP
-      port: {{ .Values.ports.pgbouncer }}
+      port: {{ .Values._ports.pgbouncer }}
     - protocol: TCP
-      port: {{ .Values.ports.pgbouncerScrape }}
+      port: {{ .Values._ports.pgbouncerScrape }}
 {{- end }}

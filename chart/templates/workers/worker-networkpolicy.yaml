@@ -49,5 +49,5 @@ spec:
           component: webserver
     ports:
     - protocol: TCP
-      port: {{ .Values.ports.workerLogs }}
+      port: {{ .Values._ports.workerLogs }}
 {{- end }}

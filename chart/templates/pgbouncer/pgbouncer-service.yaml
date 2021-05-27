@@ -48,7 +48,9 @@ spec:
     - name: pgbouncer
       protocol: TCP
       port: {{ .Values.ports.pgbouncer }}
+      targetPort: pgbouncer
     - name: pgbouncer-metrics
       protocol: TCP
       port: {{ .Values.ports.pgbouncerScrape }}
+      targetPort: metrics
 {{- end }}

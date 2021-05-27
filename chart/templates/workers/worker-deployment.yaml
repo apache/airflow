@@ -140,7 +140,7 @@ spec:
 {{ toYaml .Values.workers.resources | indent 12 }}
           ports:
             - name: worker-logs
-              containerPort: {{ .Values.ports.workerLogs }}
+              containerPort: {{ .Values._ports.workerLogs }}
           volumeMounts:
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 12 }}

@@ -118,3 +118,29 @@ class StatsdTest(unittest.TestCase):
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_statsd_with_custom_ports(self):
+        docs = render_chart(
+            values={"ports": {"statsdIngest": 8080, "statsdScrape": 8081}},
+            show_only=["templates/statsd/statsd-service.yaml", "templates/statsd/statsd-deployment.yaml"],
+        )
+        assert "true" == jmespath.search('metadata.annotations."prometheus.io/scrape"', docs[0])
+        assert "8081" == jmespath.search('metadata.annotations."prometheus.io/port"', docs[0])
+        assert {
+            "name": "statsd-ingest",
+            "protocol": "UDP",
+            "port": 8080,
+            "targetPort": "statsd-ingest",
+        } in jmespath.search("spec.ports", docs[0])
+        assert {
+            "name": "statsd-scrape",
+            "protocol": "TCP",
+            "port": 8081,
+            "targetPort": "statsd-scrape",
+        } in jmespath.search("spec.ports", docs[0])
+        assert {"name": "statsd-ingest", "protocol": "UDP", "containerPort": 9125} in jmespath.search(
+            "spec.template.spec.containers[0].ports", docs[1]
+        )
+        assert {"name": "statsd-scrape", "containerPort": 9102} in jmespath.search(
+            "spec.template.spec.containers[0].ports", docs[1]
+        )

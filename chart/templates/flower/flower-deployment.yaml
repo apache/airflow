@@ -92,7 +92,7 @@ spec:
               readOnly: true
           ports:
             - name: flower-ui
-              containerPort: {{ .Values.ports.flowerUI }}
+              containerPort: {{ .Values._ports.flowerUI }}
           livenessProbe:
             failureThreshold: 10
             exec:
@@ -102,7 +102,7 @@ spec:
                 - "--user"
                 - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
                 {{- end }}
-                - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
+                - {{ printf "localhost:%s" (.Values._ports.flowerUI | toString) }}
             initialDelaySeconds: 10
             periodSeconds: 5
           readinessProbe:
@@ -114,7 +114,7 @@ spec:
                 - "--user"
                 - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
                 {{- end }}
-                - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
+                - {{ printf "localhost:%s" (.Values._ports.flowerUI | toString) }}
             initialDelaySeconds: 10
             periodSeconds: 5
           env:
