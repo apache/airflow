@@ -91,6 +91,7 @@ ALL_PROVIDERS = [
 ]
 
 CONNECTIONS_LIST = [
+    'airbyte',
     'asana',
     'aws',
     'azure',
@@ -104,6 +105,8 @@ CONNECTIONS_LIST = [
     'cloudant',
     'databricks',
     'dataprep',
+    'dingding',
+    'discord',
     'docker',
     'druid',
     'elasticsearch',
@@ -131,6 +134,7 @@ CONNECTIONS_LIST = [
     'mongo',
     'mssql',
     'mysql',
+    'opsgenie',
     'neo4j',
     'odbc',
     'oracle',
@@ -140,6 +144,7 @@ CONNECTIONS_LIST = [
     'qubole',
     'redis',
     's3',
+    'slackwebhook',
     'samba',
     'segment',
     'sftp',

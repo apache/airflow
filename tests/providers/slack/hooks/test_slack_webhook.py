@@ -75,7 +75,7 @@ class TestSlackWebhookHook(unittest.TestCase):
             Connection(
                 conn_id='slack-webhook-host',
                 conn_type='slackwebhook',
-                host='https://hooks.slack.com/services/T000/'
+                host='https://hooks.slack.com/services/T000/',
             )
         )
         db.merge_conn(
