@@ -368,8 +368,8 @@ Here's a few things you might want to do next:
 
 .. seealso::
     - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
-        - Take an in-depth tour of the UI - click all the things!
-        - Keep reading the docs!
+    - Take an in-depth tour of the UI - click all the things!
+    - Keep reading the docs!
 
       - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
       - Review the :ref:`Command Line Interface Reference<cli>`
@@ -377,13 +377,12 @@ Here's a few things you might want to do next:
       - Review the :ref:`Macros reference<macros>`
     - Write your first pipeline!
 
-Another Example
----------------
 Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
 
-Inital setup
-''''''''''''
-We need to have docker and postgres installed. We will be using this [docker file](https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml)
+Initial setup
+''''''''''''''''''''
+We need to have docker and postgres installed.
+We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
 Follow the instructions properly to set up Airflow.
 
 Create a Employee table in postgres using this
@@ -393,7 +392,7 @@ Create a Employee table in postgres using this
   create table "Employees"
   (
       "Serial Number" numeric not null
-   constraint employees\_pk
+   constraint employees_pk
               primary key,
       "Company Name" text,
       "Employee Markme" text,
@@ -404,7 +403,7 @@ Create a Employee table in postgres using this
   create table "Employees_temp"
   (
       "Serial Number" numeric not null
-   constraint employees\_pk
+   constraint employees_pk
               primary key,
       "Company Name" text,
       "Employee Markme" text,
@@ -412,35 +411,38 @@ Create a Employee table in postgres using this
       "Leave" integer
   );
 
-I have broken this down into 3 steps get data, insert data, merge data.Lets look at the code:
+
+Let's break this down into 3 steps: get data, insert data, merge data:
 
 .. code-block:: python
 
+  @task
   def get_data():
       url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
 
-      payload = {}
-      headers = {}
+      response = requests.request("GET", url)
 
-      response = requests.request("GET", url, headers=headers, data=payload)
-
-      with open('/usr/local/airflow/dags/files/employees.csv', 'w') as file:
-          for row in response.text.split('\n'):
+      with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+          for row in response.text.split("\n"):
               file.write(row)
 
-Here we are passing a get request to get the data from the url and save it employees.csv file on our airflow instance
+Here we are passing a`GET` request to get the data from the URL and save it in `employees.csv` file on our Airflow instance.
 
 .. code-block:: python
 
+  @task
   def insert_data():
-      engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
-      df = pd.read_csv('/usr/local/airflow/dags/files/employees.csv')
-      df.to_sql('Employees_temp', con=engine, if_exists='replace')
+      engine = create_engine(
+          "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
+      )
+      df = pd.read_csv("/usr/local/airflow/dags/files/employees.csv")
+      df.to_sql("Employees_temp", con=engine, if_exists="replace", chunksize=1000)
 
 Here we are dumping the file into a temporary table before merging the data to the final employees table
 
 .. code-block:: python
 
+  @task
   def merge_data():
       query = """
           delete
@@ -452,7 +454,9 @@ Here we are dumping the file into a temporary table before merging the data to t
           from "Employees_temp";
       """
       try:
-          engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
+          engine = create_engine(
+              "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
+          )
           session = sessionmaker(bind=engine)()
           session.execute(query)
           session.commit()
@@ -467,28 +471,56 @@ Lets look at our DAG:
 
 .. code-block:: python
 
-  with DAG(
-          dag_id='AirflowExample',
-          schedule_interval='0 0 * * *',
-          start_date=datetime.today() - timedelta(days=2),
-          dagrun_timeout=timedelta(minutes=60)
-  ) as dag:
-      t1 = PythonOperator(
-          task_id='get_data',
-          python_callable=get_data,
-      )
+  @dag(
+      schedule_interval="0 0 * * *",
+      start_date=datetime.today() - timedelta(days=2),
+      dagrun_timeout=timedelta(minutes=60),
+  )
+  def Etl():
+      @task
+      def get_data():
+          url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
 
-      t2 = PythonOperator(
-          task_id='insert_data',
-          python_callable=get_data,
-      )
+          response = requests.request("GET", url)
 
-      t3 = PythonOperator(
-          task_id='merge_data',
-          python_callable=get_data,
-      )
+          with open("employees.csv", "w") as file:
+              for row in response.text.split("\n"):
+                  file.write(row)
 
-      t1 >> t2 >> t3
+      @task
+      def insert_data():
+          engine = create_engine(
+              "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
+          )
+          df = pd.read_csv("employees.csv")
+          df.to_sql("Employees_temp", con=engine, if_exists="replace", chunksize=1000)
+
+      @task
+      def merge_data():
+          query = """
+      delete
+      from "Employees" e using "Employees_temp" et
+      where e."Serial Number" = et."Serial Number";
+
+      insert into "Employees"
+      select *
+      from "Employees_temp";
+      """
+          try:
+              engine = create_engine(
+                  "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
+              )
+              session = sessionmaker(bind=engine)()
+              session.execute(query)
+              session.commit()
+              return 0
+          except Exception as e:
+              return 1
+
+      get_data() >> insert_data() >> merge_data()
+
+
+  dag = Etl()
 
 This dag runs daily at 00:00.
 Add this python file to airflow/dags folder and go back to the main folder and run
@@ -497,212 +529,12 @@ Add this python file to airflow/dags folder and go back to the main folder and r
 
   docker-compose -f  docker-compose-LocalExecutor.yml up -d
 
-Go to your browser and go to the site http://localhost:8080/admin/ and trigger your DAG Airflow Example
+Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example
 
-.. image:: https://user-images.githubusercontent.com/35194828/119649317-1d148300-be40-11eb-9525-33ecf7eb6181.png
+.. image:: https://user-images.githubusercontent.com/35194828/120017593-ade78c00-c003-11eb-943d-ea48ec7404a7.png
 
 
-.. image:: https://user-images.githubusercontent.com/35194828/119649304-1b4abf80-be40-11eb-8632-64f0d2c7dbb2.png
+.. image:: https://user-images.githubusercontent.com/35194828/120017520-98726200-c003-11eb-8673-db9a84781274.png
 
 The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
 Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
-=======
-
-
-Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
-
-Inital setup
-'''''''''''''''''''''''''''''''''
-We need to have docker and postgres installed. We will be using this [docker file](https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml)
-Follow the instructions properly to set up Airflow.
-
-Clone this repo to your system using:
-<<<<<<< HEAD
-```
-git clone https://github.com/puckel/docker-airflow.git
-cd docker-airflow
-```
-
-Create a Employee table in postgres using this
-```
-create table "Employees"
-(
-    "Serial Number" numeric not null
- constraint employees\_pk
-            primary key,
-    "Company Name" text,
-    "Employee Markme" text,
-    "Description" text,
-    "Leave" integer
-);
-
-create table "Employees_temp"
-(
-    "Serial Number" numeric not null
- constraint employees\_pk
-            primary key,
-    "Company Name" text,
-    "Employee Markme" text,
-    "Description" text,
-    "Leave" integer
-);
-```
-=======
-.. code-block:: bash
-
-	git clone https://github.com/puckel/docker-airflow.git 
-	cd docker-airflow
-
-Create a Employee table in postgres using this
-
-.. code-block:: python
-
-	create table "Employees"  
-	(  
-	    "Serial Number" numeric not null  
-	 constraint employees\_pk  
-		    primary key,  
-	    "Company Name" text,  
-	    "Employee Markme" text,  
-	    "Description" text,  
-	    "Leave" integer  
-	);
-	
-	create table "Employees_temp"  
-	(  
-	    "Serial Number" numeric not null  
-	 constraint employees\_pk  
-		    primary key,  
-	    "Company Name" text,  
-	    "Employee Markme" text,  
-	    "Description" text,  
-	    "Leave" integer  
-	);
->>>>>>> 3707370e0... add new pipeline tutorial
-
-
-
-I have broken this down into 3 steps get data, insert data, merge data.Lets look at the code:
-
-.. code-block:: python
-
-	def get_data():
-	    url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
-	
-	    payload = {}
-	    headers = {}
-	
-	    response = requests.request("GET", url, headers=headers, data=payload)
-	
-	    with open('/usr/local/airflow/dags/files/employees.csv', 'w') as file:
-		for row in response.text.split('\n'):
-		    file.write(row)
-
-
-Here we are passing a get request to get the data from the url and save it employees.csv file on our airflow instance
-
-.. code-block:: python
-
-	def insert_data():
-	    engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
-	    df = pd.read_csv('/usr/local/airflow/dags/files/employees.csv')
-	    df.to_sql('Employees_temp', con=engine, if_exists='replace')
-
-Here we are dumping the file into a temporary table before merging the data to the final employees table
-
-<<<<<<< HEAD
-```
-def merge_data():
-    query = """
-        delete
-        from "Employees" e using "Employees_temp" et
-        where e."Serial Number" = et."Serial Number";
-
-        insert into "Employees"
-        select *
-        from "Employees_temp";
-    """
-    try:
-        engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
-        session = sessionmaker(bind=engine)()
-        session.execute(query)
-        session.commit()
-        return 0
-    except Exception as e:
-        return 1
-```
-Here we are first looking for duplicate values and removing them before we insert new values in our final table
-=======
-.. code-block:: python
-
-	def merge_data():
-	    query = """
-		delete
-		from "Employees" e using "Employees_temp" et
-		where e."Serial Number" = et."Serial Number";
-		
-		insert into "Employees"
-		select *
-		from "Employees_temp";    
-	    """
-	    try:
-		engine = create_engine("postgresql+psycopg2://postgres:password@localhost:5432/postgres")
-		session = sessionmaker(bind=engine)()
-		session.execute(query)
-		session.commit()
-		return 0
-	    except Exception as e:
-		return 1
-
-Here we are first looking for duplicate values and removing them before we insert new values in our final table 
->>>>>>> 3707370e0... add new pipeline tutorial
-
-
-Lets look at our DAG:
-.. code-block:: python
-
-	with DAG(
-		dag_id='AirflowExample',
-		schedule_interval='0 0 * * *',
-		start_date=datetime.today() - timedelta(days=2),
-		dagrun_timeout=timedelta(minutes=60)
-	) as dag:
-	    t1 = PythonOperator(
-		task_id='get_data',
-		python_callable=get_data,
-	    )
-	
-	    t2 = PythonOperator(
-		task_id='insert_data',
-		python_callable=get_data,
-	    )
-	
-	    t3 = PythonOperator(
-		task_id='merge_data',
-		python_callable=get_data,
-	    )
-	
-	    t1 >> t2 >> t3
-
-
-This dag runs daily at 00:00.
-Add this python file to airflow/dags folder and go back to the main folder and run
-
-.. code-block:: bash
-	
-	docker-compose -f  docker-compose-LocalExecutor.yml up -d
-
-Go to your browser and go to the site http://localhost:8080/admin/ and trigger your DAG Airflow Example
-
-![DAG LIST](https://user-images.githubusercontent.com/35194828/119649317-1d148300-be40-11eb-9525-33ecf7eb6181.png)
-
-
-
-![DAG RUN](https://user-images.githubusercontent.com/35194828/119649304-1b4abf80-be40-11eb-8632-64f0d2c7dbb2.png)
-
-The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
-<<<<<<< HEAD
-Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows.
-=======
-Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
->>>>>>> 3707370e0... add new pipeline tutorial
