@@ -14,25 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-################################
-## Pgbouncer Stats Secret
-#################################
-{{- if .Values.pgbouncer.enabled }}
-kind: Secret
-apiVersion: v1
-metadata:
-  name: {{ template "pgbouncer_stats_secret" . }}
-  labels:
-    tier: airflow
-    component: pgbouncer
-    release: {{ .Release.Name }}
-    chart: {{ .Chart.Name }}
-    heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-type: Opaque
-data:
-  connection: {{ urlJoin (dict "scheme" "postgresql" "userinfo" (printf "%s:%s" (.Values.data.metadataConnection.user | urlquery) (.Values.data.metadataConnection.pass | urlquery) ) "host" (printf "127.0.0.1:%s" (.Values.ports.pgbouncer | toString)) "path" "/pgbouncer" "query" "sslmode=disable") | b64enc | quote }}
-{{- end }}
+---
+version: "2.2"
+services:
+  mssql:
+    ports:
+      - "${MSSQL_HOST_PORT}:1433"

@@ -70,7 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (node.depth > treeDepth) treeDepth = node.depth;
   });
   treeDepth += 1;
-  const squareX = window.innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
+
+  const innerWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
+  const squareX = innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
 
   const squareSpacing = 2;
   const margin = {

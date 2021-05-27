@@ -132,18 +132,34 @@ class WebserverDeploymentTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -321,3 +337,22 @@ class WebserverServiceTest(unittest.TestCase):
             "spec.ports", docs[0]
         )
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+
+
+class WebserverConfigmapTest(unittest.TestCase):
+    def test_no_webserver_config_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
+        assert 0 == len(docs)
+
+    def test_webserver_config_configmap(self):
+        docs = render_chart(
+            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+
+        assert "ConfigMap" == docs[0]["kind"]
+        assert "RELEASE-NAME-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert (
+            "CSRF_ENABLED = True  # RELEASE-NAME"
+            == jmespath.search('data."webserver_config.py"', docs[0]).strip()
+        )

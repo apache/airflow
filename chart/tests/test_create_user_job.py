@@ -25,5 +25,15 @@ from chart.tests.helm_template_generator import render_chart
 class CreateUserJobTest(unittest.TestCase):
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/create-user-job.yaml"])
+        assert "Job" == docs[0]["kind"]
         assert "create-user" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
         assert 50000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+
+    def test_should_support_annotations(self):
+        docs = render_chart(
+            values={"createUserJob": {"annotations": {"foo": "bar"}}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
+        assert "foo" in annotations
+        assert "bar" == annotations["foo"]

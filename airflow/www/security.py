@@ -378,6 +378,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
+    def _has_view_access(self, user, action, resource) -> bool:
+        """
+        Overriding the method to ensure that it always returns a bool
+        _has_view_access can return NoneType which gives us
+        issues later on, this fixes that.
+        """
+        return bool(super()._has_view_access(user, action, resource))
+
     def has_access(self, permission, resource, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission

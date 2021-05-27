@@ -148,3 +148,25 @@ class GitSyncWebserverTest(unittest.TestCase):
         assert {"name": "FOO", "value": "bar"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
+
+    def test_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "resources": {
+                            "limits": {"cpu": "200m", 'memory': "128Mi"},
+                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        },
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[1].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])

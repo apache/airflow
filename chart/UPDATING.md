@@ -48,7 +48,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Removed `dags.gitSync.root` and `dags.gitSync.dest` parameters
+### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 
 The `dags.gitSync.root` and `dags.gitSync.dest` parameters didn't provide any useful behaviors to chart users so they have been removed.
 If you have them set in your values file you can safely remove them.
+
+The `dags.gitSync.excludeWebserver` parameter was mistakenly included in the charts `values.schema.json`. If you have it set in your values file,
+you can safely remove it.

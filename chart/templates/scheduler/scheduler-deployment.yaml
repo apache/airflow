@@ -50,6 +50,14 @@ spec:
   serviceName: {{ .Release.Name }}-scheduler
 {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
+  {{- if and $stateful .Values.scheduler.updateStrategy }}
+  updateStrategy:
+    {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if and (not $stateful) .Values.scheduler.strategy }}
+  strategy:
+    {{- toYaml .Values.scheduler.strategy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
@@ -105,6 +113,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- if .Values.scheduler.extraInitContainers }}
+        {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
+        {{- end }}
       containers:
         # Always run the main scheduler container.
         - name: scheduler

@@ -14,25 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-################################
-## Pgbouncer Stats Secret
-#################################
-{{- if .Values.pgbouncer.enabled }}
-kind: Secret
-apiVersion: v1
-metadata:
-  name: {{ template "pgbouncer_stats_secret" . }}
-  labels:
-    tier: airflow
-    component: pgbouncer
-    release: {{ .Release.Name }}
-    chart: {{ .Chart.Name }}
-    heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-type: Opaque
-data:
-  connection: {{ urlJoin (dict "scheme" "postgresql" "userinfo" (printf "%s:%s" (.Values.data.metadataConnection.user | urlquery) (.Values.data.metadataConnection.pass | urlquery) ) "host" (printf "127.0.0.1:%s" (.Values.ports.pgbouncer | toString)) "path" "/pgbouncer" "query" "sslmode=disable") | b64enc | quote }}
-{{- end }}
+---
+version: "2.2"
+services:
+  airflow:
+    environment:
+      - BACKEND=mssql
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
+    depends_on:
+      - mssql
+  mssql:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Airflow123
+    volumes:
+      - mssql-db-volume:/var/opt/mssql

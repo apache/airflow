@@ -193,6 +193,7 @@ If release name contains chart name it will be used as a full name.
     - name: {{ $config.name }}
       value: {{ $config.value | quote }}
     {{- end }}
+  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
   volumeMounts:
   - name: dags
     mountPath: /git
