@@ -452,7 +452,7 @@ sphinx-argparse==0.2.5
 sphinx-autoapi==1.0.0
 sphinx-copybutton==0.3.1
 sphinx-jinja==1.1.1
-sphinx-rtd-theme==0.5.2
+sphinx-rtd-theme==0.5.1
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-dotnetdomain==0.4
