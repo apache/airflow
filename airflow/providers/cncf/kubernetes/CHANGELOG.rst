@@ -19,6 +19,15 @@
 Changelog
 ---------
 
+
+1.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove image_pull_policy "IfNotPresent" preset, will default to k8s "Always" if not set (#15388)``
+
 1.2.0
 .....
 
