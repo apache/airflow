@@ -1227,9 +1227,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
         session.flush()
-        assert 1 == len(res)
-        res_keys = [ti.key for ti in res]
-        assert tis[1].key in res_keys
+        assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
     def test_find_executable_task_instances_order_priority(self):
@@ -1282,11 +1280,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
         session.flush()
-        assert 1 == len(res)
-        res_keys = []
-        for ti in res:
-            res_keys.append(ti.key)
-        assert tis[1].key in res_keys
+        assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
     def test_find_executable_task_instances_order_execution_date_and_priority(self):
@@ -1339,11 +1333,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
         session.flush()
-        assert 1 == len(res)
-        res_keys = []
-        for ti in res:
-            res_keys.append(ti.key)
-        assert tis[1].key in res_keys
+        assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
 
     def test_find_executable_task_instances_in_default_pool(self):
