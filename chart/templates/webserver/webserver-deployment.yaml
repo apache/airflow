@@ -149,12 +149,12 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: {{if .Values.config.webserver.base_url }}{{- with urlParse .Values.config.webserver.base_url }}{{ .path }}{{end}}{{end}}/health
+              path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
               port: {{ .Values.ports.airflowUI }}
 {{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse .Values.config.webserver.base_url).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
 {{- end }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
@@ -162,12 +162,12 @@ spec:
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds | default 5 }}
           readinessProbe:
             httpGet:
-              path: {{if .Values.config.webserver.base_url }}{{- with urlParse .Values.config.webserver.base_url }}{{ .path }}{{end}}{{end}}/health
+              path: {{if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{end}}{{end}}/health
               port: {{ .Values.ports.airflowUI }}
 {{- if .Values.config.webserver.base_url}}
               httpHeaders:
                 - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse .Values.config.webserver.base_url).host  "" }}
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
 {{- end }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}

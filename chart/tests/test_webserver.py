@@ -60,11 +60,15 @@ class WebserverDeploymentTest(unittest.TestCase):
             == "/mypath/path/health"
         )
 
-    def test_should_not_contain_host_header_if_host_empty_string(self):
-        docs = render_chart(
-            values={},
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
+    @parameterized.expand(
+        [
+            ({"config": {"webserver": {"base_url": ""}}},),
+            ({},),
+        ]
+    )
+    def test_should_not_contain_host_header(self, values):
+        print(values)
+        docs = render_chart(values=values, show_only=["templates/webserver/webserver-deployment.yaml"])
 
         assert (
             jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
@@ -75,38 +79,27 @@ class WebserverDeploymentTest(unittest.TestCase):
             is None
         )
 
-    def test_should_not_contain_host_header_if_base_url_not_set(self):
+    def test_should_use_templated_base_url_for_probes(self):
         docs = render_chart(
             values={
                 "config": {
-                    "webserver": {"base_url": ""},
+                    "webserver": {
+                        "base_url": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path"
+                    },
                 }
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
+        container = jmespath.search("spec.template.spec.containers[0]", docs[0])
 
-        assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
-            is None
+        assert {"name": "Host", "value": "RELEASE-NAME.com"} in jmespath.search(
+            "livenessProbe.httpGet.httpHeaders", container
         )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
-            is None
+        assert {"name": "Host", "value": "RELEASE-NAME.com"} in jmespath.search(
+            "readinessProbe.httpGet.httpHeaders", container
         )
-
-    def test_should_not_contain_host_header_by_default(self):
-        docs = render_chart(
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
+        assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
+        assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
 
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
         docs = render_chart(
