@@ -61,6 +61,14 @@ $(document).ready(function () {
         'login': 'Username',
       }
     },
+    kafka: {
+      hidden_fields: ['port'],
+      relabeling: {
+        'host': 'bootstrap servers',
+        'login': 'user',
+        'schema': 'topic',
+      },
+    },
   };
 
   function connTypeChange(connectionType) {

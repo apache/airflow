@@ -108,6 +108,7 @@ class Connection(Base, LoggingMixin):
         ('gcpcloudsql', 'Google Cloud SQL'),
         ('grpc', 'GRPC Connection'),
         ('rabbitmq', 'AMQP Connection(rabbitmq)'),
+        ('kafka', 'Kafka'),
     ]
 
     def __init__(
