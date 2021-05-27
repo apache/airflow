@@ -17,12 +17,14 @@
 # under the License.
 #
 import os
+import re
 import unittest
 from unittest import mock
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from parameterized import parameterized
 
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
@@ -87,26 +89,23 @@ class TestSnowflakeHook(unittest.TestCase):
         )
         assert uri_shouldbe == self.db_hook.get_uri()
 
-    def test_single_element_list_calls_execute(self):
+    @parameterized.expand(
+        [
+            ('select * from table', ['uuid', 'uuid']),
+            ('select * from table;select * from table2', ['uuid', 'uuid', 'uuid2', 'uuid2']),
+            (['select * from table;'], ['uuid', 'uuid']),
+            (['select * from table;', 'select * from table2;'], ['uuid', 'uuid', 'uuid2', 'uuid2']),
+        ],
+    )
+    def test_run_storing_query_ids(self, sql, query_ids):
         cur = mock.MagicMock(rowcount=0)
         self.conn.cursor.return_value = cur
-        mock_sql_statement = 'select * from table'
-        type(cur).sfqid = mock.PropertyMock(side_effect=['uuid', 'uuid'])
+        type(cur).sfqid = mock.PropertyMock(side_effect=query_ids)
+        self.db_hook.run(sql)
 
-        self.db_hook.run([mock_sql_statement])
-        cur.execute.assert_called_with(mock_sql_statement)
-        assert self.db_hook.query_ids == ['uuid']
-        cur.close.assert_called()
-
-    def test_passed_string_splits_and_calls_execute(self):
-        cur = mock.MagicMock(rowcount=0)
-        self.conn.cursor.return_value = cur
-        mock_sql_statements = ['select * from table;', 'select * from table2']
-        type(cur).sfqid = mock.PropertyMock(side_effect=['uuid', 'uuid', 'uuid2', 'uuid2'])
-
-        self.db_hook.run(' '.join(mock_sql_statements))
-        cur.execute.assert_has_calls([mock.call(sql) for sql in mock_sql_statements])
-        assert self.db_hook.query_ids == ['uuid', 'uuid2']
+        sql_list = sql if isinstance(sql, list) else re.findall(".*?[;]", sql)
+        cur.execute.assert_has_calls([mock.call(query) for query in sql_list])
+        assert self.db_hook.query_ids == query_ids[::2]
         cur.close.assert_called()
 
     def test_get_conn_params(self):
