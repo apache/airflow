@@ -1236,8 +1236,8 @@ class TestSchedulerJob(unittest.TestCase):
         task_id = 'task-a'
         dag_1 = DAG(dag_id=dag_id_1, start_date=DEFAULT_DATE, concurrency=16)
         dag_2 = DAG(dag_id=dag_id_2, start_date=DEFAULT_DATE, concurrency=16)
-        dag1_task = DummyOperator(dag=dag_1, task_id=task_id, priority=1)
-        dag2_task = DummyOperator(dag=dag_2, task_id=task_id, priority=4)
+        dag1_task = DummyOperator(dag=dag_1, task_id=task_id, priority_weight=1)
+        dag2_task = DummyOperator(dag=dag_2, task_id=task_id, priority_weight=4)
         dag_1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_1))
         dag_2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_2))
 
@@ -1289,8 +1289,8 @@ class TestSchedulerJob(unittest.TestCase):
         task_id = 'task-a'
         dag_1 = DAG(dag_id=dag_id_1, start_date=DEFAULT_DATE, concurrency=16)
         dag_2 = DAG(dag_id=dag_id_2, start_date=DEFAULT_DATE, concurrency=16)
-        dag1_task = DummyOperator(dag=dag_1, task_id=task_id, priority=1)
-        dag2_task = DummyOperator(dag=dag_2, task_id=task_id, priority=4)
+        dag1_task = DummyOperator(dag=dag_1, task_id=task_id, priority_weight=1)
+        dag2_task = DummyOperator(dag=dag_2, task_id=task_id, priority_weight=4)
         dag_1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_1))
         dag_2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_2))
 
