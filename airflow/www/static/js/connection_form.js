@@ -20,12 +20,13 @@
  * Created by janomar on 23/07/15.
  */
 
+/* global document, DOMParser, $ */
 import getMetaValue from './meta_value';
 
 const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
 
 function decode(str) {
-  return new DOMParser().parseFromString(str, "text/html").documentElement.textContent
+  return new DOMParser().parseFromString(str, 'text/html').documentElement.textContent;
 }
 
 /**
@@ -35,7 +36,7 @@ function getConnTypesToControlsMap() {
   const connTypesToControlsMap = new Map();
 
   const extraFormControls = Array.from(document.querySelectorAll("[id^='extra__'"));
-  extraFormControls.forEach(control => {
+  extraFormControls.forEach((control) => {
     const connTypeEnd = control.id.indexOf('__', 'extra__'.length);
     const connType = control.id.substring('extra__'.length, connTypeEnd);
 
@@ -60,7 +61,58 @@ function getControlsContainer() {
     .parentElement;
 }
 
-$(document).ready(function () {
+/**
+   * Restores the behaviour for all fields. Used to restore fields to a
+   * well-known state during the change of connection types.
+   */
+function restoreFieldBehaviours() {
+  Array.from(document.querySelectorAll('label[data-origText]')).forEach((elem) => {
+    elem.innerText = elem.dataset.origText;
+    delete elem.dataset.origText;
+  });
+
+  Array.from(document.querySelectorAll('.form-control')).forEach((elem) => {
+    elem.placeholder = '';
+    elem.parentElement.parentElement.classList.remove('hide');
+  });
+}
+
+/**
+   * Applies special behaviour for fields. The behaviour is defined through
+   * config, passed by the server.
+   *
+   * @param {string} connection The connection object to apply to.
+   */
+function applyFieldBehaviours(connection) {
+  if (connection) {
+    if (Array.isArray(connection.hidden_fields)) {
+      connection.hidden_fields.forEach((field) => {
+        document.getElementById(field)
+          .parentElement
+          .parentElement
+          .classList
+          .add('hide');
+      });
+    }
+
+    if (connection.relabeling) {
+      Object.keys(connection.relabeling).forEach((field) => {
+        const label = document.querySelector(`label[for='${field}']`);
+        label.dataset.origText = label.innerText;
+        label.innerText = connection.relabeling[field];
+      });
+    }
+
+    if (connection.placeholders) {
+      Object.keys(connection.placeholders).forEach((field) => {
+        const placeholder = connection.placeholders[field];
+        document.getElementById(field).placeholder = placeholder;
+      });
+    }
+  }
+}
+
+$(document).ready(() => {
   const fieldBehavioursElem = document.getElementById('field_behaviours');
   const config = JSON.parse(decode(fieldBehavioursElem.textContent));
 
@@ -73,8 +125,8 @@ $(document).ready(function () {
   const connTypesToControlsMap = getConnTypesToControlsMap();
 
   // Create a test connection button & insert it right next to the save (submit) button
-  const testConnBtn = $('<button id="test-connection" type="button" class="btn btn-sm btn-primary" ' +
-    'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>');
+  const testConnBtn = $('<button id="test-connection" type="button" class="btn btn-sm btn-primary" '
+    + 'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>');
 
   if (!restApiEnabled) {
     $(testConnBtn).addClass('disabled')
@@ -89,71 +141,20 @@ $(document).ready(function () {
    * @param {string} connType The connection type to change to.
    */
   function changeConnType(connType) {
-    Array.from(connTypesToControlsMap.values()).forEach(controls => {
+    Array.from(connTypesToControlsMap.values()).forEach((controls) => {
       controls
-        .filter(control => control.parentElement === controlsContainer)
-        .forEach(control => controlsContainer.removeChild(control));
+        .filter((control) => control.parentElement === controlsContainer)
+        .forEach((control) => controlsContainer.removeChild(control));
     });
 
     const controls = connTypesToControlsMap.get(connType) || [];
-    controls.forEach(control => controlsContainer.appendChild(control));
+    controls.forEach((control) => controlsContainer.appendChild(control));
 
     // Restore field behaviours.
     restoreFieldBehaviours();
 
     // Apply behaviours to fields.
-    applyFieldBehaviours(connType);
-  }
-
-  /**
-   * Restores the behaviour for all fields. Used to restore fields to a
-   * well-known state during the change of connection types.
-   */
-  function restoreFieldBehaviours() {
-    Array.from(document.querySelectorAll('label[data-origText]')).forEach(elem => {
-      elem.innerText = elem.dataset.origText;
-      delete elem.dataset.origText;
-    });
-
-    Array.from(document.querySelectorAll('.form-control')).forEach(elem => {
-      elem.placeholder = '';
-      elem.parentElement.parentElement.classList.remove('hide');
-    });
-  }
-
-  /**
-   * Applies special behaviour for fields. The behaviour is defined through
-   * config, passed by the server.
-   *
-   * @param {string} connType The connection type to apply.
-   */
-  function applyFieldBehaviours(connType) {
-    if (config[connType]) {
-      if (Array.isArray(config[connType].hidden_fields)) {
-        config[connType].hidden_fields.forEach(field => {
-          document.getElementById(field)
-            .parentElement
-            .parentElement
-            .classList
-            .add('hide');
-        });
-      }
-
-      if (config[connType].relabeling) {
-        Object.keys(config[connType].relabeling).forEach(field => {
-          const label = document.querySelector(`label[for='${field}']`);
-          label.dataset.origText = label.innerText;
-          label.innerText = config[connType].relabeling[field];
-        });
-      }
-
-      if (config[connType].placeholders) {
-        Object.keys(config[connType].placeholders).forEach(field => {
-          const placeholder = config[connType].placeholders[field];
-          document.getElementById(field).placeholder = placeholder;
-        });
-      }
-    }
+    applyFieldBehaviours(config[connType]);
   }
 
   /**
@@ -192,8 +193,8 @@ $(document).ready(function () {
       alertBox.text(message);
       alertBox.show();
     } else {
-      alertBox = $('<div class="alert ' + alertClass + '">\n' +
-                   '<button type="button" class="close" data-dismiss="alert">×</button>\n' + message + '</div>');
+      alertBox = $(`<div class="alert ${alertClass}">\n`
+                   + `<button type="button" class="close" data-dismiss="alert">×</button>\n${message}</div>`);
 
       $('.container .row').prepend(alertBox).show();
     }
@@ -219,7 +220,7 @@ $(document).ready(function () {
 
   const connTypeElem = document.getElementById('conn_type');
   $(connTypeElem).on('change', (e) => {
-    connType = e.target.value;
+    const connType = e.target.value;
     changeConnType(connType);
   });
 

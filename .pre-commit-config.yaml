@@ -159,6 +159,12 @@ repos:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
+  - repo: https://github.com/asottile/blacken-docs
+    rev: v1.10.0
+    hooks:
+      - id: blacken-docs
+        alias: black
+        additional_dependencies: [black==21.4b2]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0
     hooks:
@@ -670,7 +676,14 @@ repos:
         language: node
         'types_or': [javascript, tsx, ts]
         files: ^airflow/ui/
-        entry: ./scripts/ci/static_checks/eslint.sh
+        entry: scripts/ci/static_checks/ui_lint.sh
+        pass_filenames: false
+      - id: www-lint
+        name: ESLint against current UI js files
+        language: node
+        'types_or': [javascript]
+        files: ^airflow/www/static/js/
+        entry: scripts/ci/static_checks/www_lint.sh
         pass_filenames: false
       - id: bats-in-container-tests
         name: Run in container bats tests

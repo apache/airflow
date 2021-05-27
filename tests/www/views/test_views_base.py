@@ -333,11 +333,13 @@ def test_views_post_access_denied(viewer_client, url):
 @pytest.fixture()
 def non_exist_username(app):
     username = "fake_username"
-    if app.appbuilder.sm.find_user(username):
-        app.appbuilder.sm.del_register_user(username)
+    user = app.appbuilder.sm.find_user(username)
+    if user is not None:
+        app.appbuilder.sm.del_register_user(user)
     yield username
-    if app.appbuilder.sm.find_user(username):
-        app.appbuilder.sm.del_register_user(username)
+    user = app.appbuilder.sm.find_user(username)
+    if user is not None:
+        app.appbuilder.sm.del_register_user(user)
 
 
 def test_create_user(app, admin_client, non_exist_username):

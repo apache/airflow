@@ -960,9 +960,11 @@ To make this easier there is the ``create_session`` helper:
 
     from airflow.utils.session import create_session
 
+
     def my_call(*args, session):
-      ...
-      # You MUST not commit the session here.
+        ...
+        # You MUST not commit the session here.
+
 
     with create_session() as session:
         my_call(*args, session=session)
@@ -973,12 +975,11 @@ If this function is designed to be called by "end-users" (i.e. DAG authors) then
 
     from airflow.utils.session import provide_session
 
-    ...
 
     @provide_session
-    def my_method(arg, arg, session=None)
-      ...
-      # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
+    def my_method(arg, session=None):
+        ...
+        # You SHOULD not commit the session here. The wrapper will take care of commit()/rollback() if exception
 
 Don't use time() for duration calculations
 -----------------------------------------

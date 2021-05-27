@@ -66,16 +66,18 @@ Suppose we have the following fragment of the file with tests.
 
 .. code-block:: python
 
-        prev = dag.previous_schedule(_next)
-        prev_local = local_tz.convert(prev)
+    prev = dag.previous_schedule(_next)
+    prev_local = local_tz.convert(prev)
 
-        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
-        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
+    assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
+    assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
+
 
     def test_bulk_write_to_db(self):
         clear_db_dags()
         dags = [
-            DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
+            DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"])
+            for i in range(0, 4)
         ]
 
         with assert_queries_count(3):
@@ -87,19 +89,21 @@ queries in it.
 .. code-block:: python
    :emphasize-lines: 6-8
 
-        prev = dag.previous_schedule(_next)
-        prev_local = local_tz.convert(prev)
+    prev = dag.previous_schedule(_next)
+    prev_local = local_tz.convert(prev)
 
-        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
-        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
+    assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
+    assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
 
     from tests.utils.perf.perf_kit.sqlalchemy import trace_queries
+
 
     @trace_queries
     def test_bulk_write_to_db(self):
         clear_db_dags()
         dags = [
-            DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)
+            DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"])
+            for i in range(0, 4)
         ]
 
         with assert_queries_count(3):

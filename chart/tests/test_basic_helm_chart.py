@@ -217,11 +217,13 @@ class TestBaseChartTest(unittest.TestCase):
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
             ],
         )
         # pod_template_file is tested separately as it has extra setup steps
 
-        assert 4 == len(k8s_objects)
+        assert 6 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]

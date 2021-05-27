@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* global document */
+
 export default function getMetaValue(name) {
   const elem = document.querySelector(`meta[name="${name}"]`);
   if (!elem) {

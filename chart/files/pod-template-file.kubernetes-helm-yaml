@@ -24,10 +24,15 @@ metadata:
   {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
   {{- end }}
 spec:
-{{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+  {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
   initContainers:
-{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
-{{- end }}
+    {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+    {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 4 }}
+    {{- end }}
+    {{- if .Values.workers.extraInitContainers }}
+    {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
+    {{- end }}
+  {{- end }}
   containers:
     - args: []
       command: []

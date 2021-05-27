@@ -70,10 +70,10 @@ Now let's refactor ``create_pet_table`` in our DAG:
 .. code-block:: python
 
         create_pet_table = PostgresOperator(
-              task_id="create_pet_table",
-              postgres_conn_id="postgres_default",
-              sql="sql/pet_schema.sql"
-              )
+            task_id="create_pet_table",
+            postgres_conn_id="postgres_default",
+            sql="sql/pet_schema.sql",
+        )
 
 
 Inserting data into a Postgres database table
@@ -94,10 +94,10 @@ We can then create a PostgresOperator task that populate the ``pet`` table.
 .. code-block:: python
 
   populate_pet_table = PostgresOperator(
-            task_id="populate_pet_table",
-            postgres_conn_id="postgres_default",
-            sql="sql/pet_schema.sql"
-            )
+      task_id="populate_pet_table",
+      postgres_conn_id="postgres_default",
+      sql="sql/pet_schema.sql",
+  )
 
 
 Fetching records from your postgres database table
@@ -108,10 +108,10 @@ Fetching records from your postgres database table can be as simple as:
 .. code-block:: python
 
   get_all_pets = PostgresOperator(
-            task_id="get_all_pets",
-            postgres_conn_id="postgres_default",
-            sql="SELECT * FROM pet;"
-            )
+      task_id="get_all_pets",
+      postgres_conn_id="postgres_default",
+      sql="SELECT * FROM pet;",
+  )
 
 
 
@@ -128,14 +128,11 @@ To find the owner of the pet called 'Lester':
 .. code-block:: python
 
   get_birth_date = PostgresOperator(
-            task_id="get_birth_date",
-            postgres_conn_id="postgres_default",
-            sql="SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(begin_date)s AND %(end_date)s",
-            parameters={
-                'begin_date': '2020-01-01',
-                'end_date': '2020-12-31'
-                }
-            )
+      task_id="get_birth_date",
+      postgres_conn_id="postgres_default",
+      sql="SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC %(begin_date)s AND %(end_date)s",
+      parameters={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+  )
 
 Now lets refactor our ``get_birth_date`` task. Instead of dumping SQL statements directly into our code, let's tidy things up
 by creating a sql file.
@@ -151,14 +148,11 @@ class.
 .. code-block:: python
 
   get_birth_date = PostgresOperator(
-          task_id="get_birth_date",
-          postgres_conn_id="postgres_default",
-          sql="sql/birth_date.sql",
-          params={
-             'begin_date': '2020-01-01',
-              'end_date': '2020-12-31'
-            }
-          )
+      task_id="get_birth_date",
+      postgres_conn_id="postgres_default",
+      sql="sql/birth_date.sql",
+      params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+  )
 
 The complete Postgres Operator DAG
 ----------------------------------

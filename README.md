@@ -97,13 +97,14 @@ We **highly** recommend upgrading to the latest Airflow major release at the ear
 
 Apache Airflow is tested with:
 
-|              | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
-| ------------ | ------------------------- | ------------------------ | -------------------------  |
-| Python       | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
-| Kubernetes   | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
-| PostgreSQL   | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
-| MySQL        | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite       | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
+|                      | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
+| -------------------- | ------------------------- | ------------------------ | -------------------------  |
+| Python               | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
+| Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
+| PostgreSQL           | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
+| MySQL                | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
+| SQLite               | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
+| MSSQL(Experimental)  | 2017,2019                 |                          |                            |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).

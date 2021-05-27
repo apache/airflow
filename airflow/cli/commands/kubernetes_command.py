@@ -22,14 +22,13 @@ from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
-import airflow.utils.yaml as yaml
 from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import TaskInstance
 from airflow.settings import pod_mutation_hook
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
 

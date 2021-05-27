@@ -181,36 +181,36 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     **Example**: ::
 
         default_args = {
-            'owner': 'airflow',
-            'depends_on_past': False,
-            'start_date':
-                (2016, 8, 1),
-            'email': ['alex@vanboxel.be'],
-            'email_on_failure': False,
-            'email_on_retry': False,
-            'retries': 1,
-            'retry_delay': timedelta(minutes=30),
-            'dataflow_default_options': {
-                'project': 'my-gcp-project',
-                'zone': 'us-central1-f',
-                'stagingLocation': 'gs://bucket/tmp/dataflow/staging/',
-            }
+            "owner": "airflow",
+            "depends_on_past": False,
+            "start_date": (2016, 8, 1),
+            "email": ["alex@vanboxel.be"],
+            "email_on_failure": False,
+            "email_on_retry": False,
+            "retries": 1,
+            "retry_delay": timedelta(minutes=30),
+            "dataflow_default_options": {
+                "project": "my-gcp-project",
+                "zone": "us-central1-f",
+                "stagingLocation": "gs://bucket/tmp/dataflow/staging/",
+            },
         }
 
-        dag = DAG('test-dag', default_args=default_args)
+        dag = DAG("test-dag", default_args=default_args)
 
         task = DataflowCreateJavaJobOperator(
-            gcp_conn_id='gcp_default',
-            task_id='normalize-cal',
-            jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
+            gcp_conn_id="gcp_default",
+            task_id="normalize-cal",
+            jar="{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar",
             options={
-                'autoscalingAlgorithm': 'BASIC',
-                'maxNumWorkers': '50',
-                'start': '{{ds}}',
-                'partitionType': 'DAY'
-
+                "autoscalingAlgorithm": "BASIC",
+                "maxNumWorkers": "50",
+                "start": "{{ds}}",
+                "partitionType": "DAY",
             },
-            dag=dag)
+            dag=dag,
+        )
+
 
     .. seealso::
         For more detail on job submission have a look at the reference:
@@ -316,9 +316,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     .. code-block:: python
 
        default_args = {
-           'dataflow_default_options': {
-               'zone': 'europe-west1-d',
-               'stagingLocation': 'gs://my-staging-bucket/staging/'
+           "dataflow_default_options": {
+               "zone": "europe-west1-d",
+               "stagingLocation": "gs://my-staging-bucket/staging/",
            }
        }
 
@@ -330,17 +330,18 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataflowCreateJavaJobOperator(
-           task_id='dataflow_example',
-           jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
+           task_id="dataflow_example",
+           jar="{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar",
            options={
-               'autoscalingAlgorithm': 'BASIC',
-               'maxNumWorkers': '50',
-               'start': '{{ds}}',
-               'partitionType': 'DAY',
-               'labels': {'foo' : 'bar'}
+               "autoscalingAlgorithm": "BASIC",
+               "maxNumWorkers": "50",
+               "start": "{{ds}}",
+               "partitionType": "DAY",
+               "labels": {"foo": "bar"},
            },
-           gcp_conn_id='airflow-conn-id',
-           dag=my-dag)
+           gcp_conn_id="airflow-conn-id",
+           dag=my - dag,
+       )
 
     """
 
@@ -583,10 +584,9 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     .. code-block:: python
 
        default_args = {
-           'dataflow_default_options': {
-               'zone': 'europe-west1-d',
-               'tempLocation': 'gs://my-staging-bucket/staging/',
-               }
+           "dataflow_default_options": {
+               "zone": "europe-west1-d",
+               "tempLocation": "gs://my-staging-bucket/staging/",
            }
        }
 
@@ -597,14 +597,15 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataflowTemplatedJobStartOperator(
-           task_id='dataflow_example',
-           template='{{var.value.gcp_dataflow_base}}',
+           task_id="dataflow_example",
+           template="{{var.value.gcp_dataflow_base}}",
            parameters={
-               'inputFile': "gs://bucket/input/my_input.txt",
-               'outputFile': "gs://bucket/output/my_output.txt"
+               "inputFile": "gs://bucket/input/my_input.txt",
+               "outputFile": "gs://bucket/output/my_output.txt",
            },
-           gcp_conn_id='airflow-conn-id',
-           dag=my-dag)
+           gcp_conn_id="airflow-conn-id",
+           dag=my - dag,
+       )
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are
     templated so you can use variables in them.

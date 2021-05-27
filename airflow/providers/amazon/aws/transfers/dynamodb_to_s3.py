@@ -63,23 +63,23 @@ class DynamoDBToS3Operator(BaseOperator):
     .. code-block:: python
 
        op1 = DynamoDBToS3Operator(
-           task_id='replicator-1',
-           dynamodb_table_name='hello',
+           task_id="replicator-1",
+           dynamodb_table_name="hello",
            dynamodb_scan_kwargs={
-               'TotalSegments': 2,
-               'Segment': 0,
+               "TotalSegments": 2,
+               "Segment": 0,
            },
-           ...
+           ...,
        )
 
        op2 = DynamoDBToS3Operator(
-           task_id='replicator-2',
-           dynamodb_table_name='hello',
+           task_id="replicator-2",
+           dynamodb_table_name="hello",
            dynamodb_scan_kwargs={
-               'TotalSegments': 2,
-               'Segment': 1,
+               "TotalSegments": 2,
+               "Segment": 1,
            },
-           ...
+           ...,
        )
 
     :param dynamodb_table_name: Dynamodb table to replicate data from

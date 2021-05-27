@@ -97,6 +97,21 @@ class TestSecretsMasker:
             """
         )
 
+    def test_exception_not_raised(self, logger, caplog):
+        """
+        Test that when ``logger.exception`` is called when there is no current exception we still log.
+
+        (This is a "bug" in user code, but we shouldn't die because of it!)
+        """
+        logger.exception("Err")
+
+        assert caplog.text == textwrap.dedent(
+            """\
+            ERROR Err
+            NoneType: None
+            """
+        )
+
     @pytest.mark.xfail(reason="Cannot filter secrets in traceback source")
     def test_exc_tb(self, logger, caplog):
         """
@@ -141,6 +156,8 @@ class TestSecretsMasker:
             # When the "sensitive value" is a dict, don't mask anything
             # (Or should this be mask _everything_ under it ?
             ("api_key", {"other": "innoent"}, set()),
+            (None, {"password": ""}, set()),
+            (None, "", set()),
         ],
     )
     def test_mask_secret(self, name, value, expected_mask):
