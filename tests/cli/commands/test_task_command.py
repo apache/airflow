@@ -169,6 +169,28 @@ class TestCliTasks(unittest.TestCase):
             pool=None,
         )
 
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_raises_when_theres_no_dagrun(self, mock_local_job):
+        """
+        Test that run raises when there's run_id but no dag_run
+        """
+        dag_id = 'test_run_ignores_all_dependencies'
+        dag = self.dagbag.get_dag(dag_id)
+        task0_id = 'test_run_dependent_task'
+        run_id = 'TEST_RUN_ID'
+        args0 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            dag_id,
+            task0_id,
+            run_id,
+        ]
+        with self.assertRaises(AirflowException) as err:
+            task_command.task_run(self.parser.parse_args(args0), dag=dag)
+        assert str(err.exception) == f"DagRun with run_id: {run_id} not found"
+
     def test_cli_test(self):
         task_command.task_test(
             self.parser.parse_args(
