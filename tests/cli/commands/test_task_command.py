@@ -313,6 +313,7 @@ class TestCliTasks(unittest.TestCase):
             )
 
         output = stdout.getvalue()
+
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
         assert 'echo "Parameter I passed in"' in output
@@ -353,6 +354,7 @@ class TestCliTasks(unittest.TestCase):
     def test_task_states_for_dag_run(self):
 
         dag2 = DagBag().dags['example_python_operator']
+        task2 = dag2.get_task(task_id='print_the_context')
         default_date2 = timezone.make_aware(datetime(2016, 1, 9))
         dag2.clear()
         dagrun = dag2.create_dagrun(
@@ -365,6 +367,7 @@ class TestCliTasks(unittest.TestCase):
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
+
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
