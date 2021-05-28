@@ -34,7 +34,8 @@ services:
     volumes:
       - mssql-db-volume:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "sqlcmd", "-S", "localhost", "-U", "sa", "-P", "$SA_PASSWORD", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost",
+             "-U", "sa", "-P", "Airflow123", "-Q", "SELECT 1"]
       interval: 10s
       timeout: 10s
       retries: 10
