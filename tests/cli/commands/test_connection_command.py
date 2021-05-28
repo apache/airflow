@@ -758,7 +758,7 @@ class TestCliImportConnections(unittest.TestCase):
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @mock.patch('airflow.cli.commands.connection_command._parse_secret_file')
+    @mock.patch('airflow.secrets.local_filesystem._parse_secret_file')
     @mock.patch('os.path.exists')
     def test_cli_connections_import_should_load_connections(self, mock_exists, mock_parse_secret_file):
         mock_exists.return_value = True
@@ -799,6 +799,7 @@ class TestCliImportConnections(unittest.TestCase):
             current_conns = session.query(Connection).all()
 
             comparable_attrs = [
+                "conn_id",
                 "conn_type",
                 "description",
                 "host",
@@ -816,7 +817,7 @@ class TestCliImportConnections(unittest.TestCase):
             assert expected_connections == current_conns_as_dicts
 
     @provide_session
-    @mock.patch('airflow.cli.commands.connection_command._parse_secret_file')
+    @mock.patch('airflow.secrets.local_filesystem._parse_secret_file')
     @mock.patch('os.path.exists')
     def test_cli_connections_import_should_not_overwrite_existing_connections(
         self, mock_exists, mock_parse_secret_file, session=None
@@ -875,6 +876,7 @@ class TestCliImportConnections(unittest.TestCase):
         current_conns = session.query(Connection).all()
 
         comparable_attrs = [
+            "conn_id",
             "conn_type",
             "description",
             "host",
