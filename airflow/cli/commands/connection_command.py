@@ -254,8 +254,10 @@ def _import_helper(file_path):
                 print(f'Could not import connection {conn_id}: connection already exists.')
                 continue
 
+            if "extra_dejson" in conn_dict:
+                conn_dict["extra"] = conn_dict.pop("extra_dejson")
             # Add the connection to the DB
-            connection = Connection(conn_id, **dict(conn_dict.items()))
+            connection = Connection(conn_id, **conn_dict)
             session.add(connection)
             session.commit()
             print(f'Imported connection {conn_id}')
