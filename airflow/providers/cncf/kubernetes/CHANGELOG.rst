@@ -26,8 +26,8 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Remove image_pull_policy "IfNotPresent" default as k8s already defaults to `Always` if :latest tag is specified, or `IfNotPresent` otherwise (#15388)``
-* ``Remove service_account_name "default" default as k8s already defaults to `default` if not set (#15388)``
+* ``Remove image_pull_policy 'IfNotPresent' default as k8s already defaults to 'Always' if :latest tag is specified, or 'IfNotPresent' otherwise (#15388)``
+* ``Remove service_account_name 'default' default as k8s already defaults to 'default' if not set (#15388)``
 
 1.2.0
 .....
