@@ -423,6 +423,9 @@ function initialization::initialize_image_build_variables() {
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.1"}
     export AIRFLOW_PIP_VERSION
 
+    AIRFLOW_PYPA_BUILD_VERSION=${AIRFLOW_PYPA_BUILD_VERSION:="0.4.0"}
+    export AIRFLOW_PYPA_BUILD_VERSION
+
     # We also pin version of wheel used to get consistent builds
     WHEEL_VERSION=${WHEEL_VERSION:="0.36.2"}
     export WHEEL_VERSION

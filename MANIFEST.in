@@ -24,6 +24,7 @@ graft licenses
 graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
+graft scripts/pep517
 graft scripts/systemd
 graft scripts/upstart
 graft airflow/config_templates

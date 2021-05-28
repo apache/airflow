@@ -34,17 +34,17 @@ function prepare_airflow_packages() {
     rm -rf -- *egg-info*
     rm -rf -- build
 
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install "build==${AIRFLOW_PYPA_BUILD_VERSION}" "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
     local packages=()
 
     if [[ ${PACKAGE_FORMAT} == "wheel" || ${PACKAGE_FORMAT} == "both" ]] ; then
-        packages+=("bdist_wheel")
+        packages+=("--wheel")
     fi
     if [[ ${PACKAGE_FORMAT} == "sdist" || ${PACKAGE_FORMAT} == "both" ]] ; then
-        packages+=("sdist")
+        packages+=("--sdist")
     fi
-    local tag_build=()
+    local config_settings=()
     if [[ -n ${VERSION_SUFFIX_FOR_PYPI} ]]; then
         # only adds suffix to setup.py if version suffix for PyPI is set but the SVN one is not set
         # (so when rc is prepared)
@@ -61,7 +61,7 @@ function prepare_airflow_packages() {
             echo
             echo "${COLOR_BLUE}Adding ${VERSION_SUFFIX_FOR_PYPI} suffix to ${AIRFLOW_VERSION}${COLOR_RESET}"
             echo
-            tag_build=('egg_info' '--tag-build' "${VERSION_SUFFIX_FOR_PYPI}")
+            config_settings=('--config-setting' "airflow-tag-build=${VERSION_SUFFIX_FOR_PYPI}")
         else
             if [[ ${AIRFLOW_VERSION} != *${VERSION_SUFFIX_FOR_PYPI} ]]; then
                 echo
@@ -73,7 +73,8 @@ function prepare_airflow_packages() {
     fi
 
     # Prepare airflow's wheel
-    PYTHONUNBUFFERED=1 python setup.py compile_assets "${tag_build[@]}" "${packages[@]}"
+    PYTHONUNBUFFERED=1 python -m build "${packages[@]}" "${config_settings[@]}"
+
 
     # clean-up
     rm -rf -- *egg-info*

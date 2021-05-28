@@ -45,6 +45,7 @@ ARG AIRFLOW_GID="50000"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
 ARG AIRFLOW_PIP_VERSION=21.1.1
+ARG AIRFLOW_PYPA_BUILD_VERSION=0.4.0
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
@@ -182,6 +183,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
     PATH=${PATH}:/root/.local/bin \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
+    AIRFLOW_PYPA_BUILD_VERSION=${AIRFLOW_PYPA_BUILD_VERSION} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
     # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
     # from the build image and always in non-editable mode
@@ -320,7 +322,8 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     # Make sure noninteractive debian install is used and language variables set
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
+    AIRFLOW_PYPA_BUILD_VERSION=${AIRFLOW_PYPA_BUILD_VERSION}
 
 # Install curl and gnupg2 - needed for many other installation steps
 RUN apt-get update \

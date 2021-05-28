@@ -264,12 +264,12 @@ repos:
         pass_filenames: true
         require_serial: true
       - id: setup-order
-        name: Check order of dependencies in setup.cfg and setup.py
+        name: Check order of dependencies in pyproject.toml, setup.cfg, and setup.py
         language: python
-        files: ^setup\.cfg$|^setup\.py$
+        files: ^setup\.cfg$|^setup\.py$|^pyproject\.toml$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-        additional_dependencies: ['rich']
+        additional_dependencies: ['rich', 'toml']
       - id: setup-extra-packages
         name: Checks setup extra packages
         description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file

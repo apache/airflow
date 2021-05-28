@@ -14,6 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+[build-system]
+requires = ['gitpython', 'setuptools', 'wheel']
+build-backend = 'backend'
+backend-path = ['scripts/pep517']
+
 [tool.black]
 line-length = 110
 target-version = ['py36', 'py37', 'py38']

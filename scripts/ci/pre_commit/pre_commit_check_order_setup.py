@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Test for an order of dependencies in setup.py
+Test for an order of dependencies in setup.py, setup.cfg, and pyproject.toml
 """
 import os
 import re
 import sys
-from os.path import abspath, dirname
 from typing import List
 
+import toml
 from rich import print
 
 errors = []
@@ -107,24 +107,38 @@ def check_variable_order(var_name: str) -> None:
         _check_list_sorted(var, f"Order of dependencies in: {var_name}")
 
 
-def check_install_and_setup_requires() -> None:
+def check_install_requires() -> None:
     """
-    Test for an order of dependencies in function do_setup section
-    install_requires and setup_requires in setup.cfg
+    Test for an order of dependencies in section install_requires in setup.cfg
     """
 
     from setuptools.config import read_configuration
 
-    path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, 'setup.cfg'))
+    path = os.path.join(SOURCE_DIR_PATH, 'setup.cfg')
     config = read_configuration(path)
 
     pattern_dependent_version = re.compile('[~|><=;].*')
 
-    for key in ('install_requires', 'setup_requires'):
-        print(f"[blue]Checking setup.cfg group {key}[/]")
-        deps = config['options'][key]
-        dists = [pattern_dependent_version.sub('', p) for p in deps]
-        _check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}")
+    key = 'install_requires'
+    print(f"[blue]Checking setup.cfg group {key}[/]")
+    deps = config['options'][key]
+    dists = [pattern_dependent_version.sub('', p) for p in deps]
+    _check_list_sorted(dists, f"Order of dependencies in setup.cfg section: {key}")
+
+
+def check_build_system_requires() -> None:
+    """
+    Test for an order of dependencies in [build-system] requires in pyproject.toml
+    """
+    with open(os.path.join(SOURCE_DIR_PATH, "pyproject.toml")) as f:
+        pyproject = toml.load(f)
+    key = "[build-system] requires"
+
+    pattern_dependent_version = re.compile('[~|><=;].*')
+    print(f"[blue]Checking pyproject.toml key {key} [/]")
+    deps = pyproject["build-system"]["requires"]
+    dists = [pattern_dependent_version.sub('', p) for p in deps]
+    _check_list_sorted(dists, f"Order of dependencies in pyproject.toml section: {key}")
 
 
 if __name__ == '__main__':
@@ -139,7 +153,8 @@ if __name__ == '__main__':
     check_variable_order("ADDITIONAL_EXTRAS_REQUIREMENTS")
     check_variable_order("EXTRAS_DEPRECATED_ALIASES")
     check_variable_order("PREINSTALLED_PROVIDERS")
-    check_install_and_setup_requires()
+    check_install_requires()
+    check_build_system_requires()
 
     print()
     print()
