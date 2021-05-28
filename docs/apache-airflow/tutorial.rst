@@ -411,10 +411,7 @@ Create a Employee table in postgres using this
       "Leave" integer
   );
 
-<<<<<<< HEAD
 
-=======
->>>>>>> a0d2bd633... Update docs/apache-airflow/tutorial.rst
 Let's break this down into 3 steps: get data, insert data, merge data:
 
 .. code-block:: python
@@ -532,10 +529,12 @@ Add this python file to airflow/dags folder and go back to the main folder and r
 
   docker-compose -f  docker-compose-LocalExecutor.yml up -d
 
+Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example
+
 .. image:: https://user-images.githubusercontent.com/35194828/120017593-ade78c00-c003-11eb-943d-ea48ec7404a7.png
 
-.. image:: https://user-images.githubusercontent.com/35194828/120017520-98726200-c003-11eb-8673-db9a84781274.png
 
+.. image:: https://user-images.githubusercontent.com/35194828/120017520-98726200-c003-11eb-8673-db9a84781274.png
 
 The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
 Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
