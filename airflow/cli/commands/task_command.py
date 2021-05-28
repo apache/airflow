@@ -64,6 +64,8 @@ def _get_ti(task, exec_date_or_run_id):
             raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
     ti = dag_run.get_task_instance(task.task_id)
     ti.task = task
+    ti.run_as_user = task.run_as_user
+    ti.execution_date = dag_run.execution_date
     return ti
 
 
@@ -360,6 +362,23 @@ def task_states_for_dag_run(args, session=None):
 
     if dag_run is None:
         raise AirflowException("DagRun does not exist.")
+    tis = dag_run.get_task_instances()
+    AirflowConsole().print_as(
+        data=tis,
+        output=args.output,
+        mapper=lambda ti: {
+            "dag_id": ti.dag_id,
+            "execution_date": ti.execution_date.isoformat(),
+            "task_id": ti.task_id,
+            "state": ti.state,
+            "start_date": ti.start_date.isoformat() if ti.start_date else "",
+            "end_date": ti.end_date.isoformat() if ti.end_date else "",
+        },
+    )
+
+    if dag_run is None:
+        raise AirflowException("DagRun does not exist.")
+
     tis = dag_run.get_task_instances()
     AirflowConsole().print_as(
         data=tis,
