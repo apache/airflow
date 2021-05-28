@@ -31,8 +31,6 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=Airflow123
-    volumes:
-      - mssql-db-volume:/var/opt/mssql/data
     healthcheck:
       test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost",
              "-U", "sa", "-P", "Airflow123", "-Q", "SELECT 1"]
