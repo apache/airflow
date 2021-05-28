@@ -51,22 +51,19 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_ti(dag, task, task_id, run_id):
+def _get_ti(dag, task, exec_date_or_run_id):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
-    dag_run = dag.get_dagrun(run_id=run_id)
+    dag_run = dag.get_dagrun(run_id=exec_date_or_run_id)
     if not dag_run:
         try:
-            execution_date = timezone.parse(run_id)
+            execution_date = timezone.parse(exec_date_or_run_id)
             # print("Warning: execution_date will be removed in
             # tasks command in the future. Please use DagRun.run_id")
             ti = TaskInstance(task, execution_date)
             return ti
         except (ParserError, TypeError):
-            raise AirflowException(f"DagRun with run_id: {run_id} not found")
-    ti = dag_run.get_task_instance(task_id)
-    ti.task = task
-    ti.run_as_user = task.run_as_user
-    ti.execution_date = dag_run.execution_date
+            raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
+    ti = TaskInstance(task, execution_date=dag_run.execution_date)
     return ti
 
 
@@ -245,7 +242,7 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(dag, task, args.task_id, args.execution_date_or_run_id)
+    ti = _get_ti(dag, task, args.execution_date_or_run_id)
     ti.refresh_from_db()
     ti.init_run_context(raw=args.raw)
 
@@ -274,7 +271,7 @@ def task_failed_deps(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(dag, task, args.task_id, args.execution_date_or_run_id)
+    ti = _get_ti(dag, task, args.execution_date_or_run_id)
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -297,7 +294,7 @@ def task_state(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(dag, task, args.task_id, args.execution_date_or_run_id)
+    ti = _get_ti(dag, task, args.execution_date_or_run_id)
     print(ti.current_state())
 
 
@@ -407,7 +404,7 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
-    ti = _get_ti(dag, task, task_id=args.task_id, run_id=args.execution_date_or_run_id)
+    ti = _get_ti(dag, task, args.execution_date_or_run_id)
 
     try:
         if args.dry_run:
@@ -433,7 +430,7 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(dag, task, task_id=args.task_id, run_id=args.execution_date_or_run_id)
+    ti = _get_ti(dag, task, args.execution_date_or_run_id)
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
@@ -62,6 +62,7 @@ class TestCliTasks(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
+        clear_db_runs()
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -83,6 +84,25 @@ class TestCliTasks(unittest.TestCase):
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
+    @mock.patch("airflow.models.taskinstance.TaskInstance._run_mini_scheduler_on_child_tasks")
+    def test_test_with_existing_dag_run(self, mock_run_mini_scheduler):
+        """Test the `airflow test` command"""
+        dag_id = 'example_python_operator'
+        run_id = 'TEST_RUN_ID'
+        task_id = 'print_the_context'
+        dag = self.dagbag.get_dag(dag_id)
+
+        dag.create_dagrun(state=State.NONE, run_id=run_id, run_type=DagRunType.MANUAL, external_trigger=True)
+
+        args = self.parser.parse_args(["tasks", "test", dag_id, task_id, run_id])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+
+        mock_run_mini_scheduler.assert_not_called()
+        # Check that prints, and log messages, are shown
+        assert f"Marking task as SUCCESS. dag_id={dag_id}, task_id={task_id}" in stdout.getvalue()
+
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_naive_taskinstance(self, mock_local_job):
         """
@@ -102,6 +122,39 @@ class TestCliTasks(unittest.TestCase):
             dag_id,
             task0_id,
             naive_date.isoformat(),
+        ]
+
+        task_command.task_run(self.parser.parse_args(args0), dag=dag)
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+        )
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_with_existing_dag_run_id(self, mock_local_job):
+        """
+        Test that we can run with existing dag_run_id
+        """
+        dag_id = 'test_run_ignores_all_dependencies'
+
+        dag = self.dagbag.get_dag(dag_id)
+        task0_id = 'test_run_dependent_task'
+        run_id = 'TEST_RUN_ID'
+        dag.create_dagrun(state=State.NONE, run_id=run_id, run_type=DagRunType.MANUAL, external_trigger=True)
+        args0 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            dag_id,
+            task0_id,
+            run_id,
         ]
 
         task_command.task_run(self.parser.parse_args(args0), dag=dag)
@@ -273,15 +326,25 @@ class TestCliTasks(unittest.TestCase):
             )
         )
 
-    def test_task_states_for_dag_run(self):
+    @provide_session
+    def test_task_states_for_dag_run(self, session=None):
 
         dag2 = DagBag().dags['example_python_operator']
         task2 = dag2.get_task(task_id='print_the_context')
         default_date2 = timezone.make_aware(datetime(2016, 1, 9))
         dag2.clear()
-
-        ti2 = TaskInstance(task2, default_date2)
-
+        dr = DagRun.find(execution_date=default_date2)
+        if dr:
+            for dagrun in dr:
+                session.delete(dagrun)
+            session.commit()
+        dagrun = dag2.create_dagrun(
+            state=State.RUNNING,
+            execution_date=default_date2,
+            run_type=DagRunType.MANUAL,
+            external_trigger=True,
+        )
+        ti2 = TaskInstance(task2, dagrun.execution_date)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
