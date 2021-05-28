@@ -64,7 +64,15 @@ Image naming conventions
 
 The images are named as follows:
 
-``apache/airflow:<BRANCH_OR_TAG>-python<PYTHON_MAJOR_MINOR_VERSION>[-ci][-manifest]``
+``apache/airflow-ci:<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>[-ci][-manifest]``
+
+For production images tagged with official releases:
+
+``apache/airflow:<TAG>-python<PYTHON_MAJOR_MINOR_VERSION>``
+
+And for production images with ``latest`` tag:
+
+````apache/airflow:latest[-python<PYTHON_MAJOR_MINOR_VERSION>]``
 
 where:
 
@@ -82,7 +90,7 @@ the CI images. Each CI image, when built uses current Python version of the base
 python images are regularly updated (with bugfixes/security fixes), so for example Python 3.8 from
 last week might be a different image than Python 3.8 today. Therefore whenever we push CI image
 to airflow repository, we also push the Python image that was used to build it this image is stored
-as ``apache/airflow:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
+as ``apache/airflow-ci:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
 
 Since those are simply snapshots of the existing Python images, DockerHub does not create a separate
 copy of those images - all layers are mounted from the original Python images and those are merely
@@ -269,26 +277,48 @@ registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for GitHub 
 Default is the GitHub Package Registry one. The Pull Request forks have no access to the secret but they
 auto-detect the registry used when they wait for the images.
 
-Our images are named like that:
+Our images are named following conventions below.
+
+Images used during CI builds:
 
 .. code-block:: bash
 
-  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y         - for production images
-  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y-ci      - for CI images
-  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y-build   - for production build stage
-  apache/airflow:pythonX.Y-<BRANCH_OR_TAG>         - for Python base image used for both CI and PROD image
+  apache/airflow-ci:<BRANCH>-pythonX.Y         - for production images
+  apache/airflow-ci:<BRANCH>-pythonX.Y-ci      - for CI images
+  apache/airflow-ci:<BRANCH>-pythonX.Y-build   - for production build stage
+  apache/airflow-ci:pythonX.Y-<BRANCH>         - for Python base image used for both CI and PROD image
 
 For example:
 
 .. code-block:: bash
 
-  apache/airflow:master-python3.6                - production "latest" image from current master
-  apache/airflow:master-python3.6-ci             - CI "latest" image from current master
-  apache/airflow:v2-1-test-python3.6-ci          - CI "latest" image from current v2-1-test branch
-  apache/airflow:2.1.0-python3.6                 - production image for 2.1.0 release
+  apache/airflow-ci:master-python3.6                - production "master" image from current master
+  apache/airflow-ci:master-python3.6-ci             - CI "master" image from current master
+  apache/airflow-ci:v2-1-test-python3.6-ci          - CI "master" image from current v2-1-test branch
   apache/airflow:python3.6-master                - base Python image for the master branch
 
-You can see DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
+You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow-ci>`_
+
+Released, production images
+
+.. code-block:: bash
+
+  apache/airflow:<TAG>-pythonX.Y         - for tagged released production images
+  apache/airflow:<TAG>                   - for default Python version released production images
+  apache/airflow:latest-pythonX.Y        - for latest released production images
+  apache/airflow:latest                  - for default Python version of latest released production images
+
+For example:
+
+.. code-block:: bash
+
+  apache/airflow:2.1.0-python3.8         - for regular released 2.1.0 production image with Python 3.8
+  apache/airflow:2.1.0                   - for default Python version of 2.1.0 production image
+  apache/airflow:latest-python3.8        - for latest released Python 3.8 production image
+  apache/airflow:latest                  - for latest released default Python production image
+
+You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
+
 
 Using GitHub registries as build cache
 --------------------------------------
