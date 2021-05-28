@@ -983,7 +983,7 @@ config:
     colored_console_log: 'False'
   metrics:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: '{{ .Values._ports.statsdIngest }}'
+    statsd_port: '{{ .Values.ports.statsdIngest }}'
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
   webserver:
@@ -998,7 +998,7 @@ config:
   scheduler:
     # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-    statsd_port: '{{ .Values._ports.statsdIngest }}'
+    statsd_port: '{{ .Values.ports.statsdIngest }}'
     statsd_prefix: airflow
     statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
