@@ -502,12 +502,6 @@ devel = [
     'bowler',
     'click~=7.1',
     'coverage',
-    # Sphinx RTD theme 0.5.2. introduced limitation to docutils to account for some docutils markup
-    # change:
-    #      https://github.com/readthedocs/sphinx_rtd_theme/issues/1112
-    # This limitation can be removed after this issue is closed:
-    #      https://github.com/readthedocs/sphinx_rtd_theme/issues/1115
-    'docutils<0.17',
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
