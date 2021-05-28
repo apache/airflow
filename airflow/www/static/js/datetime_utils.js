@@ -89,7 +89,7 @@ export function updateAllDateTimes() {
     el.value = moment(el.value).format();
   });
 
-  $('.format-date').each((_, el) => {
+  $('.js-format-date').each((_, el) => {
     el.innerHTML = moment(el.innerHTML, 'YYYY-MM-DD').isValid()
       ? formatDateTime(el.innerHTML)
       : el.innerHTML;
