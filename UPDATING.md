@@ -26,7 +26,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Master](#master)
+- [Main](#main)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
@@ -54,7 +54,7 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Master
+## Main
 
 <!--
 
@@ -2996,7 +2996,7 @@ If you are logging to Google cloud storage, please see the [Google cloud platfor
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
 
-- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
+- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/main/airflow/config_templates/airflow_local_settings.py).
 - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
 - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
 - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your `PYTHONPATH`, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.

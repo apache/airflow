@@ -119,7 +119,7 @@ function breeze::setup_default_breeze_constants() {
     export FORCE_PULL_IMAGES="false"
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI master and when we manually refresh the images to latest versions
+    # CI main and when we manually refresh the images to latest versions
     export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
@@ -1868,7 +1868,7 @@ ${CMDNAME} generate-constraints [FLAGS]
 
       Generates pinned constraint files with all extras from setup.py. Those files are generated in
       files folder - separate files for different python version. Those constraint files when
-      pushed to orphan constraints-master, constraints-2-0 branches are used
+      pushed to orphan constraints-main, constraints-2-0 branches are used
       to generate repeatable CI builds as well as run repeatable production image builds and
       upgrades when you want to include installing or updating some of the released providers
       released at the time particular airflow version was released. You can use those
@@ -2072,9 +2072,9 @@ ${FORMATTED_STATIC_CHECKS}
       '${CMDNAME} static-check mypy -- --files tests/core.py'
       '${CMDNAME} static-check mypy -- --all-files'
 
-      To check all files that differ between you current branch and master run:
+      To check all files that differ between you current branch and main run:
 
-      '${CMDNAME} static-check all -- --from-ref \$(git merge-base master HEAD) --to-ref HEAD'
+      '${CMDNAME} static-check all -- --from-ref \$(git merge-base main HEAD) --to-ref HEAD'
 
       To check all files that are in the HEAD commit run:
 
@@ -2456,7 +2456,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         Installs Airflow directly from reference in GitHub when building PROD image.
-        This can be a GitHub branch like master or v2-1-test, or a tag like 2.1.0a1.
+        This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
 
 --installation-method INSTALLATION_METHOD
         Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2767,7 +2767,7 @@ Build options:
         --use-github-registry flag) to build images. The pulled images will be used as cache.
         Those builds are usually faster than when ''--build-cache-local'' with the exception if
         the registry images are not yet updated. The DockerHub images are updated nightly and the
-        GitHub images are updated after merges to master so it might be that the images are still
+        GitHub images are updated after merges to main so it might be that the images are still
         outdated vs. the latest version of the Dockerfiles you are using. In this case, the
         ''--build-cache-local'' might be faster, especially if you iterate and change the
         Dockerfiles yourself.

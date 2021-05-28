@@ -26,11 +26,11 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Master](#master)
+- [Main](#main)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Master
+## Main
 
 <!--
 

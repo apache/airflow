@@ -82,10 +82,10 @@ def get_issue_type(issue):
     return issue_type
 
 
-def get_commit_in_master_associated_with_pr(repo: git.Repo, issue: Issue) -> Optional[str]:
+def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> Optional[str]:
     """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
-        commit = repo.git.log(f"--grep=#{issue.number}", "origin/master", "--format=%H")
+        commit = repo.git.log(f"--grep=#{issue.number}", "origin/main", "--format=%H")
         if commit:
             return commit
         else:
@@ -165,7 +165,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     )
 
     for issue in milestone_issues:
-        commit_in_master = get_commit_in_master_associated_with_pr(repo, issue)
+        commit_in_main = get_commit_in_main_associated_with_pr(repo, issue)
         status = get_issue_status(issue)
 
         # Checks if commit was cherrypicked into branch.
@@ -186,9 +186,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         )
 
         print(
-            formatstr.format(
-                **fields, merged=cherrypicked, commit=commit_in_master if commit_in_master else ""
-            )
+            formatstr.format(**fields, merged=cherrypicked, commit=commit_in_main if commit_in_main else "")
         )
 
     print(

@@ -49,7 +49,7 @@ class TestBuildProcessor(TestCase):
         [
             (
                 "https://source.developers.google.com/p/airflow-project/r/airflow-repo",
-                {"projectId": "airflow-project", "repoName": "airflow-repo", "branchName": "master"},
+                {"projectId": "airflow-project", "repoName": "airflow-repo", "branchName": "main"},
             ),
             (
                 "https://source.developers.google.com/p/airflow-project/r/airflow-repo#branch-name",
@@ -192,7 +192,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
                 "repoSource": {
                     "projectId": "airflow-project",
                     "repoName": "airflow-repo",
-                    "branchName": "master",
+                    "branchName": "main",
                 }
             },
             # [END howto_operator_gcp_cloud_build_source_repo_dict]

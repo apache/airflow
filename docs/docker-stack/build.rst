@@ -342,12 +342,12 @@ it to your forked version of source code without having to release it to PyPI. I
 a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
 
 In case of GitHyb builds you need to pass the constraints reference manually in case you want to use
-specific constraints, otherwise the default ``constraints-master`` is used.
+specific constraints, otherwise the default ``constraints-main`` is used.
 
-The following example builds the production image in version ``3.7`` with default extras from the latest master version and
-constraints are taken from latest version of the constraints-master branch in GitHub.
+The following example builds the production image in version ``3.7`` with default extras from the latest main version and
+constraints are taken from latest version of the constraints-main branch in GitHub.
 
-.. exampleinclude:: docker-examples/customizing/github-master.sh
+.. exampleinclude:: docker-examples/customizing/github-main.sh
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
@@ -356,7 +356,7 @@ The following example builds the production image with default extras from the
 latest ``v2-*-test`` version and constraints are taken from the latest version of
 the ``constraints-2-*`` branch in GitHub (for example ``v2-1-test`` branch matches ``constraints-2-1``).
 Note that this command might fail occasionally as only the "released version" constraints when building a
-version and "master" constraints when building master are guaranteed to work.
+version and "main" constraints when building main are guaranteed to work.
 
 .. exampleinclude:: docker-examples/customizing/github-v2-1-test.sh
     :language: bash
@@ -541,4 +541,4 @@ The architecture of the images
 ..............................
 
 You can read more details about the images - the context, their parameters and internal structure in the
-`IMAGES.rst <https://github.com/apache/airflow/blob/master/IMAGES.rst>`_ document.
+`IMAGES.rst <https://github.com/apache/airflow/blob/main/IMAGES.rst>`_ document.

@@ -178,8 +178,8 @@ function initialization::initialize_base_variables() {
 # Determine current branch
 function initialization::initialize_branch_variables() {
     # Default branch used - this will be different in different branches
-    export DEFAULT_BRANCH=${DEFAULT_BRANCH="master"}
-    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-master"}
+    export DEFAULT_BRANCH=${DEFAULT_BRANCH="main"}
+    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-main"}
     readonly DEFAULT_BRANCH
     readonly DEFAULT_CONSTRAINTS_BRANCH
 
@@ -296,7 +296,7 @@ function initialization::initialize_force_variables() {
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI master and when we manually refresh the images to latest versions
+    # CI main and when we manually refresh the images to latest versions
     export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Determines whether to force build without checking if it is needed
@@ -637,7 +637,7 @@ function initialization::initialize_common_environment() {
 }
 
 function initialization::set_default_python_version_if_empty() {
-    # default version of python used to tag the "master" and "latest" images in DockerHub
+    # default version of python used to tag the "main" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
     # default python Major/Minor version
@@ -774,20 +774,20 @@ function initialization::get_environment_for_builds_on_ci() {
     if [[ ${CI:=} == "true" ]]; then
         export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
-        export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
+        export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="main"}"
         export CI_BUILD_ID="${GITHUB_RUN_ID="0"}"
         export CI_JOB_ID="${GITHUB_JOB="0"}"
         export CI_EVENT_TYPE="${GITHUB_EVENT_NAME="pull_request"}"
-        export CI_REF="${GITHUB_REF:="refs/head/master"}"
+        export CI_REF="${GITHUB_REF:="refs/head/main"}"
     else
         # CI PR settings
         export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
-        export CI_TARGET_BRANCH="${DEFAULT_BRANCH="master"}"
+        export CI_TARGET_BRANCH="${DEFAULT_BRANCH="main"}"
         export CI_BUILD_ID="${CI_BUILD_ID="0"}"
         export CI_JOB_ID="${CI_JOB_ID="0"}"
         export CI_EVENT_TYPE="${CI_EVENT_TYPE="pull_request"}"
-        export CI_REF="${CI_REF="refs/head/master"}"
+        export CI_REF="${CI_REF="refs/head/main"}"
     fi
 
     if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then

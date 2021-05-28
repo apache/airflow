@@ -36,7 +36,6 @@ coverage:
           - "airflow"
         # advanced
         branches:
-          - master
           - main
           - v1-10-stable
           - v1-10-test
@@ -54,7 +53,6 @@ coverage:
         base: auto
         # advanced
         branches:
-          - master
           - main
           - v1-10-stable
           - v1-10-test

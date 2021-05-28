@@ -21,7 +21,7 @@ CI Environment
 ==============
 
 Continuous Integration is important component of making Apache Airflow robust and stable. We are running
-a lot of tests for every pull request, for master and v2-*-test branches and regularly as CRON jobs.
+a lot of tests for every pull request, for main and v2-*-test branches and regularly as CRON jobs.
 
 Our execution environment for CI is `GitHub Actions <https://github.com/features/actions>`_. GitHub Actions
 (GA) are very well integrated with GitHub code and Workflow and it has evolved fast in 2019/202 to become
@@ -57,20 +57,20 @@ Container Registry used as cache
 For the CI builds of our we are using Container Registry to store results of the "Build Image" workflow
 and pass it to the "CI Build" workflow.
 
-Currently in master version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
+Currently in main version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
 which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
 we are utilising ``pull_request_target`` feature of GitHub Actions.
 
 This feature allows to run a separate, independent workflow, when the main workflow is run -
-this separate workflow is different than the main one, because by default it runs using ``master`` version
+this separate workflow is different than the main one, because by default it runs using ``main`` version
 of the sources but also - and most of all - that it has WRITE access to the repository.
 
 This is especially important in our case where Pull Requests to Airflow might come from any repository,
 and it would be a huge security issue if anyone from outside could
 utilise the WRITE access to Apache Airflow repository via an external Pull Request.
 
-Thanks to the WRITE access and fact that the 'pull_request_target' by default uses the 'master' version of the
+Thanks to the WRITE access and fact that the 'pull_request_target' by default uses the 'main' version of the
 sources, we can safely run some logic there will checkout the incoming Pull Request, build the container
 image from the sources from the incoming PR and push such image to an GitHub Docker Registry - so that
 this image can be built only once and used by all the jobs running tests. The image is tagged with unique
@@ -304,13 +304,13 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |             |            | tested set of dependency constraints            |
 |                                         |             |             |            | stored in separated "orphan" branches           |
 |                                         |             |             |            | of the airflow repository                       |
-|                                         |             |             |            | ("constraints-master, "constraints-2-0")        |
+|                                         |             |             |            | ("constraints-main, "constraints-2-0")          |
 |                                         |             |             |            | but when this flag is set to anything but false |
 |                                         |             |             |            | (for example commit SHA), they are not used     |
 |                                         |             |             |            | used and "eager" upgrade strategy is used       |
 |                                         |             |             |            | when installing dependencies. We set it         |
 |                                         |             |             |            | to true in case of direct pushes (merges)       |
-|                                         |             |             |            | to master and scheduled builds so that          |
+|                                         |             |             |            | to main and scheduled builds so that            |
 |                                         |             |             |            | the constraints are tested. In those builds,    |
 |                                         |             |             |            | in case we determine that the tests pass        |
 |                                         |             |             |            | we automatically push latest set of             |
@@ -391,7 +391,7 @@ Note that you need to set "CI" variable to true in order to get the same results
 | CI_TARGET_REPO               | ``apache/airflow``   | Target repository for the CI build. Used to         |
 |                              |                      | compare incoming changes from PR with the target.   |
 +------------------------------+----------------------+-----------------------------------------------------+
-| CI_TARGET_BRANCH             | ``master``           | Target branch where the PR should land. Used to     |
+| CI_TARGET_BRANCH             | ``main``             | Target branch where the PR should land. Used to     |
 |                              |                      | compare incoming changes from PR with the target.   |
 +------------------------------+----------------------+-----------------------------------------------------+
 | CI_BUILD_ID                  | ``0``                | Unique id of the build that is kept across re runs  |
@@ -404,7 +404,7 @@ Note that you need to set "CI" variable to true in order to get the same results
 |                              |                      | [``pull_request``, ``pull_request_target``,         |
 |                              |                      |  ``schedule``, ``push``]                            |
 +------------------------------+----------------------+-----------------------------------------------------+
-| CI_REF                       | ``refs/head/master`` | Branch in the source repository that is used to     |
+| CI_REF                       | ``refs/head/main``   | Branch in the source repository that is used to     |
 |                              |                      | make the pull request.                              |
 +------------------------------+----------------------+-----------------------------------------------------+
 
@@ -480,9 +480,9 @@ We are currently in the process of testing using GitHub Container Registry as ca
 the CI process. The default registry is set to "GitHub Packages", but we are testing the GitHub
 Container Registry. In case of GitHub Packages, authentication uses GITHUB_TOKEN mechanism. Authentication
 is needed for both pushing the images (WRITE) and pulling them (READ) - which means that GitHub token
-is used in "master" build (WRITE) and in fork builds (READ). For container registry, our images are
+is used in "main" build (WRITE) and in fork builds (READ). For container registry, our images are
 Publicly Visible and we do not need any authentication to pull them so the CONTAINER_REGISTRY_TOKEN is
-only set in the "master" builds only ("Build Images" workflow).
+only set in the "main" builds only ("Build Images" workflow).
 
 Dockerhub Variables
 ===================
@@ -574,7 +574,7 @@ The housekeeping is important - Python base images are refreshed with varying fr
 usually but sometimes several times per week) with the latest security and bug fixes.
 Those patch level images releases can occasionally break Airflow builds (specifically Docker image builds
 based on those images) therefore in PRs we only use latest "good" Python image that we store in the
-private GitHub cache. The direct push/master builds are not using registry cache to pull the Python images
+private GitHub cache. The direct push/main builds are not using registry cache to pull the Python images
 - they are directly pulling the images from DockerHub, therefore they will try the latest images
 after they are released and in case they are fine, CI Docker image is build and tests are passing -
 those jobs will push the base images to the private GitHub Registry so that they be used by subsequent
@@ -583,13 +583,13 @@ PR runs.
 Scheduled runs
 --------------
 
-Those runs are results of (nightly) triggered job - only for ``master`` branch. The
+Those runs are results of (nightly) triggered job - only for ``main`` branch. The
 main purpose of the job is to check if there was no impact of external dependency changes on the Apache
 Airflow code (for example transitive dependencies released that fail the build). It also checks if the
 Docker images can be build from the scratch (again - to see if some dependencies have not changed - for
 example downloaded package releases etc. Another reason for the nightly build is that the builds tags most
-recent master with ``nightly-master`` tag so that DockerHub build can pick up the moved tag and prepare a
-nightly public master build in the DockerHub registry. The ``v1-10-test`` branch images are build in
+recent main with ``nightly-main`` tag so that DockerHub build can pick up the moved tag and prepare a
+nightly public main build in the DockerHub registry. The ``v1-10-test`` branch images are build in
 DockerHub when pushing ``v1-10-stable`` manually.
 
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
@@ -603,13 +603,13 @@ repository, they are not executed in forks - we want to be nice to the contribut
 free build minutes on GitHub Actions.
 
 Sometimes (bugs in DockerHub or prolonged periods when the scheduled builds are failing)
-the automated build for nightly master is not executed for a long time. Such builds can be manually
+the automated build for nightly main is not executed for a long time. Such builds can be manually
 prepared and pushed by a maintainer who has the rights to push images to DockerHub (committers need
 to file JIRA ticket to Apache Infra in order to get an access).
 
 .. code-block:: bash
 
-  export BRANCH=master
+  export BRANCH=main
   export DOCKER_REPO=docker.io/apache/airflow
   for python_version in "3.6" "3.7" "3.8"
   (
@@ -747,12 +747,12 @@ Comments:
  (6) Nightly tag is pushed to the repository only in CRON job and only if all tests pass. This
      causes the DockerHub images are built automatically and made available to developers.
 
-Force sync master from apache/airflow
+Force sync main from apache/airflow
 -------------------------------------
 
 This is manually triggered workflow (via GitHub UI manual run) that should only be run in GitHub forks.
-When triggered, it will force-push the "apache/airflow" master to the fork's master. It's the easiest
-way to sync your fork master to the Apache Airflow's one.
+When triggered, it will force-push the "apache/airflow" main to the fork's main. It's the easiest
+way to sync your fork main to the Apache Airflow's one.
 
 Delete old artifacts
 --------------------
@@ -772,7 +772,7 @@ It is run for JavaScript and Python code.
 Publishing documentation
 ------------------------
 
-Documentation from the ``master`` branch is automatically published on Amazon S3.
+Documentation from the ``main`` branch is automatically published on Amazon S3.
 
 To make this possible, GitHub Action has secrets set up with credentials
 for an Amazon Web Service account - ``DOCS_AWS_ACCESS_KEY_ID`` and ``DOCS_AWS_SECRET_ACCESS_KEY``.
@@ -787,7 +787,7 @@ Naming conventions for stored images
 The images produced during the CI builds are stored in the
 `GitHub Registry <https://github.com/apache/airflow/packages>`_
 
-The images are stored with both "latest" tag (for last master push image that passes all the tests as well
+The images are stored with both "latest" tag (for last main push image that passes all the tests as well
 with the tags indicating the origin of the image.
 
 The image names follow the patterns:
@@ -807,10 +807,10 @@ The image names follow the patterns:
 |              |                            |                                | It contains only compiled libraries and minimal set of dependencies to run Airflow.        |
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
-* <BRANCH> might be either "master" or "v1-10-test" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor). For "master" and "v2-*-test" should be in ["3.6", "3.7", "3.8"]. For
+* <BRANCH> might be either "main" or "v1-10-test" or "v2-*-test"
+* <X.Y> - Python version (Major + Minor). For "main" and "v2-*-test" should be in ["3.6", "3.7", "3.8"]. For
   v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
-* <COMMIT_SHA> - for images that get merged to "master", "v2-*-test" of "v1-10-test", or built as part of a
+* <COMMIT_SHA> - for images that get merged to "main", "v2-*-test" of "v1-10-test", or built as part of a
   pull request the images are tagged with the (full lenght) commit SHA of that particular branch. For pull
   requests the SHA used is the tip of the pull request branch.
 
@@ -823,9 +823,9 @@ For example knowing that the CI build was for commit ``cd27124534b46c9688a1d89e7
 
 .. code-block:: bash
 
-  docker pull docker.pkg.github.com/apache/airflow/master-python3.6-ci:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull docker.pkg.github.com/apache/airflow/main-python3.6-ci:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it docker.pkg.github.com/apache/airflow/master-python3.6-ci:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it docker.pkg.github.com/apache/airflow/main-python3.6-ci:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or
@@ -878,7 +878,7 @@ In 2.0 line we currently support Python 3.6, 3.7, 3.8.
 
 In order to add a new version the following operations should be done (example uses Python 3.9)
 
-* copy the latest constraints in ``constraints-master`` branch from previous versions and name it
+* copy the latest constraints in ``constraints-main`` branch from previous versions and name it
   using the new Python version (``constraints-3.9.txt``). Commit and push
 
 * add the new Python version to `breeze-complete <breeze-complete>`_ and
@@ -911,7 +911,7 @@ In order to add a new version the following operations should be done (example u
 +-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
 | Source type | Source         | Docker Tag            | Dockerfile location | Build Context | Autobuild | Build caching | Comment                                                                |
 +=============+================+=======================+=====================+===============+===========+===============+========================================================================+
-| Tag         | nightly-master | master-python3.9      | Dockerfile          | /             | x         | -             | Nightly CI/PROD images from successful scheduled master nightly builds |
+| Tag         | nightly-main   | main-python3.9        | Dockerfile          | /             | x         | -             | Nightly CI/PROD images from successful scheduled main nightly builds   |
 +-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+
 | Branch      | v2-*-stable    | v2-*-stable-python3.9 | Dockerfile          | /             | x         |               | CI/PROD images automatically built pushed stable branch                |
 +-------------+----------------+-----------------------+---------------------+---------------+-----------+---------------+------------------------------------------------------------------------+

@@ -42,7 +42,7 @@ function build_prod_images_on_ci() {
         fi
 
         if [[ "${WAIT_FOR_PYTHON_BASE_IMAGE=}" == "true" ]]; then
-            # first we pull base python image. We will need it to re-push it after master build
+            # first we pull base python image. We will need it to re-push it after main build
             # Becoming the new "latest" image for other builds
             build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
                 "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"

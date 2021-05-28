@@ -201,7 +201,7 @@ RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.ta
     && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
 
 ARG AIRFLOW_REPO=apache/airflow
-ARG AIRFLOW_BRANCH=master
+ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
 ARG AIRFLOW_EXTRAS="all"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
@@ -210,7 +210,7 @@ ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ARG AIRFLOW_CONSTRAINTS="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
-ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # By changing the CI build epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="3"
@@ -273,7 +273,7 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
-# In case of CI builds we want to pre-install master version of airflow dependencies so that
+# In case of CI builds we want to pre-install main version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
