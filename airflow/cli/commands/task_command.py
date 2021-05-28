@@ -362,7 +362,6 @@ def task_states_for_dag_run(args, session=None):
 
     if dag_run is None:
         raise AirflowException("DagRun does not exist.")
-
     tis = dag_run.get_task_instances()
     AirflowConsole().print_as(
         data=tis,
