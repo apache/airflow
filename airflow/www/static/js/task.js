@@ -21,7 +21,7 @@
 
 // reformat task details to be more human-readable
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.ti-attr').forEach((attr) => {
+  document.querySelectorAll('.js-ti-attr').forEach((attr) => {
     const value = attr.innerHTML;
     if (value.length === 32 && moment(value, 'YYYY-MM-DD').isValid()) {
       // 32 is the length of our timestamps
