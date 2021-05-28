@@ -1479,7 +1479,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
         request_conf = request.values.get('conf')
-        request_execution_date = request.values.get('execution_date')
+        request_execution_date = request.values.get('execution_date', default=None)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1531,8 +1531,9 @@ class Airflow(AirflowBaseView):
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
+                form = DateTimeForm(data={'execution_date': execution_date})
                 return self.render_template(
-                    'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf
+                    'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
                 )
 
         dag = current_app.dag_bag.get_dag(dag_id)
