@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
@@ -348,18 +348,12 @@ class TestCliTasks(unittest.TestCase):
             )
         )
 
-    @provide_session
-    def test_task_states_for_dag_run(self, session=None):
+    def test_task_states_for_dag_run(self):
 
         dag2 = DagBag().dags['example_python_operator']
         task2 = dag2.get_task(task_id='print_the_context')
         default_date2 = timezone.make_aware(datetime(2016, 1, 9))
         dag2.clear()
-        dr = DagRun.find(execution_date=default_date2)
-        if dr:
-            for dagrun in dr:
-                session.delete(dagrun)
-            session.commit()
         dagrun = dag2.create_dagrun(
             state=State.RUNNING,
             execution_date=default_date2,
