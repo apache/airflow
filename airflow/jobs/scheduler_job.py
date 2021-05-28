@@ -754,24 +754,29 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
-        if _is_parent_process():
+        if not _is_parent_process():
             # Only the parent process should perform the cleanup.
-            self.log.info("Exiting gracefully upon receiving signal %s", signum)
-            if self.processor_agent:
-                self.processor_agent.end()
-            sys.exit(os.EX_OK)
+            return
+
+        self.log.info("Exiting gracefully upon receiving signal %s", signum)
+        if self.processor_agent:
+            self.processor_agent.end()
+        sys.exit(os.EX_OK)
 
     def _debug_dump(self, signum, frame):  # pylint: disable=unused-argument
-        if _is_parent_process():
-            try:
-                sig_name = signal.Signals(signum).name  # pylint: disable=no-member
-            except Exception:  # pylint: disable=broad-except
-                sig_name = str(signum)
+        if not _is_parent_process():
+            # Only the parent process should perform the debug dump.
+            return
 
-            self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
+        try:
+            sig_name = signal.Signals(signum).name  # pylint: disable=no-member
+        except Exception:  # pylint: disable=broad-except
+            sig_name = str(signum)
 
-            self.executor.debug_dump()
-            self.log.info("-" * 80)
+        self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
+
+        self.executor.debug_dump()
+        self.log.info("-" * 80)
 
     def is_alive(self, grace_multiplier: Optional[float] = None) -> bool:
         """

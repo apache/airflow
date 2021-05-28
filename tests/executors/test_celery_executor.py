@@ -508,9 +508,6 @@ def register_signals():
     Register the same signals as scheduler does to test celery_executor to make sure it does not
     hang.
     """
-
-    print(f"{os.getpid()} register_signals()")
-
     orig_sigint = orig_sigterm = orig_sigusr2 = signal.SIG_DFL
 
     orig_sigint = signal.signal(signal.SIGINT, _exit_gracefully)
