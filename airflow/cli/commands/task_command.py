@@ -56,10 +56,10 @@ def _get_ti(dag, task, task_id, run_id):
     dag_run = dag.get_dagrun(run_id=run_id)
     if not dag_run:
         try:
-            timezone.parse(run_id)
+            execution_date = timezone.parse(run_id)
             # print("Warning: execution_date will be removed in
             # tasks command in the future. Please use DagRun.run_id")
-            ti = TaskInstance(task, execution_date=run_id)
+            ti = TaskInstance(task, execution_date)
             return ti
         except (ParserError, TypeError):
             raise AirflowException(f"DagRun with run_id: {run_id} not found")
