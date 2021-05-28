@@ -100,10 +100,11 @@ function check_db_backend {
         check_service "MySQL" "run_nc mysql 3306" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "mssql" ]]; then
         check_service "MSSQL" "run_nc mssql 1433" "${MAX_CHECK}"
+        check_service "MSSQL Login Check" "airflow db check" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     else
-        echo "Unknown backend. Supported values: [postgres,mysql,sqlite]. Current value: [${BACKEND}]"
+        echo "Unknown backend. Supported values: [postgres,mysql,mssql,sqlite]. Current value: [${BACKEND}]"
         exit 1
     fi
 }
