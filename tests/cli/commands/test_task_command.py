@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.cli import get_dag
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
@@ -351,7 +351,8 @@ class TestCliTasks(unittest.TestCase):
             )
         )
 
-    def test_task_states_for_dag_run(self):
+    @provide_session
+    def test_task_states_for_dag_run(self, session=None):
 
         dag2 = DagBag().dags['example_python_operator']
         task2 = dag2.get_task(task_id='print_the_context')
