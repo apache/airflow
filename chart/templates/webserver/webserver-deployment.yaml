@@ -114,7 +114,12 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "-c", "exec airflow webserver"]
+          {{- if .Values.webserver.command }}
+          command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.webserver.args }}
+          args: {{ tpl (toYaml .Values.webserver.args) . | nindent 12 }}
+          {{- end }}
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
           volumeMounts:

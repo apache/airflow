@@ -143,7 +143,6 @@ networkPolicies:
   # Enabled network policies
   enabled: false
 
-
 # Extra annotations to apply to all
 # Airflow pods
 airflowPodAnnotations: {}
@@ -266,7 +265,6 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
-
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
 # name {{ .Release-name }}-<POSTFIX>. In case of the keytab file, the postfix is "kerberos-keytab"
@@ -322,6 +320,18 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+
+  # Command to use when running Airflow workers (templated).
+  command: ~
+  # Args to use when running Airflow workers (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
   # Update Strategy when worker is deployed as a Deployment
@@ -419,6 +429,12 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  logGroomerSidecar:
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow scheduler settings
 scheduler:
   # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
@@ -431,6 +447,12 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+
+  # Command to use when running the Airflow scheduler (templated).
+  command: ~
+  # Args to use when running the Airflow scheduler (templated).
+  args: ["bash", "-c", "exec airflow scheduler"]
+
   # Update Strategy when scheduler is deployed as a StatefulSet
   # (when using LocalExecutor and workers.persistence)
   updateStrategy: ~
@@ -483,6 +505,14 @@ scheduler:
   affinity: {}
   tolerations: []
 
+  logGroomerSidecar:
+    # Whether to deploy the Airflow scheduler log groomer sidecar.
+    enabled: true
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
@@ -532,6 +562,11 @@ webserver:
 
   # Number of webservers
   replicas: 1
+
+  # Command to use when running the Airflow webserver (templated).
+  command: ~
+  # Args to use when running the Airflow webserver (templated).
+  args: ["bash", "-c", "exec airflow webserver"]
 
   # Create ServiceAccount
   serviceAccount:
@@ -605,6 +640,18 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: true
+
+  # Command to use when running flower (templated).
+  command: ~
+  # Args to use when running flower (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -852,7 +899,6 @@ elasticsearch:
   #   host: ~
   #   port: ~
   connection: {}
-
 
 # All ports used by chart
 ports:

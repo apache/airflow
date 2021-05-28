@@ -833,6 +833,32 @@
                     "type": "integer",
                     "default": 1
                 },
+                "command": {
+                    "description": "Command to use when running Airflow workers (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running Airflow workers (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}"
+                    ]
+                },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
                     "type": [
@@ -1052,6 +1078,37 @@
                             ]
                         }
                     ]
+                },
+                "logGroomerSidecar": {
+                    "description": "Configuration for worker log groomer sidecar",
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "description": "Command to use when running the Airflow workers log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the Airflow workers log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "/clean-logs"
+                            ]
+                        }
+                    }
                 }
             }
         },
@@ -1092,6 +1149,32 @@
                     "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
                     "type": "integer",
                     "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow scheduler (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow scheduler (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow scheduler"
+                    ]
                 },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet (when using LocalExecutor and workers.persistence).",
@@ -1216,6 +1299,42 @@
                     "description": "Specify Tolerations for scheduler pods.",
                     "type": "array",
                     "default": []
+                },
+                "logGroomerSidecar": {
+                    "description": "Configuration for the schedulers log groomer sidecar.",
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether to deploy the Airflow scheduler log groomer sidecar.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "command": {
+                            "description": "Command to use when running the Airflow scheduler log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the Airflow scheduler log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "/clean-logs"
+                            ]
+                        }
+                    }
                 }
             }
         },
@@ -1362,6 +1481,32 @@
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer",
                     "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow webserver (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow webserver (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow webserver"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones.",
@@ -1547,6 +1692,32 @@
                     "description": "Enable Flower.",
                     "type": "boolean",
                     "default": true
+                },
+                "command": {
+                    "description": "Command to use when running flower (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running flower (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery flower\" \"flower\" }}"
+                    ]
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
