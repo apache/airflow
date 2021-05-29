@@ -549,7 +549,6 @@ class SchedulerJob(BaseJob):
         else:
             max_tis = min(self.max_tis_per_query, self.executor.slots_available)
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
-
         self._enqueue_task_instances_with_queued_state(queued_tis)
         return len(queued_tis)
 
@@ -733,6 +732,10 @@ class SchedulerJob(BaseJob):
             conf.getfloat('scheduler', 'clean_tis_without_dagrun_interval', fallback=15.0),
             self._clean_tis_without_dagrun,
         )
+        timers.call_regular_interval(
+            conf.getfloat('scheduler', 'clean_tis_without_dag', fallback=15.0),
+            self._clean_tis_without_dag,
+        )
 
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
@@ -806,6 +809,37 @@ class SchedulerJob(BaseJob):
                 else:
                     raise
             guard.commit()
+
+    @provide_session
+    def _clean_tis_without_dag(self, session: Session = None):
+        """Fails task instances and DagRuns of DAGs that no longer exist in the dagbag/DB"""
+        states_to_check = State.unfinished - frozenset([State.NONE, State.SHUTDOWN])
+        tis = session.query(TI).filter(TI.state.in_(states_to_check)).all()
+        missing_dags = {}
+        dag_runs = set()
+
+        for ti in tis:
+            if ti.dag_id in missing_dags:
+                ti.set_state(State.FAILED, session=session)
+                continue
+            # Dag no longer in dagbag?
+            if not self.dagbag.has_dag(ti.dag_id, session=session):
+                ti.set_state(State.FAILED, session=session)
+                dag_runs.add(ti.dag_run)
+                missing_dags[ti.dag_id] = [ti]
+                continue
+        if missing_dags:
+            self.log.warning(
+                "The following Dags are missing, therefore the DAG's "
+                "task instances have been set to failed: \t\n%s",
+                [
+                    (f"Missing DAGs: {dag_name}", f"Failed TaskInstances: [{ti}]")
+                    for dag_name, ti in missing_dags.items()
+                ],
+            )
+            self.log.warning("Failing the corresponding DagRuns of the missing DAGs. DagRuns: %s", dag_runs)
+            for dr in dag_runs:
+                dr.set_state(State.FAILED)
 
     def _do_scheduling(self, session) -> int:
         """

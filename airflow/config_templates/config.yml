@@ -1709,6 +1709,14 @@
       type: float
       example: ~
       default: "15.0"
+    - name: clean_tis_without_dag
+      description: |
+        How often (in seconds) to check and fail task instances and dagruns whose corresponding
+        DAG is missing
+      version_added: 2.1.1
+      type: float
+      example: ~
+      default: "15.0"
     - name: scheduler_heartbeat_sec
       description: |
         The scheduler constantly tries to trigger new tasks (look at the

@@ -167,6 +167,34 @@ class DagBag(LoggingMixin):
         return list(self.dags.keys())
 
     @provide_session
+    def has_dag(self, dag_id: str, session: Session = None):
+        """
+        Checks the "local" cache, if it exists, and is not older than the configured cache time, return True
+        else check in the DB if the dag exists, return True, False otherwise
+        """
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
+            dag_id=dag_id,
+            session=session,
+        )
+        sd_has_dag = sd_last_updated_datetime is not None
+        if dag_id not in self.dags:
+            return sd_has_dag
+        if dag_id not in self.dags_last_fetched:
+            return sd_has_dag
+        min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
+        if timezone.utcnow() < self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs:
+            return sd_has_dag
+        if sd_has_dag:
+            return True
+        self.log.warning("Serialized DAG %s no longer exists", dag_id)
+        del self.dags[dag_id]
+        del self.dags_last_fetched[dag_id]
+        del self.dags_hash[dag_id]
+        return False
+
+    @provide_session
     def get_dag(self, dag_id, session: Session = None):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired

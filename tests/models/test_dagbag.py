@@ -859,6 +859,39 @@ class TestDagBag(unittest.TestCase):
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
 
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    def test_has_dag_method(self):
+        """Test has_dag method"""
+        dag_id = "example_bash_operator"
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+            example_bash_op_dag = DagBag(include_examples=True).dags.get(dag_id)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+            dag_bag = DagBag(read_dags_from_db=True)
+            dag_bag.get_dag(dag_id)  # Add dag to self.dags
+            assert dag_bag.has_dag(dag_id)
+            assert not dag_bag.has_dag("non_added_dag_id")
+
+        # Check that min_serialized_dag_fetch_interval has passed but
+        # dag is in SerializedDagModel and we return True
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
+            assert dag_bag.has_dag(dag_id)
+
+        # We remove the dag from dag_bag.dags and ensure it returns True
+        dag_bag.dags.pop(dag_id)
+        assert not dag_bag.dags.get(dag_id)
+        assert dag_bag.has_dag(dag_id)
+
+        # We removed dag_id from dag_bag.dags, let's add it back
+        dag_bag.get_dag(dag_id)
+        # Remove the dag from SerializedDagModel
+        SerializedDagModel.remove_dag(dag_id=dag_id)
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
+            assert dag_bag.dags[dag_id]
+            # Even though that we have dag in dag_bag.dags
+            # it's no longer in SerializedDagModel and we should return False
+            assert not dag_bag.has_dag(dag_id)
+
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
         example_dags_folder = airflow.example_dags.__path__[0]

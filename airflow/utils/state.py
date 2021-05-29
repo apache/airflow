@@ -107,6 +107,7 @@ class State:
             FAILED,
             SKIPPED,
             UPSTREAM_FAILED,
+            REMOVED,
         ]
     )
     """
