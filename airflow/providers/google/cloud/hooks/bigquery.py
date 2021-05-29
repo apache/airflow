@@ -437,6 +437,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type exists_ok: bool
         """
         dataset_reference = dataset_reference or {"datasetReference": {}}
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
 
         for param, value in zip(["datasetId", "projectId"], [dataset_id, project_id]):
             specified_param = dataset_reference["datasetReference"].get(param)
