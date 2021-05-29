@@ -17,24 +17,12 @@
 ---
 version: "2.2"
 services:
-  airflow:
-    environment:
-      - BACKEND=mssql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-    depends_on:
-      mssql:
-        condition: service_healthy
   mssql:
-    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=Airflow123
-    healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost",
-             "-U", "sa", "-P", "Airflow123", "-Q", "SELECT 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-    restart: always
+    volumes:
+      # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+      # O_DIRECT parameter for direct writing to the filesystem
+      # https://github.com/microsoft/mssql-docker/issues/13
+      # so we need to mount an external volume for its db location
+      # the external db must allow for parallel testing so external volume is mapped
+      # to the data volume
+      - ${MSSQL_DATA_VOLUME}:/var/opt/mssql

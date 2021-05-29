@@ -673,6 +673,22 @@ function breeze::prepare_command_files() {
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
+    if [[ ${BACKEND} == "mssql" ]]; then
+        local docker_filesystem
+        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker || echo "unknown")
+        if [[ ${docker_filesystem} == "tmpfs" ]]; then
+            # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+            # O_DIRECT parameter for direct writing to the filesystem
+            # https://github.com/microsoft/mssql-docker/issues/13
+            # so we need to mount an external volume for its db location
+            # specified by MSSQL_DATA_VOLUME
+            backend_docker_compose_file="${backend_docker_compose_file}:${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml"
+        else
+            backend_docker_compose_file="${backend_docker_compose_file}:${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml"
+        fi
+    fi
+
+
     local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
     local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
@@ -1422,6 +1438,13 @@ function breeze::parse_arguments() {
                     INTEGRATIONS+=("${INTEGRATION}")
                 fi
             done
+            # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+            # O_DIRECT parameter for direct writing to the filesystem
+            # https://github.com/microsoft/mssql-docker/issues/13
+            # so we need to mount an external volume for its db location
+            # the external db must allow for parallel testing so external volume is mapped
+            # to the data volume. Stop should also clean the volume
+            rm -rf "${MSSQL_DATA_VOLUME:?"MSSQL_DATA_VOLUME should never be empty!"}"/*
             shift
             ;;
         restart)

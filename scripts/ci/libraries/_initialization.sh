@@ -41,12 +41,24 @@ function initialization::create_directories() {
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
     export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
-    export BUILD_CACHE_DIR
     readonly BUILD_CACHE_DIR
+
+    # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+    # O_DIRECT parameter for direct writing to the filesystem
+    # https://github.com/microsoft/mssql-docker/issues/13
+    # so we need to mount an external volume for its db location
+    # the external db must allow for parallel testing so external volume is mapped
+    # to the data volume
+    export MSSQL_DATA_VOLUME="${BUILD_CACHE_DIR}/tmp_mssql_volume"
 
     # Create those folders above in case they do not exist
     mkdir -p "${BUILD_CACHE_DIR}" >/dev/null
     mkdir -p "${FILES_DIR}" >/dev/null
+    mkdir -p "${MSSQL_DATA_VOLUME}" >/dev/null
+    # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
+    # This is a bit scary and we could get by making it group-writeable but the group would have
+    # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
+    chmod a+rwx "${MSSQL_DATA_VOLUME}"
 
     # By default we are not in CI environment GitHub Actions sets CI to "true"
     export CI="${CI="false"}"
