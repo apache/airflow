@@ -34,6 +34,8 @@ services:
     ports:
       - "${WEBSERVER_HOST_PORT}:8080"
       - "${FLOWER_HOST_PORT}:5555"
+    cap_add:
+      - SYS_PTRACE
 volumes:
   sqlite-db-volume:
   postgres-db-volume:

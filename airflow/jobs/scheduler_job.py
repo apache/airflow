@@ -670,6 +670,14 @@ class DagFileProcessor(LoggingMixin):
         return len(dagbag.dags), len(dagbag.import_errors)
 
 
+def _is_parent_process():
+    """
+    Returns True if the current process is the parent process. False if the current process is a child
+    process started by multiprocessing.
+    """
+    return multiprocessing.current_process().name == 'MainProcess'
+
+
 class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
@@ -745,12 +753,20 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
+        if not _is_parent_process():
+            # Only the parent process should perform the cleanup.
+            return
+
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
     def _debug_dump(self, signum, frame):  # pylint: disable=unused-argument
+        if not _is_parent_process():
+            # Only the parent process should perform the debug dump.
+            return
+
         try:
             sig_name = signal.Signals(signum).name  # pylint: disable=no-member
         except Exception:  # pylint: disable=broad-except
