@@ -135,7 +135,7 @@ is periodically executed and rescheduled until it succeeds.
 
     sensor = SFTPSensor(
         task_id="sensor",
-        path='/root/test',
+        path="/root/test",
         execution_timeout=timedelta(seconds=60),
         timeout=3600,
         retries=2,
