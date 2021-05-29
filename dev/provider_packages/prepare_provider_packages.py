@@ -370,14 +370,6 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     return install_requires
 
 
-def get_setup_requirements() -> List[str]:
-    """
-    Returns setup requirements (common for all package for now).
-    :return: setup requirements
-    """
-    return ['setuptools', 'wheel']
-
-
 def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
     """
     Finds extras for the package specified.
@@ -1538,7 +1530,6 @@ def get_provider_jinja_context(
         "INSTALL_REQUIREMENTS": get_install_requirements(
             provider_package_id=provider_details.provider_package_id
         ),
-        "SETUP_REQUIREMENTS": get_setup_requirements(),
         "EXTRAS_REQUIREMENTS": get_package_extras(provider_package_id=provider_details.provider_package_id),
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE": cross_providers_dependencies_table,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": cross_providers_dependencies_table_rst,
@@ -1997,44 +1988,33 @@ def build_provider_packages(
 
     See `list-providers-packages` subcommand for the possible PACKAGE_ID values
     """
+    provider_package_id = package_id
+    with with_group(f"Prepare provider package for '{provider_package_id}'"):
+        current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
+        if tag_exists_for_version(provider_package_id, current_tag, verbose):
+            print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
+            return False
+        print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
+        os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
+        cleanup_remnants(verbose)
+        provider_package = package_id
+        verify_setup_py_prepared(provider_package)
 
-    import tempfile
-
-    # we cannot use context managers because if the directory gets deleted (which bdist_wheel does),
-    # the context manager will throw an exception when trying to delete it again
-    tmp_build_dir = tempfile.TemporaryDirectory().name
-    tmp_dist_dir = tempfile.TemporaryDirectory().name
-    try:
-        provider_package_id = package_id
-        with with_group(f"Prepare provider package for '{provider_package_id}'"):
-            current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
-            if tag_exists_for_version(provider_package_id, current_tag, verbose):
-                print(f"[yellow]The tag {current_tag} exists. Skipping the package.[/]")
-                return False
-            print(f"Changing directory to ${TARGET_PROVIDER_PACKAGES_PATH}")
-            os.chdir(TARGET_PROVIDER_PACKAGES_PATH)
-            cleanup_remnants(verbose)
-            provider_package = package_id
-            verify_setup_py_prepared(provider_package)
-
-            print(f"Building provider package: {provider_package} in format {package_format}")
-            command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
-            if version_suffix is not None:
-                command.extend(['egg_info', '--tag-build', version_suffix])
-            if package_format in ['sdist', 'both']:
-                command.append("sdist")
-            if package_format in ['wheel', 'both']:
-                command.extend(["bdist_wheel", "--bdist-dir", tmp_dist_dir])
-            print(f"Executing command: '{' '.join(command)}'")
-            try:
-                subprocess.check_call(command, stdout=subprocess.DEVNULL)
-            except subprocess.CalledProcessError as ex:
-                print(ex.output.decode())
-                raise Exception("The command returned an error %s", command)
-            print(f"[green]Prepared provider package {provider_package} in format {package_format}[/]")
-    finally:
-        shutil.rmtree(tmp_build_dir, ignore_errors=True)
-        shutil.rmtree(tmp_dist_dir, ignore_errors=True)
+        print(f"Building provider package: {provider_package} in format {package_format}")
+        command = ["python", "-m", "build"]
+        if version_suffix is not None:
+            command.extend(["--config-setting", f"airflow-tag-build={version_suffix}"])
+        if package_format in ['sdist', 'both']:
+            command.append("--sdist")
+        if package_format in ['wheel', 'both']:
+            command.append("--wheel")
+        print(f"Executing command: '{' '.join(command)}'")
+        try:
+            subprocess.check_call(command, stdout=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as ex:
+            print(ex.output.decode())
+            raise Exception("The command returned an error %s", command)
+        print(f"[green]Prepared provider package {provider_package} in format {package_format}[/]")
 
 
 def verify_provider_classes_for_single_provider(imported_classes: List[str], provider_package_id: str):

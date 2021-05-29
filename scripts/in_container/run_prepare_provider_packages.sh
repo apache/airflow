@@ -18,6 +18,12 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
+function install_supported_pypa_build_version() {
+    group_start "Install supported pypa/build version ${AIRFLOW_PYPA_BUILD_VERSION}"
+    pip install "build==${AIRFLOW_PYPA_BUILD_VERSION}"
+    group_end
+}
+
 function copy_sources() {
     group_start "Copy sources"
     echo "==================================================================================="
@@ -136,6 +142,7 @@ setup_provider_packages
 cd "${PROVIDER_PACKAGES_DIR}" || exit 1
 
 install_supported_pip_version
+install_supported_pypa_build_version
 
 PROVIDER_PACKAGES=("${@}")
 get_providers_to_act_on "${@}"
