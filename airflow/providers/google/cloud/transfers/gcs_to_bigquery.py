@@ -219,7 +219,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if time_partitioning is None:
             time_partitioning = {}
         self.bucket = bucket
-        self.source_objects = source_objects
+        self.source_objects = source_objects if isinstance(source_objects, list) else [source_objects]
         self.schema_object = schema_object
 
         # BQ config
@@ -285,8 +285,8 @@ class GCSToBigQueryOperator(BaseOperator):
 
         else:
             schema_fields = self.schema_fields
-
-        source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects] if type(self.source_objects) is list else [f'gs://{self.bucket}/{self.source_objects}'] 
+        
+        source_uris = [f'gs://{self.bucket}/{source_object}' for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
