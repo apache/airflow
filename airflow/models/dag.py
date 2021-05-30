@@ -1216,7 +1216,7 @@ class DAG(LoggingMixin):
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
         if include_parentdag and self.is_subdag and self.parent_dag is not None:
-            p_dag = self.parent_dag.sub_dag(
+            p_dag = self.parent_dag.partial_subset(
                 task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
                 include_downstream=True,
@@ -1297,7 +1297,7 @@ class DAG(LoggingMixin):
                             external_dag = dag_bag.get_dag(tii.dag_id)
                             if not external_dag:
                                 raise AirflowException(f"Could not find dag {tii.dag_id}")
-                            downstream = external_dag.sub_dag(
+                            downstream = external_dag.partial_subset(
                                 task_ids_or_regex=fr"^{tii.task_id}$",
                                 include_upstream=False,
                                 include_downstream=True,
