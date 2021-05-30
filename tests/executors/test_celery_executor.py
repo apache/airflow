@@ -522,6 +522,7 @@ def register_signals():
     signal.signal(signal.SIGUSR2, orig_sigusr2)
 
 
+@pytest.mark.quarantined
 def test_send_tasks_to_celery_hang(register_signals):  # pylint: disable=unused-argument
     """
     Test that celery_executor does not hang after many runs.
