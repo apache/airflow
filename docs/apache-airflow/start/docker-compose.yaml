@@ -24,7 +24,7 @@
 # The following variables are supported:
 #
 # AIRFLOW_IMAGE_NAME         - Docker image name used to run Airflow.
-#                              Default: apache/airflow:master-python3.8
+#                              Default: apache/airflow:|version|
 # AIRFLOW_UID                - User ID in Airflow containers
 #                              Default: 50000
 # AIRFLOW_GID                - Group ID in Airflow containers
@@ -56,6 +56,7 @@ x-airflow-common:
     - ./plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-50000}"
   depends_on:
+    &airflow-common-depends-on
     redis:
       condition: service_healthy
     postgres:
@@ -98,6 +99,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-scheduler:
     <<: *airflow-common
@@ -108,6 +113,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-worker:
     <<: *airflow-common
@@ -120,6 +129,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-init:
     <<: *airflow-common
@@ -142,6 +155,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
 volumes:
   postgres-db-volume:
