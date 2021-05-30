@@ -26,6 +26,6 @@ docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/main.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
-    --tag "$(basename "$0")"
+    --tag "my-github-main:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-github-main:0.0.1"

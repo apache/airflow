@@ -601,14 +601,14 @@ USER ${AIRFLOW_UID}
 To build an image build and run a shell, run:
 
 ```shell script
-docker build . -t my-airflow
+docker build . --tag my-image:0.0.1
 docker run  -ti \
     --rm \
     -v "$PWD/data:/opt/airflow/" \
     -v "$PWD/keys/:/keys/" \
     -p 8080:8080 \
     -e AIRFLOW__CORE__LOAD_EXAMPLES=True \
-    my-airflow bash
+    my-image:0.0.1 bash
 ```
 
 ### Additional Verification

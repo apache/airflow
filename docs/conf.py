@@ -258,9 +258,14 @@ if PACKAGE_NAME == 'apache-airflow':
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
     ]
+    # Replace "|version|" in links
     manual_substitutions_in_generated_html = [
         "installation.html",
     ]
+
+if PACKAGE_NAME == 'docker-stack':
+    # Replace "|version|" inside ```` quotes
+    manual_substitutions_in_generated_html = ["build.html"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
