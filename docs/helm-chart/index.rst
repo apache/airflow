@@ -32,6 +32,11 @@ Helm Chart for Apache Airflow
     manage-logs
     keda
     using-additional-containers
+
+.. toctree::
+    :hidden:
+    :caption: Guides
+
     production-guide
 
 .. toctree::
