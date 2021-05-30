@@ -116,7 +116,7 @@ argcomplete==1.12.3
 arrow==1.1.0
 asana==0.10.3
 asn1crypto==1.4.0
-astroid==2.5.6
+astroid==2.5.7
 async-generator==1.10
 async-timeout==3.0.1
 atlasclient==1.0.0
@@ -152,16 +152,16 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.5b1
 blinker==1.4
-boto3==1.17.83
+boto3==1.17.84
 boto==2.49.0
-botocore==1.20.83
+botocore==1.20.84
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
 cassandra-driver==3.20.2
 cattrs==1.0.0
 celery==4.4.7
-certifi==2020.12.5
+certifi==2021.5.30
 cffi==1.14.5
 cfgv==3.3.0
 cgroupspy==0.1.6
@@ -186,7 +186,7 @@ datadog==0.41.0
 decorator==5.0.9
 defusedxml==0.7.1
 dill==0.3.1.1
-distlib==0.3.1
+distlib==0.3.2
 distributed==2.19.0
 dnspython==1.16.0
 docker-pycreds==0.4.0
@@ -266,7 +266,7 @@ hmsclient==0.1.1
 httpcore==0.13.3
 httplib2==0.17.4
 httpx==0.18.1
-humanize==3.5.0
+humanize==3.6.0
 hvac==0.10.14
 identify==2.2.6
 idna-ssl==1.1.0
@@ -444,7 +444,7 @@ smmap==4.0.0
 snakebite-py3==3.0.5
 sniffio==1.2.0
 snowballstemmer==2.1.0
-snowflake-connector-python==2.4.3
+snowflake-connector-python==2.4.4
 snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.4.0
 soupsieve==2.2.1

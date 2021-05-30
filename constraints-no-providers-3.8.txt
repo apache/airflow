@@ -34,9 +34,9 @@ bcrypt==3.2.0
 billiard==3.6.4.0
 blinker==1.4
 cachetools==4.2.2
-cattrs==1.7.0
+cattrs==1.5.0
 celery==4.4.7
-certifi==2020.12.5
+certifi==2021.5.30
 cffi==1.14.5
 cgroupspy==0.1.6
 chardet==3.0.4
@@ -48,10 +48,10 @@ colorlog==5.0.1
 commonmark==0.9.1
 croniter==1.0.13
 cryptography==3.4.7
-dask==2021.5.0
+dask==2021.5.1
 defusedxml==0.7.1
 dill==0.3.2
-distlib==0.3.1
+distlib==0.3.2
 distributed==2.19.0
 dnspython==1.16.0
 docutils==0.16
@@ -68,7 +68,7 @@ gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.13.3
 httpx==0.18.1
-humanize==3.5.0
+humanize==3.6.0
 idna==2.10
 importlib-metadata==1.7.0
 importlib-resources==1.5.0
