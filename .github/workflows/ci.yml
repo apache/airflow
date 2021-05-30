@@ -411,8 +411,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
           VERBOSE: false
-      - run: sleep 600
-
 
   static-checks-pylint:
     timeout-minutes: 30
