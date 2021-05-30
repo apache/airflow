@@ -1479,7 +1479,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
         request_conf = request.values.get('conf')
-        request_execution_date = request.values.get('execution_date', default=None)
+        request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1487,7 +1487,7 @@ class Airflow(AirflowBaseView):
 
             dag = current_app.dag_bag.get_dag(dag_id)
             doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
-            form = DateTimeForm(data={'execution_date': timezone.utcnow()})
+            form = DateTimeForm(data={'execution_date': request_execution_date})
 
             if request_conf:
                 default_conf = request_conf
@@ -1510,10 +1510,7 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
-        if request_execution_date is not None:
-            execution_date = timezone.parse(request_execution_date)
-        else:
-            execution_date = timezone.utcnow()
+        execution_date = timezone.parse(request_execution_date)
 
         dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
         if dr:
