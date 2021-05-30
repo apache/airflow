@@ -167,10 +167,8 @@
       default: "32"
     - name: dag_concurrency
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``concurrency``,
-        which is defaulted as ``dag_concurrency``.
+        The maximum number of task instances allowed to run concurrently in each DAG Run for that
+        DAG. Can be overridden by ``concurrency`` on DAG level.
       version_added: ~
       type: string
       example: ~
