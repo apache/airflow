@@ -95,7 +95,9 @@ class LocalTaskJob(BaseJob):
             job_id=self.id,
             pool=self.pool,
         ):
-            self.log.info("Task is not able to be run")
+            if self.task_instance.state != State.RUNNING:
+                # Only log about this for non-running tasks.
+                self.log.info("Task is not able to be run")
             return
 
         try:

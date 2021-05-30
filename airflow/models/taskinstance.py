@@ -864,8 +864,8 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
             failed = True
 
-            if not (self.state == State.RUNNING and dep_status.dep_name in {"Task Instance State", "Task Instance Not Running"}):
-                # Do not log about ValidStateDep or TaskNotRunningDep for running tasks to avoid confusion.
+            if self.state != State.RUNNING:
+                # Only log about dependencies for non-running tasks.
                 verbose_aware_logger(
                     "Dependencies not met for %s, dependency '%s' FAILED: %s",
                     self,
