@@ -2182,3 +2182,28 @@ def test_sensor_timeout(mode, retries):
 
     assert mock_on_failure.called
     assert ti.state == State.FAILED
+
+
+@pytest.mark.parametrize("state,log_called", [(State.RUNNING, False), (State.FAILED, True)])
+def test_task_instance_running(state, log_called):
+    """
+    Test that TaskInstance in running state does not cause redundant logging.
+    """
+    from airflow.utils.state import State
+    from airflow.jobs.local_task_job import LocalTaskJob
+
+    with DAG('test_task_instance_running', start_date=DEFAULT_DATE) as dag:
+        task = DummyOperator(task_id='task')
+
+    ti = TI(task=task, execution_date=DEFAULT_DATE)
+
+    dag.clear()
+
+    ti.set_state(state)
+
+    run_job = LocalTaskJob(task_instance=ti)
+
+    with mock.patch("airflow.models.taskinstance.TaskInstance.log") as mock_log:
+        run_job.run()
+        assert mock_log.info.called == log_called
+
