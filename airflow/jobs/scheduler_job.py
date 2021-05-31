@@ -1600,13 +1600,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         if session.bind.dialect.name == 'mssql':
             active_dagruns_filter = or_(
-                *[
+                *(
                     and_(
                         DagRun.dag_id == dm.dag_id,
                         DagRun.execution_date == dm.next_dagrun,
                     )
                     for dm in dag_models
-                ]
+                )
             )
         else:
             active_dagruns_filter = tuple_(DagRun.dag_id, DagRun.execution_date).in_(
