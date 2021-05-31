@@ -97,7 +97,7 @@ class TaskInstanceBatchFormSchema(Schema):
 class ClearTaskInstanceFormSchema(Schema):
     """Schema for handling the request of clearing task instance of a Dag"""
 
-    dry_run = fields.Boolean(default=True)
+    dry_run = fields.Boolean(missing=True)
     start_date = fields.DateTime(missing=None, validate=validate_istimezone)
     end_date = fields.DateTime(missing=None, validate=validate_istimezone)
     only_failed = fields.Boolean(missing=True)

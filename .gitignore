@@ -85,6 +85,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/rtd-deprecation/_build/
 docs/_doctrees/
 docs/_inventory_cache/
 docs/*/_api/
@@ -149,7 +150,6 @@ tramp
 rat-results.txt
 
 # Git stuff
-.gitattributes
 # Kubernetes generated templated files
 *.generated
 *.tar.gz

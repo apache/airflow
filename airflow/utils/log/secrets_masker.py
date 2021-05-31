@@ -20,25 +20,12 @@ import logging
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
 
-try:
-    # 3.8+
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
-try:
-    # 3.9+
-    from functools import cache
-except ImportError:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
-
+from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
-    RedactableItem = TypeVar('RedctableItem')
+    RedactableItem = TypeVar('RedactableItem')
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
@@ -155,7 +142,7 @@ class SecretsMasker(logging.Filter):
                 if k in self._record_attrs_to_ignore:
                     continue
                 record.__dict__[k] = self.redact(v)
-            if record.exc_info:
+            if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
                 # I'm not sure if this is a good idea!
                 exc.args = (self.redact(v) for v in exc.args)
@@ -214,6 +201,8 @@ class SecretsMasker(logging.Filter):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
+            if not secret:
+                return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                 self.patterns.add(pattern)

@@ -1,4 +1,4 @@
-Airflow 2.1.0, 2021-05-20
+Airflow 2.1.0, 2021-05-21
 -------------------------
 
 New Features
@@ -43,6 +43,7 @@ New Features
 Improvements
 """"""""""""
 
+- Add optional result handler callback to ``DbApiHook`` (#15581)
 - Update Flask App Builder limit to recently released 3.3 (#15792)
 - Prevent creating flask sessions on REST API requests (#15295)
 - Sync DAG specific permissions when parsing (#15311)
@@ -82,6 +83,7 @@ Improvements
 Bug Fixes
 """""""""
 
+- Fix 500 error from ``updateTaskInstancesState`` API endpoint when ``dry_run`` not passed (#15889)
 - Ensure that task preceding a PythonVirtualenvOperator doesn't fail (#15822)
 - Prevent mixed case env vars from crashing processes like worker (#14380)
 - Fixed type annotations in DAG decorator (#15778)

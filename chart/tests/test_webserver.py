@@ -60,11 +60,15 @@ class WebserverDeploymentTest(unittest.TestCase):
             == "/mypath/path/health"
         )
 
-    def test_should_not_contain_host_header_if_host_empty_string(self):
-        docs = render_chart(
-            values={},
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
+    @parameterized.expand(
+        [
+            ({"config": {"webserver": {"base_url": ""}}},),
+            ({},),
+        ]
+    )
+    def test_should_not_contain_host_header(self, values):
+        print(values)
+        docs = render_chart(values=values, show_only=["templates/webserver/webserver-deployment.yaml"])
 
         assert (
             jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
@@ -75,38 +79,27 @@ class WebserverDeploymentTest(unittest.TestCase):
             is None
         )
 
-    def test_should_not_contain_host_header_if_base_url_not_set(self):
+    def test_should_use_templated_base_url_for_probes(self):
         docs = render_chart(
             values={
                 "config": {
-                    "webserver": {"base_url": ""},
+                    "webserver": {
+                        "base_url": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path"
+                    },
                 }
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
+        container = jmespath.search("spec.template.spec.containers[0]", docs[0])
 
-        assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
-            is None
+        assert {"name": "Host", "value": "RELEASE-NAME.com"} in jmespath.search(
+            "livenessProbe.httpGet.httpHeaders", container
         )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
-            is None
+        assert {"name": "Host", "value": "RELEASE-NAME.com"} in jmespath.search(
+            "readinessProbe.httpGet.httpHeaders", container
         )
-
-    def test_should_not_contain_host_header_by_default(self):
-        docs = render_chart(
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
+        assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
+        assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
 
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
         docs = render_chart(
@@ -132,18 +125,34 @@ class WebserverDeploymentTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "webserver": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -282,3 +291,95 @@ class WebserverDeploymentTest(unittest.TestCase):
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert ["bash", "-c", "exec airflow webserver"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"webserver": {"command": command, "args": args}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={"webserver": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+
+class WebserverServiceTest(unittest.TestCase):
+    def test_default_service(self):
+        docs = render_chart(
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert "RELEASE-NAME-webserver" == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0]) is None
+        assert {"tier": "airflow", "component": "webserver", "release": "RELEASE-NAME"} == jmespath.search(
+            "spec.selector", docs[0]
+        )
+        assert "ClusterIP" == jmespath.search("spec.type", docs[0])
+        assert {"name": "airflow-ui", "protocol": "TCP", "port": 8080} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+
+    def test_overrides(self):
+        docs = render_chart(
+            values={
+                "ports": {"airflowUI": 9000},
+                "webserver": {
+                    "service": {
+                        "type": "LoadBalancer",
+                        "loadBalancerIP": "127.0.0.1",
+                        "annotations": {"foo": "bar"},
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
+        assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
+        assert {"name": "airflow-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
+            "spec.ports", docs[0]
+        )
+        assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+
+
+class WebserverConfigmapTest(unittest.TestCase):
+    def test_no_webserver_config_configmap_by_default(self):
+        docs = render_chart(show_only=["templates/configmaps/webserver-configmap.yaml"])
+        assert 0 == len(docs)
+
+    def test_webserver_config_configmap(self):
+        docs = render_chart(
+            values={"webserver": {"webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}"}},
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+
+        assert "ConfigMap" == docs[0]["kind"]
+        assert "RELEASE-NAME-webserver-config" == jmespath.search("metadata.name", docs[0])
+        assert (
+            "CSRF_ENABLED = True  # RELEASE-NAME"
+            == jmespath.search('data."webserver_config.py"', docs[0]).strip()
+        )

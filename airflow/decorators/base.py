@@ -70,11 +70,9 @@ def get_unique_task_id(
         return task_id
     core = re.split(r'__\d+$', task_id)[0]
     suffixes = sorted(
-        [
-            int(re.split(r'^.+__', task_id)[1])
-            for task_id in dag.task_ids
-            if re.match(rf'^{core}__\d+$', task_id)
-        ]
+        int(re.split(r'^.+__', task_id)[1])
+        for task_id in dag.task_ids
+        if re.match(rf'^{core}__\d+$', task_id)
     )
     if not suffixes:
         return f'{core}__1'
@@ -161,6 +159,20 @@ class DecoratedOperator(BaseOperator):
                 f'Returned output was type {type(return_value)} expected dictionary for multiple_outputs'
             )
         return return_value
+
+    def _hook_apply_defaults(self, *args, **kwargs):
+        if 'python_callable' not in kwargs:
+            return args, kwargs
+
+        python_callable = kwargs['python_callable']
+        default_args = kwargs.get('default_args') or {}
+        op_kwargs = kwargs.get('op_kwargs') or {}
+        f_sig = signature(python_callable)
+        for arg in f_sig.parameters:
+            if arg not in op_kwargs and arg in default_args:
+                op_kwargs[arg] = default_args[arg]
+        kwargs['op_kwargs'] = op_kwargs
+        return args, kwargs
 
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name

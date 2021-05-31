@@ -55,18 +55,34 @@ class SchedulerTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "scheduler": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -215,3 +231,136 @@ class SchedulerTest(unittest.TestCase):
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            ("LocalExecutor", True, None, None),
+        ]
+    )
+    def test_scheduler_update_strategy(
+        self, executor, persistence, update_strategy, expected_update_strategy
+    ):
+        """updateStrategy should only be used when we have LocalExecutor and workers.persistence"""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"persistence": {"enabled": persistence}},
+                "scheduler": {"updateStrategy": update_strategy},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+
+    @parameterized.expand(
+        [
+            ("LocalExecutor", False, None, None),
+            ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
+            ("LocalExecutor", True, {"type": "Recreate"}, None),
+            ("CeleryExecutor", True, None, None),
+            ("CeleryExecutor", False, None, None),
+            ("CeleryExecutor", True, {"type": "Recreate"}, {"type": "Recreate"}),
+            (
+                "CeleryExecutor",
+                False,
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+        ]
+    )
+    def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
+        """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"persistence": {"enabled": persistence}},
+                "scheduler": {"strategy": strategy},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert expected_strategy == jmespath.search("spec.strategy", docs[0])
+
+    def test_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert ["bash", "-c", "exec airflow scheduler"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"scheduler": {"command": command, "args": args}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={"scheduler": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_log_groomer_collector_can_be_disabled(self):
+        docs = render_chart(
+            values={"scheduler": {"logGroomerSidecar": {"enabled": False}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+
+    def test_log_groomer_collector_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
+        assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_log_groomer_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"scheduler": {"logGroomerSidecar": {"command": command, "args": args}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    def test_log_groomer_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "logGroomerSidecar": {
+                        "command": ["{{ .Release.Name }}"],
+                        "args": ["{{ .Release.Service }}"],
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])

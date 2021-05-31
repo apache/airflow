@@ -75,7 +75,7 @@ Because Airflow uses time-zone-aware datetime objects. If your code creates date
     from airflow.utils import timezone
 
     now = timezone.utcnow()
-    a_date = timezone.datetime(2017,1,1)
+    a_date = timezone.datetime(2017, 1, 1)
 
 
 Interpretation of naive datetime objects
@@ -90,14 +90,11 @@ words if you have a default time zone setting of ``Europe/Amsterdam`` and create
 
 .. code-block:: python
 
-    default_args=dict(
-        start_date=datetime(2016, 1, 1),
-        owner='airflow'
-    )
+    default_args = dict(start_date=datetime(2016, 1, 1), owner="airflow")
 
-    dag = DAG('my_dag', default_args=default_args)
-    op = DummyOperator(task_id='dummy', dag=dag)
-    print(op.owner) # Airflow
+    dag = DAG("my_dag", default_args=default_args)
+    op = DummyOperator(task_id="dummy", dag=dag)
+    print(op.owner)  # Airflow
 
 Unfortunately, during DST transitions, some datetimes don’t exist or are ambiguous.
 In such situations, pendulum raises an exception. That’s why you should always create aware
@@ -137,14 +134,11 @@ using ``pendulum``.
 
     local_tz = pendulum.timezone("Europe/Amsterdam")
 
-    default_args=dict(
-        start_date=datetime(2016, 1, 1, tzinfo=local_tz),
-        owner='airflow'
-    )
+    default_args = dict(start_date=datetime(2016, 1, 1, tzinfo=local_tz), owner="airflow")
 
-    dag = DAG('my_tz_dag', default_args=default_args)
-    op = DummyOperator(task_id='dummy', dag=dag)
-    print(dag.timezone) # <Timezone [Europe/Amsterdam]>
+    dag = DAG("my_tz_dag", default_args=default_args)
+    op = DummyOperator(task_id="dummy", dag=dag)
+    print(dag.timezone)  # <Timezone [Europe/Amsterdam]>
 
 Please note that while it is possible to set a ``start_date`` and ``end_date`` for Tasks always the DAG timezone
 or global timezone (in that order) will be used to calculate the next execution date. Upon first encounter

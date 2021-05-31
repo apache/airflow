@@ -106,7 +106,7 @@ When we import this package, it should print the above message.
     import setuptools
 
     setuptools.setup(
-        name='airflow_operators',
+        name="airflow_operators",
     )
 
 5. Build the wheel:

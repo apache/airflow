@@ -136,7 +136,7 @@ function setUpNodeHighlighting(focusItem = null) {
 function searchboxHighlighting(s) {
   let match = null;
 
-  d3.selectAll('g.nodes g.node').forEach(function forEach(d) {
+  d3.selectAll('g.nodes g.node').filter(function forEach(d) {
     if (s === '') {
       d3.select('g.edgePaths')
         .transition().duration(duration)
@@ -165,6 +165,7 @@ function searchboxHighlighting(s) {
           .style('stroke-width', initialStrokeWidth);
       }
     }
+    return null;
   });
 
   // This moves the matched node to the center of the graph area

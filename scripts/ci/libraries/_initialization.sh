@@ -23,8 +23,10 @@ CURRENT_KUBERNETES_VERSIONS=()
 CURRENT_KUBERNETES_MODES=()
 CURRENT_POSTGRES_VERSIONS=()
 CURRENT_MYSQL_VERSIONS=()
+CURRENT_MSSQL_VERSIONS=()
 CURRENT_KIND_VERSIONS=()
 CURRENT_HELM_VERSIONS=()
+CURRENT_EXECUTOR=()
 ALL_PYTHON_MAJOR_MINOR_VERSIONS=()
 INSTALLED_PROVIDERS=()
 
@@ -73,6 +75,7 @@ function initialization::initialize_base_variables() {
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
+    export MSSQL_HOST_PORT=${MSSQL_HOST_PORT:="21433"}
     export FLOWER_HOST_PORT=${FLOWER_HOST_PORT:="25555"}
     export REDIS_HOST_PORT=${REDIS_HOST_PORT:="26379"}
 
@@ -102,6 +105,10 @@ function initialization::initialize_base_variables() {
     CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
+    # Currently supported versions of MSSQL
+    CURRENT_MSSQL_VERSIONS+=("2017-latest" "2019-latest")
+    export CURRENT_MSSQL_VERSIONS
+
     BACKEND=${BACKEND:="sqlite"}
     export BACKEND
 
@@ -110,6 +117,9 @@ function initialization::initialize_base_variables() {
 
     # Default MySQL versions
     export MYSQL_VERSION=${MYSQL_VERSION:=${CURRENT_MYSQL_VERSIONS[0]}}
+
+    #Default MS SQL version
+    export MSSQL_VERSION=${MSSQL_VERSION:=${CURRENT_MSSQL_VERSIONS[0]}}
 
     # If set to true, the database will be reset at entry. Works for Postgres and MySQL
     export DB_RESET=${DB_RESET:="false"}
@@ -174,7 +184,7 @@ function initialization::initialize_dockerhub_variables() {
 
     # You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
     # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
 }
 
 # Determine available integrations
@@ -476,8 +486,6 @@ function initialization::initialize_image_build_variables() {
 function initialization::initialize_provider_package_building() {
     # Version suffix for PyPI packaging
     export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI=}"
-    # Artifact name suffix for SVN packaging
-    export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN=}"
 
 }
 
@@ -664,7 +672,6 @@ Host variables:
 Version suffix variables:
 
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN}
 
 Git variables:
 
@@ -793,9 +800,8 @@ function initialization::make_constants_read_only() {
     readonly KUBERNETES_VERSION
     readonly KIND_VERSION
     readonly HELM_VERSION
-    readonly EXECUTOR
     readonly KUBECTL_VERSION
-
+    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -873,7 +879,6 @@ function initialization::make_constants_read_only() {
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
     readonly VERSION_SUFFIX_FOR_PYPI
-    readonly VERSION_SUFFIX_FOR_SVN
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
@@ -901,6 +906,7 @@ function initialization::make_constants_read_only() {
     readonly CURRENT_KUBERNETES_MODES
     readonly CURRENT_POSTGRES_VERSIONS
     readonly CURRENT_MYSQL_VERSIONS
+    readonly CURRENT_MSSQL_VERSIONS
     readonly CURRENT_KIND_VERSIONS
     readonly CURRENT_HELM_VERSIONS
     readonly CURRENT_EXECUTOR

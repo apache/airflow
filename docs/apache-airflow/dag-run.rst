@@ -96,22 +96,23 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
 
 
     default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5)
+        "owner": "airflow",
+        "depends_on_past": False,
+        "email": ["airflow@example.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
     }
 
     dag = DAG(
-        'tutorial',
+        "tutorial",
         default_args=default_args,
         start_date=datetime(2015, 12, 1),
-        description='A simple tutorial DAG',
-        schedule_interval='@daily',
-        catchup=False)
+        description="A simple tutorial DAG",
+        schedule_interval="@daily",
+        catchup=False,
+    )
 
 In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM,
 (or from the command line), a single DAG Run will be created, with an `execution_date` of 2016-01-01,
@@ -214,7 +215,7 @@ Example of a parameterized DAG:
     dag = DAG("example_parameterized_dag", schedule_interval=None, start_date=days_ago(2))
 
     parameterized_task = BashOperator(
-        task_id='parameterized_task',
+        task_id="parameterized_task",
         bash_command="echo value: {{ dag_run.conf['conf1'] }}",
         dag=dag,
     )

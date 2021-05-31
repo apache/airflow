@@ -36,3 +36,32 @@
 #errorHeading {
   background-color: #d6d8d9; /* same color as Bootstrap's Dark Alert */
 }
+
+.dag-import-error {
+  position: relative;
+  white-space: pre;
+  height: 14px;
+  line-height: 14px; /* show only one line of 14px text */
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.expanded-error {
+  height: 100%;
+}
+
+.dag-import-error::after {
+  /* symbol for "opening" panels */
+  font-family: FontAwesome;/* stylelint-disable-line font-family-no-missing-generic-family-keyword */
+  content: "\f078";
+  float: right;
+  color: #e43921;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.dag-import-error.expanded-error::after {
+  /* symbol for "closing" panels */
+  content: "\f054";
+}

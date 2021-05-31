@@ -18,11 +18,7 @@
 import logging
 from typing import Dict, Iterator, List, Optional, Tuple
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils.helpers import render_log_filename

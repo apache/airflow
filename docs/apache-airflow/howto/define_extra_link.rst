@@ -36,16 +36,15 @@ The following code shows how to add extra links to an operator via Plugins:
 
 
     class GoogleLink(BaseOperatorLink):
-        name = 'Google'
+        name = "Google"
 
         def get_link(self, operator, dttm):
             return "https://www.google.com"
 
+
     class MyFirstOperator(BaseOperator):
 
-        operator_extra_links = (
-            GoogleLink(),
-        )
+        operator_extra_links = (GoogleLink(),)
 
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
@@ -53,10 +52,13 @@ The following code shows how to add extra links to an operator via Plugins:
         def execute(self, context):
             self.log.info("Hello World!")
 
+
     # Defining the plugin class
     class AirflowExtraLinkPlugin(AirflowPlugin):
         name = "extra_link_plugin"
-        operator_extra_links = [GoogleLink(), ]
+        operator_extra_links = [
+            GoogleLink(),
+        ]
 
 .. note:: Operator Extra Links should be registered via Airflow Plugins or custom Airflow Provider to work.
 
@@ -83,24 +85,28 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
   from airflow.models.baseoperator import BaseOperatorLink
   from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
+
   class S3LogLink(BaseOperatorLink):
-      name = 'S3'
+      name = "S3"
 
       # Add list of all the operators to which you want to add this OperatorLinks
       # Example: operators = [GCSToS3Operator, GCSToBigQueryOperator]
       operators = [GCSToS3Operator]
 
       def get_link(self, operator, dttm):
-          return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
+          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
               dag_id=operator.dag_id,
               task_id=operator.task_id,
               execution_date=dttm,
           )
 
+
   # Defining the plugin class
   class AirflowExtraLinkPlugin(AirflowPlugin):
       name = "extra_link_plugin"
-      operator_extra_links = [S3LogLink(), ]
+      operator_extra_links = [
+          S3LogLink(),
+      ]
 
 
 
@@ -117,25 +123,29 @@ Console, but if we wanted to change that link we could:
     from airflow.providers.google.cloud.operators.bigquery import BigQueryOperator
 
     # Change from https to http just to display the override
-    BIGQUERY_JOB_DETAILS_LINK_FMT = 'http://console.cloud.google.com/bigquery?j={job_id}'
+    BIGQUERY_JOB_DETAILS_LINK_FMT = "http://console.cloud.google.com/bigquery?j={job_id}"
 
 
     class BigQueryConsoleLink(BaseOperatorLink):
         """
         Helper class for constructing BigQuery link.
         """
-        name = 'BigQuery Console'
+
+        name = "BigQuery Console"
         operators = [BigQueryOperator]
 
         def get_link(self, operator, dttm):
             ti = TaskInstance(task=operator, execution_date=dttm)
-            job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
-            return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
+            job_id = ti.xcom_pull(task_ids=operator.task_id, key="job_id")
+            return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
+
 
     # Defining the plugin class
     class AirflowExtraLinkPlugin(AirflowPlugin):
         name = "extra_link_plugin"
-        operator_extra_links = [BigQueryConsoleLink(), ]
+        operator_extra_links = [
+            BigQueryConsoleLink(),
+        ]
 
 
 **Adding Operator Links via Providers**

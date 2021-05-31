@@ -24,10 +24,15 @@ metadata:
   {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
   {{- end }}
 spec:
-{{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+  {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
   initContainers:
-{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
-{{- end }}
+    {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+    {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 4 }}
+    {{- end }}
+    {{- if .Values.workers.extraInitContainers }}
+    {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
+    {{- end }}
+  {{- end }}
   containers:
     - args: []
       command: []
@@ -55,20 +60,8 @@ spec:
           subPath: airflow_local_settings.py
           readOnly: true
 {{- end }}
-{{- if .Values.dags.gitSync.knownHosts }}
-        - mountPath: /etc/git-secret/known_hosts
-          name: git-sync-known-hosts
-          subPath: known_hosts
-{{- end }}
-{{- if .Values.dags.gitSync.sshKeySecret }}
-        - mountPath: /etc/git-secret/ssh
-          name: git-sync-ssh-key
-          subPath: ssh
-{{- end }}
 {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
-        - mountPath: {{ include "airflow_dags_mount_path" . }}
-          name: dags
-          readOnly: true
+        {{- include "airflow_dags_mount" . | nindent 8 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
@@ -95,26 +88,20 @@ spec:
   - name: dags
     emptyDir: {}
   {{- end }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
-{{- include "git_sync_ssh_key_volume" . | indent 2 }}
-  {{- end }}
-{{- if .Values.logs.persistence.enabled }}
+  {{- if .Values.logs.persistence.enabled }}
   - name: logs
     persistentVolumeClaim:
       claimName: {{ template "airflow_logs_volume_claim" . }}
-{{- else }}
+  {{- else }}
   - emptyDir: {}
     name: logs
-{{- end }}
-{{- if .Values.dags.gitSync.knownHosts }}
-  - configMap:
-      defaultMode: 288
-      name: {{ include "airflow_config" . }}
-    name: git-sync-known-hosts
-{{- end }}
+  {{- end }}
+  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+  {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
+  {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
-{{- if .Values.workers.extraVolumes }}
-{{ toYaml .Values.workers.extraVolumes | indent 2 }}
-{{- end }}
+  {{- if .Values.workers.extraVolumes }}
+  {{ toYaml .Values.workers.extraVolumes | nindent 2 }}
+  {{- end }}

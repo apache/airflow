@@ -33,7 +33,7 @@ class TestDingdingHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id=self.conn_id,
-                conn_type='http',
+                conn_type='dingding',
                 host='https://oapi.dingtalk.com',
                 password='you_token_here',
             )

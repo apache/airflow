@@ -53,6 +53,7 @@ You can use them in your DAGs as:
 .. code-block:: python
 
     from airflow.models import Variable
+
     foo = Variable.get("foo")
     foo_json = Variable.get("foo_baz", deserialize_json=True)
 

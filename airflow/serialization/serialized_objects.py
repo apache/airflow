@@ -502,7 +502,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
             elif k == "deps":
                 v = cls._deserialize_deps(v)
-            elif k in cls._decorated_fields or k not in op.get_serialized_fields():
+            elif (
+                k in cls._decorated_fields
+                or k not in op.get_serialized_fields()  # pylint: disable=unsupported-membership-test
+            ):
                 v = cls._deserialize(v)
             # else use v as it is
 

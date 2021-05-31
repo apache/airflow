@@ -180,9 +180,8 @@ fields. They are also included in the context dictionary given to an Operator's 
 .. code-block:: python
 
         class MyOperator(BaseOperator):
-
             def execute(self, context):
-                logging.info(context['execution_date'])
+                logging.info(context["execution_date"])
 
 Note that ``ds`` refers to date_string, not date start as may be confusing to some.
 
@@ -208,11 +207,11 @@ simple dictionary.
 
 
     for i in range(10):
-        dag_id = f'foo_{i}'
+        dag_id = f"foo_{i}"
         globals()[dag_id] = DAG(dag_id)
 
         # or better, call a function that returns a DAG object!
-        other_dag_id = f'bar_{i}'
+        other_dag_id = f"bar_{i}"
         globals()[other_dag_id] = create_dag(other_dag_id)
 
 Even though Airflow supports multiple DAG definition per python file, dynamically generated or otherwise, it is not
@@ -244,27 +243,17 @@ commonly attempted in ``user_defined_macros``.
 .. code-block:: python
 
         dag = DAG(
-            ...
-            user_defined_macros={
-                'my_custom_macro': 'day={{ ds }}'
-            }
+            # ...
+            user_defined_macros={"my_custom_macro": "day={{ ds }}"}
         )
 
-        bo = BashOperator(
-            task_id='my_task',
-            bash_command="echo {{ my_custom_macro }}",
-            dag=dag
-        )
+        bo = BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}", dag=dag)
 
 This will echo "day={{ ds }}" instead of "day=2020-01-01" for a dagrun with the execution date 2020-01-01 00:00:00.
 
 .. code-block:: python
 
-        bo = BashOperator(
-            task_id='my_task',
-            bash_command="echo day={{ ds }}",
-            dag=dag
-        )
+        bo = BashOperator(task_id="my_task", bash_command="echo day={{ ds }}", dag=dag)
 
 By using the ds macros directly in the template_field, the rendered value results in "day=2020-01-01".
 
@@ -318,15 +307,14 @@ upstream task.
     def b_func():
         pass
 
-    @dag(
-        schedule_interval='@once',
-        start_date=datetime(2021, 1, 1)
-    )
+
+    @dag(schedule_interval="@once", start_date=datetime(2021, 1, 1))
     def my_dag():
         a = a_func()
         b = b_func()
 
         a >> b
+
 
     dag = my_dag()
 

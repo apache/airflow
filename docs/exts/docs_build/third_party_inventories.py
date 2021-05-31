@@ -18,6 +18,7 @@
 THIRD_PARTY_INDEXES = {
     'boto3': 'https://boto3.amazonaws.com/v1/documentation/api/latest',
     'celery': 'https://docs.celeryproject.org/en/stable',
+    'docker': 'https://docker-py.readthedocs.io/en/stable',
     'hdfs': 'https://hdfscli.readthedocs.io/en/latest',
     'jinja2': 'https://jinja.palletsprojects.com/en/2.11.x',
     'mongodb': 'https://pymongo.readthedocs.io/en/3.11.3',

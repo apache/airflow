@@ -139,7 +139,9 @@ For example:
 
         import os
 
-        from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
+        from airflow.providers.google.cloud.operators.bigquery import (
+            BigQueryCreateEmptyDatasetOperator,
+        )
 
         IMPERSONATION_CHAIN = "impersonated_account@your_project_id.iam.gserviceaccount.com"
 

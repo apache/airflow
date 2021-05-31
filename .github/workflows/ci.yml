@@ -21,9 +21,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['master', 'v[0-9]+-[0-9]+-test']
   pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['master', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
 
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
@@ -49,7 +49,7 @@ env:
   # In builds from forks, this token is empty, and this is good because such builds do not even try
   # to push images to the registry.
   CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
-  GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
+  GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
@@ -67,6 +67,10 @@ env:
   # You can also switch back to building images locally and disabling the "Build Images" workflow
   # by defining AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE secret with value set to "false"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
@@ -141,6 +145,7 @@ jobs:
       postgresVersions: ${{ steps.selective-checks.outputs.postgres-versions }}
       defaultPostgresVersion: ${{ steps.selective-checks.outputs.default-postgres-version }}
       mysqlVersions: ${{ steps.selective-checks.outputs.mysql-versions }}
+      mssqlVersions: ${{ steps.selective-checks.outputs.mssql-versions }}
       defaultMySQLVersion: ${{ steps.selective-checks.outputs.default-mysql-version }}
       helmVersions: ${{ steps.selective-checks.outputs.helm-versions }}
       defaultHelmVersion: ${{ steps.selective-checks.outputs.default-helm-version }}
@@ -149,6 +154,7 @@ jobs:
       testTypes: ${{ steps.selective-checks.outputs.test-types }}
       postgresExclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysqlExclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
+      mssqlExclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqliteExclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
@@ -185,14 +191,6 @@ jobs:
         id: source-run-info
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: >
-          Event: ${{ github.event_name }}
-          Repo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
-          Branch: ${{ github.head_ref }}
-          Run id: ${{ github.run_id }}
-          Sha: ${{ github.sha }}
-          Ref: ${{ github.ref }}
-        run: printenv
       - name: Set wait for image
         id: wait-for-image
         run: |
@@ -414,7 +412,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           VERBOSE: false
 
-
   static-checks-pylint:
     timeout-minutes: 30
     name: "Pylint"
@@ -521,7 +518,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      VERSION_SUFFIX_FOR_SVN: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -558,7 +554,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
-        if: false
 
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40
@@ -570,7 +565,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      VERSION_SUFFIX_FOR_SVN: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
     steps:
@@ -610,7 +604,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       TEST_TYPES: "Helm"
-      BACKEND: "sqlite"
+      BACKEND: ""
+      DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: >
@@ -629,7 +624,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
+      - name: "Tests: Helm"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
@@ -764,6 +759,62 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/upload-artifact@v2
         with:
           name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: "./files/coverage*.xml"
+          retention-days: 7
+
+  tests-mssql:
+    timeout-minutes: 130
+    name: >
+      MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, ci-images]
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        mssql-version: ${{ fromJson(needs.build-info.outputs.mssqlVersions) }}
+        exclude: ${{ fromJson(needs.build-info.outputs.mssqlExclude) }}
+      fail-fast: false
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+      BACKEND: mssql
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      MSSQL_VERSION: ${{ matrix.mssql-version }}
+      TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+      - name: "Upload airflow logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: airflow-logs-${{matrix.python-version}}-${{matrix.mssql-version}}
+          path: "./files/airflow_logs*"
+          retention-days: 7
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-mssql-${{matrix.python-version}}-${{matrix.mssql-version}}
+          path: "./files/container_logs*"
+          retention-days: 7
+      - name: "Upload artifact for coverage"
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-mssql-${{matrix.python-version}}-${{matrix.mssql-version}}
           path: "./files/coverage*.xml"
           retention-days: 7
 
@@ -903,6 +954,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-postgres
       - tests-sqlite
       - tests-mysql
+      - tests-mssql
       - tests-quarantined
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -969,15 +1021,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   tests-kubernetes:
     timeout-minutes: 50
-    name: K8s tests
+    name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
+    strategy:
+      matrix:
+        executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
       KUBERNETES_MODE: "image"
+      EXECUTOR: ${{matrix.executor}}
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
       GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
@@ -1047,12 +1103,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-sqlite
       - tests-postgres
       - tests-mysql
+      - tests-mssql
       - tests-kubernetes
       - prod-images
       - docs
+    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
-      github.ref == 'refs/heads/v2-0-test') &&
+      github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -1107,12 +1165,14 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-sqlite
       - tests-postgres
       - tests-mysql
+      - tests-mssql
       - tests-kubernetes
       - ci-images
       - docs
+    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
-      github.ref == 'refs/heads/v2-0-test') &&
+      github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
       github.event_name != 'schedule'
     strategy:
       matrix:
@@ -1150,6 +1210,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - static-checks-pylint
       - tests-sqlite
       - tests-mysql
+      - tests-mssql
       - tests-postgres
       - tests-kubernetes
     env:
@@ -1158,9 +1219,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
     # Only run it for direct pushes
+    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
-      github.ref == 'refs/heads/v2-0-test'
+      github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1219,6 +1281,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-sqlite
       - tests-postgres
       - tests-mysql
+      - tests-mssql
       - tests-kubernetes
       - constraints
       - prepare-test-provider-packages-wheel

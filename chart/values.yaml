@@ -143,7 +143,6 @@ networkPolicies:
   # Enabled network policies
   enabled: false
 
-
 # Extra annotations to apply to all
 # Airflow pods
 airflowPodAnnotations: {}
@@ -152,7 +151,7 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
-# `airflow_local_settings` file as a string.
+# `airflow_local_settings` file as a string (can be templated).
 airflowLocalSettings: ~
 
 # Enable RBAC (default on most clusters these days)
@@ -266,7 +265,6 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
-
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
 # name {{ .Release-name }}-<POSTFIX>. In case of the keytab file, the postfix is "kerberos-keytab"
@@ -322,6 +320,18 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+
+  # Command to use when running Airflow workers (templated).
+  command: ~
+  # Args to use when running Airflow workers (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
   # Update Strategy when worker is deployed as a Deployment
@@ -397,6 +407,8 @@ workers:
 
   # Launch additional containers into worker.
   extraContainers: []
+  # Add additional init containers into workers.
+  extraInitContainers: []
 
   # Mount additional volumes into worker.
   extraVolumes: []
@@ -417,6 +429,12 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  logGroomerSidecar:
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow scheduler settings
 scheduler:
   # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
@@ -429,6 +447,18 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+
+  # Command to use when running the Airflow scheduler (templated).
+  command: ~
+  # Args to use when running the Airflow scheduler (templated).
+  args: ["bash", "-c", "exec airflow scheduler"]
+
+  # Update Strategy when scheduler is deployed as a StatefulSet
+  # (when using LocalExecutor and workers.persistence)
+  updateStrategy: ~
+  # Update Strategy when scheduler is deployed as a Deployment
+  # (when not using LocalExecutor and workers.persistence)
+  strategy: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -463,6 +493,8 @@ scheduler:
 
   # Launch additional containers into scheduler.
   extraContainers: []
+  # Add additional init containers into scheduler.
+  extraInitContainers: []
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -473,8 +505,19 @@ scheduler:
   affinity: {}
   tolerations: []
 
+  logGroomerSidecar:
+    # Whether to deploy the Airflow scheduler log groomer sidecar.
+    enabled: true
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow create user job settings
 createUserJob:
+  # Annotations on the create user job pod
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -488,6 +531,8 @@ createUserJob:
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  # Annotations on the database migration pod
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -517,6 +562,11 @@ webserver:
 
   # Number of webservers
   replicas: 1
+
+  # Command to use when running the Airflow webserver (templated).
+  command: ~
+  # Args to use when running the Airflow webserver (templated).
+  args: ["bash", "-c", "exec airflow webserver"]
 
   # Create ServiceAccount
   serviceAccount:
@@ -555,14 +605,15 @@ webserver:
 
   # Launch additional containers into webserver.
   extraContainers: []
+  # Add additional init containers into webserver.
+  extraInitContainers: []
 
   # Mount additional volumes into webserver.
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image
-  # instead
+  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
+  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -577,6 +628,7 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
@@ -588,6 +640,18 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: true
+
+  # Command to use when running flower (templated).
+  command: ~
+  # Args to use when running flower (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -618,6 +682,9 @@ flower:
 
   service:
     type: ClusterIP
+    ## service annotations
+    annotations: {}
+    loadBalancerIP: ~
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
@@ -662,9 +729,9 @@ statsd:
 
   uid: 65534
 
-# Pgbouncer settings
+# PgBouncer settings
 pgbouncer:
-  # Enable pgbouncer
+  # Enable PgBouncer
   enabled: false
 
   # Create ServiceAccount
@@ -685,7 +752,7 @@ pgbouncer:
   metadataPoolSize: 10
   resultBackendPoolSize: 5
 
-  # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
+  # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
   # supply the name of existing secret with pgbouncer.ini and users.txt defined
@@ -703,7 +770,7 @@ pgbouncer:
   #
   configSecretName: ~
 
-  # Pgbouner pod disruption budget
+  # PgBouncer pod disruption budget
   podDisruptionBudget:
     enabled: false
 
@@ -711,7 +778,7 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
-  # Limit the resources to pgbouncer.
+  # Limit the resources to PgBouncer.
   # When you specify the resource request the k8s scheduler uses this information to decide which node to
   # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
   # that the running container is not allowed to use more of that resource than the limit you set.
@@ -743,7 +810,14 @@ pgbouncer:
     cert: ~
     key: ~
 
-  # Select certain nodes for pgbouncer pods.
+  # Add extra PgBouncer ini configuration in the databases section:
+  # https://www.pgbouncer.org/config.html#section-databases
+  extraIniMetadata: ~
+  extraIniResultBackend: ~
+  # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
+  extraIni: ~
+
+  # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -825,7 +899,6 @@ elasticsearch:
   #   host: ~
   #   port: ~
   connection: {}
-
 
 # All ports used by chart
 ports:
@@ -963,10 +1036,8 @@ dags:
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-0-stable
+    branch: v2-1-stable
     rev: HEAD
-    root: "/git"
-    dest: "repo"
     depth: 1
     # the number of consecutive failures allowed before aborting
     maxFailures: 0
@@ -1013,6 +1084,13 @@ dags:
     uid: 65533
     extraVolumeMounts: []
     env: []
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 logs:
   persistence:

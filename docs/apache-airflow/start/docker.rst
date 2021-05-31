@@ -26,9 +26,22 @@ Before you begin
 Follow these steps to install the necessary tools.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.27.0 and newer on your workstation.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
 
 Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
+
+.. warning::
+    Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
+    If you have not enough memory available it might lead to airflow webserver continuously restarting.
+    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
+
+    You can also check if you have enough memory by running this command:
+
+    .. code-block:: bash
+
+        docker run --rm "debian:buster-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+
 
 ``docker-compose.yaml``
 =======================
