@@ -63,9 +63,7 @@ class TestDmsCreateTaskOperator(unittest.TestCase):
         create_task = DmsCreateTaskOperator(task_id='create_task', **TASK_DATA)
         create_task.execute(None)
 
-        mock_create_replication_task.assert_called_once_with(
-            **TASK_DATA, migration_type='full-load', create_task_kwargs=None
-        )
+        mock_create_replication_task.assert_called_once_with(**TASK_DATA, migration_type='full-load')
 
         assert dms_hook.get_task_status(TASK_ARN) == 'ready'
 
@@ -81,8 +79,6 @@ class TestDmsCreateTaskOperator(unittest.TestCase):
         create_task = DmsCreateTaskOperator(task_id='create_task', migration_type=migration_type, **TASK_DATA)
         create_task.execute(None)
 
-        mock_create_replication_task.assert_called_once_with(
-            **TASK_DATA, migration_type=migration_type, create_task_kwargs=None
-        )
+        mock_create_replication_task.assert_called_once_with(**TASK_DATA, migration_type=migration_type)
 
         assert dms_hook.get_task_status(TASK_ARN) == 'ready'

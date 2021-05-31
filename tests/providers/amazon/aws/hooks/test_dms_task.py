@@ -87,7 +87,7 @@ class TestDmsHook(unittest.TestCase):
             'Filters': [{'Name': 'replication-task-id', 'Values': [MOCK_DATA['replication_task_id']]}]
         }
 
-        marker, tasks = self.dms.describe_replication_tasks(describe_tasks_kwargs)
+        marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
 
         mock_conn.return_value.describe_replication_tasks.assert_called_with(**describe_tasks_kwargs)
         assert marker is None

@@ -73,12 +73,13 @@ class TestDmsDescribeTasksOperator(unittest.TestCase):
     @mock.patch.object(DmsHook, 'describe_replication_tasks', return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, 'get_conn')
     def test_describe_tasks(self, mock_conn, mock_describe_replication_tasks):
+        describe_tasks_kwargs = {'Filters': [FILTER]}
         describe_task = DmsDescribeTasksOperator(
-            task_id='describe_tasks', describe_tasks_kwargs={'Filters': [FILTER]}
+            task_id='describe_tasks', describe_tasks_kwargs=describe_tasks_kwargs
         )
         describe_task.execute(None)
 
-        mock_describe_replication_tasks.assert_called_once_with(describe_tasks_kwargs={'Filters': [FILTER]})
+        mock_describe_replication_tasks.assert_called_once_with(**describe_tasks_kwargs)
 
     @mock.patch.object(DmsHook, 'describe_replication_tasks', return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, 'get_conn')

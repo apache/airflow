@@ -54,7 +54,6 @@ class TestDmsStartTaskOperator(unittest.TestCase):
         mock_start_replication_task.assert_called_once_with(
             replication_task_arn=TASK_ARN,
             start_replication_task_type='start-replication',
-            start_task_kwargs=None,
         )
 
         assert dms_hook.get_task_status(TASK_ARN) == 'starting'

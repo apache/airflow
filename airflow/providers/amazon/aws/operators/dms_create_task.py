@@ -89,7 +89,7 @@ class DmsCreateTaskOperator(BaseOperator):
         self.replication_instance_arn = replication_instance_arn
         self.migration_type = migration_type
         self.table_mappings = table_mappings
-        self.create_task_kwargs = create_task_kwargs
+        self.create_task_kwargs = create_task_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context):
@@ -107,7 +107,7 @@ class DmsCreateTaskOperator(BaseOperator):
             replication_instance_arn=self.replication_instance_arn,
             migration_type=self.migration_type,
             table_mappings=self.table_mappings,
-            create_task_kwargs=self.create_task_kwargs,
+            **self.create_task_kwargs,
         )
         self.log.info("DMS replication task(%s) is ready.", self.replication_task_id)
 

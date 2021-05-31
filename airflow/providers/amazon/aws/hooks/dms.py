@@ -42,21 +42,15 @@ class DmsHook(AwsBaseHook):
         kwargs['client_type'] = 'dms'
         super().__init__(*args, **kwargs)
 
-    def describe_replication_tasks(
-        self,
-        describe_tasks_kwargs: Optional[dict] = None,
-    ):
+    def describe_replication_tasks(self, **kwargs):
         """
         Describe replication tasks
-        :param describe_tasks_kwargs: Describe tasks command arguments
-        :type describe_tasks_kwargs: Optional[dict]
 
         :return: Marker and list of replication tasks
         :rtype: (str, list)
         """
-        additional_args = describe_tasks_kwargs or {}
         dms_client = self.get_conn()
-        response = dms_client.describe_replication_tasks(**additional_args)
+        response = dms_client.describe_replication_tasks(**kwargs)
 
         return response['Marker'], response['ReplicationTasks']
 
@@ -114,7 +108,7 @@ class DmsHook(AwsBaseHook):
         replication_instance_arn: str,
         migration_type: str,
         table_mappings: dict,
-        create_task_kwargs: Optional[dict] = None,
+        **kwargs,
     ) -> str:
         """
         Create DMS replication task
@@ -131,11 +125,8 @@ class DmsHook(AwsBaseHook):
         :type table_mappings: dict
         :param migration_type: Migration type ('full-load'|'cdc'|'full-load-and-cdc'), full-load by default.
         :type migration_type: str
-        :param create_task_kwargs: Extra arguments for DMS replication task creation.
-        :type create_task_kwargs: Optional[dict]
         :return: Replication task ARN
         """
-        additional_args = create_task_kwargs or {}
         dms_client = self.get_conn()
         create_task_response = dms_client.create_replication_task(
             ReplicationTaskIdentifier=replication_task_id,
@@ -144,7 +135,7 @@ class DmsHook(AwsBaseHook):
             ReplicationInstanceArn=replication_instance_arn,
             MigrationType=migration_type,
             TableMappings=json.dumps(table_mappings),
-            **additional_args,
+            **kwargs,
         )
 
         replication_task_arn = create_task_response['ReplicationTask']['ReplicationTaskArn']
@@ -156,7 +147,7 @@ class DmsHook(AwsBaseHook):
         self,
         replication_task_arn: str,
         start_replication_task_type: str,
-        start_task_kwargs: Optional[dict] = None,
+        **kwargs,
     ):
         """
         Starts replication task.
@@ -166,15 +157,12 @@ class DmsHook(AwsBaseHook):
         :param start_replication_task_type: Replication task start type
             ('start-replication'|'resume-processing'|'reload-target')
         :type start_replication_task_type: str
-        :param start_task_kwargs: Extra start replication task arguments
-        :type start_task_kwargs: Optional[dict]
         """
-        additional_args = start_task_kwargs or {}
         dms_client = self.get_conn()
         dms_client.start_replication_task(
             ReplicationTaskArn=replication_task_arn,
             StartReplicationTaskType=start_replication_task_type,
-            **additional_args,
+            **kwargs,
         )
 
     def stop_replication_task(self, replication_task_arn):

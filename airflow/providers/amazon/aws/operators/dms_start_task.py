@@ -67,7 +67,7 @@ class DmsStartTaskOperator(BaseOperator):
         super().__init__(**kwargs)
         self.replication_task_arn = replication_task_arn
         self.start_replication_task_type = start_replication_task_type
-        self.start_task_kwargs = start_task_kwargs
+        self.start_task_kwargs = start_task_kwargs or {}
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context):
@@ -81,6 +81,6 @@ class DmsStartTaskOperator(BaseOperator):
         dms_hook.start_replication_task(
             replication_task_arn=self.replication_task_arn,
             start_replication_task_type=self.start_replication_task_type,
-            start_task_kwargs=self.start_task_kwargs,
+            **self.start_task_kwargs,
         )
         self.log.info("DMS replication task(%s) is starting.", self.replication_task_arn)
