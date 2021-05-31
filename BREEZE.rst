@@ -2246,7 +2246,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
                  sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
                  update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 version-sync www-lint yamllint
+                 verify-db-migrations-documented version-sync www-lint yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

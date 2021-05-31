@@ -186,6 +186,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation
 ----------------------------------- ---------------------------------------------------------------- ------------
+``verify-db-migrations-documented``   Verify DB Migrations have been documented
+----------------------------------- ---------------------------------------------------------------- ------------
 ``www-lint``                          Static checks of js in airflow/www/static/js/ folder
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks YAML files with yamllint
