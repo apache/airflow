@@ -934,7 +934,12 @@ class DAG(LoggingMixin):
         return query.scalar()
 
     @provide_session
-    def get_dagrun(self, execution_date: str = None, run_id: str = None, session=None):
+    def get_dagrun(
+        self,
+        execution_date: Optional[str] = None,
+        run_id: Optional[str] = None,
+        session: Optional[Session] = None,
+    ):
         """
         Returns the dag run for a given execution date or run_id if it exists, otherwise
         none.

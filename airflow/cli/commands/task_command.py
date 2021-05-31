@@ -51,7 +51,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_ti(dag, task_id, exec_date_or_run_id):
+def _get_ti(dag, task, exec_date_or_run_id):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     dag_run = dag.get_dagrun(run_id=exec_date_or_run_id)
     if not dag_run:
@@ -343,19 +343,21 @@ def _guess_debugger():
 @provide_session
 def task_states_for_dag_run(args, session=None):
     """Get the status of all task instances in a DagRun"""
-    try:
-        execution_date = timezone.parse(args.execution_date_or_run_id)
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
-            .one_or_none()
-        )
-    except (ParserError, TypeError):
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
-            .one_or_none()
-        )
+    dag_run = (
+        session.query(DagRun)
+        .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
+        .one_or_none()
+    )
+    if not dag_run:
+        try:
+            execution_date = timezone.parse(args.execution_date_or_run_id)
+            dag_run = (
+                session.query(DagRun)
+                .filter(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
+                .one_or_none()
+            )
+        except (ParserError, TypeError) as err:
+            raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
 
     if dag_run is None:
         raise AirflowException("DagRun does not exist.")
