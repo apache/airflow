@@ -162,13 +162,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.failed_states:
             count_failed = self.get_count(dttm_filter, session, self.failed_states)
 
-        if count_failed == len(dttm_filter):
-            if self.external_task_id:
-                raise AirflowException(
-                    f'The external task {self.external_task_id} in DAG {self.external_dag_id} failed.'
-                )
-            else:
-                raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
+            # Fail if anything in the list has failed.
+            if count_failed > 0:
+                if self.external_task_id:
+                    raise AirflowException(
+                        f'The external task {self.external_task_id} in DAG {self.external_dag_id} failed.'
+                    )
+                else:
+                    raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
 
         return count_allowed == len(dttm_filter)
 
