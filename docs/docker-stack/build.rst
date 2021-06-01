@@ -15,15 +15,133 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _build:build_image:
+
 Building the image
 ==================
 
-Before you dive-deeply in the way how the Airflow Image is build, named and why we are doing it the
-way we do, you might want to know very quickly how you can extend or customize the existing image
-for Apache Airflow. This chapter gives you a short answer to those questions.
+Before you dive-deeply in the way how the Airflow Image is build, let us first explain why you might need
+to build the custom container image and we show a few typical ways you can do it.
+
+Why custom image ?
+------------------
+
+The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
+However, Airflow has more than 60 community managed providers (installable via extras) and some of the
+default extras/providers installed are not used by everyone, sometimes others extras/providers
+are needed, sometimes (very often actually) you need to add your own custom dependencies,
+packages or even custom providers.
+
+In Kubernetes and Docker terms this means that you need another image with your specific requirements.
+This is why you should learn how to build your own Docker (or more properly Container) image.
+You might be tempted to use the ``reference image`` and dynamically install the new packages while
+starting your containers, but this is a bad idea for multiple reasons - starting from fragility of the build
+and ending with the extra time needed to install those packages - which has to happen every time every
+container starts. The only viable way to deal with new dependencies and requirements in production is to
+build and use your own image. You should only use installing dependencies dynamically in case of
+"hobbyist" and "quick start" scenarios when you want to iterate quickly to try things out and later
+replace it with your own images.
+
+How to build your own image
+---------------------------
+
+There are several most-typical scenarios that you will encounter and here is a quick recipe on how to achieve
+your goal quickly. In order to understand details you can read further, but for the simple cases using
+typical tools here are the simple examples.
+
+In the simplest case building your image consists of those steps:
+
+1) Create your own ``Dockerfile`` (name it ``Dockerfile``) where you add:
+
+* information what your image should be based on (for example ``FROM: apache/airflow:|version|-python3.8``
+
+* additional steps that should be executed in your image (typically in the form of ``RUN <command>``)
+
+2) Build your image. This can be done with ``docker`` CLI tools and examples below assume ``docker`` is used.
+   There are other tools like ``kaniko`` or ``podman`` that allow you to build the image, but ``docker`` is
+   so far the most popular and developer-friendly tool out there. Typical way of building the image looks
+   like follows (``my-image:0.0.1`` is the custom tag of your image containing version).
+   In case you use some kind of registry where you will be using the image from, it is usually named
+   in the form of ``registry/image-name``. The name of the image has to be configured for the deployment
+   method your image will be deployed. This can be set for example as image name in the
+   `docker-compose file <running-airflow-in-docker>`_ or in the `Helm chart <helm-chart>`_.
+
+.. code-block:: shell
+
+   docker build . -f Dockerfile --tag my-image:0.0.1
+
+3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step however,
+   requires locally checked out or extracted Airflow sources. If you happen to have the sources you can
+   test the image by running this command (in airflow root folder). The output will tell you if the image
+   is "good-to-go".
+
+.. code-block:: shell
+
+   ./scripts/ci/tools/verify_docker_image.sh PROD my-image:0.0.1
+
+4) Once you build the image locally you have usually several options to make them available for your deployment:
+
+* For ``docker-compose`` deployment, that's all you need. The image is stored in docker engine cache
+  and docker compose will use it from there.
+
+* For some - development targeted - Kubernetes deployments you can load the images directly to
+  Kubernetes clusters. Clusters such as ``kind`` or ``minikube`` have dedicated ``load`` method to load the
+  images to the cluster.
+
+* Last but not least - you can push your image to a remote registry which is the most common way
+  of storing and exposing the images, and it is most portable way of publishing the image. Both
+  Docker-Compose and Kubernetes can make use of images exposed via registries.
+
+The most common scenarios where you want to build your own image are adding a new ``apt`` package,
+adding a new ``PyPI`` dependency and embedding DAGs into the image.
+Example Dockerfiles for those scenarios are below, and you can read further
+for more complex cases which might involve either extending or customizing the image.
+
+Adding new ``apt`` package
+..........................
+
+The following example adds ``vim`` to the airflow image.
+
+.. exampleinclude:: docker-examples/extending/add-apt-packages/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+
+Adding a new ``PyPI`` package
+.............................
+
+The following example adds ``lxml`` python package from PyPI to the image.
+
+.. exampleinclude:: docker-examples/extending/add-pypi-packages/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+Embedding DAGs
+..............
+
+The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/dags`` folder.
+
+.. exampleinclude:: docker-examples/extending/embedding-dags/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
+
+.. exampleinclude:: docker-examples/extending/embedding-dags/test_dag.py
+    :language: Python
+    :start-after: [START dag]
+    :end-before: [END dag]
+
+
 
 Extending vs. customizing the image
 -----------------------------------
+
+You might want to know very quickly how you can extend or customize the existing image
+for Apache Airflow. This chapter gives you a short answer to those questions.
+
 
 Here is the comparison of the two types of building images. Here is your guide if you want to choose
 how you want to build your image.
@@ -132,8 +250,8 @@ You should be aware, about a few things:
 Examples of image extending
 ---------------------------
 
-An ``apt`` package example
-..........................
+Example of adding ``apt`` package
+.................................
 
 The following example adds ``vim`` to the airflow image.
 
@@ -142,8 +260,8 @@ The following example adds ``vim`` to the airflow image.
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
 
-A ``PyPI`` package example
-..........................
+Example of adding ``PyPI`` package
+..................................
 
 The following example adds ``lxml`` python package from PyPI to the image.
 
@@ -152,8 +270,8 @@ The following example adds ``lxml`` python package from PyPI to the image.
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
 
-A ``umask`` requiring example
-.............................
+Example when writable directory is needed
+.........................................
 
 The following example adds a new directory that is supposed to be writable for any arbitrary user
 running the container.
@@ -164,8 +282,8 @@ running the container.
     :end-before: [END Dockerfile]
 
 
-A ``build-essential`` requiring package example
-...............................................
+Example when you add packages requiring compilation
+...................................................
 
 The following example adds ``mpi4py`` package which requires both ``build-essential`` and ``mpi compiler``.
 
@@ -177,8 +295,8 @@ The following example adds ``mpi4py`` package which requires both ``build-essent
 The size of this image is ~ 1.1 GB when build. As you will see further, you can achieve 20% reduction in
 size of the image in case you use "Customizing" rather than "Extending" the image.
 
-DAG embedding example
-.....................
+Example when you want to embed DAGs
+...................................
 
 The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/dags`` folder.
 
@@ -223,27 +341,28 @@ to add extra dependencies needed at early stages of image building.
 
 When customizing the image you can choose a number of options how you install Airflow:
 
-   * From the PyPI releases (default)
-   * From the custom installation sources - using additional/replacing the original apt or PyPI repositories
-   * From local sources. This is used mostly during development.
-   * From tag or branch, or specific commit from a GitHub Airflow repository (or fork). This is particularly
-     useful when you build image for a custom version of Airflow that you keep in your fork and you do not
-     want to release the custom Airflow version to PyPI.
-   * From locally stored binary packages for Airflow, Airflow Providers and other dependencies. This is
-     particularly useful if you want to build Airflow in a highly-secure environment where all such packages
-     must be vetted by your security team and stored in your private artifact registry. This also
-     allows to build airflow image in an air-gaped environment.
-   * Side note. Building ``Airflow`` in an ``air-gaped`` environment sounds pretty funny, doesn't it?
+* From the PyPI releases (default)
+* From the custom installation sources - using additional/replacing the original apt or PyPI repositories
+* From local sources. This is used mostly during development.
+* From tag or branch, or specific commit from a GitHub Airflow repository (or fork). This is particularly
+  useful when you build image for a custom version of Airflow that you keep in your fork and you do not
+  want to release the custom Airflow version to PyPI.
+* From locally stored binary packages for Airflow, Airflow Providers and other dependencies. This is
+  particularly useful if you want to build Airflow in a highly-secure environment where all such packages
+  must be vetted by your security team and stored in your private artifact registry. This also
+  allows to build airflow image in an air-gaped environment.
+* Side note. Building ``Airflow`` in an ``air-gaped`` environment sounds pretty funny, doesn't it?
 
 You can also add a range of customizations while building the image:
 
-   * base python image you use for Airflow
-   * version of Airflow to install
-   * extras to install for Airflow (or even removing some default extras)
-   * additional apt/python dependencies to use while building Airflow (DEV dependencies)
-   * additional apt/python dependencies to install for runtime version of Airflow (RUNTIME dependencies)
-   * additional commands and variables to set if needed during building or preparing Airflow runtime
-   * choosing constraint file to use when installing Airflow
+* base python image you use for Airflow
+* version of Airflow to install
+* extras to install for Airflow (or even removing some default extras)
+* additional apt/python dependencies to use while building Airflow (DEV dependencies)
+* add ``requirements.txt`` file to ``docker-context-files`` directory to add extra requirements
+* additional apt/python dependencies to install for runtime version of Airflow (RUNTIME dependencies)
+* additional commands and variables to set if needed during building or preparing Airflow runtime
+* choosing constraint file to use when installing Airflow
 
 Additional explanation is needed for the last point. Airflow uses constraints to make sure
 that it can be predictably installed, even if some new versions of Airflow dependencies are
@@ -261,6 +380,12 @@ of constraints that you manually prepared.
 
 You can read more about constraints in the documentation of the
 `Installation <http://airflow.apache.org/docs/apache-airflow/stable/installation.html#constraints-files>`_
+
+Note that if you place ``requirements.txt`` in the ``docker-context-files`` folder, it will be
+used to install all requirements declared there. It is recommended that the file
+contains specified version of dependencies to add with ``==`` version specifier, to achieve
+stable set of requirements, independent if someone releases a newer version. However you have
+to make sure to update those requirements and rebuild the images to account for latest security fixes.
 
 Examples of image customizing
 -----------------------------
@@ -404,13 +529,13 @@ Such customizations are independent of the way how airflow is installed.
 
 The following - rather complex - example shows capabilities of:
 
-  * Adding airflow extras (slack, odbc)
-  * Adding PyPI dependencies (``azure-storage-blob, oauth2client, beautifulsoup4, dateparser, rocketchat_API,typeform``)
-  * Adding custom environment variables while installing ``apt`` dependencies - both DEV and RUNTIME
-    (``ACCEPT_EULA=Y'``)
-  * Adding custom curl command for adding keys and configuring additional apt sources needed to install
-    ``apt`` dependencies (both DEV and RUNTIME)
-  * Adding custom ``apt`` dependencies, both DEV (``msodbcsql17 unixodbc-dev g++) and runtime msodbcsql17 unixodbc git procps vim``)
+* Adding airflow extras (slack, odbc)
+* Adding PyPI dependencies (``azure-storage-blob, oauth2client, beautifulsoup4, dateparser, rocketchat_API,typeform``)
+* Adding custom environment variables while installing ``apt`` dependencies - both DEV and RUNTIME
+  (``ACCEPT_EULA=Y'``)
+* Adding custom curl command for adding keys and configuring additional apt sources needed to install
+  ``apt`` dependencies (both DEV and RUNTIME)
+* Adding custom ``apt`` dependencies, both DEV (``msodbcsql17 unixodbc-dev g++) and runtime msodbcsql17 unixodbc git procps vim``)
 
 .. exampleinclude:: docker-examples/customizing/custom-sources.sh
     :language: bash
@@ -466,11 +591,11 @@ security vetting and only use the new packages when they were vetted.
 On a separate (air-gaped) system, all the PyPI packages can be copied to ``docker-context-files``
 where you can build the image using the packages downloaded by passing those build args:
 
-  * ``INSTALL_FROM_DOCKER_CONTEXT_FILES="true"``  - to use packages present in ``docker-context-files``
-  * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
-  * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
-  * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
-    client from the Oracle repositories. In this case also make sure that your
+* ``INSTALL_FROM_DOCKER_CONTEXT_FILES="true"``  - to use packages present in ``docker-context-files``
+* ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
+* ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
+* (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
+  client from the Oracle repositories. In this case also make sure that your
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.
@@ -508,7 +633,7 @@ There are a few things to remember when you modify the ``Dockerfile``:
   and only the required folders are added through exclusion (!). This allows to keep docker context small
   because there are many binary artifacts generated in the sources of Airflow and if they are added to
   the context, the time of building the image would increase significantly. If you want to add any new
-  folders to be available in the image you must add it here with leading ``!``.
+  folders to be available in the image you must add it here with leading ``!``
 
   .. code-block:: text
 

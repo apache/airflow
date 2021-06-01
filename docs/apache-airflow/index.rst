@@ -101,7 +101,6 @@ unit of work and continuity.
     changelog
     best-practices
     production-deployment
-    backport-providers
     faq
     privacy_notice
 

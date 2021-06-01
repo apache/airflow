@@ -38,15 +38,32 @@ Docker Image for Apache Airflow
 For the ease of deployment in production, the community releases a production-ready reference container
 image.
 
-The docker image provided (as convenience binary package) in the
-`apache/airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ is a bare image
-that has a few external dependencies and extras installed..
 
-The Apache Airflow image provided as convenience package is optimized for size, so
+The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
+Every time a new version of Airflow is released, the images are prepared in the
+`apache/airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
+for all the supported Python versions.
+
+You can find the following images there (Assuming Airflow version |version|):
+
+* ``apache/airflow:latest``              - the latest released Airflow image with default Python version (3.6 currently)
+* ``apache/airflow:latest-pythonX.Y``    - the latest released Airflow image with specific Python version
+* ``apache/airflow:|version|``           - the versioned Airflow image with default Python version (3.6 currently)
+* ``apache/airflow:|version|-pythonX.Y`` - the versioned Airflow image with specific Python version
+
+Those are "reference" images. They contain the most common set of extras, dependencies and providers that are
+often used by the users and they are good to "try-things-out" when you want to just take airflow for a spin,
+
+The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
-you want to either extend or customize the image. You can see all possible extras in
-:doc:`extra-packages-ref`. The set of extras used in Airflow Production image are available in the
-`Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L39>`_.
+you want to either extend or customize the image. You can see all possible extras in :doc:`extra-packages-ref`.
+The set of extras used in Airflow Production image are available in the
+`Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37>`_.
+
+However, Airflow has more than 60 community-managed providers (installable via extras) and some of the
+default extras/providers installed are not used by everyone, sometimes others extras/providers
+are needed, sometimes (very often actually) you need to add your own custom dependencies,
+packages or even custom providers. You can learn how to do it in :ref:`Building the image <build:build_image>`.
 
 The production images are build in DockerHub from released version and release candidates. There
 are also images published from branches but they are used mainly for development and testing purpose.
