@@ -945,7 +945,7 @@ class DAG(LoggingMixin):
         :return: The DagRun if found, otherwise None.
         """
         if not (execution_date or run_id):
-            raise AirflowException("You must provide either the execution_date or the run_id")
+            raise TypeError("You must provide either the execution_date or the run_id")
         query = session.query(DagRun)
         if execution_date:
             query = query.filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)

@@ -51,7 +51,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_ti(dag, task, exec_date_or_run_id):
+def _get_ti(dag, task_id, exec_date_or_run_id):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     dag_run = dag.get_dagrun(run_id=exec_date_or_run_id)
     if not dag_run:
