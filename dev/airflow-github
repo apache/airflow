@@ -120,7 +120,7 @@ def print_changelog(sections):
 @click.group()
 def cli():
     r"""
-    This tool should be used by Airflow Release Manager to verify what GitHub issue's
+    This tool should be used by Airflow Release Manager to verify what GitHub issues
      were merged in the current working branch.
 
         airflow-github compare <target_version> <github_token>
