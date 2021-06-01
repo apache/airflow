@@ -19,6 +19,13 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: dummy-name
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
   {{- if .Values.airflowPodAnnotations }}
   annotations:
   {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}

@@ -438,3 +438,18 @@ class PodTemplateFileTest(unittest.TestCase):
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.initContainers[-1]", docs[0])
+
+    def test_should_add_pod_labels(self):
+        docs = render_chart(
+            values={"labels": {"label1": "value1", "label2": "value2"}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "label1": "value1",
+            "label2": "value2",
+            "release": "RELEASE-NAME",
+            "component": "worker",
+            "tier": "airflow",
+        } == jmespath.search("metadata.labels", docs[0])
