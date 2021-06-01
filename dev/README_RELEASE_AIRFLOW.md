@@ -144,10 +144,10 @@ branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you
 
 Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
 
-Run script to re-tag images from the ``master`` branch to the  ``vX-Y-test`` branch:
+Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
 
    ```shell script
-   ./dev/retag_docker_images.py --source-branch master --target-branch ${BRANCH_PREFIX}-test
+   ./dev/retag_docker_images.py --source-branch main --target-branch ${BRANCH_PREFIX}-test
    ```
 
 
@@ -276,7 +276,7 @@ Only votes from PMC members are binding, but the release manager should encourag
 to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/master/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
 
 Please note that the version number excludes the `rcX` string, so it's now
 simply 2.0.2. This will allow us to rename the artifact without modifying

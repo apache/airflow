@@ -27,7 +27,7 @@ Content
 
     Python API <_api/airflow/providers/apache/beam/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-beam/>
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/beam/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/beam/example_dags>
 
 .. toctree::
     :maxdepth: 1

@@ -84,7 +84,7 @@ Initial version of the provider.
 """
 
 HTTPS_REMOTE = "apache-https-for-providers"
-HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/master"
+HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
 
 PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
 
@@ -560,7 +560,7 @@ def convert_new_classes_to_table(
     from tabulate import tabulate
 
     headers = [f"New Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package"]
-    table = [(get_class_code_link(full_package_name, class_name, "master"),) for class_name in new_entities]
+    table = [(get_class_code_link(full_package_name, class_name, "main"),) for class_name in new_entities]
     return tabulate(table, headers=headers, tablefmt="pipe")
 
 
@@ -584,7 +584,7 @@ def convert_moved_classes_to_table(
     ]
     table = [
         (
-            get_class_code_link(full_package_name, to_class, "master"),
+            get_class_code_link(full_package_name, to_class, "main"),
             get_class_code_link("airflow", moved_entities[to_class], "v1-10-stable"),
         )
         for to_class in sorted(moved_entities.keys())

@@ -68,7 +68,7 @@ reverse_status_map: Dict[bool, str] = {status_map[key]: key for key in status_ma
 def get_url(result: TestResult) -> str:
     return (
         f"[{result.name}](https://github.com/{user}/{repo}/blob/"
-        f"master/{result.file}?test_id={result.test_id}#L{result.line})"
+        f"main/{result.file}?test_id={result.test_id}#L{result.line})"
     )
 
 

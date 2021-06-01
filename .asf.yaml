@@ -41,10 +41,10 @@ github:
     rebase: false
 
   protected_branches:
-    master:
+    main:
       required_pull_request_reviews:
         required_approving_review_count: 1
-    main:
+    v2-1-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
     v1-10-stable:
