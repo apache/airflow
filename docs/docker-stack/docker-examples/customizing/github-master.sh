@@ -24,8 +24,8 @@ cd "${AIRFLOW_SOURCES}"
 # [START build]
 docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/master.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-master" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/main.tar.gz#egg=apache-airflow" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --tag "$(basename "$0")"
 # [END build]
 docker rmi --force "$(basename "$0")"

@@ -234,6 +234,7 @@ Currently, **officially** using Airflow:
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
 1. [Kargo](https://kargo.com) [[@chaithra-yenikapati](https://github.com/chaithra-yenikapati), [@akarsh3007](https://github.com/akarsh3007) & [@dineshanchan](https://github.com/dineshanchan)]
 1. [Karmic](https://karmiclabs.com) [[@hyw](https://github.com/hyw)]
+1. [Kayzen](https://kayzen.io) [[@arvindeybram](https://github.com/arvindeybram)]
 1. [King Abdullah Petroleum Studies and Research Center(KAPSARC)](https://github.com/kapsarc) [[@saianupkumarp](https://github.com/saianupkumarp)]
 1. [King](https://king.com) [[@nathadfield](https://github.com/nathadfield)]
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]

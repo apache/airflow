@@ -155,7 +155,7 @@ EOF
 )
 
 _breeze_default_dockerhub_user="apache"
-_breeze_default_dockerhub_repo="airflow"
+_breeze_default_dockerhub_repo="airflow-ci"
 _breeze_default_github_repository="apache/airflow"
 _breeze_default_github_image_id="latest"
 

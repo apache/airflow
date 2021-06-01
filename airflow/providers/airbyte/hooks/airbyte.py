@@ -33,6 +33,11 @@ class AirbyteHook(HttpHook):
     :type api_version: str
     """
 
+    conn_name_attr = 'airbyte_conn_id'
+    default_conn_name = 'airbyte_default'
+    conn_type = 'airbyte'
+    hook_name = 'Airbyte'
+
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     CANCELLED = "cancelled"

@@ -216,7 +216,7 @@ that any new added providers are not added as packages (in case they are not yet
 
 ```shell script
 INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -e ".[devel_all]" \
-    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt
+    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt
 ```
 
 Note that you might need to add some extra dependencies to your system to install "devel_all" - many

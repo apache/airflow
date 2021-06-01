@@ -167,7 +167,7 @@ class DAG(LoggingMixin):
         params can be overridden at the task level.
     :type params: dict
     :param concurrency: the number of task instances allowed to run
-        concurrently
+        concurrently in a single DagRun
     :type concurrency: int
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
@@ -1126,6 +1126,11 @@ class DAG(LoggingMixin):
         end_date: Optional[datetime] = None,
         dag_ids: List[str] = None,
     ) -> None:
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         dag_ids = dag_ids or [self.dag_id]
         query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
         if start_date:
@@ -1153,6 +1158,7 @@ class DAG(LoggingMixin):
         max_recursion_depth=None,
         dag_bag=None,
         visited_external_tis=None,
+        exclude_task_ids: FrozenSet[str] = frozenset({}),
     ):
         """
         Clears a set of task instances associated with the current dag for
@@ -1175,7 +1181,8 @@ class DAG(LoggingMixin):
         :type include_subdags: bool
         :param include_parentdag: Clear tasks in the parent dag of the subdag.
         :type include_parentdag: bool
-        :param dag_run_state: state to set DagRun to
+        :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
+            be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
         :type dry_run: bool
         :param session: The sqlalchemy session to use
@@ -1193,24 +1200,23 @@ class DAG(LoggingMixin):
         :param visited_external_tis: A set used internally to keep track of the visited TaskInstance when
             clearing tasks across multiple DAGs linked by ExternalTaskMarker to avoid redundant work.
         :type visited_external_tis: set
+        :param exclude_task_ids: A set of ``task_id`` that should not be cleared
+        :type exclude_task_ids: frozenset
         """
         TI = TaskInstance
         tis = session.query(TI)
-        dag_ids = []
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
             for dag in self.subdags + [self]:
                 conditions.append((TI.dag_id == dag.dag_id) & TI.task_id.in_(dag.task_ids))
-                dag_ids.append(dag.dag_id)
             tis = tis.filter(or_(*conditions))
         else:
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
         if include_parentdag and self.is_subdag and self.parent_dag is not None:
-            dag_ids.append(self.parent_dag.dag_id)
-            p_dag = self.parent_dag.sub_dag(
+            p_dag = self.parent_dag.partial_subset(
                 task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
                 include_upstream=False,
                 include_downstream=True,
@@ -1291,7 +1297,7 @@ class DAG(LoggingMixin):
                             external_dag = dag_bag.get_dag(tii.dag_id)
                             if not external_dag:
                                 raise AirflowException(f"Could not find dag {tii.dag_id}")
-                            downstream = external_dag.sub_dag(
+                            downstream = external_dag.partial_subset(
                                 task_ids_or_regex=fr"^{tii.task_id}$",
                                 include_upstream=False,
                                 include_downstream=True,
@@ -1319,7 +1325,8 @@ class DAG(LoggingMixin):
         if get_tis:
             return tis
 
-        tis = tis.all()
+        # Exclude these task_ids from clearing
+        tis = [ti for ti in tis if ti.task_id not in exclude_task_ids]
 
         if dry_run:
             session.expunge_all()
@@ -1343,15 +1350,7 @@ class DAG(LoggingMixin):
                 tis,
                 session,
                 dag=self,
-                activate_dag_runs=False,  # We will set DagRun state later.
-            )
-
-            self.set_dag_runs_state(
-                session=session,
-                start_date=start_date,
-                end_date=end_date,
-                state=dag_run_state,
-                dag_ids=dag_ids,
+                dag_run_state=dag_run_state,
             )
         else:
             count = 0

@@ -25,7 +25,7 @@ from airflow.compat.functools import cache, cached_property
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
-    RedactableItem = TypeVar('RedctableItem')
+    RedactableItem = TypeVar('RedactableItem')
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {

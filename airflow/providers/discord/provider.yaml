@@ -40,3 +40,6 @@ hooks:
   - integration-name: Discord
     python-modules:
       - airflow.providers.discord.hooks.discord_webhook
+
+hook-class-names:
+  - airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook

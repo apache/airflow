@@ -172,6 +172,12 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag_params:
                 kwargs['params'] = dag_params
 
+            if default_args:
+                kwargs['default_args'] = default_args
+
+            if hasattr(self, '_hook_apply_defaults'):
+                args, kwargs = self._hook_apply_defaults(*args, **kwargs)  # pylint: disable=protected-access
+
             result = func(self, *args, **kwargs)
 
             # Here we set upstream task defined by XComArgs passed to template fields of the operator

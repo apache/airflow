@@ -130,7 +130,7 @@ function sanity_checks::assert_not_in_container() {
 
 You should only run this script from the host.
 Learn more about how we develop and test airflow at:
-https://github.com/apache/airflow/blob/master/TESTING.rst
+https://github.com/apache/airflow/blob/main/TESTING.rst
 
 """
         exit 1

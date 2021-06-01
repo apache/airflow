@@ -279,3 +279,91 @@ class WorkerTest(unittest.TestCase):
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
+
+    @parameterized.expand(
+        [
+            ("1.9.0", "airflow worker"),
+            ("1.10.14", "airflow worker"),
+            ("2.0.2", "airflow celery worker"),
+            ("2.1.0", "airflow celery worker"),
+        ],
+    )
+    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert [
+            "bash",
+            "-c",
+            f"exec \\\n{expected_arg}",
+        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"workers": {"command": command, "args": args}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={"workers": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_log_groomer_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
+        assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_log_groomer_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"command": command, "args": args}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    def test_log_groomer_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "logGroomerSidecar": {
+                        "command": ["{{ .Release.Name }}"],
+                        "args": ["{{ .Release.Service }}"],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])

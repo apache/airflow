@@ -885,6 +885,7 @@ incompliancies
 infile
 infoType
 infoTypes
+ini
 init
 initcontainer
 initcontainers

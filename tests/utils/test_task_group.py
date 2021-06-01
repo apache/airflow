@@ -347,7 +347,7 @@ def test_build_task_group_with_task_decorator():
 
 def test_sub_dag_task_group():
     """
-    Tests dag.sub_dag() updates task_group correctly.
+    Tests dag.partial_subset() updates task_group correctly.
     """
     execution_date = pendulum.parse("20200101")
     with DAG("test_test_task_group_sub_dag", start_date=execution_date) as dag:
@@ -370,7 +370,7 @@ def test_sub_dag_task_group():
         group234 >> group6
         group234 >> task7
 
-    subdag = dag.sub_dag(task_ids_or_regex="task5", include_upstream=True, include_downstream=False)
+    subdag = dag.partial_subset(task_ids_or_regex="task5", include_upstream=True, include_downstream=False)
 
     assert extract_node_id(task_group_to_dict(subdag.task_group)) == {
         'id': None,

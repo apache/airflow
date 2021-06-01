@@ -154,7 +154,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.4b2
+    rev: 21.5b1
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -164,9 +164,9 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.4b2]
+        additional_dependencies: [black==21.5b1]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v4.0.1
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -196,7 +196,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.18.1
+    rev: v2.19.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
@@ -226,7 +226,7 @@ repos:
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^build/.*$|^.tox/.*$|^venv/.*$|^airflow/_vendor/
   - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.0.0
+    rev: 6.1.1
     hooks:
       - id: pydocstyle
         name: Run pydocstyle
