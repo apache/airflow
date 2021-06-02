@@ -14,23 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 ---
-name: Force sync master from apache/airflow
-on:  # yamllint disable-line rule:truthy
-  workflow_dispatch:
-jobs:
-  repo-sync:
-    if: github.repository != 'apache/airflow'
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: repo-sync
-        uses: repo-sync/github-sync@v2
-        with:
-          source_repo: "apache/airflow"
-          source_branch: "master"
-          destination_branch: "master"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+version: "2.2"
+services:
+  mssql:
+    volumes:
+      # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+      # O_DIRECT parameter for direct writing to the filesystem
+      # https://github.com/microsoft/mssql-docker/issues/13
+      # so we need to mount an external volume for its db location
+      # the external db must allow for parallel testing so external volume is mapped
+      # to the data volume
+      - ${MSSQL_DATA_VOLUME}:/var/opt/mssql

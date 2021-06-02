@@ -249,7 +249,7 @@ to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test
 this RC are described in
-<https://github.com/apache/airflow/blob/master/dev/README_RELEASE_AIRFLOW.md#verify-release-candidates-by-contributors>,
+<https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-release-candidates-by-contributors>,
 but again, this time it is a little bit different.
 
 To actually use this command you will need apache-airflow 1.10.15

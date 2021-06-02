@@ -17,11 +17,18 @@
  * under the License.
  */
 
-/* global document */
-import { formatDateTime } from './datetime_utils';
+/* global document, moment */
 
-// reformat execution date to be more human-readable
+// reformat task details to be more human-readable
 document.addEventListener('DOMContentLoaded', () => {
-  const date = document.getElementById('ti_execution_date');
-  date.innerHTML = formatDateTime(date.innerHTML);
+  document.querySelectorAll('.js-ti-attr').forEach((attr) => {
+    const value = attr.innerHTML;
+    if (value.length === 32 && moment(value, 'YYYY-MM-DD').isValid()) {
+      // 32 is the length of our timestamps
+      attr.className = 'js-format-date';
+    } else if (value.includes('http')) {
+      // very basic url detection
+      attr.innerHTML = `<a href=${value}>${value}</a>`;
+    }
+  });
 });

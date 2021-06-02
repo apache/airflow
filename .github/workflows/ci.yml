@@ -21,9 +21,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v[0-9]+-[0-9]+-test']
+    branches: ['main', 'v[0-9]+-[0-9]+-test']
   pull_request:
-    branches: ['master', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
 
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
@@ -496,7 +496,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
-          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
@@ -504,7 +504,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
         if: >
-          github.ref == 'refs/heads/master' && github.repository == 'apache/airflow' &&
+          github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
         run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
 
@@ -519,13 +519,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
+    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.default-branch == 'master'
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -566,13 +566,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'master'
+    if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.default-branch == 'master'
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -897,8 +897,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-      - name: "Set issue id for master"
-        if: github.ref == 'refs/heads/master'
+      - name: "Set issue id for main"
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "ISSUE_ID=10118" >> $GITHUB_ENV
       - name: "Set issue id for v1-10-stable"
@@ -1109,7 +1109,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - docs
     # TODO: Generalize me (find a better way to select matching branches)
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
       github.event_name != 'schedule'
     strategy:
@@ -1134,7 +1134,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Set push-python-image
         id: push-python-image
         run: |
-          if [[ "${REF}" == 'refs/head/master' || "${REF}" == 'refs/head/main' ]]; then
+          if [[ "${REF}" == 'refs/head/main' || "${REF}" == 'refs/head/main' ]]; then
               echo "::set-output name=wanted::true"
           else
               echo "::set-output name=wanted::false"
@@ -1171,7 +1171,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - docs
     # TODO: Generalize me (find a better way to select matching branches)
     if: >
-      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
       github.event_name != 'schedule'
     strategy:
@@ -1221,7 +1221,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     # Only run it for direct pushes
     # TODO: Generalize me (find a better way to select matching branches)
     if: >
-      github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1-10-test' ||
+      github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -1308,7 +1308,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true
           force: true
-          branch: master
+          branch: main
 
   tests-ui:
     timeout-minutes: 10

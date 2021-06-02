@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
     - cron: '28 0 * * *'
   pull_request_target:
   push:
-    branches: ['main', 'master', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['main', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
@@ -130,7 +130,7 @@ jobs:
     strategy:
       matrix:
         # We need to attempt to build all possible versions here because pull_request_target
-        # event is run from master for both master and v1-10-tests
+        # event is run for both main and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
     if: needs.build-info.outputs.image-build == 'true'
@@ -158,7 +158,7 @@ jobs:
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
-        # Also 2.7 and 3.5 versions are not allowed to proceed on master
+        # Also 2.7 and 3.5 versions are not allowed to proceed on main
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -218,7 +218,7 @@ jobs:
     strategy:
       matrix:
         # We need to attempt to build all possible versions here because pull_request_target
-        # event is run from master for both master and v1-10-tests
+        # event is run for both main and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
     if: needs.build-info.outputs.image-build == 'true'
@@ -245,7 +245,7 @@ jobs:
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
-        # Also 2.7 and 3.5 versions are not allowed to proceed on master
+        # Also 2.7 and 3.5 versions are not allowed to proceed on main
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \

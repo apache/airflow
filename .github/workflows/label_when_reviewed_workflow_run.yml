@@ -72,7 +72,7 @@ jobs:
           ref: ${{ steps.source-run-info.outputs.targetCommitSha }}
           fetch-depth: 2
           persist-credentials: false
-      # checkout the master version again, to use the right script in master workflow
+      # checkout the main branch again, to use the right script in main workflow
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
@@ -107,7 +107,7 @@ jobs:
           comment: >
             The PR most likely needs to run full matrix of tests because it modifies parts of the core
             of Airflow. However, committers might decide to merge it quickly and take the risk.
-            If they don't merge it quickly - please rebase it to the latest master at your convenience,
+            If they don't merge it quickly - please rebase it to the latest main at your convenience,
             or amend the last commit of the PR, and push it with --force-with-lease.
       - name: "Initiate GitHub Check forcing rerun of SH ${{ github.event.pull_request.head.sha }}"
         uses: ./.github/actions/checks-action
@@ -139,7 +139,7 @@ jobs:
             The PR is likely OK to be merged with just subset of tests for default Python and Database
             versions without running the full matrix of tests, because it does not modify the core of
             Airflow. If the committers decide that the full tests matrix is needed, they will add the label
-            'full tests needed'. Then you should rebase to the latest master or amend the last commit
+            'full tests needed'. Then you should rebase to the latest main or amend the last commit
             of the PR, and push it with --force-with-lease.
       - name: "Label when approved by committers for PRs that do not require tests at all"
         uses: ./.github/actions/label-when-approved-action
@@ -153,7 +153,7 @@ jobs:
           comment: >
             The PR is likely ready to be merged. No tests are needed as no important environment files,
             nor python files were modified by it. However, committers might decide that full test matrix is
-            needed and add the 'full tests needed' label. Then you should rebase it to the latest master
+            needed and add the 'full tests needed' label. Then you should rebase it to the latest main
             or amend the last commit of the PR, and push it with --force-with-lease.
       - name: Update Selective Build check
         uses: ./.github/actions/checks-action

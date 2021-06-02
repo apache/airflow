@@ -276,7 +276,7 @@ def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
 
         if len(example_dags_dirs) == 1:
             package_rel_path = os.path.relpath(example_dags_dirs[0], start=ROOT_PROJECT_DIR)
-            github_url = f"https://github.com/apache/airflow/tree/master/{package_rel_path}"
+            github_url = f"https://github.com/apache/airflow/tree/main/{package_rel_path}"
             expected_text = f"Example DAGs <{github_url}>"
         else:
             expected_text = "Example DAGs <example-dags>"

@@ -18,6 +18,7 @@
  */
 
 /* global document, window, $, */
+import { formatDateTime } from './datetime_utils';
 import { escapeHtml } from './main';
 import getMetaValue from './meta_value';
 
@@ -96,8 +97,9 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         shouldScroll = true;
       }
 
-      // Detect urls
+      // Detect urls and log timestamps
       const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
+      const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
 
       res.message.forEach((item) => {
         const logBlockElementId = `try-${tryNumber}-${item[0]}`;
@@ -113,7 +115,9 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
         // The message may contain HTML, so either have to escape it or write it as text.
         const escapedMessage = escapeHtml(item[1]);
-        const linkifiedMessage = escapedMessage.replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`);
+        const linkifiedMessage = escapedMessage
+          .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
+          .replaceAll(dateRegex, (date) => `<span class="js-format-date">${formatDateTime(`${date}+00:00`)}</span>`);
         logBlock.innerHTML += `${linkifiedMessage}\n`;
       });
 

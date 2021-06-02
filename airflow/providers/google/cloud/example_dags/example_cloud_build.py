@@ -63,7 +63,7 @@ create_build_from_storage_body = {
 
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body = {
-    "source": {"repoSource": {"repoName": GCP_SOURCE_REPOSITORY_NAME, "branchName": "master"}},
+    "source": {"repoSource": {"repoName": GCP_SOURCE_REPOSITORY_NAME, "branchName": "main"}},
     "steps": [
         {
             "name": "gcr.io/cloud-builders/docker",

@@ -24,7 +24,7 @@
 # new branch. This can be useful in a few situations:
 #
 # * when starting new release branch (for example `v2-1-test`)
-# * when renaming a branch (for example `master->main`)
+# * when renaming a branch
 #
 # Docker registries we are using:
 #
@@ -42,10 +42,6 @@
 #     under apache/airflow-* but then we link it to the
 #     project via docker image label.
 #
-# The script helps to keep all the registries in-sync - copies
-# `master` to `main` so that we can run it to test the rename and
-#  re-run it just before we switch the branches.
-
 import subprocess
 from typing import List
 
@@ -104,7 +100,7 @@ def pull_push_all_images(
 @click.option(
     "--target-dockerhub", type=str, default="apache/airflow-ci", help="Target repo [apache/airflow-ci]"
 )
-@click.option("--source-branch", type=str, default="master", help="Source branch name [master]")
+@click.option("--source-branch", type=str, default="main", help="Source branch name [main")
 @click.option("--target-branch", type=str, default="main", help="Target branch name [main]")
 @click.option("--dockerhub/--no-dockerhub", default=True, help="Whether to synchronize DockerHub")
 @click.option("--registry/--no-registry", default=True, help="Whether to synchronize GitHub registry")

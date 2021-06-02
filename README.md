@@ -21,7 +21,7 @@
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
+[![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/main.svg)](https://codecov.io/github/apache/airflow?branch=main)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
@@ -97,7 +97,7 @@ We **highly** recommend upgrading to the latest Airflow major release at the ear
 
 Apache Airflow is tested with:
 
-|                      | Master version (dev)      | Stable version (2.0.2)   | Previous version (1.10.15) |
+|                      | Main version (dev)        | Stable version (2.0.2)   | Previous version (1.10.15) |
 | -------------------- | ------------------------- | ------------------------ | -------------------------  |
 | Python               | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
 | Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
@@ -121,9 +121,9 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 [Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
 
 1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
-   EOL versions in master right after EOL date, and it is effectively removed when we release the
+   EOL versions in main right after EOL date, and it is effectively removed when we release the
    first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example for Python 3.6 it means that we drop support in master right after 23.12.2021, and the first
+   For example for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
    MAJOR or MINOR version of Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
@@ -132,7 +132,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
    become Python 3.7 images.
 
-3. We support a new version of Python/Kubernetes in master after they are officially released, as soon as we
+3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
 
@@ -148,7 +148,7 @@ Visit the official Airflow website documentation (latest **stable** release) for
 [getting started](https://airflow.apache.org/docs/apache-airflow/stable/start/index.html), or walking
 through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html).
 
-> Note: If you're looking for documentation for master branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
+> Note: If you're looking for documentation for main branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals).
@@ -165,7 +165,7 @@ if needed. This means that from time to time plain `pip install apache-airflow` 
 produce unusable Airflow installation.
 
 In order to have repeatable installation, however, we also keep a set of "known-to-be-working" constraint
-files in the orphan `constraints-master`, `constraints-2-0` branches. We keep those "known-to-be-working"
+files in the orphan `constraints-main`, `constraints-2-0` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor Python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
 correct Airflow tag/version/branch and Python versions in the URL.
@@ -265,12 +265,12 @@ following the ASF Policy.
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst).
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
 
 ## Who uses Apache Airflow?
 
 More than 400 organizations are using Apache Airflow
-[in the wild](https://github.com/apache/airflow/blob/master/INTHEWILD.md).
+[in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
 
 ## Who Maintains Apache Airflow?
 
@@ -278,7 +278,7 @@ Airflow is the work of the [community](https://github.com/apache/airflow/graphs/
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
-[committer requirements](https://github.com/apache/airflow/blob/master/COMMITTERS.rst#guidelines-to-become-an-airflow-committer).
+[committer requirements](https://github.com/apache/airflow/blob/main/COMMITTERS.rst#guidelines-to-become-an-airflow-committer).
 
 ## Can I use the Apache Airflow logo in my presentation?
 

@@ -29,7 +29,7 @@ rules of that community.
 
 New Contributor
 ---------------
-If you are a new contributor, please follow the `Contributors Quick Start <https://github.com/apache/airflow/blob/master
+If you are a new contributor, please follow the `Contributors Quick Start <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__ guide to get a gentle step-by-step introduction to setting up the development
 environment and making your first contribution.
 
@@ -198,9 +198,9 @@ Step 2: Configure Your Environment
 ----------------------------------
 
 You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `here <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#development-environments>`_.
+between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`_.
 
-The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/master/LOCAL_VIRTUALENV.rst>`_ file.
+The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_ file.
 The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
@@ -261,24 +261,24 @@ Step 4: Prepare PR
    * Read about `email configuration in Airflow </docs/apache-airflow/howto/email-config.rst>`__.
 
    * Find the class you should modify. For the example GitHub issue,
-     this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
+     this is `email.py <https://github.com/apache/airflow/blob/main/airflow/utils/email.py>`__.
 
    * Find the test class where you should add tests. For the example ticket,
-     this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
+     this is `test_email.py <https://github.com/apache/airflow/blob/main/tests/utils/test_email.py>`__.
 
-   * Make sure your fork's master is synced with Apache Airflow's master before you create a branch. See
+   * Make sure your fork's main is synced with Apache Airflow's main before you create a branch. See
      `How to sync your fork <#how-to-sync-your-fork>`_ for details.
 
    * Create a local branch for your development. Make sure to use latest
-     ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
+     ``apache/main`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
      on setting up the ``apache`` remote. Note, some people develop their changes directly in their own
-     ``master`` branches - this is OK and you can make PR from your master to ``apache/master`` but we
+     ``main`` branches - this is OK and you can make PR from your main to ``apache/main`` but we
      recommend to always create a local branch for your development. This allows you to easily compare
      changes, have several changes that you work on at the same time and many more.
-     If you have ``apache`` set as remote then you can make sure that you have latest changes in your master
-     by ``git pull apache master`` when you are in the local ``master`` branch. If you have conflicts and
-     want to override your locally changed master you can override your local changes with
-     ``git fetch apache; git reset --hard apache/master``.
+     If you have ``apache`` set as remote then you can make sure that you have latest changes in your main
+     by ``git pull apache main`` when you are in the local ``main`` branch. If you have conflicts and
+     want to override your locally changed main you can override your local changes with
+     ``git fetch apache; git reset --hard apache/main``.
 
    * Modify the class and add necessary code and unit tests.
 
@@ -395,11 +395,11 @@ these guidelines:
 Airflow Git Branches
 ====================
 
-All new development in Airflow happens in the ``master`` branch. All PRs should target that branch.
+All new development in Airflow happens in the ``main`` branch. All PRs should target that branch.
 
 
 We also have a ``v2-*-test`` branches that are used to test ``2.*.x`` series of Airflow and where committers
-cherry-pick selected commits from the master branch.
+cherry-pick selected commits from the main branch.
 
 Cherry-picking is done with the ``-x`` flag.
 
@@ -422,7 +422,7 @@ time when they converge.
 
 The production images are build in DockerHub from:
 
-* master branch for development
+* main branch for development
 * v2-*-test branches for testing 2.*.x release
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
   final releases. There are no production images prepared from v2-*-stable branch.
@@ -683,7 +683,7 @@ the providers are installed from PyPI, they provide the entry-point containing t
 in the previous chapter. However when they are locally developed, together with Airflow, the mechanism
 of discovery of the providers is based on ``provider.yaml`` file that is placed in the top-folder of
 the provider. Similarly as in case of the ``provider.yaml`` file is compliant with the
-`json-schema specification <https://github.com/apache/airflow/blob/master/airflow/provider.yaml.schema.json>`_.
+`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
 Airflow sources, without preparing and releasing them as packages. This is achieved by:
 
@@ -804,7 +804,7 @@ There are several sets of constraints we keep:
 
 * "constraints-source-providers" - those are constraints generated by using providers installed from
   current sources. While adding new providers their dependencies might change, so this set of providers
-  is the current set of the constraints for airflow and providers from the current master sources.
+  is the current set of the constraints for airflow and providers from the current main sources.
   Those providers are used by CI system to keep "stable" set of constraints. Thet are named
   ``constraints-source-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
 
@@ -820,7 +820,7 @@ It can be done from the sources:
 .. code-block:: bash
 
   pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 or from the PyPI package:
@@ -828,7 +828,7 @@ or from the PyPI package:
 .. code-block:: bash
 
   pip install apache-airflow \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 This works also with extras - for example:
@@ -836,7 +836,7 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install .[ssh] \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 As of apache-airflow 1.10.12 it is also possible to use constraints directly from GitHub using specific
@@ -857,7 +857,7 @@ If you want to update just airflow dependencies, without paying attention to pro
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-no-providers-3.6.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.6.txt"
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
@@ -868,7 +868,7 @@ Manually generating constraint files
 ------------------------------------
 
 The constraint files are generated automatically by the CI job. Sometimes however it is needed to regenerate
-them manually (committers only). For example when master build did not succeed for quite some time).
+them manually (committers only). For example when main build did not succeed for quite some time).
 This can be done by running this (it utilizes parallel preparation of the constraints):
 
 .. code-block:: bash
@@ -894,7 +894,7 @@ generated files:
 
 .. code-block:: bash
 
-    cd <AIRFLOW_WITH_CONSTRAINT_MASTER_DIRECTORY>
+    cd <AIRFLOW_WITH_CONSTRAINT_main_DIRECTORY>
     git pull
     cp ${AIRFLOW_SOURCES}/files/constraints-*/constraints*.txt .
     git diff
@@ -1222,14 +1222,14 @@ commands:
 How to sync your fork
 =====================
 
-When you have your fork, you should periodically synchronize the master of your fork with the
-Apache Airflow master. In order to do that you can ``git pull --rebase`` to your local git repository from
-apache remote and push the master (often with ``--force`` to your fork). There is also an easy
-way using ``Force sync master from apache/airflow`` workflow. You can go to "Actions" in your repository and
+When you have your fork, you should periodically synchronize the main of your fork with the
+Apache Airflow main. In order to do that you can ``git pull --rebase`` to your local git repository from
+apache remote and push the main (often with ``--force`` to your fork). There is also an easy
+way using ``Force sync main from apache/airflow`` workflow. You can go to "Actions" in your repository and
 choose the workflow and manually trigger the workflow using "Run workflow" command.
 
-This will force-push the master from apache/airflow to the master in your fork. Note that in case you
-modified the master in your fork, you might loose those changes.
+This will force-push the main from apache/airflow to the main in your fork. Note that in case you
+modified the main in your fork, you might loose those changes.
 
 
 How to rebase PR
@@ -1240,7 +1240,7 @@ providing a better alternative to the merge workflow. We've therefore written a 
 
 As opposed to the merge workflow, the rebase workflow allows us to
 clearly separate your changes from the changes of others. It puts the responsibility of rebasing on the
-author of the change. It also produces a "single-line" series of commits on the master branch. This
+author of the change. It also produces a "single-line" series of commits on the main branch. This
 makes it easier to understand what was going on and to find reasons for problems (it is especially
 useful for "bisecting" when looking for a commit that introduced some bugs).
 
@@ -1248,9 +1248,9 @@ First of all, we suggest you read about the rebase workflow here:
 `Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_. This is an
 excellent article that describes all the ins/outs of the rebase workflow. I recommend keeping it for future reference.
 
-The goal of rebasing your PR on top of ``apache/master`` is to "transplant" your change on top of
+The goal of rebasing your PR on top of ``apache/main`` is to "transplant" your change on top of
 the latest changes that are merged by others. It also allows you to fix all the conflicts
-that arise as a result of other people changing the same files as you and merging the changes to ``apache/master``.
+that arise as a result of other people changing the same files as you and merging the changes to ``apache/main``.
 
 Here is how rebase looks in practice (you can find a summary below these detailed steps):
 
@@ -1262,7 +1262,7 @@ as "apache" so you can refer to it easily:
 * If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
 * If you use https: ``git remote add apache https://github.com/apache/airflow.git``
 
-2. You then need to make sure that you have the latest master fetched from the ``apache`` repository. You can do this
+2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can do this
    via:
 
    ``git fetch apache`` (to fetch apache remote)
@@ -1272,7 +1272,7 @@ as "apache" so you can refer to it easily:
 3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can easily check
    what is the base commit you should rebase from by:
 
-   ``git merge-base my-branch apache/master``
+   ``git merge-base my-branch apache/main``
 
    This will print the HASH of the base commit which you should use to rebase your feature from.
    For example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. Copy that HASH and go to the next step.
@@ -1297,11 +1297,11 @@ as "apache" so you can refer to it easily:
 
 5. Rebase:
 
-   ``git rebase HASH --onto apache/master``
+   ``git rebase HASH --onto apache/main``
 
    For example:
 
-   ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/master``
+   ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/main``
 
 6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
    push your changes to your repository. That should trigger the build in our CI if you have a
@@ -1334,9 +1334,9 @@ Summary
 Useful when you understand the flow but don't remember the steps and want a quick reference.
 
 ``git fetch --all``
-``git merge-base my-branch apache/master``
+``git merge-base my-branch apache/main``
 ``git checkout my-branch``
-``git rebase HASH --onto apache/master``
+``git rebase HASH --onto apache/main``
 ``git push --force-with-lease``
 
 How to communicate
@@ -1373,7 +1373,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
    * mentioning the JIRA issue number in the title of the related PR you would like to open on GitHub
 
 **IMPORTANT**
-We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow-example>`_
+We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_ as stated in `Contribution Workflow Example <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contribution-workflow-example>`_
 
 * The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
    * ad-hoc questions related to development (#development channel)
