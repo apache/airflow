@@ -82,7 +82,7 @@ dependencies and their current status for a specific run.
 ------------
 
 Calendar View
-..........
+.............
 The calendar view gives you an overview of your entire DAG's history over months, or even years.
 Letting you quickly see trends of the overall success/failure rate of runs over time.
 
