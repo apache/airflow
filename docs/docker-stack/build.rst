@@ -200,7 +200,7 @@ You should be aware, about a few things:
 * The production image of airflow uses "airflow" user, so if you want to add some of the tools
   as ``root`` user, you need to switch to it with ``USER`` directive of the Dockerfile and switch back to
   ``airflow`` user when you are done. Also you should remember about following the
-  `best practises of Dockerfiles <https://docs.docker.com/develop/develop-images/dockerfile_best-practices/>`_
+  `best practices of Dockerfiles <https://docs.docker.com/develop/develop-images/dockerfile_best-practices/>`_
   to make sure your image is lean and small.
 
 * The PyPI dependencies in Apache Airflow are installed in the user library, of the "airflow" user, so
