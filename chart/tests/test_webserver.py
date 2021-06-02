@@ -326,6 +326,78 @@ class WebserverDeploymentTest(unittest.TestCase):
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    @parameterized.expand(
+        [
+            ("1.10.15", {"gitSync": {"enabled": False}}),
+            ("1.10.15", {"persistence": {"enabled": False}}),
+            ("1.10.15", {"gitSync": {"enabled": False}, "persistence": {"enabled": False}}),
+            ("2.0.0", {"gitSync": {"enabled": True}}),
+            ("2.0.0", {"gitSync": {"enabled": False}}),
+            ("2.0.0", {"persistence": {"enabled": True}}),
+            ("2.0.0", {"persistence": {"enabled": False}}),
+            ("2.0.0", {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}),
+        ]
+    )
+    def test_no_dags_mount_or_volume_or_gitsync_sidecar_expected(self, airflow_version, dag_values):
+        docs = render_chart(
+            values={"dags": dag_values, "airflowVersion": airflow_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "dags" not in [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+
+    @parameterized.expand(
+        [
+            ("1.10.15", {"gitSync": {"enabled": True}}, True),
+            ("1.10.15", {"persistence": {"enabled": True}}, False),
+            ("1.10.15", {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}, True),
+        ]
+    )
+    def test_dags_mount(self, airflow_version, dag_values, expected_read_only):
+        docs = render_chart(
+            values={"dags": dag_values, "airflowVersion": airflow_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "mountPath": "/opt/airflow/dags",
+            "name": "dags",
+            "readOnly": expected_read_only,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_dags_gitsync_volume_and_sidecar(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True}}, "airflowVersion": "1.10.15"},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+
+    @parameterized.expand(
+        [
+            ({"persistence": {"enabled": True}}, "RELEASE-NAME-dags"),
+            ({"persistence": {"enabled": True, "existingClaim": "test-claim"}}, "test-claim"),
+            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "RELEASE-NAME-dags"),
+        ]
+    )
+    def test_dags_persistence_volume_no_sidecar(self, dags_values, expected_claim_name):
+        docs = render_chart(
+            values={"dags": dags_values, "airflowVersion": "1.10.15"},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "dags",
+            "persistentVolumeClaim": {"claimName": expected_claim_name},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+        # No gitsync sidecar
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+
 
 class WebserverServiceTest(unittest.TestCase):
     def test_default_service(self):

@@ -139,7 +139,7 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
 {{- end }}
-{{- if or (and .Values.dags.gitSync.enabled (semverCompare "<2.0.0" .Values.airflowVersion)) .Values.dags.persistence.enabled }}
+{{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
             {{- include "airflow_dags_mount" . | nindent 12 }}
 {{- end }}
 {{- if .Values.logs.persistence.enabled }}
@@ -198,15 +198,17 @@ spec:
           configMap:
             name: {{ .Release.Name }}-webserver-config
         {{- end }}
+        {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
             claimName: {{ template "airflow_dags_volume_claim" . }}
-        {{- else if and (.Values.dags.gitSync.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+        {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {}
         {{- if  .Values.dags.gitSync.sshKeySecret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
