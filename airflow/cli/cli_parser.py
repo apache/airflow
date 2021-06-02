@@ -1295,7 +1295,7 @@ USERS_COMMANDS = (
         name='delete',
         help='Delete a user',
         func=lazy_load_command('airflow.cli.commands.user_command.users_delete'),
-        args=(ARG_USERNAME,),
+        args=(ARG_USERNAME_OPTIONAL, ARG_EMAIL_OPTIONAL),
     ),
     ActionCommand(
         name='add-role',
@@ -1603,6 +1603,12 @@ airflow_commands: List[CLICommand] = [
             'https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html'
         ),
         subcommands=CELERY_COMMANDS,
+    ),
+    ActionCommand(
+        name='standalone',
+        help='Run an all-in-one copy of Airflow',
+        func=lazy_load_command('airflow.cli.commands.standalone_command.standalone'),
+        args=tuple(),
     ),
 ]
 ALL_COMMANDS_DICT: Dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}

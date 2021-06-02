@@ -19,10 +19,10 @@ import logging
 import warnings
 from os import path
 
-import connexion
-from connexion import ProblemException
 from flask import Flask, request
 
+from airflow._vendor import connexion
+from airflow._vendor.connexion import ProblemException
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
 from airflow.security import permissions

@@ -101,6 +101,5 @@ parallel::make_sure_kubernetes_versions_are_specified
 get_maximum_parallel_k8s_jobs
 
 run_k8s_tests_in_parallel "${@}"
-
 # this will exit with error code in case some of the tests failed
 parallel::print_job_summary_and_return_status_code

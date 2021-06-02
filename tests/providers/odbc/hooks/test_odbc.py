@@ -52,6 +52,7 @@ class TestOdbcHook:
             'DATABASE=schema;'
             'UID=login;'
             'PWD=password;'
+            'PORT=1234;'
             'Fake_Param=Fake Param;'
         )
         assert hook.odbc_connection_string == expected
@@ -66,6 +67,7 @@ class TestOdbcHook:
             'DATABASE=schema;'
             'UID=login;'
             'PWD=password;'
+            'PORT=1234;'
             'Fake_Param=Fake Param;'
         )
         assert hook.odbc_connection_string == expected
@@ -73,7 +75,9 @@ class TestOdbcHook:
     def test_dsn_in_extra(self):
         conn_params = dict(extra=json.dumps(dict(DSN='MyDSN', Fake_Param='Fake Param')))
         hook = self.get_hook(conn_params=conn_params)
-        expected = 'DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;Fake_Param=Fake Param;'
+        expected = (
+            'DSN=MyDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;'
+        )
         assert hook.odbc_connection_string == expected
 
     def test_dsn_in_both(self):
@@ -87,6 +91,7 @@ class TestOdbcHook:
             'DATABASE=schema;'
             'UID=login;'
             'PWD=password;'
+            'PORT=1234;'
             'Fake_Param=Fake Param;'
         )
         assert hook.odbc_connection_string == expected
@@ -96,7 +101,7 @@ class TestOdbcHook:
         hook_params = dict(dsn='ParamDSN')
         hook = self.get_hook(hook_params=hook_params, conn_params=conn_params)
         uri_param = quote_plus(
-            'DSN=ParamDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;Fake_Param=Fake Param;'
+            'DSN=ParamDSN;SERVER=host;DATABASE=schema;UID=login;PWD=password;PORT=1234;Fake_Param=Fake Param;'
         )
         expected = 'mssql+pyodbc:///?odbc_connect=' + uri_param
         assert hook.get_uri() == expected

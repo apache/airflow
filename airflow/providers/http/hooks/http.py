@@ -170,7 +170,7 @@ class HttpHook(BaseHook):
         :param prepped_request: the prepared request generated in run()
         :type prepped_request: session.prepare_request
         :param extra_options: additional options to be used when executing the request
-            i.e. {'check_response': False} to avoid checking raising exceptions on non 2XX
+            i.e. ``{'check_response': False}`` to avoid checking raising exceptions on non 2XX
             or 3XX status codes
         :type extra_options: dict
         """
@@ -215,16 +215,13 @@ class HttpHook(BaseHook):
 
         .. code-block:: python
 
-            hook = HttpHook(http_conn_id='my_conn',method='GET')
+            hook = HttpHook(http_conn_id="my_conn", method="GET")
             retry_args = dict(
-                 wait=tenacity.wait_exponential(),
-                 stop=tenacity.stop_after_attempt(10),
-                 retry=requests.exceptions.ConnectionError
-             )
-             hook.run_with_advanced_retry(
-                     endpoint='v1/test',
-                     _retry_args=retry_args
-                 )
+                wait=tenacity.wait_exponential(),
+                stop=tenacity.stop_after_attempt(10),
+                retry=requests.exceptions.ConnectionError,
+            )
+            hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
 
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)

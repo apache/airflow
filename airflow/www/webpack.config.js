@@ -39,6 +39,7 @@ const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
+    dag: `${JS_DIR}/dag.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
     dagDependencies: `${JS_DIR}/dag_dependencies.js`,
     dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
@@ -51,8 +52,8 @@ const config = {
     materialIcons: `${CSS_DIR}/material-icons.css`,
     moment: 'moment-timezone',
     switch: `${CSS_DIR}/switch.css`,
+    task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
-    taskInstance: `${JS_DIR}/task_instance.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
     tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree.js`],
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],

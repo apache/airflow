@@ -246,7 +246,7 @@ class SqoopOperator(BaseOperator):
         if self.hook is None:
             self.hook = self._get_hook()
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)
+        os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)  # pylint: disable=no-member
 
     def _get_hook(self) -> SqoopHook:
         return SqoopHook(

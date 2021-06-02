@@ -20,7 +20,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -278,7 +278,8 @@ class BaseSQLToGCSOperator(BaseOperator):
         }
 
         columns = [field[0] for field in cursor.description]
-        bq_types = [self.field_to_bigquery(field) for field in cursor.description]
+        bq_fields = [self.field_to_bigquery(field) for field in cursor.description]
+        bq_types = [bq_field.get('type') if bq_field is not None else None for bq_field in bq_fields]
         pq_types = [type_map.get(bq_type, pa.string()) for bq_type in bq_types]
         parquet_schema = pa.schema(zip(columns, pq_types))
         return parquet_schema
@@ -288,7 +289,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Execute DBAPI query."""
 
     @abc.abstractmethod
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod

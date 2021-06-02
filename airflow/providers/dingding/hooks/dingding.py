@@ -48,6 +48,11 @@ class DingdingHook(HttpHook):
     :type at_all: bool
     """
 
+    conn_name_attr = 'dingding_conn_id'
+    default_conn_name = 'dingding_default'
+    conn_type = 'dingding'
+    hook_name = 'Dingding'
+
     def __init__(
         self,
         dingding_conn_id='dingding_default',

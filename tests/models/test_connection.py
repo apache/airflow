@@ -649,3 +649,39 @@ class TestConnection(unittest.TestCase):
             ]
         finally:
             session.rollback()
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI': 'sqlite://',
+        },
+    )
+    def test_connection_test_success(self):
+        conn = Connection(conn_id='test_uri', conn_type='sqlite')
+        res = conn.test_connection()
+        assert res[0] is True
+        assert res[1] == 'Connection successfully tested'
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI_NO_HOOK': 'fs://',
+        },
+    )
+    def test_connection_test_no_hook(self):
+        conn = Connection(conn_id='test_uri_no_hook', conn_type='fs')
+        res = conn.test_connection()
+        assert res[0] is False
+        assert res[1] == 'Unknown hook type "fs"'
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI_HOOK_METHOD_MISSING': 'ftp://',
+        },
+    )
+    def test_connection_test_hook_method_missing(self):
+        conn = Connection(conn_id='test_uri_hook_method_mising', conn_type='ftp')
+        res = conn.test_connection()
+        assert res[0] is False
+        assert res[1] == "Hook FTPHook doesn't implement or inherit test_connection method"

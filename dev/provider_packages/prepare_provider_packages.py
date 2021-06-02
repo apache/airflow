@@ -84,7 +84,7 @@ Initial version of the provider.
 """
 
 HTTPS_REMOTE = "apache-https-for-providers"
-HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/master"
+HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
 
 PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
 
@@ -152,6 +152,11 @@ option_verbose = click.option(
     "--verbose",
     is_flag=True,
     help="Print verbose information about performed steps",
+)
+option_force = click.option(
+    "--force",
+    is_flag=True,
+    help="Forces regeneration of already generated documentation",
 )
 argument_package_id = click.argument('package_id')
 
@@ -310,6 +315,16 @@ def get_pip_package_name(provider_package_id: str) -> str:
     :return: the name of pip package
     """
     return "apache-airflow-providers-" + provider_package_id.replace(".", "-")
+
+
+def get_wheel_package_name(provider_package_id: str) -> str:
+    """
+    Returns PIP package name for the package id.
+
+    :param provider_package_id: id of the package
+    :return: the name of pip package
+    """
+    return "apache_airflow_providers_" + provider_package_id.replace(".", "_")
 
 
 def get_long_description(provider_package_id: str) -> str:
@@ -545,7 +560,7 @@ def convert_new_classes_to_table(
     from tabulate import tabulate
 
     headers = [f"New Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package"]
-    table = [(get_class_code_link(full_package_name, class_name, "master"),) for class_name in new_entities]
+    table = [(get_class_code_link(full_package_name, class_name, "main"),) for class_name in new_entities]
     return tabulate(table, headers=headers, tablefmt="pipe")
 
 
@@ -569,7 +584,7 @@ def convert_moved_classes_to_table(
     ]
     table = [
         (
-            get_class_code_link(full_package_name, to_class, "master"),
+            get_class_code_link(full_package_name, to_class, "main"),
             get_class_code_link("airflow", moved_entities[to_class], "v1-10-stable"),
         )
         for to_class in sorted(moved_entities.keys())
@@ -1461,7 +1476,7 @@ def get_all_changes_for_package(
     changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, array_of_changes[0], changes_table
+    return True, array_of_changes[0] if len(array_of_changes) > 0 else None, changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
@@ -1503,6 +1518,7 @@ def get_provider_jinja_context(
         "README_FILE": "README.rst",
         "PROVIDER_PACKAGE_ID": provider_details.provider_package_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_package_id),
+        "PACKAGE_WHEEL_NAME": get_wheel_package_name(provider_details.provider_package_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
         "PROVIDER_PATH": provider_details.full_package_name.replace(".", "/"),
         "RELEASE": current_release_version,
@@ -1575,6 +1591,7 @@ def mark_latest_changes_as_documentation_only(
 def update_release_notes(
     provider_package_id: str,
     version_suffix: str,
+    force: bool,
     verbose: bool,
     interactive: bool,
 ) -> bool:
@@ -1583,6 +1600,7 @@ def update_release_notes(
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
+    :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
     :param interactive: whether the script should ask the user in case of doubt
     :returns False if the package should be skipped, True if everything generated properly
@@ -1603,18 +1621,21 @@ def update_release_notes(
         provider_details.source_provider_package_path,
         verbose,
     )
-    if proceed:
-        if interactive and not confirm("Provider marked for release. Proceed?"):
+    if not force:
+        if proceed:
+            if interactive and not confirm("Provider marked for release. Proceed?"):
+                return False
+        elif not latest_change:
+            print()
+            print(
+                f"[yellow]Provider: {provider_package_id} - skipping documentation generation. No changes![/]"
+            )
+            print()
             return False
-    elif not latest_change:
-        print()
-        print(f"[yellow]Provider: {provider_package_id} - skipping documentation generation. No changes![/]")
-        print()
-        return False
-    else:
-        if interactive and confirm("Are those changes documentation-only?"):
-            mark_latest_changes_as_documentation_only(provider_details, latest_change)
-        return False
+        else:
+            if interactive and confirm("Are those changes documentation-only?"):
+                mark_latest_changes_as_documentation_only(provider_details, latest_change)
+            return False
 
     jinja_context["DETAILED_CHANGES_RST"] = changes
     jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
@@ -1842,12 +1863,14 @@ def list_providers_packages():
 @option_git_update
 @option_interactive
 @argument_package_id
+@option_force
 @option_verbose
 def update_package_documentation(
     version_suffix: str,
     git_update: bool,
     interactive: bool,
     package_id: str,
+    force: bool,
     verbose: bool,
 ):
     """
@@ -1861,7 +1884,7 @@ def update_package_documentation(
         print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if not update_release_notes(
-            provider_package_id, version_suffix, verbose=verbose, interactive=interactive
+            provider_package_id, version_suffix, force=force, verbose=verbose, interactive=interactive
         ):
             # Returns 64 in case of skipped package
             sys.exit(64)
@@ -2019,7 +2042,7 @@ def verify_provider_classes_for_single_provider(imported_classes: List[str], pro
     full_package_name = f"airflow.providers.{provider_package_id}"
     entity_summaries = get_package_class_summary(full_package_name, imported_classes)
     total, bad = check_if_classes_are_properly_named(entity_summaries)
-    bad += sum([len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values()])
+    bad += sum(len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values())
     if bad != 0:
         print()
         print(f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]")

@@ -21,8 +21,8 @@ import io
 import logging
 import os
 import unittest
-from unittest import mock
 
+import pytest
 from parameterized import parameterized
 from rich.console import Console
 
@@ -168,27 +168,30 @@ class TestAirflowInfo:
         assert airflow_version in output
         assert "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow" in output
 
+
+@pytest.fixture()
+def setup_parser():
+    yield cli_parser.get_parser()
+
+
+class TestInfoCommandMockHttpx:
     @conf_vars(
         {
             ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
         }
     )
-    @mock.patch(
-        "airflow.cli.commands.info_command.requests",
-        **{  # type: ignore
-            "post.return_value.ok": True,
-            "post.return_value.json.return_value": {
+    def test_show_info_anonymize_fileio(self, httpx_mock, setup_parser):
+        httpx_mock.add_response(
+            url="https://file.io",
+            method="post",
+            json={
                 "success": True,
                 "key": "f9U3zs3I",
                 "link": "https://file.io/TEST",
                 "expiry": "14 days",
             },
-        },
-    )
-    def test_show_info_anonymize_fileio(self, mock_requests):
+            status_code=200,
+        )
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
-            info_command.show_info(self.parser.parse_args(["info", "--file-io"]))
-
+            info_command.show_info(setup_parser.parse_args(["info", "--file-io"]))
         assert "https://file.io/TEST" in stdout.getvalue()
-        content = mock_requests.post.call_args[1]["data"]["text"]
-        assert "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow" in content

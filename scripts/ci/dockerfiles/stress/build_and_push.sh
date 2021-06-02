@@ -17,7 +17,7 @@
 # under the License.
 set -euo pipefail
 DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
+DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
 readonly DOCKERHUB_USER
 readonly DOCKERHUB_REPO
 STRESS_VERSION="1.0.4"

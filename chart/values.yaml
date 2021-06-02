@@ -31,16 +31,16 @@ gid: 0
 
 # Airflow home directory
 # Used for mount paths
-airflowHome: "/opt/airflow"
+airflowHome: /opt/airflow
 
 # Default airflow repository -- overrides all the specific images below
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: 2.0.2
+defaultAirflowTag: "2.0.2"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: 2.0.2
+airflowVersion: "2.0.2"
 
 # Images
 images:
@@ -143,10 +143,16 @@ networkPolicies:
   # Enabled network policies
   enabled: false
 
-
 # Extra annotations to apply to all
 # Airflow pods
 airflowPodAnnotations: {}
+
+# Extra annotations to apply to
+# main Airflow configmap
+airflowConfigAnnotations: {}
+
+# `airflow_local_settings` file as a string (can be templated).
+airflowLocalSettings: ~
 
 # Enable RBAC (default on most clusters these days)
 rbac:
@@ -209,6 +215,7 @@ extraConfigMaps: {}
 
 # Extra env 'items' that will be added to the definition of airflow containers
 # a string is expected (can be templated).
+# TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.
 extraEnv: ~
 # eg:
 # extraEnv: |
@@ -241,20 +248,22 @@ data:
     port: 5432
     db: postgres
     sslmode: disable
-  resultBackendConnection:
-    user: postgres
-    pass: postgres
-    protocol: postgresql
-    host: ~
-    port: 5432
-    db: postgres
-    sslmode: disable
+  # resultBackendConnection defaults to the same database as metadataConnection
+  resultBackendConnection: ~
+  # or, you can use a different database
+  # resultBackendConnection:
+  #   user: postgres
+  #   pass: postgres
+  #   protocol: postgresql
+  #   host: ~
+  #   port: 5432
+  #   db: postgres
+  #   sslmode: disable
   brokerUrl: ~
 
 # Fernet key settings
 fernetKey: ~
 fernetKeySecretName: ~
-
 
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
@@ -276,11 +285,11 @@ fernetKeySecretName: ~
 #
 kerberos:
   enabled: false
-  ccacheMountPath: '/var/kerberos-ccache'
-  ccacheFileName: 'cache'
-  configPath: '/etc/krb5.conf'
-  keytabPath: '/etc/airflow.keytab'
-  principal: 'airflow@FOO.COM'
+  ccacheMountPath: /var/kerberos-ccache
+  ccacheFileName: cache
+  configPath: /etc/krb5.conf
+  keytabPath: /etc/airflow.keytab
+  principal: airflow@FOO.COM
   reinitFrequency: 3600
   config: |
     # This is an example config showing how you can use templating and how "example" config
@@ -311,6 +320,18 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+
+  # Command to use when running Airflow workers (templated).
+  command: ~
+  # Args to use when running Airflow workers (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
   # Update Strategy when worker is deployed as a Deployment
@@ -325,7 +346,7 @@ workers:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -354,7 +375,7 @@ workers:
     # If using a custom storageClass, pass name ref to all statefulSets here
     storageClassName:
     # Execute init container to chown log directory.
-    # This is currently only needed in KinD, due to usage
+    # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
 
@@ -386,6 +407,8 @@ workers:
 
   # Launch additional containers into worker.
   extraContainers: []
+  # Add additional init containers into workers.
+  extraInitContainers: []
 
   # Mount additional volumes into worker.
   extraVolumes: []
@@ -406,6 +429,12 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  logGroomerSidecar:
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow scheduler settings
 scheduler:
   # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
@@ -419,13 +448,25 @@ scheduler:
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
 
+  # Command to use when running the Airflow scheduler (templated).
+  command: ~
+  # Args to use when running the Airflow scheduler (templated).
+  args: ["bash", "-c", "exec airflow scheduler"]
+
+  # Update Strategy when scheduler is deployed as a StatefulSet
+  # (when using LocalExecutor and workers.persistence)
+  updateStrategy: ~
+  # Update Strategy when scheduler is deployed as a Deployment
+  # (when not using LocalExecutor and workers.persistence)
+  strategy: ~
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to scheduler kubernetes service account.
     annotations: {}
@@ -446,16 +487,14 @@ scheduler:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # This setting can overwrite
-  # podMutation settings.
-  airflowLocalSettings: ~
-
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
   safeToEvict: true
 
   # Launch additional containers into scheduler.
   extraContainers: []
+  # Add additional init containers into scheduler.
+  extraInitContainers: []
 
   # Mount additional volumes into scheduler.
   extraVolumes: []
@@ -466,21 +505,34 @@ scheduler:
   affinity: {}
   tolerations: []
 
+  logGroomerSidecar:
+    # Whether to deploy the Airflow scheduler log groomer sidecar.
+    enabled: true
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow create user job settings
 createUserJob:
+  # Annotations on the create user job pod
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to create user kubernetes service account.
     annotations: {}
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  # Annotations on the database migration pod
+  annotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -488,7 +540,7 @@ migrateDatabaseJob:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
@@ -511,13 +563,18 @@ webserver:
   # Number of webservers
   replicas: 1
 
+  # Command to use when running the Airflow webserver (templated).
+  command: ~
+  # Args to use when running the Airflow webserver (templated).
+  args: ["bash", "-c", "exec airflow webserver"]
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to webserver kubernetes service account.
     annotations: {}
@@ -548,14 +605,15 @@ webserver:
 
   # Launch additional containers into webserver.
   extraContainers: []
+  # Add additional init containers into webserver.
+  extraInitContainers: []
 
   # Mount additional volumes into webserver.
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This will be mounted into the Airflow Webserver as a custom
-  # webserver_config.py. You can bake a webserver_config.py in to your image
-  # instead
+  # This string (can be templated) will be mounted into the Airflow Webserver as a custom
+  # webserver_config.py. You can bake a webserver_config.py in to your image instead.
   webserverConfig: ~
   # webserverConfig: |
   #   from airflow import configuration as conf
@@ -570,6 +628,7 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
@@ -581,6 +640,18 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: true
+
+  # Command to use when running flower (templated).
+  command: ~
+  # Args to use when running flower (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -597,7 +668,7 @@ flower:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -611,6 +682,9 @@ flower:
 
   service:
     type: ClusterIP
+    ## service annotations
+    annotations: {}
+    loadBalancerIP: ~
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
@@ -627,7 +701,7 @@ statsd:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -655,9 +729,9 @@ statsd:
 
   uid: 65534
 
-# Pgbouncer settings
+# PgBouncer settings
 pgbouncer:
-  # Enable pgbouncer
+  # Enable PgBouncer
   enabled: false
 
   # Create ServiceAccount
@@ -666,7 +740,7 @@ pgbouncer:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -678,7 +752,7 @@ pgbouncer:
   metadataPoolSize: 10
   resultBackendPoolSize: 5
 
-  # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
+  # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
   # supply the name of existing secret with pgbouncer.ini and users.txt defined
@@ -696,7 +770,7 @@ pgbouncer:
   #
   configSecretName: ~
 
-  # Pgbouner pod disruption budget
+  # PgBouncer pod disruption budget
   podDisruptionBudget:
     enabled: false
 
@@ -704,9 +778,9 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
-  # Limit the resources to pgbouncerExported.
-  # When you specify the resource request the scheduler uses this information to decide which node to place
-  # the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
+  # Limit the resources to PgBouncer.
+  # When you specify the resource request the k8s scheduler uses this information to decide which node to
+  # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
   # that the running container is not allowed to use more of that resource than the limit you set.
   # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
   # Example:
@@ -736,7 +810,14 @@ pgbouncer:
     cert: ~
     key: ~
 
-  # Select certain nodes for pgbouncer pods.
+  # Add extra PgBouncer ini configuration in the databases section:
+  # https://www.pgbouncer.org/config.html#section-databases
+  extraIniMetadata: ~
+  extraIniResultBackend: ~
+  # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
+  extraIni: ~
+
+  # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -754,7 +835,7 @@ redis:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
@@ -819,7 +900,6 @@ elasticsearch:
   #   port: ~
   connection: {}
 
-
 # All ports used by chart
 ports:
   flowerUI: 5555
@@ -854,7 +934,7 @@ cleanup:
     create: true
     # The name of the ServiceAccount to use.
     # If not set and create is true, a name is generated using the release name
-    # name:
+    name: ~
 
     # Annotations to add to cleanup cronjob kubernetes service account.
     annotations: {}
@@ -951,21 +1031,13 @@ dags:
   gitSync:
     enabled: false
 
-    # Change it to true when DAG Serialization is turned on. This will exclude git sync containers
-    # from Webserver as DAGs are fetched from the DB. DAG Serialization was introduced in
-    # 1.10.7 and is optional for <2.0.0.
-    # https://airflow.apache.org/docs/apache-airflow/1.10.15/dag-serialization.html
-    excludeWebserver: false
-
     # git repo clone url
     # ssh examples ssh://git@github.com/apache/airflow.git
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v1-10-stable
+    branch: v2-1-stable
     rev: HEAD
-    root: "/git"
-    dest: "repo"
     depth: 1
     # the number of consecutive failures allowed before aborting
     maxFailures: 0
@@ -1011,6 +1083,14 @@ dags:
     containerName: git-sync
     uid: 65533
     extraVolumeMounts: []
+    env: []
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 logs:
   persistence:

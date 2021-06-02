@@ -17,6 +17,7 @@
 
 import json
 import unittest
+from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
@@ -62,8 +63,12 @@ OUTPUT_DF = pd.DataFrame([['convert_type_return_value'] * 3] * 3, columns=COLUMN
 
 
 class DummySQLToGCSOperator(BaseSQLToGCSOperator):
-    def field_to_bigquery(self, field):
-        pass
+    def field_to_bigquery(self, field) -> Dict[str, str]:
+        return {
+            'name': field[0],
+            'type': 'STRING',
+            'mode': 'NULLABLE',
+        }
 
     def convert_type(self, value, schema_type):
         return 'convert_type_return_value'

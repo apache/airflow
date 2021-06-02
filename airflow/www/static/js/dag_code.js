@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* global $ */
+
 import getMetaValue from './meta_value';
 
 const isWrapped = getMetaValue('wrapped');

@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/sqlite/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/sqlite/example_dags>
 
 .. toctree::
     :maxdepth: 1

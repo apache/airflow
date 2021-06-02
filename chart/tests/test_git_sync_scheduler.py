@@ -67,8 +67,6 @@ class GitSyncSchedulerTest(unittest.TestCase):
                         "wait": 66,
                         "maxFailures": 70,
                         "subPath": "path1/path2",
-                        "dest": "test-dest",
-                        "root": "/git-root",
                         "rev": "HEAD",
                         "depth": 1,
                         "repo": "https://github.com/apache/airflow.git",
@@ -93,13 +91,14 @@ class GitSyncSchedulerTest(unittest.TestCase):
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git-root"},
-                {"name": "GIT_SYNC_DEST", "value": "test-dest"},
+                {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                {"name": "GIT_SYNC_DEST", "value": "repo"},
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GIT_SYNC_WAIT", "value": "66"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
             ],
-            "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
+            "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
         } == jmespath.search("spec.template.spec.containers[1]", docs[0])
 
     def test_validate_if_ssh_params_are_added(self):
@@ -215,3 +214,41 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+
+    def test_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "resources": {
+                            "limits": {"cpu": "200m", 'memory': "128Mi"},
+                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[1].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])

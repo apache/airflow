@@ -33,6 +33,15 @@ function common::get_airflow_version_specification() {
     fi
 }
 
+function common::override_pip_version_if_needed() {
+    if [[ -n ${AIRFLOW_VERSION} ]]; then
+        if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
+            export AIRFLOW_PIP_VERSION="20.2.4"
+        fi
+    fi
+}
+
+
 function common::get_constraints_location() {
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE}" ]]; then

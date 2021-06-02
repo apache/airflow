@@ -36,16 +36,14 @@ import {
   MdBrightness2,
   MdAccountCircle,
   MdExitToApp,
+  MdQueryBuilder,
 } from 'react-icons/md';
-import dayjs from 'dayjs';
-import tz from 'dayjs/plugin/timezone';
 
 import { useAuthContext } from 'providers/auth/context';
+import { useDateContext, HOURS_24 } from 'providers/DateProvider';
 
 import ApacheAirflowLogo from 'components/icons/ApacheAirflowLogo';
 import TimezoneDropdown from './TimezoneDropdown';
-
-dayjs.extend(tz);
 
 interface Props {
   bodyBg: string;
@@ -55,6 +53,7 @@ interface Props {
 
 const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
   const { toggleColorMode } = useColorMode();
+  const { dateFormat, toggle24Hour } = useDateContext();
   const headerHeight = '56px';
   const { hasValidAuthToken, logout } = useAuthContext();
   const darkLightIcon = useColorModeValue(MdBrightness2, MdWbSunny);
@@ -101,6 +100,13 @@ const AppHeader: React.FC<Props> = ({ bodyBg, overlayBg, breadcrumb }) => {
                 Set
                 {darkLightText}
                 Mode
+              </MenuItem>
+              {/* Clock config should move to User Profile Settings when that page exists */}
+              <MenuItem onClick={toggle24Hour}>
+                <Icon as={MdQueryBuilder} mr="2" />
+                Use
+                {dateFormat === HOURS_24 ? ' 12 hour ' : ' 24 hour '}
+                clock
               </MenuItem>
               <MenuDivider />
               <MenuItem onClick={logout}>

@@ -36,7 +36,7 @@ To use this operator you need:
   * Install the python module jaydebeapi:
     .. code-block:: bash
 
-      pip install jaydebeapi
+        pip install apache-airflow[jdbc]
 
   * Install a `JVM <https://adoptopenjdk.net/installation.html>`_ and
     add a ``JAVA_HOME`` env variable.
@@ -53,17 +53,17 @@ database is listening for new connections.
 
   .. code-block:: python
 
-    import apache-airflow[jdbc]
-
     driver_class = "com.exasol.jdbc.EXADriver"
     driver_path = "/opt/airflow/drivers/exasol/EXASolution_JDBC-7.0.2/exajdbc.jar"
-    connection_url =  "jdbc:exa:localhost"
+    connection_url = "jdbc:exa:localhost"
     credentials = ["", ""]
 
-    conn = jaydebeapi.connect(driver_class,
-                              connection_url,
-                              credentials,
-                              driver_path,)
+    conn = jaydebeapi.connect(
+        driver_class,
+        connection_url,
+        credentials,
+        driver_path,
+    )
 
 Usage
 ^^^^^

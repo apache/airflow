@@ -17,6 +17,7 @@ Ansible
 AppBuilder
 Arg
 Args
+Asana
 Async
 Atlassian
 Auth
@@ -71,6 +72,7 @@ Colour
 ComputeNodeState
 Computenodes
 Config
+ConfigMaps
 Configs
 ContainerPort
 Cron
@@ -148,7 +150,6 @@ Flink
 FluentD
 Fokko
 Formaturas
-Fspark
 Fundera
 GCS
 GH
@@ -179,6 +180,7 @@ Hitesh
 Hiveserver
 Hoc
 Homan
+HostAliases
 Hostname
 Hou
 Http
@@ -237,6 +239,7 @@ Lifecycle
 LineItem
 ListGenerator
 ListInfoTypesResponse
+Liveness
 Logstash
 Lowin
 Lyft
@@ -285,6 +288,7 @@ Paramiko
 Params
 Paxos
 Pem
+PgBouncer
 Pinot
 Popen
 Postgres
@@ -354,6 +358,7 @@ StatefulSet
 StatefulSets
 StatsD
 Statsd
+StorageClass
 StoredInfoType
 Stringified
 Subclasses
@@ -467,6 +472,7 @@ args
 arn
 arraysize
 artwr
+asana
 asc
 ascii
 asciiart
@@ -559,7 +565,9 @@ cgroupspy
 changelog
 charset
 checklicence
+checksums
 chmod
+chown
 ci
 cid
 ciphertext
@@ -736,6 +744,7 @@ enum
 env
 envFrom
 envvar
+eol
 eols
 ephraimbuddy
 errno
@@ -806,6 +815,7 @@ getsource
 gevent
 gid
 gif
+gitSync
 github
 gitignore
 gitpython
@@ -853,6 +863,7 @@ http
 httpbin
 httplib
 https
+httpx
 hvac
 hyperparameter
 iPython
@@ -874,6 +885,7 @@ incompliancies
 infile
 infoType
 infoTypes
+ini
 init
 initcontainer
 initcontainers
@@ -935,6 +947,7 @@ keytab
 killMode
 kinit
 kms
+knownHosts
 krb
 kube
 kubeclient
@@ -959,8 +972,10 @@ licence
 licences
 lifecycle
 lineterminator
+linter
 linux
 livy
+loadBalancerIP
 localExecutor
 localexecutor
 localhost
@@ -1100,6 +1115,7 @@ podSpec
 podspec
 poller
 polyfill
+pooler
 postMessage
 postfix
 postgres
@@ -1137,6 +1153,7 @@ pty
 pubsub
 py
 pyMongo
+pyarrow
 pydruid
 pyexasol
 pyhive
@@ -1287,6 +1304,7 @@ stmts
 storedInfoType
 str
 stringified
+subchart
 subclasses
 subclassing
 subcommand
@@ -1417,6 +1435,7 @@ utils
 uuid
 validator
 vals
+ve
 vendored
 venvs
 versionable

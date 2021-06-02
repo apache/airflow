@@ -120,8 +120,7 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
                     "gcloud",
                     "builds",
                     "submit",
-                    "--substitutions="
-                    + ",".join([f"{k}={shlex.quote(v)}" for k, v in substitutions.items()]),
+                    "--substitutions=" + ",".join(f"{k}={shlex.quote(v)}" for k, v in substitutions.items()),
                     f"--config={f.name}",
                     "--no-source",
                 ]

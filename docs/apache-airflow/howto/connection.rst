@@ -31,6 +31,8 @@ variables.
 See the :doc:`Connections Concepts </concepts/connections>` documentation for
 more information.
 
+.. _creating_connection_ui:
+
 Creating a Connection with the UI
 ---------------------------------
 
@@ -47,6 +49,8 @@ to create a new connection.
    :ref:`manage-connections-connection-types` for a description of the fields
    belonging to the different connection types.
 4. Click the ``Save`` button to create the connection.
+
+.. _editing_connection_ui:
 
 Editing a Connection with the UI
 --------------------------------
@@ -217,15 +221,15 @@ The above URI would produce a ``Connection`` object equivalent to the following:
 .. code-block:: python
 
     Connection(
-        conn_id='',
-        conn_type='my_conn_type',
+        conn_id="",
+        conn_type="my_conn_type",
         description=None,
-        login='my-login',
-        password='my-password',
-        host='my-host',
+        login="my-login",
+        password="my-password",
+        host="my-host",
         port=5432,
-        schema='my-schema',
-        extra=json.dumps(dict(param1='val1', param2='val2'))
+        schema="my-schema",
+        extra=json.dumps(dict(param1="val1", param2="val2")),
     )
 
 
@@ -241,16 +245,15 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
 
     >>> import json
     >>> from airflow.models.connection import Connection
-
     >>> c = Connection(
-    >>>     conn_id='some_conn',
-    >>>     conn_type='mysql',
-    >>>     description='connection description',
-    >>>     host='myhost.com',
-    >>>     login='myname',
-    >>>     password='mypassword',
-    >>>     extra=json.dumps(dict(this_param='some val', that_param='other val*')),
-    >>> )
+    ...     conn_id="some_conn",
+    ...     conn_type="mysql",
+    ...     description="connection description",
+    ...     host="myhost.com",
+    ...     login="myname",
+    ...     password="mypassword",
+    ...     extra=json.dumps(dict(this_param="some val", that_param="other val*")),
+    ... )
     >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.get_uri()}'")
     AIRFLOW_CONN_SOME_CONN='mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A'
 
@@ -284,16 +287,16 @@ For example:
 
 .. code-block:: pycon
 
-    >>> extra_dict = {'my_val': ['list', 'of', 'values'], 'extra': {'nested': {'json': 'val'}}}
+    >>> extra_dict = {"my_val": ["list", "of", "values"], "extra": {"nested": {"json": "val"}}}
     >>> c = Connection(
-    >>>     conn_type='scheme',
-    >>>     host='host/location',
-    >>>     schema='schema',
-    >>>     login='user',
-    >>>     password='password',
-    >>>     port=1234,
-    >>>     extra=json.dumps(extra_dict),
-    >>> )
+    ...     conn_type="scheme",
+    ...     host="host/location",
+    ...     schema="schema",
+    ...     login="user",
+    ...     password="password",
+    ...     port=1234,
+    ...     extra=json.dumps(extra_dict),
+    ... )
     >>> uri = c.get_uri()
     >>> uri
     'scheme://user:password@host%2Flocation:1234/schema?__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D'
@@ -316,7 +319,9 @@ You can verify a URI is parsed correctly like so:
 
     >>> from airflow.models.connection import Connection
 
-    >>> c = Connection(uri='my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2')
+    >>> c = Connection(
+    ...     uri="my-conn-type://my-login:my-password@my-host:5432/my-schema?param1=val1&param2=val2"
+    ... )
     >>> print(c.login)
     my-login
     >>> print(c.password)
@@ -338,14 +343,18 @@ For example if your password has a ``/``, this fails:
 
 .. code-block:: pycon
 
-    >>> c = Connection(uri='my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2')
+    >>> c = Connection(
+    ...     uri="my-conn-type://my-login:my-pa/ssword@my-host:5432/my-schema?param1=val1&param2=val2"
+    ... )
     ValueError: invalid literal for int() with base 10: 'my-pa'
 
 To fix this, you can encode with :func:`~urllib.parse.quote_plus`:
 
 .. code-block:: pycon
 
-    >>> c = Connection(uri='my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2')
+    >>> c = Connection(
+    ...     uri="my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2"
+    ... )
     >>> print(c.password)
     my-pa/ssword
 
@@ -358,6 +367,24 @@ Passwords cannot be manipulated or read without the key. For information on conf
 
 In addition to retrieving connections from environment variables or the metastore database, you can enable
 an secrets backend to retrieve connections. For more details see :doc:`/security/secrets/secrets-backend/index`.
+
+
+Test Connections
+----------------
+
+Airflow Web UI & API allows to test connections. The test connection feature can be used from
+:ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page, or through calling
+:doc:`Connections REST API </stable-rest-api-ref/>`.
+
+To test a connection Airflow calls out the ``test_connection`` method from the associated hook class and reports the
+results of it. It may happen that the connection type does not have any associated hook or the hook doesn't have the
+``test_connection`` method implementation, in either case the error message will throw the proper error message.
+
+One important point to note is that the connections will be tested from the webserver only, so this feature is
+subject to network egress rules setup for your webserver. Also, if webserver & worker machines have different libs or
+provider packages installed then the test results might differ.
+
+Last caveat is that this feature won't be available for the connections coming out of the secrets backends.
 
 
 Custom connection types

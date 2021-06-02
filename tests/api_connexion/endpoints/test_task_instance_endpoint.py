@@ -840,6 +840,26 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 },
                 4,
             ),
+            (
+                "dry_run default",
+                "example_python_operator",
+                [
+                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.RUNNING,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "only_failed": True,
+                },
+                2,
+            ),
         ]
     )
     @provide_session

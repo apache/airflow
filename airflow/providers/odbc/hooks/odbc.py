@@ -140,7 +140,7 @@ class OdbcHook(DbApiHook):
             if self.connection.password:
                 conn_str += f"PWD={self.connection.password};"
             if self.connection.port:
-                f"PORT={self.connection.port};"
+                conn_str += f"PORT={self.connection.port};"
 
             extra_exclude = {'driver', 'dsn', 'connect_kwargs', 'sqlalchemy_scheme'}
             extra_params = {

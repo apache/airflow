@@ -26,6 +26,7 @@
     "react-query": "^3.12.3",
     "react-router-dom": "^5.2.0",
     "react-select": "^4.3.0",
+    "react-table": "^7.7.0",
     "use-react-router": "^1.0.7"
   },
   "devDependencies": {
@@ -40,6 +41,7 @@
     "@types/react-dom": "^17.0.2",
     "@types/react-router-dom": "^5.1.7",
     "@types/react-select": "^4.0.15",
+    "@types/react-table": "^7.7.0",
     "eslint": "^7",
     "eslint-config-airbnb-typescript": "^12.3.1",
     "eslint-plugin-import": "^2.22.1",

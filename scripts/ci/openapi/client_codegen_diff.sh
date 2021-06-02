@@ -20,7 +20,7 @@
 
 set -eu
 
-# HEAD^1 says the "first" parent. For PR merge commits, or master commits, this is the "right" commit.
+# HEAD^1 says the "first" parent. For PR merge commits, or main commits, this is the "right" commit.
 #
 # In this example, 9c532b6 is the PR commit (HEAD^2), 4840892 is the head GitHub checks-out for us, and db121f7 is the
 # "merge target" (HEAD^1) -- i.e. mainline

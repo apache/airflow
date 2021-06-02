@@ -115,7 +115,7 @@ the package. We are using standard mechanism of python to define
 needs to define appropriate entry-point ``apache_airflow_provider`` which has to point to a callable
 implemented by your package and return a dictionary containing the list of discoverable capabilities
 of your package. The dictionary has to follow the
-`json-schema specification <https://github.com/apache/airflow/blob/master/airflow/provider_info.schema.json>`_.
+`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider_info.schema.json>`_.
 
 Most of the schema provides extension point for the documentation (which you might want to also use for
 your own purpose) but the important fields from the extensibility point of view are those:
@@ -149,7 +149,7 @@ they define the extensions properly. See :doc:`cli-and-env-variables-ref` for de
 sub-commands.
 
 When you write your own provider, consider following the
-`Naming conventions for provider packages <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages>`_
+`Naming conventions for provider packages <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#naming-conventions-for-provider-packages>`_
 
 
 FAQ for Airflow and Providers
