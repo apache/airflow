@@ -743,7 +743,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             return
 
         for action_name, resource_name in perms:
-            self.add_view_menu(resource_name)
+            self.create_resource(resource_name)
             self.create_permission(action_name, resource_name)
 
     def sync_perm_for_dag(self, dag_id, access_control=None):
@@ -790,7 +790,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
         def _get_or_create_dag_permission(action_name):
-            perm = self.find_permission_view_menu(action_name, dag_resource_name)
+            perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
                 perm = self.create_permission(action_name, dag_resource_name)
@@ -798,7 +798,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             return perm
 
         def _revoke_stale_permissions(resource):
-            existing_dag_perms = self.find_permissions_view_menu(resource)
+            existing_dag_perms = self.get_resource_permissions(resource)
             for perm in existing_dag_perms:
                 non_admin_roles = [role for role in perm.role if role.name != 'Admin']
                 for role in non_admin_roles:
@@ -835,7 +835,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
             for action_name in perms:
                 dag_perm = _get_or_create_dag_permission(action_name)
-                self.add_permission_role(role, dag_perm)
+                self.add_permission_to_role(role, dag_perm)
 
     def create_resource(self, name: str) -> ViewMenu:
         """
