@@ -250,6 +250,10 @@ following the ASF Policy.
 
   ![Graph](/docs/apache-airflow/img/graph.png)
 
+- **Calendar**: Total history of dag run successes and failures.
+
+  ![Calendar](/docs/apache-airflow/img/calendar.png)
+
 - **Task Duration**: Total time spent on different tasks over time.
 
   ![Task Duration](/docs/apache-airflow/img/duration.png)
