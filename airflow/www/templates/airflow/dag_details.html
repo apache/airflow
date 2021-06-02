@@ -57,6 +57,11 @@
         <th>Start Date</th>
         <td class="js-format-date">{{ dag.start_date }}</td>
       </tr>
+    {% else %}
+      <tr>
+        <th>Started</th>
+        <td>{{ states|length > 0 }}</td>
+      </tr>
     {% endif %}
     <tr>
       <th>End Date</th>
