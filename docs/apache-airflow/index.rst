@@ -98,7 +98,8 @@ unit of work and continuity.
     dag-serialization
     modules_management
     Release policies <release-process>
-    changelog
+    updating/changelog
+    updating/updating
     best-practices
     production-deployment
     faq

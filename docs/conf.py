@@ -138,7 +138,12 @@ extensions = [
     'sphinx_airflow_theme',
     'redirects',
     'substitution_extensions',
+    'm2r2',
 ]
+
+# source_suffix = '.rst'
+source_suffix = ['.rst', '.md']
+
 if PACKAGE_NAME == 'apache-airflow':
     extensions.extend(
         [
