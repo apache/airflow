@@ -86,6 +86,7 @@ bats-tests
 bats-in-container-tests
 black
 blacken-docs
+boring-cyborg
 build
 build-providers-dependencies
 check-apache-license

@@ -129,7 +129,6 @@ labelPRBasedOnFilePath:
     - airflow/ui/**/*
 
   area:CLI:
-    - airflow/bin/cli.py
     - airflow/cli/**/*.py
     - tests/cli/**/*.py
     - docs/apache-airflow/cli-and-env-variables-ref.rst
@@ -160,7 +159,7 @@ labelPRBasedOnFilePath:
     - airflow/task/task_runner/**/*
     - airflow/utils/dag_processing.py
     - docs/apache-airflow/executor/**/*
-    - docs/apache-airflow/scheduler.rst
+    - docs/apache-airflow/concepts/scheduler.rst
     - tests/executors/**/*
     - tests/jobs/**/*
 
