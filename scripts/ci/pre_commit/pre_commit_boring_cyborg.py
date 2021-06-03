@@ -33,7 +33,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 CONFIG_KEY = 'labelPRBasedOnFilePath'
 
 current_files = subprocess.check_output(["git", "ls-files"]).decode().splitlines()
-git_root = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel']))
+git_root = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode().strip())
 cyborg_config_path = git_root / ".github" / "boring-cyborg.yml"
 cyborg_config = yaml.safe_load(cyborg_config_path.read_text())
 if CONFIG_KEY not in cyborg_config:
