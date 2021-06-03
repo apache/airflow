@@ -38,6 +38,7 @@ class TestAirbyteHook(unittest.TestCase):
     job_id = 1
     sync_connection_endpoint = 'http://test-airbyte:8001/api/v1/connections/sync'
     get_job_endpoint = 'http://test-airbyte:8001/api/v1/jobs/get'
+    health_endpoint = 'http://test-airbyte:8001/api/v1/health'
     _mock_sync_conn_success_response_body = {'job': {'id': 1}}
     _mock_job_status_success_response_body = {'job': {'status': 'succeeded'}}
 
@@ -124,3 +125,19 @@ class TestAirbyteHook(unittest.TestCase):
 
         calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
         assert mock_get_job.has_calls(calls)
+
+    @requests_mock.mock()
+    def test_connection_success(self, m):
+        m.get(self.health_endpoint, status_code=200,)
+
+        status, msg = self.hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @requests_mock.mock()
+    def test_connection_failure(self, m):
+        m.get(self.health_endpoint, status_code=500, json={"message": "internal server error"})
+
+        status, msg = self.hook.test_connection()
+        assert status is False
+        assert msg == '{"message": "internal server error"}'
