@@ -284,12 +284,12 @@
             </div>
           </form>
           <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.failed') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
+            <input type="hidden" name="state" value="failed">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
@@ -317,12 +317,12 @@
             </div>
           </form>
           <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.success') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
+            <input type="hidden" name="state" value="success">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">

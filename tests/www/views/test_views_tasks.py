@@ -177,6 +177,34 @@ def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
             ["example_bash_operator"],
             id="existing-dagbag-dag-details",
         ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=success'
+            f'&execution_date={DEFAULT_VAL}',
+            ['Wait a minute.'],
+            id="confirm-success",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&execution_date={DEFAULT_VAL}',
+            ['Wait a minute.'],
+            id="confirm-failed",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&execution_date={DEFAULT_VAL}',
+            ['DAG invalid_dag not found'],
+            id="confirm-failed",
+        ),
+        pytest.param(
+            f'confirm?task_id=invalid_task&dag_id=example_bash_operator&state=failed'
+            f'&execution_date={DEFAULT_VAL}',
+            ['Task invalid_task not found'],
+            id="confirm-failed",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=invalid'
+            f'&execution_date={DEFAULT_VAL}',
+            ["Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"],
+            id="confirm-invalid",
+        ),
     ],
 )
 def test_views_get(admin_client, url, contents):
@@ -332,20 +360,6 @@ def test_code_from_db_all_example_dags(admin_client):
                 downstream="false",
                 future="false",
                 past="false",
-            ),
-            "Wait a minute",
-        ),
-        (
-            "failed",
-            dict(
-                task_id="run_this_last",
-                dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
-                confirmed="true",
-                upstream="false",
-                downstream="false",
-                future="false",
-                past="false",
                 origin="/graph?dag_id=example_bash_operator",
             ),
             "Marked failed on 1 task instances",
@@ -356,20 +370,6 @@ def test_code_from_db_all_example_dags(admin_client):
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
                 execution_date=DEFAULT_DATE,
-                upstream="false",
-                downstream="false",
-                future="false",
-                past="false",
-            ),
-            'Wait a minute',
-        ),
-        (
-            "success",
-            dict(
-                task_id="run_this_last",
-                dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
-                confirmed="true",
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -406,9 +406,7 @@ def test_code_from_db_all_example_dags(admin_client):
     ],
     ids=[
         "paused",
-        "failed",
         "failed-flash-hint",
-        "success",
         "success-flash-hint",
         "clear",
         "run",
@@ -434,7 +432,7 @@ def test_dag_never_run(admin_client, url):
     )
     clear_db_runs()
     resp = admin_client.post(url, data=form, follow_redirects=True)
-    check_content_in_response(f"Cannot make {url}, seem that dag {dag_id} has never run", resp)
+    check_content_in_response(f"Cannot mark tasks as {url}, seem that dag {dag_id} has never run", resp)
 
 
 class _ForceHeartbeatCeleryExecutor(CeleryExecutor):

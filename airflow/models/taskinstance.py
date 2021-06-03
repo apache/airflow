@@ -533,12 +533,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
         return base_url + (
-            "/success"
+            "/confirm"
             f"?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
             f"&execution_date={iso}"
             "&upstream=false"
             "&downstream=false"
+            "&state=success"
         )
 
     @provide_session
