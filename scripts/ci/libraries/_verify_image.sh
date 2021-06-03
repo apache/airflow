@@ -100,6 +100,21 @@ function verify_image::verify_prod_image_commands() {
     output=$(docker_v run --rm \
             -e COLUMNS=180 \
             "${DOCKER_IMAGE}" \
+            python --version | grep "Python 3." 2>&1)
+    local res=$?
+    if [[ ${res} == "0" ]]; then
+        echo "${COLOR_GREEN}OK${COLOR_RESET}"
+    else
+        echo "${COLOR_RED}NOK${COLOR_RESET}"
+        echo "${COLOR_BLUE}========================= OUTPUT start ============================${COLOR_RESET}"
+        echo "${output}"
+        echo "${COLOR_BLUE}========================= OUTPUT end   ===========================${COLOR_RESET}"
+        IMAGE_VALID="false"
+    fi
+    echo -n "Feature: Checking 'bash --version' command  It should return zero exit code."
+    output=$(docker_v run --rm \
+            -e COLUMNS=180 \
+            "${DOCKER_IMAGE}" \
             bash --version | grep "GNU bash, " 2>&1)
     local res=$?
     if [[ ${res} == "0" ]]; then
