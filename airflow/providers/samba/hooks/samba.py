@@ -44,16 +44,16 @@ class SambaHook(BaseHook):
 
         Below is an inexhaustive list of these parameters:
 
-        logdir
+        `logdir`
           Base directory name for log/debug files.
 
-        kerberos
+        `kerberos`
           Try to authenticate with kerberos.
 
-        workgroup
+        `workgroup`
           Set the SMB domain of the username.
 
-        netbios_name
+        `netbios_name`
           This option allows you to override the NetBIOS name that
           Samba uses for itself.
 
