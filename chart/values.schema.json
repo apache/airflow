@@ -747,7 +747,7 @@
                     ]
                 },
                 "brokerUrl": {
-                    "description": "Direct url to the redis broker (when using an external redis instance).",
+                    "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
                         "string",
                         "null"
@@ -758,7 +758,7 @@
             }
         },
         "fernetKey": {
-            "description": "The Fernet key used to encrypt passwords.",
+            "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
             "type": [
                 "string",
                 "null"
@@ -2229,7 +2229,7 @@
                     "default": null
                 },
                 "password": {
-                    "description": "If password is set, create secret with it, else generate a new one on install.",
+                    "description": "If password is set, create secret with it, else generate a new one on install (can only be set during install, not upgrade).",
                     "type": [
                         "string",
                         "null"

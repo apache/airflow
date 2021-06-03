@@ -259,9 +259,11 @@ data:
   #   port: 5432
   #   db: postgres
   #   sslmode: disable
+  # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
 
 # Fernet key settings
+# Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
 
@@ -861,6 +863,7 @@ redis:
 
   # Else, if password is set, create secret with it,
   # Otherwise a new password will be generated on install
+  # Note: password can only be set during install, not upgrade.
   password: ~
 
   # This setting tells kubernetes that its ok to evict
