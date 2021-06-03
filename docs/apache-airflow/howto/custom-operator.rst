@@ -53,7 +53,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
                 self.name = name
 
             def execute(self, context):
-                message = "Hello {}".format(self.name)
+                message = f"Hello {self.name}"
                 print(message)
                 return message
 
@@ -117,7 +117,7 @@ Let's extend our previous example to fetch name from MySQL:
             hook = MySqlHook(mysql_conn_id=self.mysql_conn_id, schema=self.database)
             sql = "select name from user"
             result = hook.get_first(sql)
-            message = "Hello {}".format(result["name"])
+            message = f"Hello {result['name']}"
             print(message)
             return message
 
@@ -160,7 +160,7 @@ the operator.
                 self.name = name
 
             def execute(self, context):
-                message = "Hello from {}".format(self.name)
+                message = f"Hello from {self.name}"
                 print(message)
                 return message
 
