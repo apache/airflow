@@ -144,6 +144,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+verify-db-migrations-documented
 version-sync
 yamllint
 EOF

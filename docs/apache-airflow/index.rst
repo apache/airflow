@@ -116,3 +116,4 @@ unit of work and continuity.
     deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
+    Database Migrations <migrations-ref>
