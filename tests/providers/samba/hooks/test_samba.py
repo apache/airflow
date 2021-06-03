@@ -16,13 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import unittest
 from unittest import mock
 from unittest.mock import call
 
-import json
 import pytest
-import smbclient
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
