@@ -74,6 +74,19 @@ def init_jinja_globals(app):
                 {
                     'analytics_tool': conf.get('webserver', 'ANALYTICS_TOOL'),
                     'analytics_id': conf.get('webserver', 'ANALYTICS_ID'),
+
+                    if 'analytics_tool' = 'apache_flagon_useralejs':
+                          'apache_flagon_useralejs_data_auth': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_AUTH')
+                          'apache_flagon_useralejs_data_autostart': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_AUTOSTART')
+                          'apache_flagon_useralejs_data_interval': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_INTERVAL')
+                          'apache_flagon_useralejs_data_log_details': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_LOG_DETAILS')
+                          'apache_flagon_useralejs_data_resolution': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_RESOLUTION')
+                          'apache_flagon_useralejs_data_threshold': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_THRESHOLD')
+                          'apache_flagon_useralejs_data_tool': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_TOOL')
+                          'apache_flagon_useralejs_data_user': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_USER')
+                          'apache_flagon_useralejs_data_url': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_URL')
+                          'apache_flagon_useralejs_data_version': conf.get('webserver', 'APACHE_FLAGON_USERALEJS_DATA_VERSION')
+
                 }
             )
 

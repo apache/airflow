@@ -1235,7 +1235,8 @@
     - name: analytics_tool
       description: |
         Send anonymous user activity to your analytics tool
-        choose from google_analytics, segment, or metarouter
+        choose from apache_flagon_useralejs, google_analytics,
+        metarouter or segment. 
       version_added: ~
       type: string
       example: ~
@@ -1247,6 +1248,76 @@
       type: string
       example: ~
       default: ~
+    - name: apache_flagon_useralejs_data_auth
+      description: |
+        Authorization header to be passed to logging endpoint
+      version_added: 2.1.2
+      type: string
+      example: "username:password"
+      default: ~
+    - name: apache_flagon_useralejs_data_autostart
+      description: |
+        Should UserALE.js start on page load
+      version_added: 2.1.2
+      type: string
+      example: "true"
+      default: "true"
+    - name: apache_flagon_useralejs_data_interval
+      description: |
+        Delay between transmit checks
+      version_added: 2.1.2
+      type: string
+      example: "5000"
+      default: "5000"
+    - name: apache_flagon_useralejs_data_log_details
+      description: |
+        Toggle detailed logs (keys pressed and input/change values)
+      version_added: 2.1.2
+      type: string
+      example: "false"
+      default: "false"
+    - name: apache_flagon_useralejs_data_resolution
+      description: |
+        Delay between instances of high frequency logs (mouseover, scroll, etc.)
+      version_added: 2.1.2
+      type: string
+      example: "500"
+      default: "500"
+    - name: apache_flagon_useralejs_data_threshold
+      description: |
+        Minimum number of logs to send
+      version_added: 2.1.2
+      type: string
+      example: "5"
+      default: "5"
+    - name: apache_flagon_useralejs_data_tool
+      description: |
+        Name of tool being logged
+      version_added: 2.1.2
+      type: string
+      example: "Apache Airflow"
+      default: "Apache Airflow"
+    - name: apache_flagon_useralejs_data_user
+      description: |
+        User identifier
+      version_added: 2.1.2
+      type: string
+      example: "Airflow User 123"
+      default: ~
+    - name: apache_flagon_useralejs_data_url
+      description: |
+        Logging URL
+      version_added: 2.1.2
+      type: string
+      example: "http://localhost:8000"
+      default: "http://localhost:8000"
+    - name: apache_flagon_useralejs_data_version
+      description: |
+        Application version identifier
+      version_added: 2.1.2
+      type: string
+      example: "2.1.2"
+      default: "2.1.2"
     - name: show_recent_stats_for_completed_runs
       description: |
         'Recent Tasks' stats will show for old DagRuns if set
