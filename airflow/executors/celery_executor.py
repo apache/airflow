@@ -254,8 +254,8 @@ class CeleryExecutor(BaseExecutor):
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
         for _ in range(min(open_slots, len(self.queued_tasks))):
-            key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuple = (key, simple_ti, command, queue, execute_command)
+            key, (command, _, queue, ti) = sorted_queue.pop(0)
+            task_tuple = (key, SimpleTaskInstance(ti), command, queue, execute_command)
             task_tuples_to_send.append(task_tuple)
             if key not in self.task_publish_retries:
                 self.task_publish_retries[key] = 1

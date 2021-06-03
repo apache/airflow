@@ -41,7 +41,7 @@ from airflow.executors import celery_executor
 from airflow.executors.celery_executor import BulkStateFetcher
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -126,14 +126,12 @@ class TestCeleryExecutor(unittest.TestCase):
                 task_tuples_to_send = [
                     (
                         ('success', 'fake_simple_ti', execute_date, 0),
-                        None,
                         success_command,
                         celery_executor.celery_configuration['task_default_queue'],
                         celery_executor.execute_command,
                     ),
                     (
                         ('fail', 'fake_simple_ti', execute_date, 0),
-                        None,
                         fail_command,
                         celery_executor.celery_configuration['task_default_queue'],
                         celery_executor.execute_command,
@@ -141,8 +139,8 @@ class TestCeleryExecutor(unittest.TestCase):
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
-                    executor.queued_tasks[key] = (command, 1, queue, simple_ti)
+                for (key, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
+                    executor.queued_tasks[key] = (command, 1, queue, None)
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
@@ -186,7 +184,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 'command',
                 1,
                 None,
-                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now())),
+                TaskInstance(task=task, execution_date=datetime.now()),
             )
             key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple
@@ -219,7 +217,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 'command',
                 1,
                 None,
-                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.now())),
+                TaskInstance(task=task, execution_date=datetime.now()),
             )
             key = ('fail', 'fake_simple_ti', when, 0)
             executor.queued_tasks[key] = value_tuple
