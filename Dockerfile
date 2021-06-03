@@ -477,4 +477,4 @@ LABEL org.apache.airflow.distro="debian" \
 
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
-CMD ["--help"]
+CMD []
