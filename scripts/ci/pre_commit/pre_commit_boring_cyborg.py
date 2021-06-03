@@ -30,21 +30,24 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-current_files = subprocess.check_output(["git", "ls-files"]).decode().splitlines()
-cyborg_config_path = Path(__file__).absolute().parent.parent.parent.parent / ".github" / "boring-cyborg.yml"
-cyborg_config = yaml.safe_load(cyborg_config_path.read_text())
-if 'labelPRBasedOnFilePath' not in cyborg_config:
-    raise SystemExit("Missing section labelPRBasedOnFilePath")
+CONFIG_KEY = 'labelPRBasedOnFilePath'
 
-labels_dict = cyborg_config['labelPRBasedOnFilePath']
+current_files = subprocess.check_output(["git", "ls-files"]).decode().splitlines()
+git_root = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel']))
+cyborg_config_path = git_root / ".github" / "boring-cyborg.yml"
+cyborg_config = yaml.safe_load(cyborg_config_path.read_text())
+if CONFIG_KEY not in cyborg_config:
+    raise SystemExit(f"Missing section {CONFIG_KEY}")
+
 errors = []
-for label, patterns in labels_dict.items():
+for label, patterns in cyborg_config[CONFIG_KEY].items():
     for pattern in patterns:
-        if not glob.globfilter(current_files, pattern, flags=glob.G | glob.E):
-            yaml_path = f'labelPRBasedOnFilePath.{label}'
-            errors.append(
-                f"Unused pattern [{colored(pattern, 'cyan')}] in [{colored(yaml_path, 'cyan')}] section."
-            )
+        if glob.globfilter(current_files, pattern, flags=glob.G | glob.E):
+            continue
+        yaml_path = f'{CONFIG_KEY}.{label}'
+        errors.append(
+            f"Unused pattern [{colored(pattern, 'cyan')}] in [{colored(yaml_path, 'cyan')}] section."
+        )
 
 if errors:
     print(f"Found {colored(str(len(errors)), 'red')} problems:")
