@@ -3254,11 +3254,6 @@ findup-sync@^3.0.0:
     micromatch "^3.0.4"
     resolve-dir "^1.0.1"
 
-flagon-userale@^2.1.1:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/flagon-userale/-/flagon-userale-2.1.1.tgz#80f1eb05401e04dff2d2e31688bea2c5385935c2"
-  integrity sha512-R5GKCvIXOZX/oAdq8KE/Qz8/nPVFqQ7oPRIY5XSAf12H7bm1g30yd8fswL2Bu3064sqxFYThjwf98DGvWx0FgQ==
-
 flat-cache@^2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/flat-cache/-/flat-cache-2.0.1.tgz#5d296d6f04bda44a4630a301413bdbc2ec085ec0"
