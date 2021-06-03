@@ -143,11 +143,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
     ]
 
-    # global view-menu for dag-level access
-    DAG_VMS = {permissions.RESOURCE_DAG}
-
-    READ_DAG_PERMS = {permissions.ACTION_CAN_READ}
-    DAG_PERMS = permissions.DAG_PERMS
+    # global resource for dag-level access
+    DAG_RESOURCES = {permissions.RESOURCE_DAG}
+    DAG_ACTIONS = permissions.DAG_ACTIONS
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
@@ -201,7 +199,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def init_role(self, role_name, perms):
         """
-        Initialize the role with the permissions and related view-menus.
+        Initialize the role with the actions and related resources.
         :param role_name:
         :param perms:
         :return:
@@ -223,13 +221,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             perms = config['perms']
             role = existing_roles.get(role_name) or self.add_role(role_name)
 
-            for perm_name, view_name in perms:
-                perm_view = non_dag_perms.get((perm_name, view_name)) or self.create_permission(
-                    perm_name, view_name
+            for action_name, resource_name in perms:
+                perm = non_dag_perms.get((action_name, resource_name)) or self.create_permission(
+                    action_name, resource_name
                 )
 
-                if perm_view not in role.permissions:
-                    self.add_permission_to_role(role, perm_view)
+                if perm not in role.permissions:
+                    self.add_permission_to_role(role, perm)
 
     def add_permissions(self, role, perms):
         """Adds resource permissions to a given role."""
@@ -559,9 +557,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def _merge_perm(self, action_name, resource_name):
         """
-        Add the new (permission, resource) to assoc_permissionview_role if it doesn't exist.
-        It will add the related entry to ab_permission
-        and ab_view_menu two meta tables as well.
+        Add the new (action, resource) to assoc_permissionview_role if it doesn't exist.
+        It will add the related entry to ab_permission and ab_view_menu two meta tables as well.
 
         :param action_name: Name of the action
         :type action_name: str
@@ -684,14 +681,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         for dag in dags:
             dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
-            for action_name in self.DAG_PERMS:
+            for action_name in self.DAG_ACTIONS:
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control:
                 self._sync_dag_view_permissions(dag_resource_name, dag.access_control)
 
-    def update_admin_perm_view(self):
+    def update_admin_permission(self):
         """
         Admin should have all the permissions, except the dag permissions.
         because Admin already has Dags permission.
@@ -734,7 +731,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
         self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
-        self.update_admin_perm_view()
+        self.update_admin_permission()
         self.clean_perms()
 
     def sync_resource_permissions(self, perms=None):
@@ -760,8 +757,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         :return:
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
-        for action_name in self.DAG_PERMS:
-            self.create_permission(action_name, dag_resource_name)
+        for dag_action_name in self.DAG_ACTIONS:
+            self.create_permission(dag_action_name, dag_resource_name)
 
         if access_control:
             self._sync_dag_view_permissions(dag_resource_name, access_control)
@@ -789,7 +786,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         """
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(action_name):
+        def _get_or_create_dag_permission(action_name: str) -> PermissionView:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
@@ -797,7 +794,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
             return perm
 
-        def _revoke_stale_permissions(resource):
+        def _revoke_stale_permissions(resource: ViewMenu):
             existing_dag_perms = self.get_resource_permissions(resource)
             for perm in existing_dag_perms:
                 non_admin_roles = [role for role in perm.role if role.name != 'Admin']
@@ -816,7 +813,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
         if resource:
             _revoke_stale_permissions(resource)
 
-        for rolename, perms in access_control.items():
+        for rolename, action_names in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
@@ -824,16 +821,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
                     "named '{}', but that role does not exist".format(dag_id, rolename)
                 )
 
-            perms = set(perms)
-            invalid_perms = perms - self.DAG_PERMS
-            if invalid_perms:
+            action_names = set(action_names)
+            invalid_action_names = action_names - self.DAG_ACTIONS
+            if invalid_action_names:
                 raise AirflowException(
                     "The access_control map for DAG '{}' includes the following "
                     "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(dag_resource_name, invalid_perms, self.DAG_PERMS)
+                    "is: {}".format(dag_resource_name, invalid_action_names, self.DAG_ACTIONS)
                 )
 
-            for action_name in perms:
+            for action_name in action_names:
                 dag_perm = _get_or_create_dag_permission(action_name)
                 self.add_permission_to_role(role, dag_perm)
 
@@ -851,8 +848,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
         # create perm for global logical dag
-        for resource_name in self.DAG_VMS:
-            for action_name in self.DAG_PERMS:
+        for resource_name in self.DAG_RESOURCES:
+            for action_name in self.DAG_ACTIONS:
                 self._merge_perm(action_name, resource_name)
 
     def check_authorization(

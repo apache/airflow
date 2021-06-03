@@ -463,7 +463,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_access_control_with_invalid_permission(self):
         invalid_permissions = [
-            'can_varimport',  # a real permission, but not a member of DAG_PERMS
+            'can_varimport',  # a real permission, but not a member of DAG_ACTIONS
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
