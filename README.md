@@ -254,7 +254,7 @@ following the ASF Policy.
 
 - **Gantt View**: Duration and overlap of a DAG.
 
-  ![Gantt View](https://raw.githubusercontent.com/apache/airflow/main/https://raw.githubusercontent.com/apache/airflow/main//docs/apache-airflow/img/gantt.png)
+  ![Gantt View](https://raw.githubusercontent.com/apache/airflow/main//docs/apache-airflow/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
 
