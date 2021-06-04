@@ -139,11 +139,7 @@ class TestAirbyteHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_connection_failure(self, m):
-        m.get(
-            self.health_endpoint,
-            status_code=500,
-            json={"message": "internal server error"}
-        )
+        m.get(self.health_endpoint, status_code=500, json={"message": "internal server error"})
 
         status, msg = self.hook.test_connection()
         assert status is False
