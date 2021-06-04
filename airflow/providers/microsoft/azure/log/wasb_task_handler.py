@@ -100,8 +100,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             with open(local_loc) as logfile:
                 log = logfile.read()
             self.wasb_write(log, remote_loc, append=True)
-
-            if self.delete_local_copy:
+            keep_local = conf.getboolean('logging', 'KEEP_LOCAL_LOGS')
+            if self.delete_local_copy or not keep_local:
                 shutil.rmtree(os.path.dirname(local_loc))
         # Mark closed so we don't double write if close is called twice
         self.closed = True

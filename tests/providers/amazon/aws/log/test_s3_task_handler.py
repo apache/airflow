@@ -213,3 +213,25 @@ class TestS3TaskHandler(unittest.TestCase):
 
         with pytest.raises(ClientError):
             boto3.resource('s3').Object('bucket', self.remote_log_key).get()
+
+    @conf_vars({('logging', 'keep_local_logs'): 'False'})
+    def test_close_deletes_local(self):
+        handler = S3TaskHandler(self.local_log_location, self.remote_log_base, self.filename_template)
+
+        handler.log.info("test")
+        handler.set_context(self.ti)
+        assert self.s3_task_handler.upload_on_close
+
+        handler.close()
+        assert not os.path.exists(handler.handler.baseFilename)
+
+    @conf_vars({('logging', 'keep_local_logs'): 'True'})
+    def test_close_keeps_local(self):
+        handler = S3TaskHandler(self.local_log_location, self.remote_log_base, self.filename_template)
+
+        handler.log.info("test")
+        handler.set_context(self.ti)
+        assert self.s3_task_handler.upload_on_close
+
+        handler.close()
+        assert os.path.exists(handler.handler.baseFilename)

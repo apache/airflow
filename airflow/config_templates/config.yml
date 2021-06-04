@@ -488,6 +488,13 @@
       type: string
       example: ~
       default: ""
+    - name: keep_local_logs
+      description: |
+        Whether the local file logs for GCS, S3 and WASB remote logging should be kept after they are uploaded
+      version_added: 2.2.0
+      type: boolean
+      example: ~
+      default: "True"
     - name: encrypt_s3_logs
       description: |
         Use server-side encryption for logs stored in S3

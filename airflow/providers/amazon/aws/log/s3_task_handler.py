@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import shutil
 
 try:
     from functools import cached_property
@@ -93,7 +94,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc) as logfile:
                 log = logfile.read()
-            self.s3_write(log, remote_loc)
+            success = self.s3_write(log, remote_loc)
+            keep_local = conf.getboolean('logging', 'KEEP_LOCAL_LOGS')
+            if success and not keep_local:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -167,7 +171,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
         return ''
 
-    def s3_write(self, log: str, remote_log_location: str, append: bool = True):
+    def s3_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
@@ -179,6 +183,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool
+        :return: True if log was successfully uploaded, False otherwise
         """
         try:
             if append and self.s3_log_exists(remote_log_location):
@@ -196,3 +201,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             )
         except Exception:
             self.log.exception('Could not write logs to %s', remote_log_location)
+            return False
+        else:
+            return True

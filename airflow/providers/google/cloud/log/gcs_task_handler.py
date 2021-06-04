@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import shutil
 from typing import Collection, Optional
 
 try:
@@ -26,6 +27,7 @@ from google.api_core.client_info import ClientInfo
 from google.cloud import storage
 
 from airflow import version
+from airflow.configuration import conf
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -131,7 +133,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc) as logfile:
                 log = logfile.read()
-            self.gcs_write(log, remote_loc)
+            success = self.gcs_write(log, remote_loc)
+            keep_local = conf.getboolean('logging', 'KEEP_LOCAL_LOGS')
+            if success and not keep_local:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -164,7 +169,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log += local_log
             return log, metadata
 
-    def gcs_write(self, log, remote_log_location):
+    def gcs_write(self, log, remote_log_location) -> bool:
         """
         Writes the log to the remote_log_location. Fails silently if no log
         was created.
@@ -173,6 +178,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :type log: str
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
+        :return: True if log was successfully uploaded, False otherwise
         """
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
@@ -188,3 +194,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)
+            return False
+        else:
+            return True

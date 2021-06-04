@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
+import os
 import shutil
 import tempfile
 import unittest
@@ -214,3 +215,35 @@ class TestGCSTaskHandler(unittest.TestCase):
             ],
             any_order=False,
         )
+
+    @conf_vars({('logging', 'keep_local_logs'): 'False'})
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_close_deletes_local(self, mock_blob, mock_client, mock_creds):
+        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+
+        self.gcs_task_handler.set_context(self.ti)
+        self.gcs_task_handler.log.info("test")
+        self.gcs_task_handler.close()
+
+        assert not os.path.exists(self.gcs_task_handler.handler.baseFilename)
+
+    @conf_vars({('logging', 'keep_local_logs'): 'True'})
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_close_keeps_local(self, mock_blob, mock_client, mock_creds):
+        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+
+        self.gcs_task_handler.set_context(self.ti)
+        self.gcs_task_handler.log.info("test")
+        self.gcs_task_handler.close()
+
+        assert os.path.exists(self.gcs_task_handler.handler.baseFilename)
