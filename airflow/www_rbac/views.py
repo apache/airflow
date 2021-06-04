@@ -2837,8 +2837,7 @@ class VariableModelView(AirflowModelView):
 
     @staticmethod
     def generateCurveParamKey(key):
-        dt = "{}@{}".format(key, FACTORY_CODE)
-        return "{}@@{}".format(key, uuid.uuid3(uuid.NAMESPACE_DNS, dt))
+        return "{}@@{}".format(key, uuid.uuid3(uuid.NAMESPACE_DNS, key))
 
     @staticmethod
     def is_curve_param_key(key: str) -> bool:

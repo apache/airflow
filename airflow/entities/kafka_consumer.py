@@ -15,7 +15,6 @@ _logger = generate_logger(__name__)
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
-
 auth_type_options = [
     'PLAIN',
     'OAUTHBEARER',
@@ -32,8 +31,7 @@ class ClsKafkaConsumer(ClsEntity):
         if not hasattr(ClsKafkaConsumer, "_instance"):
             with ClsKafkaConsumer._instance_lock:
                 if not hasattr(ClsKafkaConsumer, "_instance"):
-                    ClsKafkaConsumer._instance = object.__new__(
-                        cls, *args, **kwargs)
+                    ClsKafkaConsumer._instance = object.__new__(cls)
         return ClsKafkaConsumer._instance
 
     def __init__(self, **kwargs):
@@ -45,6 +43,7 @@ class ClsKafkaConsumer(ClsEntity):
         self._user = kwargs.get('user', '')
         self._password = kwargs.get('password', '')
         self._security_protocol = kwargs.get('security_protocol', '')
+        self._handler = kwargs.get('handler', None)
         if not self._auth_type:
             _logger.info(u'Kafka Consumer 认证方式为空')
 
@@ -55,7 +54,7 @@ class ClsKafkaConsumer(ClsEntity):
         if not self.group_id:
             raise AirflowConfigException(u'Kafka Consumer 消费组为空')
         if not self.servers:
-            raise AirflowConfigException(u'Kafka Consumer需要连接的远程服务器为空')
+            raise AirflowConfigException(u'Kafka Consumer 需要连接的远程服务器为空')
         return ret
 
     @property
@@ -107,13 +106,19 @@ class ClsKafkaConsumer(ClsEntity):
                 end = self._consumer.bootstrap_connected()
                 time.sleep(1)
 
+    def register_handler(self, handler):
+        self._handler = handler
+
     def read(self):
         if not self._consumer:
             self.ensure_consumer()
         self.ensure_connected()
         try:
+            _logger.info('Kafka Reading...')
             for msg in self._consumer:
                 # msg: headers, value
+                if self._handler is not None:
+                    self._handler(msg)
                 _logger.debug('Kafka New Message: {}'.format(pprint.pformat(msg, indent=4)))
         except Exception as e:
             _logger.error('Read Error', e)
@@ -128,7 +133,7 @@ class ClsKafkaConsumer(ClsEntity):
             'bootstrap_servers': self.servers,
             'auto_offset_reset': 'earliest',  # 不会收到之前重复的数据
             'client_id': 'qcos_kafka_consumer_{}'.format(FACTORY_CODE),
-            'value_deserializer': lambda data: json.loads(data), # 数据只支持json数据包
+            'value_deserializer': lambda data: json.loads(data),  # 数据只支持json数据包
         }
         if self._auth_type:
             self.consumer_add_auth_config(consumer_config)

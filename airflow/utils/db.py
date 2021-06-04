@@ -463,16 +463,16 @@ def initdb(rbac=False):
 
     merge_conn(
         Connection(
-            conn_id='qcos_kafka_consumer', conn_type='http',  # FIXME: type作为http，默认不要创建hook
+            conn_id='qcos_kafka', conn_type='kafka',
             login='admin',
             password='admin',
+            schema= 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')), # topic
+            host='localhost:9092', # bootstrap_servers, 服务器或者服务器列表(cluster)
             extra=json.dumps({
                 # 为空会创建失败
-                'topic': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
                 'group_id': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
                 'security_protocol': 'SSL_PLAINTEXT',
                 'auth_type': 'SCRAM-SHA-256',
-                'bootstrap_servers': 'localhost:9092'  # 服务器或者服务器列表(cluster)
             })
         ), session)
 
