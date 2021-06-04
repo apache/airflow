@@ -20,7 +20,7 @@
 Package apache-airflow-providers-elasticsearch
 ------------------------------------------------------
 
-`Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
+`Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 
 This is detailed commit list of changes for versions provider package: ``elasticsearch``.

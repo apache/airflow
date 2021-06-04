@@ -53,7 +53,7 @@ Content
 Package apache-airflow-providers-elasticsearch
 ------------------------------------------------------
 
-`Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
+`Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 
 Release: 1.0.4
