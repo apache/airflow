@@ -1260,8 +1260,8 @@
         Should UserALE.js start on page load
       version_added: 2.1.2
       type: string
-      example: "true"
-      default: "true"
+      example: "True"
+      default: "True"
     - name: apache_flagon_useralejs_data_interval
       description: |
         Delay between transmit checks
@@ -1274,8 +1274,8 @@
         Toggle detailed logs (keys pressed and input/change values)
       version_added: 2.1.2
       type: string
-      example: "false"
-      default: "false"
+      example: "False"
+      default: "False"
     - name: apache_flagon_useralejs_data_resolution
       description: |
         Delay between instances of high frequency logs (mouseover, scroll, etc.)
