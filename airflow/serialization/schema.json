@@ -93,6 +93,7 @@
         "orientation": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
+        "_max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },

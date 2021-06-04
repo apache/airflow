@@ -167,7 +167,7 @@ class DAG(LoggingMixin):
         params can be overridden at the task level.
     :type params: dict
     :param concurrency: the number of task instances allowed to run
-        concurrently in a single DagRun
+        concurrently
     :type concurrency: int
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
@@ -246,7 +246,8 @@ class DAG(LoggingMixin):
         user_defined_macros: Optional[Dict] = None,
         user_defined_filters: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
-        concurrency: int = conf.getint('core', 'dag_concurrency'),
+        concurrency: Optional[int] = None,
+        max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
         sla_miss_callback: Optional[Callable] = None,
@@ -279,7 +280,15 @@ class DAG(LoggingMixin):
 
         self._dag_id = dag_id
         self._full_filepath = full_filepath if full_filepath else ''
-        self._concurrency = concurrency
+        if concurrency and not max_active_tasks:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            max_active_tasks = concurrency
+        self._max_active_tasks = max_active_tasks
         self._pickle_id: Optional[int] = None
 
         self._description = description
@@ -552,8 +561,8 @@ class DAG(LoggingMixin):
         """
         Get the next execution date after the given ``date_last_automated_dagrun``, according to
         schedule_interval, start_date, end_date etc.  This doesn't check max active run or any other
-        "concurrency" type limits, it only performs calculations based on the various date and interval fields
-        of this dag and it's tasks.
+        "max_active_tasks" type limits, it only performs calculations based on the various date
+        and interval fields of this dag and it's tasks.
 
         :param date_last_automated_dagrun: The execution_date of the last scheduler or
             backfill triggered run for this dag
@@ -697,11 +706,25 @@ class DAG(LoggingMixin):
 
     @property
     def concurrency(self) -> int:
-        return self._concurrency
+        # TODO: Remove in Airflow 3.0
+        warnings.warn(
+            "The 'DAG.concurrency' attribute is deprecated. Please use 'DAG.max_active_tasks'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._max_active_tasks
 
     @concurrency.setter
     def concurrency(self, value: int):
-        self._concurrency = value
+        self._max_active_tasks = value
+
+    @property
+    def max_active_tasks(self) -> int:
+        return self._max_active_tasks
+
+    @max_active_tasks.setter
+    def max_active_tasks(self, value: int):
+        self._max_active_tasks = value
 
     @property
     def access_control(self):
@@ -782,7 +805,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
         """
-        Returns a boolean indicating whether the concurrency limit for this DAG
+        Returns a boolean indicating whether the max_active_tasks limit for this DAG
         has been reached
         """
         TI = TaskInstance
@@ -790,7 +813,7 @@ class DAG(LoggingMixin):
             TI.dag_id == self.dag_id,
             TI.state == State.RUNNING,
         )
-        return qry.scalar() >= self.concurrency
+        return qry.scalar() >= self.max_active_tasks
 
     @property
     def concurrency_reached(self):
@@ -1902,7 +1925,7 @@ class DAG(LoggingMixin):
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
-            orm_dag.concurrency = dag.concurrency
+            orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.has_task_concurrency_limits = any(t.task_concurrency is not None for t in dag.tasks)
 
             orm_dag.calculate_dagrun_date_fields(
@@ -2135,7 +2158,7 @@ class DagModel(Base):
     # Tags for view filter
     tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
-    concurrency = Column(Integer, nullable=False)
+    max_active_tasks = Column(Integer, nullable=False)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
 
@@ -2151,10 +2174,18 @@ class DagModel(Base):
 
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
-    def __init__(self, **kwargs):
+    def __init__(self, concurrency=None, **kwargs):
         super().__init__(**kwargs)
-        if self.concurrency is None:
-            self.concurrency = conf.getint('core', 'dag_concurrency')
+        if self.max_active_tasks is None:
+            if concurrency:
+                warnings.warn(
+                    "The 'DagModel.concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.max_active_tasks = concurrency
+            else:
+                self.max_active_tasks = conf.getint('core', 'max_active_tasks_per_dag')
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True

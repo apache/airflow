@@ -72,6 +72,56 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### DAG concurrency settings have been renamed
+
+`[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
+for better understanding.
+
+It is the maximum number of task instances allowed to run concurrently in each DAG. To calculate
+the number of tasks that is running concurrently for a DAG, add up the number of running
+tasks for all DAG runs of the DAG.
+
+This is configurable at the DAG level with ``max_active_tasks`` and a default can be set in `airflow.cfg` as
+`[core] max_active_tasks_per_dag`.
+
+**Before**:
+
+```ini
+[core]
+dag_concurrency = 16
+```
+
+**Now**:
+
+```ini
+[core]
+max_active_tasks_per_dag = 16
+```
+
+Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
+
+**Before**:
+
+```python
+dag = DAG(
+    dag_id="example_dag",
+    concurrency=3,
+    start_date=days_ago(2),
+)
+```
+
+**Now**:
+
+```python
+dag = DAG(
+    dag_id="example_dag",
+    max_active_tasks=3,
+    start_date=days_ago(2),
+)
+```
+
+If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `concurrency`.
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.

@@ -263,7 +263,7 @@ class TestTaskInstance(unittest.TestCase):
             dag_id='test_requeue_over_dag_concurrency',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            concurrency=2,
+            max_active_tasks=2,
         )
         task = DummyOperator(task_id='test_requeue_over_dag_concurrency_op', dag=dag)
 
@@ -280,7 +280,7 @@ class TestTaskInstance(unittest.TestCase):
             dag_id='test_requeue_over_task_concurrency',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            concurrency=2,
+            max_active_tasks=2,
         )
         task = DummyOperator(task_id='test_requeue_over_task_concurrency_op', dag=dag, task_concurrency=0)
 
@@ -297,7 +297,7 @@ class TestTaskInstance(unittest.TestCase):
             dag_id='test_requeue_over_pool_concurrency',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            concurrency=2,
+            max_active_tasks=2,
         )
         task = DummyOperator(task_id='test_requeue_over_pool_concurrency_op', dag=dag, task_concurrency=0)
 

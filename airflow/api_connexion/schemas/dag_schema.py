@@ -79,7 +79,8 @@ class DAGDetailSchema(DAGSchema):
     timezone = TimezoneField()
     catchup = fields.Boolean()
     orientation = fields.String()
-    concurrency = fields.Integer()
+    concurrency = fields.Integer()  # TODO: Remove in Airflow 3.0
+    max_active_tasks = fields.Integer()
     start_date = fields.DateTime()
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
     doc_md = fields.String()

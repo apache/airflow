@@ -117,6 +117,7 @@ class TestDAGDetailSchema:
         expected = {
             'catchup': True,
             'concurrency': 16,
+            'max_active_tasks': 16,
             'dag_id': 'test_dag',
             'dag_run_timeout': None,
             'default_view': 'duration',
