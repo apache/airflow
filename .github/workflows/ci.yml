@@ -1041,7 +1041,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
-    if: needs.build-info.outputs.run-kubernetes-tests == 'true'
+    if: >
+      needs.build-info.outputs.run-kubernetes-tests == 'true' ||
+      needs.build-info.outputs.needs-helm-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
