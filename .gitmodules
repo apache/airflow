@@ -1,0 +1,3 @@
+[submodule "airflow/utils/spc"]
+	path = airflow/utils/spc
+	url = https://github.com/masami10/spc.git

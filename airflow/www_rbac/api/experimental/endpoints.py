@@ -45,7 +45,7 @@ from airflow.models import TaskInstance
 import datetime
 from random import choices
 import pendulum
-from airflow.utils.spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar, cpk
+from airflow.utils.spc.lexen_spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar, cpk
 import math
 from airflow.settings import TIMEZONE
 from flask_login import current_user
