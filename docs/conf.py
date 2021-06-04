@@ -594,7 +594,7 @@ if PACKAGE_NAME == 'apache-airflow':
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    'airflow/configuration/',
+    '*/airflow/_vendor/*',
     '*/example_dags/*',
     '*/_internal*',
     '*/node_modules/*',
