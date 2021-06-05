@@ -99,7 +99,7 @@ class S3ToRedshiftOperator(BaseOperator):
         self.truncate_table = truncate_table
 
     def _build_copy_query(self, credentials_block: str, copy_options: str) -> str:
-        column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else None
+        column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ''
         return f"""
                     COPY {self.schema}.{self.table} {column_names}
                     FROM 's3://{self.s3_bucket}/{self.s3_key}'
