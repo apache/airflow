@@ -64,8 +64,7 @@ class TestCliTasks(unittest.TestCase):
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-    @classmethod
-    def tearDownClass(cls) -> None:
+    def tearDown(self) -> None:
         clear_db_runs()
 
     def test_cli_list_tasks(self):
