@@ -929,6 +929,11 @@
                             "type": "integer",
                             "default": 30
                         },
+                        "minReplicaCount": {
+                            "description": "Minimum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "maxReplicaCount": {
                             "description": "Maximum number of workers created by KEDA.",
                             "type": "integer",

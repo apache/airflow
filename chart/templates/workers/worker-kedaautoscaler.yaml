@@ -39,6 +39,7 @@ spec:
     name: {{ .Release.Name }}-worker
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}   # Optional. Default: 30 seconds
   cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}    # Optional. Default: 300 seconds
+  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}   # Optional. Default: 0
   maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}   # Optional. Default: 100
   triggers:
     - type: postgresql

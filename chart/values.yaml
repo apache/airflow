@@ -364,6 +364,9 @@ workers:
     # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
 
+    # Minimum number of workers created by keda
+    minReplicaCount: 0
+
     # Maximum number of workers created by keda
     maxReplicaCount: 10
 
