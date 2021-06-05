@@ -80,7 +80,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     PACKAGE_VERSION = 'devel'
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
-    PACKAGE_VERSION = 'devel'  # TODO do we care? probably
+    CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
+
+    with open(CHART_YAML_FILE) as chart_file:
+        chart_yaml_contents = yaml.load(chart_file, SafeLoader)
+
+    PACKAGE_VERSION = chart_yaml_contents['version']
 else:
     PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
