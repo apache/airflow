@@ -38,7 +38,7 @@ Additional configuration can be set for the ``apache_flagon_useralejs`` backend 
 .. code-block:: ini
 
   [webserver]
-  # Complete list of useralejs configuration can be found at 
+  # Complete list of useralejs configuration can be found at
   # https://github.com/apache/incubator-flagon-useralejs#configure
   analytics_tool = apache_flagon_useralejs
   apache_flagon_useralejs_data_auth = ${ELASTICSEARCH_AUTH} or None
@@ -51,7 +51,6 @@ Additional configuration can be set for the ``apache_flagon_useralejs`` backend 
   apache_flagon_useralejs_data_user = ${SPECIFIC_USERID}
   apache_flagon_useralejs_data_url = https://your.elasticsearch.host:port
   apache_flagon_useralejs_data_version = 2.1.0
-  
 
 .. note:: You can see view injected tracker html within Airflow's source code at
   ``airflow/www/templates/airflow/main.html``. The related global

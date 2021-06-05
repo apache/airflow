@@ -1236,7 +1236,7 @@
       description: |
         Send anonymous user activity to your analytics tool
         choose from apache_flagon_useralejs, google_analytics,
-        metarouter or segment. 
+        metarouter or segment.
       version_added: ~
       type: string
       example: ~
