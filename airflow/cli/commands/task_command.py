@@ -63,7 +63,7 @@ def _get_ti(dag, task, exec_date_or_run_id):
             return ti
         except (ParserError, TypeError):
             raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
-    ti = TaskInstance(task, execution_date=dag_run.execution_date)
+    ti = dag_run.get_task_instance(task.task_id)
     return ti
 
 
