@@ -127,7 +127,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        table_ref = TableReference.from_string(self.source_project_dataset_table, hook.project_id)
+        table_ref = TableReference.from_string(self.source_project_dataset_table)
         self.log.info('Fetching Data from:')
         self.log.info('Dataset: %s, Table: %s', table_ref.dataset_id, table_ref.table_id)
 
