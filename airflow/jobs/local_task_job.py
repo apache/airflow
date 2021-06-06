@@ -153,6 +153,9 @@ class LocalTaskJob(BaseJob):
     def handle_task_exit(self, return_code: int) -> None:
         """Handle case where self.task_runner exits by itself"""
         self.log.info("Task exited with return code %s", return_code)
+        if not self.task_instance.test_mode:
+            if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
+                self._run_mini_scheduler_on_child_tasks()
         self.task_instance.refresh_from_db()
         # task exited by itself, so we need to check for error file
         # in case it failed due to runtime exception/error
@@ -164,9 +167,6 @@ class LocalTaskJob(BaseJob):
         if self.task_instance.state != State.SUCCESS:
             error = self.task_runner.deserialize_run_error()
         self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
-        if not self.task_instance.test_mode:
-            if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
-                self._run_mini_scheduler_on_child_tasks()
 
     def on_kill(self):
         self.task_runner.terminate()
