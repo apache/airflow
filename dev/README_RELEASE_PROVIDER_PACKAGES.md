@@ -126,13 +126,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 --package-format both
+./breeze prepare-provider-packages --package-format both
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 --package-format both PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -367,11 +367,11 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/
  Python "wheel" release.
 
 The test procedure for PMC members who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
 
 and for Contributors:
 
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
 
 
 Public keys are available at:
@@ -601,14 +601,14 @@ USER ${AIRFLOW_UID}
 To build an image build and run a shell, run:
 
 ```shell script
-docker build . -t my-airflow
+docker build . --tag my-image:0.0.1
 docker run  -ti \
     --rm \
     -v "$PWD/data:/opt/airflow/" \
     -v "$PWD/keys/:/keys/" \
     -p 8080:8080 \
     -e AIRFLOW__CORE__LOAD_EXAMPLES=True \
-    my-airflow bash
+    my-image:0.0.1 bash
 ```
 
 ### Additional Verification
@@ -791,7 +791,7 @@ We also made those versions available on PyPi for convenience ('pip install apac
 
 https://pypi.org/search/?q=apache-airflow-providers
 
-The documentation is available at http://airflow.apache.org/docs/ and linked from the PyPI packages:
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 

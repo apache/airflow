@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from connexion import NoContent
+import os
+
 from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import func
 
+from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
@@ -27,10 +29,13 @@ from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection,
     connection_collection_schema,
     connection_schema,
+    connection_test_schema,
 )
 from airflow.models import Connection
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
 from airflow.utils.session import provide_session
+from airflow.utils.strings import get_random_string
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
@@ -129,3 +134,27 @@ def post_connection(session):
         session.commit()
         return connection_schema.dump(connection)
     raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
+
+
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
+def test_connection():
+    """
+    To test a connection, this method first creates an in-memory dummy conn_id & exports that to an
+    env var, as some hook classes tries to find out the conn from their __init__ method & errors out
+    if not found. It also deletes the conn id env variable after the test.
+    """
+    body = request.json
+    dummy_conn_id = get_random_string()
+    conn_env_var = f'{CONN_ENV_PREFIX}{dummy_conn_id.upper()}'
+    try:
+        data = connection_schema.load(body)
+        data['conn_id'] = dummy_conn_id
+        conn = Connection(**data)
+        os.environ[conn_env_var] = conn.get_uri()
+        status, message = conn.test_connection()
+        return connection_test_schema.dump({"status": status, "message": message})
+    except ValidationError as err:
+        raise BadRequest(detail=str(err.messages))
+    finally:
+        if conn_env_var in os.environ:
+            del os.environ[conn_env_var]

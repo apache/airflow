@@ -23,16 +23,21 @@
 # This configuration supports basic configuration using environment variables or an .env file
 # The following variables are supported:
 #
-# AIRFLOW_IMAGE_NAME         - Docker image name used to run Airflow.
-#                              Default: apache/airflow:master-python3.8
-# AIRFLOW_UID                - User ID in Airflow containers
-#                              Default: 50000
-# AIRFLOW_GID                - Group ID in Airflow containers
-#                              Default: 50000
-# _AIRFLOW_WWW_USER_USERNAME - Username for the administrator account.
-#                              Default: airflow
-# _AIRFLOW_WWW_USER_PASSWORD - Password for the administrator account.
-#                              Default: airflow
+# AIRFLOW_IMAGE_NAME           - Docker image name used to run Airflow.
+#                                Default: apache/airflow:|version|
+# AIRFLOW_UID                  - User ID in Airflow containers
+#                                Default: 50000
+# AIRFLOW_GID                  - Group ID in Airflow containers
+#                                Default: 50000
+#
+# Those configurations are useful mostly in case of standalone testing/running Airflow in test/try-out mode
+#
+# _AIRFLOW_WWW_USER_USERNAME   - Username for the administrator account (if requested).
+#                                Default: airflow
+# _AIRFLOW_WWW_USER_PASSWORD   - Password for the administrator account (if requested).
+#                                Default: airflow
+# _PIP_ADDITIONAL_REQUIREMENTS - Additional PIP requirements to add when starting all containers.
+#                                Default: ''
 #
 # Feel free to modify this file to suit your needs.
 ---
@@ -50,12 +55,14 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
     AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-50000}"
   depends_on:
+    &airflow-common-depends-on
     redis:
       condition: service_healthy
     postgres:
@@ -98,6 +105,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-scheduler:
     <<: *airflow-common
@@ -108,6 +119,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-worker:
     <<: *airflow-common
@@ -120,6 +135,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
   airflow-init:
     <<: *airflow-common
@@ -130,6 +149,19 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+
+  airflow-cli:
+    <<: *airflow-common
+    profiles:
+      - debug
+    environment:
+      <<: *airflow-common-env
+      CONNECTION_CHECK_MAX_COUNT: "0"
+    # Workaround for entrypoint issue. See: https://github.com/apache/airflow/issues/16252
+    command:
+      - bash
+      - -c
+      - airflow
 
   flower:
     <<: *airflow-common
@@ -142,6 +174,10 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
 volumes:
   postgres-db-volume:

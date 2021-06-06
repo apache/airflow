@@ -43,3 +43,6 @@ hooks:
     python-modules:
       - airflow.providers.slack.hooks.slack
       - airflow.providers.slack.hooks.slack_webhook
+
+hook-class-names:
+  - airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook

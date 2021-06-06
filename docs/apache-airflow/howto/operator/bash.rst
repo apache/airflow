@@ -70,8 +70,8 @@ inside the bash_command, as below:
 
     bash_task = BashOperator(
         task_id="bash_task",
-        bash_command='echo "here is the message: \'$message\'"',
-        env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+        bash_command="echo \"here is the message: '$message'\"",
+        env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
     )
 
 Skipping
@@ -100,14 +100,13 @@ template to it, which will fail.
 .. code-block:: python
 
     t2 = BashOperator(
-        task_id='bash_example',
-
+        task_id="bash_example",
         # This fails with 'Jinja template not found' error
         # bash_command="/home/batcher/test.sh",
-
         # This works (has a space after)
         bash_command="/home/batcher/test.sh ",
-        dag=dag)
+        dag=dag,
+    )
 
 However, if you want to use templating in your bash script, do not add the space
 and instead put your bash script in a location relative to the directory containing
@@ -119,10 +118,11 @@ as shown below:
 .. code-block:: python
 
     t2 = BashOperator(
-        task_id='bash_example',
+        task_id="bash_example",
         # "scripts" folder is under "/usr/local/airflow/dags"
         bash_command="scripts/test.sh",
-        dag=dag)
+        dag=dag,
+    )
 
 Creating separate folder for bash scripts may be desirable for many reasons, like
 separating your script's logic and pipeline code, allowing for proper code highlighting
@@ -138,7 +138,8 @@ Example:
 
     dag = DAG("example_bash_dag", template_searchpath="/opt/scripts")
     t2 = BashOperator(
-        task_id='bash_example',
+        task_id="bash_example",
         # "test.sh" is a file under "/opt/scripts"
         bash_command="test.sh ",
-        dag=dag)
+        dag=dag,
+    )

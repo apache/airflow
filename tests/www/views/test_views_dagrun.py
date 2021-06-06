@@ -136,7 +136,8 @@ def test_list_dagrun_includes_conf(session, admin_client):
     check_content_in_response("{&#34;include&#34;: &#34;me&#34;}", resp)
 
 
-def test_clear_dag_runs_action(session, admin_client):
+@pytest.fixture()
+def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
     task0 = dag.get_task("runme_0")
     task1 = dag.get_task("runme_1")
@@ -149,17 +150,81 @@ def test_clear_dag_runs_action(session, admin_client):
     dr = dag.create_dagrun(
         state="running",
         execution_date=execution_date,
-        run_id="test_clear_dag_runs_action",
+        run_id="test_dag_runs_action",
         session=session,
     )
-
-    data = {"action": "clear", "rowid": [dr.id]}
-    resp = admin_client.post("/dagrun/action_post", data=data, follow_redirects=True)
-    check_content_in_response("1 dag runs and 2 task instances were cleared", resp)
-    assert [ti.state for ti in session.query(TaskInstance).all()] == [None, None]
+    return dr
 
 
-def test_clear_dag_runs_action_fails(admin_client):
-    data = {"action": "clear", "rowid": ["0"]}
-    resp = admin_client.post("/dagrun/action_post", data=data, follow_redirects=True)
-    check_content_in_response("Failed to clear state", resp)
+@pytest.mark.parametrize(
+    "action, expected_ti_states, expected_message",
+    [
+        (
+            "clear",
+            [None, None],
+            "1 dag runs and 2 task instances were cleared",
+        ),
+        (
+            "set_success",
+            ["success", "success"],
+            "1 dag runs and 1 task instances were set to success",
+        ),
+        (
+            "set_failed",
+            ["success", "failed"],  # The success ti is not set to failed.
+            "1 dag runs and 0 task instances were set to failed",
+        ),
+        (
+            "set_running",
+            ["success", "failed"],  # Unchanged.
+            "1 dag runs were set to running",
+        ),
+    ],
+    ids=["clear", "success", "failed", "running"],
+)
+def test_set_dag_runs_action(
+    session,
+    admin_client,
+    running_dag_run,
+    action,
+    expected_ti_states,
+    expected_message,
+):
+    resp = admin_client.post(
+        "/dagrun/action_post",
+        data={"action": action, "rowid": [running_dag_run.id]},
+        follow_redirects=True,
+    )
+    check_content_in_response(expected_message, resp)
+    assert [ti.state for ti in session.query(TaskInstance).all()] == expected_ti_states
+
+
+@pytest.mark.parametrize(
+    "action, expected_message",
+    [
+        ("clear", "Failed to clear state"),
+        ("set_success", "Failed to set state"),
+        ("set_failed", "Failed to set state"),
+        ("set_running", "Failed to set state"),
+    ],
+    ids=["clear", "success", "failed", "running"],
+)
+def test_set_dag_runs_action_fails(admin_client, action, expected_message):
+    resp = admin_client.post(
+        "/dagrun/action_post",
+        data={"action": action, "rowid": ["0"]},
+        follow_redirects=True,
+    )
+    check_content_in_response(expected_message, resp)
+
+
+def test_muldelete_dag_runs_action(session, admin_client, running_dag_run):
+    dag_run_id = running_dag_run.id
+    resp = admin_client.post(
+        "/dagrun/action_post",
+        data={"action": "muldelete", "rowid": [dag_run_id]},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert session.query(TaskInstance).count() == 2  # Does not delete TIs.
+    assert session.query(DagRun).filter(DagRun.id == dag_run_id).count() == 0

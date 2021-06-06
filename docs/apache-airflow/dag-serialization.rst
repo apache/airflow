@@ -114,4 +114,5 @@ define a ``json`` variable in local Airflow settings (``airflow_local_settings.p
 .. code-block:: python
 
     import ujson
+
     json = ujson

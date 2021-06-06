@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* global document, $ */
+
 function handleCheck() {
   if ($('#isCumulative').is(':checked')) {
     $('#dur_chart').hide();

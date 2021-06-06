@@ -33,24 +33,27 @@ function parameters::save_to_file() {
 # $2 - descriptive name of the parameter
 # $3 - flag used to set the parameter
 function parameters::check_allowed_param() {
-    _VARIABLE_NAME="${1}"
-    _VARIABLE_DESCRIPTIVE_NAME="${2}"
-    _FLAG="${3}"
-    _ALLOWED_VALUES_ENV_NAME="_breeze_allowed_$(echo "${_VARIABLE_NAME}" | tr '[:upper:]' '[:lower:]')s"
-    _ALLOWED_VALUES=" ${!_ALLOWED_VALUES_ENV_NAME//$'\n'/ } "
-    _VALUE=${!_VARIABLE_NAME}
-    if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
+    local _variable_name="${1}"
+    local _variable_descriptive_name="${2}"
+    local _flag="${3}"
+    local _allowed_values_env_name
+    local _allowed_values
+    local _value
+    _allowed_values_env_name="_breeze_allowed_$(echo "${_variable_name}" | tr '[:upper:]' '[:lower:]')s"
+    _allowed_values=" ${!_allowed_values_env_name//$'\n'/ } "
+    _value=${!_variable_name}
+    if [[ ${_allowed_values:=} != *" ${_value} "* ]]; then
         echo
-        echo  "${COLOR_RED}ERROR: Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Passed: '${!_VARIABLE_NAME}'  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Allowed ${_variable_descriptive_name}: [${_allowed_values}]. Passed: '${!_variable_name}'  ${COLOR_RESET}"
         echo
-        echo "Switch to supported value with ${_FLAG} flag."
+        echo "Switch to supported value with ${_flag} flag."
         echo
-        if [[ -n ${!_VARIABLE_NAME} && -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" && ${!_VARIABLE_NAME} == $(cat "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}") ]]; then
+        if [[ -n ${!_variable_name} && -f "${BUILD_CACHE_DIR}/.${_variable_name}" && ${!_variable_name} == $(cat "${BUILD_CACHE_DIR}/.${_variable_name}") ]]; then
             echo
-            echo  "${COLOR_YELLOW}WARNING: Removing ${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}. Next time you run it, it should be OK.  ${COLOR_RESET}"
+            echo  "${COLOR_YELLOW}WARNING: Removing ${BUILD_CACHE_DIR}/.${_variable_name}. Next time you run it, it should be OK.  ${COLOR_RESET}"
             echo
             echo
-            rm -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}"
+            rm -f "${BUILD_CACHE_DIR}/.${_variable_name}"
         fi
         exit 1
     fi

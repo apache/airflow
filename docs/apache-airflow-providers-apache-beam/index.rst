@@ -27,7 +27,7 @@ Content
 
     Python API <_api/airflow/providers/apache/beam/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-beam/>
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/beam/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/beam/example_dags>
 
 .. toctree::
     :maxdepth: 1
@@ -146,17 +146,19 @@ This is the extra for the ``google`` provider:
 
 .. code-block:: python
 
-        extras_require={
-            ...
-            'apache.beam': ['apache-airflow-providers-apache-beam', 'apache-beam[gcp]'],
-            ....
-        },
+        extras_require = (
+            {
+                # ...
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                # ....
+            },
+        )
 
 And likewise this is the extra for the ``apache.beam`` provider:
 
 .. code-block:: python
 
-        extras_require={'google': ['apache-airflow-providers-google', 'apache-beam[gcp]']},
+        extras_require = ({"google": ["apache-airflow-providers-google", "apache-beam[gcp]"]},)
 
 You can still run this with PIP version <= 20.2.4 and go back to the previous behaviour:
 

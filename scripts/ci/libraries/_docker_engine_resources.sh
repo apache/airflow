@@ -74,7 +74,7 @@ function docker_engine_resources::check_enough_resources() {
 
     if [[ ${successful_resource_check} != "true" ]];then
         echo
-        echo "${COLOR_RED}Please check https://github.com/apache/airflow/blob/master/BREEZE.rst#resources-required for details${COLOR_RESET}"
+        echo "${COLOR_RED}Please check https://github.com/apache/airflow/blob/main/BREEZE.rst#resources-required for details${COLOR_RESET}"
         echo
     fi
 }

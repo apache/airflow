@@ -17,59 +17,101 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   AlertIcon,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
+  Progress,
+  Switch,
+  IconButton,
 } from '@chakra-ui/react';
+import type { Column } from 'react-table';
+import {
+  MdPlayArrow,
+} from 'react-icons/md';
 
+import Table from 'components/Table';
 import { defaultDags } from 'api/defaults';
 import { useDags } from 'api';
-import type { Dag } from 'interfaces';
-import Row from './Row';
+import {
+  DagName, PauseToggle, TriggerDagButton, DagTag,
+} from './Row';
+
+const getRandomInt = (max: number) => Math.floor(Math.random() * max);
+
+// Generate 1-10 placeholder rows
+const skeletonLoader = [...Array(getRandomInt(10) || 1)].map(() => ({
+  active: <Switch isDisabled />,
+  tags: '',
+  dagId: <Progress size="lg" isIndeterminate data-testid="pipelines-loading" />,
+  trigger: <IconButton size="sm" icon={<MdPlayArrow />} aria-label="Trigger Dag" disabled />,
+}));
+
+const LIMIT = 25;
 
 const PipelinesTable: React.FC = () => {
-  const { data: { dags } = defaultDags, isLoading, error } = useDags();
+  const [offset, setOffset] = useState(0);
+  const {
+    data: { dags, totalEntries } = defaultDags,
+    isLoading,
+    error,
+  } = useDags({ limit: LIMIT, offset });
+
+  // Show placeholders rows when data is loading for the first time
+  const data = useMemo(
+    () => (isLoading && !dags.length
+      ? skeletonLoader
+      : dags.map((d) => ({
+        ...d,
+        tags: d.tags.map((tag) => <DagTag tag={tag} key={tag.name} />),
+        dagId: <DagName dagId={d.dagId} />,
+        trigger: <TriggerDagButton dagId={d.dagId} />,
+        active: <PauseToggle dagId={d.dagId} isPaused={d.isPaused} offset={offset} />,
+      }))),
+    [dags, isLoading, offset],
+  );
+
+  const columns = useMemo<Column<any>[]>(
+    () => [
+      {
+        Header: 'Active',
+        accessor: 'active',
+        // Implement custom sort function because the data is a react component
+        sortType: (rowA, rowB) => (rowA.original.isPaused && !rowB.original.isPaused ? 1 : -1),
+      },
+      {
+        Header: 'Dag Id',
+        accessor: 'dagId',
+      },
+      {
+        Header: 'Tags',
+        accessor: 'tags',
+      },
+      {
+        disableSortBy: true,
+        accessor: 'trigger',
+      },
+    ],
+    [],
+  );
 
   return (
     <>
       {error && (
-        <Alert status="error" my="4" key={error.message}>
-          <AlertIcon />
-          {error.message}
-        </Alert>
+      <Alert status="error" my="4" key={error.message}>
+        <AlertIcon />
+        {error.message}
+      </Alert>
       )}
-      <Table size="sm">
-        <Thead position="sticky" top={0}>
-          <Tr
-            borderBottomWidth="1px"
-            textAlign="left"
-          >
-            <Th />
-            <Th>DAG ID</Th>
-            <Th />
-          </Tr>
-        </Thead>
-        <Tbody>
-          {isLoading && (
-          <Tr>
-            <Td colSpan={2}>Loading…</Td>
-          </Tr>
-          )}
-          {(!isLoading && !dags.length) && (
-          <Tr>
-            <Td colSpan={2}>No Pipelines found.</Td>
-          </Tr>
-          )}
-          {dags.map((dag: Dag) => <Row key={dag.dagId} dag={dag} />)}
-        </Tbody>
-      </Table>
+      <Table
+        data={data}
+        columns={columns}
+        manualPagination={{
+          offset,
+          setOffset,
+          totalEntries,
+        }}
+      />
     </>
   );
 };

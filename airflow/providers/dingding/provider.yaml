@@ -43,3 +43,6 @@ hooks:
   - integration-name: IBM Cloudant
     python-modules:
       - airflow.providers.dingding.hooks.dingding
+
+hook-class-names:
+  - airflow.providers.dingding.hooks.dingding.DingdingHook

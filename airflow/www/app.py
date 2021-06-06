@@ -61,9 +61,7 @@ def sync_appbuilder_roles(flask_app):
     # will add the new Views and Menus names to the backend, but will not
     # delete the old ones.
     if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
-        security_manager = flask_app.appbuilder.sm
-        security_manager.sync_roles()
-        security_manager.sync_resource_permissions()
+        flask_app.appbuilder.sm.sync_roles()
 
 
 def create_app(config=None, testing=False):

@@ -160,7 +160,7 @@ class AirflowDocsBuilder:
         if verbose:
             console.print(
                 f"[blue]{self.package_name:60}:[/] Executing cmd: ",
-                " ".join([shlex.quote(c) for c in build_cmd]),
+                " ".join(shlex.quote(c) for c in build_cmd),
             )
             console.print(f"[blue]{self.package_name:60}:[/] The output is hidden until an error occurs.")
         with open(self.log_spelling_filename, "wt") as output:
@@ -235,7 +235,7 @@ class AirflowDocsBuilder:
         if verbose:
             console.print(
                 f"[blue]{self.package_name:60}:[/] Executing cmd: ",
-                " ".join([shlex.quote(c) for c in build_cmd]),
+                " ".join(shlex.quote(c) for c in build_cmd),
             )
         else:
             console.print(

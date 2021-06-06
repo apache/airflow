@@ -205,6 +205,7 @@ go to the ``chart/tests`` directory and add your unit test by creating a class t
 .. code-block:: python
 
     class TestBaseChartTest(unittest.TestCase):
+        ...
 
 To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
 use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
@@ -226,11 +227,13 @@ Example test here:
 
 
     class TestGitSyncScheduler(unittest.TestCase):
-
         def test_basic(self):
             helm_settings = yaml.safe_load(git_sync_basic)
-            res = render_chart('GIT-SYNC', helm_settings,
-                               show_only=["templates/scheduler/scheduler-deployment.yaml"])
+            res = render_chart(
+                "GIT-SYNC",
+                helm_settings,
+                show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            )
             dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
             assert "dags" == dep.spec.template.spec.volumes[1].name
 
@@ -327,10 +330,10 @@ Example of the ``redis`` integration test:
 
     @pytest.mark.integration("redis")
     def test_real_ping(self):
-        hook = RedisHook(redis_conn_id='redis_default')
+        hook = RedisHook(redis_conn_id="redis_default")
         redis = hook.get_conn()
 
-        assert redis.ping(), 'Connection to Redis with PING works.'
+        assert redis.ping(), "Connection to Redis with PING works."
 
 The markers can be specified at the test level or the class level (then all tests in this class
 require an integration). You can add multiple markers with different integrations for tests that
@@ -592,7 +595,7 @@ Deploying Airflow to the Kubernetes cluster created is also done via ``kind-clus
 
 The deploy command performs those steps:
 
-1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
+1. It rebuilds the latest ``apache/airflow:main-pythonX.Y`` production images using the
    latest sources using local caching. It also adds example DAGs to the image, so that they do not
    have to be mounted inside.
 2. Loads the image to the Kind Cluster using the ``kind load`` command.
@@ -712,8 +715,8 @@ The typical session for tests with Kubernetes looks like follows:
 
        Use CI image.
 
-       Branch name:             master
-       Docker image:            apache/airflow:master-python3.7-ci
+       Branch name:             main
+       Docker image:            apache/airflow:main-python3.7-ci
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
@@ -754,8 +757,8 @@ The typical session for tests with Kubernetes looks like follows:
 
        Use CI image.
 
-       Branch name:             master
-       Docker image:            apache/airflow:master-python3.7-ci
+       Branch name:             main
+       Docker image:            apache/airflow:main-python3.7-ci
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
@@ -1270,10 +1273,11 @@ It will run a backfill job:
 
 .. code-block:: python
 
-  if __name__ == '__main__':
-    from airflow.utils.state import State
-    dag.clear(dag_run_state=State.NONE)
-    dag.run()
+  if __name__ == "__main__":
+      from airflow.utils.state import State
+
+      dag.clear(dag_run_state=State.NONE)
+      dag.run()
 
 
 2. Set up ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in the run configuration of your IDE.
@@ -1296,7 +1300,7 @@ By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>
 the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
 
-The DAGs can be run in the master version of Airflow but they also work
+The DAGs can be run in the main version of Airflow but they also work
 with older versions.
 
 To run the tests for Airflow 1.10.* series, you need to run Breeze with

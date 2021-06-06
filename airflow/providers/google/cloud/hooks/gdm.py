@@ -108,5 +108,5 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         resp = request.execute()
         if 'error' in resp.keys():
             raise AirflowException(
-                'Errors deleting deployment: ', ', '.join([err['message'] for err in resp['error']['errors']])
+                'Errors deleting deployment: ', ', '.join(err['message'] for err in resp['error']['errors'])
             )

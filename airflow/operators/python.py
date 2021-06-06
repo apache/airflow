@@ -432,6 +432,11 @@ class PythonVirtualenvOperator(PythonOperator):
                 )
                 raise
 
+    def __deepcopy__(self, memo):
+        # module objects can't be copied _at all__
+        memo[id(self.pickling_library)] = self.pickling_library
+        return super().__deepcopy__(memo)
+
 
 def get_current_context() -> Dict[str, Any]:
     """
@@ -451,6 +456,8 @@ def get_current_context() -> Dict[str, Any]:
     .. code:: python
 
         from airflow.operators.python import get_current_context
+
+
         def my_task():
             context = get_current_context()
             ti = context["ti"]

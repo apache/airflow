@@ -50,7 +50,7 @@ We approached the problem by:
    the builds can complete in < 2 minutes) but also by limiting the number of tests executed in PRs that do
    not touch the "core" of Airflow, or only touching some - standalone - parts of Airflow such as
    "Providers", "WWW" or "CLI". This solution is not yet perfect as there are likely some edge cases but
-   it is easy to maintain and we have an escape-hatch - all the tests are always executed in master pushes,
+   it is easy to maintain and we have an escape-hatch - all the tests are always executed in main pushes,
    so contributors can easily spot if there is a "missed" case and fix it - both by fixing the problem and
    adding those exceptions to the code. More about it can be found in the
    `Selective CI checks <#selective-ci-checks>`_ chapter.
@@ -126,7 +126,7 @@ The logic implemented for the changes works as follows:
 1) In case of direct push (so when PR gets merged) or scheduled run, we always run all tests and checks.
    This is in order to make sure that the merge did not miss anything important. The remainder of the logic
    is executed only in case of Pull Requests. We do not add providers tests in case DEFAULT_BRANCH is
-   different than master, because providers are only important in master branch and PRs to master branch.
+   different than main, because providers are only important in main branch and PRs to main branch.
 
 2) We retrieve which files have changed in the incoming Merge Commit (github.sha is a merge commit
    automatically prepared by GitHub in case of Pull Request, so we can retrieve the list of changed
@@ -135,8 +135,8 @@ The logic implemented for the changes works as follows:
 3) If any of the important, environment files changed (Dockerfile, ci scripts, setup.py, GitHub workflow
    files), then we again run all tests and checks. Those are cases where the logic of the checks changed
    or the environment for the checks changed so we want to make sure to check everything. We do not add
-   providers tests in case DEFAULT_BRANCH is different than master, because providers are only
-   important in master branch and PRs to master branch.
+   providers tests in case DEFAULT_BRANCH is different than main, because providers are only
+   important in main branch and PRs to main branch.
 
 4) If any of py files changed: we need to have CI image and run full static checks so we enable image building
 
@@ -160,7 +160,7 @@ The logic implemented for the changes works as follows:
    b) if any of the Airflow API files changed we enable ``API`` test type
    c) if any of the Airflow CLI files changed we enable ``CLI`` test type and Kubernetes tests (the
       K8S tests depend on CLI changes as helm chart uses CLI to run Airflow).
-   d) if this is a master branch and if any of the Provider files changed we enable ``Providers`` test type
+   d) if this is a main branch and if any of the Provider files changed we enable ``Providers`` test type
    e) if any of the WWW files changed we enable ``WWW`` test type
    f) if any of the Kubernetes files changed we enable ``Kubernetes`` test type
    g) Then we subtract count of all the ``specific`` above per-type changed files from the count of
@@ -184,7 +184,7 @@ The logic implemented for the changes works as follows:
 
 Similarly to selective tests we also run selective security scans. In Pull requests,
 the Python scan will only run when there is a python code change and JavaScript scan will only run if
-there is a JavaScript or yarn.lock file change. For master builds, all scans are always executed.
+there is a JavaScript or yarn.lock file change. For main builds, all scans are always executed.
 
 The selective check algorithm is shown here:
 

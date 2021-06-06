@@ -35,6 +35,7 @@ except ImportError:
     cache = lru_cache(maxsize=None)
 from pendulum.tz.timezone import Timezone
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
@@ -72,15 +73,6 @@ _OPERATOR_EXTRA_LINKS: Set[str] = {
     "airflow.operators.dagrun_operator.TriggerDagRunLink",
     "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
 }
-
-BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
-    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
-    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
-    "airflow.providers.google.cloud.operators.dataproc.DataprocJobLink",
-    "airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink",
-    "airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink",
-    "airflow.providers.qubole.operators.qubole.QDSLink",
-]
 
 
 @cache
@@ -383,7 +375,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if v.default is not v.empty
     }
 
-    dependency_detector = DependencyDetector
+    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -510,7 +502,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
             elif k == "deps":
                 v = cls._deserialize_deps(v)
-            elif k in cls._decorated_fields or k not in op.get_serialized_fields():
+            elif (
+                k in cls._decorated_fields
+                or k not in op.get_serialized_fields()  # pylint: disable=unsupported-membership-test
+            ):
                 v = cls._deserialize(v)
             # else use v as it is
 

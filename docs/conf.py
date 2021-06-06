@@ -32,6 +32,7 @@
 # serve to show the default.
 """Configuration of Airflow Docs"""
 import glob
+import json
 import os
 import sys
 from collections import defaultdict
@@ -77,6 +78,14 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = 'devel'
+elif PACKAGE_NAME == 'helm-chart':
+    PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
+    CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
+
+    with open(CHART_YAML_FILE) as chart_file:
+        chart_yaml_contents = yaml.load(chart_file, SafeLoader)
+
+    PACKAGE_VERSION = chart_yaml_contents['version']
 else:
     PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
@@ -144,6 +153,7 @@ if PACKAGE_NAME == 'apache-airflow':
             "sphinx_script_update",
         ]
     )
+
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
@@ -151,7 +161,9 @@ if PACKAGE_NAME == "apache-airflow-providers":
             'providers_packages_ref',
         ]
     )
-elif PACKAGE_NAME in ("helm-chart", "docker-stack"):
+elif PACKAGE_NAME == "helm-chart":
+    extensions.append("sphinxcontrib.jinja")
+elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
 else:
@@ -248,9 +260,17 @@ if PACKAGE_NAME == 'apache-airflow':
     html_extra_path = [
         f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
     ]
-    html_extra_with_substituions = [
+    html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
     ]
+    # Replace "|version|" in links
+    manual_substitutions_in_generated_html = [
+        "installation.html",
+    ]
+
+if PACKAGE_NAME == 'docker-stack':
+    # Replace "|version|" inside ```` quotes
+    manual_substitutions_in_generated_html = ["build.html"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -347,13 +367,94 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         if not os.path.exists(file_path):
             return {}
 
-        with open(file_path) as config_file:
-            return yaml.load(config_file, SafeLoader)
+        with open(file_path) as f:
+            return yaml.load(f, SafeLoader)
 
     config = _load_config()
     if config:
         jinja_contexts = {'config_ctx': {"configs": config}}
         extensions.append('sphinxcontrib.jinja')
+elif PACKAGE_NAME == 'helm-chart':
+
+    def _str_representer(dumper, data):
+        style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style)
+
+    yaml.add_representer(str, _str_representer)
+
+    def _format_default(value: Any) -> str:
+        if value == "":
+            return '""'
+        if value is None:
+            return '~'
+        return str(value)
+
+    def _format_examples(param_name: str, schema: dict) -> Optional[str]:
+        if not schema.get("examples"):
+            return None
+
+        # Nicer to have the parameter name shown as well
+        out = ""
+        for ex in schema["examples"]:
+            if schema["type"] == "array":
+                ex = [ex]
+            out += yaml.dump({param_name: ex})
+        return out
+
+    def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") -> List[dict]:
+        """
+        Given an jsonschema objects properties dict, return a flattened list of all parameters
+        from that object and any nested objects
+        """
+        # TODO: handle arrays? probably missing more cases too
+        out = []
+        for param_name, schema in root_schema.items():
+            prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
+            section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
+            if section_name and schema["description"] and "default" in schema:
+                out.append(
+                    {
+                        "section": section_name,
+                        "name": prefixed_name,
+                        "description": schema["description"],
+                        "default": _format_default(schema["default"]),
+                        "examples": _format_examples(param_name, schema),
+                    }
+                )
+            if schema.get("properties"):
+                out += _get_params(schema["properties"], prefixed_name, section_name)
+        return out
+
+    schema_file = os.path.join(PACKAGE_DIR, "values.schema.json")  # type: ignore
+    with open(schema_file) as config_file:
+        chart_schema = json.load(config_file)
+
+    params = _get_params(chart_schema["properties"])
+
+    # Now, split into sections
+    sections: Dict[str, List[Dict[str, str]]] = {}
+    for param in params:
+        if param["section"] not in sections:
+            sections[param["section"]] = []
+
+        sections[param["section"]].append(param)
+
+    # and order each section
+    for section in sections.values():  # type: ignore
+        section.sort(key=lambda i: i["name"])  # type: ignore
+
+    # and finally order the sections!
+    ordered_sections = []
+    for name in chart_schema["x-docsSectionOrder"]:
+        if name not in sections:
+            raise ValueError(f"Unable to find any parameters for section: {name}")
+        ordered_sections.append({"name": name, "params": sections.pop(name)})
+
+    if sections:
+        raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
+
+    jinja_contexts = {"params_ctx": {"sections": ordered_sections}}
+
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
@@ -430,6 +531,7 @@ intersphinx_mapping = {
     for pkg_name in [
         'boto3',
         'celery',
+        'docker',
         'hdfs',
         'jinja2',
         'mongodb',
@@ -497,7 +599,7 @@ if PACKAGE_NAME == 'apache-airflow':
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    'airflow/configuration/',
+    '*/airflow/_vendor/*',
     '*/example_dags/*',
     '*/_internal*',
     '*/node_modules/*',

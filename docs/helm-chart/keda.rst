@@ -45,8 +45,8 @@ helm command or in the ``values.yaml``.
 .. code-block:: bash
 
    kubectl create namespace airflow
-
-   helm install airflow . \
+   helm repo add apache-airflow https://airflow.apache.org
+   helm install airflow apache-airflow/airflow \
        --namespace airflow \
        --set executor=CeleryExecutor \
        --set workers.keda.enabled=true \

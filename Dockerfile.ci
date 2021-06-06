@@ -21,7 +21,7 @@ FROM ${PYTHON_BASE_IMAGE} as main
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
-ARG AIRFLOW_VERSION="2.1.0.dev0"
+ARG AIRFLOW_VERSION="2.2.0.dev0"
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="6"
 
@@ -95,8 +95,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Only copy install_mysql.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+COPY scripts/docker/*.sh /scripts/docker/
 RUN bash /scripts/docker/install_mysql.sh dev \
     && adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
@@ -162,6 +161,17 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
+    && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
+    && curl https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update -yqq \
+    && apt-get upgrade -yqq \
+    && ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends \
+      gcc \
+      unixodbc-dev  \
+      g++ \
+      msodbcsql17 \
+      mssql-tools \
+    && rm -rf /var/lib/apt/lists/* \
     && curl https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz \
     |  tar -C /usr/bin --strip-components=1 -xvzf - docker/docker
 
@@ -190,11 +200,8 @@ RUN curl -sSL https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.ta
     && curl -sSL https://github.com/bats-core/bats-file/archive/v${BATS_FILE_VERSION}.tar.gz -o /tmp/bats-file.tgz \
     && tar -zxf /tmp/bats-file.tgz -C /opt/bats/lib/bats-file --strip 1 && rm -rf /tmp/*
 
-# Additional scripts for managing BATS addons
-COPY scripts/docker/load.bash /opt/bats/lib/
-
 ARG AIRFLOW_REPO=apache/airflow
-ARG AIRFLOW_BRANCH=master
+ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
 ARG AIRFLOW_EXTRAS="all"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
@@ -203,7 +210,7 @@ ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ARG AIRFLOW_CONSTRAINTS="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
-ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # By changing the CI build epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="3"
@@ -211,7 +218,7 @@ ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ARG INSTALL_FROM_PYPI="true"
-ARG AIRFLOW_PIP_VERSION=21.1
+ARG AIRFLOW_PIP_VERSION=21.1.1
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -253,14 +260,6 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY} \
     CASS_DRIVER_NO_CYTHON=${CASS_DRIVER_NO_CYTHON}
 
-RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
-
-# Only copy common.sh to not invalidate further layers
-COPY scripts/docker/common.sh /scripts/docker/common.sh
-
-# Only copy install_airflow_from_branch_tip.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_airflow_from_branch_tip.sh /scripts/docker/install_airflow_from_branch_tip.sh
-
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
 # * chardet<4: required by snowflake provider
@@ -274,14 +273,15 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
-# In case of CI builds we want to pre-install master version of airflow dependencies so that
+# In case of CI builds we want to pre-install main version of airflow dependencies so that
 # We do not have to always reinstall it from the scratch.
 # And is automatically reinstalled from the scratch every time patch release of python gets released
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
 # are uninstalled, only dependencies remain.
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
-RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
+RUN bash /scripts/docker/install_pip_version.sh; \
+    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_from_branch_tip.sh; \
     fi
@@ -314,9 +314,6 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
-# Only copy install_airflow.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_airflow.sh /scripts/docker/install_airflow.sh
-
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
@@ -338,6 +335,8 @@ RUN bash airflow/www/compile_assets.sh
 
 COPY scripts/in_container/entrypoint_ci.sh /entrypoint
 RUN chmod a+x /entrypoint
+
+COPY scripts/docker/load.bash /opt/bats/lib/
 
 # We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
 # copying over stuff that is accidentally generated or that we do not need (such as egg-info)
@@ -366,8 +365,9 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install --no-cache-dir ${ADDITIONAL_PYTHON_DEPS}; \
+RUN bash /scripts/docker/install_pip_version.sh; \
+    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+            bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 ARG BUILD_ID

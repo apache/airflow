@@ -21,6 +21,7 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
 from docker import APIClient, tls
+from docker.types import Mount
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -95,9 +96,9 @@ class DockerOperator(BaseOperator):
     :type tmp_dir: str
     :param user: Default user inside the docker container.
     :type user: int or str
-    :param volumes: List of volumes to mount into the container, e.g.
-        ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
-    :type volumes: list
+    :param mounts: List of volumes to mount into the container. Each item should
+        be a :py:class:`docker.types.Mount` instance.
+    :type mounts: list[docker.types.Mount]
     :param entrypoint: Overwrite the default ENTRYPOINT of the image
     :type entrypoint: str or list
     :param working_dir: Working directory to
@@ -157,7 +158,7 @@ class DockerOperator(BaseOperator):
         tls_ssl_version: Optional[str] = None,
         tmp_dir: str = '/tmp/airflow',
         user: Optional[Union[str, int]] = None,
-        volumes: Optional[List[str]] = None,
+        mounts: Optional[List[Mount]] = None,
         entrypoint: Optional[Union[str, List[str]]] = None,
         working_dir: Optional[str] = None,
         xcom_all: bool = False,
@@ -196,7 +197,7 @@ class DockerOperator(BaseOperator):
         self.tls_ssl_version = tls_ssl_version
         self.tmp_dir = tmp_dir
         self.user = user
-        self.volumes = volumes or []
+        self.mounts = mounts or []
         self.entrypoint = entrypoint
         self.working_dir = working_dir
         self.xcom_all = xcom_all
@@ -230,17 +231,16 @@ class DockerOperator(BaseOperator):
         self.log.info('Starting docker container from image %s', self.image)
 
         with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-            self.volumes.append(f'{host_tmp_dir}:{self.tmp_dir}')
-
             if not self.cli:
                 raise Exception("The 'cli' should be initialized before!")
+            tmp_mount = Mount(self.tmp_dir, host_tmp_dir, "bind")
             self.container = self.cli.create_container(
                 command=self.format_command(self.command),
                 name=self.container_name,
                 environment={**self.environment, **self._private_environment},
                 host_config=self.cli.create_host_config(
                     auto_remove=False,
-                    binds=self.volumes,
+                    mounts=self.mounts + [tmp_mount],
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
                     dns=self.dns,
