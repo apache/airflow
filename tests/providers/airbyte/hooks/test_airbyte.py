@@ -128,10 +128,7 @@ class TestAirbyteHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_connection_success(self, m):
-        m.get(
-            self.health_endpoint,
-            status_code=200,
-        )
+        m.get(self.health_endpoint, status_code=200)
 
         status, msg = self.hook.test_connection()
         assert status is True
