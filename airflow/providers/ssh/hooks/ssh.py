@@ -218,7 +218,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
-                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
