@@ -23,7 +23,6 @@ from unittest import mock
 from boto3.session import Session
 
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
-from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
@@ -56,18 +55,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_query = op._build_copy_query(credentials_block, copy_options)
-        expected_copy_query = '''
-                                COPY schema.table
-                                FROM 's3://bucket/key'
-                                with credentials
-                                'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
-                                ;
-                             '''
-        assert_equal_ignore_multiple_spaces(self, expected_copy_query, copy_query)
-
+        copy_query = '''
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        with credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     '''
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
@@ -103,18 +97,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_query = op._build_copy_query(credentials_block, copy_options)
-        expected_copy_query = '''
-                                COPY schema.table (column_1, column_2)
-                                FROM 's3://bucket/key'
-                                with credentials
-                                'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
-                                ;
-                             '''
-        assert_equal_ignore_multiple_spaces(self, expected_copy_query, copy_query)
-
+        copy_query = '''
+                        COPY schema.table (column_1, column_2)
+                        FROM 's3://bucket/key'
+                        with credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     '''
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
@@ -149,10 +138,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_statement = op._build_copy_query(credentials_block, copy_options)
-
+        copy_statement = '''
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        with credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     '''
         truncate_statement = f'TRUNCATE TABLE {schema}.{table};'
         transaction = f"""
                     BEGIN;
@@ -192,11 +184,14 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             task_id="task_id",
             dag=None,
         )
-
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_statement = op._build_copy_query(credentials_block, copy_options)
         op.execute(None)
-
+        copy_statement = '''
+                            COPY schema.table
+                            FROM 's3://bucket/key'
+                            with credentials
+                            'aws_access_key_id=ASIA_aws_access_key_id;aws_secret_access_key=aws_secret_access_key;token=aws_secret_token'
+                            ;
+                         '''
         assert access_key in copy_statement
         assert secret_key in copy_statement
         assert token in copy_statement
