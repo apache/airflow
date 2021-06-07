@@ -71,6 +71,13 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         'rsa': paramiko.RSAKey,
     }
 
+    _host_key_mappings = {
+        'rsa': paramiko.RSAKey,
+        'dss': paramiko.DSSKey,
+        'ecdsa': paramiko.ECDSAKey,
+        'ed25519': paramiko.Ed25519Key,
+    }
+
     conn_name_attr = 'ssh_conn_id'
     default_conn_name = 'ssh_default'
     conn_type = 'ssh'
@@ -159,9 +166,15 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
-                if "host_key" in extra_options and self.no_host_key_check is False:
-                    decoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
-                    self.host_key = paramiko.RSAKey(data=decoded_host_key)
+                host_key = extra_options.get("host_key")
+                if host_key is not None and self.no_host_key_check is False:
+                    if host_key.startswith("ssh-"):
+                        key_type, host_key = host_key.split(" ")[:2]
+                        key_constructor = _host_key_mappings[key_type[4:]]
+                    else:
+                        key_constructor = paramiko.RSAKey
+                    decoded_host_key = decodebytes(host_key.encode('utf-8'))
+                    self.host_key = key_constructor(data=decoded_host_key)
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
