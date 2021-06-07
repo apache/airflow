@@ -64,8 +64,6 @@ def _get_ti(task, exec_date_or_run_id):
             raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
     ti = dag_run.get_task_instance(task.task_id)
     ti.task = task
-    ti.run_as_user = task.run_as_user
-    ti.execution_date = dag_run.execution_date
     return ti
 
 
