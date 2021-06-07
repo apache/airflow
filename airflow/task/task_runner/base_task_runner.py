@@ -21,6 +21,7 @@ import subprocess
 import threading
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
+from pwd import getpwnam
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -85,7 +86,11 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._error_file = NamedTemporaryFile(delete=True)
-        os.chmod(self._error_file.name, 0o0777)
+        
+        # Avoid executing chown when run_as_user is set to None
+        if self.run_as_user:
+            os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
+  
         self._cfg_path = cfg_path
         self._command = (
             popen_prepend
