@@ -198,6 +198,16 @@ class WebserverDeploymentTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_should_create_default_affinity(self):
+        docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
+
+        assert {"component": "webserver"} == jmespath.search(
+            "spec.template.spec.affinity.podAntiAffinity."
+            "preferredDuringSchedulingIgnoredDuringExecution[0]."
+            "podAffinityTerm.labelSelector.matchLabels",
+            docs[0],
+        )
+
     @parameterized.expand(
         [
             ({"enabled": False}, None),

@@ -1058,7 +1058,7 @@
                 "affinity": {
                     "description": "Specify scheduling constraints for worker pods.",
                     "type": "object",
-                    "default": {}
+                    "default": "See values.yaml"
                 },
                 "tolerations": {
                     "description": "Specify Tolerations for worker pods.",
@@ -1298,7 +1298,7 @@
                 "affinity": {
                     "description": "Specify scheduling constraints for scheduler pods.",
                     "type": "object",
-                    "default": {}
+                    "default": "See values.yaml"
                 },
                 "tolerations": {
                     "description": "Specify Tolerations for scheduler pods.",
@@ -1678,7 +1678,7 @@
                 "affinity": {
                     "description": "Specify scheduling constraints for webserver pods.",
                     "type": "object",
-                    "default": {}
+                    "default": "See values.yaml"
                 },
                 "tolerations": {
                     "description": "Specify Tolerations for webserver pods.",

@@ -145,6 +145,16 @@ class SchedulerTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_should_create_default_affinity(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert {"component": "scheduler"} == jmespath.search(
+            "spec.template.spec.affinity.podAntiAffinity."
+            "preferredDuringSchedulingIgnoredDuringExecution[0]."
+            "podAffinityTerm.labelSelector.matchLabels",
+            docs[0],
+        )
+
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
