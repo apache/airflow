@@ -679,18 +679,22 @@ class TestLocalTaskJob(unittest.TestCase):
             settings.engine.dispose()
             process1 = multiprocessing.Process(target=job1.run)
             process1.start()
-            for _ in range(5):
+            for _ in range(25):
                 task_instance_a.refresh_from_db()
                 task_instance_b.refresh_from_db()
+                if task_instance_a.state == State.SUCCESS:
+                    break
                 time.sleep(0.2)
             self.validate_ti_states(dag_run, first_run_state, error_message)
             if second_run_state:
 
                 process2 = multiprocessing.Process(target=job2.run)
                 process2.start()
-                for _ in range(5):
+                for _ in range(25):
                     task_instance_b.refresh_from_db()
                     task_instance_c.refresh_from_db()
+                    if task_instance_b.state == State.SUCCESS:
+                        break
                     time.sleep(0.2)
                 self.validate_ti_states(dag_run, second_run_state, error_message)
                 process1.join(timeout=10)
