@@ -44,7 +44,7 @@ Package apache-airflow-providers-apache-druid
 `Apache Druid <https://druid.apache.org/>`__.
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -86,6 +86,15 @@ Dependent package                                                               
 `apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_  ``apache.hive``
 ==============================================================================================================  ===============
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-apache-druid 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-druid-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-druid-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-druid-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-druid 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-2.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -107,6 +116,22 @@ Dependent package                                                               
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Fix string concatenation using 'f-strings' (#15200)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
+
 1.1.0
 .....
 
@@ -114,6 +139,11 @@ Features
 ~~~~~~~~
 
 * ``Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)``
+
+Bugfixes
+~~~~~~~~
+
+* ``Bugfix: DruidOperator fails to submit ingestion tasks (#14418)``
 
 1.0.1
 .....

@@ -58,7 +58,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 1.1.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -71,6 +71,15 @@ Installation
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-http``
+
+PIP requirements
+----------------
+
+=============  ==================
+PIP package    Version required
+=============  ==================
+``requests``   ``>=2.20.0``
+=============  ==================
 
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -92,6 +101,27 @@ You can install this package on top of an existing airflow 2.* installation via
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add documentation for the HTTP connection (#15379)``
+* ``Update 'SimpleHttpOperator' to take auth object (#15605)``
+* ``HttpHook: Use request factory and respect defaults (#14701)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
 
 1.1.1
 .....

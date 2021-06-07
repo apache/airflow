@@ -72,6 +72,22 @@ function run_prepare_documentation() {
             error_documentation+=("${provider_package}")
             continue
         fi
+        # There is a separate group created in logs for each provider package
+        python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            update-changelog \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
+            "${OPTIONAL_NO_INTERACTIVE_FLAG[@]}" \
+            "${provider_package}"
+        res=$?
+        if [[ ${res} == "64" ]]; then
+            skipped_documentation+=("${provider_package}")
+            continue
+            echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
+        fi
+        if [[ ${res} == "65" ]]; then
+            echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
+            exit 1
+        fi
         prepared_documentation+=("${provider_package}")
         set -e
     done
@@ -124,7 +140,6 @@ fi
 OPTIONAL_NO_INTERACTIVE_FLAG=()
 if [[ ${NO_INTERACTIVE=} == "true" ]]; then
     OPTIONAL_NO_INTERACTIVE_FLAG+=("--non-interactive")
-    shift
 fi
 
 

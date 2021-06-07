@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-03
+
+================================================================================================  ===========  ===================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===================================================================================
+`2f16757e1 <https://github.com/apache/airflow/commit/2f16757e1a11ef42ac2b1a62622a5d34f8a1e996>`_  2021-06-03   ``Bug Pod Template File Values Ignored (#16095)``
+`476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+`85b2ccb0c <https://github.com/apache/airflow/commit/85b2ccb0c5e03495c58e7c4fb0513ceb4419a103>`_  2021-05-20   ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+`733bec9a0 <https://github.com/apache/airflow/commit/733bec9a04ab718a0f6289d93f4e2e4ea3e03d54>`_  2021-05-20   ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
+`37d549bde <https://github.com/apache/airflow/commit/37d549bde79cd560d24748ebe7f94730115c0e88>`_  2021-05-14   ``Save pod name to xcom for KubernetesPodOperator (#15755)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+================================================================================================  ===========  ===================================================================================
+
 1.2.0
 .....
 
-Latest change: 2021-04-27
+Latest change: 2021-05-01
 
 ================================================================================================  ===========  ===========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===========================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 `5b2fe0e74 <https://github.com/apache/airflow/commit/5b2fe0e74013cd08d1f76f5c115f2c8f990ff9bc>`_  2021-04-27   ``Add Connection Documentation for Popular Providers (#15393)``
 `53fc1a967 <https://github.com/apache/airflow/commit/53fc1a96797fde66cd68345a29a111ae86c1a35a>`_  2021-04-26   ``Change KPO node_selectors warning to proper deprecationwarning (#15507)``
 `d3cc67aa7 <https://github.com/apache/airflow/commit/d3cc67aa7a7213db4325e77ca0246548bf1c0184>`_  2021-04-24   ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``

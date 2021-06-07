@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-05
+
+================================================================================================  ===========  ================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ================================================
+`3bdcd1a7d <https://github.com/apache/airflow/commit/3bdcd1a7d46ca06115a93b97f394486e0acaf52d>`_  2021-06-05   ``Docs: Fix url for ''Elasticsearch'' (#16275)``
+`476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+================================================================================================  ===========  ================================================
+
 1.0.4
 .....
 
-Latest change: 2021-04-27
+Latest change: 2021-05-01
 
 ================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =============================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 `657384615 <https://github.com/apache/airflow/commit/657384615fafc060f9e2ed925017306705770355>`_  2021-04-27   ``Fix 'logging.exception' redundancy (#14823)``
 `71c673e42 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
 `5da831910 <https://github.com/apache/airflow/commit/5da831910c358ecbd7a5c33ee31fe0d909508bea>`_  2021-04-10   ``Fix exception caused by missing keys in the ElasticSearch Record (#15163)``

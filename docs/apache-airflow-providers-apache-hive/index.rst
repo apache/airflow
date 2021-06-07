@@ -57,7 +57,7 @@ Package apache-airflow-providers-apache-hive
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 1.0.3
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -106,6 +106,15 @@ Dependent package                                                               
 `apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_                  ``vertica``
 ======================================================================================================================  ===================
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-apache-hive 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -126,6 +135,27 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for the Hive Provider (#15704)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Remove duplicate key from Python dictionary (#15735)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Make Airflow code Pylint 2.8 compatible (#15534)``
+   * ``Use Pip 21.* to install airflow officially (#15513)``
 
 1.0.3
 .....

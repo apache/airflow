@@ -58,7 +58,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 1.2.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -102,6 +102,30 @@ PIP package       Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+* ``Save pod name to xcom for KubernetesPodOperator (#15755)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
+* ``Bug Pod Template File Values Ignored (#16095)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 
 1.2.0
 .....
