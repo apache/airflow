@@ -24,7 +24,7 @@ import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from typing import List
 
-from pendulum.parsing import ParserError
+from pendulum.parsing.exceptions import ParserError
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
