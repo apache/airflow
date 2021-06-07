@@ -31,6 +31,7 @@
   - [Debugging import check](#debugging-import-check)
   - [Debugging verifying provider classes](#debugging-verifying-provider-classes)
   - [Debugging preparing package documentation](#debugging-preparing-package-documentation)
+  - [Debugging preparing release-notes](#debugging-preparing-release-notes)
   - [Debugging preparing setup files](#debugging-preparing-setup-files)
   - [Debugging preparing the packages](#debugging-preparing-the-packages)
 - [Testing provider packages](#testing-provider-packages)
@@ -108,6 +109,12 @@ You can run the script with multiple package names if you want to prepare severa
 
 As soon as you are satisfied with the release notes generated you can commit generated changes/new files
 to the repository.
+
+You should manually update generated changelog and classify the commits updated and re-run the
+`prepare-documentation-readme` after all the changes.
+
+You can repeat this several times, the changes generated will automatically include new commits that
+appeared since last run.
 
 ## Preparing provider packages
 
@@ -231,7 +238,6 @@ the `${HOME}/airflow` directory:
 ./breeze initialize-local-virtualenv
 ```
 
-
 You can find description of all the commands and more information about the "prepare"
 tool by running it with `--help`
 
@@ -245,31 +251,13 @@ You can see for example list of all provider packages:
 ./dev/provider_packages/prepare_provider_packages.py list-providers-packages
 ```
 
-
 You can add `--verbose` flag in breeze command if you want to see commands executed.
 
 ## Debugging import check
 
 The script verifies if all provider's classes can be imported.
 
-1) Enter Breeze environment (optionally if you have no local virtualenv):
-
-```shell script
-./breeze
-```
-
-All the rest is in-container in case you use Breeze, but can be in your local virtualenv if you have
-it installed with `devel_all` extra.
-
-2) Install remaining dependencies. Until we manage to bring the apache.beam due to i's dependencies without
-   conflicting dependencies (requires fixing Snowflake and Azure providers). This is optional in case you
-   already installed the environment with `devel_all` extra
-
-```shell script
-pip install -e ".[devel_all]"
-```
-
-3) Run import check:
+1) Run import check:
 
 ```shell script
 ./dev/import_all_classes.py --path airflow/providers
@@ -281,24 +269,7 @@ It checks if all classes from provider packages can be imported.
 
 The script verifies if all provider's classes are correctly named.
 
-1) Enter Breeze environment (optionally if you have no local virtualenv):
-
-```shell script
-./breeze
-```
-
-All the rest is in-container in case you use Breeze, but can be in your local virtualenv if you have
-it installed with `devel_all` extra.
-
-2) Install remaining dependencies. Until we manage to bring the apache.beam due to i's dependencies without
-   conflicting dependencies (requires fixing Snowflake and Azure providers). This is optional in case you
-   already installed the environment with `devel_all` extra
-
-```shell script
-pip install -e ".[devel_all]"
-```
-
-3) Run import check:
+1) Run import check:
 
 ```shell script
 ./dev/provider_packages/prepare_provider_packages.py verify-provider-classes
@@ -313,23 +284,7 @@ The script updates documentation of the provider packages. Note that it uses air
 the latest version of tags available in Airflow, so you need to enter Breeze with
 `--mount-all-local-sources flag`
 
-1) Enter Breeze environment (optionally if you have no local virtualenv):
-
-```shell script
-./breeze --mount-all-local-sources
-```
-
-(all the rest is in-container)
-
-2) Install remaining dependencies. Until we manage to bring the apache.beam due to i's dependencies without
-   conflicting dependencies (requires fixing Snowflake and Azure providers).
-   Optionally if you have no local virtualenv.
-
-```shell script
-pip install -e ".[devel_all]"
-```
-
-3) Run update documentation (version suffix might be empty):
+1) Run update documentation (version suffix might be empty):
 
 ```shell script
 ./dev/provider_packages/prepare_provider_packages.py update-package-documentation \
@@ -346,19 +301,21 @@ and prints warning.
 
 You can add `--verbose` flag if you want to see detailed commands executed by the script.
 
+## Debugging preparing release-notes
+
+1) Run update changelog:
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py update-changelog <PACKAGE>
+```
+
+You can add `--verbose` flag if you want to see detailed commands executed by the script.
+
 ## Debugging preparing setup files
 
 This script prepares the actual packages.
 
-1) Enter Breeze environment:
-
-```shell script
-./breeze
-```
-
-(all the rest is in-container)
-
-2) Cleanup the artifact directories:
+1) Cleanup the artifact directories:
 
 This is needed because setup tools does not clean those files and generating packages one by one
 without cleanup, might include artifacts from previous package to be included in the new one.
@@ -367,7 +324,7 @@ without cleanup, might include artifacts from previous package to be included in
 rm -rf -- *.egg-info build/
 ```
 
-3) Generate setup.py/setup.cfg/MANIFEST.in/provider_info.py/README files  files for:
+2) Generate setup.py/setup.cfg/MANIFEST.in/provider_info.py/README files  files for:
 
 * alpha/beta packages (specify a1,a2,.../b1,b2... suffix)
 * release candidates (specify r1,r2,... suffix) - those are release candidate
@@ -394,23 +351,7 @@ Note that it uses airflow git and pulls the latest version of tags available in 
 so you need to enter Breeze with
 `--mount-all-local-sources flag`
 
-1) Enter Breeze environment (optionally if you have no local virtualenv):
-
-```shell script
-./breeze --mount-all-local-sources
-```
-
-(all the rest is in-container)
-
-2) Install remaining dependencies. Until we manage to bring the apache.beam due to i's dependencies without
-   conflicting dependencies (requires fixing Snowflake and Azure providers).
-   Optionally if you have no local virtualenv.
-
-```shell script
-pip install -e ".[devel_all]"
-```
-
-3) Run update documentation (version suffix might be empty):
+1) Run update documentation (version suffix might be empty):
 
 ```shell script
 ./dev/provider_packages/prepare_provider_packages.py build-provider-packages \

@@ -153,7 +153,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals).
 
-Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](IMAGES.rst).
+Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
 ## Installing from PyPI
 
@@ -173,9 +173,7 @@ correct Airflow tag/version/branch and Python versions in the URL.
 
 1. Installing just Airflow:
 
-NOTE!!!
-
-Only `pip` installation is currently officially supported.
+> Note: Only `pip` installation is currently officially supported.
 
 While they are some successes with using other tools like [poetry](https://python-poetry.org) or
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
@@ -228,7 +226,7 @@ Those are - in the order of most common ways people install Airflow:
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm` etc. You can
   read more about using, customising, and extending the images in the
   [Latest docs](https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html), and
-  learn details on the internals in the [IMAGES.rst](IMAGES.rst) document.
+  learn details on the internals in the [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
   were used to generate official source packages via git
 
@@ -240,27 +238,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](/docs/apache-airflow/img/dags.png)
+  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
 
-  ![Tree View](/docs/apache-airflow/img/tree.png)
+  ![Tree View](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph View](/docs/apache-airflow/img/graph.png)
+  ![Graph View](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![Task Duration](/docs/apache-airflow/img/duration.png)
+  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
 
-  ![Gantt View](/docs/apache-airflow/img/gantt.png)
+  ![Gantt View](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
 
-  ![Code View](/docs/apache-airflow/img/code.png)
+  ![Code View](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/code.png)
 
 
 ## Contributing

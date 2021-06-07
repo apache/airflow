@@ -63,7 +63,7 @@ Package apache-airflow-providers-mysql
 `MySQL <https://www.mysql.com/products/>`__
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -109,6 +109,15 @@ Dependent package                                                               
 `apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_  ``vertica``
 ======================================================================================================  ===========
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-mysql 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-2.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -132,6 +141,28 @@ used with MySQL server 5.6.4 through 5.7.
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for Providers (#15499)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Make Airflow code Pylint 2.8 compatible (#15534)``
+   * ``Update Docstrings of Modules with Missing Params (#15391)``
 
 1.1.0
 .....

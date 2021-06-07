@@ -16,18 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import unittest
 from unittest import mock
 from unittest.mock import call
 
 import pytest
-import smbclient
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.samba.hooks.samba import SambaHook
 
-connection = Connection(host='ip', schema='share', login='username', password='password')
+connection = Connection(
+    host='ip',
+    schema='share',
+    login='username',
+    password='password',
+    extra=json.dumps({'workgroup': 'workgroup'}),
+)
 
 
 class TestSambaHook(unittest.TestCase):
@@ -35,12 +41,14 @@ class TestSambaHook(unittest.TestCase):
         with pytest.raises(AirflowException):
             SambaHook('conn')
 
+    @mock.patch('airflow.providers.samba.hooks.samba.SambaClient')
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
-    def test_get_conn(self, get_conn_mock):
+    def test_get_conn(self, get_conn_mock, get_client_mock):
         get_conn_mock.return_value = connection
         hook = SambaHook('samba_default')
-
-        assert isinstance(hook.get_conn(), smbclient.SambaClient)
+        conn = hook.get_conn()
+        assert str(get_client_mock.mock_calls[0].workgroup) == "workgroup"
+        assert conn is get_client_mock()
         get_conn_mock.assert_called_once_with('samba_default')
 
     @mock.patch('airflow.providers.samba.hooks.samba.SambaHook.get_conn')

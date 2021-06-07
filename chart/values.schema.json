@@ -60,13 +60,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.0.2",
+            "default": "2.1.0",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.0.2",
+            "default": "2.1.0",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -747,7 +747,7 @@
                     ]
                 },
                 "brokerUrl": {
-                    "description": "Direct url to the redis broker (when using an external redis instance).",
+                    "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
                         "string",
                         "null"
@@ -758,7 +758,7 @@
             }
         },
         "fernetKey": {
-            "description": "The Fernet key used to encrypt passwords.",
+            "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
             "type": [
                 "string",
                 "null"
@@ -928,6 +928,11 @@
                             "description": "How many seconds KEDA will wait before scaling to zero.",
                             "type": "integer",
                             "default": 30
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
                         },
                         "maxReplicaCount": {
                             "description": "Maximum number of workers created by KEDA.",
@@ -2229,7 +2234,7 @@
                     "default": null
                 },
                 "password": {
-                    "description": "If password is set, create secret with it, else generate a new one on install.",
+                    "description": "If password is set, create secret with it, else generate a new one on install (can only be set during install, not upgrade).",
                     "type": [
                         "string",
                         "null"

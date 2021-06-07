@@ -908,8 +908,6 @@ Documentation
 
 Documentation for ``apache-airflow`` package and other packages that are closely related to it ie. providers packages are in ``/docs/`` directory. For detailed information on documentation development, see: `docs/README.rst <docs/README.rst>`_
 
-For Helm Chart documentation, see: `chart/README.md <chart/README.md>`__
-
 Static code checks
 ==================
 

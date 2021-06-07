@@ -37,10 +37,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.0.2"
+defaultAirflowTag: "2.1.0"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.0.2"
+airflowVersion: "2.1.0"
 
 # Images
 images:
@@ -259,9 +259,11 @@ data:
   #   port: 5432
   #   db: postgres
   #   sslmode: disable
+  # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
 
 # Fernet key settings
+# Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
 
@@ -363,6 +365,9 @@ workers:
     # How many seconds KEDA will wait before scaling to zero.
     # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
+
+    # Minimum number of workers created by keda
+    minReplicaCount: 0
 
     # Maximum number of workers created by keda
     maxReplicaCount: 10
@@ -861,6 +866,7 @@ redis:
 
   # Else, if password is set, create secret with it,
   # Otherwise a new password will be generated on install
+  # Note: password can only be set during install, not upgrade.
   password: ~
 
   # This setting tells kubernetes that its ok to evict

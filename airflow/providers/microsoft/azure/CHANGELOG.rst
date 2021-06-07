@@ -19,6 +19,31 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``add oracle  connection link (#15632)``
+* ``Add delimiter argument to WasbHook delete_file method (#15637)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix colon spacing in ``AzureDataExplorerHook`` docstring (#15841)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+   * ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
+
 2.0.0
 .....
 

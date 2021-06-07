@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # Might be empty
-AIRFLOW_COMMAND="${1}"
+AIRFLOW_COMMAND="${1:-}"
 
 set -euo pipefail
 
@@ -339,14 +339,14 @@ exec_to_bash_or_python_command_if_specified "${@}"
 #     docker run IMAGE webserver
 #
 if [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
-   AIRFLOW_COMMAND="${2}"
+   AIRFLOW_COMMAND="${2:-}"
    shift
 fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]] \
     && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
-    wait_for_celery_backend "${@}"
+    wait_for_celery_backend
 fi
 
 exec "airflow" "${@}"

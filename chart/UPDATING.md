@@ -48,6 +48,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Default Airflow version is updated to ``2.1.0``
+
+The default Airflow version that is installed with the Chart is now ``2.1.0``, previously it was ``2.0.2``.
+
 ### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 
 The `dags.gitSync.root` and `dags.gitSync.dest` parameters didn't provide any useful behaviors to chart users so they have been removed.

@@ -364,7 +364,7 @@
       version_added: 1.10.10
       type: string
       example: "True"
-      default: ~
+      default: "True"
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
