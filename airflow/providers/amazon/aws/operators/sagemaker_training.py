@@ -46,8 +46,12 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :type max_ingestion_time: int
+    :param check_if_job_exists: If set to true, then the operator will check whether a training job
+        already exists for the name in the config.
+    :type check_if_job_exists: bool
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
+        This is only relevant if check_if_job_exists is True.
     :type action_if_job_exists: str
     """
 
@@ -65,6 +69,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         print_log: bool = True,
         check_interval: int = 30,
         max_ingestion_time: Optional[int] = None,
+        check_if_job_exists: bool = True,
         action_if_job_exists: str = "increment",  # TODO use typing.Literal for this in Python 3.8
         **kwargs,
     ):
@@ -74,6 +79,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.print_log = print_log
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
+        self.check_if_job_exists = check_if_job_exists
 
         if action_if_job_exists in ("increment", "fail"):
             self.action_if_job_exists = action_if_job_exists
@@ -90,22 +96,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
     def execute(self, context) -> dict:
         self.preprocess_config()
-
-        training_job_name = self.config["TrainingJobName"]
-        training_jobs = self.hook.list_training_jobs(name_contains=training_job_name)
-
-        # Check if given TrainingJobName already exists
-        if training_job_name in [tj["TrainingJobName"] for tj in training_jobs]:
-            if self.action_if_job_exists == "increment":
-                self.log.info("Found existing training job with name '%s'.", training_job_name)
-                new_training_job_name = f"{training_job_name}-{len(training_jobs) + 1}"
-                self.config["TrainingJobName"] = new_training_job_name
-                self.log.info("Incremented training job name to '%s'.", new_training_job_name)
-            elif self.action_if_job_exists == "fail":
-                raise AirflowException(
-                    f"A SageMaker training job with name {training_job_name} already exists."
-                )
-
+        if self.check_if_job_exists:
+            self._check_if_job_exists()
         self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
         response = self.hook.create_training_job(
             self.config,
@@ -118,3 +110,23 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             raise AirflowException(f'Sagemaker Training Job creation failed: {response}')
         else:
             return {'Training': self.hook.describe_training_job(self.config['TrainingJobName'])}
+
+    def _check_if_job_exists(self) -> None:
+        training_job_name = self.config["TrainingJobName"]
+        training_jobs = self.hook.list_training_jobs(
+            name_contains=training_job_name)
+
+        # Check if given TrainingJobName already exists
+        if training_job_name in [tj["TrainingJobName"] for tj in
+                                 training_jobs]:
+            if self.action_if_job_exists == "increment":
+                self.log.info("Found existing training job with name '%s'.",
+                              training_job_name)
+                new_training_job_name = f"{training_job_name}-{len(training_jobs) + 1}"
+                self.config["TrainingJobName"] = new_training_job_name
+                self.log.info("Incremented training job name to '%s'.",
+                              new_training_job_name)
+            elif self.action_if_job_exists == "fail":
+                raise AirflowException(
+                    f"A SageMaker training job with name {training_job_name} already exists."
+                )
