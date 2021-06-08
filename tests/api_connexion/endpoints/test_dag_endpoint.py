@@ -123,6 +123,15 @@ class TestDagEndpoint:
                 schedule_interval="2 2 * * *",
             )
             session.add(dag_model)
+    @provide_session
+    def _create_deactivated_dag(self, session=None):
+        dag_model = DagModel(
+            dag_id=f"TEST_DAG_DELETED_{num}",
+            fileloc=f"/tmp/dag_del_{num}.py",
+            schedule_interval="2 2 * * *",
+            is_active=False,
+        )
+        session.add(dag_model)
 
 
 class TestGetDag(TestDagEndpoint):
@@ -387,6 +396,7 @@ class TestGetDagDetails(TestDagEndpoint):
 class TestGetDags(TestDagEndpoint):
     def test_should_respond_200(self):
         self._create_dag_models(2)
+        self._create_deactivated_dag()
 
         response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
         file_token = SERIALIZER.dumps("/tmp/dag_1.py")
