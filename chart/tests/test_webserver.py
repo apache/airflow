@@ -369,7 +369,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             "readOnly": expected_read_only,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    def test_dags_gitsync_volume_and_sidecar(self):
+    def test_dags_gitsync_volume_and_sidecar_and_init_container(self):
         docs = render_chart(
             values={"dags": {"gitSync": {"enabled": True}}, "airflowVersion": "1.10.15"},
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -377,6 +377,9 @@ class WebserverDeploymentTest(unittest.TestCase):
 
         assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
         assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync-init" in [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
 
     @parameterized.expand(
         [
@@ -395,8 +398,9 @@ class WebserverDeploymentTest(unittest.TestCase):
             "name": "dags",
             "persistentVolumeClaim": {"claimName": expected_claim_name},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
-        # No gitsync sidecar
+        # No gitsync sidecar or init container
         assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert 1 == len(jmespath.search("spec.template.spec.initContainers", docs[0]))
 
 
 class WebserverServiceTest(unittest.TestCase):

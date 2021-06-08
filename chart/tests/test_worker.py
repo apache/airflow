@@ -367,3 +367,28 @@ class WorkerTest(unittest.TestCase):
 
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    def test_dags_gitsync_sidecar_and_init_container(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync-init" in [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+
+    def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # No gitsync sidecar or init container
+        assert "git-sync" not in [
+            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+        ]
+        assert "git-sync-init" not in [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
