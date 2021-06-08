@@ -64,11 +64,11 @@ def get_dags(limit, session, offset=0):
     """Get all DAGs."""
     dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
 
-    readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
-    total_entries = readable_dags.count()
+    readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
     dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
     dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    total_entries = len(dags)
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
