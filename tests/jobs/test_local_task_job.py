@@ -679,7 +679,7 @@ class TestLocalTaskJob(unittest.TestCase):
             settings.engine.dispose()
             process1 = multiprocessing.Process(target=job1.run)
             process1.start()
-            for _ in range(25):
+            while True:
                 task_instance_a.refresh_from_db()
                 task_instance_b.refresh_from_db()
                 if task_instance_a.state == State.SUCCESS:
@@ -690,7 +690,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
                 process2 = multiprocessing.Process(target=job2.run)
                 process2.start()
-                for _ in range(25):
+                while True:
                     task_instance_b.refresh_from_db()
                     task_instance_c.refresh_from_db()
                     if task_instance_b.state == State.SUCCESS:
