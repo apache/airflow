@@ -40,4 +40,5 @@ def upgrade():
 
 
 def downgrade():
-    pass
+    op.drop_column('task_instance', 'should_analyze')
+    op.drop_column('task_instance', 'device_type')
