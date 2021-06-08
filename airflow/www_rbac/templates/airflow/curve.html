@@ -25,12 +25,18 @@
   </div>
   {% endcall %}
   {% call panel.panel('','result-check-container','flex-row') %}
+    {% if task_instance.device_type == 'tightening' %}
 
-  {{result_panel.result_panel('拧紧结果', 'measure-result-card',result.measure_result) }}
-
-  {{ result_panel.result_panel('分析结果', 'analysis-result-card',task_instance.result,
+      {{ result_panel.result_panel('拧紧结果', 'measure-result-card',result.measure_result) }}
+    {% else %}
+      {{ result_panel.result_panel('结果', 'measure-result-card',result.measure_result) }}
+    {% endif %}
+    {% if task_instance.should_analyze != False %}
+      {{ result_panel.result_panel('分析结果', 'analysis-result-card',task_instance.result,
   verify_error_map.get('{}'.format(task_instance.verify_error),task_instance.verify_error)) }}
 
+    {% endif %}
+        {% if task_instance.should_analyze != False %}
 
   {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
   else ('panel-success base-info-item' if task_instance.final_state =='OK' else 'panel-default base-info-item')) %}
@@ -65,6 +71,7 @@
     <h4 id="error-tags"></h4>
   </div>
   {% endcall %}
+        {% endif %}
   {% endcall %}
 
   {% include 'airflow/curve_chart.html' %}
@@ -103,6 +110,7 @@
   const displayKeys = JSON.parse('{{ display_keys|tojson|safe }}');
   const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
   const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
+  const shouldAnalyze = {{ 'false' if task_instance.should_analyze == False else 'true' }};
   let $errorTagsSelector = null;
   let $errorTagInput = null;
 
