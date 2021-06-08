@@ -374,22 +374,6 @@ def task_states_for_dag_run(args, session=None):
         },
     )
 
-    if dag_run is None:
-        raise AirflowException("DagRun does not exist.")
-    tis = dag_run.get_task_instances()
-    AirflowConsole().print_as(
-        data=tis,
-        output=args.output,
-        mapper=lambda ti: {
-            "dag_id": ti.dag_id,
-            "execution_date": ti.execution_date.isoformat(),
-            "task_id": ti.task_id,
-            "state": ti.state,
-            "start_date": ti.start_date.isoformat() if ti.start_date else "",
-            "end_date": ti.end_date.isoformat() if ti.end_date else "",
-        },
-    )
-
 
 @cli_utils.action_logging
 def task_test(args, dag=None):
