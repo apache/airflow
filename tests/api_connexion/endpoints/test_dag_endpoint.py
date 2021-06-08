@@ -123,6 +123,7 @@ class TestDagEndpoint:
                 schedule_interval="2 2 * * *",
             )
             session.add(dag_model)
+
     @provide_session
     def _create_deactivated_dag(self, session=None):
         dag_model = DagModel(
