@@ -126,8 +126,8 @@ class TestDagEndpoint:
     @provide_session
     def _create_deactivated_dag(self, session=None):
         dag_model = DagModel(
-            dag_id=f"TEST_DAG_DELETED_{num}",
-            fileloc=f"/tmp/dag_del_{num}.py",
+            dag_id=f"TEST_DAG_DELETED_1",
+            fileloc=f"/tmp/dag_del_1.py",
             schedule_interval="2 2 * * *",
             is_active=False,
         )
