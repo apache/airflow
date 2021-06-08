@@ -2431,7 +2431,7 @@ class TrackNoNotNullFilter(BaseFilter):
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
         ti = self.model
-        return query.filter(ti.bolt_number.isnot(None))
+        return query.filter(ti.bolt_number.isnot(None)).distinct(ti.bolt_number).group_by(ti)
 
 
 class ErrorTagFilter(BaseFilter):
