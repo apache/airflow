@@ -38,7 +38,7 @@ import pendulum
 import six
 from six.moves.urllib.parse import quote_plus
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func, Boolean
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
@@ -181,6 +181,8 @@ class TaskInstance(Base, LoggingMixin):
     craft_type = Column(Integer)  # 工艺类型
     car_code = Column(String(1000))  # 车辆编号
     type = Column(String(100), default="normal")  # 任务实例类型，normal/rework,正常/返修
+    should_analyze = Column(Boolean(), default=True)
+    device_type = Column(String(100))
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
