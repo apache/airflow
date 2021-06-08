@@ -413,7 +413,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           VERBOSE: false
 
   static-checks-pylint:
-    timeout-minutes: 30
+    timeout-minutes: 60
     name: "Pylint"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
