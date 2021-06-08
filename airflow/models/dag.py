@@ -2253,8 +2253,7 @@ class DAG(LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        if settings.STORE_DAG_CODE:
-            DagCode.bulk_sync_to_db(filelocs)
+        DagCode.bulk_sync_to_db(filelocs)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit

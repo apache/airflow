@@ -119,12 +119,9 @@ class TestSchedulerJob:
         self.null_exec = MockExecutor()
 
         # Since we don't want to store the code for the DAG defined in this file
-        with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch.object(
-            settings,
-            "STORE_DAG_CODE",
-            False,
+        with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
+            'airflow.models.dag.DagCode.bulk_sync_to_db'
         ):
-
             yield
 
         if self.scheduler_job and self.scheduler_job.processor_agent:
@@ -3305,7 +3302,6 @@ class TestSchedulerJobQueriesCount:
         ), conf_vars(
             {
                 ('scheduler', 'use_job_schedule'): 'True',
-                ('core', 'store_serialized_dags'): 'True',
                 # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
                 # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
                 # This will increase the count of serliazied_dag.py.get() count.
