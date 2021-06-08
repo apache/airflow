@@ -62,11 +62,16 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
+        self.extra = kwargs.pop("extra", None)
         self.hook = None
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
-        self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
+        self.hook = PostgresHook(
+            postgres_conn_id=self.postgres_conn_id,
+            schema=self.database,
+            extra=self.extra
+        )
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:
             self.log.info(output)
