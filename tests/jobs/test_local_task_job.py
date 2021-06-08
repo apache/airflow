@@ -677,30 +677,11 @@ class TestLocalTaskJob(unittest.TestCase):
             job2.task_runner = StandardTaskRunner(job2)
 
             settings.engine.dispose()
-            process1 = multiprocessing.Process(target=job1.run)
-            process1.start()
-            while True:
-                task_instance_a.refresh_from_db()
-                task_instance_b.refresh_from_db()
-                if task_instance_a.state == State.SUCCESS:
-                    break
-                time.sleep(0.2)
+            job1.run()
             self.validate_ti_states(dag_run, first_run_state, error_message)
             if second_run_state:
-
-                process2 = multiprocessing.Process(target=job2.run)
-                process2.start()
-                while True:
-                    task_instance_b.refresh_from_db()
-                    task_instance_c.refresh_from_db()
-                    if task_instance_b.state == State.SUCCESS:
-                        break
-                    time.sleep(0.2)
+                job2.run()
                 self.validate_ti_states(dag_run, second_run_state, error_message)
-                process1.join(timeout=10)
-                process2.join(timeout=10)
-                assert not process1.is_alive()
-                assert not process2.is_alive()
             if scheduler_job.processor_agent:
                 scheduler_job.processor_agent.end()
 
