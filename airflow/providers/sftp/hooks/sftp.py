@@ -146,8 +146,13 @@ class SFTPHook(SSHHook):
             }
             if self.password and self.password.strip():
                 conn_params['password'] = self.password
-            if self.key_file:
+
+            # Try to use the paramiko key from the SSH hook
+            if self.pkey:
+                conn_params['private_key'] = self.pkey
+            elif self.key_file:
                 conn_params['private_key'] = self.key_file
+
             if self.private_key_pass:
                 conn_params['private_key_pass'] = self.private_key_pass
 
