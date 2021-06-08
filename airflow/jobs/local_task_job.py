@@ -78,12 +78,9 @@ class LocalTaskJob(BaseJob):
         def signal_handler(signum, frame):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
-            self.on_kill()
-            self.task_instance.refresh_from_db()
-            if self.task_instance.state not in State.finished:
-                self.task_instance.set_state(State.FAILED)
-            self.task_instance._run_finished_callback(error="task received sigterm")
-            raise AirflowException("LocalTaskJob received SIGTERM signal")
+            self.task_runner.terminate()
+            self.handle_task_exit(128 + signum)
+            return
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -148,16 +145,19 @@ class LocalTaskJob(BaseJob):
             self.on_kill()
 
     def handle_task_exit(self, return_code: int) -> None:
-        """Handle case where self.task_runner exits by itself"""
+        """Handle case where self.task_runner exits by itself or is externally killed"""
+        # Without setting this, heartbeat may get us
+        self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
         self.task_instance.refresh_from_db()
-        # task exited by itself, so we need to check for error file
+
+        if self.task_instance.state == State.RUNNING:
+            # This is for a case where the task received a SIGKILL
+            # while running or the task runner received a sigterm
+            self.task_instance.handle_failure(error=None)
+        # We need to check for error file
         # in case it failed due to runtime exception/error
         error = None
-        if self.task_instance.state == State.RUNNING:
-            # This is for a case where the task received a sigkill
-            # while running
-            self.task_instance.set_state(State.FAILED)
         if self.task_instance.state != State.SUCCESS:
             error = self.task_runner.deserialize_run_error()
         self.task_instance._run_finished_callback(error=error)
