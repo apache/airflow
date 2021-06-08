@@ -1354,6 +1354,11 @@
                     "type": "object",
                     "default": {}
                 },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the create user job job.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1377,6 +1382,24 @@
                             "default": {}
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for the create user job pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for the create user job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for the create user job pod.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -1388,6 +1411,11 @@
             "properties": {
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the migrate database job.",
                     "type": "object",
                     "default": {}
                 },
@@ -1414,6 +1442,24 @@
                             "default": {}
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for the migrate database job pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for the migrate database job pod.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },

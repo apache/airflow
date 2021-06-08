@@ -522,6 +522,8 @@ scheduler:
 createUserJob:
   # Annotations on the create user job pod
   annotations: {}
+  # jobAnnotations are annotations on the create user job
+  jobAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -534,10 +536,16 @@ createUserJob:
     # Annotations to add to create user kubernetes service account.
     annotations: {}
 
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Airflow database migration job settings
 migrateDatabaseJob:
   # Annotations on the database migration pod
   annotations: {}
+  # jobAnnotations are annotations on the database migration job
+  jobAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -549,6 +557,10 @@ migrateDatabaseJob:
 
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Airflow webserver settings
 webserver:
