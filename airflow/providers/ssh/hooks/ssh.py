@@ -146,28 +146,36 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 private_key_passphrase = extra_options.get('private_key_passphrase')
                 if private_key:
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
+
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
-                if (
-                    "no_host_key_check" in extra_options
-                    and str(extra_options["no_host_key_check"]).lower() == 'false'
-                ):
-                    self.no_host_key_check = False
+
+                host_key = extra_options.get("host_key")
+                no_host_key_check = extra_options.get("no_host_key_check")
+
+                if no_host_key_check is not None:
+                    no_host_key_check = str(no_host_key_check).lower() == "true"
+                    if host_key is not None and no_host_key_check:
+                        raise ValueError("Must check host key when provided")
+
+                    self.no_host_key_check = no_host_key_check
+
                 if (
                     "allow_host_key_change" in extra_options
                     and str(extra_options["allow_host_key_change"]).lower() == 'true'
                 ):
                     self.allow_host_key_change = True
+
                 if (
                     "look_for_keys" in extra_options
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
-                host_key = extra_options.get("host_key")
-                if host_key is not None and self.no_host_key_check is False:
+
+                if host_key is not None:
                     if host_key.startswith("ssh-"):
                         key_type, host_key = host_key.split(" ")[:2]
                         key_constructor = _host_key_mappings[key_type[4:]]
@@ -175,6 +183,8 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                         key_constructor = paramiko.RSAKey
                     decoded_host_key = decodebytes(host_key.encode('utf-8'))
                     self.host_key = key_constructor(data=decoded_host_key)
+                    self.no_host_key_check = False
+
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
