@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add documentation for the HTTP connection (#15379)``
+* ``Update 'SimpleHttpOperator' to take auth object (#15605)``
+* ``HttpHook: Use request factory and respect defaults (#14701)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
+
 1.1.1
 .....
 

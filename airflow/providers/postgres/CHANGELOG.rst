@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``PostgresHook: deepcopy connection to avoid mutating connection obj (#15412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix spelling (#15699)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.0.2
 .....
 

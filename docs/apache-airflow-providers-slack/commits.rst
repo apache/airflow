@@ -28,14 +28,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.0.0
+4.0.0
 .....
 
-Latest change: 2021-02-18
+Latest change: 2021-06-01
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`1e647029e <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
+`10ed42a83 <https://github.com/apache/airflow/commit/10ed42a837e11d8e954c1f885e289a4248edd2ca>`_  2021-05-27   ``Fix hooks extended from http hook (#16109)``
+`6d9fc3ed9 <https://github.com/apache/airflow/commit/6d9fc3ed98f694a4f30bed29cb0599c5aa5b8ef1>`_  2021-05-14   ``Fix docstring formatting on ''SlackHook'' (#15840)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`40a2476a5 <https://github.com/apache/airflow/commit/40a2476a5db14ee26b5108d72635da116eab720b>`_  2021-04-28   ``Adds interactivity when generating provider documentation. (#15518)``
+`bf2b48174 <https://github.com/apache/airflow/commit/bf2b48174a1ccfe398eefba7f04a5cacac421266>`_  2021-04-27   ``Add Connection Documentation for Providers (#15499)``
+`a7ca1b3b0 <https://github.com/apache/airflow/commit/a7ca1b3b0bdf0b7677e53be1b11e833714dfbbb4>`_  2021-03-26   ``Fix Sphinx Issues with Docstrings (#14968)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+================================================================================================  ===========  =======================================================================
+
+3.0.0
+.....
+
+Latest change: 2021-02-27
+
+================================================================================================  ===========  =======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =======================================================================
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
 `8c060d55d <https://github.com/apache/airflow/commit/8c060d55dfb3ded21cb9d2305cffe14e1c610680>`_  2021-02-18   ``Don't allow SlackHook.call method accept *args (#14289)``
 `10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
 ================================================================================================  ===========  =======================================================================

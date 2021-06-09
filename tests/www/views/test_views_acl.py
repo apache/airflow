@@ -258,6 +258,23 @@ def test_dag_autocomplete_success(client_all_dags):
     check_content_not_in_response('example_subdag_operator', resp)
 
 
+@pytest.mark.parametrize(
+    "query, expected",
+    [
+        (None, []),
+        ("", []),
+        ("no-found", []),
+    ],
+    ids=["none", "empty", "not-found"],
+)
+def test_dag_autocomplete_empty(client_all_dags, query, expected):
+    url = "dagmodel/autocomplete"
+    if query is not None:
+        url = f"{url}?query={query}"
+    resp = client_all_dags.get(url, follow_redirects=False)
+    assert resp.json == expected
+
+
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns(acl_app):
     return create_user(

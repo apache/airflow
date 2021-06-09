@@ -57,7 +57,7 @@ class AzureDataExplorerHook(BaseHook):
     Authentication method must be provided through "auth_method" extra parameter.
     Available authentication methods are:
 
-      - AAD_APP : Authentication with AAD application certificate. Extra parameters:
+      - AAD_APP: Authentication with AAD application certificate. Extra parameters:
                   "tenant" is required when using this method. Provide application ID
                   and application key through username and password parameters.
 
@@ -65,11 +65,11 @@ class AzureDataExplorerHook(BaseHook):
                       "tenant", "certificate" and "thumbprint" are required
                       when using this method.
 
-      - AAD_CREDS : Authentication with AAD username and password. Extra parameters:
+      - AAD_CREDS: Authentication with AAD username and password. Extra parameters:
                     "tenant" is required when using this method. Username and password
                     parameters are used for authentication with AAD.
 
-      - AAD_DEVICE : Authenticate with AAD device code. Please note that if you choose
+      - AAD_DEVICE: Authenticate with AAD device code. Please note that if you choose
                      this option, you'll need to authenticate for every new instance
                      that is initialized. It is highly recommended to create one instance
                      and use it for all queries.

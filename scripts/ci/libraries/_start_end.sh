@@ -125,12 +125,14 @@ function start_end::script_end {
       rm -rf -- "${FILES_TO_CLEANUP_ON_EXIT[@]}"
     fi
 
-    END_SCRIPT_TIME=$(date +%s)
-    RUN_SCRIPT_TIME=$((END_SCRIPT_TIME-START_SCRIPT_TIME))
+    local end_script_time
+    end_script_time=$(date +%s)
+    local run_script_time
+    run_script_time=$((end_script_time-START_SCRIPT_TIME))
     if [[ ${BREEZE:=} != "true" && ${RUN_TESTS=} != "true" ]]; then
         verbosity::print_info
         verbosity::print_info "Finished the script ${COLOR_GREEN}$(basename "$0")${COLOR_RESET}"
-        verbosity::print_info "Elapsed time spent in the script: ${COLOR_BLUE}${RUN_SCRIPT_TIME} seconds${COLOR_RESET}"
+        verbosity::print_info "Elapsed time spent in the script: ${COLOR_BLUE}${run_script_time} seconds${COLOR_RESET}"
         if [[ ${exit_code} == "0" ]]; then
             verbosity::print_info "Exit code ${COLOR_GREEN}${exit_code}${COLOR_RESET}"
         else

@@ -21,7 +21,7 @@
 # to reinstall all dependencies from scratch when setup.py changes. Problem with Docker caching is that
 # when a file is changed, when added to docker context, it invalidates the cache and it causes Docker
 # build to reinstall all dependencies from scratch. This can take a loooooot of time. Therefore we install
-# the dependencies first from master (and uninstall airflow right after) so that we can start installing
+# the dependencies first from main (and uninstall airflow right after) so that we can start installing
 # deps from those pre-installed dependencies. It saves few minutes of build time when setup.py changes.
 #
 # If INSTALL_MYSQL_CLIENT is set to false, mysql extra is removed

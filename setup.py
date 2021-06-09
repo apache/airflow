@@ -39,7 +39,7 @@ INSTALL_PROVIDERS_FROM_SOURCES = 'INSTALL_PROVIDERS_FROM_SOURCES'
 
 logger = logging.getLogger(__name__)
 
-version = '2.1.0.dev0'
+version = '2.2.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -200,6 +200,7 @@ amazon = [
 apache_beam = [
     'apache-beam>=2.20.0',
 ]
+asana = ['asana>=0.10', 'cached-property>=1.5.2']
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -248,6 +249,9 @@ databricks = [
 ]
 datadog = [
     'datadog>=0.14.0',
+]
+deprecated_api = [
+    'requests>=2.20.0',
 ]
 doc = [
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
@@ -317,11 +321,11 @@ google = [
     'google-cloud-vision>=0.35.2,<2.0.0',
     'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
+    'httpx',
     'json-merge-patch~=0.2',
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
-    'plyvel',
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -338,6 +342,20 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0',
     'thrift>=0.9.2',
+]
+http = [
+    'requests>=2.20.0',
+]
+http_provider = [
+    # NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
+    #        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
+    #        See https://github.com/psf/requests/pull/5797
+    #        This means that providers that depend on Http and cannot work without it, have to have
+    #        explicit dependency on `apache-airflow-providers-http` which needs to be pulled in for them.
+    #        Other cross-provider-dependencies are optional (usually cross-provider dependencies only enable
+    #        some features of providers and majority of those providers works). They result with an extra,
+    #        not with the `install-requires` dependency.
+    'apache-airflow-providers-http',
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
@@ -362,6 +380,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
+leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -397,7 +416,7 @@ pinot = [
     'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
-    'arrow>=0.16.0,<1.0.0',
+    'arrow>=0.16.0',
 ]
 postgres = [
     'psycopg2-binary>=2.7.4',
@@ -483,7 +502,6 @@ devel = [
     'bowler',
     'click~=7.1',
     'coverage',
-    'docutils',
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
@@ -514,6 +532,7 @@ devel = [
     'python-jose',
     'pywinrm',
     'qds-sdk>=1.9.6',
+    'pytest-httpx',
     'requests_mock',
     'wheel',
     'yamllint',
@@ -524,7 +543,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-    'airbyte': [],
+    'airbyte': http_provider,
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
@@ -532,11 +551,12 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.hdfs': hdfs,
     'apache.hive': hive,
     'apache.kylin': kylin,
-    'apache.livy': [],
+    'apache.livy': http_provider,
     'apache.pig': [],
     'apache.pinot': pinot,
     'apache.spark': spark,
     'apache.sqoop': [],
+    'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
@@ -552,7 +572,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'google': google,
     'grpc': grpc,
     'hashicorp': hashicorp,
-    'http': [],
+    'http': http,
     'imap': [],
     'jdbc': jdbc,
     'jenkins': jenkins,
@@ -565,7 +585,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
-    'opsgenie': [],
+    'opsgenie': http_provider,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
@@ -610,10 +630,12 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cgroups': cgroups,
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
+    'deprecated_api': deprecated_api,
     'github_enterprise': flask_oauth,
     'google_auth': flask_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
+    'leveldb': leveldb,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,
@@ -804,9 +826,12 @@ EXTRAS_REQUIREMENTS = sort_extras_requirements()
 # Those providers are pre-installed always when airflow is installed.
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
+# NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
+#        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
+#        we cannot make it mandatory dependency. See https://github.com/psf/requests/pull/5797
 PREINSTALLED_PROVIDERS = [
     'ftp',
-    'http',
+    # 'http',
     'imap',
     'sqlite',
 ]
@@ -825,7 +850,7 @@ def get_provider_package_from_package_id(package_id: str):
 
 def get_all_provider_packages():
     """Returns all provider packages configured in setup.py"""
-    return " ".join([get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS])
+    return " ".join(get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS)
 
 
 class AirflowDistribution(Distribution):

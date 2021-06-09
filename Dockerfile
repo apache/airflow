@@ -133,7 +133,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG AIRFLOW_REPO=apache/airflow
-ARG AIRFLOW_BRANCH=master
+ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
@@ -141,7 +141,7 @@ ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ARG AIRFLOW_CONSTRAINTS="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
-ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_PIP_VERSION
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
@@ -206,7 +206,7 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM} \
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
-# In case of Production build image segment we want to pre-install master version of airflow
+# In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
 # are uninstalled, only dependencies remain
@@ -263,6 +263,13 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
     # make sure that all directories and files in .local are also group accessible
     find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw
+
+# In case there is a requirements.txt file in "docker-context-files" it will be installed
+# during the build additionally to whatever has been installed so far. It is recommended that
+# the requirements.txt contains only dependencies with == version specification
+RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
+        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+    fi
 
 ARG BUILD_ID
 ARG COMMIT_SHA
@@ -470,4 +477,4 @@ LABEL org.apache.airflow.distro="debian" \
 
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
-CMD ["--help"]
+CMD []

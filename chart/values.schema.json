@@ -60,13 +60,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.0.2",
+            "default": "2.1.0",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.0.2",
+            "default": "2.1.0",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -235,7 +235,7 @@
             "x-docsSection": "Kubernetes"
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string.",
+            "description": "`airflow_local_settings` file as a string (can be templated).",
             "type": [
                 "string",
                 "null"
@@ -541,12 +541,7 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                [
-                    {
-                        "name": "AIRFLOW__CORE__LOAD_EXAMPLES",
-                        "value": "True"
-                    }
-                ]
+                "- name: AIRFLOW__CORE__LOAD_EXAMPLES\n   value: True"
             ]
         },
         "extraEnvFrom": {
@@ -752,7 +747,7 @@
                     ]
                 },
                 "brokerUrl": {
-                    "description": "Direct url to the redis broker (when using an external redis instance).",
+                    "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
                         "string",
                         "null"
@@ -763,7 +758,7 @@
             }
         },
         "fernetKey": {
-            "description": "The Fernet key used to encrypt passwords.",
+            "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
             "type": [
                 "string",
                 "null"
@@ -838,6 +833,32 @@
                     "type": "integer",
                     "default": 1
                 },
+                "command": {
+                    "description": "Command to use when running Airflow workers (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running Airflow workers (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}"
+                    ]
+                },
                 "updateStrategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet.",
                     "type": [
@@ -907,6 +928,11 @@
                             "description": "How many seconds KEDA will wait before scaling to zero.",
                             "type": "integer",
                             "default": 30
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of workers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
                         },
                         "maxReplicaCount": {
                             "description": "Maximum number of workers created by KEDA.",
@@ -1006,6 +1032,11 @@
                     "type": "array",
                     "default": []
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into workers.",
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
                     "type": "array",
@@ -1052,6 +1083,37 @@
                             ]
                         }
                     ]
+                },
+                "logGroomerSidecar": {
+                    "description": "Configuration for worker log groomer sidecar",
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "description": "Command to use when running the Airflow workers log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the Airflow workers log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "/clean-logs"
+                            ]
+                        }
+                    }
                 }
             }
         },
@@ -1092,6 +1154,48 @@
                     "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
                     "type": "integer",
                     "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow scheduler (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow scheduler (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow scheduler"
+                    ]
+                },
+                "updateStrategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a StatefulSet (when using LocalExecutor and workers.persistence).",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment (when not using LocalExecutor and workers.persistence).",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
@@ -1168,6 +1272,11 @@
                     "type": "array",
                     "default": []
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into scheduler.",
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into scheduler.",
                     "type": "array",
@@ -1195,6 +1304,42 @@
                     "description": "Specify Tolerations for scheduler pods.",
                     "type": "array",
                     "default": []
+                },
+                "logGroomerSidecar": {
+                    "description": "Configuration for the schedulers log groomer sidecar.",
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether to deploy the Airflow scheduler log groomer sidecar.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "command": {
+                            "description": "Command to use when running the Airflow scheduler log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the Airflow scheduler log groomer sidecar (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "/clean-logs"
+                            ]
+                        }
+                    }
                 }
             }
         },
@@ -1204,6 +1349,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the create user job pod.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1236,6 +1386,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "annotations": {
+                    "description": "Annotations to add to the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1331,6 +1486,32 @@
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer",
                     "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow webserver (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow webserver (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow webserver"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones.",
@@ -1434,6 +1615,11 @@
                     "type": "array",
                     "default": []
                 },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into webserver.",
+                    "type": "array",
+                    "default": []
+                },
                 "extraVolumes": {
                     "description": "Mount additional volumes into webserver.",
                     "type": "array",
@@ -1445,7 +1631,7 @@
                     "default": []
                 },
                 "webserverConfig": {
-                    "description": "This will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
+                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead.",
                     "type": [
                         "string",
                         "null"
@@ -1470,6 +1656,14 @@
                             "description": "Annotations for the webserver Service.",
                             "type": "object",
                             "default": {}
+                        },
+                        "loadBalancerIP": {
+                            "description": "Webserver Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -1503,6 +1697,32 @@
                     "description": "Enable Flower.",
                     "type": "boolean",
                     "default": true
+                },
+                "command": {
+                    "description": "Command to use when running flower (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running flower (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery flower\" \"flower\" }}"
+                    ]
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -1559,6 +1779,19 @@
                             "description": "Flower Service type.",
                             "type": "string",
                             "default": "ClusterIP"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the flower Service.",
+                            "type": "object",
+                            "default": {}
+                        },
+                        "loadBalancerIP": {
+                            "description": "Flower Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -1861,6 +2094,30 @@
                         }
                     }
                 },
+                "extraIniMetadata": {
+                    "description": "Add extra metadata database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "extraIniResultBackend": {
+                    "description": "Add extra result backend database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "extraIni": {
+                    "description": "Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -1977,7 +2234,7 @@
                     "default": null
                 },
                 "password": {
-                    "description": "If password is set, create secret with it, else generate a new one on install.",
+                    "description": "If password is set, create secret with it, else generate a new one on install (can only be set during install, not upgrade).",
                     "type": [
                         "string",
                         "null"
@@ -2329,11 +2586,6 @@
                             "type": "boolean",
                             "default": false
                         },
-                        "excludeWebserver": {
-                            "description": "Disable Git sync on webserver as it is not needed when DAG Serialization is enabled.",
-                            "type": "boolean",
-                            "default": false
-                        },
                         "repo": {
                             "description": "Git repository.",
                             "type": "string",
@@ -2342,22 +2594,12 @@
                         "branch": {
                             "description": "Git branch",
                             "type": "string",
-                            "default": "v2-0-stable"
+                            "default": "v2-1-stable"
                         },
                         "rev": {
                             "description": "Git revision.",
                             "type": "string",
                             "default": "HEAD"
-                        },
-                        "root": {
-                            "description": "Root directory.",
-                            "type": "string",
-                            "default": "/git"
-                        },
-                        "dest": {
-                            "description": "Destination folder.",
-                            "type": "string",
-                            "default": "repo"
                         },
                         "depth": {
                             "description": "Repository depth.",
@@ -2446,6 +2688,23 @@
                                 {
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
+                                }
+                            ]
+                        },
+                        "resources": {
+                            "description": "Resources on workers git-sync sidecar",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
                                 }
                             ]
                         }

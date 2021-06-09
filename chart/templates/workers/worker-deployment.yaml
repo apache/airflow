@@ -123,14 +123,18 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- if .Values.workers.extraInitContainers }}
+        {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
+        {{- end }}
       containers:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
-          args: [ "bash", "-c", "airflow celery worker" ]
-          {{- else }}
-          args: [ "bash", "-c", "airflow worker" ]
+          {{- if .Values.workers.command }}
+          command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.workers.args }}
+          args: {{ tpl (toYaml .Values.workers.args) . | nindent 12 }}
           {{- end }}
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
@@ -156,16 +160,15 @@ spec:
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: true
             {{- end }}
-{{- if .Values.airflowLocalSettings }}
+            {{- if .Values.airflowLocalSettings }}
             - name: config
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py
               readOnly: true
-{{- end }}
-{{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-            - name: dags
-              mountPath: {{ template "airflow_dags_mount_path" . }}
-{{- end }}
+            {{- end }}
+            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
+            {{- include "airflow_dags_mount" . | nindent 12 }}
+            {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -181,10 +184,15 @@ spec:
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
 {{- if $persistence }}
-        - name: worker-gc
+        - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "/clean-logs"]
+          {{- if .Values.workers.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml .Values.workers.logGroomerSidecar.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.args }}
+          args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}

@@ -243,27 +243,28 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
 .. code-block:: python
 
     def branch_func(ti):
-        xcom_value = int(ti.xcom_pull(task_ids='start_task'))
+        xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
-            return 'continue_task'
+            return "continue_task"
         else:
-            return 'stop_task'
+            return "stop_task"
+
 
     start_op = BashOperator(
-        task_id='start_task',
+        task_id="start_task",
         bash_command="echo 5",
         xcom_push=True,
         dag=dag,
     )
 
     branch_op = BranchPythonOperator(
-        task_id='branch_task',
+        task_id="branch_task",
         python_callable=branch_func,
         dag=dag,
     )
 
-    continue_op = DummyOperator(task_id='continue_task', dag=dag)
-    stop_op = DummyOperator(task_id='stop_task', dag=dag)
+    continue_op = DummyOperator(task_id="continue_task", dag=dag)
+    stop_op = DummyOperator(task_id="stop_task", dag=dag)
 
     start_op >> branch_op >> [continue_op, stop_op]
 
@@ -348,7 +349,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     .. code-block:: python
 
-        #dags/branch_without_trigger.py
+        # dags/branch_without_trigger.py
         import datetime as dt
 
         from airflow.models import DAG
@@ -356,23 +357,22 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         from airflow.operators.python import BranchPythonOperator
 
         dag = DAG(
-            dag_id='branch_without_trigger',
-            schedule_interval='@once',
-            start_date=dt.datetime(2019, 2, 28)
+            dag_id="branch_without_trigger",
+            schedule_interval="@once",
+            start_date=dt.datetime(2019, 2, 28),
         )
 
-        run_this_first = DummyOperator(task_id='run_this_first', dag=dag)
+        run_this_first = DummyOperator(task_id="run_this_first", dag=dag)
         branching = BranchPythonOperator(
-            task_id='branching', dag=dag,
-            python_callable=lambda: 'branch_a'
+            task_id="branching", dag=dag, python_callable=lambda: "branch_a"
         )
 
-        branch_a = DummyOperator(task_id='branch_a', dag=dag)
-        follow_branch_a = DummyOperator(task_id='follow_branch_a', dag=dag)
+        branch_a = DummyOperator(task_id="branch_a", dag=dag)
+        follow_branch_a = DummyOperator(task_id="follow_branch_a", dag=dag)
 
-        branch_false = DummyOperator(task_id='branch_false', dag=dag)
+        branch_false = DummyOperator(task_id="branch_false", dag=dag)
 
-        join = DummyOperator(task_id='join', dag=dag)
+        join = DummyOperator(task_id="join", dag=dag)
 
         run_this_first >> branching
         branching >> branch_a >> follow_branch_a >> join
@@ -462,6 +462,7 @@ To add labels, you can use them directly inline with the ``>>`` and ``<<`` opera
 .. code-block:: python
 
     from airflow.utils.edgemodifier import Label
+
     my_task >> Label("When empty") >> other_task
 
 Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
@@ -469,6 +470,7 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 .. code-block:: python
 
     from airflow.utils.edgemodifier import Label
+
     my_task.set_downstream(other_task, Label("When empty"))
 
 Here's an example DAG which illustrates labeling different branches:
@@ -507,7 +509,7 @@ This is especially useful if your tasks are built dynamically from configuration
     ### My great DAG
     """
 
-    dag = DAG('my_dag', default_args=default_args)
+    dag = DAG("my_dag", default_args=default_args)
     dag.doc_md = __doc__
 
     t = BashOperator("foo", dag=dag)

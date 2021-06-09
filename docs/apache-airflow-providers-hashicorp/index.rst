@@ -56,7 +56,7 @@ Package apache-airflow-providers-hashicorp
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 
-Release: 1.0.2
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -98,6 +98,15 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
 ====================================================================================================  ==========
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-hashicorp 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-hashicorp-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-hashicorp-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-hashicorp-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-hashicorp 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-2.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -118,6 +127,17 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 1.0.2
 .....

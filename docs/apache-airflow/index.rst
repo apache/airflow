@@ -101,7 +101,6 @@ unit of work and continuity.
     changelog
     best-practices
     production-deployment
-    backport-providers
     faq
     privacy_notice
 
@@ -117,3 +116,4 @@ unit of work and continuity.
     deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
+    Database Migrations <migrations-ref>

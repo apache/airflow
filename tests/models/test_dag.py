@@ -1003,7 +1003,7 @@ class TestDag(unittest.TestCase):
             op1 >> op2
             op2 >> op3
 
-        sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
+        sub_dag = dag.partial_subset('t2', include_upstream=True, include_downstream=False)
         assert id(sub_dag.task_dict['t1'].downstream_list[0].dag) == id(sub_dag)
 
         # Copied DAG should not include unused task IDs in used_group_ids

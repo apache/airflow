@@ -80,7 +80,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     PACKAGE_VERSION = 'devel'
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
-    PACKAGE_VERSION = 'devel'  # TODO do we care? probably
+    CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
+
+    with open(CHART_YAML_FILE) as chart_file:
+        chart_yaml_contents = yaml.load(chart_file, SafeLoader)
+
+    PACKAGE_VERSION = chart_yaml_contents['version']
 else:
     PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
@@ -255,9 +260,17 @@ if PACKAGE_NAME == 'apache-airflow':
     html_extra_path = [
         f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
     ]
-    html_extra_with_substituions = [
+    html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
     ]
+    # Replace "|version|" in links
+    manual_substitutions_in_generated_html = [
+        "installation.html",
+    ]
+
+if PACKAGE_NAME == 'docker-stack':
+    # Replace "|version|" inside ```` quotes
+    manual_substitutions_in_generated_html = ["build.html"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -362,6 +375,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         jinja_contexts = {'config_ctx': {"configs": config}}
         extensions.append('sphinxcontrib.jinja')
 elif PACKAGE_NAME == 'helm-chart':
+
+    def _str_representer(dumper, data):
+        style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style)
+
+    yaml.add_representer(str, _str_representer)
 
     def _format_default(value: Any) -> str:
         if value == "":
@@ -512,6 +531,7 @@ intersphinx_mapping = {
     for pkg_name in [
         'boto3',
         'celery',
+        'docker',
         'hdfs',
         'jinja2',
         'mongodb',
@@ -579,7 +599,7 @@ if PACKAGE_NAME == 'apache-airflow':
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    'airflow/configuration/',
+    '*/airflow/_vendor/*',
     '*/example_dags/*',
     '*/_internal*',
     '*/node_modules/*',

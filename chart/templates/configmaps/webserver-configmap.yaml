@@ -34,5 +34,5 @@ metadata:
 {{- end }}
 data:
   webserver_config.py: |
-    {{- .Values.webserver.webserverConfig | nindent 4 }}
+    {{- tpl .Values.webserver.webserverConfig . | nindent 4 }}
 {{- end }}

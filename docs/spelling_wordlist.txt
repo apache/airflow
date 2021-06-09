@@ -17,6 +17,7 @@ Ansible
 AppBuilder
 Arg
 Args
+Asana
 Async
 Atlassian
 Auth
@@ -149,7 +150,6 @@ Flink
 FluentD
 Fokko
 Formaturas
-Fspark
 Fundera
 GCS
 GH
@@ -265,6 +265,7 @@ Naik
 Namenode
 Namespace
 Neo4j
+NetBIOS
 Nextdoor
 Nones
 NotFound
@@ -472,6 +473,7 @@ args
 arn
 arraysize
 artwr
+asana
 asc
 ascii
 asciiart
@@ -564,6 +566,7 @@ cgroupspy
 changelog
 charset
 checklicence
+checksums
 chmod
 chown
 ci
@@ -742,6 +745,7 @@ enum
 env
 envFrom
 envvar
+eol
 eols
 ephraimbuddy
 errno
@@ -860,6 +864,7 @@ http
 httpbin
 httplib
 https
+httpx
 hvac
 hyperparameter
 iPython
@@ -878,9 +883,11 @@ img
 imgcat
 impyla
 incompliancies
+inexhaustive
 infile
 infoType
 infoTypes
+ini
 init
 initcontainer
 initcontainers
@@ -942,6 +949,7 @@ keytab
 killMode
 kinit
 kms
+knownHosts
 krb
 kube
 kubeclient
@@ -966,8 +974,10 @@ licence
 licences
 lifecycle
 lineterminator
+linter
 linux
 livy
+loadBalancerIP
 localExecutor
 localexecutor
 localhost
@@ -1145,6 +1155,7 @@ pty
 pubsub
 py
 pyMongo
+pyarrow
 pydruid
 pyexasol
 pyhive
@@ -1426,6 +1437,7 @@ utils
 uuid
 validator
 vals
+ve
 vendored
 venvs
 versionable

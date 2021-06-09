@@ -30,7 +30,7 @@ found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-databa
 .. code-block:: yaml
 
   # Don't deploy postgres
-  postgre:
+  postgresql:
     enabled: false
 
   # Use an external database
@@ -67,10 +67,65 @@ Depending on the size of you Airflow instance, you may want to adjust the follow
     # The maximum number of server connections to the result backend database from PgBouncer
     resultBackendPoolSize: 5
 
-DAG Files
----------
+Extending and customizing Airflow Image
+---------------------------------------
+
+The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
+However, Airflow has more than 60 community managed providers (installable via extras) and some of the
+default extras/providers installed are not used by everyone, sometimes others extras/providers
+are needed, sometimes (very often actually) you need to add your own custom dependencies,
+packages or even custom providers, or add custom tools and binaries that are needed in
+your deployment.
+
+In Kubernetes and Docker terms this means that you need another image with your specific requirements.
+This is why you should learn how to build your own ``Docker`` (or more properly ``Container``) image.
+
+Typical scenarios where you would like to use your custom image:
+
+* Adding ``apt`` packages
+* Adding ``PyPI`` packages
+* Adding binary resources necessary for your deployment
+* Adding custom tools needed in your deployment
+
+See `Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
+details on how you can extend and customize the Airflow image.
+
+Managing DAG Files
+------------------
 
 See :doc:`manage-dags-files`.
+
+.. _production-guide:knownhosts:
+
+knownHosts
+^^^^^^^^^^
+
+If you are using ``dags.gitSync.sshKeySecret``, you should also set ``dags.gitSync.knownHosts``. Here we will show the process
+for GitHub, but the same can be done for any provider:
+
+Grab GitHub's public key:
+
+.. code-block:: bash
+
+    ssh-keyscan -t rsa github.com > github_public_key
+
+Next, print the fingerprint for the public key:
+
+.. code-block:: bash
+
+    ssh-keygen -lf github_public_key
+
+Compare that output with `GitHub's SSH key fingerprints <https://docs.github.com/en/github/authenticating-to-github/githubs-ssh-key-fingerprints>`_.
+
+They match, right? Good. Now, add the public key to your values. It'll look something like this:
+
+.. code-block:: yaml
+
+    dags:
+      gitSync:
+        knownHosts: |
+          github.com ssh-rsa AAAA...FAaQ==
+
 
 Accessing the Airflow UI
 ------------------------

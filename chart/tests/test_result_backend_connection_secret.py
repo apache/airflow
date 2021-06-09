@@ -153,3 +153,20 @@ class ResultBackendConnectionSecretTest(unittest.TestCase):
         connection = self._get_connection(values)
 
         assert "db+postgresql://anotheruser:anotherpass@somehost:7777/somedb?sslmode=allow" == connection
+
+    def test_should_correctly_handle_password_with_special_characters(self):
+        values = {
+            "data": {
+                "resultBackendConnection": {
+                    **self.non_chart_database_values,
+                    "user": "username@123123",
+                    "pass": "password@!@#$^&*()",
+                },
+            }
+        }
+        connection = self._get_connection(values)
+
+        assert (
+            "db+postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
+            "somedb?sslmode=allow" == connection
+        )

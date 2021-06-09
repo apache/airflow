@@ -176,9 +176,9 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_DEPTH
       value: {{ .Values.dags.gitSync.depth | quote }}
     - name: GIT_SYNC_ROOT
-      value: {{ .Values.dags.gitSync.root | quote }}
+      value: "/git"
     - name: GIT_SYNC_DEST
-      value: {{ .Values.dags.gitSync.dest | quote }}
+      value: "repo"
     - name: GIT_SYNC_ADD_USER
       value: "true"
     - name: GIT_SYNC_WAIT
@@ -193,10 +193,11 @@ If release name contains chart name it will be used as a full name.
     - name: {{ $config.name }}
       value: {{ $config.value | quote }}
     {{- end }}
+  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
   volumeMounts:
   - name: dags
-    mountPath: {{ .Values.dags.gitSync.root }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+    mountPath: /git
+  {{- if .Values.dags.gitSync.sshKeySecret }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
     readOnly: true
@@ -208,7 +209,7 @@ If release name contains chart name it will be used as a full name.
     subPath: known_hosts
   {{- end }}
   {{- end }}
-{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.extraVolumeMounts }}
+{{- if .Values.dags.gitSync.extraVolumeMounts }}
 {{ toYaml .Values.dags.gitSync.extraVolumeMounts | indent 2 }}
 {{- end }}
 {{- end }}
@@ -308,8 +309,8 @@ If release name contains chart name it will be used as a full name.
 {{- $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 {{- $pgResultBackendHost := $resultBackendConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}
 [databases]
-{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }}
-{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }}
+{{ .Release.Name }}-metadata = host={{ $pgMetadataHost }} dbname={{ .Values.data.metadataConnection.db }} port={{ .Values.data.metadataConnection.port }} pool_size={{ .Values.pgbouncer.metadataPoolSize }} {{ .Values.pgbouncer.extraIniMetadata | default "" }}
+{{ .Release.Name }}-result-backend = host={{ $pgResultBackendHost }} dbname={{ $resultBackendConnection.db }} port={{ $resultBackendConnection.port }} pool_size={{ .Values.pgbouncer.resultBackendPoolSize }} {{ .Values.pgbouncer.extraIniResultBackend | default "" }}
 
 [pgbouncer]
 pool_mode = transaction
@@ -337,6 +338,9 @@ server_tls_cert_file = /etc/pgbouncer/server.crt
 server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
+{{- if .Values.pgbouncer.extraIni }}
+{{ .Values.pgbouncer.extraIni }}
+{{- end }}
 {{- end }}
 
 {{ define "pgbouncer_users" }}
@@ -363,7 +367,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{ define "airflow_dags" -}}
 {{- if .Values.dags.gitSync.enabled -}}
-{{ (printf "%s/dags/%s/%s" .Values.airflowHome .Values.dags.gitSync.dest .Values.dags.gitSync.subPath ) }}
+{{ (printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath) }}
 {{- else -}}
 {{ (printf "%s/dags" .Values.airflowHome) }}
 {{- end -}}
@@ -377,9 +381,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end -}}
 {{- end -}}
 
-{{ define "airflow_dags_mount_path" -}}
-{{ (printf "%s/dags" .Values.airflowHome) }}
-{{- end }}
+{{ define "airflow_dags_mount" -}}
+- name: dags
+  mountPath: {{ (printf "%s/dags" .Values.airflowHome) }}
+  readOnly: {{ .Values.dags.gitSync.enabled | ternary "True" "False" }}
+{{- end -}}
 
 {{ define "airflow_config_path" -}}
 {{ (printf "%s/airflow.cfg" .Values.airflowHome) | quote }}

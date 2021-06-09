@@ -19,6 +19,33 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for Providers (#15499)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hooks extended from http hook (#16109)``
+* ``Fix docstring formatting on ``SlackHook`` (#15840)``
+* ``Fix Sphinx Issues with Docstrings (#14968)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
+
 3.0.0
 .....
 

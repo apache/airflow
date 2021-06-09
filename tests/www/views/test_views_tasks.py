@@ -33,6 +33,7 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -574,3 +575,103 @@ def test_show_external_log_redirect_link_with_external_log_handler(
         ctx = templates[0].local_context
         assert ctx['show_external_log_redirect']
         assert ctx['external_log_name'] == _ExternalHandler.LOG_NAME
+
+
+def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
+    """Utility to get Flask-Appbuilder's string format "pk" for an object.
+
+    Used to generate requests to FAB action views without *too* much difficulty.
+    The implementation relies on FAB internals, but unfortunately I don't see
+    a better way around it.
+
+    Example usage::
+
+        >>> from airflow.www.views import TaskInstanceModelView
+        >>> ti = session.Query(TaskInstance).filter(...).one()
+        >>> pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
+        >>> client.post("...", data={"action": "...", "rowid": pk})
+    """
+    pk_value = model_view_cls.datamodel.get_pk_value(instance)
+    return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
+
+
+def test_task_instance_clear(session, admin_client):
+    task_id = "runme_0"
+
+    # Set the state to success for clearing.
+    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
+    ti_q.update({"state": State.SUCCESS})
+    session.commit()
+
+    # Send a request to clear.
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": "clear", "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # Now the state should be None.
+    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    assert state == State.NONE
+
+
+@pytest.mark.xfail(reason="until #15980 is merged")
+def test_task_instance_clear_failure(admin_client):
+    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": "clear", "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    check_content_in_response("Failed to clear state", resp)
+
+
+@pytest.mark.parametrize(
+    "action, expected_state",
+    [
+        ("set_running", State.RUNNING),
+        ("set_failed", State.FAILED),
+        ("set_success", State.SUCCESS),
+        ("set_retry", State.UP_FOR_RETRY),
+    ],
+    ids=["running", "failed", "success", "retry"],
+)
+def test_task_instance_set_state(session, admin_client, action, expected_state):
+    task_id = "runme_0"
+
+    # Send a request to clear.
+    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # Now the state should be modified.
+    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    assert state == expected_state
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "set_running",
+        "set_failed",
+        "set_success",
+        "set_retry",
+    ],
+)
+def test_task_instance_set_state_failure(admin_client, action):
+    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    check_content_in_response("Failed to set state", resp)

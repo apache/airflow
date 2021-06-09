@@ -5,8 +5,8 @@
     "dev": "NODE_ENV=dev webpack --watch --colors --progress --debug --output-pathinfo --devtool eval-cheap-source-map --mode development",
     "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js -p --colors --progress",
     "build": "NODE_ENV=production webpack --colors --progress",
-    "lint": "eslint --ignore-path=.eslintignore --ext .js,.html .",
-    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.html ."
+    "lint": "eslint --ignore-path=.eslintignore --ext .js .",
+    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js ."
   },
   "author": "Apache",
   "license": "Apache-2.0",

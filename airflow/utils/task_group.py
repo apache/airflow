@@ -106,11 +106,9 @@ class TaskGroup(TaskMixin):
                 raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
             base = re.split(r'__\d+$', group_id)[0]
             suffixes = sorted(
-                [
-                    int(re.split(r'^.+__', used_group_id)[1])
-                    for used_group_id in self.used_group_ids
-                    if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
-                ]
+                int(re.split(r'^.+__', used_group_id)[1])
+                for used_group_id in self.used_group_ids
+                if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
             )
             if not suffixes:
                 self._group_id += '__1'

@@ -88,6 +88,7 @@ def _run_task_by_executor(args, dag, ti):
             print(e)
             raise e
     executor = ExecutorLoader.get_default_executor()
+    executor.job_id = "manual"
     executor.start()
     print("Sending to executor.")
     executor.queue_task_instance(
@@ -286,7 +287,7 @@ def task_list(args, dag=None):
     if args.tree:
         dag.tree_view()
     else:
-        tasks = sorted([t.task_id for t in dag.tasks])
+        tasks = sorted(t.task_id for t in dag.tasks)
         print("\n".join(tasks))
 
 
