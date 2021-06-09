@@ -214,11 +214,10 @@ $('#deps-filter').on('change', function onChange() {
   document.getElementById('searchbox').value = '';
   if (this.checked) {
     nodes = filteredNodes;
-    renderGraph();
   } else {
     nodes = fullNodes;
-    renderGraph();
   }
+  renderGraph();
 });
 
 // initial filter check and render
