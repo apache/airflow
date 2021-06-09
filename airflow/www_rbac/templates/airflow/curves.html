@@ -174,6 +174,83 @@
     // renderCurvesTable();
     renderChart();
   }
+  function getXdata(xKey) {
+    const entityId = selectedEIds[selectedEIds.length - 1]
+    if (!entityId || !curvesData[entityId] || !curvesData[entityId][xKey]) {
+      return [];
+    }
+    const curve = curvesData[entityId];
+    const xData = curve[xKey];
+    return xData;
+ }
+
+  function getYdata(yKey,entityId) {
+    // const entityId = selectedEIds.map(c => c)
+    if (!entityId || !curvesData[entityId] || !curvesData[entityId][yKey]) {
+      return [];
+    }
+    const curve = curvesData[entityId];
+    const yData = curve[yKey];
+    return yData;
+  }
+
+  function randomHexColor() { //随机生成十六进制颜色
+    return '#' + ('00000' + (Math.random() * 0x1000000 << 0).toString(16)).substr(-6);
+  }
+
+  function getAlldata() {
+    if ((!curvesData) || Object.keys(curvesData).length === 0) {
+      return [];
+    }
+    let allDatas = [];
+    for (let c of selectedEIds) {
+      const color = randomHexColor();
+      allDatas.push({
+        name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
+        type: 'line',
+        showSymbol: false,
+        data: getYdata('cur_m', c),
+        itemStyle: {
+          color: color
+        },
+        lineStyle: {
+          color: color,
+          width: 3
+        },
+      });
+      allDatas.push({
+        name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
+        type: 'line',
+        showSymbol: false,
+        data: getYdata('cur_w', c),
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        itemStyle: {
+          color: color
+        },
+        lineStyle: {
+          color: color,
+          width: 3
+        },
+      });
+      allDatas.push({
+        name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
+        type: 'line',
+        showSymbol: false,
+        data: getYdata('cur_s', c),
+        xAxisIndex: 2,
+        yAxisIndex: 2,
+        itemStyle: {
+          color: color
+        },
+        lineStyle: {
+          color: color,
+          width: 3
+        },
+      });
+    }
+    return allDatas;
+  }
 
   function genData(entityId, xKey, yKey) {
     if (!entityId || !curvesData[entityId] || !curvesData[entityId][xKey] || !curvesData[entityId][yKey]) {
@@ -274,7 +351,147 @@
         trigger: 'axis'
       }
     };
-    curveChart.setOption(option, true);
+    const options = {
+    dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          xAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        {
+          type: 'slider',
+          yAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          yAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        // {
+        //   type: 'slider',
+        //   yAxisIndex: 1,
+        //   filterMode: 'none'
+        // },
+        // {
+        //   type: 'inside',
+        //   yAxisIndex: 1,
+        //   filterMode: 'none'
+        // },
+        // {
+        //   type: 'slider',
+        //   yAxisIndex: 2,
+        //   filterMode: 'none'
+        // },
+        // {
+        //   type: 'inside',
+        //   yAxisIndex: 2,
+        //   filterMode: 'none'
+        // }
+      ],
+    // legend: {
+    //     data: ['扭矩','角度', '转速']
+    // },
+    // title: [
+    //   {
+    //     top: '3%',
+    //     left: 'center',
+    //     text: 'Gradient along the y axis'
+    // }, {
+    //     top: '35%',
+    //     left: 'center',
+    //     text: 'Gradient along the x axis'
+    // }, {
+    //     top: '65%',
+    //     left: 'center',
+    //     text: 'Gradient along the x axis'
+    // }],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+      axisPointer: { // 同时出现提示竖线
+        link: {xAxisIndex: 'all'}
+    },
+    xAxis: [{
+        data: getXdata('cur_t'),
+        name: '时间'
+    }, {
+        data: getXdata('cur_t'),
+        name: '时间',
+        gridIndex: 1
+    }, {
+        data: getXdata('cur_t'),
+        name: '时间',
+        gridIndex: 2
+    }],
+    yAxis: [{
+      name: '扭矩',
+      axisLine: {
+        show: true,
+      },
+      axisLabel: {
+        formatter: '{value} N*m'
+      }
+    }, {
+      name: '角度',
+      axisLine: {
+        show: true,
+      },
+      axisLabel: {
+        formatter: '{value} °'
+      },
+        gridIndex: 1
+    }, {
+      name: '转速',
+        gridIndex: 2
+    }],
+    grid: [{
+        top: '5%',
+        bottom: '70%',
+    }, {
+        top: '40%',
+        bottom: '40%',
+    },
+    {
+        top: '70%',
+        bottom: '5%'
+    }],
+      series:getAlldata()
+    // series: [
+    //   {
+    //     name: '扭矩',
+    //     type: 'line',
+    //     showSymbol: false,
+    //     data: getYdata('cur_m'),
+    // }, {
+    //     name: '角度',
+    //     type: 'line',
+    //     showSymbol: false,
+    //     data: getYdata('cur_w'),
+    //     xAxisIndex: 1,
+    //     yAxisIndex: 1
+    // }, {
+    //     name: '转速',
+    //     type: 'line',
+    //     showSymbol: false,
+    //     data: getYdata('cur_s'),
+    //     xAxisIndex: 2,
+    //     yAxisIndex: 2
+    // }]
+};
+    if (yName === '全部') {
+      curveChart.setOption(options, true);
+    }else {
+      curveChart.setOption(option, true);
+    }
   }
 
 
@@ -380,7 +597,7 @@
     resetCurves();
     chartInit();
     curvesListInit();
-    render();
+    // render();
     $('#btn-view-curves').on('click', viewCurves);
     $('#btn-clear-curves').on('click', clearCurves);
     $('#btn-view-spc').on('click', viewSPC);
