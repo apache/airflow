@@ -18,7 +18,7 @@
  */
 
 /*
-  global $, d3, localStorage, dagreD3, dagNodes, edges, arrange, document,
+  global d3, localStorage, dagreD3, dagNodes, edges, arrange, document,
 */
 
 const highlightColor = '#000000';
@@ -209,7 +209,7 @@ const renderGraph = () => {
 };
 
 // rerender graph when filtering dags with dependencies or not
-$('#deps-filter').on('change', function onChange() {
+document.getElementById('deps-filter').addEventListener('change', function onChange() {
   // reset searchbox
   document.getElementById('searchbox').value = '';
   if (this.checked) {
@@ -224,4 +224,5 @@ $('#deps-filter').on('change', function onChange() {
 if (document.getElementById('deps-filter').checked) {
   nodes = filteredNodes;
 }
+
 renderGraph();
