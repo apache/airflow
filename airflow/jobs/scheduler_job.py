@@ -1345,7 +1345,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self._clean_tis_without_dagrun,
         )
         timers.call_regular_interval(
-            conf.getfloat('scheduler', 'update_dagrun_state_for_paused_dag_interval', fallback=15.0),
+            conf.getfloat('scheduler', 'update_dagrun_state_for_paused_dag_interval', fallback=30.0),
             self._update_dagrun_state_for_paused_dag,
         )
 
