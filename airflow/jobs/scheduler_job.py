@@ -1549,8 +1549,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
         """
-        Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
-        if/when the next DAGRun should be created
+        Create a DAG run for the given DAG if max_active_runs is not reached, and
+        update the dag_model's fields to control if/when the next DAGRun should be created
         """
         # Bulk Fetch DagRuns with dag_id and execution_date same
         # as DagModel.dag_id and DagModel.next_dagrun
@@ -1623,7 +1623,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         Bulk update the next_dagrun and next_dagrun_create_after for all the dags.
 
-        We batch the select queries to get info about all the dags at once
+        The select queries are no longer badged because it causes a collission
+        with manual triggering of dagruns
         """
         for dag_model in dag_models:
             # Get the DAG in a try_except to not stop the Scheduler when a Serialized DAG is not found
