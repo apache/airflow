@@ -336,7 +336,7 @@ the only supported UI.
     to use randomly generated secret keys instead of an insecure default and may break existing
     deployments that rely on the default.
 
-The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
+The ``flask-oauthlib`` has been replaced with ``authlib`` because ``flask-oauthlib`` has
 been deprecated in favor of ``authlib``.
 The Old and New provider configuration keys that have changed are as follows
 

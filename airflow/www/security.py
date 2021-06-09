@@ -216,7 +216,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     def bulk_sync_roles(self, roles):
         """Sync the provided roles and permissions."""
         existing_roles = self._get_all_roles_with_permissions()
-        non_dag_perms = self._get_all_non_dag_permissionviews()
+        non_dag_perms = self._get_all_non_dag_permissions()
 
         for config in roles:
             role_name = config['role']
@@ -639,7 +639,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
             .all()
         )
 
-    def _get_all_non_dag_permissionviews(self) -> Dict[Tuple[str, str], PermissionView]:
+    def _get_all_non_dag_permissions(self) -> Dict[Tuple[str, str], PermissionView]:
         """
         Returns a dict with a key of (action_name, resource_name) and value of permission
         with all permissions except those that are for specific DAGs.

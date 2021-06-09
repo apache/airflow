@@ -195,7 +195,7 @@ extraSecrets: {}
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
 #     stringData: |
 #       AIRFLOW_CONN_OTHER: 'other_conn'
-#   '{{ .Release.Name }}-other-secret-name-suffix': |
+#   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
 

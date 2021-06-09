@@ -381,7 +381,7 @@ Managing CI environment:
     * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
     * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
-You can optionally reset the Airflow metada database if specified as extra ``--db-reset`` flag and for CI image
+You can optionally reset the Airflow metadata database if specified as extra ``--db-reset`` flag and for CI image
 you can also start integrations (separate Docker images) if specified as extra ``--integration`` flags. You can also
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
