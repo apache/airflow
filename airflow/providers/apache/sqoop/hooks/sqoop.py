@@ -222,12 +222,14 @@ class SqoopHook(BaseHook):
         direct: bool = False,
         driver: Any = None,
         extra_import_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> Any:
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
 
         :param table: Table to read
+        :param schema: Schema name
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
         :param file_type: "avro", "sequence", "text" or "parquet".
@@ -249,6 +251,8 @@ class SqoopHook(BaseHook):
             cmd += ["--columns", columns]
         if where:
             cmd += ["--where", where]
+        if schema:
+            cmd += ["--", "--schema", schema]
 
         self.popen(cmd)
 
@@ -262,11 +266,13 @@ class SqoopHook(BaseHook):
         direct: Optional[bool] = None,
         driver: Optional[Any] = None,
         extra_import_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> Any:
         """
         Imports a specific query from the rdbms to hdfs
 
         :param query: Free format query to run
+        :param schema: Schema name
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
         :param file_type: "avro", "sequence", "text" or "parquet"
@@ -280,6 +286,9 @@ class SqoopHook(BaseHook):
         """
         cmd = self._import_cmd(target_dir, append, file_type, split_by, direct, driver, extra_import_options)
         cmd += ["--query", query]
+
+        if schema:
+            cmd += ["--", "--schema", schema]
 
         self.popen(cmd)
 
@@ -299,6 +308,7 @@ class SqoopHook(BaseHook):
         batch: bool = False,
         relaxed_isolation: bool = False,
         extra_export_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> List[str]:
 
         cmd = self._prepare_command(export=True)
@@ -348,6 +358,9 @@ class SqoopHook(BaseHook):
         # The required option
         cmd += ["--table", table]
 
+        if schema:
+            cmd += ["--", "--schema", schema]
+
         return cmd
 
     def export_table(
@@ -366,12 +379,14 @@ class SqoopHook(BaseHook):
         batch: bool = False,
         relaxed_isolation: bool = False,
         extra_export_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> None:
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
 
         :param table: Table remote destination
+        :param schema: Schema name
         :param export_dir: Hive table to export
         :param input_null_string: The string to be interpreted as null for
             string columns
@@ -408,6 +423,7 @@ class SqoopHook(BaseHook):
             batch,
             relaxed_isolation,
             extra_export_options,
+            schema,
         )
 
         self.popen(cmd)
