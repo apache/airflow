@@ -37,10 +37,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.0.2"
+defaultAirflowTag: "2.1.0"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.0.2"
+airflowVersion: "2.1.0"
 
 # Images
 images:
@@ -143,7 +143,6 @@ networkPolicies:
   # Enabled network policies
   enabled: false
 
-
 # Extra annotations to apply to all
 # Airflow pods
 airflowPodAnnotations: {}
@@ -196,7 +195,7 @@ extraSecrets: {}
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
 #     stringData: |
 #       AIRFLOW_CONN_OTHER: 'other_conn'
-#   '{{ .Release.Name }}-other-secret-name-suffix': |
+#   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
 
@@ -260,12 +259,13 @@ data:
   #   port: 5432
   #   db: postgres
   #   sslmode: disable
+  # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
 
 # Fernet key settings
+# Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
-
 
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
@@ -322,6 +322,18 @@ kerberos:
 workers:
   # Number of airflow celery workers in StatefulSet
   replicas: 1
+
+  # Command to use when running Airflow workers (templated).
+  command: ~
+  # Args to use when running Airflow workers (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
   # Update Strategy when worker is deployed as a Deployment
@@ -353,6 +365,9 @@ workers:
     # How many seconds KEDA will wait before scaling to zero.
     # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
+
+    # Minimum number of workers created by keda
+    minReplicaCount: 0
 
     # Maximum number of workers created by keda
     maxReplicaCount: 10
@@ -419,6 +434,12 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  logGroomerSidecar:
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow scheduler settings
 scheduler:
   # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
@@ -431,6 +452,12 @@ scheduler:
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
+
+  # Command to use when running the Airflow scheduler (templated).
+  command: ~
+  # Args to use when running the Airflow scheduler (templated).
+  args: ["bash", "-c", "exec airflow scheduler"]
+
   # Update Strategy when scheduler is deployed as a StatefulSet
   # (when using LocalExecutor and workers.persistence)
   updateStrategy: ~
@@ -483,6 +510,14 @@ scheduler:
   affinity: {}
   tolerations: []
 
+  logGroomerSidecar:
+    # Whether to deploy the Airflow scheduler log groomer sidecar.
+    enabled: true
+    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
@@ -532,6 +567,11 @@ webserver:
 
   # Number of webservers
   replicas: 1
+
+  # Command to use when running the Airflow webserver (templated).
+  command: ~
+  # Args to use when running the Airflow webserver (templated).
+  args: ["bash", "-c", "exec airflow webserver"]
 
   # Create ServiceAccount
   serviceAccount:
@@ -605,6 +645,18 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: true
+
+  # Command to use when running flower (templated).
+  command: ~
+  # Args to use when running flower (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -682,9 +734,9 @@ statsd:
 
   uid: 65534
 
-# Pgbouncer settings
+# PgBouncer settings
 pgbouncer:
-  # Enable pgbouncer
+  # Enable PgBouncer
   enabled: false
 
   # Create ServiceAccount
@@ -705,7 +757,7 @@ pgbouncer:
   metadataPoolSize: 10
   resultBackendPoolSize: 5
 
-  # Maximum clients that can connect to pgbouncer (higher = more file descriptors)
+  # Maximum clients that can connect to PgBouncer (higher = more file descriptors)
   maxClientConn: 100
 
   # supply the name of existing secret with pgbouncer.ini and users.txt defined
@@ -723,7 +775,7 @@ pgbouncer:
   #
   configSecretName: ~
 
-  # Pgbouner pod disruption budget
+  # PgBouncer pod disruption budget
   podDisruptionBudget:
     enabled: false
 
@@ -731,7 +783,7 @@ pgbouncer:
     config:
       maxUnavailable: 1
 
-  # Limit the resources to pgbouncer.
+  # Limit the resources to PgBouncer.
   # When you specify the resource request the k8s scheduler uses this information to decide which node to
   # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
   # that the running container is not allowed to use more of that resource than the limit you set.
@@ -763,7 +815,14 @@ pgbouncer:
     cert: ~
     key: ~
 
-  # Select certain nodes for pgbouncer pods.
+  # Add extra PgBouncer ini configuration in the databases section:
+  # https://www.pgbouncer.org/config.html#section-databases
+  extraIniMetadata: ~
+  extraIniResultBackend: ~
+  # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
+  extraIni: ~
+
+  # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -807,6 +866,7 @@ redis:
 
   # Else, if password is set, create secret with it,
   # Otherwise a new password will be generated on install
+  # Note: password can only be set during install, not upgrade.
   password: ~
 
   # This setting tells kubernetes that its ok to evict
@@ -845,7 +905,6 @@ elasticsearch:
   #   host: ~
   #   port: ~
   connection: {}
-
 
 # All ports used by chart
 ports:

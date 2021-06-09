@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _running-airflow-in-docker:
+
 Running Airflow in Docker
 #########################
 
@@ -26,7 +28,7 @@ Before you begin
 Follow these steps to install the necessary tools.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.27.0 and newer on your workstation.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
 
 Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
 
@@ -73,7 +75,8 @@ Some directories in the container are mounted, which means that their contents a
 - ``./logs`` - contains logs from task execution and scheduler.
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
 
-This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
+This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
+If you need install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
 
 .. _initializing_docker_compose_environment:
 
@@ -260,13 +263,26 @@ runtime user id which is unknown at the time of building the image.
 |                                | you want to use different UID than default it must  |                          |
 |                                | be set to ``0``.                                    |                          |
 +--------------------------------+-----------------------------------------------------+--------------------------+
-| ``_AIRFLOW_WWW_USER_USERNAME`` | Username for the administrator UI account.          |                          |
-|                                | If this value is specified, admin UI user gets      |                          |
-|                                | created automatically. This is only useful when     |                          |
-|                                | you want to run Airflow for a test-drive and        |                          |
-|                                | want to start a container with embedded development |                          |
-|                                | database.                                           |                          |
-+--------------------------------+-----------------------------------------------------+--------------------------+
-| ``_AIRFLOW_WWW_USER_PASSWORD`` | Password for the administrator UI account.          |                          |
-|                                | Only used when ``_AIRFLOW_WWW_USER_USERNAME`` set.  |                          |
-+--------------------------------+-----------------------------------------------------+--------------------------+
+
+Those additional variables are useful in case you are trying out/testing Airflow installation via docker compose.
+They are not intended to be used in production, but they make the environment faster to bootstrap for first time
+users with the most common customizations.
+
++----------------------------------+-----------------------------------------------------+--------------------------+
+|   Variable                       | Description                                         | Default                  |
++==================================+=====================================================+==========================+
+| ``_AIRFLOW_WWW_USER_USERNAME``   | Username for the administrator UI account.          | airflow                  |
+|                                  | If this value is specified, admin UI user gets      |                          |
+|                                  | created automatically. This is only useful when     |                          |
+|                                  | you want to run Airflow for a test-drive and        |                          |
+|                                  | want to start a container with embedded development |                          |
+|                                  | database.                                           |                          |
++----------------------------------+-----------------------------------------------------+--------------------------+
+| ``_AIRFLOW_WWW_USER_PASSWORD``   | Password for the administrator UI account.          | airflow                  |
+|                                  | Only used when ``_AIRFLOW_WWW_USER_USERNAME`` set.  |                          |
++----------------------------------+-----------------------------------------------------+--------------------------+
+| ``_PIP_ADDITIONAL_REQUIREMENTS`` | If not empty, airflow containers will attempt to    |                          |
+|                                  | install requirements specified in the variable.     |                          |
+|                                  | example: ``lxml==4.6.3 charset-normalizer==1.4.1``. |                          |
+|                                  | Available in Airflow image 2.1.1 and above.         |                          |
++----------------------------------+-----------------------------------------------------+--------------------------+

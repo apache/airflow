@@ -284,3 +284,83 @@ class SchedulerTest(unittest.TestCase):
         )
 
         assert expected_strategy == jmespath.search("spec.strategy", docs[0])
+
+    def test_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert ["bash", "-c", "exec airflow scheduler"] == jmespath.search(
+            "spec.template.spec.containers[0].args", docs[0]
+        )
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"scheduler": {"command": command, "args": args}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={"scheduler": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_log_groomer_collector_can_be_disabled(self):
+        docs = render_chart(
+            values={"scheduler": {"logGroomerSidecar": {"enabled": False}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+
+    def test_log_groomer_collector_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
+        assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_log_groomer_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"scheduler": {"logGroomerSidecar": {"command": command, "args": args}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    def test_log_groomer_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "logGroomerSidecar": {
+                        "command": ["{{ .Release.Name }}"],
+                        "args": ["{{ .Release.Service }}"],
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])

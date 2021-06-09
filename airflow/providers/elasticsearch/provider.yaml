@@ -19,9 +19,10 @@
 package-name: apache-airflow-providers-elasticsearch
 name: Elasticsearch
 description: |
-    `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
+    `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 versions:
+  - 2.0.0
   - 1.0.4
   - 1.0.3
   - 1.0.2

@@ -28,6 +28,6 @@ docker build . \
     --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="openmpi-common" \
-    --tag "$(basename "$0")"
+    --tag "my-build-essential-image:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-build-essential-image:0.0.1"

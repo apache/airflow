@@ -617,9 +617,9 @@ class TestSecurity(unittest.TestCase):
 
         assert ('can_read', 'Connections') in perms
 
-    def test_get_all_non_dag_permissionviews(self):
+    def test_get_all_non_dag_permissions(self):
         with assert_queries_count(1):
-            pvs = self.security_manager._get_all_non_dag_permissionviews()
+            pvs = self.security_manager._get_all_non_dag_permissions()
 
         assert isinstance(pvs, dict)
         for (perm_name, viewmodel_name), perm_view in pvs.items():

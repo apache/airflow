@@ -22,17 +22,18 @@ services:
       - BACKEND=mssql
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
       - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
-      - mssql
+      mssql:
+        condition: service_healthy
   mssql:
     image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=Airflow123
-    volumes:
-      - mssql-db-volume:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "sqlcmd", "-S", "localhost", "-U", "sa", "-P", "$SA_PASSWORD", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost",
+             "-U", "sa", "-P", "Airflow123", "-Q", "SELECT 1"]
       interval: 10s
       timeout: 10s
       retries: 10

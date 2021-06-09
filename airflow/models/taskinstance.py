@@ -46,6 +46,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
+    AirflowSensorTimeout,
     AirflowSkipException,
     AirflowSmartSensorException,
     AirflowTaskTimeout,
@@ -133,7 +134,7 @@ def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
 def clear_task_instances(
     tis,
     session,
-    activate_dag_runs=True,
+    dag_run_state: str = State.RUNNING,
     dag=None,
 ):
     """
@@ -142,7 +143,8 @@ def clear_task_instances(
 
     :param tis: a list of task instances
     :param session: current session
-    :param activate_dag_runs: flag to check for active dag run
+    :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
+        be changed.
     :param dag: DAG object
     """
     job_ids = []
@@ -204,19 +206,25 @@ def clear_task_instances(
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # noqa
             job.state = State.SHUTDOWN
 
-    if activate_dag_runs and tis:
+    if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
+
+        dates_by_dag_id = defaultdict(set)
+        for instance in tis:
+            dates_by_dag_id[instance.dag_id].add(instance.execution_date)
 
         drs = (
             session.query(DagRun)
             .filter(
-                DagRun.dag_id.in_({ti.dag_id for ti in tis}),
-                DagRun.execution_date.in_({ti.execution_date for ti in tis}),
+                or_(
+                    and_(DagRun.dag_id == dag_id, DagRun.execution_date.in_(dates))
+                    for dag_id, dates in dates_by_dag_id.items()
+                )
             )
             .all()
         )
         for dr in drs:
-            dr.state = State.RUNNING
+            dr.state = dag_run_state
             dr.start_date = timezone.utcnow()
 
 
@@ -1153,7 +1161,9 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode)
             return
-        except AirflowFailException as e:
+        except (AirflowFailException, AirflowSensorTimeout) as e:
+            # If AirflowFailException is raised, task should not retry.
+            # If a sensor in reschedule mode reaches timeout, task should not retry.
             self.refresh_from_db()
             self.handle_failure(e, test_mode, force_fail=True, error_file=error_file)
             raise

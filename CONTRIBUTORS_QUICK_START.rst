@@ -300,8 +300,8 @@ Using Breeze
 
       Use CI image.
 
-   Branch name:            master
-   Docker image:           apache/airflow:master-python3.8-ci
+   Branch name:            main
+   Docker image:           apache/airflow:main-python3.8-ci
    Airflow source version: 2.0.0b2
    Python version:         3.8
    DockerHub user:         apache
@@ -408,7 +408,7 @@ For more information visit : |Breeze documentation|
 
 .. |Breeze documentation| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst" target="_blank">Breeze documentation</a>
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst" target="_blank">Breeze documentation</a>
 
 Following are some of important topics of Breeze documentation:
 
@@ -417,7 +417,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Choosing different Breeze environment configuration| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#choosing-different-breeze-environment-configuration
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#choosing-different-breeze-environment-configuration
    " target="_blank">Choosing different Breeze environment configuration</a>
 
 
@@ -425,7 +425,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Troubleshooting Breeze environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#troubleshooting" target="_blank">Troubleshooting
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#troubleshooting" target="_blank">Troubleshooting
    Breeze environment</a>
 
 
@@ -433,7 +433,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Installing Additional tools to the Docker Image| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#additional-tools" target="_blank">Installing
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#additional-tools" target="_blank">Installing
    Additional tools to the Docker Image</a>
 
 
@@ -441,7 +441,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Internal details of Breeze| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#internal-details-of-breeze" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#internal-details-of-breeze" target="_blank">
    Internal details of Breeze</a>
 
 
@@ -449,7 +449,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Breeze Command-Line Interface Reference| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#breeze-command-line-interface-reference"
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#breeze-command-line-interface-reference"
    target="_blank">Breeze Command-Line Interface Reference</a>
 
 
@@ -457,7 +457,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Cleaning the environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#cleaning-the-environment" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#cleaning-the-environment" target="_blank">
    Cleaning the environment</a>
 
 
@@ -465,7 +465,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Other uses of the Airflow Breeze environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#other-uses-of-the-airflow-breeze-environment"
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#other-uses-of-the-airflow-breeze-environment"
    target="_blank">Other uses of the Airflow Breeze environment</a>
 
 
@@ -648,7 +648,7 @@ All Tests are inside ./tests directory.
 
 .. |TESTING.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst" target="_blank">TESTING.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst" target="_blank">TESTING.rst</a>
 
 - Following are the some of important topics of TESTING.rst
 
@@ -656,7 +656,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Test Infrastructure| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-test-infrastructure" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-test-infrastructure" target="_blank">
    Airflow Test Infrastructure</a>
 
 
@@ -664,7 +664,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Unit Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-unit-tests" target="_blank">Airflow Unit
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-unit-tests" target="_blank">Airflow Unit
    Tests</a>
 
 
@@ -672,7 +672,7 @@ All Tests are inside ./tests directory.
 
   .. |Helm Unit Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#helm-unit-tests" target="_blank">Helm Unit Tests
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#helm-unit-tests" target="_blank">Helm Unit Tests
    </a>
 
 
@@ -680,7 +680,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Integration Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-integration-tests" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests" target="_blank">
    Airflow Integration Tests</a>
 
 
@@ -688,7 +688,7 @@ All Tests are inside ./tests directory.
 
   .. |Running Tests with Kubernetes| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#running-tests-with-kubernetes" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#running-tests-with-kubernetes" target="_blank">
    Running Tests with Kubernetes</a>
 
 
@@ -696,7 +696,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow System Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-system-tests" target="_blank">Airflow
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-system-tests" target="_blank">Airflow
    System Tests</a>
 
 
@@ -704,7 +704,7 @@ All Tests are inside ./tests directory.
 
   .. |Local and Remote Debugging in IDE| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#local-and-remote-debugging-in-ide"
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
 
 
@@ -712,7 +712,7 @@ All Tests are inside ./tests directory.
 
   .. |BASH Unit Testing (BATS)| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#bash-unit-testing-bats" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#bash-unit-testing-bats" target="_blank">
    BASH Unit Testing (BATS)</a>
 
 
@@ -846,7 +846,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. |STATIC_CODE_CHECKS.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst" target="_blank">
    STATIC_CODE_CHECKS.rst</a>
 
 - Following are some of the important links of STATIC_CODE_CHECKS.rst
@@ -855,14 +855,14 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   .. |Pre-commit Hooks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
    Pre-commit Hooks</a>
 
   - |Pylint Static Code Checks|
 
   .. |Pylint Static Code Checks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#pylint-static-code-checks"
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pylint-static-code-checks"
    target="_blank">Pylint Static Code Checks</a>
 
 
@@ -870,7 +870,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   .. |Running Static Code Checks via Breeze| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
    target="_blank">Running Static Code Checks via Breeze</a>
 
 
@@ -884,7 +884,7 @@ Contribution guide
 
 .. |CONTRIBUTING.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst" target="_blank">CONTRIBUTING.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst" target="_blank">CONTRIBUTING.rst</a>
 
 - Following are some of important links of CONTRIBUTING.rst
 
@@ -892,7 +892,7 @@ Contribution guide
 
   .. |Types of contributions| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contributions" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contributions" target="_blank">
    Types of contributions</a>
 
 
@@ -900,7 +900,7 @@ Contribution guide
 
   .. |Roles of contributor| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#roles" target="_blank">Roles of
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#roles" target="_blank">Roles of
    contributor</a>
 
 
@@ -908,7 +908,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contribution-workflow" target="_blank">
    Workflow for a contribution</a>
 
 
@@ -949,7 +949,7 @@ Syncing Fork and rebasing Pull request
 
 Often it takes several days or weeks to discuss and iterate with the PR until it is ready to merge.
 In the meantime new commits are merged, and you might run into conflicts, therefore you should periodically
-synchronize master in your fork with the ``apache/airflow`` master and rebase your PR on top of it. Following
+synchronize main in your fork with the ``apache/airflow`` main and rebase your PR on top of it. Following
 describes how to do it.
 
 
@@ -957,7 +957,7 @@ describes how to do it.
 
 .. |Syncing fork| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#how-to-sync-your-fork" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-sync-your-fork" target="_blank">
    Update new changes made to apache:airflow project to your fork</a>
 
 
@@ -965,5 +965,5 @@ describes how to do it.
 
 .. |Rebasing pull request| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#how-to-rebase-pr" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-rebase-pr" target="_blank">
    Rebasing pull request</a>

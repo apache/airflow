@@ -1,0 +1,3 @@
+tests/** export-ignore
+tests/ export-ignore
+chart/tests export-ignore

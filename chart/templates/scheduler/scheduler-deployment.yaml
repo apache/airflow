@@ -121,7 +121,12 @@ spec:
         - name: scheduler
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "-c", "exec airflow scheduler"]
+          {{- if .Values.scheduler.command }}
+          command: {{ tpl (toYaml .Values.scheduler.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.scheduler.args }}
+          args: {{ tpl (toYaml .Values.scheduler.args) . | nindent 12 }}
+          {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -188,14 +193,20 @@ spec:
 {{- if .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
-        # Always start the garbage collector sidecar.
-        - name: scheduler-gc
+        {{- if .Values.scheduler.logGroomerSidecar.enabled }}
+        - name: scheduler-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args: ["bash", "/clean-logs"]
+          {{- if .Values.scheduler.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.args }}
+          args: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+          {{- end }}
 {{- if .Values.scheduler.extraContainers }}
 {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
 {{- end }}

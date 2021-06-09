@@ -95,7 +95,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'containers': [
                     {
                         'image': 'ubuntu:16.04',
-                        'imagePullPolicy': 'IfNotPresent',
                         'args': ["echo 10"],
                         'command': ["bash", "-cx"],
                         'env': [],
@@ -112,7 +111,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
-                'serviceAccountName': 'default',
                 'tolerations': [],
                 'volumes': [],
             },
@@ -872,8 +870,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'command': ['stress'],
                         'env': [],
                         'envFrom': [],
-                        'image': 'apache/airflow:stress-2021.04.28-1.0.4',
-                        'imagePullPolicy': 'IfNotPresent',
+                        'image': 'apache/airflow-ci:stress-2021.04.28-1.0.4',
                         'name': 'base',
                         'ports': [],
                         'resources': {'limits': {'memory': '200Mi'}, 'requests': {'memory': '100Mi'}},
@@ -893,7 +890,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
-                'serviceAccountName': 'default',
                 'tolerations': [],
                 'volumes': [{'emptyDir': {}, 'name': 'xcom'}],
             },

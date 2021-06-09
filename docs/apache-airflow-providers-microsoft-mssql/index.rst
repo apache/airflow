@@ -50,7 +50,7 @@ Package apache-airflow-providers-microsoft-mssql
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -93,6 +93,17 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 1.1.0
 .....

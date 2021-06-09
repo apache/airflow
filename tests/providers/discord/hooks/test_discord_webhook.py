@@ -52,7 +52,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id='default-discord-webhook',
-                conn_type='http',
+                conn_type='discord',
                 host='https://discordapp.com/api/',
                 extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}',
             )

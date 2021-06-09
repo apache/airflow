@@ -171,22 +171,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
         pod = k.create_pod_request_obj()
         assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
 
-    def test_image_pull_policy_not_set(self):
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context="default",
-        )
-        pod = k.create_pod_request_obj()
-        assert pod.spec.containers[0].image_pull_policy == "IfNotPresent"
-
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
             namespace="default",
@@ -334,6 +318,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
               labels:
                 foo: bar
             spec:
+              serviceAccountName: foo
               affinity:
                 nodeAffinity:
                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -356,6 +341,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
               containers:
                 - name: base
                   image: ubuntu:16.04
+                  imagePullPolicy: Always
                   command:
                     - something
         """
@@ -384,7 +370,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
             assert pod.metadata.namespace == "mynamespace"
             assert pod.spec.containers[0].image == "ubuntu:16.04"
+            assert pod.spec.containers[0].image_pull_policy == "Always"
             assert pod.spec.containers[0].command == ["something"]
+            assert pod.spec.service_account_name == "foo"
             affinity = {
                 'node_affinity': {
                     'preferred_during_scheduling_ignored_during_execution': [

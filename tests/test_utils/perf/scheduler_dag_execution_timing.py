@@ -224,7 +224,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     """
 
     # Turn on unit test mode so that we don't do any sleep() in the scheduler
-    # loop - not needed on master, but this script can run against older
+    # loop - not needed on main, but this script can run against older
     # releases too!
     os.environ['AIRFLOW__CORE__UNIT_TEST_MODE'] = 'True'
 

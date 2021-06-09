@@ -26,11 +26,11 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Master](#master)
+- [Main](#main)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Master
+## Main
 
 <!--
 
@@ -47,6 +47,10 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+### Default Airflow version is updated to ``2.1.0``
+
+The default Airflow version that is installed with the Chart is now ``2.1.0``, previously it was ``2.0.2``.
 
 ### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 

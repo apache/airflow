@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add test_connection method to Airbyte hook (#16236)``
+* ``Add missing docstring params (#15741)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hooks extended from http hook (#16109)``
+
 1.0.0
 .....
 
