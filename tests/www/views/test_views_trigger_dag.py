@@ -16,12 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import os
+from datetime import timedelta
 
 import pytest
 
+from airflow import settings
 from airflow.models import DagBag, DagRun
+from airflow.models.dag import DAG, DagModel
+from airflow.operators.bash import BashOperator
 from airflow.security import permissions
+from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.utils.dates import days_ago, timezone
 from airflow.utils.session import create_session
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.www import check_content_in_response
 
@@ -171,3 +179,46 @@ def test_viewer_cant_trigger_dag(client_factory):
     resp = client.get(url, follow_redirects=True)
     response_data = resp.data.decode()
     assert "Access is Denied" in response_data
+
+
+def test_trigger_dag_respects_max_active_runs(admin_client, app):
+    dag = DAG(
+        dag_id='test_trigger_dag',
+        start_date=days_ago(1),
+        schedule_interval=timedelta(seconds=1),
+        max_active_runs=1,
+    )
+
+    BashOperator(
+        task_id='dummy',
+        bash_command="sleep 10",
+        dag=dag,
+    )
+    session = settings.Session()
+    dagbag = DagBag(
+        dag_folder=os.devnull,
+        include_examples=False,
+        read_dags_from_db=False,
+    )
+    dagbag.bag_dag(dag=dag, root_dag=dag)
+
+    # Create DagModel
+    DAG.bulk_write_to_db(dagbag.dags.values())
+    app.dag_bag = dagbag
+    dag_model = DagModel.get_dagmodel(dag.dag_id)
+    dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+    dag.create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=dag_model.next_dagrun,
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+        external_trigger=False,
+        session=session,
+        creating_job_id=2,
+    )
+    session.flush()
+    response = admin_client.post(f'trigger?dag_id={dag.dag_id}', follow_redirects=True)
+    check_content_in_response(
+        f"DAG {dag.dag_id} is at (or above) max_active_runs" f"(1 of 1), not creating any more runs", response
+    )
+    session.rollback()

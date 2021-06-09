@@ -3864,6 +3864,102 @@ class TestSchedulerJob(unittest.TestCase):
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         session.rollback()
 
+    def test_scheduler_loop_dont_create_dagruns_when_max_active_runs_is_reached(self):
+        """
+        Test that if max_active_runs is reached, scheduler loop do not create extra dagruns.
+
+        With max_active_runs=1, scheduler loop won't create extra dagrun if there's a running
+        dagrun
+        """
+        dag = DAG(
+            dag_id='test_scheduler_max_active_runs_1',
+            start_date=DEFAULT_DATE,
+            schedule_interval=timedelta(seconds=1),
+            max_active_runs=1,
+        )
+
+        BashOperator(
+            task_id='dummy',
+            bash_command="sleep 10",
+            dag=dag,
+        )
+        dag2 = DAG(
+            dag_id='test_scheduler_max_active_runs_2',
+            start_date=DEFAULT_DATE,
+            schedule_interval=timedelta(seconds=1),
+            max_active_runs=2,
+        )
+
+        BashOperator(
+            task_id='dummy',
+            bash_command="sleep 10",
+            dag=dag2,
+        )
+
+        session = settings.Session()
+        assert dag.get_last_dagrun(session) is None
+
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=False,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.bag_dag(dag=dag2, root_dag=dag2)
+
+        # Create DagModel
+        DAG.bulk_write_to_db(dagbag.dags.values())
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+
+        # Assert dag_model.next_dagrun is set correctly
+        assert dag_model.next_dagrun == DEFAULT_DATE
+
+        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag2))
+
+        dagrun = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=dag_model.next_dagrun,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session,
+            creating_job_id=2,
+        )
+        dagrun2 = dag2.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=dag_model.next_dagrun,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session,
+            creating_job_id=2,
+        )
+        session.flush()
+
+        assert dag.get_last_dagrun(session) == dagrun
+        assert dag2.get_last_dagrun(session) == dagrun2
+
+        # This poll interval is large, bug the scheduler doesn't sleep that
+        # long, instead we hit the update_dagrun_state_for_paused_dag_interval instead
+        self.scheduler_job = SchedulerJob(num_runs=2, processor_poll_interval=30)
+        self.scheduler_job.dagbag = dagbag
+        executor = MockExecutor(do_update=False)
+        executor.queued_tasks
+        self.scheduler_job.executor = executor
+        processor = mock.MagicMock()
+        processor.done = False
+        self.scheduler_job.processor_agent = processor
+
+        self.scheduler_job._run_scheduler_loop()
+        # For dag1, max_active_runs==1, no dagruns should be created
+        dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).all()
+        assert len(dr) == 1
+        # for dag2, max_active_runs==2, 1 extra dagruns will be created
+        dr = session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).all()
+        assert len(dr) == 2
+        session.rollback()
+
     def test_do_schedule_max_active_runs_upstream_failed(self):
         """
         Test that tasks in upstream failed don't count as actively running.
