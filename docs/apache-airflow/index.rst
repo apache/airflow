@@ -84,8 +84,7 @@ unit of work and continuity.
     tutorial_taskflow_api
     howto/index
     ui
-    concepts
-    scheduler
+    concepts/index
     executor/index
     dag-run
     plugins
@@ -98,12 +97,10 @@ unit of work and continuity.
     lineage
     dag-serialization
     modules_management
-    smart-sensor
     Release policies <release-process>
     changelog
     best-practices
     production-deployment
-    backport-providers
     faq
     privacy_notice
 
@@ -115,7 +112,8 @@ unit of work and continuity.
     CLI <cli-and-env-variables-ref>
     Macros <macros-ref>
     Python API <python-api-ref>
-    Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
+    deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
+    Database Migrations <migrations-ref>

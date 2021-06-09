@@ -194,7 +194,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # to prevent it from showing in the UI.
         def concat_logs(lines):
             log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark.strip() else len(lines)
-            return '\n'.join([self._format_msg(lines[i]) for i in range(log_range)])
+            return '\n'.join(self._format_msg(lines[i]) for i in range(log_range))
 
         message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host]
 
@@ -245,8 +245,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             try:
 
                 logs = search[self.MAX_LINE_PER_PAGE * self.PAGE : self.MAX_LINE_PER_PAGE].execute()
-            except Exception as e:  # pylint: disable=broad-except
-                self.log.exception('Could not read log with log_id: %s, error: %s', log_id, str(e))
+            except Exception:  # pylint: disable=broad-except
+                self.log.exception('Could not read log with log_id: %s', log_id)
 
         return logs
 

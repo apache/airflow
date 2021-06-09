@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Undeprecate private_key option in SFTPHook (#15348)``
+* ``Add logs to show last modified in SFTP, FTP and Filesystem sensor (#15134)``
+
 1.1.1
 .....
 

@@ -32,7 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/qubole/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/qubole/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-qubole/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -51,7 +51,7 @@ Package apache-airflow-providers-qubole
 `Qubole <https://www.qubole.com/>`__
 
 
-Release: 1.0.2
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -61,15 +61,6 @@ are in ``airflow.providers.qubole`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-qubole``
@@ -103,6 +94,28 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Feature add support for include_headers in get_results (#15598)``
+* ``Feature qubole hook support headers (#15683)``
+* ``Feature qubole hook support headers (#15615)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Make Airflow code Pylint 2.8 compatible (#15534)``
+   * ``Remove Backport Providers (#14886)``
 
 1.0.2
 .....

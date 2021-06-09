@@ -20,7 +20,7 @@ Configuring Airflow
 
 All Airflow configuration parameters (equivalent of ``airflow.cfg``) are
 stored in
-`values.yaml <https://github.com/apache/airflow/blob/master/chart/values.yaml>`__
+`values.yaml <https://github.com/apache/airflow/blob/main/chart/values.yaml>`__
 under the ``config`` key . The following code demonstrates how one would
 allow webserver users to view the config from within the webserver
 application. See the bottom line of the example:
@@ -50,7 +50,6 @@ application. See the bottom line of the example:
      logging:
        remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
        colored_console_log: 'False'
-       logging_level: DEBUG
      metrics:
        statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
        statsd_port: 9125

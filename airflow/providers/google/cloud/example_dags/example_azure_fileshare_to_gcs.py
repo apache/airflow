@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import AzureFileShareToGCSOperator
 
-DEST_GCS_BUCKET = os.environ.get('GCP_GCS_BUCKET', 'gs://test-gcs-example-bucket')
+DEST_GCS_BUCKET = os.environ.get('GCP_GCS_BUCKET', 'gs://INVALID BUCKET NAME')
 AZURE_SHARE_NAME = os.environ.get('AZURE_SHARE_NAME', 'test-azure-share')
 AZURE_DIRECTORY_NAME = "test-azure-dir"
 

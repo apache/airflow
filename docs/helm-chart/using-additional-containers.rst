@@ -16,20 +16,48 @@
     under the License.
 
 Using additional containers
-----------------------------
+===========================
 
-If you are using your own sidecar container, you can add it through the ``extraContainers`` value.
-You can define different containers for scheduler, webserver and worker pods.
+Sidecar Containers
+------------------
 
-For example, a sidecar that syncs DAGs from object storage.
+If you want to deploy your own sidecar container, you can add it through the ``extraContainers`` parameter.
+You can define different containers for the scheduler, webserver and worker pods.
+
+For example, sidecars that sync DAGs from object storage.
 
 .. note::
 
-   ``extraContainers`` value supports CeleryExecutor only.
+   ``workers.extraContainers`` is only functional with ``CeleryExecutor``.
 
 .. code-block:: yaml
 
+  scheduler:
     extraContainers:
       - name: s3-sync
         image: my-company/s3-sync:latest
         imagePullPolicy: Always
+  workers:
+    extraContainers:
+      - name: s3-sync
+        image: my-company/s3-sync:latest
+        imagePullPolicy: Always
+
+
+Init Containers
+---------------
+
+You can also deploy extra init containers through the ``extraInitContainers`` parameter.
+You can define different containers for the scheduler, webserver and worker pods.
+
+For example, an init container that just says hello:
+
+.. code-block:: yaml
+
+  scheduler:
+    extraInitContainers:
+      - name: hello
+        image: debian
+        args:
+          - echo
+          - hello

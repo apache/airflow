@@ -23,7 +23,6 @@ from typing import Dict, Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.exasol.hooks.exasol import ExasolHook
-from airflow.utils.decorators import apply_defaults
 
 
 class ExasolToS3Operator(BaseOperator):
@@ -61,7 +60,6 @@ class ExasolToS3Operator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

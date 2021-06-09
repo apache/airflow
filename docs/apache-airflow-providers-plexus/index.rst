@@ -32,7 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/plexus/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/plexus/example_dags>
 
 .. toctree::
     :maxdepth: 1
@@ -56,7 +56,7 @@ Package apache-airflow-providers-plexus
 `Plexus <https://plexus.corescientific.com/>`__
 
 
-Release: 1.0.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -66,15 +66,6 @@ are in ``airflow.providers.plexus`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-plexus``
@@ -108,6 +99,26 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Removes arrow higher limits for plexus provider (#16026)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
+   * ``Update documentation for broken package releases (#14734)``
 
 1.0.1
 .....

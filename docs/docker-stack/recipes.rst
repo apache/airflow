@@ -40,8 +40,8 @@ Then build a new image.
 .. code-block:: bash
 
   docker build . \
-    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.1" \
-    -t my-airflow-image
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.2" \
+    --tag my-airflow-image:0.0.1
 
 
 Apache Hadoop Stack installation
@@ -66,5 +66,5 @@ Then build a new image.
 .. code-block:: bash
 
   docker build . \
-    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.1" \
-    -t my-airflow-image
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.2" \
+    --tag my-airflow-image:0.0.1

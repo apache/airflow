@@ -34,6 +34,7 @@ ALL_PROVIDERS = [
     'apache-airflow-providers-apache-pinot',
     'apache-airflow-providers-apache-spark',
     'apache-airflow-providers-apache-sqoop',
+    'apache-airflow-providers-asana',
     'apache-airflow-providers-celery',
     'apache-airflow-providers-cloudant',
     'apache-airflow-providers-cncf-kubernetes',
@@ -91,10 +92,11 @@ ALL_PROVIDERS = [
 ]
 
 CONNECTIONS_LIST = [
+    'airbyte',
+    'asana',
     'aws',
     'azure',
     'azure_batch',
-    'azure_container_instances',
     'azure_container_registry',
     'azure_cosmos',
     'azure_data_explorer',
@@ -104,6 +106,8 @@ CONNECTIONS_LIST = [
     'cloudant',
     'databricks',
     'dataprep',
+    'dingding',
+    'discord',
     'docker',
     'druid',
     'elasticsearch',
@@ -126,12 +130,14 @@ CONNECTIONS_LIST = [
     'jenkins',
     'jira',
     'kubernetes',
+    'leveldb',
     'livy',
     'mongo',
     'mssql',
     'mysql',
     'neo4j',
     'odbc',
+    'opsgenie',
     'oracle',
     'pig_cli',
     'postgres',
@@ -142,6 +148,7 @@ CONNECTIONS_LIST = [
     'samba',
     'segment',
     'sftp',
+    'slackwebhook',
     'snowflake',
     'spark',
     'spark_jdbc',
@@ -158,6 +165,8 @@ CONNECTIONS_LIST = [
 ]
 
 CONNECTION_FORM_WIDGETS = [
+    'extra__asana__project',
+    'extra__asana__workspace',
     'extra__azure__subscriptionId',
     'extra__azure__tenantId',
     'extra__azure_batch__account_url',
@@ -203,9 +212,9 @@ CONNECTION_FORM_WIDGETS = [
 ]
 
 CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
+    'asana',
     'azure',
     'azure_batch',
-    'azure_container_instances',
     'azure_container_registry',
     'azure_cosmos',
     'azure_data_explorer',
@@ -229,6 +238,8 @@ CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
 EXTRA_LINKS = [
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
     'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
+    'airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink',
+    'airflow.providers.google.cloud.operators.dataproc.DataprocJobLink',
     'airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink',
     'airflow.providers.qubole.operators.qubole.QDSLink',
 ]

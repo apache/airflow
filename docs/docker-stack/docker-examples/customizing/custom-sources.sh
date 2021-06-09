@@ -24,7 +24,7 @@ cd "${AIRFLOW_SOURCES}"
 # [START build]
 docker build . -f Dockerfile \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
+    --build-arg AIRFLOW_VERSION="2.0.2" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack,odbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS=" \
         azure-storage-blob \
@@ -43,6 +43,6 @@ docker build . -f Dockerfile \
     curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_RUNTIME_APT_ENV="ACCEPT_EULA=Y" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
-    --tag "$(basename "$0")"
+    --tag "my-custom-sources-image:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-custom-sources-image:0.0.1"

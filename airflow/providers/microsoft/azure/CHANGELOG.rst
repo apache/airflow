@@ -19,6 +19,58 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``add oracle  connection link (#15632)``
+* ``Add delimiter argument to WasbHook delete_file method (#15637)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix colon spacing in ``AzureDataExplorerHook`` docstring (#15841)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+   * ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Removes unnecessary AzureContainerInstance connection type (#15514)``
+
+This change removes ``azure_container_instance_default`` connection type and replaces it with the
+``azure_default``. The problem was that AzureContainerInstance was not needed as it was exactly the
+same as the plain "azure" connection, however it's presence caused duplication in the field names
+used in the UI editor for connections and unnecessary warnings generated. This version uses
+plain Azure Hook and connection also for Azure Container Instance. If you already have
+``azure_container_instance_default`` connection created in your DB, it will continue to work, but
+the first time you edit it with the UI you will have to change it's type to ``azure_default``.
+
+Features
+~~~~~~~~
+
+* ``Add dynamic connection fields to Azure Connection (#15159)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix 'logging.exception' redundancy (#14823)``
+
+
 1.3.0
 .....
 

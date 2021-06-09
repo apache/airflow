@@ -19,6 +19,45 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+* ``Save pod name to xcom for KubernetesPodOperator (#15755)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
+* ``Bug Pod Template File Values Ignored (#16095)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Require 'name' with KubernetesPodOperator (#15373)``
+* ``Change KPO node_selectors warning to proper deprecationwarning (#15507)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
+* ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
+
 1.1.0
 .....
 

@@ -24,7 +24,7 @@ cd "${AIRFLOW_SOURCES}"
 # [START build]
 docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_VERSION="2.0.1" \
-    --tag "$(basename "$0")"
+    --build-arg AIRFLOW_VERSION="2.0.2" \
+    --tag "my-pypi-selected-version:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-pypi-selected-version:0.0.1"

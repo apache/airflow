@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/jdbc/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/jdbc/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -58,7 +58,7 @@ Package apache-airflow-providers-jdbc
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 
-Release: 1.0.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -68,15 +68,6 @@ are in ``airflow.providers.jdbc`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-jdbc``
@@ -110,6 +101,22 @@ PIP package     Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix some small typos also TESTING.rst (#14594)``
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
+   * ``Update documentation for broken package releases (#14734)``
 
 1.0.1
 .....

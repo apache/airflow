@@ -30,9 +30,10 @@
 // -- Begin moment-strftime
 // Copyright (c) 2012 Benjamin Oakes, MIT Licensed
 
-/* global d3, document, moment, call_modal, data $ */
+/* global d3, document, moment, data $ */
 
 import tiTooltip from './task_instances';
+import { callModal } from './dag';
 
 const replacements = {
   a: 'ddd',
@@ -75,7 +76,7 @@ const replacements = {
 
 moment.fn.strftime = function (format) {
   // Break up format string based on strftime tokens
-  const tokens = format.split(/(%\-?.)/);
+  const tokens = format.split(/(%-?.)/);
   const momentFormat = tokens.map((token) => {
     // Replace strftime tokens with moment formats
     if (token[0] === '%' && !!Object.getOwnPropertyDescriptor(replacements, token.substr(1))) {
@@ -203,7 +204,7 @@ d3.gantt = () => {
       .on('mouseover', tip.show)
       .on('mouseout', tip.hide)
       .on('click', (d) => {
-        call_modal(d.task_id, d.execution_date, d.extraLinks);
+        callModal(d.task_id, d.execution_date, d.extraLinks);
       })
       .attr('class', (d) => d.state || 'null')
       .attr('y', 0)

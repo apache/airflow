@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 import requests
 from docker import APIClient
+from docker.types import Mount
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -65,6 +66,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             mem_limit='128m',
             user='unittest',
             task_id='unittest',
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             auto_remove=True,
             tty=True,
         )
@@ -77,6 +79,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             image='ubuntu:latest',
             command='env',
             user='unittest',
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
         )

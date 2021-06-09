@@ -19,7 +19,6 @@ from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureDataLakeStorageListOperator(BaseOperator):
@@ -49,7 +48,6 @@ class AzureDataLakeStorageListOperator(BaseOperator):
     template_fields: Sequence[str] = ('path',)
     ui_color = '#901dd2'
 
-    @apply_defaults
     def __init__(
         self, *, path: str, azure_data_lake_conn_id: str = 'azure_data_lake_default', **kwargs
     ) -> None:

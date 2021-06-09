@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/postgres/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/postgres/example_dags>
 
 .. toctree::
     :maxdepth: 1
@@ -63,7 +63,7 @@ Package apache-airflow-providers-postgres
 `PostgreSQL <https://www.postgresql.org/>`__
 
 
-Release: 1.0.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -73,15 +73,6 @@ are in ``airflow.providers.postgres`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-postgres``
@@ -114,6 +105,15 @@ Dependent package                                                               
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_  ``amazon``
 ====================================================================================================  ==========
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-postgres 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-postgres-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-postgres 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_postgres-2.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -134,6 +134,33 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``PostgresHook: deepcopy connection to avoid mutating connection obj (#15412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix spelling (#15699)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.0.2
+.....
+
+* ``Do not forward cluster-identifier to psycopg2 (#15360)``
+
 
 1.0.1
 .....

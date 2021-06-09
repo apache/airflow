@@ -56,7 +56,7 @@ Package apache-airflow-providers-ssh
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 1.3.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -66,15 +66,6 @@ are in ``airflow.providers.ssh`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-ssh``
@@ -110,6 +101,28 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation to more Providers (#15408)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Display explicit error in case UID has no actual username (#15212)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
 
 1.3.0
 .....

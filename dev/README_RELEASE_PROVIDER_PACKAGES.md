@@ -25,7 +25,7 @@
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Generate release notes](#generate-release-notes)
-  - [Build regular provider packages for SVN apache upload](#build-regular-provider-packages-for-svn-apache-upload)
+  - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
@@ -88,7 +88,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 ./breeze prepare-provider-documentation [packages]
 ```
 
-This command will not only prepare documentation but will also allow the release manager to review
+This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
 links to particular commits. This should help to determine which version of provider should be released:
@@ -97,14 +97,21 @@ links to particular commits. This should help to determine which version of prov
 * increased minor version if new features are added
 * increased major version if breaking changes are added
 
-It also allows the release manager to update CHANGELOG.rst where high-level overview of the changes should be
-documented for the providers released.
+It also helps the release manager to update CHANGELOG.rst where high-level overview of the changes should be documented for the providers released.
 
-You can iterate and re-generate the same readme content as many times as you want.
+You should iterate and re-generate the same content after any change as many times as you want.
 The generated files should be added and committed to the repository.
 
+When you want to regenerate the changes before the release and make sure all changelogs
+are updated, run it in non-interactive mode:
 
-## Build regular provider packages for SVN apache upload
+```shell script
+NO_INTERACTIVE="true"
+./breeze prepare-provider-documentation [packages]
+```
+
+
+## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
 should keep the final version number without the rc suffix, even if they are rc1/rc2/... candidates.
@@ -126,13 +133,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 --package-format both
+./breeze prepare-provider-packages --package-format both
 ```
 
 if you ony build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-svn rc1 --package-format both PACKAGE PACKAGE ....
+./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -264,7 +271,11 @@ cd "${AIRFLOW_REPO_ROOT}"
   --package-filter 'apache-airflow-providers-*'
 ```
 
-for all providers, or if you have just few providers:
+Usually when we release packages we also build documentation for the "documentation-only" packages. This
+means that unless we release just few selected packages or if we need to deliberately skip some packages
+we should release documentation for all provider packages and the above command is the one to use.
+
+If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -276,11 +287,13 @@ cd "${AIRFLOW_REPO_ROOT}"
   ...
 ```
 
-If you have providers as list of provider ids beacuse you just released them you can build them with
+
+If you have providers as list of provider ids becuse you just released them you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
+
 
 - Now you can preview the documentation.
 
@@ -295,12 +308,13 @@ apache-airflow with doc extra:
 
 * `pip install apache-airflow[doc]`
 
-All providers:
+All providers (including overriding documentation for doc-only changes):
 
 ```shell script
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-*'
+    --package-filter 'apache-airflow-providers-*' \
+    --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
@@ -360,11 +374,11 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/
  Python "wheel" release.
 
 The test procedure for PMC members who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
 
 and for Contributors:
 
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
 
 
 Public keys are available at:
@@ -502,24 +516,24 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-1.10.12rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache_airflow-1.10.12rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-1.10.12rc4-py2.py3-none-any.whl'
+Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
+gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
-Checking apache-airflow-1.10.12rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-1.10.12rc4-source.tar.gz'
+Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -594,14 +608,14 @@ USER ${AIRFLOW_UID}
 To build an image build and run a shell, run:
 
 ```shell script
-docker build . -t my-airflow
+docker build . --tag my-image:0.0.1
 docker run  -ti \
     --rm \
     -v "$PWD/data:/opt/airflow/" \
     -v "$PWD/keys/:/keys/" \
     -p 8080:8080 \
     -e AIRFLOW__CORE__LOAD_EXAMPLES=True \
-    my-airflow bash
+    my-image:0.0.1 bash
 ```
 
 ### Additional Verification
@@ -743,10 +757,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*
 
 ## Publish documentation prepared before
 
-Merge the PR that you prepared before with the documentation. If you removed some of the providers
-from the release - remove the versions from the prepared documentation and update stable.txt with the
-previous version for those providers before merging the PR.
-
+Merge the PR that you prepared before with the documentation.
 
 ## Add tags in git
 
@@ -787,7 +798,7 @@ We also made those versions available on PyPi for convenience ('pip install apac
 
 https://pypi.org/search/?q=apache-airflow-providers
 
-The documentation is available at http://airflow.apache.org/docs/ and linked from the PyPI packages:
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 

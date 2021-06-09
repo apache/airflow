@@ -23,7 +23,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudDatastoreExportEntitiesOperator(BaseOperator):
@@ -79,7 +78,6 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,  # pylint: disable=too-many-arguments
         *,
@@ -192,7 +190,6 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -284,7 +281,6 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -352,7 +348,6 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -420,7 +415,6 @@ class CloudDatastoreCommitOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -488,7 +482,6 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -555,7 +548,6 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -617,7 +609,6 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -674,7 +665,6 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -19,7 +19,6 @@ from typing import Any, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SqliteOperator(BaseOperator):
@@ -45,7 +44,6 @@ class SqliteOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#cdaaed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

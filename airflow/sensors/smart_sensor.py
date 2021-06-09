@@ -31,7 +31,6 @@ from airflow.models import BaseOperator, SensorInstance, SkipMixin, TaskInstance
 from airflow.settings import LOGGING_CLASS_PATH
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.module_loading import import_string
@@ -106,11 +105,18 @@ class SensorWork:
         Create task log handler for a sensor work.
         :return: log handler
         """
+        from airflow.utils.log.secrets_masker import _secrets_masker  # noqa
+
         handler_config_copy = {k: handler_config[k] for k in handler_config}
+        del handler_config_copy['filters']
+
         formatter_config_copy = {k: formatter_config[k] for k in formatter_config}
         handler = dictConfigurator.configure_handler(handler_config_copy)
         formatter = dictConfigurator.configure_formatter(formatter_config_copy)
         handler.setFormatter(formatter)
+
+        # We want to share the _global_ filterer instance, not create a new one
+        handler.addFilter(_secrets_masker())
         return handler
 
     def _get_sensor_logger(self, si):
@@ -304,7 +310,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     ui_color = '#e6f1f2'
 
-    @apply_defaults
     def __init__(
         self,
         poke_interval=180,
@@ -366,9 +371,8 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         for ti in tis:
             try:
                 sensor_works.append(SensorWork(ti))
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception:  # pylint: disable=broad-except
                 self.log.exception("Exception at creating sensor work for ti %s", ti.key)
-                self.log.exception(e, exc_info=True)
 
         self.log.info("%d tasks detected.", len(sensor_works))
 
@@ -387,23 +391,34 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :param session: The sqlalchemy session.
         """
         TI = TaskInstance
-        ti_keys = [(x.dag_id, x.task_id, x.execution_date) for x in sensor_works]
 
-        def update_ti_hostname_with_count(count, ti_keys):
+        def update_ti_hostname_with_count(count, sensor_works):
             # Using or_ instead of in_ here to prevent from full table scan.
-            tis = (
-                session.query(TI)
-                .filter(or_(tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key for ti_key in ti_keys))
-                .all()
-            )
+            if session.bind.dialect.name == 'mssql':
+                ti_filter = or_(
+                    and_(
+                        TI.dag_id == ti_key.dag_id,
+                        TI.task_id == ti_key.task_id,
+                        TI.execution_date == ti_key.execution_date,
+                    )
+                    for ti_key in sensor_works
+                )
+            else:
+                ti_keys = [(x.dag_id, x.task_id, x.execution_date) for x in sensor_works]
+                ti_filter = or_(
+                    tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key for ti_key in ti_keys
+                )
+            tis = session.query(TI).filter(ti_filter).all()
 
             for ti in tis:
                 ti.hostname = self.hostname
             session.commit()
 
-            return count + len(ti_keys)
+            return count + len(sensor_works)
 
-        count = helpers.reduce_in_chunks(update_ti_hostname_with_count, ti_keys, 0, self.max_tis_per_query)
+        count = helpers.reduce_in_chunks(
+            update_ti_hostname_with_count, sensor_works, 0, self.max_tis_per_query
+        )
         if count:
             self.log.info("Updated hostname on %s tis.", count)
 
@@ -464,9 +479,12 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
             session.commit()
 
-        except Exception as e:  # pylint: disable=broad-except
-            self.log.warning("Exception _mark_multi_state in smart sensor for hashcode %s", str(poke_hash))
-            self.log.exception(e, exc_info=True)
+        except Exception:  # pylint: disable=broad-except
+            self.log.warning(
+                "Exception _mark_multi_state in smart sensor for hashcode %s",
+                str(poke_hash),  # cast to str in advance for highlighting
+                exc_info=True,
+            )
         self.log.info("Marked %s tasks out of %s to state %s", count_marked, len(query_result), state)
 
     @provide_session
@@ -489,9 +507,8 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 email = sensor_work.execution_context.get('email')
 
                 send_email(email, subject, html_content)
-            except Exception as e:  # pylint: disable=broad-except
-                sensor_work.log.warning("Exception alerting email.")
-                sensor_work.log.exception(e, exc_info=True)
+            except Exception:  # pylint: disable=broad-except
+                sensor_work.log.warning("Exception alerting email.", exc_info=True)
 
         def handle_failure(sensor_work, ti):
             if sensor_work.execution_context.get('retries') and ti.try_number <= ti.max_tries:
@@ -551,9 +568,8 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 )
                 sensor_work.close_sensor_logger()
 
-        except AirflowException as e:
-            sensor_work.log.warning("Exception on failing %s", sensor_work.ti_key)
-            sensor_work.log.exception(e, exc_info=True)
+        except AirflowException:
+            sensor_work.log.warning("Exception on failing %s", sensor_work.ti_key, exc_info=True)
 
     def _check_and_handle_ti_timeout(self, sensor_work):
         """
@@ -722,9 +738,8 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             Stats.gauge("smart_sensor_operator.poked_exception", count_poke_exception)
             Stats.gauge("smart_sensor_operator.exception_failures", count_exception_failures)
             Stats.gauge("smart_sensor_operator.infra_failures", count_infra_failure)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             self.log.exception("Exception at getting loop stats %s")
-            self.log.exception(e, exc_info=True)
 
     def execute(self, context):
         started_at = timezone.utcnow()

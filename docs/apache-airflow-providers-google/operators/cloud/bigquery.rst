@@ -245,6 +245,23 @@ in the given dataset.
     :start-after: [START howto_operator_bigquery_upsert_table]
     :end-before: [END howto_operator_bigquery_upsert_table]
 
+.. _howto/operator:BigQueryUpdateTableSchemaOperator:
+
+Update table schema
+"""""""""""""""""""
+
+To update the schema of a table you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableSchemaOperator`.
+
+This operator updates the schema field values supplied, while leaving the rest unchanged. This is useful
+for instance to set new field descriptions on an existing table schema.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_table_schema]
+    :end-before: [END howto_operator_bigquery_update_table_schema]
+
 .. _howto/operator:BigQueryDeleteTableOperator:
 
 Delete table

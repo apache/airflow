@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import warnings
 from typing import Optional, Sequence, Union
 
@@ -23,7 +22,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.sensors.base import apply_defaults
 
 
 class GCSToLocalFilesystemOperator(BaseOperator):
@@ -82,7 +80,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -119,7 +116,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
         super().__init__(**kwargs)
         self.bucket = bucket
-        self.object = object_name
+        self.object_name = object_name
         self.filename = filename  # noqa
         self.store_to_xcom_key = store_to_xcom_key  # noqa
         self.gcp_conn_id = gcp_conn_id
@@ -127,7 +124,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
+        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object_name, self.filename)
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -135,10 +132,11 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         )
 
         if self.store_to_xcom_key:
-            file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object)
-            if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
+            file_size = hook.get_size(bucket_name=self.bucket, object_name=self.object_name)
+            if file_size < MAX_XCOM_SIZE:
+                file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object_name)
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes))
             else:
                 raise AirflowException('The size of the downloaded file is too large to push to XCom!')
         else:
-            hook.download(bucket_name=self.bucket, object_name=self.object, filename=self.filename)
+            hook.download(bucket_name=self.bucket, object_name=self.object_name, filename=self.filename)

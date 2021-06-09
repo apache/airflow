@@ -46,8 +46,8 @@ class TableauHook(BaseHook):
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.
     :type site_id: Optional[str]
-    :param tableau_conn_id: The Tableau Connection id containing the credentials
-        to authenticate to the Tableau Server.
+    :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
+        containing the credentials to authenticate to the Tableau Server.
     :type tableau_conn_id: str
     """
 

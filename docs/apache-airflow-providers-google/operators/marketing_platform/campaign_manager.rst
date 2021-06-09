@@ -47,7 +47,7 @@ It deletes a report by its unique ID.
     :start-after: [START howto_campaign_manager_delete_report_operator]
     :end-before: [END howto_campaign_manager_delete_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDeleteReportOperator`
 parameters which allows you to dynamically determine values.
 
@@ -65,7 +65,7 @@ allows you to download a Campaign Manager to Google Cloud Storage bucket.
     :start-after: [START howto_campaign_manager_get_report_operator]
     :end-before: [END howto_campaign_manager_get_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerDownloadReportOperator`
 parameters which allows you to dynamically determine values.
 
@@ -83,7 +83,7 @@ you can use :class:`~airflow.providers.google.marketing_platform.sensors.campaig
     :start-after: [START howto_campaign_manager_wait_for_operation]
     :end-before: [END howto_campaign_manager_wait_for_operation]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerReportSensor`
 parameters which allows you to dynamically determine values.
 
@@ -102,7 +102,7 @@ Running this operator creates a new report.
     :start-after: [START howto_campaign_manager_insert_report_operator]
     :end-before: [END howto_campaign_manager_insert_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerInsertReportOperator`
 parameters which allows you to dynamically determine values. You can provide report definition using
 ``.json`` file as this operator supports this template extension.
@@ -122,7 +122,7 @@ To run Campaign Manager report you can use the
     :start-after: [START howto_campaign_manager_run_report_operator]
     :end-before: [END howto_campaign_manager_run_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerRunReportOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -141,7 +141,7 @@ To insert Campaign Manager conversions you can use the
     :start-after: [START howto_campaign_manager_insert_conversions]
     :end-before: [END howto_campaign_manager_insert_conversions]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchInsertConversionsOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
@@ -160,7 +160,7 @@ To update Campaign Manager conversions you can use the
     :start-after: [START howto_campaign_manager_update_conversions]
     :end-before: [END howto_campaign_manager_update_conversions]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.campaign_manager.GoogleCampaignManagerBatchUpdateConversionsOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.

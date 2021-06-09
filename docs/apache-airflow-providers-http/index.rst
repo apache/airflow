@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/http/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/http/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-http/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -58,7 +58,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 1.1.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -69,17 +69,17 @@ are in ``airflow.providers.http`` python package.
 Installation
 ------------
 
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
-
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-http``
+
+PIP requirements
+----------------
+
+=============  ==================
+PIP package    Version required
+=============  ==================
+``requests``   ``>=2.20.0``
+=============  ==================
 
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -101,6 +101,27 @@ You can install this package on top of an existing airflow 2.* installation via
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add documentation for the HTTP connection (#15379)``
+* ``Update 'SimpleHttpOperator' to take auth object (#15605)``
+* ``HttpHook: Use request factory and respect defaults (#14701)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
 
 1.1.1
 .....

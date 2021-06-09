@@ -44,7 +44,7 @@ with DAG(
 ) as dag:
 
     t1 = AzureContainerInstancesOperator(
-        ci_conn_id='azure_container_instances_default',
+        ci_conn_id='azure_default',
         registry_conn_id=None,
         resource_group='resource-group',
         name='aci-test-{{ ds }}',

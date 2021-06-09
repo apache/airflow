@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.2.0
+.....
+
+* ``Display explicit error in case UID has no actual username (#15212)``
+
 1.1.0
 .....
 

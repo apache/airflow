@@ -62,7 +62,7 @@ Details to be hashed out in [the related issue](https://github.com/apache/airflo
 When you want to prepare release notes for a package, you need to run:
 
 ```
-./breeze --backports prepare-provider-documentation <PACKAGE_ID> ...
+./breeze prepare-provider-documentation <PACKAGE_ID> ...
 ```
 
 The version for each package is going to be updated separately for each package when we agree to the

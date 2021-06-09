@@ -68,7 +68,7 @@ reverse_status_map: Dict[bool, str] = {status_map[key]: key for key in status_ma
 def get_url(result: TestResult) -> str:
     return (
         f"[{result.name}](https://github.com/{user}/{repo}/blob/"
-        f"master/{result.file}?test_id={result.test_id}#L{result.line})"
+        f"main/{result.file}?test_id={result.test_id}#L{result.line})"
     )
 
 
@@ -165,7 +165,7 @@ def get_table(history_map: Dict[str, TestHistory]) -> str:
             [
                 history.url,
                 "Succeeded" if history.states[0] else "Failed",
-                " ".join([reverse_status_map[state] for state in history.states]),
+                " ".join(reverse_status_map[state] for state in history.states),
                 get_history_status(history),
                 history.comment,
             ]

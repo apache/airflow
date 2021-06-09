@@ -395,7 +395,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             session.query(TI).delete()
 
     def test_unsupported_conn_type(self):
-        """Check if BranchSQLOperator throws an exception for unsupported connection type """
+        """Check if BranchSQLOperator throws an exception for unsupported connection type"""
         op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="redis_default",
@@ -409,7 +409,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_conn(self):
-        """Check if BranchSQLOperator throws an exception for invalid connection """
+        """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="invalid_connection",
@@ -423,7 +423,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_true(self):
-        """Check if BranchSQLOperator throws an exception for invalid connection """
+        """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="invalid_connection",
@@ -437,7 +437,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_invalid_follow_task_false(self):
-        """Check if BranchSQLOperator throws an exception for invalid connection """
+        """Check if BranchSQLOperator throws an exception for invalid connection"""
         op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="invalid_connection",
@@ -452,7 +452,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @pytest.mark.backend("mysql")
     def test_sql_branch_operator_mysql(self):
-        """Check if BranchSQLOperator works with backend """
+        """Check if BranchSQLOperator works with backend"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",
@@ -465,7 +465,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @pytest.mark.backend("postgres")
     def test_sql_branch_operator_postgres(self):
-        """Check if BranchSQLOperator works with backend """
+        """Check if BranchSQLOperator works with backend"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="postgres_default",
@@ -478,7 +478,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
-        """Check BranchSQLOperator branch operation """
+        """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",
@@ -518,7 +518,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_true_with_dag_run(self, mock_get_db_hook):
-        """Check BranchSQLOperator branch operation """
+        """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",
@@ -559,7 +559,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_false_with_dag_run(self, mock_get_db_hook):
-        """Check BranchSQLOperator branch operation """
+        """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",
@@ -642,7 +642,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_invalid_query_result_with_dag_run(self, mock_get_db_hook):
-        """Check BranchSQLOperator branch operation """
+        """Check BranchSQLOperator branch operation"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",
@@ -672,7 +672,7 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies(self, mock_get_db_hook):
-        """Test SQL Branch with skipping all downstream dependencies """
+        """Test SQL Branch with skipping all downstream dependencies"""
         branch_op = BranchSQLOperator(
             task_id="make_choice",
             conn_id="mysql_default",

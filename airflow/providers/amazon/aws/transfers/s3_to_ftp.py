@@ -21,7 +21,6 @@ from tempfile import NamedTemporaryFile
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ftp.hooks.ftp import FTPHook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToFTPOperator(BaseOperator):
@@ -44,7 +43,6 @@ class S3ToFTPOperator(BaseOperator):
 
     template_fields = ('s3_bucket', 's3_key')
 
-    @apply_defaults
     def __init__(
         self,
         *,

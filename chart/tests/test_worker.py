@@ -52,18 +52,34 @@ class WorkerTest(unittest.TestCase):
                 "executor": "CeleryExecutor",
                 "workers": {
                     "extraContainers": [
-                        {
-                            "name": "test-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "imagePullPolicy": "Always",
-                        }
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "test-container" == jmespath.search("spec.template.spec.containers[-1].name", docs[0])
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-init-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -96,21 +112,48 @@ class WorkerTest(unittest.TestCase):
         assert "127.0.0.2" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "test.hostname" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
-    def test_workers_update_strategy(self):
+    @parameterized.expand(
+        [
+            (False, None, None),
+            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (True, None, None),
+        ]
+    )
+    def test_workers_update_strategy(self, persistence, update_strategy, expected_update_strategy):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "updateStrategy": {
-                        "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
-                    },
+                    "persistence": {"enabled": persistence},
+                    "updateStrategy": update_strategy,
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "100%" == jmespath.search("spec.strategy.rollingUpdate.maxSurge", docs[0])
-        assert "50%" == jmespath.search("spec.strategy.rollingUpdate.maxUnavailable", docs[0])
+        assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
+
+    @parameterized.expand(
+        [
+            (True, None, None),
+            (
+                False,
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (False, None, None),
+        ]
+    )
+    def test_workers_strategy(self, persistence, strategy, expected_strategy):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"persistence": {"enabled": persistence}, "strategy": strategy},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert expected_strategy == jmespath.search("spec.strategy", docs[0])
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -156,3 +199,171 @@ class WorkerTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    @parameterized.expand(
+        [
+            ({"enabled": False}, {"emptyDir": {}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            (
+                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistentVolumeClaim": {"claimName": "test-claim"}},
+            ),
+        ]
+    )
+    def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"persistence": {"enabled": False}},
+                "logs": {"persistence": log_persistence_values},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "logs", **expected_volume} == jmespath.search(
+            "spec.template.spec.volumes[1]", docs[0]
+        )
+
+    def test_worker_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "resources": {
+                        "limits": {"cpu": "200m", 'memory': "128Mi"},
+                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    def test_worker_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+
+    def test_no_airflow_local_settings_by_default(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_airflow_local_settings_kerberos_sidecar(self):
+        docs = render_chart(
+            values={
+                "airflowLocalSettings": "# Well hello!",
+                "workers": {"kerberosSidecar": {"enabled": True}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
+
+    @parameterized.expand(
+        [
+            ("1.9.0", "airflow worker"),
+            ("1.10.14", "airflow worker"),
+            ("2.0.2", "airflow celery worker"),
+            ("2.1.0", "airflow celery worker"),
+        ],
+    )
+    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+        assert [
+            "bash",
+            "-c",
+            f"exec \\\n{expected_arg}",
+        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"workers": {"command": command, "args": args}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={"workers": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    def test_log_groomer_default_command_and_args(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+
+        assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
+        assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (None, ["custom", "args"]),
+            (["custom", "command"], None),
+            (["custom", "command"], ["custom", "args"]),
+        ]
+    )
+    def test_log_groomer_command_and_args_overrides(self, command, args):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"command": command, "args": args}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert command == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    def test_log_groomer_command_and_args_overrides_are_templated(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "logGroomerSidecar": {
+                        "command": ["{{ .Release.Name }}"],
+                        "args": ["{{ .Release.Service }}"],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
+        assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])

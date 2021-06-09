@@ -19,6 +19,7 @@
 import datetime
 import enum
 import logging
+from dataclasses import dataclass
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
 
@@ -34,6 +35,7 @@ except ImportError:
     cache = lru_cache(maxsize=None)
 from pendulum.tz.timezone import Timezone
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
@@ -293,8 +295,7 @@ class BaseSerialization:
         elif type_ == DAT.SET:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
-            # pylint: disable=consider-using-generator
-            return tuple([cls._deserialize(v) for v in var])
+            return tuple(cls._deserialize(v) for v in var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -335,6 +336,30 @@ class BaseSerialization:
         return False
 
 
+class DependencyDetector:
+    """Detects dependencies between DAGs."""
+
+    @staticmethod
+    def detect_task_dependencies(task: BaseOperator) -> Optional['DagDependency']:
+        """Detects dependencies caused by tasks"""
+        if task.task_type == "TriggerDagRunOperator":
+            return DagDependency(
+                source=task.dag_id,
+                target=getattr(task, "trigger_dag_id"),
+                dependency_type="trigger",
+                dependency_id=task.task_id,
+            )
+        elif task.task_type == "ExternalTaskSensor":
+            return DagDependency(
+                source=getattr(task, "external_dag_id"),
+                target=task.dag_id,
+                dependency_type="sensor",
+                dependency_id=task.task_id,
+            )
+
+        return None
+
+
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
     """A JSON serializable representation of operator.
 
@@ -349,6 +374,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
+
+    dependency_detector = conf.getimport('scheduler', 'dependency_detector')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -475,7 +502,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
             elif k == "deps":
                 v = cls._deserialize_deps(v)
-            elif k in cls._decorated_fields or k not in op.get_serialized_fields():
+            elif (
+                k in cls._decorated_fields
+                or k not in op.get_serialized_fields()  # pylint: disable=unsupported-membership-test
+            ):
                 v = cls._deserialize(v)
             # else use v as it is
 
@@ -493,6 +523,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
 
         return op
+
+    @classmethod
+    def detect_dependencies(cls, op: BaseOperator) -> Optional['DagDependency']:
+        """Detects between DAG dependencies for the operator."""
+        return cls.dependency_detector.detect_task_dependencies(op)
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: BaseOperator):
@@ -648,6 +683,11 @@ class SerializedDAG(DAG, BaseSerialization):
             serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+            serialize_dag["dag_dependencies"] = [
+                vars(t)
+                for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
+                if t is not None
+            ]
             serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -812,3 +852,20 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         group.upstream_task_ids = set(cls._deserialize(encoded_group["upstream_task_ids"]))
         group.downstream_task_ids = set(cls._deserialize(encoded_group["downstream_task_ids"]))
         return group
+
+
+@dataclass
+class DagDependency:
+    """Dataclass for representing dependencies between DAGs.
+    These are calculated during serialization and attached to serialized DAGs.
+    """
+
+    source: str
+    target: str
+    dependency_type: str
+    dependency_id: str
+
+    @property
+    def node_id(self):
+        """Node ID for graph rendering"""
+        return f"{self.dependency_type}:{self.source}:{self.target}:{self.dependency_id}"

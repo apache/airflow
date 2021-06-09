@@ -20,7 +20,6 @@ from typing import Any, Dict, Optional
 
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
@@ -37,7 +36,8 @@ class SparkJDBCOperator(SparkSubmitOperator):
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
     :type spark_app_name: str
-    :param spark_conn_id: Connection id as configured in Airflow administration
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
+        as configured in Airflow administration
     :type spark_conn_id: str
     :param spark_conf: Any additional Spark configuration properties
     :type spark_conf: dict
@@ -119,7 +119,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
     """
 
     # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,

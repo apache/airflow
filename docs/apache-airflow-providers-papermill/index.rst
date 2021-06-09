@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/papermill/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/papermill/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-papermill/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -57,7 +57,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 1.0.2
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -68,27 +68,18 @@ are in ``airflow.providers.papermill`` python package.
 Installation
 ------------
 
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
-
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-papermill``
 
 PIP requirements
 ----------------
 
-==========================  ==================
-PIP package                 Version required
-==========================  ==================
-``nteract-scrapbook[all]``  ``>=0.3.1``
-``papermill[all]``          ``>=1.2.1``
-==========================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``papermill[all]``  ``>=1.2.1``
+``scrapbook[all]``
+==================  ==================
 
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -110,6 +101,25 @@ PIP package                 Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Emit error on duplicated DAG ID (#15302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
 
 1.0.2
 .....

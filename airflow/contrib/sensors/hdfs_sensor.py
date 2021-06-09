@@ -46,7 +46,7 @@ class HdfsSensorFolder(HdfsFolderSensor):
             Please use
             `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -65,6 +65,6 @@ class HdfsSensorRegex(HdfsRegexSensor):
             Please use
             `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

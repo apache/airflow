@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOper
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
-GCS_BUCKET = os.environ.get("GCP_TRINO_TO_GCS_BUCKET_NAME", "test-trino-to-gcs-bucket")
+GCS_BUCKET = os.environ.get("GCP_TRINO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
 DATASET_NAME = os.environ.get("GCP_TRINO_TO_GCS_DATASET_NAME", "test_trino_to_gcs_dataset")
 
 SOURCE_MULTIPLE_TYPES = "memory.default.test_multiple_types"

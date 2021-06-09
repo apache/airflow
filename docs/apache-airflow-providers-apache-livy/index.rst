@@ -31,7 +31,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/livy/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/livy/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-livy/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -50,7 +50,7 @@ Package apache-airflow-providers-apache-livy
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -61,17 +61,17 @@ are in ``airflow.providers.apache.livy`` python package.
 Installation
 ------------
 
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
-
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-apache-livy``
+
+PIP requirements
+----------------
+
+=================================  ==================
+PIP package                        Version required
+=================================  ==================
+``apache-airflow-providers-http``
+=================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -91,6 +91,15 @@ Dependent package                                                               
 ================================================================================================  ========
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
 ================================================================================================  ========
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-apache-livy 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-livy-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-livy-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-livy-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-livy 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-2.0.0-py3-none-any.whl.sha512>`__)
 
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -112,6 +121,17 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 1.1.0
 .....

@@ -18,16 +18,11 @@
 from distutils.util import strtobool
 from typing import Any, Dict, Iterable, List, Mapping, Optional, SupportsAbs, Union
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.utils.decorators import apply_defaults
 
 
 class BaseSQLOperator(BaseOperator):
@@ -39,7 +34,6 @@ class BaseSQLOperator(BaseOperator):
     You can custom the behavior by overriding the .get_db_hook() method.
     """
 
-    @apply_defaults
     def __init__(self, *, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs):
         super().__init__(**kwargs)
         self.conn_id = conn_id
@@ -116,7 +110,6 @@ class SQLCheckOperator(BaseSQLOperator):
     )
     ui_color = "#fff7e6"
 
-    @apply_defaults
     def __init__(
         self, *, sql: str, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs
     ) -> None:
@@ -174,7 +167,6 @@ class SQLValueCheckOperator(BaseSQLOperator):
     )  # type: Iterable[str]
     ui_color = "#fff7e6"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -289,7 +281,6 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
     }
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -412,7 +403,6 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         ".sql",
     )  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -469,7 +459,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         Optional: Send data check info and metadata to an external database.
         Default functionality will log metadata.
         """
-        info = "\n".join([f"""{key}: {item}""" for key, item in meta_data.items()])
+        info = "\n".join(f"""{key}: {item}""" for key, item in meta_data.items())
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 
 
@@ -499,7 +489,6 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 
-    @apply_defaults
     def __init__(
         self,
         *,

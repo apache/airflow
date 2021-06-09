@@ -28,6 +28,49 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-02
+
+================================================================================================  ===========  ===============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================================
+`9fcdf3d4d <https://github.com/apache/airflow/commit/9fcdf3d4deae0dd77c734f5a3520fb75d66d0821>`_  2021-06-02   ``Fix S3 Select payload join (#16189)``
+`8d1663828 <https://github.com/apache/airflow/commit/8d16638285687fd0ef41d40340ab1c5bcffd507a>`_  2021-05-29   ``remove retry for now (#16150)``
+`5fbc86f03 <https://github.com/apache/airflow/commit/5fbc86f0364fbc4f7c2ba10cae4a13449709730c>`_  2021-05-27   ``Remove the 'not-allow-trailing-slash' rule on S3_hook (#15609)``
+`904709d34 <https://github.com/apache/airflow/commit/904709d34fbe0b6062d72932b72954afe13ec148>`_  2021-05-27   ``Check synctatic correctness for code-snippets (#16005)``
+`476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+`821ea6fc1 <https://github.com/apache/airflow/commit/821ea6fc187a9780b8fe0dd76f140367681ba065>`_  2021-05-17   ``Fix spacing in ''AwsBatchWaitersHook'' docstring (#15839)``
+`146704605 <https://github.com/apache/airflow/commit/1467046058c40f6d448a24b6cda43c2037180c41>`_  2021-05-14   ``CloudwatchTaskHandler reads timestamp from Cloudwatch events (#15173)``
+`dab10d9fa <https://github.com/apache/airflow/commit/dab10d9fae6bfca0f9c0c504b77773d94ccee86d>`_  2021-05-10   ``MongoToS3Operator failed when running with a single query (not aggregate pipeline) (#15680)``
+`9c8391a13 <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`9953a047c <https://github.com/apache/airflow/commit/9953a047c4b0471ceb6effc669dce8d03c2f935b>`_  2021-05-07   ``Add Connection Documentation for the Hive Provider (#15704)``
+`0f97a3970 <https://github.com/apache/airflow/commit/0f97a3970d2c652beedbf2fbaa33e2b2bfd69bce>`_  2021-05-04   ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+`db557a8c4 <https://github.com/apache/airflow/commit/db557a8c4a3e1f0d67b2534010e5092be4f4a9fd>`_  2021-05-01   ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
+================================================================================================  ===========  ===============================================================================================
+
+1.4.0
+.....
+
+Latest change: 2021-05-01
+
+================================================================================================  ===========  ==========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`814e471d1 <https://github.com/apache/airflow/commit/814e471d137aad68bd64a21d20736e7b88403f97>`_  2021-04-29   ``Update pre-commit checks (#15583)``
+`bf2b48174 <https://github.com/apache/airflow/commit/bf2b48174a1ccfe398eefba7f04a5cacac421266>`_  2021-04-27   ``Add Connection Documentation for Providers (#15499)``
+`4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``
+`657384615 <https://github.com/apache/airflow/commit/657384615fafc060f9e2ed925017306705770355>`_  2021-04-27   ``Fix 'logging.exception' redundancy (#14823)``
+`d598630cd <https://github.com/apache/airflow/commit/d598630cd7a2e80fd84c499cfcba37ad2b6888f3>`_  2021-04-26   ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
+`71c673e42 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
+`a82de56b9 <https://github.com/apache/airflow/commit/a82de56b9d16713cbba4dee42d6797cc12b59cfe>`_  2021-04-13   ``S3Hook.load_file should accept Path object in addition to str (#15232)``
+`b4770725a <https://github.com/apache/airflow/commit/b4770725a3aa03bd50a0a8c8e01db667bff93862>`_  2021-04-12   ``Add links to new modules for deprecated modules (#15316)``
+`da780fc8b <https://github.com/apache/airflow/commit/da780fc8b1f041b927f1ed06f737113010d58a61>`_  2021-04-12   ``Fixes doc for SQSSensor (#15323)``
+================================================================================================  ===========  ==========================================================================
+
 1.3.0
 .....
 

@@ -47,7 +47,7 @@ function assert_in_container() {
         echo
         echo "You should only run this script in the Airflow docker container as it may override your files."
         echo "Learn more about how we develop and test airflow in:"
-        echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
+        echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
         echo
         exit 1
     fi
@@ -268,12 +268,6 @@ function install_airflow_from_sdist() {
     pip install "${airflow_package}${extras}"
 }
 
-function install_remaining_dependencies() {
-    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    pip install apache-beam[gcp]
-    group_end
-}
-
 function uninstall_airflow() {
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
@@ -318,6 +312,7 @@ function install_local_airflow_with_eager_upgrade() {
 
 
 function install_all_providers_from_pypi_with_eager_upgrade() {
+    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS))')
     ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
     local packages_to_install=()
     local provider_package
@@ -340,7 +335,7 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install -e . "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 
 }
@@ -375,96 +370,6 @@ function setup_provider_packages() {
     readonly PACKAGE_PREFIX_HYPHEN
 }
 
-function verify_suffix_versions_for_package_preparation() {
-    group_start "Verify suffixes"
-    TARGET_VERSION_SUFFIX=""
-    FILE_VERSION_SUFFIX=""
-
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
-    readonly VERSION_SUFFIX_FOR_PYPI
-
-    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
-
-    if [[ -n "${VERSION_SUFFIX_FOR_PYPI}" ]]; then
-        echo
-        echo "Version suffix for PyPI = ${VERSION_SUFFIX_FOR_PYPI}"
-        echo
-    fi
-    if [[ -n "${VERSION_SUFFIX_FOR_SVN}" ]]; then
-        echo
-        echo "Version suffix for SVN  = ${VERSION_SUFFIX_FOR_SVN}"
-        echo
-    fi
-
-    if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
-        echo """
-${COLOR_YELLOW}WARNING: The version suffix for SVN is used only for file names.
-         The version inside the packages has no version suffix.
-         This way we can just rename files when they graduate to final release.
-${COLOR_RESET}
-"""
-        echo
-        echo "This suffix is added '${VERSION_SUFFIX_FOR_SVN}' "
-        echo
-        FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
-        VERSION_SUFFIX_FOR_SVN=""
-    fi
-    readonly FILE_VERSION_SUFFIX
-    readonly VERSION_SUFFIX_FOR_SVN
-
-    export FILE_VERSION_SUFFIX
-    export VERSION_SUFFIX_FOR_SVN
-    export VERSION_SUFFIX_FOR_PYPI
-
-    if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
-        if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
-            echo
-            echo "${COLOR_RED}ERROR: If you specify both PyPI and SVN version suffixes they must match  ${COLOR_RESET}"
-            echo
-            echo "However they are different: PyPI:'${VERSION_SUFFIX_FOR_PYPI}' vs. SVN:'${VERSION_SUFFIX_FOR_SVN}'"
-            echo
-            exit 1
-        else
-            if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
-                echo
-                echo "${COLOR_RED}ERROR: If you prepare an RC candidate, you need to specify only PyPI suffix  ${COLOR_RESET}"
-                echo
-                echo "However you specified both: PyPI'${VERSION_SUFFIX_FOR_PYPI}' and SVN '${VERSION_SUFFIX_FOR_SVN}'"
-                echo
-                exit 2
-            fi
-            # Just use one of them - they are both the same:
-            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}
-        fi
-    else
-        if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' && ${VERSION_SUFFIX_FOR_SVN} == '' ]]; then
-            # Preparing "official version"
-            TARGET_VERSION_SUFFIX=""
-        else
-
-            if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
-                echo
-                echo "${COLOR_RED}ERROR: You should never specify version for PyPI only.  ${COLOR_RESET}"
-                echo
-                echo "You specified PyPI suffix: '${VERSION_SUFFIX_FOR_PYPI}'"
-                echo
-                exit 3
-            fi
-            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
-            if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
-                echo
-                echo "${COLOR_RED}ERROR: If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes and they have to match.  ${COLOR_RESET}"
-                echo
-                echo "And they have to match. You specified only one suffix:  ${TARGET_VERSION_SUFFIX}."
-                echo
-                exit 4
-            fi
-        fi
-    fi
-    readonly TARGET_VERSION_SUFFIX
-    export TARGET_VERSION_SUFFIX
-    group_end
-}
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"

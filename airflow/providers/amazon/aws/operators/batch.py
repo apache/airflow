@@ -31,7 +31,6 @@ from typing import Any, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClientHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsBatchOperator(BaseOperator):
@@ -102,7 +101,6 @@ class AwsBatchOperator(BaseOperator):
     )
     template_fields_renderers = {"overrides": "py", "parameters": "py"}
 
-    @apply_defaults
     def __init__(
         self,
         *,

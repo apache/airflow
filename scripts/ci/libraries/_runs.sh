@@ -45,7 +45,7 @@ function runs::run_prepare_airflow_packages() {
         -t \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         "${AIRFLOW_CI_IMAGE}" \
-        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh" "${@}"
+        "--" "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"
     start_end::group_end
 }
 
@@ -63,11 +63,16 @@ function runs::run_prepare_provider_packages() {
 
 # Docker command to generate release notes for provider packages
 function runs::run_prepare_provider_documentation() {
+    local term_flag="-it"
+    if [[ ${NO_INTERACTIVE} == "true" ]]; then
+         term_flag="-t"
+    fi
     # No group here - groups are added internally
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
-        -t \
+        "${term_flag}" \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
+        -e "NO_INTERACTIVE" \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh" "${@}"
 }

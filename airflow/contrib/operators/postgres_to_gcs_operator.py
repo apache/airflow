@@ -39,6 +39,6 @@ class PostgresToGoogleCloudStorageOperator(PostgresToGCSOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.transfers.postgres_to_gcs.PostgresToGCSOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

@@ -21,7 +21,6 @@ from typing import Dict, Union
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 
 class DateTimeSensor(BaseSensorOperator):
@@ -46,8 +45,8 @@ class DateTimeSensor(BaseSensorOperator):
         .. code-block:: python
 
             DateTimeSensor(
-                task_id='wait_for_0100',
-                target_time='{{ next_execution_date.tomorrow().replace(hour=1) }}',
+                task_id="wait_for_0100",
+                target_time="{{ next_execution_date.tomorrow().replace(hour=1) }}",
             )
 
     :param target_time: datetime after which the job succeeds. (templated)
@@ -56,7 +55,6 @@ class DateTimeSensor(BaseSensorOperator):
 
     template_fields = ("target_time",)
 
-    @apply_defaults
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
         if isinstance(target_time, datetime.datetime):

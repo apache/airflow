@@ -24,7 +24,7 @@ import sys
 from typing import List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
-import requests
+import httpx
 import tenacity
 
 from airflow import configuration
@@ -188,17 +188,17 @@ class AirflowInfo:
     def _get_version(cmd: List[str], grep: Optional[bytes] = None):
         """Return tools version."""
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
+                stdoutdata, _ = proc.communicate()
+                data = [f for f in stdoutdata.split(b"\n") if f]
+                if grep:
+                    data = [line for line in data if grep in line]
+                if len(data) != 1:
+                    return "NOT AVAILABLE"
+                else:
+                    return data[0].decode()
         except OSError:
             return "NOT AVAILABLE"
-        stdoutdata, _ = proc.communicate()
-        data = [f for f in stdoutdata.split(b"\n") if f]
-        if grep:
-            data = [line for line in data if grep in line]
-        if len(data) != 1:
-            return "NOT AVAILABLE"
-        else:
-            return data[0].decode()
 
     @staticmethod
     def _task_logging_handler():
@@ -349,8 +349,8 @@ class FileIoException(Exception):
 )
 def _upload_text_to_fileio(content):
     """Upload text file to File.io service and return lnk"""
-    resp = requests.post("https://file.io", data={"text": content})
-    if not resp.ok:
+    resp = httpx.post("https://file.io", content=content)
+    if resp.status_code not in [200, 201]:
         print(resp.json())
         raise FileIoException("Failed to send report to file.io service.")
     try:

@@ -20,7 +20,6 @@ import re
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class FTPSensor(BaseSensorOperator):
@@ -32,7 +31,8 @@ class FTPSensor(BaseSensorOperator):
     :param fail_on_transient_errors: Fail on all errors,
         including 4xx transient errors. Default True.
     :type fail_on_transient_errors: bool
-    :param ftp_conn_id: The connection to run the sensor against
+    :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
+        reference to run the sensor against.
     :type ftp_conn_id: str
     """
 
@@ -43,7 +43,6 @@ class FTPSensor(BaseSensorOperator):
 
     error_code_pattern = re.compile(r"([\d]+)")
 
-    @apply_defaults
     def __init__(
         self, *, path: str, ftp_conn_id: str = 'ftp_default', fail_on_transient_errors: bool = True, **kwargs
     ) -> None:

@@ -36,6 +36,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
+    BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
@@ -47,7 +48,7 @@ DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_operati
 LOCATION_DATASET_NAME = f"{DATASET_NAME}_location"
 DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL",
-    "gs://cloud-samples-data/bigquery/us-states/us-states.csv",
+    "gs://INVALID BUCKET NAME/bigquery/us-states/us-states.csv",
 )
 
 DATA_SAMPLE_GCS_URL_PARTS = urlparse(DATA_SAMPLE_GCS_URL)
@@ -72,6 +73,18 @@ with models.DAG(
         ],
     )
     # [END howto_operator_bigquery_create_table]
+
+    # [START howto_operator_bigquery_update_table_schema]
+    update_table_schema = BigQueryUpdateTableSchemaOperator(
+        task_id="update_table_schema",
+        dataset_id=DATASET_NAME,
+        table_id="test_table",
+        schema_fields_updates=[
+            {"name": "emp_name", "description": "Name of employee"},
+            {"name": "salary", "description": "Monthly salary in USD"},
+        ],
+    )
+    # [END howto_operator_bigquery_update_table_schema]
 
     # [START howto_operator_bigquery_delete_table]
     delete_table = BigQueryDeleteTableOperator(
@@ -205,10 +218,22 @@ with models.DAG(
 
     create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
-    update_dataset >> create_table >> create_view >> create_materialized_view >> update_table >> [
-        get_dataset_tables,
-        delete_view,
-    ] >> upsert_table >> delete_materialized_view >> delete_table >> delete_dataset
+    (
+        update_dataset
+        >> create_table
+        >> create_view
+        >> create_materialized_view
+        >> update_table
+        >> [
+            get_dataset_tables,
+            delete_view,
+        ]
+        >> upsert_table
+        >> update_table_schema
+        >> delete_materialized_view
+        >> delete_table
+        >> delete_dataset
+    )
     update_dataset >> create_external_table >> delete_dataset
 
 with models.DAG(

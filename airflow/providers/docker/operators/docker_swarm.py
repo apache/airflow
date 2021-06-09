@@ -22,7 +22,6 @@ from docker import types
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.strings import get_random_string
 
 
@@ -85,7 +84,7 @@ class DockerSwarmOperator(DockerOperator):
     :type tmp_dir: str
     :param user: Default user inside the docker container.
     :type user: int or str
-    :param docker_conn_id: ID of the Airflow connection to use
+    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :type docker_conn_id: str
     :param tty: Allocate pseudo-TTY to the container of this service
         This needs to be set see logs of the Docker container / service.
@@ -96,7 +95,6 @@ class DockerSwarmOperator(DockerOperator):
     :type enable_logging: bool
     """
 
-    @apply_defaults
     def __init__(self, *, image: str, enable_logging: bool = True, **kwargs) -> None:
         super().__init__(image=image, **kwargs)
 
@@ -119,6 +117,7 @@ class DockerSwarmOperator(DockerOperator):
                 container_spec=types.ContainerSpec(
                     image=self.image,
                     command=self.format_command(self.command),
+                    mounts=self.mounts,
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,

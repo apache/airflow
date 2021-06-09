@@ -95,7 +95,7 @@ function discover_all_provider_packages() {
     # Columns is to force it wider, so it doesn't wrap at 80 characters
     COLUMNS=180 airflow providers list
 
-    local expected_number_of_providers=66
+    local expected_number_of_providers=67
     local actual_number_of_providers
     actual_providers=$(airflow providers list --output yaml | grep package_name)
     actual_number_of_providers=$(wc -l <<<"$actual_providers")
@@ -118,7 +118,7 @@ function discover_all_hooks() {
     group_start "Listing available hooks via 'airflow providers hooks'"
     COLUMNS=180 airflow providers hooks
 
-    local expected_number_of_hooks=64
+    local expected_number_of_hooks=70
     local actual_number_of_hooks
     actual_number_of_hooks=$(airflow providers hooks --output table | grep -c "| apache" | xargs)
     if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
@@ -137,7 +137,7 @@ function discover_all_extra_links() {
     group_start "Listing available extra links via 'airflow providers links'"
     COLUMNS=180 airflow providers links
 
-    local expected_number_of_extra_links=4
+    local expected_number_of_extra_links=6
     local actual_number_of_extra_links
     actual_number_of_extra_links=$(airflow providers links --output table | grep -c ^airflow.providers | xargs)
     if [[ ${actual_number_of_extra_links} != "${expected_number_of_extra_links}" ]]; then
@@ -157,7 +157,7 @@ function discover_all_connection_form_widgets() {
 
     COLUMNS=180 airflow providers widgets
 
-    local expected_number_of_widgets=42
+    local expected_number_of_widgets=44
     local actual_number_of_widgets
     actual_number_of_widgets=$(airflow providers widgets --output table | grep -c ^extra)
     if [[ ${actual_number_of_widgets} != "${expected_number_of_widgets}" ]]; then
@@ -196,7 +196,6 @@ function discover_all_field_behaviours() {
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
-install_remaining_dependencies
 install_provider_packages
 import_all_provider_classes
 

@@ -24,15 +24,7 @@ This quick start guide will help you bootstrap a Airflow standalone instance on 
 
 .. note::
 
-   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-   depend on your choice of extras. In order to install Airflow you might need to either downgrade
-   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
-   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
-
-   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
-   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
-   Due to those constraints, only ``pip`` installation is currently officially supported.
+   Only ``pip`` installation is currently officially supported.
 
    While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -46,38 +38,27 @@ The installation of Airflow is painless if you are following the instructions be
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
 
 .. code-block:: bash
+    :substitutions:
 
-    # airflow needs a home, ~/airflow is the default,
-    # but you can lay foundation somewhere else if you prefer
-    # (optional)
+    # Airflow needs a home. `~/airflow` is the default, but you can put it
+    # somewhere else if you prefer (optional)
     export AIRFLOW_HOME=~/airflow
 
-    AIRFLOW_VERSION=2.0.1
+    # Install Airflow using the constraints file
+    AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-2.0.1/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-    # initialize the database
-    airflow db init
+    # The Standalone command will initialise the database, make a user,
+    # and start all components for you.
+    airflow standalone
 
-    airflow users create \
-        --username admin \
-        --firstname Peter \
-        --lastname Parker \
-        --role Admin \
-        --email spiderman@superhero.org
-
-    # start the web server, default port is 8080
-    airflow webserver --port 8080
-
-    # start the scheduler
-    # open a new terminal or else run webserver with ``-D`` option to run it as a daemon
-    airflow scheduler
-
-    # visit localhost:8080 in the browser and use the admin account you just
-    # created to login. Enable the example_bash_operator dag in the home page
+    # Visit localhost:8080 in the browser and use the admin account details
+    # shown on the terminal to login.
+    # Enable the example_bash_operator dag in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
@@ -94,6 +75,10 @@ only run task instances sequentially. While this is very limiting, it allows
 you to get up and running quickly and take a tour of the UI and the
 command line utilities.
 
+As you grow and deploy Airflow to production, you will also want to move away
+from the ``standalone`` command we use here to running the components
+separately. You can read more in :doc:`/production-deployment`.
+
 Here are a few commands that will trigger a few task instances. You should
 be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
 run the commands below.
@@ -106,6 +91,24 @@ run the commands below.
     airflow dags backfill example_bash_operator \
         --start-date 2015-01-01 \
         --end-date 2015-01-02
+
+If you want to run the individual parts of Airflow manually rather than using
+the all-in-one ``standalone`` command, you can instead run:
+
+.. code-block:: bash
+
+    airflow db init
+
+    airflow users create \
+        --username admin \
+        --firstname Peter \
+        --lastname Parker \
+        --role Admin \
+        --email spiderman@superhero.org
+
+    airflow webserver --port 8080
+
+    airflow scheduler
 
 What's Next?
 ''''''''''''

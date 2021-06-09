@@ -36,7 +36,7 @@ from subprocess import PIPE, Popen
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
-import requests
+import httpx
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
@@ -74,6 +74,16 @@ class CloudSQLHook(GoogleBaseHook):
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
+
+    :param api_version: This is the version of the api.
+    :type api_version: str
+    :param gcp_conn_id: The Airflow connection used for GCP credentials.
+    :type gcp_conn_id: str
+    :param delegate_to: This performs a task on one host with reference to other hosts.
+    :type delegate_to: Optional[str]
+    :param impersonation_chain: This is the optional service account to impersonate using short term
+        credentials.
+    :type impersonation_chain: Optional[str]
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -490,7 +500,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             )
         proxy_path_tmp = self.sql_proxy_path + ".tmp"
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
-        response = requests.get(download_url, allow_redirects=True)
+        response = httpx.get(download_url, allow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, 'wb') as file:
@@ -557,6 +567,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             Path(self.cloud_sql_proxy_socket_directory).mkdir(parents=True, exist_ok=True)
             command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
             self.log.info("Running the command: `%s`", " ".join(command_to_run))
+            # pylint: disable=consider-using-with
             self.sql_proxy_process = Popen(command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
             while True:

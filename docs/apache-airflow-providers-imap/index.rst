@@ -26,6 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection types <connections/imap>
     Python API <_api/airflow/providers/imap/index>
 
 .. toctree::
@@ -50,7 +51,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 1.0.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -60,15 +61,6 @@ are in ``airflow.providers.imap`` python package.
 
 Installation
 ------------
-
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-imap``
@@ -93,6 +85,26 @@ You can install this package on top of an existing airflow 2.* installation via
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for Popular Providers (#15393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove python2 related handlings and dependencies (#15301)``
+   * ``Remove Backport Providers (#14886)``
+   * ``Update documentation for broken package releases (#14734)``
 
 1.0.1
 .....

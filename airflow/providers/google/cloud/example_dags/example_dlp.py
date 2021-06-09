@@ -53,7 +53,7 @@ ITEM = ContentItem(
 )
 INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
-OUTPUT_BUCKET = os.environ.get("DLP_OUTPUT_BUCKET", "gs://test-dlp-airflow")
+OUTPUT_BUCKET = os.environ.get("DLP_OUTPUT_BUCKET", "gs://INVALID BUCKET NAME")
 OUTPUT_FILENAME = "test.txt"
 
 OBJECT_GCS_URI = os.path.join(OUTPUT_BUCKET, "tmp")

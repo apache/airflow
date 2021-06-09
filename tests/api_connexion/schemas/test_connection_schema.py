@@ -25,6 +25,7 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_collection_item_schema,
     connection_collection_schema,
     connection_schema,
+    connection_test_schema,
 )
 from airflow.models import Connection
 from airflow.utils.session import create_session, provide_session
@@ -56,6 +57,7 @@ class TestConnectionCollectionItemSchema(unittest.TestCase):
         assert deserialized_connection == {
             'connection_id': "mysql_default",
             'conn_type': 'mysql',
+            'description': None,
             'host': 'mysql',
             'login': 'login',
             'schema': 'testschema',
@@ -124,6 +126,7 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                 {
                     "connection_id": "mysql_default_1",
                     "conn_type": "test-type",
+                    "description": None,
                     "host": None,
                     "login": None,
                     'schema': None,
@@ -132,6 +135,7 @@ class TestConnectionCollectionSchema(unittest.TestCase):
                 {
                     "connection_id": "mysql_default_2",
                     "conn_type": "test-type2",
+                    "description": None,
                     "host": None,
                     "login": None,
                     'schema': None,
@@ -169,6 +173,7 @@ class TestConnectionSchema(unittest.TestCase):
         assert deserialized_connection == {
             'connection_id': "mysql_default",
             'conn_type': 'mysql',
+            'description': None,
             'host': 'mysql',
             'login': 'login',
             'schema': 'testschema',
@@ -195,4 +200,17 @@ class TestConnectionSchema(unittest.TestCase):
             'schema': 'testschema',
             'port': 80,
             'extra': "{'key':'string'}",
+        }
+
+
+class TestConnectionTestSchema(unittest.TestCase):
+    def test_response(self):
+        data = {
+            'status': True,
+            'message': 'Connection tested successful',
+        }
+        result = connection_test_schema.load(data)
+        assert result == {
+            'status': True,
+            'message': 'Connection tested successful',
         }

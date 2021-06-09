@@ -20,8 +20,6 @@ Documentation
 
 This directory contains documentation for the Apache Airflow project and other packages that are closely related to it ie. providers packages.  Documentation is built using `Sphinx <https://www.sphinx-doc.org/>`__.
 
-For Helm Chart, see: `/chart/README.md <../chart/READMe.md>`__
-
 Development documentation preview
 ==================================
 
@@ -56,6 +54,18 @@ or just to run documentation building
 .. code-block:: bash
 
      ./breeze build-docs -- --docs-only
+
+Also, you can only build one documentation via ``--package-filter``.
+
+.. code-block:: bash
+
+    ./breeze build-docs -- --package-filter <PACKAGE-NAME>
+
+You can also see all the available arguments via ``--help``.
+
+.. code-block:: bash
+
+    ./breeze build-docs -- --help
 
 Running the Docs Locally
 ------------------------

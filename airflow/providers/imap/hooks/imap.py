@@ -38,7 +38,8 @@ class ImapHook(BaseHook):
     .. note:: Please call this Hook as context manager via `with`
         to automatically open and close the connection to the mail server.
 
-    :param imap_conn_id: The connection id that contains the information used to authenticate the client.
+    :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>`
+        that contains the information used to authenticate the client.
     :type imap_conn_id: str
     """
 

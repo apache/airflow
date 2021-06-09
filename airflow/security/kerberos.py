@@ -73,26 +73,26 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
     ]
     log.info("Re-initialising kerberos from keytab: %s", " ".join(cmdv))
 
-    subp = subprocess.Popen(
+    with subprocess.Popen(
         cmdv,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         close_fds=True,
         bufsize=-1,
         universal_newlines=True,
-    )
-    subp.wait()
-    if subp.returncode != 0:
-        log.error(
-            "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
-            subp.returncode,
-            "\n".join(subp.stdout.readlines() if subp.stdout else []),
-            "\n".join(subp.stderr.readlines() if subp.stderr else []),
-        )
-        if exit_on_fail:
-            sys.exit(subp.returncode)
-        else:
-            return subp.returncode
+    ) as subp:
+        subp.wait()
+        if subp.returncode != 0:
+            log.error(
+                "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
+                subp.returncode,
+                "\n".join(subp.stdout.readlines() if subp.stdout else []),
+                "\n".join(subp.stderr.readlines() if subp.stderr else []),
+            )
+            if exit_on_fail:
+                sys.exit(subp.returncode)
+            else:
+                return subp.returncode
 
     global NEED_KRB181_WORKAROUND  # pylint: disable=global-statement
     if NEED_KRB181_WORKAROUND is None:

@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 
 try:
     from docker import APIClient
+    from docker.types import Mount
 
     from airflow.providers.docker.hooks.docker import DockerHook
     from airflow.providers.docker.operators.docker import DockerOperator
@@ -66,7 +67,7 @@ class TestDockerOperator(unittest.TestCase):
             network_mode='bridge',
             owner='unittest',
             task_id='unittest',
-            volumes=['/host/path:/container/path'],
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             entrypoint='["sh", "-c"]',
             working_dir='/container/path',
             shm_size=1000,
@@ -92,7 +93,10 @@ class TestDockerOperator(unittest.TestCase):
             tty=True,
         )
         self.client_mock.create_host_config.assert_called_once_with(
-            binds=['/host/path:/container/path', '/mkdtemp:/tmp/airflow'],
+            mounts=[
+                Mount(source='/host/path', target='/container/path', type='bind'),
+                Mount(source='/mkdtemp', target='/tmp/airflow', type='bind'),
+            ],
             network_mode='bridge',
             shm_size=1000,
             cpu_shares=1024,
@@ -238,7 +242,7 @@ class TestDockerOperator(unittest.TestCase):
             'network_mode': 'bridge',
             'owner': 'unittest',
             'task_id': 'unittest',
-            'volumes': ['/host/path:/container/path'],
+            'mounts': [Mount(source='/host/path', target='/container/path', type='bind')],
             'working_dir': '/container/path',
             'shm_size': 1000,
             'host_tmp_dir': '/host/airflow',

@@ -41,14 +41,6 @@ are in `airflow.providers.apache.beam` python package.
 
 ## Installation
 
-NOTE!
-
-On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-`pip install --upgrade pip==20.2.4` or, in case you use Pip 20.3, you need to add option
-`--use-deprecated legacy-resolver` to your pip install command.
-
 You can install this package on top of an existing airflow 2.* installation via
 `pip install apache-airflow-providers-apache-beam`
 
@@ -72,7 +64,7 @@ pip install apache-airflow-providers-apache-beam[google]
 
 In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.beam` provider
 are in the `airflow.providers.apache.beam` package. You can read more about the naming conventions used
-in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators
@@ -80,9 +72,9 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 ### New operators
 
 | New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                                                                 |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)    |
-| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/operators/beam.py)  |
+|:---------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/main/airflow/providers/apache/beam/operators/beam.py)    |
+| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/main/airflow/providers/apache/beam/operators/beam.py)  |
 
 
 ## Hooks
@@ -91,7 +83,7 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 | New Airflow 2.0 hooks: `airflow.providers.apache.beam` package                                                   |
 |:-----------------------------------------------------------------------------------------------------------------|
-| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/master/airflow/providers/apache/beam/hooks/beam.py) |
+| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/main/airflow/providers/apache/beam/hooks/beam.py) |
 
 
 ## Releases

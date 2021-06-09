@@ -24,7 +24,6 @@ from typing import Any, Dict, List, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.utils.decorators import apply_defaults
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -162,7 +161,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         take precedence and override the top level json keys. (templated)
 
         .. seealso::
-            For more information about templating see :ref:`jinja-templating`.
+            For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#runs-submit
     :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
@@ -249,7 +248,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_fgcolor = '#fff'
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -394,7 +392,7 @@ class DatabricksRunNowOperator(BaseOperator):
         take precedence and override the top level json keys. (templated)
 
         .. seealso::
-            For more information about templating see :ref:`jinja-templating`.
+            For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type json: dict
     :param notebook_params: A dict from keys to values for jobs with notebook task,
@@ -460,7 +458,6 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_fgcolor = '#fff'
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

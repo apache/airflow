@@ -19,7 +19,6 @@ from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.dingding.hooks.dingding import DingdingHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DingdingOperator(BaseOperator):
@@ -47,7 +46,6 @@ class DingdingOperator(BaseOperator):
     template_fields = ('message',)
     ui_color = '#4ea4d4'  # Dingding icon color
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -168,6 +168,7 @@ Endpoint                                                                        
 /pools/{pool_name}                                                                 DELETE Pool.can_delete                                                   Op
 /pools/{pool_name}                                                                 GET    Pool.can_read                                                     Op
 /pools/{pool_name}                                                                 PATCH  Pool.can_edit                                                     Op
+/providers                                                                         GET    Provider.can_read                                                 Op
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer

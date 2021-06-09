@@ -88,6 +88,7 @@ def _run_task_by_executor(args, dag, ti):
             print(e)
             raise e
     executor = ExecutorLoader.get_default_executor()
+    executor.job_id = "manual"
     executor.start()
     print("Sending to executor.")
     executor.queue_task_instance(
@@ -202,6 +203,8 @@ def task_run(args, dag=None):
         conf.read_dict(conf_dict, source=args.cfg_path)
         settings.configure_vars()
 
+    settings.MASK_SECRETS_IN_LOGS = True
+
     # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
     # behind multiple open sleeping connections while heartbeating, which could
     # easily exceed the database connection limit when
@@ -284,7 +287,7 @@ def task_list(args, dag=None):
     if args.tree:
         dag.tree_view()
     else:
-        tasks = sorted([t.task_id for t in dag.tasks])
+        tasks = sorted(t.task_id for t in dag.tasks)
         print("\n".join(tasks))
 
 
@@ -357,6 +360,9 @@ def task_test(args, dag=None):
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
+
+    settings.MASK_SECRETS_IN_LOGS = True
+
     handlers = logging.getLogger('airflow.task').handlers
     already_has_stream_handler = False
     for handler in handlers:

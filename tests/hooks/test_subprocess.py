@@ -52,7 +52,7 @@ class TestSubprocessHook(unittest.TestCase):
             Will always echo the special test var named ``OS_ENV_KEY`` into the file to test whether
             ``os.environ`` is passed or not.
             """
-            return '\n'.join([f"echo {k}=${k}>> {filename}" for k in [*keys, OS_ENV_KEY]])
+            return '\n'.join(f"echo {k}=${k}>> {filename}" for k in [*keys, OS_ENV_KEY])
 
         with TemporaryDirectory() as tmp_dir, mock.patch.dict('os.environ', {OS_ENV_KEY: OS_ENV_VAL}):
             tmp_file = Path(tmp_dir, 'test.txt')

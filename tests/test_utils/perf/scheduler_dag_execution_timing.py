@@ -103,11 +103,7 @@ def get_executor_under_test(dotted_path):
     from airflow.executors.executor_loader import ExecutorLoader
 
     if dotted_path == "MockExecutor":
-        try:
-            # Run against master and 1.10.x releases
-            from tests.test_utils.mock_executor import MockExecutor as executor
-        except ImportError:
-            from tests.executors.test_executor import TestExecutor as executor
+        from tests.test_utils.mock_executor import MockExecutor as executor
 
     else:
         executor = ExecutorLoader.load_executor(dotted_path)
@@ -228,7 +224,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     """
 
     # Turn on unit test mode so that we don't do any sleep() in the scheduler
-    # loop - not needed on master, but this script can run against older
+    # loop - not needed on main, but this script can run against older
     # releases too!
     os.environ['AIRFLOW__CORE__UNIT_TEST_MODE'] = 'True'
 
@@ -289,7 +285,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     times = []
 
-    # Need a lambda to refer to the _latest_ value fo scheduler_job, not just
+    # Need a lambda to refer to the _latest_ value for scheduler_job, not just
     # the initial one
     code_to_test = lambda: scheduler_job.run()  # pylint: disable=unnecessary-lambda
 

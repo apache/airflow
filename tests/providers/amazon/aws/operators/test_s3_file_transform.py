@@ -135,10 +135,11 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
     @staticmethod
     def mock_process(mock_popen, return_code=0, process_output=None):
-        process = mock_popen.return_value
-        process.stdout.readline.side_effect = process_output or []
-        process.wait.return_value = None
-        process.returncode = return_code
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = return_code
+        mock_proc.stdout.readline.side_effect = process_output or []
+        mock_proc.wait.return_value = None
+        mock_popen.return_value.__enter__.return_value = mock_proc
 
     def s3_paths(self):
         conn = boto3.client('s3')

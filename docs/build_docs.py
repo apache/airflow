@@ -27,7 +27,7 @@ from tabulate import tabulate
 
 from airflow.utils.helpers import partition
 from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE, TEXT_RED, TEXT_RESET
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
 from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
     DOCS_DIR,
     AirflowDocsBuilder,
@@ -44,6 +44,9 @@ from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in
     SpellingError,
     display_spelling_error_summary,
 )
+
+TEXT_RED = '\033[31m'
+TEXT_RESET = '\033[0m'
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(

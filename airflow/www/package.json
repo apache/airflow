@@ -5,8 +5,8 @@
     "dev": "NODE_ENV=dev webpack --watch --colors --progress --debug --output-pathinfo --devtool eval-cheap-source-map --mode development",
     "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js -p --colors --progress",
     "build": "NODE_ENV=production webpack --colors --progress",
-    "lint": "eslint --ignore-path=.eslintignore --ext .js,.html .",
-    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.html ."
+    "lint": "eslint --ignore-path=.eslintignore --ext .js .",
+    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js ."
   },
   "author": "Apache",
   "license": "Apache-2.0",
@@ -43,7 +43,6 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
     "file-loader": "^6.0.0",
-    "handlebars": "^4.7.6",
     "imports-loader": "^1.1.0",
     "mini-css-extract-plugin": "0.9.0",
     "moment-locales-webpack-plugin": "^1.2.0",
@@ -72,5 +71,8 @@
     "nvd3": "^1.8.6",
     "redoc": "^2.0.0-rc.48",
     "url-search-params-polyfill": "^8.1.0"
+  },
+  "resolutions": {
+    "lodash": "^4.17.21"
   }
 }

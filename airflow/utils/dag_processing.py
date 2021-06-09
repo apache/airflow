@@ -525,7 +525,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             os.set_blocking(self._signal_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
-        if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
+        if conf.get('core', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
             self.log.warning(
                 "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d ) when using sqlite. So we set parallelism to 1.",
@@ -719,7 +719,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 # "almost never happen" since the DagParsingStat object is
                 # small, and in async mode this stat is not actually _required_
                 # for normal operation (It only drives "max runs")
-                self.log.debug("BlockingIOError recived trying to send DagParsingStat, ignoring")
+                self.log.debug("BlockingIOError received trying to send DagParsingStat, ignoring")
 
             if max_runs_reached:
                 self.log.info(
@@ -1054,14 +1054,20 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             if is_mtime_mode:
                 files_with_mtime[file_path] = os.path.getmtime(file_path)
+                file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
             else:
                 file_paths.append(file_path)
+                file_modified_time = None
 
-            # Find file paths that were recently processed
+            # Find file paths that were recently processed to exclude them
+            # from being added to file_path_queue
+            # unless they were modified recently and parsing mode is "modified_time"
+            # in which case we don't honor "self._file_process_interval" (min_file_process_interval)
             last_finish_time = self.get_last_finish_time(file_path)
             if (
                 last_finish_time is not None
                 and (now - last_finish_time).total_seconds() < self._file_process_interval
+                and not (is_mtime_mode and file_modified_time and (file_modified_time > last_finish_time))
             ):
                 file_paths_recently_processed.append(file_path)
 

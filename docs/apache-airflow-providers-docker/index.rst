@@ -26,13 +26,14 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection types <connections/docker>
     Python API <_api/airflow/providers/docker/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/docker/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/docker/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -51,7 +52,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -62,15 +63,6 @@ are in ``airflow.providers.docker`` python package.
 Installation
 ------------
 
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
-
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install apache-airflow-providers-docker``
 
@@ -80,7 +72,7 @@ PIP requirements
 =============  ==================
 PIP package    Version required
 =============  ==================
-``docker``     ``~=3.0``
+``docker``
 =============  ==================
 
  .. Licensed to the Apache Software Foundation (ASF) under one
@@ -103,6 +95,35 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+* ``Replace DockerOperator's 'volumes' arg for 'mounts' (#15843)``
+
+The ``volumes`` parameter in
+:class:`~airflow.providers.docker.operators.docker.DockerOperator` and
+:class:`~airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator`
+was replaced by the ``mounts`` parameter, which uses the newer
+`mount syntax <https://docs.docker.com/storage/>`__ instead of ``--bind``.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Entrypoint support in docker operator (#14642)``
+* ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+* ``Support all terminus task states in Docker Swarm Operator (#14960)``
+
 
 1.1.0
 .....
