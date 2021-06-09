@@ -184,6 +184,27 @@ class DagRun(Base, LoggingMixin):
         self.state = dr.state
 
     @classmethod
+    def get_running_dagruns_in_paused_dags(cls, session: Session, max_number: Optional[int] = None):
+        """Returns the DagRuns that are in running state but the DAG is paused"""
+        from airflow.models import DagModel
+
+        if max_number is None:
+            max_number = cls.DEFAULT_DAGRUNS_TO_EXAMINE
+
+        query = (
+            session.query(cls)
+            .filter(cls.state == State.RUNNING, cls.run_type != DagRunType.BACKFILL_JOB)
+            .join(
+                DagModel,
+                DagModel.dag_id == cls.dag_id,
+            )
+            .filter(DagModel.is_paused == expression.true(), DagModel.is_active == expression.true())
+        )
+        return with_row_locks(
+            query.limit(max_number), of=cls, session=session, **skip_locked(session=session)
+        )
+
+    @classmethod
     def next_dagruns_to_examine(
         cls,
         session: Session,

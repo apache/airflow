@@ -1344,6 +1344,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             conf.getfloat('scheduler', 'clean_tis_without_dagrun_interval', fallback=15.0),
             self._clean_tis_without_dagrun,
         )
+        timers.call_regular_interval(
+            conf.getfloat('scheduler', 'update_dagrun_state_for_paused_dag_interval', fallback=15.0),
+            self._update_dagrun_state_for_paused_dag,
+        )
 
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
@@ -1417,6 +1421,17 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 else:
                     raise
             guard.commit()
+
+    @provide_session
+    def _update_dagrun_state_for_paused_dag(self, session=None):
+        """
+        Checks for paused dags with DagRuns in the running state and
+        update the DagRun state if possible
+        """
+        dag_runs = DR.get_running_dagruns_in_paused_dags(session=session)
+        for dagrun in dag_runs:
+            dagrun.dag = self.dagbag.get_dag(dagrun.dag_id)  # expensive. Any idea?
+            dagrun.update_state(session=session, execute_callbacks=False)
 
     def _do_scheduling(self, session) -> int:
         """
