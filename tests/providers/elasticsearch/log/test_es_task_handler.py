@@ -282,6 +282,55 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
         )
         assert "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - " == logs[0][0][1]
 
+    def test_read_with_json_format_with_custom_offset_and_host_fields(self):
+        ts = pendulum.now()
+        formatter = logging.Formatter(
+            '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s - %(exc_text)s'
+        )
+        self.es_task_handler.formatter = formatter
+        self.es_task_handler.json_format = True
+        self.es_task_handler.host_field = "host.name"
+        self.es_task_handler.offset_field = "log.offset"
+
+        self.body = {
+            'message': self.test_message,
+            'log_id': f'{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1',
+            'log': {'offset': 1},
+            'host': {'name': 'somehostname'},
+            'asctime': '2020-12-24 19:25:00,962',
+            'filename': 'taskinstance.py',
+            'lineno': 851,
+            'levelname': 'INFO',
+        }
+        self.es_task_handler.set_context(self.ti)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        logs, _ = self.es_task_handler.read(
+            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+        )
+        assert "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - " == logs[0][0][1]
+
+    def test_read_with_custom_offset_and_host_fields(self):
+        ts = pendulum.now()
+        # Delete the existing log entry as it doesn't have the new offset and host fields
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+
+        self.es_task_handler.host_field = "host.name"
+        self.es_task_handler.offset_field = "log.offset"
+
+        self.body = {
+            'message': self.test_message,
+            'log_id': self.LOG_ID,
+            'log': {'offset': 1},
+            'host': {'name': 'somehostname'},
+        }
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        logs, _ = self.es_task_handler.read(
+            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+        )
+        assert self.test_message == logs[0][0][1]
+
     def test_close(self):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.es_task_handler.formatter = formatter
