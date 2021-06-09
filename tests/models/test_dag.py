@@ -49,6 +49,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
+from airflow.timetables.base import DagRunInfo
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -2029,3 +2030,50 @@ def test_set_task_instance_state():
         assert dagrun.get_state() == State.QUEUED
 
     assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', start_date, 1)}
+
+
+@pytest.mark.parametrize(
+    "start_date, expected_infos",
+    [
+        (
+            DEFAULT_DATE,
+            [DagRunInfo.interval(DEFAULT_DATE, DEFAULT_DATE + datetime.timedelta(hours=1))],
+        ),
+        (
+            DEFAULT_DATE - datetime.timedelta(hours=3),
+            [
+                DagRunInfo.interval(
+                    DEFAULT_DATE - datetime.timedelta(hours=3),
+                    DEFAULT_DATE - datetime.timedelta(hours=2),
+                ),
+                DagRunInfo.interval(
+                    DEFAULT_DATE - datetime.timedelta(hours=2),
+                    DEFAULT_DATE - datetime.timedelta(hours=1),
+                ),
+                DagRunInfo.interval(
+                    DEFAULT_DATE - datetime.timedelta(hours=1),
+                    DEFAULT_DATE,
+                ),
+                DagRunInfo.interval(
+                    DEFAULT_DATE,
+                    DEFAULT_DATE + datetime.timedelta(hours=1),
+                ),
+            ],
+        ),
+    ],
+    ids=["in-dag-restriction", "out-of-dag-restriction"],
+)
+def test_iter_dagrun_infos_between(start_date, expected_infos):
+    dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly")
+    DummyOperator(
+        task_id='dummy',
+        dag=dag,
+        owner='airflow',
+    )
+
+    iterator = dag.iter_dagrun_infos_between(
+        earliest=pendulum.instance(start_date),
+        latest=pendulum.instance(DEFAULT_DATE),
+        align=True,
+    )
+    assert expected_infos == list(iterator)

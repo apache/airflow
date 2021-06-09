@@ -159,6 +159,8 @@ class SubDagOperator(BaseSensorOperator):
         dag_run = self._get_dagrun(execution_date)
 
         if dag_run is None:
+            # FIXME: This should get the data_interval argument, but we don't
+            # have that available from the context yet.
             dag_run = self.subdag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,

@@ -19,7 +19,7 @@ from typing import Any, Optional
 
 from pendulum import DateTime
 
-from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
 class NullTimetable(Timetable):
@@ -36,6 +36,9 @@ class NullTimetable(Timetable):
 
     def validate(self) -> None:
         pass
+
+    def infer_data_interval(self, run_after: DateTime) -> Optional[DataInterval]:
+        return None
 
     def next_dagrun_info(
         self,
@@ -60,6 +63,9 @@ class OnceTimetable(Timetable):
     def validate(self) -> None:
         pass
 
+    def infer_data_interval(self, run_after: DateTime) -> Optional[DataInterval]:
+        return DataInterval(start=run_after, end=run_after)
+
     def next_dagrun_info(
         self,
         last_automated_dagrun: Optional[DateTime],
@@ -75,4 +81,4 @@ class OnceTimetable(Timetable):
         run_after = restriction.earliest
         if restriction.latest is not None and run_after > restriction.latest:
             return None
-        return DagRunInfo.exact(run_after)
+        return DagRunInfo(run_after=run_after, data_interval=None)

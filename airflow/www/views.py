@@ -1602,7 +1602,7 @@ class Airflow(AirflowBaseView):
                     'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
                 )
 
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
 
         if unpause and dag.is_paused:
             models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
@@ -1610,7 +1610,8 @@ class Airflow(AirflowBaseView):
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
-            state=State.QUEUED,
+            data_interval=dag.timetable.infer_data_interval(execution_date),
+            state=State.RUNNING,
             conf=run_conf,
             external_trigger=True,
             dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
