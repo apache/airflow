@@ -1488,12 +1488,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
         request_conf = request.values.get('conf')
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
 
-            dag = current_app.dag_bag.get_dag(dag_id)
             doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
 
             if request_conf:
@@ -1513,6 +1513,21 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return redirect(origin)
 
         execution_date = timezone.utcnow()
+
+        # pylint: disable=comparison-with-callable
+        active_dagruns = (
+            session.query(func.count(DagRun.dag_id))
+            .filter(DagRun.dag_id == dag_id, DagRun.state == State.RUNNING)
+            .scalar()
+        )
+        # pylint: enable=comparison-with-callable
+
+        if active_dagruns >= dag.max_active_runs:
+            flash(
+                f"DAG {dag_id} is at (or above) max_active_runs"
+                f"({active_dagruns} of {dag.max_active_runs}), not creating any more runs"
+            )
+            return redirect(origin)
 
         dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
         if dr:

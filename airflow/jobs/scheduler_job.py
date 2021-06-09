@@ -37,7 +37,6 @@ from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
-from sqlalchemy.sql import expression
 
 from airflow import models, settings
 from airflow.configuration import conf
@@ -1593,7 +1592,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # we need to run self._update_dag_next_dagruns if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            if (dag.dag_id, dag_model.next_dagrun) not in active_dagruns:
+            if (dag.dag_id, dag_model.next_dagrun) not in active_dagruns and len(
+                active_dagruns
+            ) < dag.max_active_runs:
                 run = dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
@@ -1624,19 +1625,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         We batch the select queries to get info about all the dags at once
         """
-        # Check max_active_runs, to see if we are _now_ at the limit for any of
-        # these dag? (we've just created a DagRun for them after all)
-        active_runs_of_dags = dict(
-            session.query(DagRun.dag_id, func.count('*'))
-            .filter(
-                DagRun.dag_id.in_([o.dag_id for o in dag_models]),
-                DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
-                DagRun.external_trigger == expression.false(),
-            )
-            .group_by(DagRun.dag_id)
-            .all()
-        )
-
         for dag_model in dag_models:
             # Get the DAG in a try_except to not stop the Scheduler when a Serialized DAG is not found
             # This takes care of Dynamic DAGs especially
@@ -1645,7 +1633,14 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             except SerializedDagNotFound:
                 self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
-            active_runs_of_dag = active_runs_of_dags.get(dag.dag_id, 0)
+            # We check the active runs here to avoid collission with manually triggered dagruns
+            # pylint: disable=comparison-with-callable
+            active_runs_of_dag = (
+                session.query(func.count(DR.dag_id))
+                .filter(DR.dag_id == dag.dag_id, DR.state == State.RUNNING)
+                .scalar()
+            )
+            # pylint: enable=comparison-with-callable
             if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
                 self.log.info(
                     "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
