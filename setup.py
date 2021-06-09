@@ -214,7 +214,7 @@ celery = [
     'celery==4.3.1;python_version<"3.0"',
     'flower>=0.7.3, <1.0',
     'kombu==4.6.3;python_version<"3.0"',
-    'tornado>=4.2.0',  # Dep of flower. Pin to a version that works on Py3.5.2
+    'tornado>=6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
     'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
 ]
 cgroups = [
@@ -625,7 +625,7 @@ INSTALL_REQUIREMENTS = [
     'importlib-metadata>=2.0',
     'importlib_resources>=1.4',
     'iso8601>=0.1.12',
-    'jinja2>=2.10.1, <2.12.0',
+    'jinja2>=2.10.1',
     'json-merge-patch==0.2',
     'jsonschema~=3.0',
     'lazy_object_proxy<1.5.0',  # Required to keep pip-check happy with astroid
