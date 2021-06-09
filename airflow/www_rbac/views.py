@@ -2249,7 +2249,7 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
-    def do_render(self, track_no=None, bolt_no=None, craft_type=None):
+    def do_render(self, track_no=None, bolt_no=None, controller=None, craft_type=None):
         view_name = 'curves'
         curves = request.args.get('curves')
         curves_list = curves.replace('@', '/').split(',') if curves is not None else []
@@ -2264,6 +2264,9 @@ class CurvesView(BaseCRUDView):
                                      value=int(craft_type))
         if track_no:
             self._filters.add_filter(column_name='car_code', filter_class=self.datamodel.FilterEqual, value=track_no)
+        if controller:
+            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains, value=controller)
+
         joined_filters = self._filters.get_joined_filters(self._base_filters)
         order_column, order_direction = "execution_date", "desc"
         page_size = PAGE_SIZE
@@ -2320,6 +2323,7 @@ class CurvesView(BaseCRUDView):
     def view_curves_analysis(self):
         track_no = request.args.get('track_no', default=None)
         bolt_no = request.args.get('bolt_no', default=None)
+        controller = request.args.get('controller', default=None)
         analysis_type = request.args.get('analysis_type', default=None)
         ret = None
         if not analysis_type:
@@ -2328,6 +2332,8 @@ class CurvesView(BaseCRUDView):
             ret = self.do_render(track_no=track_no)
         elif analysis_type == 'bolt_no' and bolt_no:
             ret = self.do_render(bolt_no=bolt_no)
+        elif analysis_type == 'controller' and controller:
+            ret = self.do_render(controller=controller)
         if not ret:
             raise AirflowNotFoundException
         return ret
@@ -3471,3 +3477,13 @@ class CurveAnalysisBoltNoView(CurveAnalysisTrackNoView):
     base_filters = [['bolt_number', BoltNoNotNullFilter, lambda: []]]
 
     base_order = ('bolt_number', 'asc')
+
+
+class CurveAnalysisControllerView(TighteningControllerView):
+    route_base = '/curves_analysis_controller'
+
+    list_title = lazy_gettext("Analysis Via Controller")
+
+    # list_columns = ['controller_name']
+
+    base_permissions = ['can_show']

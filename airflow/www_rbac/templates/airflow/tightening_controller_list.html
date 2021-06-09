@@ -73,6 +73,8 @@
           <center>
             {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
           </center>
+            <a href="{{ url_for('CurvesView.view_curves_analysis',controller=item.controller_name, analysis_type='controller') }}"
+               target="_blank" style="display:block">查看相关曲线</a>
             <a href="{{url_for('VariableModelView.list',_flt_0_key=item.controller_name,_flt_0_is_curve_template='y')}}"
                target="_blank" style="display:block">查看模板和曲线</a>
         </td>

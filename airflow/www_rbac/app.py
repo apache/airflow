@@ -193,6 +193,10 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 gettext("Analysis Via Bolt No"),
                                 category=gettext("Analysis"))
 
+            appbuilder.add_view(views.CurveAnalysisControllerView,
+                                gettext("Analysis Via Controller"),
+                                category=gettext("Analysis"))
+
             if "dev" in version.version:
                 airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
             else:
