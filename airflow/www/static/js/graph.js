@@ -37,11 +37,11 @@ const taskInstancesUrl = getMetaValue('task_instances_url');
 // Build a map mapping node id to tooltip for all the TaskGroups.
 function getTaskGroupTips(node) {
   const tips = new Map();
-  if (node.children !== undefined) {
+  if (node.children) {
     tips.set(node.id, node.tooltip);
-    for (const child of node.children.values()) {
-      for (const [key, val] of getTaskGroupTips(child)) tips.set(key, val);
-    }
+    node.children.forEach((child) => {
+      Object.entries(getTaskGroupTips(child)).forEach(([key, value]) => tips.set(key, value));
+    });
   }
   return tips;
 }
@@ -106,7 +106,8 @@ function collapseGroup(nodeId, node) {
     removeNode(child.id);
   });
   // Map task that are under this node to this node's id
-  for (const childId of getChildrenIds(node)) mapTaskToNode.set(childId, nodeId);
+
+  getChildrenIds(node).forEach((childId) => mapTaskToNode.set(childId, nodeId));
 
   node = g.node(nodeId);
 
@@ -278,11 +279,9 @@ function nodeMatches(nodeId, searchText) {
 
   // The node's own id does not match, it may have children that match
   const node = g.node(nodeId);
-  if (node.children !== undefined) {
+  if (node.children) {
     const children = getChildrenIds(node);
-    for (const child of children) {
-      if (child.indexOf(searchText) > -1) return true;
-    }
+    return !!children.find((child) => child.indexOf(searchText) > -1);
   }
   return false;
 }
@@ -353,24 +352,17 @@ function focusState(state, node, color) {
 }
 
 function setFocusMap(state) {
-  for (const key in stateFocusMap) {
+  Object.keys(stateFocusMap).forEach((key) => {
     if ({}.hasOwnProperty.call(stateFocusMap, key)) {
       stateFocusMap[key] = false;
     }
-  }
+  });
   if (state != null) {
     stateFocusMap[state] = true;
   }
 }
 
-function stateIsSet() {
-  for (const key in stateFocusMap) {
-    if (stateFocusMap[key]) {
-      return true;
-    }
-  }
-  return false;
-}
+const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
 function handleRefresh() {
   $('#loading-dots').css('display', 'inline-block');
@@ -431,17 +423,20 @@ function groupTooltip(nodeId, tis) {
     ['up_for_retry', 0],
     ['running', 0],
     ['no_status', 0]]);
-  for (const child of getChildrenIds(g.node(nodeId))) {
+
+  getChildrenIds(g.node(nodeId)).forEach((child) => {
     if (child in tis) {
       const ti = tis[child];
       const stateKey = ti.state == null ? 'no_status' : ti.state;
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     }
-  }
+  });
 
   const tip = taskGroupTips.get(nodeId);
   let tt = `${escapeHtml(tip)}<br><br>`;
-  for (const [key, val] of numMap.entries()) tt += `<strong>${escapeHtml(key)}:</strong> ${val} <br>`;
+  Object.entries(numMap).forEach(([key, val]) => {
+    tt += `<strong>${escapeHtml(key)}:</strong> ${val} <br>`;
+  });
 
   return tt;
 }
@@ -449,7 +444,7 @@ function groupTooltip(nodeId, tis) {
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
 function updateNodesStates(tis) {
-  for (const nodeId of g.nodes()) {
+  g.nodes().forEach((nodeId) => {
     const { elem } = g.node(nodeId);
     elem.setAttribute('class', `node enter ${getNodeState(nodeId, tis)}`);
     elem.setAttribute('data-toggle', 'tooltip');
@@ -469,24 +464,22 @@ function updateNodesStates(tis) {
     };
     elem.onmouseout = taskTip.hide;
     elem.onclick = taskTip.hide;
-  }
+  });
 }
 
 // Returns list of children id of the given task group
 function getChildrenIds(group) {
   const children = [];
-  for (const [key, val] of Object.entries(group.children)) {
-    if (val.children === undefined) {
+  Object.values(group.children).forEach((value) => {
+    if (value.children === undefined) {
       // node
-      children.push(val.id);
+      children.push(value.id);
     } else {
       // group
-      const subGroupChildren = getChildrenIds(val);
-      for (const id of subGroupChildren) {
-        children.push(id);
-      }
+      const subGroupChildren = getChildrenIds(value);
+      subGroupChildren.forEach((id) => children.push(id));
     }
-  }
+  });
   return children;
 }
 
@@ -494,15 +487,13 @@ function getChildrenIds(group) {
 function getAllGroupIds(group) {
   const children = [group.id];
 
-  for (const [key, val] of Object.entries(group.children)) {
+  Object.entries(group.children).forEach(([, val]) => {
     if (val.children !== undefined) {
       // group
       const subGroupChildren = getAllGroupIds(val);
-      for (const id of subGroupChildren) {
-        children.push(id);
-      }
+      subGroupChildren.forEach((id) => children.push(id));
     }
-  }
+  });
   return children;
 }
 
@@ -533,10 +524,7 @@ function getNodeState(nodeId, tis) {
     'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'removed',
     'no_status', 'success', 'skipped'];
 
-  for (const state of priority) {
-    if (childrenStates.has(state)) return state;
-  }
-  return 'no_status';
+  return priority.find((state) => childrenStates.has(state)) || 'no_status';
 }
 
 // Returns the key used to store expanded task group ids in localStorage
@@ -605,7 +593,7 @@ function expandGroup(nodeId, node, focus = true) {
       const groupNode = g.node(val.id);
       groupNode.children = val.children;
       // Map task that are under this node to this node's id
-      for (const childId of getChildrenIds(val)) mapTaskToNode.set(childId, val.id);
+      getChildrenIds(val).forEach((childId) => mapTaskToNode.set(childId, val.id));
     }
     // Only call setParent if node is not the root node.
     if (nodeId != null) g.setParent(val.id, nodeId);

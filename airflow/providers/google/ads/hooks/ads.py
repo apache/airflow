@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Ad hook."""
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Generator, List
+from typing import IO, Any, Dict, Generator, List, Optional
 
 try:
     from functools import cached_property
@@ -69,22 +69,25 @@ class GoogleAdsHook(BaseHook):
     :type gcp_conn_id: str
     :param google_ads_conn_id: The connection ID with the details of Google Ads config.yaml file.
     :type google_ads_conn_id: str
+    :param api_version: The Google Ads API version to use.
+    :type api_version: str
 
     :return: list of Google Ads Row object(s)
     :rtype: list[GoogleAdsRow]
     """
 
+    default_api_version = "v5"
+
     def __init__(
         self,
+        api_version: Optional[str],
         gcp_conn_id: str = "google_cloud_default",
         google_ads_conn_id: str = "google_ads_default",
-        api_version: str = "v3",
     ) -> None:
         super().__init__()
+        self.api_version = api_version or self.default_api_version
         self.gcp_conn_id = gcp_conn_id
         self.google_ads_conn_id = google_ads_conn_id
-        self.gcp_conn_id = gcp_conn_id
-        self.api_version = api_version
         self.google_ads_config: Dict[str, Any] = {}
 
     @cached_property

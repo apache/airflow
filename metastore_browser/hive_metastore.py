@@ -126,10 +126,10 @@ class MetastoreBrowserView(BaseView):
         """Retrieve objects from TBLS and DBS"""
         where_clause = ''
         if DB_ALLOW_LIST:
-            dbs = ",".join(["'" + db + "'" for db in DB_ALLOW_LIST])
+            dbs = ",".join("'" + db + "'" for db in DB_ALLOW_LIST)
             where_clause = f"AND b.name IN ({dbs})"
         if DB_DENY_LIST:
-            dbs = ",".join(["'" + db + "'" for db in DB_DENY_LIST])
+            dbs = ",".join("'" + db + "'" for db in DB_DENY_LIST)
             where_clause = f"AND b.name NOT IN ({dbs})"
         sql = f"""
         SELECT CONCAT(b.NAME, '.', a.TBL_NAME), TBL_TYPE

@@ -96,6 +96,12 @@ function run_all_test_types_in_parallel() {
             # Remove Integration from list of tests to run in parallel
             test_types_to_run="${test_types_to_run//Integration/}"
             run_integration_tests_separately="true"
+            if [[ ${BACKEND} == "mssql" ]]; then
+              # Skip running "Integration" tests for low memory condition for mssql
+              run_integration_tests_separately="false"
+            else
+              run_integration_tests_separately="true"
+            fi
         fi
     fi
     set +e

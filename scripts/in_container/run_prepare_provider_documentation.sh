@@ -46,7 +46,7 @@ function run_prepare_documentation() {
         # There is a separate group created in logs for each provider package
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             update-package-documentation \
-            --version-suffix "${TARGET_VERSION_SUFFIX}" \
+            --version-suffix "${VERSION_SUFFIX_FOR_PYPI}" \
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
@@ -71,6 +71,22 @@ function run_prepare_documentation() {
             echo "${COLOR_RED}Error when generating provider package '${provider_package}'${COLOR_RESET}"
             error_documentation+=("${provider_package}")
             continue
+        fi
+        # There is a separate group created in logs for each provider package
+        python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            update-changelog \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
+            "${OPTIONAL_NO_INTERACTIVE_FLAG[@]}" \
+            "${provider_package}"
+        res=$?
+        if [[ ${res} == "64" ]]; then
+            skipped_documentation+=("${provider_package}")
+            continue
+            echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
+        fi
+        if [[ ${res} == "65" ]]; then
+            echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
+            exit 1
         fi
         prepared_documentation+=("${provider_package}")
         set -e
@@ -111,8 +127,6 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 
 export PYTHONPATH="${AIRFLOW_SOURCES}"
 
-verify_suffix_versions_for_package_preparation
-
 install_supported_pip_version
 import_all_provider_classes
 verify_provider_packages_named_properly
@@ -126,7 +140,6 @@ fi
 OPTIONAL_NO_INTERACTIVE_FLAG=()
 if [[ ${NO_INTERACTIVE=} == "true" ]]; then
     OPTIONAL_NO_INTERACTIVE_FLAG+=("--non-interactive")
-    shift
 fi
 
 

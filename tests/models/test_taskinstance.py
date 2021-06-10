@@ -32,7 +32,12 @@ from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
-from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+)
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import (
     DAG,
@@ -2098,8 +2103,15 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
                 run_type=DagRunType.SCHEDULED,
                 session=session,
             )
+        # an extra query is fired in RenderedTaskInstanceFields.delete_old_records
+        # for other DBs. delete_old_records is called only when mark_success is False
+        expected_query_count_based_on_db = (
+            expected_query_count + 1
+            if session.bind.dialect.name == "mssql" and expected_query_count > 0 and not mark_success
+            else expected_query_count
+        )
 
-        with assert_queries_count(expected_query_count):
+        with assert_queries_count(expected_query_count_based_on_db):
             ti._run_raw_task(mark_success=mark_success)
 
     def test_execute_queries_count_store_serialized(self):
@@ -2116,8 +2128,11 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
                 run_type=DagRunType.SCHEDULED,
                 session=session,
             )
+        # an extra query is fired in RenderedTaskInstanceFields.delete_old_records
+        # for other DBs
+        expected_query_count_based_on_db = 13 if session.bind.dialect.name == "mssql" else 12
 
-        with assert_queries_count(12):
+        with assert_queries_count(expected_query_count_based_on_db):
             ti._run_raw_task()
 
     def test_operator_field_with_serialization(self):
@@ -2136,3 +2151,34 @@ class TestRunRawTaskQueriesCount(unittest.TestCase):
         # Verify that ti.operator field renders correctly "with" Serialization
         ser_ti = TI(task=deserialized_op, execution_date=datetime.datetime.now())
         assert ser_ti.operator == "DummyOperator"
+
+
+@pytest.mark.parametrize("mode", ["poke", "reschedule"])
+@pytest.mark.parametrize("retries", [0, 1])
+def test_sensor_timeout(mode, retries):
+    """
+    Test that AirflowSensorTimeout does not cause sensor to retry.
+    """
+
+    def timeout():
+        raise AirflowSensorTimeout
+
+    dag = models.DAG(dag_id=f'test_sensor_timeout_{mode}_{retries}')
+    mock_on_failure = mock.MagicMock()
+    task = PythonSensor(
+        task_id='test_raise_sensor_timeout',
+        dag=dag,
+        python_callable=timeout,
+        owner='airflow',
+        start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+        on_failure_callback=mock_on_failure,
+        retries=retries,
+        mode=mode,
+    )
+    ti = TI(task=task, execution_date=timezone.utcnow())
+
+    with pytest.raises(AirflowSensorTimeout):
+        ti.run()
+
+    assert mock_on_failure.called
+    assert ti.state == State.FAILED

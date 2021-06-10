@@ -87,7 +87,7 @@ class SqlSensor(BaseSensorOperator):
         }
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException(
-                "The connection type is not supported by SqlSensor. "
+                f"Connection type ({conn.conn_type}) is not supported by SqlSensor. "
                 + f"Supported connection types: {list(allowed_conn_type)}"
             )
         return conn.get_hook()

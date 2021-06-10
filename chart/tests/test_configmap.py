@@ -55,8 +55,11 @@ class ConfigmapTest(unittest.TestCase):
 
     def test_airflow_local_settings(self):
         docs = render_chart(
-            values={"airflowLocalSettings": "# Well hello!"},
+            values={"airflowLocalSettings": "# Well hello {{ .Release.Name }}!"},
             show_only=["templates/configmaps/configmap.yaml"],
         )
 
-        assert "# Well hello!" == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+        assert (
+            "# Well hello RELEASE-NAME!"
+            == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+        )

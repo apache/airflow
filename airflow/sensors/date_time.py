@@ -45,8 +45,8 @@ class DateTimeSensor(BaseSensorOperator):
         .. code-block:: python
 
             DateTimeSensor(
-                task_id='wait_for_0100',
-                target_time='{{ next_execution_date.tomorrow().replace(hour=1) }}',
+                task_id="wait_for_0100",
+                target_time="{{ next_execution_date.tomorrow().replace(hour=1) }}",
             )
 
     :param target_time: datetime after which the job succeeds. (templated)

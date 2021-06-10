@@ -60,6 +60,10 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``black``                             Runs Black (the uncompromising Python code formatter)
 ----------------------------------- ---------------------------------------------------------------- ------------
+``blacken-docs``                      Run black on python code blocks in documentation files
+----------------------------------- ---------------------------------------------------------------- ------------
+``boring-cyborg``                     Checks for Boring Cyborg configuration consistency
+----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for mypy, pylint, flake8                                *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``      Regenerates the JSON file with cross-provider dependencies
@@ -183,6 +187,10 @@ require Breeze Docker images to be installed locally:
 ``update-setup-cfg-file``             Update setup.cfg file with all licenses
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation
+----------------------------------- ---------------------------------------------------------------- ------------
+``verify-db-migrations-documented``   Verify DB Migrations have been documented
+----------------------------------- ---------------------------------------------------------------- ------------
+``www-lint``                          Static checks of js in airflow/www/static/js/ folder
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks YAML files with yamllint
 =================================== ================================================================ ============
@@ -329,15 +337,17 @@ These are guidelines for fixing errors reported by pylint:
 
 .. code-block:: python
 
-    import airflow.*  # pylint: disable=wildcard-import
+    from airflow import *  # pylint: disable=wildcard-import
 
 
 -   If there is a single line where you need to disable a particular error,
     consider adding a comment to the line that causes the problem. For example:
 
+
 .. code-block:: python
 
-    def  MakeSummary(pcoll, metric_fn, metric_keys): # pylint: disable=invalid-name
+    def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
+        ...
 
 
 -   For multiple lines/block of code, to disable an error, you can surround the
@@ -346,10 +356,13 @@ These are guidelines for fixing errors reported by pylint:
 .. code-block:: python
 
     # pylint: disable=too-few-public-methods
-    class  LoginForm(Form):
+    class LoginForm(Form):
         """Form for the user"""
-        username = StringField('Username', [InputRequired()])
-        password = PasswordField('Password', [InputRequired()])
+
+        username = StringField("Username", [InputRequired()])
+        password = PasswordField("Password", [InputRequired()])
+
+
     # pylint: enable=too-few-public-methods
 
 

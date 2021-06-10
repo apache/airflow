@@ -654,18 +654,20 @@ notacommand = OK
     def test_confirm_unittest_mod(self):
         assert conf.get('core', 'unit_test_mode')
 
-    @conf_vars({("core", "store_serialized_dags"): "True"})
+    @conf_vars({})
     def test_store_dag_code_default_config(self):
-        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
-        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
-        assert not conf.has_option("core", "store_dag_code")
-        assert store_serialized_dags
+        store_dag_code = conf.getboolean("core", "store_dag_code")
+        assert conf.has_option("core", "store_dag_code")
         assert store_dag_code
 
-    @conf_vars({("core", "store_serialized_dags"): "True", ("core", "store_dag_code"): "False"})
-    def test_store_dag_code_config_when_set(self):
-        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
-        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+    @conf_vars({("core", "store_dag_code"): "True"})
+    def test_store_dag_code_config_when_set_to_true(self):
+        store_dag_code = conf.getboolean("core", "store_dag_code")
         assert conf.has_option("core", "store_dag_code")
-        assert store_serialized_dags
+        assert store_dag_code
+
+    @conf_vars({("core", "store_dag_code"): "False"})
+    def test_store_dag_code_config_when_set(self):
+        store_dag_code = conf.getboolean("core", "store_dag_code")
+        assert conf.has_option("core", "store_dag_code")
         assert not store_dag_code

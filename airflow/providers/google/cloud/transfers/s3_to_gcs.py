@@ -87,14 +87,15 @@ class S3ToGCSOperator(S3ListOperator):
     .. code-block:: python
 
        s3_to_gcs_op = S3ToGCSOperator(
-            task_id='s3_to_gcs_example',
-            bucket='my-s3-bucket',
-            prefix='data/customers-201804',
-            dest_gcs_conn_id='google_cloud_default',
-            dest_gcs='gs://my.gcs.bucket/some/customers/',
-            replace=False,
-            gzip=True,
-            dag=my-dag)
+           task_id="s3_to_gcs_example",
+           bucket="my-s3-bucket",
+           prefix="data/customers-201804",
+           dest_gcs_conn_id="google_cloud_default",
+           dest_gcs="gs://my.gcs.bucket/some/customers/",
+           replace=False,
+           gzip=True,
+           dag=my - dag,
+       )
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.

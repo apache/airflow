@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add optional result handler to database hooks (#15581)``
+* ``[Oracle] Add port to DSN (#15589)``
+* ``add oracle  connection link (#15632)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Update Docstrings of Modules with Missing Params (#15391)``
+
 1.1.0
 .....
 

@@ -94,7 +94,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'containers': [
                     {
                         'image': 'ubuntu:16.04',
-                        'imagePullPolicy': 'IfNotPresent',
                         'args': ["echo 10"],
                         'command': ["bash", "-cx"],
                         'env': [],
@@ -111,7 +110,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
-                'serviceAccountName': 'default',
                 'tolerations': [],
                 'volumes': [],
             },

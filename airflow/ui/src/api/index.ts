@@ -52,10 +52,17 @@ setLogger({
 const toastDuration = 3000;
 const refetchInterval = isTest ? false : 1000;
 
-export function useDags() {
+interface PageProps {
+  offset?: number;
+  limit?: number
+}
+
+export function useDags({ offset = 0, limit }: PageProps) {
   return useQuery<DagsResponse, Error>(
-    'dags',
-    (): Promise<DagsResponse> => axios.get('/dags'),
+    ['dags', offset],
+    (): Promise<DagsResponse> => axios.get('/dags', {
+      params: { offset, limit },
+    }),
     {
       refetchInterval,
       retry: !isTest,
@@ -132,7 +139,7 @@ export function useTriggerRun(dagId: Dag['dagId']) {
   );
 }
 
-export function useSaveDag(dagId: Dag['dagId']) {
+export function useSaveDag(dagId: Dag['dagId'], offset: number) {
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation(
@@ -141,7 +148,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
       onMutate: async (updatedValues: Record<string, any>) => {
         await queryClient.cancelQueries(['dag', dagId]);
         const previousDag = queryClient.getQueryData(['dag', dagId]) as Dag;
-        const previousDags = queryClient.getQueryData('dags') as DagsResponse;
+        const previousDags = queryClient.getQueryData(['dags', offset]) as DagsResponse;
 
         const newDags = previousDags.dags.map((dag) => (
           dag.dagId === dagId ? { ...dag, ...updatedValues } : dag
@@ -153,7 +160,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
 
         // optimistically set the dag before the async request
         queryClient.setQueryData(['dag', dagId], () => newDag);
-        queryClient.setQueryData('dags', (old) => ({
+        queryClient.setQueryData(['dags', offset], (old) => ({
           ...(old as Dag[]),
           ...{
             dags: newDags,
@@ -168,7 +175,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
         // rollback to previous cache on error
         if (error) {
           queryClient.setQueryData(['dag', dagId], previousDag);
-          queryClient.setQueryData('dags', previousDags);
+          queryClient.setQueryData(['dags', offset], previousDags);
           toast({
             title: 'Error updating pipeline',
             description: (error as Error).message,
@@ -180,7 +187,7 @@ export function useSaveDag(dagId: Dag['dagId']) {
           // check if server response is different from our optimistic update
           if (JSON.stringify(res) !== JSON.stringify(previousDag)) {
             queryClient.setQueryData(['dag', dagId], res);
-            queryClient.setQueryData('dags', {
+            queryClient.setQueryData(['dags', offset], {
               dags: previousDags.dags.map((dag) => (
                 dag.dagId === dagId ? res : dag
               )),

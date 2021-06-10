@@ -25,7 +25,6 @@ from inspect import signature
 from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
-import airflow.utils.yaml as yaml
 from airflow.exceptions import (
     AirflowException,
     AirflowFileParseException,
@@ -33,6 +32,7 @@ from airflow.exceptions import (
     FileSyntaxError,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
+from airflow.utils import yaml
 from airflow.utils.file import COMMENT_PATTERN
 from airflow.utils.log.logging_mixin import LoggingMixin
 

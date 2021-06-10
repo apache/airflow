@@ -42,9 +42,9 @@ class GCSToBigQueryOperator(BaseOperator):
 
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
-    :param source_objects: List of Google Cloud Storage URIs to load from. (templated)
+    :param source_objects: String or List of Google Cloud Storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type source_objects: list[str]
+    :type source_objects: str, list[str]
     :param destination_project_dataset_table: The dotted
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to load data into.
         If ``<project>`` is not included, project will be the project defined in
@@ -219,7 +219,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if time_partitioning is None:
             time_partitioning = {}
         self.bucket = bucket
-        self.source_objects = source_objects
+        self.source_objects = source_objects if isinstance(source_objects, list) else [source_objects]
         self.schema_object = schema_object
 
         # BQ config

@@ -36,12 +36,36 @@ class SambaHook(BaseHook):
         self.conn = self.get_connection(samba_conn_id)
 
     def get_conn(self) -> SambaClient:
+        """
+        Return a samba client object.
+
+        You can provide optional parameters in the extra fields of
+        your connection.
+
+        Below is an inexhaustive list of these parameters:
+
+        `logdir`
+          Base directory name for log/debug files.
+
+        `kerberos`
+          Try to authenticate with kerberos.
+
+        `workgroup`
+          Set the SMB domain of the username.
+
+        `netbios_name`
+          This option allows you to override the NetBIOS name that
+          Samba uses for itself.
+
+        For additional details, see `smbclient.SambaClient`.
+        """
         samba = SambaClient(
             server=self.conn.host,
             share=self.conn.schema,
             username=self.conn.login,
             ip=self.conn.host,
             password=self.conn.password,
+            **self.conn.extra_dejson,
         )
         return samba
 

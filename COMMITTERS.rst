@@ -22,7 +22,7 @@ Committers and PMC's
 
 This document assumes that you know how Airflow's community work, but you would like to learn more about the rules by which we add new members.
 
-Before reading this document, you should be familiar with `Contributor's guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__.
+Before reading this document, you should be familiar with `Contributor's guide <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`__.
 
 Guidelines to become an Airflow Committer
 ------------------------------------------
@@ -49,7 +49,7 @@ General prerequisites that we look for in all candidates:
 2.  Visibility on discussions on the dev mailing list, Slack channels or GitHub issues/discussions
 3.  Contributions to community health and project's sustainability for the long-term
 4.  Understands contributor/committer guidelines:
-    `Contributors' Guide <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`__
+    `Contributors' Guide <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`__
 
 
 Code contribution

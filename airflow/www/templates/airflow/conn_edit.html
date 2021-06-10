@@ -19,6 +19,11 @@
 
 {% extends 'appbuilder/general/model/edit.html' %}
 
+{% block head_css %}
+  {{ super() }}
+  <meta name="rest_api_enabled" content="{{ rest_api_enabled }}">
+{% endblock %}
+
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for_asset(filename='connectionForm.js') }}"></script>

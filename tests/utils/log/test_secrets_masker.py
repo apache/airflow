@@ -72,6 +72,22 @@ class TestSecretsMasker:
 
         assert caplog.text == "INFO Cannot connect to user:***\n"
 
+    def test_non_redactable(self, logger, caplog):
+        class NonReactable:
+            def __iter__(self):
+                raise RuntimeError("force fail")
+
+            def __repr__(self):
+                return "<NonRedactable>"
+
+        logger.info("Logging %s", NonReactable())
+
+        assert caplog.messages == [
+            "Unable to redact <NonRedactable>, please report this via "
+            + "<https://github.com/apache/airflow/issues>. Error was: RuntimeError: force fail",
+            "Logging <NonRedactable>",
+        ]
+
     def test_extra(self, logger, caplog):
         logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
         logger.info("Cannot connect", extra={'conn': "user:password"})
@@ -94,6 +110,21 @@ class TestSecretsMasker:
               File ".../test_secrets_masker.py", line {line}, in test_exception
                 raise RuntimeError("Cannot connect to " + conn)
             RuntimeError: Cannot connect to user:***
+            """
+        )
+
+    def test_exception_not_raised(self, logger, caplog):
+        """
+        Test that when ``logger.exception`` is called when there is no current exception we still log.
+
+        (This is a "bug" in user code, but we shouldn't die because of it!)
+        """
+        logger.exception("Err")
+
+        assert caplog.text == textwrap.dedent(
+            """\
+            ERROR Err
+            NoneType: None
             """
         )
 
@@ -141,6 +172,8 @@ class TestSecretsMasker:
             # When the "sensitive value" is a dict, don't mask anything
             # (Or should this be mask _everything_ under it ?
             ("api_key", {"other": "innoent"}, set()),
+            (None, {"password": ""}, set()),
+            (None, "", set()),
         ],
     )
     def test_mask_secret(self, name, value, expected_mask):
@@ -184,6 +217,14 @@ class TestSecretsMasker:
             filt.add_mask(val)
 
         assert filt.redact(value, name) == expected
+
+    def test_redact_filehandles(self, caplog):
+        filt = SecretsMasker()
+        with open("/dev/null", "w") as handle:
+            assert filt.redact(handle, None) == handle
+
+        # We shouldn't have logged a warning here
+        assert caplog.messages == []
 
 
 class TestShouldHideValueForKey:

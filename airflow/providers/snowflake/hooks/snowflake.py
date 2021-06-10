@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from contextlib import closing
+from io import StringIO
 from typing import Any, Dict, Optional, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
@@ -24,6 +25,7 @@ from cryptography.hazmat.primitives import serialization
 # pylint: disable=no-name-in-module
 from snowflake import connector
 from snowflake.connector import SnowflakeConnection
+from snowflake.connector.util_text import split_statements
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -270,27 +272,21 @@ class SnowflakeHook(DbApiHook):
             self.set_autocommit(conn, autocommit)
 
             if isinstance(sql, str):
-                cursors = conn.execute_string(sql, return_cursors=True)
-                for cur in cursors:
-                    self.query_ids.append(cur.sfqid)
+                split_statements_tuple = split_statements(StringIO(sql))
+                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
 
+            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+            with closing(conn.cursor()) as cur:
+                for sql_statement in sql:
+
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+                    if parameters:
+                        cur.execute(sql_statement, parameters)
+                    else:
+                        cur.execute(sql_statement)
                     self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", cur.sfqid)
-                    cur.close()
-
-            elif isinstance(sql, list):
-                self.log.debug("Executing %d statements against Snowflake DB", len(sql))
-                with closing(conn.cursor()) as cur:
-                    for sql_statement in sql:
-
-                        self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                        if parameters:
-                            cur.execute(sql_statement, parameters)
-                        else:
-                            cur.execute(sql_statement)
-                        self.log.info("Rows affected: %s", cur.rowcount)
-                        self.log.info("Snowflake query id: %s", cur.sfqid)
-                        self.query_ids.append(cur.sfqid)
+                    self.query_ids.append(cur.sfqid)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.

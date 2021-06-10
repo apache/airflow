@@ -265,6 +265,7 @@ Naik
 Namenode
 Namespace
 Neo4j
+NetBIOS
 Nextdoor
 Nones
 NotFound
@@ -744,6 +745,7 @@ enum
 env
 envFrom
 envvar
+eol
 eols
 ephraimbuddy
 errno
@@ -881,9 +883,11 @@ img
 imgcat
 impyla
 incompliancies
+inexhaustive
 infile
 infoType
 infoTypes
+ini
 init
 initcontainer
 initcontainers
@@ -945,6 +949,7 @@ keytab
 killMode
 kinit
 kms
+knownHosts
 krb
 kube
 kubeclient
@@ -972,6 +977,7 @@ lineterminator
 linter
 linux
 livy
+loadBalancerIP
 localExecutor
 localexecutor
 localhost
@@ -1149,6 +1155,7 @@ pty
 pubsub
 py
 pyMongo
+pyarrow
 pydruid
 pyexasol
 pyhive
@@ -1430,6 +1437,7 @@ utils
 uuid
 validator
 vals
+ve
 vendored
 venvs
 versionable

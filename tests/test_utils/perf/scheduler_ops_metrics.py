@@ -136,7 +136,7 @@ class SchedulerMetricsJob(SchedulerJob):
         dags = [dagbag.dags[dag_id] for dag_id in DAG_IDS]
         # the tasks in perf_dag_1 and per_dag_2 have a daily schedule interval.
         num_task_instances = sum(
-            [(timezone.utcnow() - task.start_date).days for dag in dags for task in dag.tasks]
+            (timezone.utcnow() - task.start_date).days for dag in dags for task in dag.tasks
         )
 
         if (

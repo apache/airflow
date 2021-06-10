@@ -28,6 +28,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-05-17
+
+================================================================================================  ===========  =================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================
+`abcd48731 <https://github.com/apache/airflow/commit/abcd48731303d9e141bdc94acc2db46d73ccbe12>`_  2021-05-17   ``Add optional result handler to database hooks (#15581)``
+`30eeac7b7 <https://github.com/apache/airflow/commit/30eeac7b7ed4ab5ea191691a3b713e3d66c0baff>`_  2021-05-09   ``[Oracle] Add port to DSN (#15589)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`3b4fdd0a7 <https://github.com/apache/airflow/commit/3b4fdd0a7a176bfb2e9a17d4627b1d4ed40f1c86>`_  2021-05-06   ``add oracle  connection link (#15632)``
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`71c673e42 <https://github.com/apache/airflow/commit/71c673e427a89cae2a9f3174c32c5c85556d6342>`_  2021-04-22   ``Update Docstrings of Modules with Missing Params (#15391)``
+================================================================================================  ===========  =================================================================
+
 1.1.0
 .....
 

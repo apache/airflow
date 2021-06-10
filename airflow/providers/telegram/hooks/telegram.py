@@ -43,12 +43,12 @@ class TelegramHook(BaseHook):
     .. code-block:: python
 
         # Create hook
-        telegram_hook = TelegramHook(telegram_conn_id='telegram_default')
+        telegram_hook = TelegramHook(telegram_conn_id="telegram_default")
         # or telegram_hook = TelegramHook(telegram_conn_id='telegram_default', chat_id='-1xxx')
         # or telegram_hook = TelegramHook(token='xxx:xxx', chat_id='-1xxx')
 
         # Call method from telegram bot client
-        telegram_hook.send_message(None', {"text": "message", "chat_id": "-1xxx"})
+        telegram_hook.send_message(None, {"text": "message", "chat_id": "-1xxx"})
         # or telegram_hook.send_message(None', {"text": "message"})
 
     :param telegram_conn_id: connection that optionally has Telegram API token in the password field

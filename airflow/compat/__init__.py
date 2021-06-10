@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: Force sync master from apache/airflow
-on:  # yamllint disable-line rule:truthy
-  workflow_dispatch:
-jobs:
-  repo-sync:
-    if: github.repository != 'apache/airflow'
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: repo-sync
-        uses: repo-sync/github-sync@v2
-        with:
-          source_repo: "apache/airflow"
-          source_branch: "master"
-          destination_branch: "master"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
