@@ -1558,7 +1558,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # duplicate dag runs
 
         if session.bind.dialect.name == 'mssql':
-            active_dagruns_filter = or_(
+            existing_dagruns_filter = or_(
                 *(
                     and_(
                         DagRun.dag_id == dm.dag_id,
@@ -1568,12 +1568,12 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 )
             )
         else:
-            active_dagruns_filter = tuple_(DagRun.dag_id, DagRun.execution_date).in_(
+            existing_dagruns_filter = tuple_(DagRun.dag_id, DagRun.execution_date).in_(
                 [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
             )
 
-        active_dagruns = (
-            session.query(DagRun.dag_id, DagRun.execution_date).filter(active_dagruns_filter).all()
+        existing_dagruns = (
+            session.query(DagRun.dag_id, DagRun.execution_date).filter(existing_dagruns_filter).all()
         )
 
         for dag_model in dag_models:
@@ -1582,7 +1582,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             except SerializedDagNotFound:
                 self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
-
+            # pylint: disable=comparison-with-callable
+            active_runs_of_dag = (
+                session.query(func.count(DR.dag_id))
+                .filter(DR.dag_id == dag.dag_id, DR.state == State.RUNNING)
+                .scalar()
+            )
+            # pylint: enable=comparison-with-callable
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
@@ -1592,9 +1598,10 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             # we need to run self._update_dag_next_dagruns if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            if (dag.dag_id, dag_model.next_dagrun) not in active_dagruns and len(
-                active_dagruns
-            ) < dag.max_active_runs:
+            if (
+                dag.dag_id,
+                dag_model.next_dagrun,
+            ) not in existing_dagruns and active_runs_of_dag < dag.max_active_runs:
                 run = dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
