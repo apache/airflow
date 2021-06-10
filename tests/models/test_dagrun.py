@@ -731,45 +731,6 @@ class TestDagRun(unittest.TestCase):
         session.rollback()
         session.close()
 
-    def test_get_running_dagruns_in_paused_dags_only_paused(self):
-        """
-        Check that "get_running_dagruns_in_paused_dags" ignores runs from unpaused/inactive DAGs
-        """
-        dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
-
-        session = settings.Session()
-        orm_dag = DagModel(
-            dag_id=dag.dag_id,
-            has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
-            is_active=True,
-            is_paused=True,
-        )
-        session.add(orm_dag)
-        session.flush()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-        )
-
-        runs = DagRun.get_running_dagruns_in_paused_dags(session).all()
-
-        assert runs == [dr]
-
-        orm_dag.is_paused = False
-        session.flush()
-
-        runs = DagRun.get_running_dagruns_in_paused_dags(session).all()
-        assert runs == []
-
-        session.rollback()
-        session.close()
-
     @mock.patch.object(Stats, 'timing')
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock):
         """
