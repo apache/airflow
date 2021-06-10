@@ -190,6 +190,8 @@ class DagBag(LoggingMixin):
             # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
             # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
             # 3. if (2) is yes, fetch the Serialized DAG.
+            # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
+            # if it exists and return None.
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
             if (
                 dag_id in self.dags_last_fetched
@@ -199,7 +201,14 @@ class DagBag(LoggingMixin):
                     dag_id=dag_id,
                     session=session,
                 )
-                if sd_last_updated_datetime and sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                if not sd_last_updated_datetime:
+                    self.log.warning("Serialized DAG %s no longer exists", dag_id)
+                    del self.dags[dag_id]
+                    del self.dags_last_fetched[dag_id]
+                    del self.dags_hash[dag_id]
+                    return None
+
+                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
