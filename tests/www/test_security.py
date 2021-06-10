@@ -190,9 +190,7 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.bulk_sync_roles(mock_roles)
         role = self.security_manager.find_role(role_name)
 
-        perm = self.security_manager.find_permission_view_menu(
-            permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE
-        )
+        perm = self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
         self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
@@ -410,11 +408,11 @@ class TestSecurity(unittest.TestCase):
         prefixed_test_dag_id = f'DAG:{test_dag_id}'
         self.security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
         assert (
-            self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_READ, prefixed_test_dag_id)
+            self.security_manager.get_permission(permissions.ACTION_CAN_READ, prefixed_test_dag_id)
             is not None
         )
         assert (
-            self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id)
+            self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id)
             is not None
         )
 

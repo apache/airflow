@@ -85,31 +85,31 @@ def acl_app(app):
 
     # FIXME: Clean up this block of code.....
 
-    website_permission = security_manager.find_permission_view_menu(
+    website_permission = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE
     )
 
     dag_tester_role = security_manager.find_role('dag_acl_tester')
-    edit_perm_on_dag = security_manager.find_permission_view_menu(
+    edit_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'
     )
     security_manager.add_permission_role(dag_tester_role, edit_perm_on_dag)
-    read_perm_on_dag = security_manager.find_permission_view_menu(
+    read_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
     security_manager.add_permission_role(dag_tester_role, read_perm_on_dag)
     security_manager.add_permission_role(dag_tester_role, website_permission)
 
     all_dag_role = security_manager.find_role('all_dag_role')
-    edit_perm_on_all_dag = security_manager.find_permission_view_menu(
+    edit_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
     )
     security_manager.add_permission_role(all_dag_role, edit_perm_on_all_dag)
-    read_perm_on_all_dag = security_manager.find_permission_view_menu(
+    read_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
     )
     security_manager.add_permission_role(all_dag_role, read_perm_on_all_dag)
-    read_perm_on_task_instance = security_manager.find_permission_view_menu(
+    read_perm_on_task_instance = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
     )
     security_manager.add_permission_role(all_dag_role, read_perm_on_task_instance)
@@ -120,7 +120,7 @@ def acl_app(app):
     security_manager.add_permission_role(role_user, edit_perm_on_all_dag)
     security_manager.add_permission_role(role_user, website_permission)
 
-    read_only_perm_on_dag = security_manager.find_permission_view_menu(
+    read_only_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
     dag_read_only_role = security_manager.find_role('dag_acl_read_only')
