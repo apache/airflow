@@ -36,6 +36,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -45,6 +46,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.types import DagRunType
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -685,6 +687,46 @@ class TestLocalTaskJob(unittest.TestCase):
                 self.validate_ti_states(dag_run, second_run_state, error_message)
             if scheduler_job.processor_agent:
                 scheduler_job.processor_agent.end()
+
+    def test_task_exit_should_update_state_of_finished_dagruns_with_dag_paused(self):
+        """Test that with DAG paused, DagRun state will update when the tasks finishes the run"""
+        dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
+        op1 = PythonOperator(task_id='dummy', dag=dag, owner='airflow', python_callable=lambda: True)
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=dag.start_date,
+            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            is_active=True,
+            is_paused=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+        # Write Dag to DB
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
+        dagbag.bag_dag(dag, root_dag=dag)
+        dagbag.sync_to_db()
+
+        dr = dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
+        ti = TaskInstance(op1, dr.execution_date)
+        ti.refresh_from_db()
+        ti.state = State.SUCCESS
+        session.commit()
+        assert dr.state == State.RUNNING
+
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1.task_runner = StandardTaskRunner(job1)
+        job1.run()
+        dr = session.query(DagRun).filter(DagRun.id == dr.id).first()
+        assert dr.state == State.SUCCESS
 
 
 @pytest.fixture()

@@ -2124,57 +2124,6 @@ class TestSchedulerJob(unittest.TestCase):
             assert ti.start_date == ti.end_date
             assert ti.duration is not None
 
-    def test_scheduler_loop_should_update_state_of_finished_dagruns_with_dag_paused(self):
-        """Test that with DAG paused, DagRun state will update when the tasks finishes the run"""
-        dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
-        op1 = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
-
-        session = settings.Session()
-        orm_dag = DagModel(
-            dag_id=dag.dag_id,
-            has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
-            is_active=True,
-            is_paused=True,
-        )
-        session.add(orm_dag)
-        session.flush()
-        # Write Dag to DB
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
-        dagbag.bag_dag(dag, root_dag=dag)
-        dagbag.sync_to_db()
-
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-        )
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti.state = State.SUCCESS
-        session.commit()
-        assert dr.state == State.RUNNING
-        # This poll interval is large, bug the scheduler doesn't sleep that
-        # long, instead we hit the update_dagrun_state_for_paused_dag_interval instead
-        self.scheduler_job = SchedulerJob(num_runs=2, processor_poll_interval=30)
-        self.scheduler_job.dagbag = dagbag
-        executor = MockExecutor(do_update=False)
-        executor.queued_tasks
-        self.scheduler_job.executor = executor
-        processor = mock.MagicMock()
-        processor.done = False
-        self.scheduler_job.processor_agent = processor
-
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), conf_vars(
-            {('scheduler', 'update_dagrun_state_for_paused_dag_interval'): '0.001'}
-        ):
-            self.scheduler_job._run_scheduler_loop()
-
-        dr = session.query(DagRun).filter(DagRun.id == dr.id).first()
-        assert dr.state == State.SUCCESS
-
     @mock.patch('airflow.jobs.scheduler_job.DagFileProcessorAgent')
     def test_executor_end_called(self, mock_processor_agent):
         """
