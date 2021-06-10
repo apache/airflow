@@ -113,19 +113,15 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
     def _check_if_job_exists(self) -> None:
         training_job_name = self.config["TrainingJobName"]
-        training_jobs = self.hook.list_training_jobs(
-            name_contains=training_job_name)
+        training_jobs = self.hook.list_training_jobs(name_contains=training_job_name)
 
         # Check if given TrainingJobName already exists
-        if training_job_name in [tj["TrainingJobName"] for tj in
-                                 training_jobs]:
+        if training_job_name in [tj["TrainingJobName"] for tj in training_jobs]:
             if self.action_if_job_exists == "increment":
-                self.log.info("Found existing training job with name '%s'.",
-                              training_job_name)
+                self.log.info("Found existing training job with name '%s'.", training_job_name)
                 new_training_job_name = f"{training_job_name}-{len(training_jobs) + 1}"
                 self.config["TrainingJobName"] = new_training_job_name
-                self.log.info("Incremented training job name to '%s'.",
-                              new_training_job_name)
+                self.log.info("Incremented training job name to '%s'.", new_training_job_name)
             elif self.action_if_job_exists == "fail":
                 raise AirflowException(
                     f"A SageMaker training job with name {training_job_name} already exists."

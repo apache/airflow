@@ -133,9 +133,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "list_training_jobs")
-    def test_check_if_job_exists_increment(
-        self, mock_list_training_jobs, mock_client
-    ):
+    def test_check_if_job_exists_increment(self, mock_list_training_jobs, mock_client):
         self.sagemaker.check_if_job_exists = True
         self.sagemaker.action_if_job_exists = "increment"
         mock_list_training_jobs.return_value = [{"TrainingJobName": job_name}]
@@ -146,12 +144,9 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         expected_config["TrainingJobName"] = f"{job_name}-2"
         assert self.sagemaker.config == expected_config
 
-
     @mock.patch.object(SageMakerHook, "get_conn")
     @mock.patch.object(SageMakerHook, "list_training_jobs")
-    def test_check_if_job_exists_fail(
-        self, mock_list_training_jobs, mock_client
-    ):
+    def test_check_if_job_exists_fail(self, mock_list_training_jobs, mock_client):
         self.sagemaker.check_if_job_exists = True
         self.sagemaker.action_if_job_exists = "fail"
         mock_list_training_jobs.return_value = [{"TrainingJobName": job_name}]
