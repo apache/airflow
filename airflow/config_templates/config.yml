@@ -1709,14 +1709,6 @@
       type: float
       example: ~
       default: "15.0"
-    - name: update_dagrun_state_for_paused_dag_interval
-      description: |
-        How often (in seconds) to check paused DAGs for DagRuns in running state
-        and update states of DagRuns whose tasks finished the DagRun
-      version_added: 2.1.1
-      type: float
-      example: ~
-      default: "30.0"
     - name: scheduler_heartbeat_sec
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
