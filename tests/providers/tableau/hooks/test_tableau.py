@@ -60,7 +60,7 @@ class TestTableauHook(unittest.TestCase):
         Test get conn auth via password
         """
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
-            mock_server.assert_called_once_with(tableau_hook.conn.host, use_server_version=True)
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_tableau_auth.assert_called_once_with(
                 username=tableau_hook.conn.login,
                 password=tableau_hook.conn.password,
@@ -76,7 +76,7 @@ class TestTableauHook(unittest.TestCase):
         Test get conn auth via token
         """
         with TableauHook(site_id='test', tableau_conn_id='tableau_test_token') as tableau_hook:
-            mock_server.assert_called_once_with(tableau_hook.conn.host, use_server_version=True)
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_tableau_auth.assert_called_once_with(
                 token_name=tableau_hook.conn.extra_dejson['token_name'],
                 personal_access_token=tableau_hook.conn.extra_dejson['personal_access_token'],
