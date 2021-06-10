@@ -3940,8 +3940,6 @@ class TestSchedulerJob(unittest.TestCase):
         assert dag.get_last_dagrun(session) == dagrun
         assert dag2.get_last_dagrun(session) == dagrun2
 
-        # This poll interval is large, bug the scheduler doesn't sleep that
-        # long, instead we hit the update_dagrun_state_for_paused_dag_interval instead
         self.scheduler_job = SchedulerJob(num_runs=2, processor_poll_interval=30)
         self.scheduler_job.dagbag = dagbag
         executor = MockExecutor(do_update=False)
