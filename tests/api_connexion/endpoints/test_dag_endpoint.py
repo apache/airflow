@@ -454,13 +454,9 @@ class TestGetDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
-    @provide_session
-    def test_only_active_true_returns_active_dags(self, session):
+    def test_only_active_true_returns_active_dags(self):
         self._create_dag_models(1)
-        dag_model = DagModel(
-            dag_id="TEST_DAG_2", fileloc="/tmp/dag_2.py", schedule_interval="2 2 * * *", is_active=False
-        )
-        session.add(dag_model)
+        self._create_deactivated_dag()
         response = self.client.get("api/v1/dags?only_active=True", environ_overrides={'REMOTE_USER': "test"})
         file_token = SERIALIZER.dumps("/tmp/dag_1.py")
         assert response.status_code == 200
@@ -486,16 +482,12 @@ class TestGetDags(TestDagEndpoint):
             "total_entries": 1,
         } == response.json
 
-    @provide_session
-    def test_only_active_false_returns_all_dags(self, session):
+    def test_only_active_false_returns_all_dags(self):
         self._create_dag_models(1)
-        dag_model = DagModel(
-            dag_id="TEST_DAG_2", fileloc="/tmp/dag_2.py", schedule_interval="2 2 * * *", is_active=False
-        )
-        session.add(dag_model)
+        self._create_deactivated_dag()
         response = self.client.get("api/v1/dags?only_active=False", environ_overrides={'REMOTE_USER': "test"})
         file_token = SERIALIZER.dumps("/tmp/dag_1.py")
-        file_token_2 = SERIALIZER.dumps("/tmp/dag_2.py")
+        file_token_2 = SERIALIZER.dumps("/tmp/dag_del_1.py")
         assert response.status_code == 200
         assert {
             "dags": [
@@ -516,9 +508,9 @@ class TestGetDags(TestDagEndpoint):
                     "tags": [],
                 },
                 {
-                    "dag_id": "TEST_DAG_2",
+                    "dag_id": "TEST_DAG_DELETED_1",
                     "description": None,
-                    "fileloc": "/tmp/dag_2.py",
+                    "fileloc": "/tmp/dag_del_1.py",
                     "file_token": file_token_2,
                     "is_paused": False,
                     "is_active": False,

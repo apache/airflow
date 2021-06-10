@@ -65,7 +65,7 @@ def get_dags(limit, session, offset=0, only_active=True):
     if only_active:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
     else:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag) 
+        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
 
     readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 

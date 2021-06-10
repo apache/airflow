@@ -2106,7 +2106,7 @@ class DagModel(Base):
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
-    # Whether that DAG is currently seen by the scheduler(s)
+    # Whether that DAG was seen on the last DagBag load
     is_active = Column(Boolean, default=False)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
