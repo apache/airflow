@@ -126,10 +126,16 @@
     // }
     let allDatas = [];
       const color = randomHexColor();
+      const color1 = randomHexColor();
+      const color2 = randomHexColor();
       allDatas.push({
         name: '扭矩',
         type: 'line',
         showSymbol: false,
+        // areaStyle: {},
+        // emphasis: {
+        //   focus: 'series'
+        // },
         data: getYdata('cur_m'),
         itemStyle: {
           color: color
@@ -143,14 +149,18 @@
         name: '角度',
         type: 'line',
         showSymbol: false,
+        // areaStyle: {},
+        // emphasis: {
+        //   focus: 'series'
+        // },
         data: getYdata('cur_w'),
         xAxisIndex: 1,
         yAxisIndex: 1,
         itemStyle: {
-          color: color
+          color: color1
         },
         lineStyle: {
-          color: color,
+          color: color1,
           width: 3
         },
       });
@@ -158,14 +168,18 @@
         name: '转速',
         type: 'line',
         showSymbol: false,
+        // areaStyle: {}, // 堆叠面积
+        // emphasis: {
+        //   focus: 'series'
+        // },
         data: getYdata('cur_s'),
         xAxisIndex: 2,
         yAxisIndex: 2,
         itemStyle: {
-          color: color
+          color: color2
         },
         lineStyle: {
-          color: color,
+          color: color2,
           width: 3
         },
       });
@@ -330,9 +344,9 @@
         //   filterMode: 'none'
         // }
       ],
-    // legend: {
-    //     data: ['扭矩','角度', '转速']
-    // },
+    legend: {
+        data: ['扭矩','角度', '转速']
+    },
     // title: [
     //   {
     //     top: '3%',
@@ -387,13 +401,16 @@
       },
     }, {
       name: '转速',
+      axisLine: {
+        show: true,
+      },
       gridIndex: 2
     }],
     grid: [{
         top: '5%',
         bottom: '70%',
     }, {
-        top: '40%',
+        top: '38%',
         bottom: '40%',
     },
     {

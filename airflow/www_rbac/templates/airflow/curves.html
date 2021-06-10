@@ -394,9 +394,10 @@
         //   filterMode: 'none'
         // }
       ],
-    // legend: {
-    //     data: ['扭矩','角度', '转速']
-    // },
+    legend: {
+      type: 'scroll',
+      data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
+    },
     // title: [
     //   {
     //     top: '3%',
@@ -448,16 +449,19 @@
       axisLabel: {
         formatter: '{value} °'
       },
-        gridIndex: 1
+      gridIndex: 1
     }, {
       name: '转速',
-        gridIndex: 2
+      axisLine: {
+        show: true,
+      },
+      gridIndex: 2
     }],
     grid: [{
-        top: '5%',
+        top: '6%',
         bottom: '70%',
     }, {
-        top: '40%',
+        top: '37%',
         bottom: '40%',
     },
     {
