@@ -411,9 +411,9 @@ class S3Hook(AwsBaseHook):
             OutputSerialization=output_serialization,
         )
 
-        return ''.join(
-            event['Records']['Payload'].decode('utf-8') for event in response['Payload'] if 'Records' in event
-        )
+        return b''.join(
+            event['Records']['Payload'] for event in response['Payload'] if 'Records' in event
+        ).decode('utf-8')
 
     @provide_bucket_name
     @unify_bucket_name_and_key

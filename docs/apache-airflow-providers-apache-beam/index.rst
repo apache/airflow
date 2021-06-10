@@ -51,7 +51,7 @@ Package apache-airflow-providers-apache-beam
 `Apache Beam <https://beam.apache.org/>`__.
 
 
-Release: 2.0.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -93,6 +93,15 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
 ====================================================================================================  ==========
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-apache-beam 3.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-beam-3.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-beam 3.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_beam-3.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -113,6 +122,20 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename the main branch of the Airflow repo to be main (#16149)``
+   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
 
 2.0.0
 .....
@@ -150,7 +173,7 @@ This is the extra for the ``google`` provider:
             {
                 # ...
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
-                # ....
+                # ...
             },
         )
 

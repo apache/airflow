@@ -120,71 +120,6 @@ takes precedence over the :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` variable.
 For newer versions, the ``airflow db check`` command is used, which means that a ``select 1 as is_alive;`` query
 is executed. This also means that you can keep your password in secret backend.
 
-Upgrading Airflow DB
---------------------
-
-If you set :envvar:`_AIRFLOW_DB_UPGRADE` variable to a non-empty value, the entrypoint will run
-the ``airflow db upgrade`` command right after verifying the connection. You can also use this
-when you are running airflow with internal SQLite database (default) to upgrade the db and create
-admin users at entrypoint, so that you can start the webserver immediately. Note - using SQLite is
-intended only for testing purpose, never use SQLite in production as it has severe limitations when it
-comes to concurrency.
-
-Creating admin user
--------------------
-
-The entrypoint can also create webserver user automatically when you enter it. you need to set
-:envvar:`_AIRFLOW_WWW_USER_CREATE` to a non-empty value in order to do that. This is not intended for
-production, it is only useful if you would like to run a quick test with the production image.
-You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD`` or
-:envvar:`_AIRFLOW_WWW_USER_PASSWORD_CMD` similarly like for other ``*_CMD`` variables, the content of
-the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
-
-User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
-password for security reasons.
-
-+-----------+--------------------------+----------------------------------------------------------------------+
-| Parameter | Default                  | Environment variable                                                 |
-+===========+==========================+======================================================================+
-| username  | admin                    | ``_AIRFLOW_WWW_USER_USERNAME``                                       |
-+-----------+--------------------------+----------------------------------------------------------------------+
-| password  |                          | ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or ``_AIRFLOW_WWW_USER_PASSWORD`` |
-+-----------+--------------------------+----------------------------------------------------------------------+
-| firstname | Airflow                  | ``_AIRFLOW_WWW_USER_FIRSTNAME``                                      |
-+-----------+--------------------------+----------------------------------------------------------------------+
-| lastname  | Admin                    | ``_AIRFLOW_WWW_USER_LASTNAME``                                       |
-+-----------+--------------------------+----------------------------------------------------------------------+
-| email     | airflowadmin@example.com | ``_AIRFLOW_WWW_USER_EMAIL``                                          |
-+-----------+--------------------------+----------------------------------------------------------------------+
-| role      | Admin                    | ``_AIRFLOW_WWW_USER_ROLE``                                           |
-+-----------+--------------------------+----------------------------------------------------------------------+
-
-In case the password is specified, the user will be attempted to be created, but the entrypoint will
-not fail if the attempt fails (this accounts for the case that the user is already created).
-
-You can, for example start the webserver in the production image with initializing the internal SQLite
-database and creating an ``admin/admin`` Admin user with the following command:
-
-.. code-block:: bash
-
-  docker run -it -p 8080:8080 \
-    --env "_AIRFLOW_DB_UPGRADE=true" \
-    --env "_AIRFLOW_WWW_USER_CREATE=true" \
-    --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:main-python3.8 webserver
-
-
-.. code-block:: bash
-
-  docker run -it -p 8080:8080 \
-    --env "_AIRFLOW_DB_UPGRADE=true" \
-    --env "_AIRFLOW_WWW_USER_CREATE=true" \
-    --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:main-python3.8 webserver
-
-The commands above perform initialization of the SQLite database, create admin user with admin password
-and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
-
 Waits for celery broker connection
 ----------------------------------
 
@@ -248,3 +183,100 @@ If there are any other arguments - they are simply passed to the "airflow" comma
 
   > docker run -it apache/airflow:2.1.0-python3.6 version
   2.1.0
+
+Additional quick test options
+-----------------------------
+
+The options below are mostly used for quick testing the image - for example with
+quick-start docker-compose or when you want to perform a local test with new packages
+added. They are not supposed to be run in the production environment as they add additional
+overhead for execution of additional commands. Those options in production should be realized
+either as maintenance operations on the database or should be embedded in the custom image used
+(when you want to add new packages).
+
+Upgrading Airflow DB
+....................
+
+If you set :envvar:`_AIRFLOW_DB_UPGRADE` variable to a non-empty value, the entrypoint will run
+the ``airflow db upgrade`` command right after verifying the connection. You can also use this
+when you are running airflow with internal SQLite database (default) to upgrade the db and create
+admin users at entrypoint, so that you can start the webserver immediately. Note - using SQLite is
+intended only for testing purpose, never use SQLite in production as it has severe limitations when it
+comes to concurrency.
+
+Creating admin user
+...................
+
+The entrypoint can also create webserver user automatically when you enter it. you need to set
+:envvar:`_AIRFLOW_WWW_USER_CREATE` to a non-empty value in order to do that. This is not intended for
+production, it is only useful if you would like to run a quick test with the production image.
+You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD`` or
+:envvar:`_AIRFLOW_WWW_USER_PASSWORD_CMD` similarly like for other ``*_CMD`` variables, the content of
+the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
+
+User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
+password for security reasons.
+
++-----------+--------------------------+----------------------------------------------------------------------+
+| Parameter | Default                  | Environment variable                                                 |
++===========+==========================+======================================================================+
+| username  | admin                    | ``_AIRFLOW_WWW_USER_USERNAME``                                       |
++-----------+--------------------------+----------------------------------------------------------------------+
+| password  |                          | ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or ``_AIRFLOW_WWW_USER_PASSWORD`` |
++-----------+--------------------------+----------------------------------------------------------------------+
+| firstname | Airflow                  | ``_AIRFLOW_WWW_USER_FIRSTNAME``                                      |
++-----------+--------------------------+----------------------------------------------------------------------+
+| lastname  | Admin                    | ``_AIRFLOW_WWW_USER_LASTNAME``                                       |
++-----------+--------------------------+----------------------------------------------------------------------+
+| email     | airflowadmin@example.com | ``_AIRFLOW_WWW_USER_EMAIL``                                          |
++-----------+--------------------------+----------------------------------------------------------------------+
+| role      | Admin                    | ``_AIRFLOW_WWW_USER_ROLE``                                           |
++-----------+--------------------------+----------------------------------------------------------------------+
+
+In case the password is specified, the user will be attempted to be created, but the entrypoint will
+not fail if the attempt fails (this accounts for the case that the user is already created).
+
+You can, for example start the webserver in the production image with initializing the internal SQLite
+database and creating an ``admin/admin`` Admin user with the following command:
+
+.. code-block:: bash
+
+  docker run -it -p 8080:8080 \
+    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_WWW_USER_CREATE=true" \
+    --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
+      apache/airflow:main-python3.8 webserver
+
+
+.. code-block:: bash
+
+  docker run -it -p 8080:8080 \
+    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_WWW_USER_CREATE=true" \
+    --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
+      apache/airflow:main-python3.8 webserver
+
+The commands above perform initialization of the SQLite database, create admin user with admin password
+and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
+
+Installing additional requirements
+..................................
+
+Installing additional requirements can be done by specifying ``_PIP_ADDITIONAL_REQUIREMENTS`` variable.
+The variable should contain a list of requirements that should be installed additionally when entering
+the containers. Note that this option slows down starting of Airflow as every time any container starts
+it must install new packages. Therefore this option should only be used for testing. When testing is
+finished, you should create your custom image with dependencies baked in.
+
+Example:
+
+.. code-block:: bash
+
+  docker run -it -p 8080:8080 \
+    --env "_PIP_ADDITIONAL_REQUIREMENTS=lxml==4.6.3 charset-normalizer==1.4.1" \
+    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_WWW_USER_CREATE=true" \
+    --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
+      apache/airflow:master-python3.8 webserver
+
+This method is only available starting from Docker image of Airflow 2.1.1 and above.

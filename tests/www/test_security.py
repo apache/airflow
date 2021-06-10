@@ -463,7 +463,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_access_control_with_invalid_permission(self):
         invalid_permissions = [
-            'can_varimport',  # a real permission, but not a member of DAG_PERMS
+            'can_varimport',  # a real permission, but not a member of DAG_ACTIONS
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
@@ -617,9 +617,9 @@ class TestSecurity(unittest.TestCase):
 
         assert ('can_read', 'Connections') in perms
 
-    def test_get_all_non_dag_permissionviews(self):
+    def test_get_all_non_dag_permissions(self):
         with assert_queries_count(1):
-            pvs = self.security_manager._get_all_non_dag_permissionviews()
+            pvs = self.security_manager._get_all_non_dag_permissions()
 
         assert isinstance(pvs, dict)
         for (perm_name, viewmodel_name), perm_view in pvs.items():

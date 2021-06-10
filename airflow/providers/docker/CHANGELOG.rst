@@ -25,8 +25,8 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Change in ``DockerOperator`` and ``DockerSwarmOperator``
-````````````````````````````````````````````````````````
+* ``Auto-apply apply_default decorator (#15667)``
+* ``Replace DockerOperator's 'volumes' arg for 'mounts' (#15843)``
 
 The ``volumes`` parameter in
 :class:`~airflow.providers.docker.operators.docker.DockerOperator` and
@@ -34,6 +34,8 @@ The ``volumes`` parameter in
 was replaced by the ``mounts`` parameter, which uses the newer
 `mount syntax <https://docs.docker.com/storage/>`__ instead of ``--bind``.
 
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 1.2.0
 .....

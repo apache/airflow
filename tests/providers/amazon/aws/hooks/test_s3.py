@@ -193,7 +193,7 @@ class TestAwsS3Hook:
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = {
-            'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]
+            'Payload': [{'Records': {'Payload': b'Cont\xC3'}}, {'Records': {'Payload': b'\xA9nt'}}]
         }
         hook = S3Hook()
         assert hook.select_key('my_key', s3_bucket) == 'Contént'

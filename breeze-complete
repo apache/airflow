@@ -86,6 +86,7 @@ bats-tests
 bats-in-container-tests
 black
 blacken-docs
+boring-cyborg
 build
 build-providers-dependencies
 check-apache-license
@@ -148,6 +149,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+verify-db-migrations-documented
 version-sync
 www-lint
 yamllint

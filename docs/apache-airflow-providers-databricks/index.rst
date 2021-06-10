@@ -58,7 +58,7 @@ Package apache-airflow-providers-databricks
 `Databricks <https://databricks.com/>`__
 
 
-Release: 1.0.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -101,6 +101,28 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add documentation for Databricks connection (#15410)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``An initial rework of the &#34;Concepts&#34; docs (#15444)``
+   * ``Remove Backport Providers (#14886)``
 
 1.0.1
 .....

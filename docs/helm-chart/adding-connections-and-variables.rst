@@ -45,7 +45,7 @@ to override values under these sections of the ``values.yaml`` file.
      my-airflow-connections:
        data: |
          AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
-     my-secret-name: |
+     my-secret-name:
        stringData: |
          my-secret-key: my-secret
 
