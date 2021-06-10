@@ -277,6 +277,7 @@ def create_default_connections(session=None):
             conn_id="google_cloud_default",
             conn_type="google_cloud_platform",
             schema="default",
+            extra='{"extra__google_cloud_platform__num_retries": 3}',
         ),
         session,
     )
