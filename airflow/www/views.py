@@ -431,6 +431,10 @@ class AirflowBaseView(BaseView):  # noqa: D101
         'macros': macros,
     }
 
+    line_chart_attr = {
+        'legend.maxKeyLength': 200,
+    }
+
     def render_template(self, *args, **kwargs):
         return super().render_template(
             *args,
@@ -2270,8 +2274,18 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         if root:
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
-        cum_chart = nvd3.lineChart(name="cumLineChart", x_is_date=True, height=chart_height, width="1200")
+        chart = nvd3.lineChart(
+            name="lineChart",
+            x_is_date=True,
+            height=chart_height,
+            chart_attr=self.line_chart_attr
+        )
+        cum_chart = nvd3.lineChart(
+            name="cumLineChart",
+            x_is_date=True,
+            height=chart_height,
+            chart_attr=self.line_chart_attr
+        )
 
         y_points = defaultdict(list)
         x_points = defaultdict(list)
@@ -2390,7 +2404,11 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, y_axis_format='d', height=chart_height, width="1200"
+            name="lineChart",
+            x_is_date=True,
+            y_axis_format='d',
+            height=chart_height,
+            chart_attr=self.line_chart_attr
         )
 
         for task in dag.tasks:
@@ -2460,7 +2478,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
 
         chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
+        chart = nvd3.lineChart(
+            name="lineChart",
+            x_is_date=True,
+            height=chart_height,
+            chart_attr=self.line_chart_attr
+        )
         y_points = {}
         x_points = {}
         for task in dag.tasks:
