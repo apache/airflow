@@ -121,7 +121,7 @@ class TestDagEndpoint:
                 dag_id=f"TEST_DAG_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
                 schedule_interval="2 2 * * *",
-                owners=['test', 'airflow'],
+                is_active=True,
             )
             session.add(dag_model)
 
@@ -131,7 +131,6 @@ class TestDagEndpoint:
             dag_id="TEST_DAG_DELETED_1",
             fileloc="/tmp/dag_del_1.py",
             schedule_interval="2 2 * * *",
-            owners=['test', 'airflow'],
             is_active=False,
         )
         session.add(dag_model)
