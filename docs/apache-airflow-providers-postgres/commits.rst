@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-05-10
+Latest change: 2021-06-13
 
 ================================================================================================  ===========  ===============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================
+`d99afc3c2 <https://github.com/apache/airflow/commit/d99afc3c21020e78fa3c5d2c80efce818ad2870c>`_  2021-06-13   ``postgres_hook_aws_conn_id (#16100)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `9c8391a13 <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
 `fc845caf7 <https://github.com/apache/airflow/commit/fc845caf785d2fe3f943a1120c743c983130ec27>`_  2021-05-02   ``PostgresHook: deepcopy connection to avoid mutating connection obj (#15412)``

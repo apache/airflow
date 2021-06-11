@@ -27,21 +27,27 @@ Breaking changes
 
 * ``Auto-apply apply_default decorator (#15667)``
 
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
 Features
 ~~~~~~~~
 
-* ``Add Connection Documentation for the Hive Provider (#15704)``
 * ``CloudwatchTaskHandler reads timestamp from Cloudwatch events (#15173)``
 * ``remove retry for now (#16150)``
 * ``Remove the 'not-allow-trailing-slash' rule on S3_hook (#15609)``
+* ``Add support of capacity provider strategy for ECSOperator (#15848)``
+* ``Update copy command for s3 to redshift (#16241)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix S3 Select payload join (#16189)``
 * ``Fix spacing in 'AwsBatchWaitersHook' docstring (#15839)``
-* ``Fix spelling (#15699)``
 * ``MongoToS3Operator failed when running with a single query (not aggregate pipeline) (#15680)``
+* ``fix: AwsGlueJobOperator change order of args for load_file (#16216)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -49,6 +55,13 @@ Bug Fixes
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
    * ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``Add Connection Documentation for the Hive Provider (#15704)``
+   * ``Update Docstrings of Modules with Missing Params (#15391)``
+   * ``Fix spelling (#15699)``
+   * ``Add Connection Documentation for Providers (#15499)``
+
+.. Review and move the new changes to one of the sections above:
 
 1.4.0
 .....
@@ -57,14 +70,12 @@ Features
 ~~~~~~~~
 
 * ``S3Hook.load_file should accept Path object in addition to str (#15232)``
-* ``Add Connection Documentation for Providers (#15499)``
 
 Bug fixes
 ~~~~~~~~~
 
 * ``Fix 'logging.exception' redundancy (#14823)``
 * ``Fix AthenaSensor calling AthenaHook incorrectly (#15427)``
-* ``Update Docstrings of Modules with Missing Params (#15391)``
 * ``Add links to new modules for deprecated modules (#15316)``
 * ``Fixes doc for SQSSensor (#15323)``
 

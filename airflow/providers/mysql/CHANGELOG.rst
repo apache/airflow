@@ -30,10 +30,10 @@ Breaking changes
 
 * ``Auto-apply apply_default decorator (#15667)``
 
-Features
-~~~~~~~~
-
-* ``Add Connection Documentation for Providers (#15499)``
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
 
 Bug Fixes
 ~~~~~~~~~
@@ -43,6 +43,8 @@ Bug Fixes
    * ``Prepares provider release after PIP 21 compatibility (#15576)``
    * ``Make Airflow code Pylint 2.8 compatible (#15534)``
    * ``Update Docstrings of Modules with Missing Params (#15391)``
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``Add Connection Documentation for Providers (#15499)``
 
 1.1.0
 .....

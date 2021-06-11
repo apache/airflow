@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-05-27
+Latest change: 2021-06-07
 
 ================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `904709d34 <https://github.com/apache/airflow/commit/904709d34fbe0b6062d72932b72954afe13ec148>`_  2021-05-27   ``Check synctatic correctness for code-snippets (#16005)``
 `f122e2826 <https://github.com/apache/airflow/commit/f122e2826d6415340c6f8f96cc53044a2395c1e7>`_  2021-05-10   ``Update 'SimpleHttpOperator' to take auth object (#15605)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``

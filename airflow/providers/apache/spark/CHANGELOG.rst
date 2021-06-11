@@ -27,8 +27,21 @@ Breaking changes
 
 * ``Auto-apply apply_default decorator (#15667)``
 
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
+Bug fixes
+~~~~~~~~~
+
+* ``Make SparkSqlHook use Connection (#15794)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updated documentation for June 2021 provider release (#16294)``
+
+.. Review and move the new changes to one of the sections above:
 
 1.0.3
 .....

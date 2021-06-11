@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-06-03
+Latest change: 2021-06-14
 
 ================================================================================================  ===========  ===================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===================================================================================
+`4752fb3eb <https://github.com/apache/airflow/commit/4752fb3eb8ac8827e6af6022fbcf751829ecb17a>`_  2021-06-14   ``Fix issue with parsing error logs in the KPO (#15638)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `2f16757e1 <https://github.com/apache/airflow/commit/2f16757e1a11ef42ac2b1a62622a5d34f8a1e996>`_  2021-06-03   ``Bug Pod Template File Values Ignored (#16095)``
 `476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 `85b2ccb0c <https://github.com/apache/airflow/commit/85b2ccb0c5e03495c58e7c4fb0513ceb4419a103>`_  2021-05-20   ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``

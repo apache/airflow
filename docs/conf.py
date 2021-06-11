@@ -77,7 +77,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
-    PACKAGE_VERSION = 'devel'
+    PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
     CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
@@ -94,7 +94,6 @@ os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
 if PACKAGE_DIR:
     os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
 os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
-
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
@@ -331,8 +330,8 @@ html_context = {
     'conf_py_path': f'/docs/{PACKAGE_NAME}/',
     'github_user': 'apache',
     'github_repo': 'airflow',
-    'github_version': 'devel',
-    'display_github': 'devel',
+    'github_version': 'main',
+    'display_github': 'main',
     'suffix': '.rst',
 }
 

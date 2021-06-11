@@ -106,8 +106,7 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-NO_INTERACTIVE="true"
-./breeze prepare-provider-documentation [packages]
+./breeze --non-interactive prepare-provider-documentation [packages]
 ```
 
 
@@ -364,6 +363,8 @@ which will last for 72 hours - which means that it will end on $(date -d '+3 day
 
 Consider this my (binding) +1.
 
+<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
+
 Airflow Providers are available at:
 https://dist.apache.org/repos/dist/dev/airflow/providers/
 
@@ -398,15 +399,7 @@ Please note that the version number excludes the 'rcX' string.
 This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-
-Each of the packages contains a link to the detailed changelog. The changelogs are moved to the official airflow documentation:
-https://github.com/apache/airflow-site/<TODO COPY LINK TO BRANCH>
-
-<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
-
-
-Note the links to documentation from PyPI packages are not working until we merge
-the changes to airflow site after releasing the packages officially.
+You can find packages as well as detailed changelog following the below links:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
