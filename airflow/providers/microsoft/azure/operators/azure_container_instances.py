@@ -119,7 +119,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                      "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
                      "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
                     secured_variables = ['POSTGRES_PASSWORD'],
-                    volumes = [("azure_wasb_conn_id",
+                    volumes = [("azure_container_instance_conn_id",
                             "my_storage_container",
                             "my_fileshare",
                             "/input-data",

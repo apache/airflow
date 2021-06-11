@@ -38,8 +38,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
     :type prefix: str
-    :param wasb_conn_id: The source WASB connection
-    :type wasb_conn_id: str
+    :param azure_fileshare_conn_id: The source WASB connection
+    :type azure_fileshare_conn_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
@@ -82,7 +82,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         dest_gcs: str,
         directory_name: Optional[str] = None,
         prefix: str = '',
-        wasb_conn_id: str = 'wasb_default',
+        azure_fileshare_conn_id: str = 'azure_fileshare_default',
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         replace: bool = False,
@@ -95,7 +95,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.share_name = share_name
         self.directory_name = directory_name
         self.prefix = prefix
-        self.wasb_conn_id = wasb_conn_id
+        self.azure_fileshare_conn_id = azure_fileshare_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
@@ -114,7 +114,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
             )
 
     def execute(self, context):
-        azure_fileshare_hook = AzureFileShareHook(self.wasb_conn_id)
+        azure_fileshare_hook = AzureFileShareHook(self.azure_fileshare_conn_id)
         files = azure_fileshare_hook.list_files(
             share_name=self.share_name, directory_name=self.directory_name
         )
