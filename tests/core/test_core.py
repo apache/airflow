@@ -299,12 +299,6 @@ class TestCore(unittest.TestCase):
 
     def test_local_task_job(self):
         TI = TaskInstance
-        self.dag_bash.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-        )
         ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
         job = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
