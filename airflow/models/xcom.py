@@ -29,6 +29,7 @@ from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
+from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -223,7 +224,7 @@ class BaseXCom(Base, LoggingMixin):
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode('UTF-8')
+            return json.dumps(value, cls=AirflowJsonEncoder).encode('UTF-8')
         except (ValueError, TypeError):
             log.error(
                 "Could not serialize the XCom value into JSON."

@@ -16,6 +16,7 @@
 # under the License.
 import os
 import unittest
+from datetime import date, datetime
 from unittest import mock
 
 import pytest
@@ -259,3 +260,45 @@ class TestXCom(unittest.TestCase):
         # pylint: enable=unexpected-keyword-arg
         instance.init_on_load()
         mock_orm_deserialize.assert_called_once_with()
+
+    @conf_vars({("core", "xcom_enable_pickling"): "False"})
+    def test_serialize_value_with_unserializable_value(self):
+        class DummyClass:
+            pass
+
+        json_obj = {"key": DummyClass()}
+        execution_date = timezone.utcnow()
+        key = "xcom_test5"
+        dag_id = "test_dag5"
+        task_id = "test_task5"
+
+        with pytest.raises(TypeError):
+            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+    @conf_vars({("core", "xcom_enable_pickling"): "False"})
+    def test_serialize_value_with_serializable_values(self):
+        json_obj = {
+            "string": "value",
+            "datetime": datetime(year=2021, month=6, day=11),
+            "date": date(year=2021, month=6, day=11),
+            "int": int(1),
+            "bool": True,
+            "float": float(2),
+        }
+        execution_date = timezone.utcnow()
+        key = "xcom_test6"
+        dag_id = "test_dag6"
+        task_id = "test_task6"
+
+        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        expected_ret_value = {
+            "string": "value",
+            "datetime": "2021-06-11T00:00:00Z",
+            "date": "2021-06-11",
+            "int": int(1),
+            "bool": True,
+            "float": float(2),
+        }
+        ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+        assert ret_value == expected_ret_value
