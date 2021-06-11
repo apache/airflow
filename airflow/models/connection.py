@@ -18,6 +18,7 @@
 
 import json
 import warnings
+import logging
 from json import JSONDecodeError
 from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
@@ -34,6 +35,8 @@ from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
+
+log = logging.getLogger()
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -389,7 +392,14 @@ class Connection(Base, LoggingMixin):
         :return: connection
         """
         for secrets_backend in ensure_secrets_loaded():
-            conn = secrets_backend.get_connection(conn_id=conn_id)
-            if conn:
-                return conn
+            try:
+                conn = secrets_backend.get_connection(conn_id=conn_id)
+                if conn:
+                    return conn
+            except Exception as e:
+                log.warning('Unable to retrieve connection from alternative secret backend:'
+                            f'\n{e}\n'
+                            'Checking default secrets backends'
+                            )
+
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")

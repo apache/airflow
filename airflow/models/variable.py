@@ -201,7 +201,13 @@ class Variable(Base, LoggingMixin):
         :return: Variable Value
         """
         for secrets_backend in ensure_secrets_loaded():
-            var_val = secrets_backend.get_variable(key=key)
-            if var_val is not None:
-                return var_val
+            try:
+                var_val = secrets_backend.get_variable(key=key)
+                if var_val is not None:
+                    return var_val
+            except Exception as e:
+                log.warning('Unable to retrieve variable from alternative secret backend:'
+                            f'\n{e}\n'
+                            'Checking default secrets backends'
+                            )
         return None
