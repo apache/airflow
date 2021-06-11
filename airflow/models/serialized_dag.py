@@ -313,18 +313,12 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :type session: Session
         """
-        dependencies = {}
-
         if session.bind.dialect.name in ["sqlite", "mysql"]:
-            for row in session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies")).all():
-                dependencies[row[0]] = [DagDependency(**d) for d in json.loads(row[1])]
+            query = session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies"))
+            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         elif session.bind.dialect.name == "mssql":
-            for row in session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies")).all():
-                dependencies[row[0]] = [DagDependency(**d) for d in json.loads(row[1])]
+            query = session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies"))
+            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
-            for row in session.query(
-                cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies")
-            ).all():
-                dependencies[row[0]] = [DagDependency(**d) for d in row[1]]
-
-        return dependencies
+            iterator = session.query(cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies"))
+        return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
