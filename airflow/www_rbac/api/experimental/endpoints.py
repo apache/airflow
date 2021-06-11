@@ -330,7 +330,7 @@ def cancel_dag_run(dag_id):
 
     if 'run_id' not in data:
         error_message = 'Missing run_id'
-        _log.info(error_message)
+        log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
         return response
@@ -351,12 +351,12 @@ def cancel_dag_run(dag_id):
             session.commit()
         dr = _cancel_dag_run(dag_id, run_id)
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    _log.info("User {} canceled {}".format(_get_user_from_header(), dr))
+    log.info("User {} canceled {}".format(_get_user_from_header(), dr))
 
     response = jsonify(message="Cancelled {}".format(dr))
     return response
@@ -373,7 +373,7 @@ def clear_dag_run(dag_id):
 
     if 'run_id' not in data:
         error_message = 'Missing run_id'
-        _log.info(error_message)
+        log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
         return response
@@ -394,12 +394,12 @@ def clear_dag_run(dag_id):
             session.commit()
         dr = _clear_dag_run(dag_id, run_id)
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    _log.info("User {} cleared {}".format(_get_user_from_header(), dr))
+    log.info("User {} cleared {}".format(_get_user_from_header(), dr))
 
     response = jsonify(message="Cleared {}".format(dr))
     return response
