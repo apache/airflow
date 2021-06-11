@@ -996,7 +996,7 @@ class TestBackfillJob(unittest.TestCase):
         # Existing dagrun that is within the backfill range
         dag.create_dagrun(
             run_id="test_existing_backfill",
-            state=State.RUNNING,
+            state=State.SUCCESS,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
         )
@@ -1051,7 +1051,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dag.clear()
         dr = dag.create_dagrun(
-            run_id="test", state=State.RUNNING, execution_date=DEFAULT_DATE, start_date=DEFAULT_DATE
+            run_id="test", state=State.SUCCESS, execution_date=DEFAULT_DATE, start_date=DEFAULT_DATE
         )
 
         executor = MockExecutor()
@@ -1091,7 +1091,7 @@ class TestBackfillJob(unittest.TestCase):
 
         dag.clear()
         dr = dag.create_dagrun(
-            run_id='test', state=State.RUNNING, execution_date=DEFAULT_DATE, start_date=DEFAULT_DATE
+            run_id='test', state=State.SUCCESS, execution_date=DEFAULT_DATE, start_date=DEFAULT_DATE
         )
         executor = MockExecutor()
 
@@ -1518,7 +1518,9 @@ class TestBackfillJob(unittest.TestCase):
         DummyOperator(task_id="dummy_task", dag=dag)
 
         job = BackfillJob(
-            dag=dag, executor=MockExecutor(), start_date=datetime.datetime.now() - datetime.timedelta(days=1)
+            dag=dag,
+            executor=MockExecutor(),
+            start_date=datetime.datetime.now(settings.TIMEZONE) - datetime.timedelta(days=1)
         )
         job.run()
         dr: DagRun = dag.get_last_dagrun()
@@ -1540,3 +1542,46 @@ class TestBackfillJob(unittest.TestCase):
         )
         job.run()
         assert executor.job_id is not None
+
+    def test_backfill_should_not_interfere_with_other_running_job_types(self):
+        dag = DAG(
+            'test_backfill_should_not_interfere_with_other_running_job_types',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'},
+        )
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        dag.clear()
+        dag_run = dag.create_dagrun(
+            run_id='test', state=State.RUNNING, execution_date=DEFAULT_DATE, start_date=DEFAULT_DATE
+        )
+        executor = MockExecutor()
+        session = settings.Session()
+
+        tis = dag_run.get_task_instances()
+        for ti in tis:
+            if ti.task_id == op1.task_id:
+                ti.state = State.SCHEDULED
+            # op6 = None
+            session.merge(ti)
+        session.commit()
+        session.close()
+
+        job = BackfillJob(dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, executor=executor)
+
+        with self.assertLogs(level=logging.ERROR) as captured:
+            job.run()
+
+            assert captured.output == ["ERROR:airflow.jobs.backfill_job.BackfillJob:Backfill cannot be created "
+                                       "for DagRun 'test_backfill_should_not_interfere_with_other_running_job_types' "
+                                       "in '2016-01-01T00:00:00', as there's already 'manual' in a RUNNING state. "
+                                       "Changing DagRun into BACKFILL would cause scheduler to lose track "
+                                       "of executing tasks. Not changing DagRun type into BACKFILL, "
+                                       "and trying insert another DagRun into database would cause "
+                                       "database constraint violation for dag_id + execution_date combination. "
+                                       "Please adjust backfill dates or wait for this DagRun to finish."]
+        dag_run.refresh_from_db()
+
+        assert DagRunType.MANUAL == dag_run.run_type
