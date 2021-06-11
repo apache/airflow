@@ -155,7 +155,7 @@ and the Webserver used the serialized DAGs, there is no need to kill an existing
 worker and create a new one as frequently as `30` seconds.
 
 This setting can be raised to an even higher value, currently it is
-set to `6000` seconds (10 minutes) to
+set to `6000` seconds (100 minutes) to
 serve as a DagBag cache burst time.
 
 ### `default_queue` configuration has been moved to the `operators` section.

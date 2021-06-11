@@ -135,7 +135,7 @@ If release name contains chart name it will be used as a full name.
 
 {{/*  Git sync container */}}
 {{- define "git_sync_container"}}
-- name: {{ .Values.dags.gitSync.containerName }}
+- name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
   securityContext:

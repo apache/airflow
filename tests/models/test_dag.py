@@ -1805,6 +1805,16 @@ class TestDagDecorator(unittest.TestCase):
         super().tearDown()
         clear_db_runs()
 
+    def test_fileloc(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            ...
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'noop_pipeline'
+        assert dag.fileloc == __file__
+
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""
 

@@ -2348,6 +2348,10 @@ def dag(*dag_args, **dag_kwargs):
                 for name, value in f_sig.arguments.items():
                     f_kwargs[name] = dag_obj.param(name, value)
 
+                # set file location to caller source path
+                back = sys._getframe().f_back
+                dag_obj.fileloc = back.f_code.co_filename if back else ""
+
                 # Invoke function to create operators in the DAG scope.
                 f(**f_kwargs)
 

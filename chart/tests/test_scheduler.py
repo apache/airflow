@@ -145,6 +145,16 @@ class SchedulerTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_should_create_default_affinity(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert {"component": "scheduler"} == jmespath.search(
+            "spec.template.spec.affinity.podAntiAffinity."
+            "preferredDuringSchedulingIgnoredDuringExecution[0]."
+            "podAffinityTerm.labelSelector.matchLabels",
+            docs[0],
+        )
+
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
@@ -364,3 +374,20 @@ class SchedulerTest(unittest.TestCase):
 
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            ({"gitSync": {"enabled": True}},),
+            ({"gitSync": {"enabled": True}, "persistence": {"enabled": True}},),
+        ]
+    )
+    def test_dags_gitsync_sidecar_and_init_container(self, dags_values):
+        docs = render_chart(
+            values={"dags": dags_values},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync-init" in [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]

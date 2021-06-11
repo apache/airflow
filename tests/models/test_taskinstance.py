@@ -38,10 +38,8 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
 )
-from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import (
     DAG,
-    DagModel,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -1915,107 +1913,6 @@ class TestTaskInstance(unittest.TestCase):
         # CleanUp
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
-
-    def validate_ti_states(self, dag_run, ti_state_mapping, error_message):
-        for task_id, expected_state in ti_state_mapping.items():
-            task_instance = dag_run.get_task_instance(task_id=task_id)
-            assert task_instance.state == expected_state, error_message
-
-    @parameterized.expand(
-        [
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'True'},
-                {'A': 'B', 'B': 'C'},
-                {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.SCHEDULED, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.SUCCESS, 'C': State.SCHEDULED},
-                "A -> B -> C, with fast-follow ON when A runs, B should be QUEUED. Same for B and C.",
-            ),
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'False'},
-                {'A': 'B', 'B': 'C'},
-                {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE},
-                None,
-                "A -> B -> C, with fast-follow OFF, when A runs, B shouldn't be QUEUED.",
-            ),
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'True'},
-                {'A': 'B', 'C': 'B', 'D': 'C'},
-                {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
-                {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
-                None,
-                "D -> C -> B & A -> B, when A runs but C isn't QUEUED yet, B shouldn't be QUEUED.",
-            ),
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'True'},
-                {'A': 'C', 'B': 'C'},
-                {'A': State.QUEUED, 'B': State.FAILED, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.FAILED, 'C': State.UPSTREAM_FAILED},
-                None,
-                "A -> C & B -> C, when A is QUEUED but B has FAILED, C is marked UPSTREAM_FAILED.",
-            ),
-        ]
-    )
-    def test_fast_follow(
-        self, conf, dependencies, init_state, first_run_state, second_run_state, error_message
-    ):
-        with conf_vars(conf):
-            session = settings.Session()
-
-            dag = DAG('test_dagrun_fast_follow', start_date=DEFAULT_DATE)
-
-            dag_model = DagModel(
-                dag_id=dag.dag_id,
-                next_dagrun=dag.start_date,
-                is_active=True,
-            )
-            session.add(dag_model)
-            session.flush()
-
-            python_callable = lambda: True
-            with dag:
-                task_a = PythonOperator(task_id='A', python_callable=python_callable)
-                task_b = PythonOperator(task_id='B', python_callable=python_callable)
-                task_c = PythonOperator(task_id='C', python_callable=python_callable)
-                if 'D' in init_state:
-                    task_d = PythonOperator(task_id='D', python_callable=python_callable)
-                for upstream, downstream in dependencies.items():
-                    dag.set_dependency(upstream, downstream)
-
-            scheduler_job = SchedulerJob(subdir=os.devnull)
-            scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-
-            dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
-
-            task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
-            task_instance_a.task = task_a
-            task_instance_a.set_state(init_state['A'])
-
-            task_instance_b = dag_run.get_task_instance(task_id=task_b.task_id)
-            task_instance_b.task = task_b
-            task_instance_b.set_state(init_state['B'])
-
-            task_instance_c = dag_run.get_task_instance(task_id=task_c.task_id)
-            task_instance_c.task = task_c
-            task_instance_c.set_state(init_state['C'])
-
-            if 'D' in init_state:
-                task_instance_d = dag_run.get_task_instance(task_id=task_d.task_id)
-                task_instance_d.task = task_d
-                task_instance_d.state = init_state['D']
-
-            session.commit()
-            task_instance_a.run()
-
-            self.validate_ti_states(dag_run, first_run_state, error_message)
-
-            if second_run_state:
-                scheduler_job._critical_section_execute_task_instances(session=session)
-                task_instance_b.run()
-                self.validate_ti_states(dag_run, second_run_state, error_message)
-            if scheduler_job.processor_agent:
-                scheduler_job.processor_agent.end()
 
     def test_set_state_up_for_retry(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)

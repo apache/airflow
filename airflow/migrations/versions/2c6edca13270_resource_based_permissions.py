@@ -289,7 +289,7 @@ def remap_permissions():
     appbuilder = create_app(config={'FAB_UPDATE_PERMS': False}).appbuilder
     for old, new in mapping.items():
         (old_view_name, old_perm_name) = old
-        old_pvm = appbuilder.sm.find_permission_view_menu(old_perm_name, old_view_name)
+        old_pvm = appbuilder.sm.get_permission(old_perm_name, old_view_name)
         if not old_pvm:
             continue
         for new_perm_name, new_view_name in new:
@@ -303,7 +303,7 @@ def remap_permissions():
         if not appbuilder.sm.find_permission(old_perm_name):
             continue
         view_menus = appbuilder.sm.get_all_view_menu()
-        if not any(appbuilder.sm.find_permission_view_menu(old_perm_name, view.name) for view in view_menus):
+        if not any(appbuilder.sm.get_permission(old_perm_name, view.name) for view in view_menus):
             appbuilder.sm.del_permission(old_perm_name)
 
 
