@@ -87,8 +87,7 @@ class TestCliTasks(unittest.TestCase):
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
-    @mock.patch("airflow.models.taskinstance.TaskInstance._run_mini_scheduler_on_child_tasks")
-    def test_test_with_existing_dag_run(self, mock_run_mini_scheduler):
+    def test_test_with_existing_dag_run(self):
         """Test the `airflow test` command"""
         dag_id = 'example_python_operator'
         run_id = 'TEST_RUN_ID'
@@ -102,7 +101,6 @@ class TestCliTasks(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
 
-        mock_run_mini_scheduler.assert_not_called()
         # Check that prints, and log messages, are shown
         assert f"Marking task as SUCCESS. dag_id={dag_id}, task_id={task_id}" in stdout.getvalue()
 
