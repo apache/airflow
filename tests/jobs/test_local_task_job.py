@@ -519,6 +519,7 @@ class TestLocalTaskJob(unittest.TestCase):
             (signal.SIGKILL,),
         ]
     )
+    @pytest.mark.quarantined
     def test_process_kill_calls_on_failure_callback(self, signal_type):
         """
         Test that ensures that when a task is killed with sigterm or sigkill
