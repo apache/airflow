@@ -41,7 +41,7 @@
 #
 # Feel free to modify this file to suit your needs.
 ---
-version: '3'
+version: '2.4'
 x-airflow-common:
   &airflow-common
   image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:|version|}
