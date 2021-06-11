@@ -28,10 +28,9 @@ class AzureFileShareHook(BaseHook):
     """
     Interacts with Azure FileShare Storage.
 
-    Additional options passed in the 'extra' field of the connection
-    ('sas_token', 'protocol', 'connection_string') will be
-    passed to the `FileService()` constructor after stripping `extra__azure_fileshare__` prefix
-    in order to support UI-editable fields.
+    :param azure_fileshare_conn_id: Reference to the
+        :ref:`Azure Container Volume connection id<howto/connection:azure_fileshare>`
+        of an Azure account of which container volumes should be used.
 
     """
 
@@ -40,9 +39,9 @@ class AzureFileShareHook(BaseHook):
     conn_type = 'azure_fileshare'
     hook_name = 'Azure FileShare'
 
-    def __init__(self, wasb_conn_id: str = 'azure_fileshare_default') -> None:
+    def __init__(self, azure_fileshare_conn_id: str = 'azure_fileshare_default') -> None:
         super().__init__()
-        self.conn_id = wasb_conn_id
+        self.conn_id = azure_fileshare_conn_id
         self._conn = None
 
     @staticmethod

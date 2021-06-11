@@ -17,30 +17,24 @@
 
 
 
-.. _howto/connection:wasb:
+.. _howto/connection:azure_container_volume:
 
-Microsoft Azure Blob Storage Connection
-=======================================
+Microsoft Azure Container Volume Connection
+===========================================
 
-The Microsoft Azure Blob Storage connection type enables the Azure Blob Storage Integrations.
+The Microsoft Azure Container Volume connection type enables the Azure Container Volume Integrations.
 
-Authenticating to Azure Blob Storage
-------------------------------------
+Authenticating to Azure Container Volume
+----------------------------------------
 
-There are four ways to connect to Azure Blob Storage using Airflow.
+There are four ways to connect to Azure Container Volume using Airflow.
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
-   i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
-2. Use `Azure Shared Key Credential
-   <https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key>`_
-   i.e. add shared key credentials to ``extra__wasb__shared_access_key`` the Airflow connection.
-3. Use a `SAS Token
-   <https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas>`_
-   i.e. add a key config to ``extra__wasb__sas_token`` in the Airflow connection.
-4. Use a `Connection String
+   i.e. add specific credentials (client_id, secret) and subscription id to the Airflow connection.
+2. Use a `Connection String
    <https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage>`_
-   i.e. add connection string to ``extra__wasb__connection_string`` in the Airflow connection.
+   i.e. add connection string to ``extra__azure_container_volume__connection_string`` in the Airflow connection.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -48,7 +42,7 @@ configure multiple connections.
 Default Connection IDs
 ----------------------
 
-All hooks and operators related to Microsoft Azure Blob Storage use ``azure_container_volume_default`` by default.
+All hooks and operators related to Azure Container Volume use ``azure_container_volume_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -67,10 +61,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``extra__wasb__tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication.
-    * ``extra__wasb__shared_access_key``: Specify the shared access key. Needed for shared access key authentication.
-    * ``extra__wasb__connection_string``: Connection string for use with connection string authentication.
-    * ``extra__wasb__sas_token``: SAS Token for use with SAS Token authentication.
+    * ``extra__azure_container_volume__connection_string``: Connection string for use with connection string authentication.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -81,4 +72,4 @@ For example connect with token credentials:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_WASP_DEFAULT='wasb://blob%20username:blob%20password@myblob.com?tenant_id=tenant+id'
+   export AIRFLOW_CONN_WASP_DEFAULT='azure_container_volume://blob%20username:blob%20password@myblob.com'

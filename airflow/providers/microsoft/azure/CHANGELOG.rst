@@ -27,6 +27,10 @@ Breaking changes
 
 * ``Auto-apply apply_default decorator (#15667)``
 
+
+``Azure Container Volume`` and ``Azure File Share`` have now dedicated connection types with editable
+UI fields. You should not use ``Wasb`` connection type any more for those connections.
+
 Features
 ~~~~~~~~
 
