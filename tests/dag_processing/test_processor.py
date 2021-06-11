@@ -277,7 +277,7 @@ class TestDagFileProcessor(unittest.TestCase):
         assert email1 in send_email_to
         assert email2 not in send_email_to
 
-    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    @mock.patch('airflow.dag_processing.processor.Stats.incr')
     @mock.patch("airflow.utils.email.send_email")
     def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email, mock_stats_incr):
         """
@@ -387,7 +387,7 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.start_date = start_date
             ti.end_date = end_date
 
-            count = self.scheduler_job._schedule_dag_run(dr, set(), session)
+            count = self.scheduler_job._schedule_dag_run(dr, session)
             assert count == 1
 
             session.refresh(ti)
@@ -444,7 +444,7 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.start_date = start_date
             ti.end_date = end_date
 
-            count = self.scheduler_job._schedule_dag_run(dr, set(), session)
+            count = self.scheduler_job._schedule_dag_run(dr, session)
             assert count == 1
 
             session.refresh(ti)
@@ -504,7 +504,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-            count = self.scheduler_job._schedule_dag_run(dr, set(), session)
+            count = self.scheduler_job._schedule_dag_run(dr, session)
             assert count == 2
 
             session.refresh(tis[0])
@@ -547,7 +547,7 @@ class TestDagFileProcessor(unittest.TestCase):
         BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo test')
         SerializedDagModel.write_dag(dag=dag)
 
-        scheduled_tis = self.scheduler_job._schedule_dag_run(dr, set(), session)
+        scheduled_tis = self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
         assert scheduled_tis == 2
 
@@ -560,11 +560,10 @@ class TestDagFileProcessor(unittest.TestCase):
 
     def test_runs_respected_after_clear(self):
         """
-        Test if _process_task_instances only schedules ti's up to max_active_runs
-        (related to issue AIRFLOW-137)
+        Test dag after dag.clear, max_active_runs is respected
         """
         dag = DAG(dag_id='test_scheduler_max_active_runs_respected_after_clear', start_date=DEFAULT_DATE)
-        dag.max_active_runs = 3
+        dag.max_active_runs = 1
 
         BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo Hi')
 
@@ -575,48 +574,46 @@ class TestDagFileProcessor(unittest.TestCase):
         session.close()
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
+        # Write Dag to DB
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
+        dagbag.bag_dag(dag, root_dag=dag)
+        dagbag.sync_to_db()
+
+        dag = DagBag(read_dags_from_db=True, include_examples=False).get_dag(dag.dag_id)
+
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
 
         date = DEFAULT_DATE
-        dr1 = dag.create_dagrun(
+        dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=date,
-            state=State.RUNNING,
+            state=State.QUEUED,
         )
         date = dag.following_schedule(date)
-        dr2 = dag.create_dagrun(
+        dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=date,
-            state=State.RUNNING,
+            state=State.QUEUED,
         )
         date = dag.following_schedule(date)
-        dr3 = dag.create_dagrun(
+        dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=date,
-            state=State.RUNNING,
+            state=State.QUEUED,
         )
+        dag.clear()
 
-        # First create up to 3 dagruns in RUNNING state.
-        assert dr1 is not None
-        assert dr2 is not None
-        assert dr3 is not None
-        assert len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)) == 3
+        assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 3
 
-        # Reduce max_active_runs to 1
-        dag.max_active_runs = 1
-
-        # and schedule them in, so we can check how many
-        # tasks are put on the task_instances_list (should be one, not 3)
-        with create_session() as session:
-            num_scheduled = self.scheduler_job._schedule_dag_run(dr1, set(), session)
-            assert num_scheduled == 1
-            num_scheduled = self.scheduler_job._schedule_dag_run(dr2, {dr1.execution_date}, session)
-            assert num_scheduled == 0
-            num_scheduled = self.scheduler_job._schedule_dag_run(dr3, {dr1.execution_date}, session)
-            assert num_scheduled == 0
+        session = settings.Session()
+        self.scheduler_job._start_queued_dagruns(session)
+        session.commit()
+        # Assert that only 1 dagrun is active
+        assert len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)) == 1
+        # Assert that the other two are queued
+        assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 2
 
     @patch.object(TaskInstance, 'handle_failure_with_callback')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
@@ -698,7 +695,7 @@ class TestDagFileProcessor(unittest.TestCase):
         dr = drs[0]
 
         # Schedule TaskInstances
-        self.scheduler_job_job._schedule_dag_run(dr, {}, session)
+        self.scheduler_job_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
@@ -724,7 +721,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 assert end_date is None
                 assert duration is None
 
-        self.scheduler_job_job._schedule_dag_run(dr, {}, session)
+        self.scheduler_job_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 

@@ -1480,7 +1480,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=True,
-        dag_run_state: str = State.RUNNING,
+        dag_run_state: str = State.QUEUED,
         dry_run=False,
         session=None,
         get_tis=False,
@@ -1606,7 +1606,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=False,
-        dag_run_state=State.RUNNING,
+        dag_run_state=State.QUEUED,
         dry_run=False,
     ):
         all_tis = []
