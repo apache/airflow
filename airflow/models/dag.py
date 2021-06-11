@@ -1129,7 +1129,7 @@ class DAG(LoggingMixin):
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         dag_ids = dag_ids or [self.dag_id]
         query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
