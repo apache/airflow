@@ -37,7 +37,7 @@ TABLE = "table_42"
 destination_table = "mssql_table_test"
 
 with models.DAG(
-    "example_bigquery_to_gcs",
+    "example_bigquery_to_mssql",
     schedule_interval=None,  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
