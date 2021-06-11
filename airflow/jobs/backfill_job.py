@@ -778,20 +778,19 @@ class BackfillJob(BaseJob):
             execution_end_date=self.bf_end_date,
             no_backfills=True,
             state=State.RUNNING,
-            session=session
+            session=session,
         )
         if running_dagruns:
             for run in running_dagruns:
                 self.log.error(
-                    "Backfill cannot be created for DagRun %s in %s, "
-                    "as there's already %s in a RUNNING state. """
+                    "Backfill cannot be created for DagRun %s in %s, as there's already %s in a RUNNING state. "
                     "Changing DagRun into BACKFILL would cause scheduler to lose track of executing tasks. "
                     "Not changing DagRun type into BACKFILL, and trying insert another DagRun into database "
                     "would cause database constraint violation for dag_id + execution_date combination. "
                     "Please adjust backfill dates or wait for this DagRun to finish.",
                     {run.dag_id},
                     {run.execution_date.strftime("%Y-%m-%dT%H:%M:%S")},
-                    {run.run_type}
+                    {run.run_type},
                 )
             return
 
