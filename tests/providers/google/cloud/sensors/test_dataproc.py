@@ -127,3 +127,40 @@ class TestDataprocJobSensor(unittest.TestCase):
         mock_hook.return_value.get_job.assert_called_once_with(
             job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
         )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_location_deprecation_warning(self, mock_hook):
+        job = self.create_job(JobStatus.State.DONE)
+        job_id = "job_id"
+        mock_hook.return_value.get_job.return_value = job
+        warning_message = (
+            "Parameter `location` will be deprecated. "
+            "Please provide value through `region` parameter instead."
+        )
+
+        with pytest.warns(DeprecationWarning) as warnings:
+            sensor = DataprocJobSensor(
+                task_id=TASK_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                dataproc_job_id=job_id,
+                gcp_conn_id=GCP_CONN_ID,
+                timeout=TIMEOUT,
+            )
+            assert warning_message == str(warnings[0].message)
+            ret = sensor.poke(context={})
+
+            mock_hook.return_value.get_job.assert_called_once_with(
+                job_id=job_id, region=GCP_LOCATION, project_id=GCP_PROJECT
+            )
+            assert ret
+
+        with pytest.raises(TypeError):
+            sensor = DataprocJobSensor(
+                task_id=TASK_ID,
+                project_id=GCP_PROJECT,
+                dataproc_job_id=job_id,
+                gcp_conn_id=GCP_CONN_ID,
+                timeout=TIMEOUT,
+            )
+            sensor.poke(context={})

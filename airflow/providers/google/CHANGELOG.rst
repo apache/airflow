@@ -15,6 +15,16 @@
     specific language governing permissions and limitations
     under the License.
 
+Changelog
+---------
+
+4.1.0
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Fix: Inconsistencies with Dataproc Operator parameters (#15622)``
+
 
 Changelog
 ---------
