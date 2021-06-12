@@ -522,6 +522,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
+    'pygithub',
     'pylint~=2.8.1',
     'pysftp',
     'pytest~=6.0',

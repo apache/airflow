@@ -1260,6 +1260,13 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
+        --generate-providers-issue)
+            export GENERATE_PROVIDERS_ISSUE="true"
+            export FORWARD_CREDENTIALS="true"
+            echo "Generating providers issue (includes forwarding credentials)"
+            echo
+            shift
+            ;;
         --installation-method)
             export AIRFLOW_INSTALLATION_METHOD="${2}"
             echo "Airflow installation method: ${AIRFLOW_INSTALLATION_METHOD}"
@@ -1866,7 +1873,7 @@ ${CMDNAME} prepare-provider-documentation [FLAGS] [PACKAGE_ID ...]
 Flags:
 $(breeze::flag_version_suffix)
 $(breeze::flag_packages)
-$(breeze::flag_non_interactive)
+$(breeze::prepare_providers_documentation)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION
@@ -2596,16 +2603,20 @@ ${FORMATTED_PACKAGE_FORMATS}
 
 #######################################################################################################
 #
-# Prints flags for non-interactive run
+# Prints flags for prepare-providers-documentation
 #
 # Outputs:
 #    Flag information.
 #######################################################################################################
-function breeze::flag_non_interactive() {
+function breeze::prepare_providers_documentation() {
     echo "
 --non-interactive
 
         Runs the command in non-interactive mode.
+
+--generate-providers-issue
+
+        Generate providers issue that should be created.
 
 "
 }
