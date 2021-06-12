@@ -3486,4 +3486,4 @@ class CurveAnalysisControllerView(TighteningControllerView):
 
     # list_columns = ['controller_name']
 
-    base_permissions = ['can_show']
+    base_permissions = ['can_show', 'can_list']
