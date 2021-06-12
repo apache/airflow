@@ -27,6 +27,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
+    dagruns_setstate_form_schema,
 )
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
@@ -265,3 +266,26 @@ def post_dag_run(dag_id, session):
     raise AlreadyExists(
         detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{post_body['run_id']}' already exists"
     )
+
+#TODO: see if these are the right permissions
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+    ]
+)
+    
+@provide_session
+def patch_set_dag_run_state(dag_id, dag_run_id, state, session):
+    """Update the state of a DAG Run."""
+    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    if dag_run is None:
+        raise NotFound(
+            "DAGRun not found",
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
+        )
+    #if dag_run.get_state == state:
+    #    return something else if state hasn't changed?
+    dag_run.set_state(state)
+        return NoContent, 204 #TODO: is this the best status code?
+    
