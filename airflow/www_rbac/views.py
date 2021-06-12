@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import http
+import zipfile
 import uuid
 import copy
 import itertools
@@ -33,7 +34,7 @@ from datetime import timedelta
 from urllib.parse import unquote
 from airflow.settings import TIMEZONE
 from datetime import datetime
-
+from typing import List
 import six
 from six.moves.urllib.parse import quote
 import pprint
@@ -44,6 +45,8 @@ from flask import (
     Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
     session as flask_session, url_for,
 )
+
+from flask import send_file
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.baseviews import BaseCRUDView
@@ -94,6 +97,8 @@ from flask_appbuilder.models.sqla.filters import FilterEqualFunction, FilterInFu
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
+
+from pathlib import Path
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
@@ -2249,6 +2254,12 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
+    download_static_folder = os.path.join(os.path.dirname(__file__), 'downloads/contents')
+
+    def __init__(self, *args, **kwargs):
+        ret = super(CurvesView, self).__init__(**kwargs)
+        os.makedirs(self.download_static_folder, exist_ok=True)
+
     def do_render(self, track_no=None, bolt_no=None, controller=None, craft_type=None):
         view_name = 'curves'
         curves = request.args.get('curves')
@@ -2265,7 +2276,8 @@ class CurvesView(BaseCRUDView):
         if track_no:
             self._filters.add_filter(column_name='car_code', filter_class=self.datamodel.FilterEqual, value=track_no)
         if controller:
-            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains, value=controller)
+            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains,
+                                     value=controller)
 
         joined_filters = self._filters.get_joined_filters(self._base_filters)
         order_column, order_direction = "execution_date", "desc"
@@ -2337,6 +2349,38 @@ class CurvesView(BaseCRUDView):
         if not ret:
             raise AirflowNotFoundException
         return ret
+
+    def clean_download_static_files(self):
+        fds = ['*.json', '*.csv']
+        for fd in fds:
+            for f in Path(self.download_static_folder).glob(fd):
+                try:
+                    f.unlink()
+                except OSError as e:
+                    _logger.error(f"Error: {f} : {e}")
+
+    def generate_download_zip_file(self, files: List[str]):
+        fn = f'{self.download_static_folder}/curves.zip'
+        with zipfile.ZipFile(fn, 'w') as f:
+            for file in files:
+                if not os.path.exists(file):
+                    continue
+                f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+
+    @expose('/download/<string:entity_ids>')
+    @has_access
+    def download_curves(self, entity_ids: str):
+        if not entity_ids:
+            return Response(status=http.HTTPStatus.OK)
+
+        fn = f'{self.download_static_folder}/curves.zip'
+        chk_file = Path(fn)
+
+        if chk_file.is_file():
+            chk_file.unlink()
+        entities = entity_ids.split(',')
+        return send_file(fn, mimetype='application/zip', attachment_filename='curves.zip',
+                         as_attachment=True)
 
     @expose('/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -2433,6 +2477,7 @@ class TrackNoNotNullFilter(BaseFilter):
         ti = self.model
         ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
         return ret
+
 
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
