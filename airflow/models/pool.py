@@ -117,8 +117,10 @@ class Pool(Base):
         ).all()
 
         # calculate queued and running metrics
-        count: int
         for (pool_name, state, count) in state_count_by_pool:
+            # Some databases return decimal.Decimal here.
+            count = int(count)
+
             stats_dict: Optional[PoolStats] = pools.get(pool_name)
             if not stats_dict:
                 continue
