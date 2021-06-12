@@ -667,6 +667,23 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    patch:
+      summary: Set the state of a DAG run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: patch_set_dag_run_state
+      tags: [DAGRun]
+      responses:
+        '204':
+          description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /eventLogs:
     get:
       summary: List log entries
