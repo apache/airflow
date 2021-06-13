@@ -44,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
+- [Semantic versioning](#semantic-versioning)
 - [Version Life Cycle](#version-life-cycle)
 - [Requirements](#requirements)
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
@@ -75,6 +76,35 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 - **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+
+## Semantic versioning
+
+As of Airflow 2.0.0, airflow supports strict [SemVer](https://semver.org/) approach for all packages released.
+
+There are few specific rules that we agreed to, that define details of versioning of the different
+packages:
+
+* **Airflow**: SemVer rules apply to core airflow only (excludes any changes to providers).
+  Change in minimal dependency versions of Airflow is not a breaking change on its own.
+* **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
+  SemVer MAJOR and MINOR versions for the packages are independent from Airflow version.
+  For example `google 4.1.0` and `amazon 3.0.3` providers can happily be installed
+  with `Airflow 2.1.1`. If there are any requirements between providers and Airflow packages,
+  they are present in providers as `install_requires` limitations. We aim to keep backwards
+  compatibility of providers with all previously released Airflow 2 versions but
+  there will be sometimes breaking changes that might make some, or all
+  providers depend on minimal Airflow version. Change of the minimal MAJOR.MINOR version of Airflow
+  is a breaking change for provider, because installing the new provider might automatically
+  upgrade Airflow (which might be undesired).
+* **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
+  versions for the chart are independent from apache-airflow versions. We aim to keep backwards
+  compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
+  only work starting from specific Airlfow releases. At some point in time we might limit the Helm
+  Chart to depend on minimal Airflow version.
+* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR version of Airflow.
+  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
+  all clients. The clients then can release their own PATCH releases with bugfixes,
+  independently of Airflow PATCH releases.
 
 ## Version Life Cycle
 
