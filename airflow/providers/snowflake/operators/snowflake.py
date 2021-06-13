@@ -64,6 +64,8 @@ class SnowflakeOperator(BaseOperator):
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
     :type session_parameters: dict
+    :param application: allows snowflake to attribute usage to airflow
+    :type application: str
     """
 
     template_fields = ('sql',)
@@ -83,6 +85,7 @@ class SnowflakeOperator(BaseOperator):
         schema: Optional[str] = None,
         authenticator: Optional[str] = None,
         session_parameters: Optional[dict] = None,
+        application: Optional[str] = 'AIRFLOW',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,6 +100,7 @@ class SnowflakeOperator(BaseOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids = []
+        self.application = application
 
     def get_hook(self) -> SnowflakeHook:
         """
@@ -112,6 +116,7 @@ class SnowflakeOperator(BaseOperator):
             schema=self.schema,
             authenticator=self.authenticator,
             session_parameters=self.session_parameters,
+            application=self.application
         )
 
     def execute(self, context: Any) -> None:
