@@ -233,6 +233,15 @@ class RedisTest(unittest.TestCase):
 
         self.assert_broker_url_env(k8s_obj_by_key, expected_broker_url_secret_name)
 
+    def test_default_redis_secrets_created_with_non_celery_executor(self):
+        # We want to make sure default redis secrets (if needed) are still
+        # created during install, as they are marked "pre-install".
+        # See note in templates/secrets/redis-secrets.yaml for more.
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor"}, show_only=["templates/secrets/redis-secrets.yaml"]
+        )
+        assert 2 == len(docs)
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={

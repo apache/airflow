@@ -266,7 +266,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime:
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> Optional[datetime]:
         """
         Get the date when the Serialized DAG associated to DAG was last updated
         in serialized_dag table
@@ -300,7 +300,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :type session: Session
         :return: DAG Hash
-        :rtype: str
+        :rtype: str | None
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
 

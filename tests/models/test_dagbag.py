@@ -19,7 +19,7 @@ import os
 import shutil
 import textwrap
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
 from unittest.mock import patch
@@ -33,6 +33,7 @@ from airflow import models
 from airflow.exceptions import SerializationError
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
 from airflow.www.security import ApplessAirflowSecurityManager
@@ -310,6 +311,34 @@ class TestDagBag(unittest.TestCase):
         assert dag is not None
         assert dag_id == dag.dag_id
         assert 2 == dagbag.process_file_calls
+
+    def test_dag_removed_if_serialized_dag_is_removed(self):
+        """
+        Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
+        remove dags from the DagBag
+        """
+        from airflow.operators.dummy import DummyOperator
+
+        dag = models.DAG(
+            dag_id="test_dag_removed_if_serialized_dag_is_removed",
+            schedule_interval=None,
+            start_date=tz.datetime(2021, 10, 12),
+        )
+
+        with dag:
+            DummyOperator(task_id="task_1")
+
+        dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False, read_dags_from_db=True)
+        dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
+        dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
+        dagbag.dags_hash = {dag.dag_id: mock.ANY}
+
+        assert SerializedDagModel.has_dag(dag.dag_id) is False
+
+        assert dagbag.get_dag(dag.dag_id) is None
+        assert dag.dag_id not in dagbag.dags
+        assert dag.dag_id not in dagbag.dags_last_fetched
+        assert dag.dag_id not in dagbag.dags_hash
 
     def process_dag(self, create_dag):
         """

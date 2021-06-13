@@ -49,9 +49,20 @@
       <td>{{ dag.schedule_interval }}</td>
     </tr>
     <tr>
-      <th>Start Date</th>
-      <td class="js-format-date">{{ dag.start_date }}</td>
+      <th>Catchup</th>
+      <td>{{ dag.catchup }}</td>
     </tr>
+    {% if dag.catchup %}
+      <tr>
+        <th>Start Date</th>
+        <td class="js-format-date">{{ dag.start_date }}</td>
+      </tr>
+    {% else %}
+      <tr>
+        <th>Started</th>
+        <td>{{ states|length > 0 }}</td>
+      </tr>
+    {% endif %}
     <tr>
       <th>End Date</th>
       <td class="js-format-date">{{ dag.end_date }}</td>

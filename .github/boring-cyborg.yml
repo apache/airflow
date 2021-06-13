@@ -248,6 +248,8 @@ firstIssueWelcomeComment: >
   Thanks for opening your first issue here! Be sure to follow the issue template!
 
 checkUpToDate:
-  - airflow/migrations/*
-  - airflow/migrations/**/*
-  - airflow/alembic.ini
+  targetBranch: main
+  files:
+    - airflow/migrations/*
+    - airflow/migrations/**/*
+    - airflow/alembic.ini

@@ -19,7 +19,7 @@
 import json
 import warnings
 from json import JSONDecodeError
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
@@ -117,12 +117,14 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         password: Optional[str] = None,
         schema: Optional[str] = None,
         port: Optional[int] = None,
-        extra: Optional[str] = None,
+        extra: Optional[Union[str, dict]] = None,
         uri: Optional[str] = None,
     ):
         super().__init__()
         self.conn_id = conn_id
         self.description = description
+        if extra and not isinstance(extra, str):
+            extra = json.dumps(extra)
         if uri and (  # pylint: disable=too-many-boolean-expressions
             conn_type or host or login or password or schema or port or extra
         ):

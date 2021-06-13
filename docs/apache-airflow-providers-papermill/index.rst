@@ -57,7 +57,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 1.0.2
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -74,12 +74,12 @@ You can install this package on top of an existing airflow 2.* installation via
 PIP requirements
 ----------------
 
-==========================  ==================
-PIP package                 Version required
-==========================  ==================
-``nteract-scrapbook[all]``  ``>=0.3.1``
-``papermill[all]``          ``>=1.2.1``
-==========================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``papermill[all]``  ``>=1.2.1``
+``scrapbook[all]``
+==================  ==================
 
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -101,6 +101,25 @@ PIP package                 Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Emit error on duplicated DAG ID (#15302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
 
 1.0.2
 .....

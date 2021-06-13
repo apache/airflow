@@ -85,7 +85,7 @@ class PodTemplateFileTest(unittest.TestCase):
 
         assert re.search("Pod", docs[0]["kind"])
         assert {
-            "name": "git-sync-test",
+            "name": "git-sync-test-init",
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",

@@ -171,8 +171,8 @@ In this example, you will create a yaml file called ``override-values.yaml`` to 
         subPath: ""
         sshKeySecret: airflow-ssh-secret
     extraSecrets:
-      airflow-ssh-secret: |
-        data:
+      airflow-ssh-secret:
+        data: |
           gitSshKey: '<base64-converted-ssh-private-key>'
 
 Don't forget to copy in your private key base64 string.
