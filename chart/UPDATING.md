@@ -59,3 +59,8 @@ If you have them set in your values file you can safely remove them.
 
 The `dags.gitSync.excludeWebserver` parameter was mistakenly included in the charts `values.schema.json`. If you have it set in your values file,
 you can safely remove it.
+
+### `nodeSelector`, `affinity` and `tolerations` on `migrateDatabaseJob` and `createUserJob` jobs
+
+The `migrateDatabaseJob` and `createUserJob` jobs were incorrectly using the `webserver`'s `nodeSelector`, `affinity`
+and `tolerations` (if set). Each job is now configured separately.

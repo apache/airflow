@@ -84,7 +84,7 @@ Alternatively you may specify each parameter individually:
 .. code-block:: bash
 
     airflow connections add 'my_prod_db' \
-        --conn-type 'my-conn-type'
+        --conn-type 'my-conn-type' \
         --conn-login 'login' \
         --conn-password 'password' \
         --conn-host 'host' \

@@ -20,8 +20,21 @@
 Package apache-airflow-providers-asana
 ------------------------------------------------------
 
-`Asana <https://developers.asana.com/>`__
+`Asana <https://app.asana.com/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``asana``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2021-05-17
+
+================================================================================================  ===========  ===============================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================
+`162e3204c <https://github.com/apache/airflow/commit/162e3204c000ca2ebdc42b9b90a1873d4362ed6e>`_  2021-05-17   ``Add Asana Provider (#14521)``
+================================================================================================  ===========  ===============================

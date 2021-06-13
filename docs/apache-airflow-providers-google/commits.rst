@@ -35,14 +35,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2021-06-01
+
+================================================================================================  ===========  ==============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================================================
+`1e647029e <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
+`99d153528 <https://github.com/apache/airflow/commit/99d1535287df7f8cfced39baff7a08f6fcfdf8ca>`_  2021-05-31   ``Fix: GCS To BigQuery source_object (#16160)``
+`e1137523d <https://github.com/apache/airflow/commit/e1137523d4e9cb5d5cfe8584963620677a4ad789>`_  2021-05-30   ``Fix: Unnecessary downloads in ''GCSToLocalFilesystemOperator'' (#16171)``
+`904709d34 <https://github.com/apache/airflow/commit/904709d34fbe0b6062d72932b72954afe13ec148>`_  2021-05-27   ``Check synctatic correctness for code-snippets (#16005)``
+`86768859c <https://github.com/apache/airflow/commit/86768859c689bf02ced96e71996a3a30da1b5888>`_  2021-05-26   ``Fix bigquery type error when export format is parquet (#16027)``
+`6ae9aeec3 <https://github.com/apache/airflow/commit/6ae9aeec3f866ecfce83945ad1e831be9f8e5ebb>`_  2021-05-26   ``pass wait_for_done parameter down to _DataflowJobsController (#15541)``
+`476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+`aa4713e43 <https://github.com/apache/airflow/commit/aa4713e43f92d3e4c68c3ad00e2d44caaf29aafe>`_  2021-05-21   ``Use api version only in GoogleAdsHook not operators (#15266)``
+`76a80bb17 <https://github.com/apache/airflow/commit/76a80bb17c9cecbe3767dab471f6a79084c822ea>`_  2021-05-19   ``Move plyvel to google provider extra (#15812)``
+`bb115da0b <https://github.com/apache/airflow/commit/bb115da0b78036ace5e31e2139c12ca044b3a97d>`_  2021-05-17   ``Get rid of requests as core dependency (#15781)``
+`9c8391a13 <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``
+`3711a29e5 <https://github.com/apache/airflow/commit/3711a29e5e253ede4ab12efe5990e83240e8a9a9>`_  2021-05-09   ``Fix argument ordering and type of bucket and object (#15738)``
+`a01567c47 <https://github.com/apache/airflow/commit/a01567c47159da8c2824ac5f15629b51f49af958>`_  2021-05-08   ``Fix sql_to_gcs docstring lint error (#15730)``
+`f3fada910 <https://github.com/apache/airflow/commit/f3fada91013f7916b188ceceb0284bc9860d1388>`_  2021-05-07   ``Add short description to BaseSQLToGCSOperator docstring (#15728)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`b8c0fde38 <https://github.com/apache/airflow/commit/b8c0fde38a7df9d00185bf53e9f303b98fd064dc>`_  2021-05-07   ``Add extra links for google dataproc (#10343)``
+`3b4fdd0a7 <https://github.com/apache/airflow/commit/3b4fdd0a7a176bfb2e9a17d4627b1d4ed40f1c86>`_  2021-05-06   ``add oracle  connection link (#15632)``
+`cf6324e43 <https://github.com/apache/airflow/commit/cf6324e43b2f7c183c3872704733b69d1498cda1>`_  2021-05-04   ``Implement BigQuery Table Schema Update Operator (#15367)``
+`0f97a3970 <https://github.com/apache/airflow/commit/0f97a3970d2c652beedbf2fbaa33e2b2bfd69bce>`_  2021-05-04   ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+================================================================================================  ===========  ==============================================================================
+
 3.0.0
 .....
 
-Latest change: 2021-04-29
+Latest change: 2021-05-01
 
 ================================================================================================  ===========  ====================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ====================================================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 `814e471d1 <https://github.com/apache/airflow/commit/814e471d137aad68bd64a21d20736e7b88403f97>`_  2021-04-29   ``Update pre-commit checks (#15583)``
 `bf2b48174 <https://github.com/apache/airflow/commit/bf2b48174a1ccfe398eefba7f04a5cacac421266>`_  2021-04-27   ``Add Connection Documentation for Providers (#15499)``
 `4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``

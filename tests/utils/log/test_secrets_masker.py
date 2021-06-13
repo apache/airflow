@@ -72,6 +72,22 @@ class TestSecretsMasker:
 
         assert caplog.text == "INFO Cannot connect to user:***\n"
 
+    def test_non_redactable(self, logger, caplog):
+        class NonReactable:
+            def __iter__(self):
+                raise RuntimeError("force fail")
+
+            def __repr__(self):
+                return "<NonRedactable>"
+
+        logger.info("Logging %s", NonReactable())
+
+        assert caplog.messages == [
+            "Unable to redact <NonRedactable>, please report this via "
+            + "<https://github.com/apache/airflow/issues>. Error was: RuntimeError: force fail",
+            "Logging <NonRedactable>",
+        ]
+
     def test_extra(self, logger, caplog):
         logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
         logger.info("Cannot connect", extra={'conn': "user:password"})
@@ -201,6 +217,14 @@ class TestSecretsMasker:
             filt.add_mask(val)
 
         assert filt.redact(value, name) == expected
+
+    def test_redact_filehandles(self, caplog):
+        filt = SecretsMasker()
+        with open("/dev/null", "w") as handle:
+            assert filt.redact(handle, None) == handle
+
+        # We shouldn't have logged a warning here
+        assert caplog.messages == []
 
 
 class TestShouldHideValueForKey:

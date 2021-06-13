@@ -18,9 +18,9 @@
 ################################
 ## Airflow Run Migrations
 #################################
-{{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.webserver.affinity .Values.affinity }}
-{{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
+{{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
+{{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -38,6 +38,9 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- if .Values.migrateDatabaseJob.jobAnnotations }}
+    {{- toYaml .Values.migrateDatabaseJob.jobAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   template:
     metadata:

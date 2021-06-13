@@ -20,229 +20,6 @@ import unittest
 
 from airflow.providers_manager import ProvidersManager
 
-ALL_PROVIDERS = [
-    'apache-airflow-providers-airbyte',
-    'apache-airflow-providers-amazon',
-    'apache-airflow-providers-apache-beam',
-    'apache-airflow-providers-apache-cassandra',
-    'apache-airflow-providers-apache-druid',
-    'apache-airflow-providers-apache-hdfs',
-    'apache-airflow-providers-apache-hive',
-    'apache-airflow-providers-apache-kylin',
-    'apache-airflow-providers-apache-livy',
-    'apache-airflow-providers-apache-pig',
-    'apache-airflow-providers-apache-pinot',
-    'apache-airflow-providers-apache-spark',
-    'apache-airflow-providers-apache-sqoop',
-    'apache-airflow-providers-asana',
-    'apache-airflow-providers-celery',
-    'apache-airflow-providers-cloudant',
-    'apache-airflow-providers-cncf-kubernetes',
-    'apache-airflow-providers-databricks',
-    'apache-airflow-providers-datadog',
-    'apache-airflow-providers-dingding',
-    'apache-airflow-providers-discord',
-    'apache-airflow-providers-docker',
-    'apache-airflow-providers-elasticsearch',
-    'apache-airflow-providers-exasol',
-    'apache-airflow-providers-facebook',
-    'apache-airflow-providers-ftp',
-    'apache-airflow-providers-google',
-    'apache-airflow-providers-grpc',
-    'apache-airflow-providers-hashicorp',
-    'apache-airflow-providers-http',
-    'apache-airflow-providers-imap',
-    'apache-airflow-providers-jdbc',
-    'apache-airflow-providers-jenkins',
-    'apache-airflow-providers-jira',
-    'apache-airflow-providers-microsoft-azure',
-    'apache-airflow-providers-microsoft-mssql',
-    'apache-airflow-providers-microsoft-winrm',
-    'apache-airflow-providers-mongo',
-    'apache-airflow-providers-mysql',
-    'apache-airflow-providers-neo4j',
-    'apache-airflow-providers-odbc',
-    'apache-airflow-providers-openfaas',
-    'apache-airflow-providers-opsgenie',
-    'apache-airflow-providers-oracle',
-    'apache-airflow-providers-pagerduty',
-    'apache-airflow-providers-papermill',
-    'apache-airflow-providers-plexus',
-    'apache-airflow-providers-postgres',
-    'apache-airflow-providers-presto',
-    'apache-airflow-providers-qubole',
-    'apache-airflow-providers-redis',
-    'apache-airflow-providers-salesforce',
-    'apache-airflow-providers-samba',
-    'apache-airflow-providers-segment',
-    'apache-airflow-providers-sendgrid',
-    'apache-airflow-providers-sftp',
-    'apache-airflow-providers-singularity',
-    'apache-airflow-providers-slack',
-    'apache-airflow-providers-snowflake',
-    'apache-airflow-providers-sqlite',
-    'apache-airflow-providers-ssh',
-    'apache-airflow-providers-tableau',
-    'apache-airflow-providers-telegram',
-    'apache-airflow-providers-trino',
-    'apache-airflow-providers-vertica',
-    'apache-airflow-providers-yandex',
-    'apache-airflow-providers-zendesk',
-]
-
-CONNECTIONS_LIST = [
-    'airbyte',
-    'asana',
-    'aws',
-    'azure',
-    'azure_batch',
-    'azure_container_registry',
-    'azure_cosmos',
-    'azure_data_explorer',
-    'azure_data_factory',
-    'azure_data_lake',
-    'cassandra',
-    'cloudant',
-    'databricks',
-    'dataprep',
-    'dingding',
-    'discord',
-    'docker',
-    'druid',
-    'elasticsearch',
-    'emr',
-    'exasol',
-    'facebook_social',
-    'ftp',
-    'gcpcloudsql',
-    'gcpcloudsqldb',
-    'gcpssh',
-    'google_cloud_platform',
-    'grpc',
-    'hdfs',
-    'hive_cli',
-    'hive_metastore',
-    'hiveserver2',
-    'http',
-    'imap',
-    'jdbc',
-    'jenkins',
-    'jira',
-    'kubernetes',
-    'leveldb',
-    'livy',
-    'mongo',
-    'mssql',
-    'mysql',
-    'neo4j',
-    'odbc',
-    'opsgenie',
-    'oracle',
-    'pig_cli',
-    'postgres',
-    'presto',
-    'qubole',
-    'redis',
-    's3',
-    'samba',
-    'segment',
-    'sftp',
-    'slackwebhook',
-    'snowflake',
-    'spark',
-    'spark_jdbc',
-    'spark_sql',
-    'sqlite',
-    'sqoop',
-    'ssh',
-    'tableau',
-    'trino',
-    'vault',
-    'vertica',
-    'wasb',
-    'yandexcloud',
-]
-
-CONNECTION_FORM_WIDGETS = [
-    'extra__asana__project',
-    'extra__asana__workspace',
-    'extra__azure__subscriptionId',
-    'extra__azure__tenantId',
-    'extra__azure_batch__account_url',
-    'extra__azure_cosmos__collection_name',
-    'extra__azure_cosmos__database_name',
-    'extra__azure_data_explorer__auth_method',
-    'extra__azure_data_explorer__certificate',
-    'extra__azure_data_explorer__tenant',
-    'extra__azure_data_explorer__thumbprint',
-    'extra__azure_data_factory__subscriptionId',
-    'extra__azure_data_factory__tenantId',
-    'extra__azure_data_lake__account_name',
-    'extra__azure_data_lake__tenant',
-    'extra__google_cloud_platform__key_path',
-    'extra__google_cloud_platform__keyfile_dict',
-    'extra__google_cloud_platform__num_retries',
-    'extra__google_cloud_platform__project',
-    'extra__google_cloud_platform__scope',
-    'extra__grpc__auth_type',
-    'extra__grpc__credential_pem_file',
-    'extra__grpc__scopes',
-    'extra__jdbc__drv_clsname',
-    'extra__jdbc__drv_path',
-    'extra__kubernetes__in_cluster',
-    'extra__kubernetes__kube_config',
-    'extra__kubernetes__kube_config_path',
-    'extra__kubernetes__namespace',
-    'extra__snowflake__account',
-    'extra__snowflake__aws_access_key_id',
-    'extra__snowflake__aws_secret_access_key',
-    'extra__snowflake__database',
-    'extra__snowflake__region',
-    'extra__snowflake__warehouse',
-    'extra__wasb__connection_string',
-    'extra__wasb__sas_token',
-    'extra__wasb__shared_access_key',
-    'extra__wasb__tenant_id',
-    'extra__yandexcloud__folder_id',
-    'extra__yandexcloud__oauth',
-    'extra__yandexcloud__public_ssh_key',
-    'extra__yandexcloud__service_account_json',
-    'extra__yandexcloud__service_account_json_path',
-]
-
-CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
-    'asana',
-    'azure',
-    'azure_batch',
-    'azure_container_registry',
-    'azure_cosmos',
-    'azure_data_explorer',
-    'azure_data_factory',
-    'azure_data_lake',
-    'cloudant',
-    'docker',
-    'gcpssh',
-    'google_cloud_platform',
-    'jdbc',
-    'kubernetes',
-    'qubole',
-    'sftp',
-    'snowflake',
-    'spark',
-    'ssh',
-    'wasb',
-    'yandexcloud',
-]
-
-EXTRA_LINKS = [
-    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
-    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
-    'airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink',
-    'airflow.providers.google.cloud.operators.dataproc.DataprocJobLink',
-    'airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink',
-    'airflow.providers.qubole.operators.qubole.QDSLink',
-]
-
 
 class TestProviderManager(unittest.TestCase):
     def test_providers_are_loaded(self):
@@ -254,24 +31,26 @@ class TestProviderManager(unittest.TestCase):
             version = provider_manager.providers[provider][0]
             assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
             assert package_name == provider
-        assert ALL_PROVIDERS == provider_list
+        # just a sanity check - no exact number as otherwise we would have to update
+        # several tests if we add new connections/provider which is not ideal
+        assert len(provider_list) > 65
 
     def test_hooks(self):
         provider_manager = ProvidersManager()
         connections_list = list(provider_manager.hooks.keys())
-        assert CONNECTIONS_LIST == connections_list
+        assert len(connections_list) > 60
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
-        assert CONNECTION_FORM_WIDGETS == connections_form_widgets
+        assert len(connections_form_widgets) > 29
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        assert CONNECTIONS_WITH_FIELD_BEHAVIOURS == connections_with_field_behaviours
+        assert len(connections_with_field_behaviours) > 16
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
         extra_link_class_names = list(provider_manager.extra_links_class_names)
-        assert EXTRA_LINKS == extra_link_class_names
+        assert len(extra_link_class_names) > 5

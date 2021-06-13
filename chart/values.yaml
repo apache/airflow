@@ -195,7 +195,7 @@ extraSecrets: {}
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
 #     stringData: |
 #       AIRFLOW_CONN_OTHER: 'other_conn'
-#   '{{ .Release.Name }}-other-secret-name-suffix': |
+#   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
 
@@ -259,9 +259,11 @@ data:
   #   port: 5432
   #   db: postgres
   #   sslmode: disable
+  # Note: brokerUrl can only be set during install, not upgrade
   brokerUrl: ~
 
 # Fernet key settings
+# Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
 fernetKeySecretName: ~
 
@@ -364,6 +366,9 @@ workers:
     # Note that HPA has a separate cooldown period for scale-downs
     cooldownPeriod: 30
 
+    # Minimum number of workers created by keda
+    minReplicaCount: 0
+
     # Maximum number of workers created by keda
     maxReplicaCount: 10
 
@@ -416,7 +421,15 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: worker
+            topologyKey: "kubernetes.io/hostname"
   tolerations: []
   # hostAliases to use in worker pods.
   # See:
@@ -502,7 +515,15 @@ scheduler:
 
   # Select certain nodes for airflow scheduler pods.
   nodeSelector: {}
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: scheduler
+            topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
   logGroomerSidecar:
@@ -517,6 +538,8 @@ scheduler:
 createUserJob:
   # Annotations on the create user job pod
   annotations: {}
+  # jobAnnotations are annotations on the create user job
+  jobAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -529,10 +552,16 @@ createUserJob:
     # Annotations to add to create user kubernetes service account.
     annotations: {}
 
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Airflow database migration job settings
 migrateDatabaseJob:
   # Annotations on the database migration pod
   annotations: {}
+  # jobAnnotations are annotations on the database migration job
+  jobAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -544,6 +573,10 @@ migrateDatabaseJob:
 
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Airflow webserver settings
 webserver:
@@ -632,7 +665,15 @@ webserver:
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: webserver
+            topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
 # Flower settings
@@ -861,6 +902,7 @@ redis:
 
   # Else, if password is set, create secret with it,
   # Otherwise a new password will be generated on install
+  # Note: password can only be set during install, not upgrade.
   password: ~
 
   # This setting tells kubernetes that its ok to evict

@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.2.0
 .....
 
@@ -30,6 +41,12 @@ Features
 
 1.1.1
 .....
+
+Features
+~~~~~~~~
+
+* ``SFTPHook private_key_pass extra param is deprecated and renamed to private_key_passphrase, for consistency with
+  arguments' naming in SSHHook``
 
 Bug fixes
 ~~~~~~~~~

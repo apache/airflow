@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 import unittest
 
 from airflow.models import Connection
@@ -25,8 +25,12 @@ from airflow.utils import db
 
 class TestAzureContainerVolumeHook(unittest.TestCase):
     def test_get_file_volume(self):
-        db.merge_conn(Connection(conn_id='wasb_test_key', conn_type='wasb', login='login', password='key'))
-        hook = AzureContainerVolumeHook(wasb_conn_id='wasb_test_key')
+        db.merge_conn(
+            Connection(
+                conn_id='azure_container_test_connection', conn_type='wasb', login='login', password='key'
+            )
+        )
+        hook = AzureContainerVolumeHook(azure_container_volume_conn_id='azure_container_test_connection')
         volume = hook.get_file_volume(
             mount_name='mount', share_name='share', storage_account_name='storage', read_only=True
         )
@@ -34,5 +38,28 @@ class TestAzureContainerVolumeHook(unittest.TestCase):
         assert volume.name == 'mount'
         assert volume.azure_file.share_name == 'share'
         assert volume.azure_file.storage_account_key == 'key'
+        assert volume.azure_file.storage_account_name == 'storage'
+        assert volume.azure_file.read_only is True
+
+    def test_get_file_volume_connection_string(self):
+        db.merge_conn(
+            Connection(
+                conn_id='azure_container_test_connection_connection_string',
+                conn_type='wasb',
+                login='login',
+                password='key',
+                extra=json.dumps({"extra__azure_container_volume__connection_string": "a=b;AccountKey=1"}),
+            )
+        )
+        hook = AzureContainerVolumeHook(
+            azure_container_volume_conn_id='azure_container_test_connection_connection_string'
+        )
+        volume = hook.get_file_volume(
+            mount_name='mount', share_name='share', storage_account_name='storage', read_only=True
+        )
+        assert volume is not None
+        assert volume.name == 'mount'
+        assert volume.azure_file.share_name == 'share'
+        assert volume.azure_file.storage_account_key == '1'
         assert volume.azure_file.storage_account_name == 'storage'
         assert volume.azure_file.read_only is True

@@ -59,7 +59,7 @@ Package apache-airflow-providers-amazon
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 1.4.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -110,6 +110,15 @@ Dependent package                                                               
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                  ``ssh``
 ==============================================================================================================  ===============
 
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-amazon 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-2.0.0-py3-none-any.whl.sha512>`__)
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -130,6 +139,37 @@ Dependent package                                                               
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for the Hive Provider (#15704)``
+* ``CloudwatchTaskHandler reads timestamp from Cloudwatch events (#15173)``
+* ``remove retry for now (#16150)``
+* ``Remove the 'not-allow-trailing-slash' rule on S3_hook (#15609)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix S3 Select payload join (#16189)``
+* ``Fix spacing in 'AwsBatchWaitersHook' docstring (#15839)``
+* ``Fix spelling (#15699)``
+* ``MongoToS3Operator failed when running with a single query (not aggregate pipeline) (#15680)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Check synctatic correctness for code-snippets (#16005)``
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+   * ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
 
 1.4.0
 .....

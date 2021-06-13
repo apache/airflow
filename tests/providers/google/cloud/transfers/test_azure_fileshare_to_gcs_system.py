@@ -45,17 +45,17 @@ AZURE_FILE_NAME = 'file.bin'
 @pytest.fixture
 def provide_azure_fileshare_with_directory():
     with create_session() as session:
-        wasb_conn_id = Connection(
+        azure_fileshare_conn_id = Connection(
             conn_id=CONN_ID,
             conn_type='https',
             login=AZURE_LOGIN,
             password=AZURE_KEY,
         )
-        session.add(wasb_conn_id)  # pylint: disable=expression-not-assigned
+        session.add(azure_fileshare_conn_id)  # pylint: disable=expression-not-assigned
 
     with provide_azure_fileshare(
         share_name=AZURE_SHARE_NAME,
-        wasb_conn_id=CONN_ID,
+        azure_fileshare_conn_id=CONN_ID,
         file_name=AZURE_FILE_NAME,
         directory=AZURE_DIRECTORY_NAME,
     ):

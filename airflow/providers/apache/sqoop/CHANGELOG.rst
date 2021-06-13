@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixes failing static checks after recent pre-commit upgrade (#16183)``
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Make Airflow code Pylint 2.8 compatible (#15534)``
+   * ``Remove Backport Providers (#14886)``
+   * ``Update documentation for broken package releases (#14734)``
+
 1.0.1
 .....
 
