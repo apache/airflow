@@ -85,7 +85,7 @@ There are few specific rules that we agreed to, that define details of versionin
 packages:
 
 * **Airflow**: SemVer rules apply to core airflow only (excludes any changes to providers).
-  Change in minimal dependency versions of Airflow is not a breaking change on its own.
+  Changing limits for versions of Airflow dependencies is not a breaking change on its own.
 * **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
   SemVer MAJOR and MINOR versions for the packages are independent from Airflow version.
   For example `google 4.1.0` and `amazon 3.0.3` providers can happily be installed
