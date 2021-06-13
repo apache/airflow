@@ -1112,6 +1112,23 @@
                                 "bash",
                                 "/clean-logs"
                             ]
+                        },
+                        "resources": {
+                            "description": "Resources for Airflow workers log groomer sidecar.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1337,6 +1354,23 @@
                             "default": [
                                 "bash",
                                 "/clean-logs"
+                            ]
+                        },
+                        "resources": {
+                            "description": "Resources for log groomer sidecar.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
                             ]
                         }
                     }
@@ -2210,6 +2244,31 @@
                     "description": "PgBouncer run as user parameter.",
                     "type": "integer",
                     "default": 65534
+                },
+                "metricsExporterSidecar": {
+                    "description": "PgBouncer - metrics exporter settings.",
+                    "type": "object",
+                    "x-docsSection": "PgBouncer",
+                    "additionalProperties": false,
+                    "properties": {
+                        "resources": {
+                            "description": "Resources for the PgBouncer metric exporter.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 }
             }
         },
