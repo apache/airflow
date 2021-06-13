@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import textwrap
 import time
 from urllib.parse import urlencode
 
@@ -344,9 +345,7 @@ def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
     if s is None:
         return None
-
-    s = '\n'.join(line.lstrip() for line in s.split('\n'))
-
+    s = textwrap.dedent(s)
     return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
 
 
