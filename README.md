@@ -97,7 +97,7 @@ packages:
   is a breaking change for provider, because installing the new provider might automatically
   upgrade Airflow (which might be undesired side effect of upgrading provider).
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
-  versions for the chart are independent from apache-airflow versions. We aim to keep backwards
+  versions for the chart are independent from the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
   only work starting from specific Airlfow releases. At some point in time we might limit the Helm
   Chart to depend on minimal Airflow version.
