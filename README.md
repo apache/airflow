@@ -89,7 +89,7 @@ packages:
 * **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
   SemVer MAJOR and MINOR versions for the packages are independent from Airflow version.
   For example `google 4.1.0` and `amazon 3.0.3` providers can happily be installed
-  with `Airflow 2.1.1`. If there are any requirements between providers and Airflow packages,
+  with `Airflow 2.1.1`. If there are limits of cross-dependencies between providers and Airflow packages,
   they are present in providers as `install_requires` limitations. We aim to keep backwards
   compatibility of providers with all previously released Airflow 2 versions but
   there will be sometimes breaking changes that might make some, or all
