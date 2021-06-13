@@ -93,7 +93,7 @@ packages:
   they are present in providers as `install_requires` limitations. We aim to keep backwards
   compatibility of providers with all previously released Airflow 2 versions but
   there will be sometimes breaking changes that might make some, or all
-  providers depend on minimal Airflow version. Change of the minimal MAJOR.MINOR version of Airflow
+  providers, to have minimum Airflow version specified. Change of that minimum supported Airflow version
   is a breaking change for provider, because installing the new provider might automatically
   upgrade Airflow (which might be undesired).
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
