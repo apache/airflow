@@ -18,17 +18,6 @@
 Changelog
 ---------
 
-4.1.0
-.....
-
-Bug Fixes
-~~~~~~~~~
-* ``Fix: Inconsistencies with Dataproc Operator parameters (#15622)``
-
-
-Changelog
----------
-
 4.0.0
 .....
 
