@@ -213,6 +213,25 @@ class TestGetDagRun(TestDagRunEndpoint):
             'conf': {},
         }
         assert response.json == expected_response
+    
+    class TestSetDagRunState(TestDagRunEndpoint):
+    def test_should_respond_204(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 1
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 204
 
     def test_should_respond_404(self):
         response = self.client.get(
