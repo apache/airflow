@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import multiprocessing
 import os
 import signal
@@ -453,3 +454,48 @@ class TestCore(unittest.TestCase):
 
         assert context1['params'] == {'key_1': 'value_1', 'key_2': 'value_2_new', 'key_3': 'value_3'}
         assert context2['params'] == {'key_1': 'value_1', 'key_2': 'value_2_old'}
+
+
+@pytest.fixture()
+def dag():
+    return DAG(TEST_DAG_ID, default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
+
+
+def test_operator_retries_invalid(dag):
+    with pytest.raises(AirflowException) as ctx:
+        BashOperator(
+            task_id='test_illegal_args',
+            bash_command='echo success',
+            dag=dag,
+            retries='foo',
+        )
+    assert str(ctx.value) == "'retries' type must be int, not str"
+
+
+def test_operator_retries_coerce(caplog, dag):
+    with caplog.at_level(logging.WARNING):
+        BashOperator(
+            task_id='test_illegal_args',
+            bash_command='echo success',
+            dag=dag,
+            retries='1',
+        )
+    assert caplog.record_tuples == [
+        (
+            "airflow.operators.bash.BashOperator",
+            logging.WARNING,
+            "Implicitly converting 'retries' for <Task(BashOperator): test_illegal_args> from '1' to int",
+        ),
+    ]
+
+
+@pytest.mark.parametrize("retries", [None, 5])
+def test_operator_retries(caplog, dag, retries):
+    with caplog.at_level(logging.WARNING):
+        BashOperator(
+            task_id='test_illegal_args',
+            bash_command='echo success',
+            dag=dag,
+            retries=retries,
+        )
+    assert caplog.records == []
