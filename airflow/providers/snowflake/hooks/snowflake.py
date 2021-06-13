@@ -146,7 +146,6 @@ class SnowflakeHook(DbApiHook):
         self.application = kwargs.pop("application")
         self.query_ids = []
 
-
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
         One method to fetch connection params as a dict
