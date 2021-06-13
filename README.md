@@ -79,7 +79,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 ## Semantic versioning
 
-As of Airflow 2.0.0, airflow supports strict [SemVer](https://semver.org/) approach for all packages released.
+As of Airflow 2.0.0, we support strict [SemVer](https://semver.org/) approach for all packages released.
 
 There are few specific rules that we agreed to, that define details of versioning of the different
 packages:
