@@ -95,7 +95,7 @@ packages:
   there will be sometimes breaking changes that might make some, or all
   providers, to have minimum Airflow version specified. Change of that minimum supported Airflow version
   is a breaking change for provider, because installing the new provider might automatically
-  upgrade Airflow (which might be undesired).
+  upgrade Airflow (which might be undesired side effect of upgrading provider).
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
   versions for the chart are independent from apache-airflow versions. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
