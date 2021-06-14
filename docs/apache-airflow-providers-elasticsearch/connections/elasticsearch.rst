@@ -22,13 +22,13 @@
 ElasticSearch Connection
 ========================
 
-The ElasticSearch connection that enables ElasticSearch integrations
+The ElasticSearch connection that enables ElasticSearch integrations.
 
 Authenticating to ElasticSearch
 -------------------------------
 
-Authenticate with the ElasticSearch DBAPI
-<https://pypi.org/project/elasticsearch-dbapi/>
+Authenticate with the `ElasticSearch DBAPI
+<https://pypi.org/project/elasticsearch-dbapi/>`_
 
 Default Connection IDs
 ----------------------
@@ -36,27 +36,30 @@ Default Connection IDs
 Some hooks and operators related to ElasticSearch use elasticsearch_default by default.
 
 Configuring the Connection
+--------------------------
+
 User 
-        Specify the login used for the initial connection
+    Specify the login used for the initial connection
 
 Password
-        Specify the Elasticsearch API key used for the initial connection
+    Specify the Elasticsearch API key used for the `initial connection
+    <https://www.elastic.co/guide/en/cloud/current/ec-api-authentication.html#ec-api-authentication>`_
 
 Host
-        Specify the Elasticsearch host used for the initial connection
+    Specify the Elasticsearch host used for the initial connection
 
 Port
-        Specify the Elasticsearch port for the initial connection
+    Specify the Elasticsearch port for the initial connection
 
 Scheme
-        Specify the schema for the Elasticsearch API. `http` by default
+    Specify the schema for the Elasticsearch API. `http` by default
 
 Extra (Optional)
-        Specify the extra parameters (as json dictionary) that can be used in Azure connection. 
-        The following parameters are all optional:
+    Specify the extra parameters (as json dictionary) that can be used in Azure connection. 
+    The following parameters are all optional:
 
-        * ``http_compress: specify whether or not to use http_compress. False by default.
-        * ``Timeout: specify the time frame of the timeout. False by default.
+    * ``http_compress``: specify whether or not to use ``http_compress``. False by default.
+    * ``timeout``: specify the time frame of the ``timeout``. False by default.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -64,6 +67,7 @@ it using URI syntax.
 Note that all components of the URI should be URL-encoded.
 
 For example:
+
 .. code-block:: bash
 
     export AIRFLOW_CONN_ELASTICSEARCH_DEFAULT='elasticsearch://elasticsearchlogin:elasticsearchpassword@elastic.co:80/http'
