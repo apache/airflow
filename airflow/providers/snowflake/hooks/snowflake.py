@@ -143,7 +143,6 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.application = kwargs.pop("application", None)
         self.query_ids = []
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
@@ -180,7 +179,7 @@ class SnowflakeHook(DbApiHook):
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
             "session_parameters": self.session_parameters or session_parameters,
-            "application": self.application,
+            "application": "AIRFLOW",
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
