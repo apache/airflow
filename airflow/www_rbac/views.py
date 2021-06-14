@@ -2918,7 +2918,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(tis, session=session, dag=dag)
 
             for ti in tis:
-                _add_log_event_to_session(session, 'ti_list_clear', task_instance=ti)
+                _add_log_event_to_session(session, 'ti_list_clear', ti.execution_date, task_instance=ti)
             session.commit()
 
             flash("{0} task instances have been cleared".format(len(tis)))
@@ -2948,7 +2948,7 @@ class TaskInstanceModelView(AirflowModelView):
                 models.cancel_task_instances(tis, session, dag=dag)
 
             for ti in tis:
-                _add_log_event_to_session(session, 'ti_list_cancel', task_instance=ti)
+                _add_log_event_to_session(session, 'ti_list_cancel', ti.execution_date, task_instance=ti)
             session.commit()
 
             flash("{0} task instances have been cancelled".format(len(tis)))
@@ -2968,6 +2968,7 @@ class TaskInstanceModelView(AirflowModelView):
                 ti.set_state(target_state, session=session)
                 _add_log_event_to_session(session,
                                           'ti_list_set_{}'.format(target_state),
+                                          ti.execution_date,
                                           task_instance=ti)
             session.commit()
             flash("{count} task instances were set to '{target_state}'".format(
