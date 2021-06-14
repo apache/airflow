@@ -418,7 +418,7 @@ Let's break this down into 3 steps: get data, insert data, merge data:
 
   @task
   def get_data():
-      url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
+      url = "https://docs.google.com/uc?export=download&id=1TdzfHDvVrqUiF2ly3guXwwQvOlviF4N6"
 
       response = requests.request("GET", url)
 
