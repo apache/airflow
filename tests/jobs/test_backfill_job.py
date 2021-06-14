@@ -1574,14 +1574,16 @@ class TestBackfillJob(unittest.TestCase):
         with self.assertLogs(level=logging.ERROR) as captured:
             job.run()
 
-            assert captured.output == ["ERROR:airflow.jobs.backfill_job.BackfillJob:Backfill cannot be created "
-                                       "for DagRun 'test_backfill_should_not_interfere_with_other_running_job_types' "
-                                       "in '2016-01-01T00:00:00', as there's already 'manual' in a RUNNING state. "
-                                       "Changing DagRun into BACKFILL would cause scheduler to lose track "
-                                       "of executing tasks. Not changing DagRun type into BACKFILL, "
-                                       "and trying insert another DagRun into database would cause "
-                                       "database constraint violation for dag_id + execution_date combination. "
-                                       "Please adjust backfill dates or wait for this DagRun to finish."]
+            assert captured.output == [
+                "ERROR:airflow.jobs.backfill_job.BackfillJob:Backfill cannot be created "
+                "for DagRun 'test_backfill_should_not_interfere_with_other_running_job_types' "
+                "in '2016-01-01T00:00:00', as there's already 'manual' in a RUNNING state. "
+                "Changing DagRun into BACKFILL would cause scheduler to lose track "
+                "of executing tasks. Not changing DagRun type into BACKFILL, "
+                "and trying insert another DagRun into database would cause "
+                "database constraint violation for dag_id + execution_date combination. "
+                "Please adjust backfill dates or wait for this DagRun to finish."
+            ]
         dag_run.refresh_from_db()
 
         assert DagRunType.MANUAL == dag_run.run_type
