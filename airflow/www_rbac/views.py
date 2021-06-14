@@ -97,7 +97,7 @@ from flask_appbuilder.models.sqla.filters import FilterEqualFunction, FilterInFu
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
-
+import pandas as pd
 from pathlib import Path
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
@@ -2359,13 +2359,42 @@ class CurvesView(BaseCRUDView):
                 except OSError as e:
                     _logger.error(f"Error: {f} : {e}")
 
+    def do_download_contents(self, entities: List[str]) -> List[str]:
+        files = []
+        base_path = self.download_static_folder
+        for entity_id in entities:
+            try:
+                result = get_result(entity_id)
+                f = f'{entity_id}.json'.replace('/', '@')
+                f = os.path.join(base_path, f)
+                with open(f, 'w') as ff:
+                    ff.write(json.dumps(result, indent=4))
+                files.append(f)
+            except Exception as e:
+                _logger.error(e)
+            try:
+                curve = get_curve(entity_id)
+                f = f'{entity_id}.csv'.replace('/', '@')
+                f = os.path.join(base_path, f)
+                dd = pd.DataFrame.from_dict(curve)
+                dd.to_csv(f, index=False, header=True)
+                files.append(f)
+            except Exception as e:
+                _logger.error(e)
+            return files
+
     def generate_download_zip_file(self, files: List[str]):
-        fn = f'{self.download_static_folder}/curves.zip'
-        with zipfile.ZipFile(fn, 'w') as f:
-            for file in files:
-                if not os.path.exists(file):
-                    continue
-                f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+        try:
+            fn = f'{self.download_static_folder}/curves.zip'
+            with zipfile.ZipFile(fn, 'w') as f:
+                for file in files:
+                    if not os.path.exists(file):
+                        continue
+                    f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+            return True
+        except Exception as e:
+            _logger.error(e)
+            return False
 
     @expose('/download/<string:entity_ids>')
     @has_access
@@ -2379,6 +2408,15 @@ class CurvesView(BaseCRUDView):
         if chk_file.is_file():
             chk_file.unlink()
         entities = entity_ids.split(',')
+        ll = len(entities)
+        if ll > 500:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'请求的曲线数量过大,最大只能500条，当前为{ll}')
+        files = self.do_download_contents(entities)
+        if not files:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'未生成数据')
+        ret = self.generate_download_zip_file(files)
+        if not ret:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'未生成压缩包数据')
         return send_file(fn, mimetype='application/zip', attachment_filename='curves.zip',
                          as_attachment=True)
 
