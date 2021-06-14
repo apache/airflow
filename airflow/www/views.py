@@ -3126,7 +3126,7 @@ class ConnectionModelView(AirflowModelView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),            
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
         ]
     )
     def action_mulduplicate(self, connections, session=None):
