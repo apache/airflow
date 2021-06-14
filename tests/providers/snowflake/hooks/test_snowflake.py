@@ -109,7 +109,9 @@ class TestSnowflakeHook(unittest.TestCase):
         assert self.db_hook.query_ids == query_ids[::2]
         cur.close.assert_called()
 
-    def test_get_conn_params(self):
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.os.environ")
+    def test_get_conn_params(self, mock_env):
+        mock_env.get.return_value = 'test_partner'
         conn_params_shouldbe = {
             'user': 'user',
             'password': 'pw',
@@ -121,7 +123,7 @@ class TestSnowflakeHook(unittest.TestCase):
             'role': 'af_role',
             'authenticator': 'snowflake',
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
-            "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
+            "application": 'test_partner',
         }
         assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
         assert conn_params_shouldbe == self.db_hook._get_conn_params()
