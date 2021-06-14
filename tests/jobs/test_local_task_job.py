@@ -36,7 +36,6 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -725,6 +724,7 @@ class TestLocalTaskJob(unittest.TestCase):
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         job1.task_runner = StandardTaskRunner(job1)
         job1.run()
+        session.add(dr)
         session.refresh(dr)
         assert dr.state == State.SUCCESS
 
