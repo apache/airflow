@@ -106,6 +106,11 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
     :type launch_type: str
+    :param capacity_provider_strategy: the capacity provider strategy to use for the task.
+        When capacity_provider_strategy is specified, the launch_type parameter is omitted.
+        If no capacity_provider_strategy or launch_type is specified,
+        the default capacity provider strategy for the cluster is used.
+    :type capacity_provider_strategy: list
     :param group: the name of the task group associated with the task
     :type group: str
     :param placement_constraints: an array of placement constraint objects to use for
@@ -153,6 +158,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         aws_conn_id: Optional[str] = None,
         region_name: Optional[str] = None,
         launch_type: str = 'EC2',
+        capacity_provider_strategy: Optional[list] = None,
         group: Optional[str] = None,
         placement_constraints: Optional[list] = None,
         placement_strategy: Optional[list] = None,
@@ -175,6 +181,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.cluster = cluster
         self.overrides = overrides
         self.launch_type = launch_type
+        self.capacity_provider_strategy = capacity_provider_strategy
         self.group = group
         self.placement_constraints = placement_constraints
         self.placement_strategy = placement_strategy
@@ -229,7 +236,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             'startedBy': self.owner,
         }
 
-        if self.launch_type:
+        if self.capacity_provider_strategy:
+            run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
+            run_opts['platformVersion'] = self.platform_version
+        elif self.launch_type:
             run_opts['launchType'] = self.launch_type
             if self.launch_type == 'FARGATE':
                 run_opts['platformVersion'] = self.platform_version
