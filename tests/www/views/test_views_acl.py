@@ -690,8 +690,8 @@ def test_failed_success(client_all_dags_edit_tis):
         future="false",
         past="false",
     )
-    resp = client_all_dags_edit_tis.post('failed', data=form)
-    check_content_in_response('example_bash_operator', resp)
+    resp = client_all_dags_edit_tis.post('failed', data=form, follow_redirects=True)
+    check_content_in_response('Marked failed on 1 task instances', resp)
 
 
 @pytest.mark.parametrize(

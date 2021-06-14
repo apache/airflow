@@ -193,7 +193,7 @@ class DAG(LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
-    :param access_control: Specify optional DAG-level permissions, e.g.,
+    :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
     :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
@@ -411,9 +411,9 @@ class DAG(LoggingMixin):
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
         """
-        Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
+        Looks for outdated dag level actions (can_dag_read and can_dag_edit) in DAG
         access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
-        and replaces them with updated permissions (can_read and can_edit).
+        and replaces them with updated actions (can_read and can_edit).
         """
         if not access_control:
             return None
@@ -803,6 +803,12 @@ class DAG(LoggingMixin):
         return self.get_concurrency_reached()
 
     @provide_session
+    def get_is_active(self, session=None) -> Optional[None]:
+        """Returns a boolean indicating whether this DAG is active"""
+        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
+        return qry.value(DagModel.is_active)
+
+    @provide_session
     def get_is_paused(self, session=None) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is paused"""
         qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
@@ -1129,7 +1135,7 @@ class DAG(LoggingMixin):
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         dag_ids = dag_ids or [self.dag_id]
         query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
@@ -2347,6 +2353,10 @@ def dag(*dag_args, **dag_kwargs):
                 f_kwargs = {}
                 for name, value in f_sig.arguments.items():
                     f_kwargs[name] = dag_obj.param(name, value)
+
+                # set file location to caller source path
+                back = sys._getframe().f_back
+                dag_obj.fileloc = back.f_code.co_filename if back else ""
 
                 # Invoke function to create operators in the DAG scope.
                 f(**f_kwargs)

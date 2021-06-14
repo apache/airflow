@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
+from tests.test_utils.db import clear_db_connections
 
 
 def get_after(sentinel, iterable):
@@ -49,9 +50,14 @@ class TestSparkSqlHook(unittest.TestCase):
         'conf': 'key=value,PROP=VALUE',
     }
 
-    def setUp(self):
-
+    @classmethod
+    def setUpClass(cls) -> None:
+        clear_db_connections(add_default_connections_back=False)
         db.merge_conn(Connection(conn_id='spark_default', conn_type='spark', host='yarn://yarn-master'))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        clear_db_connections(add_default_connections_back=True)
 
     def test_build_command(self):
         hook = SparkSqlHook(**self._config)
@@ -95,7 +101,7 @@ class TestSparkSqlHook(unittest.TestCase):
                         '-e',
                         'SELECT 1',
                         '--master',
-                        'yarn',
+                        'yarn://yarn-master',
                         '--name',
                         'default-name',
                         '--verbose',
@@ -112,7 +118,7 @@ class TestSparkSqlHook(unittest.TestCase):
                 '-e',
                 'SELECT 1',
                 '--master',
-                'yarn',
+                'yarn://yarn-master',
                 '--name',
                 'default-name',
                 '--verbose',
@@ -139,7 +145,7 @@ class TestSparkSqlHook(unittest.TestCase):
                 '-e',
                 'SELECT 1',
                 '--master',
-                'yarn',
+                'yarn://yarn-master',
                 '--name',
                 'default-name',
                 '--verbose',
@@ -168,7 +174,7 @@ class TestSparkSqlHook(unittest.TestCase):
                 '-e',
                 'SELECT 1',
                 '--master',
-                'yarn',
+                'yarn://yarn-master',
                 '--name',
                 'default-name',
                 '--verbose',

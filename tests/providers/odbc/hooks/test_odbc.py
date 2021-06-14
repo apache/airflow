@@ -166,7 +166,7 @@ class TestOdbcHook:
         """
         Bools will be parsed from uri as strings
         """
-        conn_extra = json.dumps(dict(connect_kwargs={'ansi': 'true'}))
+        conn_extra = json.dumps(dict(connect_kwargs={'ansi': True}))
         hook = self.get_hook(conn_params=dict(extra=conn_extra))
         assert hook.connect_kwargs == {
             'ansi': True,

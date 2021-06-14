@@ -223,7 +223,6 @@ def test_mark_task_instance_state(test_app):
             task_id=task_1.task_id,
             origin="",
             execution_date=start_date.isoformat(),
-            confirmed=True,
             upstream=False,
             downstream=False,
             future=False,

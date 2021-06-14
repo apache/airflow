@@ -199,7 +199,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
 
     def init_role(self, role_name, perms):
         """
-        Initialize the role with the actions and related resources.
+        Initialize the role with actions and related resources.
         :param role_name:
         :param perms:
         :return:
@@ -230,7 +230,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
                     self.add_permission_to_role(role, perm)
 
     def add_permissions(self, role, perms):
-        """Adds resource permissions to a given role."""
+        """Adds permissions to a given role."""
         for action_name, resource_name in perms:
             permission = self.create_permission(action_name, resource_name)
             self.add_permission_to_role(role, permission)
