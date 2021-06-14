@@ -22,8 +22,8 @@ from airflow.utils.dag_processing import list_py_file_paths
 
 class ProperlyImportConfFromAirflow(BaseRule):
     """
-      ProperlyImportConfFromAirflow class to ensure proper import of conf to work in Airflow 2.0
-      """
+    ProperlyImportConfFromAirflow class to ensure proper import of conf to work in Airflow 2.0
+    """
     title = "Ensure Users Properly Import conf from Airflow"
     description = """\
     In Airflow-2.0, it's not possible to import `conf` from airflow by using `import conf from airflow`
