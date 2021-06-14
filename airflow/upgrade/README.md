@@ -107,6 +107,14 @@ custom_rules:
 
 ## Changelog
 
+### 1.4.0
+
+- Add `conf` not importable from airflow rule (#14400)
+- Upgrade rule to suggest rename `[scheduler] max_threads` to `[scheduler] parsing_processes` (#14913)
+- Fix running "upgrade_check" command in a PTY. (#14977)
+- Skip `DatabaseVersionCheckRule` check if invalid version is detected (#15122)
+- Fix too specific parsing of `False` in `LegacyUIDeprecated` (#14967)
+
 ### 1.3.0
 
 - Fix wrong warning about class that was not used in a dag file (#14700)
