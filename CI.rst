@@ -808,8 +808,7 @@ The image names follow the patterns:
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v1-10-test" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor). For "main" and "v2-*-test" should be in ["3.6", "3.7", "3.8"]. For
-  v1-10-test it should be in ["2.7", "3.5", "3.6". "3.7", "3.8"].
+* <X.Y> - Python version (Major + Minor). For "main" and "v2-*-test" should be in ["3.6", "3.7", "3.8"].
 * <COMMIT_SHA> - for images that get merged to "main", "v2-*-test" of "v1-10-test", or built as part of a
   pull request the images are tagged with the (full length) commit SHA of that particular branch. For pull
   requests the SHA used is the tip of the pull request branch.
