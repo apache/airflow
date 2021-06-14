@@ -1520,7 +1520,7 @@ class TestBackfillJob(unittest.TestCase):
         job = BackfillJob(
             dag=dag,
             executor=MockExecutor(),
-            start_date=datetime.datetime.now(settings.TIMEZONE) - datetime.timedelta(days=1)
+            start_date=datetime.datetime.now(settings.TIMEZONE) - datetime.timedelta(days=1),
         )
         job.run()
         dr: DagRun = dag.get_last_dagrun()
