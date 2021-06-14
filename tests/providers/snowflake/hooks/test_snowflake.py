@@ -121,6 +121,7 @@ class TestSnowflakeHook(unittest.TestCase):
             'role': 'af_role',
             'authenticator': 'snowflake',
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
         }
         assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
         assert conn_params_shouldbe == self.db_hook._get_conn_params()
