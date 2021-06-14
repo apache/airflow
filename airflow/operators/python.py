@@ -456,6 +456,8 @@ def get_current_context() -> Dict[str, Any]:
     .. code:: python
 
         from airflow.operators.python import get_current_context
+
+
         def my_task():
             context = get_current_context()
             ti = context["ti"]

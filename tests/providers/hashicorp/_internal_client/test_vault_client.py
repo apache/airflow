@@ -512,6 +512,22 @@ class TestVaultClient(TestCase):
         assert "secret" == vault_client.mount_point
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_token_path_strip(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        with open('/tmp/test_token.txt', 'w+') as the_file:
+            the_file.write('  s.7AU0I51yv1Q1lxOIg1F3ZRAS\n')
+        vault_client = _VaultClient(
+            auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
+        )
+        client = vault_client.client
+        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        client.is_authenticated.assert_called_with()
+        assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
+        assert 2 == vault_client.kv_engine_version
+        assert "secret" == vault_client.mount_point
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_default_auth_type(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client

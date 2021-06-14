@@ -873,9 +873,6 @@ def initialize_config():
 
         log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path('default_webserver_config.py'), WEBSERVER_CONFIG)
-
-    conf.validate()
-
     return conf
 
 
@@ -1114,6 +1111,7 @@ WEBSERVER_CONFIG = ''  # Set by initialize_config
 
 conf = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
+conf.validate()
 
 
 PY37 = sys.version_info >= (3, 7)

@@ -144,10 +144,10 @@ branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you
 
 Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
 
-Run script to re-tag images from the ``master`` branch to the  ``vX-Y-test`` branch:
+Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
 
    ```shell script
-   ./dev/retag_docker_images.py --source-branch master --target-branch ${BRANCH_PREFIX}-test
+   ./dev/retag_docker_images.py --source-branch main --target-branch ${BRANCH_PREFIX}-test
    ```
 
 
@@ -212,6 +212,7 @@ In case you need, you can also build and push the images manually:
 ```shell script
 export VERSION=<VERSION_HERE>
 export DOCKER_REPO=docker.io/apache/airflow
+export DEFAULT_PYTHON_VERSION=3.6
 for python_version in "3.6" "3.7" "3.8"
 (
   export DOCKER_TAG=${VERSION}-python${python_version}
@@ -222,9 +223,21 @@ for python_version in "3.6" "3.7" "3.8"
 Once this succeeds you should push the "${VERSION}" image:
 
 ```shell script
-docker tag apache/airflow:${VERSION}-python3.6 apache/airflow:${VERSION}
+docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:${VERSION}
 docker push apache/airflow:${VERSION}
 ```
+
+And latest images:
+
+```shell script
+for python_version in "3.6" "3.7" "3.8"
+(
+    docker tag apache/airflow:${VERSION}-python{python_version} apache/airflow:latest-python{python-version}
+    docker push apache/airflow:latest-python{python-version}
+)
+docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:latest
+```
+
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before the images are pushed.
@@ -263,7 +276,7 @@ Only votes from PMC members are binding, but the release manager should encourag
 to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/master/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
 
 Please note that the version number excludes the `rcX` string, so it's now
 simply 2.0.2. This will allow us to rename the artifact without modifying

@@ -59,11 +59,17 @@ def get_dag_details(dag_id):
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
-def get_dags(limit, offset=0):
+@provide_session
+def get_dags(limit, session, offset=0):
     """Get all DAGs."""
-    readable_dags = current_app.appbuilder.sm.get_readable_dags(g.user)
-    dags = readable_dags.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
-    total_entries = readable_dags.count()
+    dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
+
+    readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
+
+    dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
+    total_entries = len(dags_query.all())
+
+    dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 

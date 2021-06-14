@@ -64,12 +64,20 @@ Image naming conventions
 
 The images are named as follows:
 
-``apache/airflow:<BRANCH_OR_TAG>-python<PYTHON_MAJOR_MINOR_VERSION>[-ci][-manifest]``
+``apache/airflow-ci:<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>[-ci][-manifest]``
+
+For production images tagged with official releases:
+
+``apache/airflow:<TAG>-python<PYTHON_MAJOR_MINOR_VERSION>``
+
+And for production images with ``latest`` tag:
+
+````apache/airflow:latest[-python<PYTHON_MAJOR_MINOR_VERSION>]``
 
 where:
 
-* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``master``,
-  ``v2-1-test``, ``2.1.0``. The ``master``, ``v2-*-test`` labels are
+* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``main``,
+  ``v2-1-test``, ``2.1.0``. The ``main``, ``v2-*-test`` labels are
   built from branches so they change over time. The ``2.*.*`` labels are built from git tags
   and they are "fixed" once built.
 * ``PYTHON_MAJOR_MINOR_VERSION`` - version of Python used to build the image. Examples: ``3.6``, ``3.7``,
@@ -82,7 +90,7 @@ the CI images. Each CI image, when built uses current Python version of the base
 python images are regularly updated (with bugfixes/security fixes), so for example Python 3.8 from
 last week might be a different image than Python 3.8 today. Therefore whenever we push CI image
 to airflow repository, we also push the Python image that was used to build it this image is stored
-as ``apache/airflow:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
+as ``apache/airflow-ci:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
 
 Since those are simply snapshots of the existing Python images, DockerHub does not create a separate
 copy of those images - all layers are mounted from the original Python images and those are merely
@@ -185,13 +193,13 @@ This will build the image using command similar to:
 
 
 You can also build production images from specific Git version via providing ``--install-airflow-reference``
-parameter to Breeze (this time constraints are taken from the ``constraints-master`` branch which is the
+parameter to Breeze (this time constraints are taken from the ``constraints-main`` branch which is the
 HEAD of development for constraints):
 
 .. code-block:: bash
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 You can also skip installing airflow and install it from locally provided files by using
 ``--install-from-docker-context-files`` parameter and ``--disable-pypi-when-building`` to Breeze:
@@ -269,26 +277,48 @@ registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for GitHub 
 Default is the GitHub Package Registry one. The Pull Request forks have no access to the secret but they
 auto-detect the registry used when they wait for the images.
 
-Our images are named like that:
+Our images are named following conventions below.
+
+Images used during CI builds:
 
 .. code-block:: bash
 
-  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y         - for production images
-  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y-ci      - for CI images
-  apache/airflow:<BRANCH_OR_TAG>-pythonX.Y-build   - for production build stage
-  apache/airflow:pythonX.Y-<BRANCH_OR_TAG>         - for Python base image used for both CI and PROD image
+  apache/airflow-ci:<BRANCH>-pythonX.Y         - for production images
+  apache/airflow-ci:<BRANCH>-pythonX.Y-ci      - for CI images
+  apache/airflow-ci:<BRANCH>-pythonX.Y-build   - for production build stage
+  apache/airflow-ci:pythonX.Y-<BRANCH>         - for Python base image used for both CI and PROD image
 
 For example:
 
 .. code-block:: bash
 
-  apache/airflow:master-python3.6                - production "latest" image from current master
-  apache/airflow:master-python3.6-ci             - CI "latest" image from current master
-  apache/airflow:v2-1-test-python3.6-ci          - CI "latest" image from current v2-1-test branch
-  apache/airflow:2.1.0-python3.6                 - production image for 2.1.0 release
-  apache/airflow:python3.6-master                - base Python image for the master branch
+  apache/airflow-ci:main-python3.6                - production "main" image from current main
+  apache/airflow-ci:main-python3.6-ci             - CI "main" image from current main
+  apache/airflow-ci:v2-1-test-python3.6-ci          - CI "main" image from current v2-1-test branch
+  apache/airflow:python3.6-main                - base Python image for the main branch
 
-You can see DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
+You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow-ci>`_
+
+Released, production images
+
+.. code-block:: bash
+
+  apache/airflow:<TAG>-pythonX.Y         - for tagged released production images
+  apache/airflow:<TAG>                   - for default Python version released production images
+  apache/airflow:latest-pythonX.Y        - for latest released production images
+  apache/airflow:latest                  - for default Python version of latest released production images
+
+For example:
+
+.. code-block:: bash
+
+  apache/airflow:2.1.0-python3.8         - for regular released 2.1.0 production image with Python 3.8
+  apache/airflow:2.1.0                   - for default Python version of 2.1.0 production image
+  apache/airflow:latest-python3.8        - for latest released Python 3.8 production image
+  apache/airflow:latest                  - for latest released default Python production image
+
+You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
+
 
 Using GitHub registries as build cache
 --------------------------------------
@@ -297,7 +327,7 @@ By default DockerHub registry is used when you push or pull such images.
 However for CI builds we keep the images in GitHub registry as well - this way we can easily push
 the images automatically after merge requests and use such images for Pull Requests
 as cache - which makes it much it much faster for CI builds (images are available in cache
-right after merged request in master finishes it's build), The difference is visible especially if
+right after merged request in main finishes it's build), The difference is visible especially if
 significant changes are done in the Dockerfile.CI.
 
 The images are named differently (in Docker definition of image names - registry URL is part of the
@@ -316,45 +346,45 @@ The images are linked to the repository via ``org.opencontainers.image.source`` 
 Naming convention for GitHub Packages
 -------------------------------------
 
-Images built as "Run ID snapshot":
+Images with a commit SHA (built for pull requests and pushes)
 
 .. code-block:: bash
 
-  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<RUN_ID>    - for CI images
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<RUN_ID>       - for production images
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<RUN_ID> - for production build stage
-  docker.pkg.github.com/apache-airflow/python-v2:X.Y-slim-buster-<RUN_ID>  - for base Python images
+  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA> - for CI images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<COMMIT_SHA>       - for production images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<COMMIT_SHA> - for production build stage
+  docker.pkg.github.com/apache-airflow/python-v2:X.Y-slim-buster-<COMMIT_SHA>   - for base Python images
 
-Latest images (pushed when master merge succeeds):
+Latest images (pushed when main merge succeeds):
 
 .. code-block:: bash
 
   docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
   docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-v2:latest       - for production images
   docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  docker.pkg.github.com/apache/airflow/python-v2:X.Y-slim-buster - for base Python images
+  docker.pkg.github.com/apache/airflow/python-v2:X.Y-slim-buster          - for base Python images
 
 
 Naming convention for GitHub Container Registry
 -----------------------------------------------
 
-Images built as "Run ID snapshot":
+Images with a commit SHA (built for pull requests and pushes)
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<RUN_ID>                - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<RUN_ID>                   - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<RUN_ID>             - for production build stage
-  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster-<RUN_ID>  - for base Python images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA>    - for CI images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<COMMIT_SHA>       - for production images
+  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<COMMIT_SHA> - for production build stage
+  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster-<COMMIT_SHA>   - for base Python images
 
-Latest images (pushed when master merge succeeds):
+Latest images (pushed when main merge succeeds):
 
 .. code-block:: bash
 
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster - for base Python images
+  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster          - for base Python images
 
 Note that we never push or pull "release" images to GitHub registry. It is only used for CI builds
 
@@ -465,7 +495,7 @@ additional apt dev and runtime dependencies.
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas"
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
-    --tag my-image
+    --tag my-image:0.0.1
 
 
 the same image can be built using ``breeze`` (it supports auto-completion of the options):
@@ -503,7 +533,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
     --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
     --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
-    --tag my-image
+    --tag my-image:0.0.1
 
 CI image build arguments
 ------------------------
@@ -535,7 +565,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_REPO``                         | ``apache/airflow``                       | the repository from which PIP            |
 |                                          |                                          | dependencies are pre-installed           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
+| ``AIRFLOW_BRANCH``                       | ``main``                                 | the branch from which PIP dependencies   |
 |                                          |                                          | are pre-installed                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CI_BUILD_EPOCH``               | ``1``                                    | increasing this value will reinstall PIP |
@@ -560,7 +590,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | reference (branch or tag) from GitHub    |
 |                                          |                                          | repository from which constraints are    |
 |                                          |                                          | used. By default it is set to            |
-|                                          |                                          | ``constraints-master`` but can be        |
+|                                          |                                          | ``constraints-main`` but can be          |
 |                                          |                                          | ``constraints-2-0`` for 2.0.* versions   |
 |                                          |                                          | or it could point to specific version    |
 |                                          |                                          | for example ``constraints-2.0.0``        |
@@ -634,7 +664,7 @@ This builds the CI image in version 3.7 with default extras ("all").
 
 .. code-block:: bash
 
-  docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster"
+  docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" --tag my-image:0.0.1
 
 
 This builds the CI image in version 3.6 with "gcp" extra only.
@@ -642,7 +672,7 @@ This builds the CI image in version 3.6 with "gcp" extra only.
 .. code-block:: bash
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_EXTRAS=gcp
+    --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 
 
 This builds the CI image in version 3.6 with "apache-beam" extra added.
@@ -650,28 +680,29 @@ This builds the CI image in version 3.6 with "apache-beam" extra added.
 .. code-block:: bash
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam"
+    --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 
 This builds the CI image in version 3.6 with "mssql" additional package added.
 
 .. code-block:: bash
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="mssql"
+    --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 
 This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev dependencies added.
 
 .. code-block::
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++"
+    --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 
 This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
 
 .. code-block::
 
   docker build . -f Dockerfile.ci --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_EXTRAS=jdbc --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless"
+    --build-arg AIRFLOW_EXTRAS=jdbc --build-arg ADDITIONAL_RUNTIME_DEPS="default-jre-headless" \
+    --tag my-image:0.0.1
 
 CI Image manifests
 ------------------
@@ -684,12 +715,12 @@ way of querying image details via API. You really need to download the image to 
 We workaround it in the way that always when we build the image we build a very small image manifest
 containing randomly generated UUID and push it to registry together with the main CI image.
 The tag for the manifest image reflects the image it refers to with added ``-manifest`` suffix.
-The manifest image for ``apache/airflow:master-python3.6-ci`` is named
-``apache/airflow:master-python3.6-ci-manifest``.
+The manifest image for ``apache/airflow:main-python3.6-ci`` is named
+``apache/airflow:main-python3.6-ci-manifest``.
 
 The image is quickly pulled (it is really, really small) when important files change and the content
 of the randomly generated UUID is compared with the one in our image. If the contents are different
-this means that the user should rebase to latest master and rebuild the image with pulling the image from
+this means that the user should rebase to latest main and rebuild the image with pulling the image from
 the repo as this will likely be faster than rebuilding the image locally.
 
 The random UUID is generated right after pre-cached pip install is run - and usually it means that

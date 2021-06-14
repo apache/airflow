@@ -22,6 +22,28 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for Providers (#15499)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Make Airflow code Pylint 2.8 compatible (#15534)``
+   * ``Update Docstrings of Modules with Missing Params (#15391)``
+
 1.1.0
 .....
 

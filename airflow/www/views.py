@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import collections
 import copy
 import itertools
 import json
@@ -76,7 +77,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
-from sqlalchemy import and_, desc, func, or_, union_all
+from sqlalchemy import Date, and_, desc, func, or_, union_all
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
@@ -110,6 +111,7 @@ from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.strings import to_boolean
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -214,7 +216,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
 def task_group_to_dict(task_group):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
-    the Graph View.
+    the Graph.
     """
     if isinstance(task_group, BaseOperator):
         return {
@@ -276,7 +278,7 @@ def task_group_to_dict(task_group):
 
 def dag_edges(dag):
     """
-    Create the list of edges needed to construct the Graph View.
+    Create the list of edges needed to construct the Graph view.
 
     A special case is made if a TaskGroup is immediately upstream/downstream of another
     TaskGroup or task. Two dummy nodes named upstream_join_id and downstream_join_id are
@@ -428,6 +430,10 @@ class AirflowBaseView(BaseView):  # noqa: D101
     # Make our macros available to our UI templates too.
     extra_args = {
         'macros': macros,
+    }
+
+    line_chart_attr = {
+        'legend.maxKeyLength': 200,
     }
 
     def render_template(self, *args, **kwargs):
@@ -1573,6 +1579,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             response = self.render_template(
                 'airflow/confirm.html',
+                endpoint=None,
                 message="Here's the list of task instances you are about to clear:",
                 details=details,
             )
@@ -1604,7 +1611,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         recursive = request.form.get('recursive') == "true"
         only_failed = request.form.get('only_failed') == "true"
 
-        dag = dag.sub_dag(
+        dag = dag.partial_subset(
             task_ids_or_regex=fr"^{task_id}$",
             include_downstream=downstream,
             include_upstream=upstream,
@@ -1789,7 +1796,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_id,
         origin,
         execution_date,
-        confirmed,
         upstream,
         downstream,
         future,
@@ -1802,14 +1808,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
-            flash(f"Cannot make {state}, seem that dag {dag_id} has never run", "error")
+            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
             return redirect(origin)
 
         execution_date = timezone.parse(execution_date)
 
         from airflow.api.common.experimental.mark_tasks import set_state
 
-        if confirmed:
+        with create_session() as session:
             altered = set_state(
                 tasks=[task],
                 execution_date=execution_date,
@@ -1819,10 +1825,87 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 past=past,
                 state=state,
                 commit=True,
+                session=session,
             )
 
-            flash(f"Marked {state} on {len(altered)} task instances")
-            return redirect(origin)
+            # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+            # Flush the session so that the tasks marked success are reflected in the db.
+            session.flush()
+            subdag = dag.partial_subset(
+                task_ids_or_regex={task_id},
+                include_downstream=True,
+                include_upstream=False,
+            )
+
+            end_date = execution_date if not future else None
+            start_date = execution_date if not past else None
+
+            subdag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=True,
+                include_parentdag=True,
+                only_failed=True,
+                session=session,
+                # Exclude the task itself from being cleared
+                exclude_task_ids={task_id},
+            )
+
+            session.commit()
+
+        flash(f"Marked {state} on {len(altered)} task instances")
+        return redirect(origin)
+
+    @expose('/confirm', methods=['GET'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def confirm(self):
+        """Show confirmation page for marking tasks as success or failed."""
+        args = request.args
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        execution_date = args.get('execution_date')
+        state = args.get('state')
+
+        upstream = to_boolean(args.get('failed_upstream'))
+        downstream = to_boolean(args.get('failed_downstream'))
+        future = to_boolean(args.get('failed_future'))
+        past = to_boolean(args.get('failed_past'))
+
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+        except airflow.exceptions.SerializedDagNotFound:
+            flash(f'DAG {dag_id} not found', "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        try:
+            task = dag.get_task(task_id)
+        except airflow.exceptions.TaskNotFound:
+            flash(f"Task {task_id} not found", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        task.dag = dag
+
+        if state not in (
+            'success',
+            'failed',
+        ):
+            flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        latest_execution_date = dag.get_latest_execution_date()
+        if not latest_execution_date:
+            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        execution_date = timezone.parse(execution_date)
+
+        from airflow.api.common.experimental.mark_tasks import set_state
 
         to_be_altered = set_state(
             tasks=[task],
@@ -1839,6 +1922,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         response = self.render_template(
             "airflow/confirm.html",
+            endpoint=url_for(f'Airflow.{state}'),
             message=f"Here's the list of task instances you are about to mark as {state}:",
             details=details,
         )
@@ -1855,23 +1939,22 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def failed(self):
         """Mark task as failed."""
-        dag_id = request.form.get('dag_id')
-        task_id = request.form.get('task_id')
-        origin = get_safe_url(request.form.get('origin'))
-        execution_date = request.form.get('execution_date')
+        args = request.form
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        origin = get_safe_url(args.get('origin'))
+        execution_date = args.get('execution_date')
 
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('failed_upstream') == "true"
-        downstream = request.form.get('failed_downstream') == "true"
-        future = request.form.get('failed_future') == "true"
-        past = request.form.get('failed_past') == "true"
+        upstream = to_boolean(args.get('failed_upstream'))
+        downstream = to_boolean(args.get('failed_downstream'))
+        future = to_boolean(args.get('failed_future'))
+        past = to_boolean(args.get('failed_past'))
 
         return self._mark_task_instance_state(
             dag_id,
             task_id,
             origin,
             execution_date,
-            confirmed,
             upstream,
             downstream,
             future,
@@ -1889,23 +1972,22 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def success(self):
         """Mark task as success."""
-        dag_id = request.form.get('dag_id')
-        task_id = request.form.get('task_id')
-        origin = get_safe_url(request.form.get('origin'))
-        execution_date = request.form.get('execution_date')
+        args = request.form
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        origin = get_safe_url(args.get('origin'))
+        execution_date = args.get('execution_date')
 
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('success_upstream') == "true"
-        downstream = request.form.get('success_downstream') == "true"
-        future = request.form.get('success_future') == "true"
-        past = request.form.get('success_past') == "true"
+        upstream = to_boolean(args.get('failed_upstream'))
+        downstream = to_boolean(args.get('failed_downstream'))
+        future = to_boolean(args.get('failed_future'))
+        past = to_boolean(args.get('failed_past'))
 
         return self._mark_task_instance_state(
             dag_id,
             task_id,
             origin,
             execution_date,
-            confirmed,
             upstream,
             downstream,
             future,
@@ -1914,7 +1996,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         )
 
     def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
-        """Returns formatted dag_runs for Tree View"""
+        """Returns formatted dag_runs for Tree view"""
         dates = sorted(dag_runs.keys())
         min_date = min(dag_runs, default=None)
 
@@ -2023,7 +2105,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
         num_runs = request.args.get('num_runs', type=int)
         if num_runs is None:
@@ -2090,6 +2172,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging  # pylint: disable=too-many-locals
     def calendar(self):
         """Get DAG runs as calendar"""
+
+        def _convert_to_date(session, column):
+            """Convert column to date."""
+            if session.bind.dialect.name == 'mssql':
+                return column.cast(Date)
+            else:
+                return func.date(column)
+
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
         if not dag:
@@ -2098,18 +2188,18 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
         with create_session() as session:
             dag_states = (
                 session.query(
-                    func.date(DagRun.execution_date).label('date'),
+                    (_convert_to_date(session, DagRun.execution_date)).label('date'),
                     DagRun.state,
                     func.count('*').label('count'),
                 )
                 .filter(DagRun.dag_id == dag.dag_id)
-                .group_by(func.date(DagRun.execution_date), DagRun.state)
-                .order_by(func.date(DagRun.execution_date).asc())
+                .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
+                .order_by(_convert_to_date(session, DagRun.execution_date).asc())
                 .all()
             )
 
@@ -2164,7 +2254,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         arrange = request.args.get('arrange', dag.orientation)
 
         nodes = task_group_to_dict(dag.task_group)
@@ -2267,10 +2357,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
-        cum_chart = nvd3.lineChart(name="cumLineChart", x_is_date=True, height=chart_height, width="1200")
+        chart = nvd3.lineChart(
+            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+        )
+        cum_chart = nvd3.lineChart(
+            name="cumLineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+        )
 
         y_points = defaultdict(list)
         x_points = defaultdict(list)
@@ -2385,11 +2479,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
 
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, y_axis_format='d', height=chart_height, width="1200"
+            name="lineChart",
+            x_is_date=True,
+            y_axis_format='d',
+            height=chart_height,
+            chart_attr=self.line_chart_attr,
         )
 
         for task in dag.tasks:
@@ -2456,10 +2554,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
 
         chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(name="lineChart", x_is_date=True, height=chart_height, width="1200")
+        chart = nvd3.lineChart(
+            name="lineChart", x_is_date=True, height=chart_height, chart_attr=self.line_chart_attr
+        )
         y_points = {}
         x_points = {}
         for task in dag.tasks:
@@ -2585,7 +2685,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
+            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data['dttm']
@@ -2597,7 +2697,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         tis = sorted(tis, key=lambda ti: ti.start_date)
         ti_fails = list(
             itertools.chain(
-                *[
+                *(
                     (
                         session.query(TaskFail)
                         .filter(
@@ -2608,7 +2708,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                         .all()
                     )
                     for ti in tis
-                ]
+                )
             )
         )
 
@@ -3340,11 +3440,7 @@ class VariableModelView(AirflowModelView):
     def varimport(self):
         """Import variables"""
         try:
-            out = request.files['file'].read()
-            if isinstance(out, bytes):
-                variable_dict = json.loads(out.decode('utf-8'))
-            else:
-                variable_dict = json.loads(out)
+            variable_dict = json.loads(request.files['file'].read())
         except Exception:  # noqa pylint: disable=broad-except
             self.update_redirect()
             flash("Missing file or syntax error.", 'error')
@@ -3800,12 +3896,11 @@ class TaskInstanceModelView(AirflowModelView):
     def action_clear(self, task_instances, session=None):
         """Clears the action."""
         try:
-            dag_to_tis = {}
+            dag_to_tis = collections.defaultdict(list)
 
             for ti in task_instances:
                 dag = current_app.dag_bag.get_dag(ti.dag_id)
-                task_instances_to_clean = dag_to_tis.setdefault(dag, [])
-                task_instances_to_clean.append(ti)
+                dag_to_tis[dag].append(ti)
 
             for dag, task_instances_list in dag_to_tis.items():
                 models.clear_task_instances(task_instances_list, session, dag=dag)

@@ -227,7 +227,13 @@ class PgbouncerConfigTest(unittest.TestCase):
 
     def test_databases_override(self):
         values = {
-            "pgbouncer": {"enabled": True, "metadataPoolSize": 12, "resultBackendPoolSize": 7},
+            "pgbouncer": {
+                "enabled": True,
+                "metadataPoolSize": 12,
+                "resultBackendPoolSize": 7,
+                "extraIniMetadata": "reserve_pool = 5",
+                "extraIniResultBackend": "reserve_pool = 3",
+            },
             "data": {
                 "metadataConnection": {"host": "meta_host", "db": "meta_db", "port": 1111},
                 "resultBackendConnection": {
@@ -243,8 +249,14 @@ class PgbouncerConfigTest(unittest.TestCase):
         }
         ini = self._get_pgbouncer_ini(values)
 
-        assert "RELEASE-NAME-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12" in ini
-        assert "RELEASE-NAME-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7" in ini
+        assert (
+            "RELEASE-NAME-metadata = host=meta_host dbname=meta_db port=1111 pool_size=12 reserve_pool = 5"
+            in ini
+        )
+        assert (
+            "RELEASE-NAME-result-backend = host=rb_host dbname=rb_db port=2222 pool_size=7 reserve_pool = 3"
+            in ini
+        )
 
     def test_config_defaults(self):
         ini = self._get_pgbouncer_ini({"pgbouncer": {"enabled": True}})
@@ -314,3 +326,51 @@ class PgbouncerConfigTest(unittest.TestCase):
             encoded = jmespath.search(f'data."{key}"', docs[0])
             value = base64.b64decode(encoded).decode()
             assert expected == value
+
+    def test_extra_ini_configs(self):
+        values = {"pgbouncer": {"enabled": True, "extraIni": "server_round_robin = 1\nstats_period = 30"}}
+        ini = self._get_pgbouncer_ini(values)
+
+        assert "server_round_robin = 1" in ini
+        assert "stats_period = 30" in ini
+
+
+class PgbouncerExporterTest(unittest.TestCase):
+    def test_secret_not_created_by_default(self):
+        docs = render_chart(
+            show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],
+        )
+        assert 0 == len(docs)
+
+    def _get_connection(self, values: dict) -> str:
+        docs = render_chart(
+            values=values,
+            show_only=["templates/secrets/pgbouncer-stats-secret.yaml"],
+        )
+        encoded_connection = jmespath.search("data.connection", docs[0])
+        return base64.b64decode(encoded_connection).decode()
+
+    def test_default_exporter_secret(self):
+        connection = self._get_connection({"pgbouncer": {"enabled": True}})
+        assert "postgresql://postgres:postgres@127.0.0.1:6543/pgbouncer?sslmode=disable" == connection
+
+    def test_exporter_secret_with_overrides(self):
+        connection = self._get_connection(
+            {
+                "pgbouncer": {"enabled": True},
+                "data": {
+                    "metadataConnection": {
+                        "user": "username@123123",
+                        "pass": "password@!@#$^&*()",
+                        "host": "somehost",
+                        "port": 7777,
+                        "db": "somedb",
+                    },
+                },
+                "ports": {"pgbouncer": 1111},
+            }
+        )
+        assert (
+            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
+            "/pgbouncer?sslmode=disable" == connection
+        )

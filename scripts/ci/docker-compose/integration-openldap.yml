@@ -18,7 +18,7 @@
 version: "2.2"
 services:
   openldap:
-    image: apache/airflow:openldap-2020.07.10-2.4.50
+    image: apache/airflow-ci:openldap-2020.07.10-2.4.50
     command: "--copy-service"
     environment:
       - LDAP_DOMAIN=example.com

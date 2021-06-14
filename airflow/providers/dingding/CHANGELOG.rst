@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hooks extended from http hook (#16109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix string concatenation using 'f-strings' (#15200)``
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Update pre-commit checks (#15583)``
+   * ``Remove Backport Providers (#14886)``
+
 1.0.2
 .....
 

@@ -43,6 +43,6 @@ docker build . -f Dockerfile \
     curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_RUNTIME_APT_ENV="ACCEPT_EULA=Y" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
-    --tag "$(basename "$0")"
+    --tag "my-custom-sources-image:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-custom-sources-image:0.0.1"

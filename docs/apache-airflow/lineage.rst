@@ -40,20 +40,19 @@ works.
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
-    args = {
-        'owner': 'airflow',
-        'start_date': days_ago(2)
-    }
+    args = {"owner": "airflow", "start_date": days_ago(2)}
 
     dag = DAG(
-        dag_id='example_lineage', default_args=args,
-        schedule_interval='0 0 * * *',
-        dagrun_timeout=timedelta(minutes=60))
+        dag_id="example_lineage",
+        default_args=args,
+        schedule_interval="0 0 * * *",
+        dagrun_timeout=timedelta(minutes=60),
+    )
 
     f_final = File(url="/tmp/final")
-    run_this_last = DummyOperator(task_id='run_this_last', dag=dag,
-        inlets=AUTO,
-        outlets=f_final)
+    run_this_last = DummyOperator(
+        task_id="run_this_last", dag=dag, inlets=AUTO, outlets=f_final
+    )
 
     f_in = File(url="/tmp/whole_directory/")
     outlets = []
@@ -62,9 +61,7 @@ works.
         outlets.append(f_out)
 
     run_this = BashOperator(
-        task_id='run_me_first', bash_command='echo 1', dag=dag,
-        inlets=f_in,
-        outlets=outlets
+        task_id="run_me_first", bash_command="echo 1", dag=dag, inlets=f_in, outlets=outlets
     )
     run_this.set_downstream(run_this_last)
 
@@ -113,6 +110,8 @@ The backend should inherit from ``airflow.lineage.LineageBackend``.
 
   from airflow.lineage.backend import LineageBackend
 
+
   class ExampleBackend(LineageBackend):
-    def send_lineage(self, operator, inlets=None, outlets=None, context=None):
-      # Send the info to some external service
+      def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+          ...
+          # Send the info to some external service

@@ -19,6 +19,28 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add 'template_fields' to 'S3ToSnowflake' operator (#15926)``
+* ``Allow S3ToSnowflakeOperator to omit schema (#15817)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: restore parameters support when sql passed to SnowflakeHook as str (#16102)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.3.0
 .....
 

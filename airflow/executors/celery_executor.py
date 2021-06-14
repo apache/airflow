@@ -30,7 +30,8 @@ import subprocess
 import time
 import traceback
 from collections import OrderedDict
-from multiprocessing import Pool, cpu_count
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import cpu_count
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
@@ -318,18 +319,9 @@ class CeleryExecutor(BaseExecutor):
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
-        def reset_signals():
-            # Since we are run from inside the SchedulerJob, we don't to
-            # inherit the signal handlers that we registered there.
-            import signal
-
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
-            signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            signal.signal(signal.SIGUSR2, signal.SIG_DFL)
-
-        with Pool(processes=num_processes, initializer=reset_signals) as send_pool:
-            key_and_async_results = send_pool.map(
-                send_task_to_executor, task_tuples_to_send, chunksize=chunksize
+        with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
+            key_and_async_results = list(
+                send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
             )
         return key_and_async_results
 
@@ -592,11 +584,11 @@ class BulkStateFetcher(LoggingMixin):
     def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
-        with Pool(processes=num_process) as sync_pool:
+        with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
             chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
 
-            task_id_to_states_and_info = sync_pool.map(
-                fetch_celery_task_state, async_results, chunksize=chunksize
+            task_id_to_states_and_info = list(
+                sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)
             )
 
             states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}

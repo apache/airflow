@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation for the Hive Provider (#15704)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Remove duplicate key from Python dictionary (#15735)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Make Airflow code Pylint 2.8 compatible (#15534)``
+   * ``Use Pip 21.* to install airflow officially (#15513)``
+
 1.0.3
 .....
 

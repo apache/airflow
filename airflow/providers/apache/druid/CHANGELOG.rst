@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Adds interactivity when generating provider documentation. (#15518)``
+   * ``Fix string concatenation using 'f-strings' (#15200)``
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
+   * ``Remove Backport Providers (#14886)``
+
 1.1.0
 .....
 

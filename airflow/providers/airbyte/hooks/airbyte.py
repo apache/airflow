@@ -33,6 +33,11 @@ class AirbyteHook(HttpHook):
     :type api_version: str
     """
 
+    conn_name_attr = 'airbyte_conn_id'
+    default_conn_name = 'airbyte_default'
+    conn_type = 'airbyte'
+    hook_name = 'Airbyte'
+
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     CANCELLED = "cancelled"
@@ -107,3 +112,22 @@ class AirbyteHook(HttpHook):
             json={"id": job_id},
             headers={"accept": "application/json"},
         )
+
+    def test_connection(self):
+        """Tests the Airbyte connection by hitting the health API"""
+        self.method = 'GET'
+        try:
+            res = self.run(
+                endpoint=f"api/{self.api_version}/health",
+                headers={"accept": "application/json"},
+                extra_options={'check_response': False},
+            )
+
+            if res.status_code == 200:
+                return True, 'Connection successfully tested'
+            else:
+                return False, res.text
+        except Exception as e:  # noqa pylint: disable=broad-except
+            return False, str(e)
+        finally:
+            self.method = 'POST'

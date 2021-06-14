@@ -74,18 +74,20 @@ describe('Test Pipelines Table', () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
+      .query(() => true)
       .reply(200, {
         dags: [sampleDag],
         totalEntries: 1,
       });
 
-    const { getByText } = render(
+    const { getByText, getAllByTestId } = render(
       <QueryWrapper><Pipelines /></QueryWrapper>,
       {
         wrapper: RouterWrapper,
       },
     );
-    expect(getByText('Loading…')).toBeInTheDocument();
+    // At least one loading bar is rendered
+    expect(getAllByTestId('pipelines-loading').length).toBeGreaterThanOrEqual(1);
     await waitFor(() => expect(getByText(sampleDag.dagId)).toBeInTheDocument());
   });
 
@@ -93,6 +95,7 @@ describe('Test Pipelines Table', () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
+      .query(() => true)
       .reply(404, {
         dags: [],
         totalEntries: 0,
@@ -111,13 +114,14 @@ describe('Test Pipelines Table', () => {
       },
     );
 
-    await waitFor(() => expect(getByText('No Pipelines found.')).toBeInTheDocument());
+    await waitFor(() => expect(getByText('No Data found.')).toBeInTheDocument());
   });
 
   test('Toggle a pipeline on/off', async () => {
     nock(url)
       .defaultReplyHeaders(defaultHeaders)
       .get('/dags')
+      .query(() => true)
       .reply(200, {
         dags: [sampleDag],
         totalEntries: 1,
@@ -144,5 +148,21 @@ describe('Test Pipelines Table', () => {
     // 'Dag Updated' is the toast confirming the change happened
     await waitFor(() => expect(getByText('Pipeline Updated')).toBeInTheDocument());
     await waitFor(() => expect(input.checked).toBeFalsy());
+  });
+
+  test('Errors when retrieving dags are shown to the user', async () => {
+    nock(url)
+      .defaultReplyHeaders(defaultHeaders)
+      .get('/dags')
+      .query(() => true)
+      .replyWithError('something awful happened');
+
+    const { getByText } = render(
+      <QueryWrapper><Pipelines /></QueryWrapper>,
+      {
+        wrapper: RouterWrapper,
+      },
+    );
+    await waitFor(() => expect(getByText('something awful happened')).toBeInTheDocument());
   });
 });

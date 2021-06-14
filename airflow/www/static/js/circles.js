@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* global document */
+
 import d3 from 'd3';
 
 const height = 700;

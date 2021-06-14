@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,23 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: Force sync master from apache/airflow
-on:  # yamllint disable-line rule:truthy
-  workflow_dispatch:
-jobs:
-  repo-sync:
-    if: github.repository != 'apache/airflow'
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: repo-sync
-        uses: repo-sync/github-sync@v2
-        with:
-          source_repo: "apache/airflow"
-          source_branch: "master"
-          destination_branch: "master"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+MOUNT_ALL_LOCAL_SOURCES="false"
+
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+build_images::prepare_ci_build
+
+build_images::rebuild_ci_image_if_needed
+
+docker run "${EXTRA_DOCKER_FLAGS[@]}" \
+    --entrypoint "/bin/bash"  \
+    "${AIRFLOW_CI_IMAGE}" \
+    -c 'cd airflow/www && yarn --frozen-lockfile --non-interactive && yarn run lint "${@}"' "${@#airflow/www/static/js/}"

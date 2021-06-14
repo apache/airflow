@@ -214,11 +214,11 @@ Building this dependency is shown in the code below:
         A simple Extract task to get data ready for the rest of the data
         pipeline, by reading the data from a file into a pandas dataframe
         """
-        order_data_file = '/tmp/order_data.csv'
+        order_data_file = "/tmp/order_data.csv"
         order_data_df = pd.read_csv(order_data_file)
 
 
-    file_task = FileSensor(task_id='check_file', filepath='/tmp/order_data.csv')
+    file_task = FileSensor(task_id="check_file", filepath="/tmp/order_data.csv")
     order_data = extract_from_file()
 
     file_task >> order_data

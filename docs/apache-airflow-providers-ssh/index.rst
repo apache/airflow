@@ -56,7 +56,7 @@ Package apache-airflow-providers-ssh
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 1.3.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -101,6 +101,28 @@ PIP package    Version required
 
 Changelog
 ---------
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+Features
+~~~~~~~~
+
+* ``Add Connection Documentation to more Providers (#15408)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Display explicit error in case UID has no actual username (#15212)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares provider release after PIP 21 compatibility (#15576)``
 
 1.3.0
 .....

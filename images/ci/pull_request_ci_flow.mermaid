@@ -16,37 +16,23 @@
 %% under the License.
 
 sequenceDiagram
-    Contributor -->> Fork: Submit PR
     Fork -->> Airflow Repo: Start Pull Request
-    activate Airflow Repo
-    Note over Airflow Repo: Trigger PR build
     Note over CI Build: pull_request<br>[Read Token]
-    Note over Build Images: workflow_run<br>[Write Token]
+    Note over Build Images: pull_request_target<br>[Write Token]
+    activate Airflow Repo
     Airflow Repo -->> CI Build: Trigger 'pull_request' event
     activate CI Build
-    CI Build -->> Build Images: Trigger 'workflow_run' event
     activate Build Images
-    Note over Build Images: Find Duplicate<br>[CI Build]
-    opt Duplicated builds
-        Build Images -->> CI Build: Cancel
-    end
-    Note over Build Images: Find Duplicates<br>[Build Image]
-    opt Duplicated builds
-        Build Images -->> Build Images: Cancel
-    end
-    Note over Build Images: Find failed<br>[CI Build]
+    Airflow Repo -->> Build Images: Trigger 'pull_request_target' event
     opt Failed builds
+        Note right of Build Images: Find failed<br>[CI Build]
         Build Images -->> CI Build: Cancel
-    end
-    Note over Build Images: Find failed<br>[Build Image]
-    opt Failed builds
-        Build Images -->> Build Images: Cancel
     end
     Note over Build Images: Build info
     par 3.6, 3.7, 3.8
-        Note over Build Images: Build PROD Images<br>[GITHUB_RUN_ID]
+        Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
     and
-        Note over Build Images: Build CI Images<br>[GITHUB_RUN_ID]
+        Note over Build Images: Build CI Images<br>[COMMIT_SHA]
     end
     par No CI image
         Note over CI Build: Build info
@@ -64,17 +50,17 @@ sequenceDiagram
         Build Images ->> GitHub Registry: Push PROD Images
     end
     opt If any step failed
-        Build Images -->> CI Build: Cancel triggering run
+        Build Images -->> CI Build: Cancel associated run
     end
     deactivate Build Images
-    Note over GitHub Registry: Tagged Images<br>[GITHUB_RUN_ID]
+    Note over GitHub Registry: Tagged Images<br>[COMMIT_SHA]
     loop Wait for images
         par 3.6, 3.7, 3.8
             CI Build ->> CI Build: Pull CI Images
-            Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
+            Note over CI Build: Wait for<br>[COMMIT_SHA]
         and
             CI Build ->> CI Build: Pull PROD Images
-            Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
+            Note over CI Build: Wait for<br>[COMMIT_SHA]
         end
     end
     par 3.6, 3.7, 3.8

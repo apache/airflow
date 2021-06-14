@@ -20,9 +20,9 @@ Example DAGS
 
 You can learn how to use Google integrations by analyzing the source code of the example DAGs:
 
-* `Google Ads <https://github.com/apache/airflow/tree/master/airflow/providers/google/ads/example_dags>`__
-* `Google Cloud <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags>`__
-* `Google Firebase <https://github.com/apache/airflow/tree/master/airflow/providers/google/firebase/example_dags>`__
-* `Google Marketing Platform <https://github.com/apache/airflow/tree/master/airflow/providers/google/marketing_platform/example_dags>`__
-* `Google Workplace <https://github.com/apache/airflow/tree/master/airflow/providers/google/suite/example_dags>`__ (formerly Google Suite)
-* `Google LevelDB <https://github.com/apache/airflow/tree/master/airflow/providers/google/leveldb/example_dags>`__
+* `Google Ads <https://github.com/apache/airflow/tree/main/airflow/providers/google/ads/example_dags>`__
+* `Google Cloud <https://github.com/apache/airflow/tree/main/airflow/providers/google/cloud/example_dags>`__
+* `Google Firebase <https://github.com/apache/airflow/tree/main/airflow/providers/google/firebase/example_dags>`__
+* `Google Marketing Platform <https://github.com/apache/airflow/tree/main/airflow/providers/google/marketing_platform/example_dags>`__
+* `Google Workplace <https://github.com/apache/airflow/tree/main/airflow/providers/google/suite/example_dags>`__ (formerly Google Suite)
+* `Google LevelDB <https://github.com/apache/airflow/tree/main/airflow/providers/google/leveldb/example_dags>`__

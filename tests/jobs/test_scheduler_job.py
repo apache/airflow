@@ -1177,6 +1177,165 @@ class TestSchedulerJob(unittest.TestCase):
         assert tis[3].key in res_keys
         session.rollback()
 
+    def test_find_executable_task_instances_order_execution_date(self):
+        dag_id_1 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date-a'
+        dag_id_2 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date-b'
+        task_id = 'task-a'
+        dag_1 = DAG(dag_id=dag_id_1, start_date=DEFAULT_DATE, concurrency=16)
+        dag_2 = DAG(dag_id=dag_id_2, start_date=DEFAULT_DATE, concurrency=16)
+        dag1_task = DummyOperator(dag=dag_1, task_id=task_id)
+        dag2_task = DummyOperator(dag=dag_2, task_id=task_id)
+        dag_1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_1))
+        dag_2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_2))
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_model_1 = DagModel(
+            dag_id=dag_id_1,
+            is_paused=False,
+            concurrency=dag_1.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model_1)
+        dag_model_2 = DagModel(
+            dag_id=dag_id_2,
+            is_paused=False,
+            concurrency=dag_2.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model_2)
+        dr1 = dag_1.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE + timedelta(hours=1),
+            state=State.RUNNING,
+        )
+        dr2 = dag_2.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        tis = [
+            TaskInstance(dag1_task, dr1.execution_date),
+            TaskInstance(dag2_task, dr2.execution_date),
+        ]
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
+        session.flush()
+        assert [ti.key for ti in res] == [tis[1].key]
+        session.rollback()
+
+    def test_find_executable_task_instances_order_priority(self):
+        dag_id_1 = 'SchedulerJobTest.test_find_executable_task_instances_order_priority-a'
+        dag_id_2 = 'SchedulerJobTest.test_find_executable_task_instances_order_priority-b'
+        task_id = 'task-a'
+        dag_1 = DAG(dag_id=dag_id_1, start_date=DEFAULT_DATE, concurrency=16)
+        dag_2 = DAG(dag_id=dag_id_2, start_date=DEFAULT_DATE, concurrency=16)
+        dag1_task = DummyOperator(dag=dag_1, task_id=task_id, priority_weight=1)
+        dag2_task = DummyOperator(dag=dag_2, task_id=task_id, priority_weight=4)
+        dag_1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_1))
+        dag_2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_2))
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_model_1 = DagModel(
+            dag_id=dag_id_1,
+            is_paused=False,
+            concurrency=dag_1.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model_1)
+        dag_model_2 = DagModel(
+            dag_id=dag_id_2,
+            is_paused=False,
+            concurrency=dag_2.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model_2)
+        dr1 = dag_1.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        dr2 = dag_2.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        tis = [
+            TaskInstance(dag1_task, dr1.execution_date),
+            TaskInstance(dag2_task, dr2.execution_date),
+        ]
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
+        session.flush()
+        assert [ti.key for ti in res] == [tis[1].key]
+        session.rollback()
+
+    def test_find_executable_task_instances_order_execution_date_and_priority(self):
+        dag_id_1 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-a'
+        dag_id_2 = 'SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-b'
+        task_id = 'task-a'
+        dag_1 = DAG(dag_id=dag_id_1, start_date=DEFAULT_DATE, concurrency=16)
+        dag_2 = DAG(dag_id=dag_id_2, start_date=DEFAULT_DATE, concurrency=16)
+        dag1_task = DummyOperator(dag=dag_1, task_id=task_id, priority_weight=1)
+        dag2_task = DummyOperator(dag=dag_2, task_id=task_id, priority_weight=4)
+        dag_1 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_1))
+        dag_2 = SerializedDAG.from_dict(SerializedDAG.to_dict(dag_2))
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        dag_model_1 = DagModel(
+            dag_id=dag_id_1,
+            is_paused=False,
+            concurrency=dag_1.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model_1)
+        dag_model_2 = DagModel(
+            dag_id=dag_id_2,
+            is_paused=False,
+            concurrency=dag_2.concurrency,
+            has_task_concurrency_limits=False,
+        )
+        session.add(dag_model_2)
+        dr1 = dag_1.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+        dr2 = dag_2.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE + timedelta(hours=1),
+            state=State.RUNNING,
+        )
+
+        tis = [
+            TaskInstance(dag1_task, dr1.execution_date),
+            TaskInstance(dag2_task, dr2.execution_date),
+        ]
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
+        session.flush()
+        assert [ti.key for ti in res] == [tis[1].key]
+        session.rollback()
+
     def test_find_executable_task_instances_in_default_pool(self):
         set_default_pool_slots(1)
 
@@ -1857,50 +2016,6 @@ class TestSchedulerJob(unittest.TestCase):
         # don't touch ti2
         ti2.refresh_from_db(session=session)
         assert ti2.state == State.SCHEDULED
-
-    def test_change_state_for_tasks_failed_to_execute(self):
-        dag = DAG(dag_id='dag_id', start_date=DEFAULT_DATE)
-
-        task = DummyOperator(task_id='task_id', dag=dag, owner='airflow')
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        # If there's no left over task in executor.queued_tasks, nothing happens
-        session = settings.Session()
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        mock_logger = mock.MagicMock()
-        test_executor = MockExecutor(do_update=False)
-        self.scheduler_job.executor = test_executor
-        self.scheduler_job._logger = mock_logger
-        self.scheduler_job._change_state_for_tasks_failed_to_execute()
-        mock_logger.info.assert_not_called()
-
-        # Tasks failed to execute with QUEUED state will be set to SCHEDULED state.
-        session.query(TaskInstance).delete()
-        session.commit()
-        key = 'dag_id', 'task_id', DEFAULT_DATE, 1
-        test_executor.queued_tasks[key] = 'value'
-        ti = TaskInstance(task, DEFAULT_DATE)
-        ti.state = State.QUEUED
-        session.merge(ti)  # pylint: disable=no-value-for-parameter
-        session.commit()
-
-        self.scheduler_job._change_state_for_tasks_failed_to_execute()
-
-        ti.refresh_from_db()
-        assert State.SCHEDULED == ti.state
-
-        # Tasks failed to execute with RUNNING state will not be set to SCHEDULED state.
-        session.query(TaskInstance).delete()
-        session.commit()
-        ti.state = State.RUNNING
-
-        session.merge(ti)
-        session.commit()
-
-        self.scheduler_job._change_state_for_tasks_failed_to_execute()
-
-        ti.refresh_from_db()
-        assert State.RUNNING == ti.state
 
     def test_adopt_or_reset_orphaned_tasks(self):
         session = settings.Session()
