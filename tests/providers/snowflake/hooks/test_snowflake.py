@@ -109,9 +109,8 @@ class TestSnowflakeHook(unittest.TestCase):
         assert self.db_hook.query_ids == query_ids[::2]
         cur.close.assert_called()
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake.os.environ")
-    def test_get_conn_params(self, mock_env):
-        mock_env.get.return_value = 'test_partner'
+    @mock.patch.dict(os.environ, AIRFLOW_SNOWFLAKE_PARTNER='test_partner')
+    def test_get_conn_params(self):
         conn_params_shouldbe = {
             'user': 'user',
             'password': 'pw',
