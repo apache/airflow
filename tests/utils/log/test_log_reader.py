@@ -30,6 +30,7 @@ from airflow.models import TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
@@ -215,3 +216,23 @@ class TestLogView(unittest.TestCase):
             ],
             any_order=False,
         )
+
+    def test_supports_external_link(self):
+        task_log_reader = TaskLogReader()
+
+        # Short circuit if log_handler doesn't include ExternalLoggingMixin
+        task_log_reader.log_handler = mock.MagicMock()
+        mock_prop = mock.PropertyMock()
+        mock_prop.return_value = False
+        type(task_log_reader.log_handler).supports_external_link = mock_prop
+        assert not task_log_reader.supports_external_link
+        mock_prop.assert_not_called()
+
+        # Otherwise, defer to the log_handlers supports_external_link
+        task_log_reader.log_handler = mock.MagicMock(spec=ExternalLoggingMixin)
+        type(task_log_reader.log_handler).supports_external_link = mock_prop
+        assert not task_log_reader.supports_external_link
+        mock_prop.assert_called_once()
+
+        mock_prop.return_value = True
+        assert task_log_reader.supports_external_link

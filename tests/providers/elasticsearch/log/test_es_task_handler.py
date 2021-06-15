@@ -443,3 +443,13 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         )
         url = es_task_handler.get_external_log_url(self.ti, self.ti.try_number)
         assert expected_url == url
+
+    @parameterized.expand(
+        [
+            ('localhost:5601/{log_id}', True),
+            (None, False),
+        ]
+    )
+    def test_supports_external_link(self, frontend, expected):
+        self.es_task_handler.frontend = frontend
+        assert self.es_task_handler.supports_external_link == expected
