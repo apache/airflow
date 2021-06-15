@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from parameterized import parameterized
 
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils.process_utils import patch_environ
 
 
 class TestSnowflakeHook(unittest.TestCase):
@@ -121,9 +122,28 @@ class TestSnowflakeHook(unittest.TestCase):
             'role': 'af_role',
             'authenticator': 'snowflake',
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": "AIRFLOW",
         }
         assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
         assert conn_params_shouldbe == self.db_hook._get_conn_params()
+
+    def test_get_conn_params_env_variable(self):
+        conn_params_shouldbe = {
+            'user': 'user',
+            'password': 'pw',
+            'schema': 'public',
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'authenticator': 'snowflake',
+            'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": "AIRFLOW_TEST",
+        }
+        with patch_environ({"AIRFLOW_SNOWFLAKE_PARTNER": 'AIRFLOW_TEST'}):
+            assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
+            assert conn_params_shouldbe == self.db_hook._get_conn_params()
 
     def test_get_conn(self):
         assert self.db_hook.get_conn() == self.conn
