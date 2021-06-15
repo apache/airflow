@@ -179,7 +179,7 @@ class SnowflakeHook(DbApiHook):
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
             "session_parameters": self.session_parameters or session_parameters,
-            "application": "AIRFLOW",
+            "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW")
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
