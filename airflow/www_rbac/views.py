@@ -24,7 +24,6 @@ import json
 import logging
 import math
 import os
-from re import T
 import socket
 import traceback
 from collections import defaultdict
