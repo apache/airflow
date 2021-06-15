@@ -408,20 +408,21 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
 
     @parameterized.expand(
         [
-            # Common case
-            ('localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID.replace('T', ' '))),
+            # Common cases
+            (True, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(JSON_LOG_ID)),
+            (False, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID)),
             # Ignore template if "{log_id}"" is missing in the URL
-            ('localhost:5601', 'https://localhost:5601'),
+            (False, 'localhost:5601', 'https://localhost:5601'),
         ]
     )
-    def test_get_external_log_url(self, es_frontend, expected_url):
+    def test_get_external_log_url(self, json_format, es_frontend, expected_url):
         es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
             self.log_id_template,
             self.end_of_log_mark,
             self.write_stdout,
-            self.json_format,
+            json_format,
             self.json_fields,
             self.host_field,
             self.offset_field,

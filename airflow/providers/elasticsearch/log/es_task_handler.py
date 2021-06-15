@@ -335,14 +335,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: URL to the external log collection service
         :rtype: str
         """
-        log_id = self.log_id_template.format(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            execution_date=task_instance.execution_date,
-            try_number=try_number,
-        )
-        url = 'https://' + self.frontend.format(log_id=quote(log_id))
-        return url
+        log_id = self._render_log_id(task_instance, try_number)
+        return 'https://' + self.frontend.format(log_id=quote(log_id))
 
     @property
     def supports_external_link(self) -> bool:
