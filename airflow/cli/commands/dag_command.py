@@ -80,7 +80,7 @@ def dag_backfill(args, dag=None):
         )
         if not dag.task_dict:
             raise AirflowException(
-                f"There is no any task that match '{args.task_regex}' regex. Nothing to run, exiting..."
+                f"There are no tasks that match '{args.task_regex}' regex. Nothing to run, exiting..."
             )
 
     run_conf = None
