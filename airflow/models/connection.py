@@ -17,8 +17,8 @@
 # under the License.
 
 import json
-import warnings
 import logging
+import warnings
 from json import JSONDecodeError
 from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
@@ -396,10 +396,10 @@ class Connection(Base, LoggingMixin):
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
                     return conn
-            except Exception as e:
-                log.warning('Unable to retrieve connection from alternative secret backend:'
-                            f'\n{e}\n'
-                            'Checking default secrets backends'
-                            )
+            except Exception:  # pylint: disable=broad-except
+                log.exception(
+                    'Unable to retrieve connection from Alternative Secrets Backend. '
+                    'Checking default secrets backends.'
+                )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
