@@ -66,7 +66,7 @@ Bug Fixes
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Fix spelling (#15699)``
    * ``Add short description to BaseSQLToGCSOperator docstring (#15728)``
-
+   * ``More documentation update for June providers release (#16405)``
 
 3.0.0
 .....
@@ -77,7 +77,7 @@ Breaking changes
 Change in ``AutoMLPredictOperator``
 ```````````````````````````````````
 
-The ``params`` parameter in :class:`~airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator` class
+The ``params`` parameter in ``airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator`` class
 was renamed ``operation_params`` because it conflicted with a ``param`` parameter in the ``BaseOperator`` class.
 
 Integration with the ``apache.beam`` provider
