@@ -1973,10 +1973,11 @@
       description: |
         Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
         Code will construct log_id using the log_id template from the argument above.
-        NOTE: The code will prefix the https:// automatically, don't include that here.
+        NOTE: scheme will default to https if one if not provided
       version_added: 1.10.4
       type: string
-      example: ~
+      example: "http://localhost:5601/app/kibana#/discover\
+        ?_a=(columns:!(message),query:(language:kuery,query:'log_id: \"{log_id}\"'),sort:!(log.offset,asc))"
       default: ""
     - name: write_stdout
       description: |

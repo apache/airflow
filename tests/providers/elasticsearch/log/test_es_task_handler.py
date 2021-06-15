@@ -413,6 +413,10 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
             (False, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID)),
             # Ignore template if "{log_id}"" is missing in the URL
             (False, 'localhost:5601', 'https://localhost:5601'),
+            # scheme handling
+            (False, 'https://localhost:5601/path/{log_id}', 'https://localhost:5601/path/' + quote(LOG_ID)),
+            (False, 'http://localhost:5601/path/{log_id}', 'http://localhost:5601/path/' + quote(LOG_ID)),
+            (False, 'other://localhost:5601/path/{log_id}', 'other://localhost:5601/path/' + quote(LOG_ID)),
         ]
     )
     def test_get_external_log_url(self, json_format, es_frontend, expected_url):

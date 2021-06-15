@@ -336,7 +336,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :rtype: str
         """
         log_id = self._render_log_id(task_instance, try_number)
-        return 'https://' + self.frontend.format(log_id=quote(log_id))
+        scheme = '' if '://' in self.frontend else 'https://'
+        return scheme + self.frontend.format(log_id=quote(log_id))
 
     @property
     def supports_external_link(self) -> bool:
