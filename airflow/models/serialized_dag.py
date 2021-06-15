@@ -275,7 +275,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_max_last_updated_datetime(cls, session: Session = None) -> datetime:
+    def get_max_last_updated_datetime(cls, session: Session = None) -> Optional[datetime]:
         """
         Get the maximum date when any DAG was last updated in serialized_dag table
 
@@ -286,7 +286,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> Optional[str]:
         """
         Get the latest DAG version for a given DAG ID.
 
@@ -294,7 +294,7 @@ class SerializedDagModel(Base):
         :type dag_id: str
         :param session: ORM Session
         :type session: Session
-        :return: DAG Hash
+        :return: DAG Hash, or None if the DAG is not found
         :rtype: str | None
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
