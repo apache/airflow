@@ -36,13 +36,13 @@ from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
 
 
-class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
+class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -349,6 +349,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         )
         url = 'https://' + self.frontend.format(log_id=quote(log_id))
         return url
+
+    @property
+    def supports_external_link(self) -> bool:
+        """Whether we can support external links"""
+        return bool(self.frontend)
 
 
 class _ESJsonLogFmt:
