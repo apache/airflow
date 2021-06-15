@@ -24,6 +24,7 @@ import json
 import logging
 import math
 import os
+from re import T
 import socket
 import traceback
 from collections import defaultdict
@@ -1228,6 +1229,7 @@ class Airflow(AirflowBaseView):
         return self._clear_dag_tis(dag, start_date, end_date, origin, 'clear',
                                    recursive=recursive,
                                    confirmed=confirmed,
+                                   is_task_instance=True,
                                    only_failed=only_failed)
 
     @expose('/dagrun_clear', methods=['POST'])
@@ -1297,6 +1299,7 @@ class Airflow(AirflowBaseView):
         return self._clear_dag_tis(dag, execution_date, execution_date, origin, 'cancel',
                                    recursive=True,
                                    confirmed=confirmed,
+                                   is_task_instance=True,
                                    cancel=True)
 
     @expose('/blocked', methods=['POST'])
