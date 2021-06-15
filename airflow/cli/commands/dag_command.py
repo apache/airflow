@@ -78,6 +78,10 @@ def dag_backfill(args, dag=None):
         dag = dag.partial_subset(
             task_ids_or_regex=args.task_regex, include_upstream=not args.ignore_dependencies
         )
+        if not dag.task_dict:
+            err_message = f"There is no any task that match '{args.task_regex}' regex. "
+                          "Nothing to run, exiting..."
+            raise AirflowException(err_message)
 
     run_conf = None
     if args.conf:
