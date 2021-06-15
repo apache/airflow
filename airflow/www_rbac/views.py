@@ -1125,6 +1125,7 @@ class Airflow(AirflowBaseView):
                        confirmed=False,
                        only_failed=False,
                        cancel=False,
+                       is_task_instance=False,
                        session=None):
         from airflow.exceptions import AirflowException
         if confirmed:
@@ -1169,13 +1170,21 @@ class Airflow(AirflowBaseView):
             flash("No task instances to clear", 'error')
             response = redirect(origin)
         else:
-            # filter unique execution dates to log multiple dagruns being canceled
-            unique_execution_dates = set([t.execution_date for t in tis])
-            for exec_date in unique_execution_dates:
-                _add_log_event_to_session(session,
-                                          event_name,
-                                          exec_date,
-                                          dag_id=dag.dag_id)
+            if is_task_instance:
+                for t in tis:
+                    _add_log_event_to_session(session,
+                                              event_name,
+                                              t.execution_date,
+                                              dag_id=dag.dag_id,
+                                              task_instance=t)
+            else:
+                # filter unique execution dates to log multiple dagruns being canceled
+                unique_execution_dates = set([t.execution_date for t in tis])
+                for exec_date in unique_execution_dates:
+                    _add_log_event_to_session(session,
+                                              event_name,
+                                              exec_date,
+                                              dag_id=dag.dag_id)
 
             session.commit()
 
@@ -2918,7 +2927,10 @@ class TaskInstanceModelView(AirflowModelView):
                 models.clear_task_instances(tis, session=session, dag=dag)
 
             for ti in tis:
-                _add_log_event_to_session(session, 'ti_list_clear', ti.execution_date, task_instance=ti)
+                _add_log_event_to_session(
+                    session, 'ti_list_clear', ti.execution_date, task_instance=ti
+                )
+                session.merge(ti)
             session.commit()
 
             flash("{0} task instances have been cleared".format(len(tis)))
@@ -2948,7 +2960,10 @@ class TaskInstanceModelView(AirflowModelView):
                 models.cancel_task_instances(tis, session, dag=dag)
 
             for ti in tis:
-                _add_log_event_to_session(session, 'ti_list_cancel', ti.execution_date, task_instance=ti)
+                _add_log_event_to_session(
+                    session, 'ti_list_cancel', ti.execution_date, task_instance=ti
+                )
+                session.merge(ti)
             session.commit()
 
             flash("{0} task instances have been cancelled".format(len(tis)))
