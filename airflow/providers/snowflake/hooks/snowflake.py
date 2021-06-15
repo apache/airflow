@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from contextlib import closing
 from io import StringIO
 from typing import Any, Dict, Optional, Tuple, Union
@@ -180,7 +181,7 @@ class SnowflakeHook(DbApiHook):
             "authenticator": self.authenticator or authenticator,
             "session_parameters": self.session_parameters or session_parameters,
             # application is used to track origin of the requests
-            "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW")
+            "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
