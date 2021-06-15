@@ -75,6 +75,13 @@ jobs:
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
     steps:
+      # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
+      # we checkout the target commit and it's parent to be able to compare them
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ env.TARGET_COMMIT_SHA }}
+          persist-credentials: false
+          fetch-depth: 2
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
