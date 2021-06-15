@@ -339,8 +339,20 @@ if PACKAGE_NAME == 'apache-airflow':
     ) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
+    configs = default_config_yaml()
+
+    # We want the default/example we show in the docs to reflect the value _after_
+    # the config has been templated, not before
+    # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
+    keys_to_format = ["default", "example"]
+    for conf_section in configs:
+        for option in conf_section["options"]:
+            for key in keys_to_format:
+                if option[key] and "{{" in option[key]:
+                    option[key] = option[key].replace("{{", "{").replace("}}", "}")
+
     jinja_contexts = {
-        'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
+        'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
         'quick_start_ctx': {
             'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
             if FOR_PRODUCTION
