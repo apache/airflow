@@ -1549,7 +1549,6 @@ class TestBackfillJob(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'},
         )
-
         with dag:
             op1 = DummyOperator(task_id='op1')
 
