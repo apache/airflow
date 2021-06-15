@@ -26,6 +26,14 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Auto-apply apply_default decorator (#15667)``
+* ``Remove support Jinja templated log_id in Elasticsearch (TBD)``
+
+  While undocumented, previously ``[elasticsearch] log_id`` supported a Jinja templated string.
+  Support for Jinja templates has now been removed. ``log_id`` should be a template string instead,
+  for example: ``{dag_id}-{task_id}-{execution_date}-{try_number}``.
+
+  If you used a Jinja template previously, the ``execution_date`` on your Elasticsearch documents will need
+  to be updated to the new format.
 
 .. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
    If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade

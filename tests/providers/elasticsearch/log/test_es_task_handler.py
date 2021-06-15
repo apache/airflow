@@ -43,6 +43,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
+    JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_execution_date(EXECUTION_DATE)}-1'
 
     @elasticmock
     def setUp(self):
@@ -396,27 +397,10 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
         assert self.es_task_handler.closed
 
     def test_render_log_id(self):
-        expected_log_id = (
-            'dag_for_testing_file_task_handler-'
-            'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
-        )
-        log_id = self.es_task_handler._render_log_id(self.ti, 1)
-        assert expected_log_id == log_id
+        assert self.LOG_ID == self.es_task_handler._render_log_id(self.ti, 1)
 
-        # Switch to use jinja template.
-        self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            '{{ ti.dag_id }}-{{ ti.task_id }}-{{ ts }}-{{ try_number }}',
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
-        )
-        log_id = self.es_task_handler._render_log_id(self.ti, 1)
-        assert expected_log_id == log_id
+        self.es_task_handler.json_format = True
+        assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(self.ti, 1)
 
     def test_clean_execution_date(self):
         clean_execution_date = self.es_task_handler._clean_execution_date(datetime(2016, 7, 8, 9, 10, 11, 12))

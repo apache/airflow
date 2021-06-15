@@ -33,7 +33,6 @@ from elasticsearch_dsl import Search
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -87,10 +86,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.log_id_template, self.log_id_jinja_template = parse_template_string(log_id_template)
-
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
+        self.log_id_template = log_id_template
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
@@ -103,15 +101,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.context_set = False
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        if self.log_id_jinja_template:
-            jinja_context = ti.get_template_context()
-            jinja_context['try_number'] = try_number
-            return self.log_id_jinja_template.render(**jinja_context)
-
         if self.json_format:
             execution_date = self._clean_execution_date(ti.execution_date)
         else:
             execution_date = ti.execution_date.isoformat()
+
         return self.log_id_template.format(
             dag_id=ti.dag_id, task_id=ti.task_id, execution_date=execution_date, try_number=try_number
         )
