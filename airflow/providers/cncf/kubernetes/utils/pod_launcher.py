@@ -170,8 +170,8 @@ class PodLauncher(LoggingMixin):
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
-        pod_info = self.read_pod(pod)
-        return self._task_status(pod_info), pod_info, result
+        remote_pod = self.read_pod(pod)
+        return self._task_status(remote_pod), remote_pod, result
 
     def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
         """

@@ -1013,7 +1013,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             ".operators.kubernetes_pod.KubernetesPodOperator"
             ".create_new_pod_for_operator"
         ) as create_mock:
-            create_mock.return_value = ("success", {}, {}, {})
+            create_mock.return_value = ("success", {}, {})
             k.execute(context)
             create_mock.assert_called_once()
 
