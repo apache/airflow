@@ -26,7 +26,7 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Auto-apply apply_default decorator (#15667)``
-* ``Remove support Jinja templated log_id in Elasticsearch (TBD)``
+* ``Remove support Jinja templated log_id in Elasticsearch (16465)``
 
   While undocumented, previously ``[elasticsearch] log_id`` supported a Jinja templated string.
   Support for Jinja templates has now been removed. ``log_id`` should be a template string instead,
@@ -45,10 +45,16 @@ Features
 
 * ``Support remote logging in elasticsearch with filebeat 7 (#14625)``
 
+Bug fixes
+~~~~~~~~~
+
+* ``Fix external elasticsearch logs link (#16357)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
    * ``Docs: Fix url for ''Elasticsearch'' (#16275)``
    * ``Add ElasticSearch Connection Doc (#16436)``
    * ``More documentation update for June providers release (#16405)``
