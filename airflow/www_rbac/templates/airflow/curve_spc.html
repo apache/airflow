@@ -13,6 +13,9 @@
     <li id="spc-sub-nav-x-s" class="spc-sub-nav" role="presentation" onclick="onSelectSubNav('x-s')"><a
       href="#">x-s</a>
     </li>
+    <li id="spc-sub-nav-n-d" class="spc-sub-nav" role="presentation" onclick="barchart()"><a
+      href="#">正态分布</a>
+    </li>
   </ul>
   <div
     style="display: flex;flex-direction: row;justify-content: space-between;align-items: center;padding-right: 30px;">
@@ -56,7 +59,7 @@
     }
   }
 
-  function doQuerySPC(selectedEntityIds) {
+  function doQuerySPC(selectedEntityIds, type) {
     setSPCLoading(true);
     $('#spc-cpk-container').html('');
     $('#spc-title-container').html('');
@@ -72,7 +75,7 @@
       url: "{{ url_for('api_experimental.get_spc_by_entity_id') }}",
       data: {
         entity_ids: entityIdsStr,
-        // type: type,
+        type: type,
         csrf_token: '{{ csrf_token() }}'
       },
       headers: {'X-CSRFToken': '{{ csrf_token() }}'},
@@ -137,21 +140,75 @@
   }
 
   function onSelectSubNav(type) {
+    $('#spc-echarts-xbar').show();
     $('.spc-sub-nav').removeClass('active');
     $('#spc-sub-nav-' + type).addClass('active');
     // $('.spc-sub-nav').addClass('disabled');
+    $('#spc-echarts-rs').css({
+      height: '50%'
+    });
+    spcCurveChartRS.resize();
     renderSPCChart(type);
+
   }
 
   function querySPC(type) {
     spcQueryType = type;
-    doQuerySPC(selectedEIds).then((spc) => {
+    doQuerySPC(selectedEIds, type).then((spc) => {
       spc_data = spc;
       $('.spc-nav').removeClass('disabled');
       onSelectSubNav('x-r');
     }).fail(() => {
       $('.spc-nav').removeClass('disabled');
     });
+  }
+
+  function barchart() {
+    $('.spc-sub-nav').removeClass('active');
+    $('#spc-sub-nav-n-d').addClass('active');
+    $('#spc-echarts-xbar').hide();
+    $('#spc-echarts-rs').css({
+      height: '100%'
+    });
+    spcCurveChartRS.resize();
+
+    var data = spc_data["n-d"]["data"][spcQueryType]
+    const option = {
+      xAxis: {
+        type: 'category',
+        data: data.x1
+      },
+      yAxis: [
+        {
+          type: 'value',
+          name: '概率(Probability)',
+          min: 0,
+          max: 'dataMax',
+          interval: 5,
+          axisLabel: {
+            formatter: '{value} %'
+          }
+        },
+      ],
+      series: [{
+        name: '直方图',
+        type: 'bar',
+        label: {'show': true},
+        data: data.y1
+      },
+        {
+          name: '曲线图',
+          type: 'line',
+          yAxisIndex: 0,
+          label: {'show': true},
+          data: data.y2,
+          smooth: true
+        }
+      ]
+    };
+    spcCurveChartRS.setOption(option, true);
+    $('#spc-cpk-container').html('');
+    $('#spc-title-container').html(spc_data["n-d"].title);
   }
 
   function renderSPCChart(type) {
