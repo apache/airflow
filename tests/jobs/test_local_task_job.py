@@ -725,7 +725,7 @@ class TestLocalTaskJob(unittest.TestCase):
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         job1.task_runner = StandardTaskRunner(job1)
         job1.run()
-        dr = session.query(DagRun).filter(DagRun.id == dr.id).first()
+        session.refresh(dr)
         assert dr.state == State.SUCCESS
 
 
