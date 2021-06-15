@@ -358,8 +358,6 @@ function kind::upgrade_airflow_with_helm() {
     echo
     echo "Upgrading airflow with ${mode}"
     echo
-    # If on CI, "pass-through" the current docker credentials from the host to be default image pull-secrets in the namespace
-
     local chartdir
     chartdir=$(mktemp -d)
     traps::add_trap "rm -rf ${chartdir}" EXIT INT HUP TERM

@@ -1098,11 +1098,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: "./files/coverage*.xml"
           retention-days: 7
 
-  tests-helm-upgrade:
+  tests-helm-executor-upgrade:
     timeout-minutes: 50
-    name: Helm Chart Upgrade test
+    name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
+
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
@@ -1136,21 +1137,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: ".build/.kubernetes_venv"
           key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
-    -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
-    -${{needs.build-info.outputs.pythonVersionsListAsString}}
-    -${{ hashFiles('setup.py','setup.cfg') }}"
+  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+  -${{needs.build-info.outputs.pythonVersionsListAsString}}
+  -${{ hashFiles('setup.py','setup.cfg') }}"
           restore-keys: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}-\
-    -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
-    -${{needs.build-info.outputs.pythonVersionsListAsString}}"
+  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+  -${{needs.build-info.outputs.pythonVersionsListAsString}}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
         with:
           path: ".build/kubernetes-bin"
           key: "kubernetes-binaries
--${{ needs.build-info.outputs.defaultKindVersion }}\
--${{ needs.build-info.outputs.defaultHelmVersion }}"
+  -${{ needs.build-info.outputs.defaultKindVersion }}\
+  -${{ needs.build-info.outputs.defaultHelmVersion }}"
           restore-keys: "kubernetes-binaries"
-      - name: "Kubernetes Helm Chart Tests"
+      - name: "Kubernetes Helm Chart Executor Upgrade Tests"
         run: ./scripts/ci/kubernetes/ci_upgrade_cluster_with_different_executors_in_parallel.sh
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
