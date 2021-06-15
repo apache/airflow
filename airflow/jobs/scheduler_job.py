@@ -1344,6 +1344,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             conf.getfloat('scheduler', 'clean_tis_without_dagrun_interval', fallback=15.0),
             self._clean_tis_without_dagrun,
         )
+
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
