@@ -38,6 +38,7 @@ Breaking changes
    * ``Check synctatic correctness for code-snippets (#16005)``
    * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
    * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
 
 2.0.0
 .....

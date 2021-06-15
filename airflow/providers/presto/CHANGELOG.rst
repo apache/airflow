@@ -38,6 +38,7 @@ Breaking changes
    * ``Prepares provider release after PIP 21 compatibility (#15576)``
    * ``Remove Backport Providers (#14886)``
    * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
 
 1.0.2
 .....

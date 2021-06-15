@@ -40,8 +40,7 @@ Bug fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated documentation for June 2021 provider release (#16294)``
-
-.. Review and move the new changes to one of the sections above:
+   * ``More documentation update for June providers release (#16405)``
 
 1.0.3
 .....

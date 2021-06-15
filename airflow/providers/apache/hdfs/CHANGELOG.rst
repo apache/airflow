@@ -41,6 +41,7 @@ Breaking changes
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Update Docstrings of Modules with Missing Params (#15391)``
    * ``Created initial guide for HDFS operators  (#11212)``
+   * ``More documentation update for June providers release (#16405)``
 
 1.0.1
 .....

@@ -47,6 +47,7 @@ Bug Fixes
    * ``Fix Sphinx Issues with Docstrings (#14968)``
    * ``Fix docstring formatting on ``SlackHook`` (#15840)``
    * ``Add Connection Documentation for Providers (#15499)``
+   * ``More documentation update for June providers release (#16405)``
 
 3.0.0
 .....

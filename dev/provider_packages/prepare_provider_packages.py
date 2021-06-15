@@ -2288,8 +2288,11 @@ def get_package_from_changelog(changelog_path: str):
 
 @cli.command()
 @argument_changelog_files
+@option_git_update
 @option_verbose
-def update_changelogs(changelog_files: List[str], verbose: bool):
+def update_changelogs(changelog_files: List[str], git_update: bool, verbose: bool):
+    if git_update:
+        make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
         _update_changelog(package_id=package_id, verbose=verbose)

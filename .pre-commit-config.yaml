@@ -543,24 +543,6 @@ repos:
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['rich']
-      - id: providers-changelogs
-        name: Update changelogs generated for providers
-        language: python
-        entry: ./dev/provider_packages/prepare_provider_packages.py
-        args: ['update-changelogs']
-        files: providers/.*/CHANGELOG.rst
-        pass_filenames: true
-        additional_dependencies:
-          - 'click~=7.0'
-          - 'jinja2~=2.10'
-          - 'keyring==10.1'
-          - 'PyGithub'
-          - 'jsonpath_ng'
-          - 'jsonschema'
-          - 'pyyaml'
-          - 'packaging'
-          - 'rich'
-          - 'tabulate'
       - id: markdownlint
         name: Run markdownlint
         description: Checks the style of Markdown files.

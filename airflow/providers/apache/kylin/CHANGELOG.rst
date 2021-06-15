@@ -40,6 +40,7 @@ Breaking changes
    * ``Update documentation for broken package releases (#14734)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Update KylinHook docstring (#15602)``
+   * ``More documentation update for June providers release (#16405)``
 
 1.0.1
 .....
