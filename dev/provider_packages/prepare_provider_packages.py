@@ -36,7 +36,8 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from os.path import dirname
+from os.path import dirname, relpath
+from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
@@ -48,8 +49,6 @@ from packaging.version import Version
 from rich import print
 from rich.console import Console
 from rich.syntax import Syntax
-
-from airflow.providers_manager import ProviderInfo
 
 try:
     from yaml import CSafeLoader as SafeLoader
@@ -88,8 +87,6 @@ Initial version of the provider.
 
 HTTPS_REMOTE = "apache-https-for-providers"
 HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
-
-PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir))
@@ -162,6 +159,7 @@ option_force = click.option(
     help="Forces regeneration of already generated documentation",
 )
 argument_package_id = click.argument('package_id')
+argument_changelog_files = click.argument('changelog_files', nargs=-1)
 
 
 @contextmanager
@@ -1219,32 +1217,6 @@ def get_additional_package_info(provider_package_path: str) -> str:
     return ""
 
 
-def get_changelog_for_package(provider_package_path: str) -> str:
-    """
-    Returns changelog_for the package.
-
-    :param provider_package_path: path for the package
-    :return: additional information for the path (empty string if missing)
-    """
-    changelog_path = os.path.join(provider_package_path, "CHANGELOG.rst")
-    if os.path.isfile(changelog_path):
-        with open(changelog_path) as changelog_file:
-            return changelog_file.read()
-    else:
-        print(f"[red]ERROR: Missing ${changelog_path}[/]")
-        print("Please add the file with initial content:")
-        print()
-        syntax = Syntax(
-            INITIAL_CHANGELOG_CONTENT,
-            "rst",
-            theme="ansi_dark",
-        )
-    console = Console(width=100)
-    console.print(syntax)
-    print()
-    raise Exception(f"Missing {changelog_path}")
-
-
 def is_camel_case_with_acronyms(s: str):
     """
     Checks if the string passed is Camel Case (with capitalised acronyms allowed).
@@ -1526,12 +1498,13 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
 
 
 def get_provider_jinja_context(
-    provider_info: ProviderInfo,
+    provider_info: Dict[str, Any],
     provider_details: ProviderPackageDetails,
     current_release_version: str,
     version_suffix: str,
 ):
     verify_provider_package(provider_details.provider_package_id)
+    changelog_path = verify_changelog_exists(provider_details.provider_package_id)
     cross_providers_dependencies = get_cross_provider_dependent_packages(
         provider_package_id=provider_details.provider_package_id
     )
@@ -1548,6 +1521,8 @@ def get_provider_jinja_context(
     cross_providers_dependencies_table_rst = convert_cross_package_dependencies_to_table(
         cross_providers_dependencies, markdown=False
     )
+    with open(changelog_path) as changelog_file:
+        changelog = changelog_file.read()
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1560,9 +1535,6 @@ def get_provider_jinja_context(
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "VERSION_SUFFIX": version_suffix or '',
         "ADDITIONAL_INFO": get_additional_package_info(
-            provider_package_path=provider_details.source_provider_package_path
-        ),
-        "CHANGELOG": get_changelog_for_package(
             provider_package_path=provider_details.source_provider_package_path
         ),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
@@ -1580,14 +1552,19 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
         "PIP_REQUIREMENTS_TABLE_RST": pip_requirements_table_rst,
         "PROVIDER_INFO": provider_info,
+        "CHANGELOG_RELATIVE_PATH": relpath(
+            provider_details.source_provider_package_path,
+            provider_details.documentation_provider_package_path,
+        ),
+        "CHANGELOG": changelog,
     }
     return context
 
 
 def prepare_readme_file(context):
-    readme_content = LICENCE_RST
-    readme_template_name = PROVIDER_TEMPLATE_PREFIX + "README"
-    readme_content += render_template(template_name=readme_template_name, context=context, extension=".rst")
+    readme_content = LICENCE_RST + render_template(
+        template_name="PROVIDER_README", context=context, extension=".rst"
+    )
     readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
     with open(readme_file_path, "wt") as readme_file:
         readme_file.write(readme_content)
@@ -1740,9 +1717,8 @@ def update_index_rst(
     provider_package_id,
     target_path,
 ):
-    index_template_name = PROVIDER_TEMPLATE_PREFIX + "INDEX"
     index_update = render_template(
-        template_name=index_template_name, context=context, extension='.rst', keep_trailing_newline=False
+        template_name="PROVIDER_INDEX", context=context, extension='.rst', keep_trailing_newline=True
     )
     index_file_path = os.path.join(target_path, "index.rst")
     old_text = ""
@@ -1764,9 +1740,8 @@ def update_commits_rst(
     provider_package_id,
     target_path,
 ):
-    commits_template_name = PROVIDER_TEMPLATE_PREFIX + "COMMITS"
     new_text = render_template(
-        template_name=commits_template_name, context=context, extension='.rst', keep_trailing_newline=True
+        template_name="PROVIDER_COMMITS", context=context, extension='.rst', keep_trailing_newline=True
     )
     index_file_path = os.path.join(target_path, "commits.rst")
     old_text = ""
@@ -1867,17 +1842,36 @@ def get_all_providers() -> List[str]:
     return list(PROVIDERS_REQUIREMENTS.keys())
 
 
-def verify_provider_package(package: str) -> None:
+def verify_provider_package(provider_package_id: str) -> None:
     """
     Verifies if the provider package is good.
-    :param package: package id to verify
+    :param provider_package_id: package id to verify
     :return: None
     """
-    if package not in get_provider_packages():
-        print(f"[red]Wrong package name: {package}[/]")
+    if provider_package_id not in get_provider_packages():
+        print(f"[red]Wrong package name: {provider_package_id}[/]")
         print("Use one of:")
         print(get_provider_packages())
-        raise Exception(f"The package {package} is not a provider package.")
+        raise Exception(f"The package {provider_package_id} is not a provider package.")
+
+
+def verify_changelog_exists(package: str) -> str:
+    provider_details = get_provider_details(package)
+    changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
+    if not os.path.isfile(changelog_path):
+        print(f"[red]ERROR: Missing ${changelog_path}[/]")
+        print("Please add the file with initial content:")
+        print()
+        syntax = Syntax(
+            INITIAL_CHANGELOG_CONTENT,
+            "rst",
+            theme="ansi_dark",
+        )
+        console = Console(width=200)
+        console.print(syntax)
+        print()
+        raise Exception(f"Missing {changelog_path}")
+    return changelog_path
 
 
 @cli.command()
@@ -2184,9 +2178,19 @@ def get_changes_classified(changes: List[Change]) -> ClassifiedChanges:
 @cli.command()
 @argument_package_id
 @option_verbose
-@option_interactive
-def update_changelog(package_id: str, verbose: bool, interactive: bool):
+def update_changelog(package_id: str, verbose: bool):
     """Updates changelog for the provider."""
+    if _update_changelog(package_id, verbose):
+        sys.exit(64)
+
+
+def _update_changelog(package_id: str, verbose: bool) -> bool:
+    """
+    Internal update changelog method
+    :param package_id: package id
+    :param verbose: verbose flag
+    :return: true if package is skipped
+    """
     with with_group("Updates changelog for last release"):
         verify_provider_package(package_id)
         provider_details = get_provider_details(package_id)
@@ -2207,12 +2211,13 @@ def update_changelog(package_id: str, verbose: bool, interactive: bool):
         )
         if not proceed:
             print(f"[yellow]The provider {package_id} is not being released. Skipping the package.[/]")
-            sys.exit(64)
+            return True
         generate_new_changelog(package_id, provider_details, changelog_path, changes)
         print()
         print(f"Update index.rst for {package_id}")
         print()
         update_index_rst(jinja_context, package_id, provider_details.documentation_provider_package_path)
+        return False
 
 
 def generate_new_changelog(package_id, provider_details, changelog_path, changes):
@@ -2268,6 +2273,26 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
     with open(changelog_path, "wt") as changelog:
         changelog.write("\n".join(new_changelog_lines))
         changelog.write("\n")
+
+
+def get_package_from_changelog(changelog_path: str):
+    folder = Path(changelog_path).parent
+    package = ''
+    separator = ''
+    while not os.path.basename(folder) == 'providers':
+        package = os.path.basename(folder) + separator + package
+        separator = '.'
+        folder = Path(folder).parent
+    return package
+
+
+@cli.command()
+@argument_changelog_files
+@option_verbose
+def update_changelogs(changelog_files: List[str], verbose: bool):
+    for changelog_file in changelog_files:
+        package_id = get_package_from_changelog(changelog_file)
+        _update_changelog(package_id=package_id, verbose=verbose)
 
 
 if __name__ == "__main__":

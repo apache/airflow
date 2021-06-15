@@ -27,11 +27,10 @@ Breaking changes
 
 * ``Auto-apply apply_default decorator (#15667)``
 
-Features
-~~~~~~~~
-
-* ``Created initial guide for HDFS operators  (#11212)``
-* ``Update Docstrings of Modules with Missing Params (#15391)``
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -39,6 +38,9 @@ Features
    * ``Remove python2 related handlings and dependencies (#15301)``
    * ``Remove Backport Providers (#14886)``
    * ``Update documentation for broken package releases (#14734)``
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``Update Docstrings of Modules with Missing Params (#15391)``
+   * ``Created initial guide for HDFS operators  (#11212)``
 
 1.0.1
 .....

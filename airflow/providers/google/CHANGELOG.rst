@@ -26,17 +26,24 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Auto-apply apply_default decorator (#15667)``
+
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
 * ``Move plyvel to google provider extra (#15812)``
+* ``Fixes AzureFileShare connection extras (#16388)``
 
 Features
 ~~~~~~~~
 
-* ``Add short description to BaseSQLToGCSOperator docstring (#15728)``
 * ``Add extra links for google dataproc (#10343)``
 * ``add oracle  connection link (#15632)``
 * ``pass wait_for_done parameter down to _DataflowJobsController (#15541)``
 * ``Use api version only in GoogleAdsHook not operators (#15266)``
 * ``Implement BigQuery Table Schema Update Operator (#15367)``
+* ``Add BigQueryToMsSqlOperator (#15422)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -44,9 +51,10 @@ Bug Fixes
 * ``Fix: GCS To BigQuery source_object (#16160)``
 * ``Fix: Unnecessary downloads in ``GCSToLocalFilesystemOperator`` (#16171)``
 * ``Fix bigquery type error when export format is parquet (#16027)``
-* ``Fix spelling (#15699)``
 * ``Fix argument ordering and type of bucket and object (#15738)``
 * ``Fix sql_to_gcs docstring lint error (#15730)``
+* ``fix: ensure datetime-related values fully compatible with MySQL and BigQuery (#15026)``
+* ``Fix deprecation warnings location in google provider (#16403)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -55,6 +63,10 @@ Bug Fixes
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Get rid of requests as core dependency (#15781)``
    * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``Fix spelling (#15699)``
+   * ``Add short description to BaseSQLToGCSOperator docstring (#15728)``
+
 
 3.0.0
 .....

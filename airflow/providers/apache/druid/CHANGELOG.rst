@@ -27,6 +27,11 @@ Breaking changes
 
 * ``Auto-apply apply_default decorator (#15667)``
 
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
@@ -34,6 +39,7 @@ Breaking changes
    * ``Fix string concatenation using 'f-strings' (#15200)``
    * ``Prepares provider release after PIP 21 compatibility (#15576)``
    * ``Remove Backport Providers (#14886)``
+   * ``Updated documentation for June 2021 provider release (#16294)``
 
 1.1.0
 .....
