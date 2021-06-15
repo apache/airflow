@@ -2399,7 +2399,7 @@ class CurvesView(BaseCRUDView):
     @expose('/download/<string:entity_ids>')
     @has_access
     def download_curves(self, entity_ids: str):
-        if not entity_ids:
+        if not entity_ids or entity_ids == 'None':
             return Response(status=http.HTTPStatus.OK)
 
         fn = f'{self.download_static_folder}/curves.zip'
@@ -2407,6 +2407,7 @@ class CurvesView(BaseCRUDView):
 
         if chk_file.is_file():
             chk_file.unlink()
+        entity_ids = entity_ids.replace('@', '/')
         entities = entity_ids.split(',')
         ll = len(entities)
         if ll > 500:

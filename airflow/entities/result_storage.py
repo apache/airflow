@@ -69,6 +69,7 @@ class ClsResultStorage(ClsEntity):
         self._client = InfluxDBClient(
             self.endpoint,
             org=self._ou,
+            timeout=30,
             token=self._token,
             debug=IS_DEBUG)
 

@@ -316,7 +316,8 @@
       extraData = Object.assign(extraData, backendSelectedTasks);
     }
 
-    const entityIdsStr = selectedEIds.join(',');
+    const entityIdsStrList = selectedEIds.join(',');
+    const entityIdsStr = entityIdsStrList.replaceAll('/', '@');
     const downloadUrls = '/curves/download/' + entityIdsStr;
     return downloadURI(downloadUrls);
 
