@@ -166,7 +166,7 @@ class BackfillJob(BaseJob):
                                    auto rerun the failed task in backfill
         :type rerun_failed_tasks: bool
         :param rerun_succeeded_tasks: flag to whether to
-                                   auto rerun the failed task in backfill
+                                   auto rerun the succeeded task in backfill
         :type rerun_succeeded_tasks: bool
         :param run_backwards: Whether to process the dates from most to least recent
         :type run_backwards bool
