@@ -675,6 +675,19 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    ports:
+      - name: airflow-ui
+        port: "{{ .Values.ports.airflowUI }}"
+    # To change the port used to access the webserver:
+    # ports:
+    #   - name: airflow-ui
+    #     port: 80
+    #     targetPort: airflow-ui
+    # To only expose a sidecar, not the webserver directly:
+    # ports:
+    #   - name: only_sidecar
+    #     port: 80
+    #     targetPort: 8888
     loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
@@ -739,6 +752,14 @@ flower:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    ports:
+      - name: flower-ui
+        port: "{{ .Values.ports.flowerUI }}"
+    # To change the port used to access flower:
+    # ports:
+    #   - name: flower-ui
+    #     port: 8080
+    #     targetPort: flower-ui
     loadBalancerIP: ~
 
   # Launch additional containers into the flower pods.
