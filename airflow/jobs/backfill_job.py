@@ -446,7 +446,7 @@ class BackfillJob(BaseJob):
 
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
-                if ti.state == State.SUCCESS and self.rerun_succeeded_tasks == False:
+                if ti.state == State.SUCCESS and not self.rerun_succeeded_tasks:
                     ti_status.succeeded.add(key)
                     self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
