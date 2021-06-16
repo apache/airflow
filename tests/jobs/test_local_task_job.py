@@ -715,7 +715,6 @@ class TestLocalTaskJob(unittest.TestCase):
             start_date=DEFAULT_DATE,
             session=session,
         )
-        session.commit()
         assert dr.state == State.RUNNING
 
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
