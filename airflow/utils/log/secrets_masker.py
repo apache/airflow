@@ -111,6 +111,7 @@ class SecretsMasker(logging.Filter):
     patterns: Set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
+    MAX_RECURSION_DEPTH = 5
 
     def __init__(self):
         super().__init__()
@@ -156,35 +157,34 @@ class SecretsMasker(logging.Filter):
 
         return True
 
-    def _redact_all(self, item: "RedactableItem") -> "RedactableItem":
-        if isinstance(item, dict):
-            return {dict_key: self._redact_all(subval) for dict_key, subval in item.items()}
-        elif isinstance(item, str):
+    def _redact_all(self, item: "RedactableItem", depth: int) -> "RedactableItem":
+        if depth > self.MAX_RECURSION_DEPTH or isinstance(item, str):
             return '***'
+        if isinstance(item, dict):
+            return {dict_key: self._redact_all(subval, depth + 1) for dict_key, subval in item.items()}
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
-            return tuple(self._redact_all(subval) for subval in item)
+            return tuple(self._redact_all(subval, depth + 1) for subval in item)
         elif isinstance(item, list):
-            return list(self._redact_all(subval) for subval in item)
+            return list(self._redact_all(subval, depth + 1) for subval in item)
         else:
             return item
 
     # pylint: disable=too-many-return-statements
-    def redact(self, item: "RedactableItem", name: str = None) -> "RedactableItem":
-        """
-        Redact an any secrets found in ``item``, if it is a string.
-
-        If ``name`` is given, and it's a "sensitive" name (see
-        :func:`should_hide_value_for_key`) then all string values in the item
-        is redacted.
-
-        """
+    def _redact(self, item: "RedactableItem", name: Optional[str], depth: int) -> "RedactableItem":
+        # Avoid spending too much effort on redacting on deeply nested
+        # structures. This also avoid infinite recursion if a structure has
+        # reference to self.
+        if depth > self.MAX_RECURSION_DEPTH:
+            return item
         try:
             if name and should_hide_value_for_key(name):
-                return self._redact_all(item)
-
+                return self._redact_all(item, depth)
             if isinstance(item, dict):
-                return {dict_key: self.redact(subval, dict_key) for dict_key, subval in item.items()}
+                return {
+                    dict_key: self._redact(subval, name=dict_key, depth=(depth + 1))
+                    for dict_key, subval in item.items()
+                }
             elif isinstance(item, str):
                 if self.replacer:
                     # We can't replace specific values, but the key-based redacting
@@ -194,9 +194,9 @@ class SecretsMasker(logging.Filter):
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
-                return tuple(self.redact(subval) for subval in item)
+                return tuple(self._redact(subval, name=None, depth=(depth + 1)) for subval in item)
             elif isinstance(item, list):
-                return list(self.redact(subval) for subval in item)
+                return [self._redact(subval, name=None, depth=(depth + 1)) for subval in item]
             else:
                 return item
         # I think this should never happen, but it does not hurt to leave it just in case
@@ -210,8 +210,16 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
-    # pylint: enable=too-many-return-statements
+    def redact(self, item: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
+        """Redact an any secrets found in ``item``, if it is a string.
 
+        If ``name`` is given, and it's a "sensitive" name (see
+        :func:`should_hide_value_for_key`) then all string values in the item
+        is redacted.
+        """
+        return self._redact(item, name, depth=0)
+
+    # pylint: enable=too-many-return-statements
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
         if isinstance(secret, dict):
