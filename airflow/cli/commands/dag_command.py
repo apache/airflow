@@ -117,6 +117,7 @@ def dag_backfill(args, dag=None):
             verbose=args.verbose,
             conf=run_conf,
             rerun_failed_tasks=args.rerun_failed_tasks,
+            rerun_succeeded_task=args.rerun_succeeded_tasks,
             run_backwards=args.run_backwards,
         )
 

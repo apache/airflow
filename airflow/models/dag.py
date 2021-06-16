@@ -1893,6 +1893,7 @@ class DAG(LoggingMixin):
         verbose=False,
         conf=None,
         rerun_failed_tasks=False,
+        rerun_succeeded_tasks=False,
         run_backwards=False,
     ):
         """
@@ -1926,6 +1927,8 @@ class DAG(LoggingMixin):
         :type conf: dict
         :param rerun_failed_tasks:
         :type: bool
+        :param rerun_succeeded_tasks:
+        :type: bool
         :param run_backwards:
         :type: bool
 
@@ -1954,6 +1957,7 @@ class DAG(LoggingMixin):
             verbose=verbose,
             conf=conf,
             rerun_failed_tasks=rerun_failed_tasks,
+            rerun_succeeded_tasks=rerun_succeeded_tasks,
             run_backwards=run_backwards,
         )
         job.run()

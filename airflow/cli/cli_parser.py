@@ -280,6 +280,15 @@ ARG_RERUN_FAILED_TASKS = Arg(
     ),
     action="store_true",
 )
+ARG_RERUN_SUCCEED_TASKS = Arg(
+    ("--rerun-succeeded-tasks",),
+    help=(
+        "if set, the backfill will auto-rerun "
+        "all the succeeded tasks for the backfill date range "
+        "instead of throwing exceptions"
+    ),
+    action="store_true",
+)
 ARG_RUN_BACKWARDS = Arg(
     (
         "-B",
@@ -887,7 +896,9 @@ DAGS_COMMANDS = (
             "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
             "backfill will first prompt users whether airflow should clear all the previous dag_run and "
             "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
-            "will auto re-run the previous failed task instances  within the backfill date range"
+            "will auto re-run the previous failed task instances  within the backfill date range. If "
+            "rerun_succeeded_tasks is used, backfill will auto re-run the previous failed task instances "
+            "within the backfill date range."
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
         args=(
@@ -909,6 +920,7 @@ DAGS_COMMANDS = (
             ARG_CONF,
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
+            ARG_RERUN_SUCCEED_TASKS,
             ARG_RUN_BACKWARDS,
         ),
     ),
