@@ -476,16 +476,14 @@ class BackfillJob(BaseJob):
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
                         ti.set_state(State.SCHEDULED, session=session)
-                elif self.rerun_succeeded_tasks:
+                elif self.rerun_succeeded_tasks and ti.state == State.SUCCESS:
                     # Rerun succeeded tasks
-                    if ti.state in (State.SUCCESS):
-                        self.log.error("Task instance {ti} "
-                                       "with state {state}".format(ti=ti,
+                    self.log.error("Task instance {ti} with state {state}".format(ti=ti,
                                                                    state=ti.state))
-                        if key in ti_status.running:
-                            ti_status.running.pop(key)
-                        # Reset the succeeded task in backfill to scheduled state
-                        ti.set_state(State.SCHEDULED, session=session)
+                    if key in ti_status.running:
+                        ti_status.running.pop(key)
+                    # Reset the succeeded task in backfill to scheduled state
+                    ti.set_state(State.SCHEDULED, session=session)
                 else:
                     # Default behaviour which works for subdag.
                     if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
