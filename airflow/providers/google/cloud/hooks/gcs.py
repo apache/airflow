@@ -29,7 +29,7 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -396,6 +396,7 @@ class GCSHook(GoogleBaseHook):
         object_name: str,
         filename: Optional[str] = None,
         data: Optional[Union[str, bytes]] = None,
+        metadata: Optional[Dict[str, str]] = None,
         mime_type: Optional[str] = None,
         gzip: bool = False,
         encoding: str = 'utf-8',
@@ -414,6 +415,8 @@ class GCSHook(GoogleBaseHook):
         :type filename: str
         :param data: The file's data as a string or bytes to be uploaded.
         :type data: str
+        :param metadata: The blob's metadata as a Dict[str, str].
+        :type data: Dict[str, str]
         :param mime_type: The file's mime type set when uploading the file.
         :type mime_type: str
         :param gzip: Option to compress local file or file data for upload
@@ -459,6 +462,8 @@ class GCSHook(GoogleBaseHook):
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
+        if metadata:
+            blob.metadata = metadata
         if filename and data:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
