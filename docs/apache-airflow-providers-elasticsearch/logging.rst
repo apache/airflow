@@ -98,5 +98,5 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
     [elasticsearch]
     # Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
     # Code will construct log_id using the log_id template from the argument above.
-    # NOTE: scheme will default to https if one if not provided
+    # NOTE: scheme will default to https if one is not provided
     frontend = <host_port>/{log_id}
