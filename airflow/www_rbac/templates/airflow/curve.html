@@ -88,7 +88,7 @@
       <tbody id="result_detail"></tbody>
     </table>
   </div>
-  <button onclick="downloadCurveAndResult()" class="btn btn-primary  m-2">下载拧紧结果和曲线</button>
+  <button onclick="downloadCurveAndResult()" class="btn btn-primary  m-2">{{  '下载结果和曲线' if task_instance.device_type == 'servo_press' else '下载拧紧结果和曲线' }}</button>
   {% endcall %}
 
 </div>
@@ -362,32 +362,8 @@
   }
 
   function renderResultDetail() {
-    const {
-      measure_result: measureResult,
-      error_code: errorCode,
-      angle_max,
-      angle_min,
-      angle_target,
-      measure_angle,
-      torque_max,
-      torque_min,
-      torque_target,
-      measure_torque,
-      ...rest
-    } = result;
     const {detail} = displayKeys;
     const $rows = [];
-    // const isNOK = (measureResult || '').toUpperCase() === 'NOK';
-    // $rows.push(renderResultTableRow(resultKeys.measure_result || 'measure_result', measureResult, isNOK));
-    // $rows.push(renderResultTableRow(resultKeys.error_code || 'error_code', parseResultErrorCode(errorCode), isNOK));
-    // $rows.push(renderResultTableRow(resultKeys.measure_angle || 'measure_angle', measure_angle));
-    // $rows.push(renderResultTableRow(resultKeys.angle_target || 'angle_target', angle_target));
-    // $rows.push(renderResultTableRow(resultKeys.angle_max || 'angle_max', angle_max));
-    // $rows.push(renderResultTableRow(resultKeys.angle_min || 'angle_min', angle_min));
-    // $rows.push(renderResultTableRow(resultKeys.measure_torque || 'measure_torque', measure_torque));
-    // $rows.push(renderResultTableRow(resultKeys.torque_target || 'torque_target', torque_target));
-    // $rows.push(renderResultTableRow(resultKeys.torque_max || 'torque_max', torque_max));
-    // $rows.push(renderResultTableRow(resultKeys.torque_min || 'torque_min', torque_min));
 
     (detail || Object.keys(result)).forEach((k) => {
       $rows.push(renderResultTableRow(resultKeys[k] || k, result[k]));
@@ -483,10 +459,13 @@
         value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=task_instance.bolt_number,craft_type=task_instance.craft_type,curves=task_instance.entity_id.replace('/','@'))}}" + '">{{task_instance.entity_id}}</a>'
       },
       bolt_number: {
-        label: '螺栓编号',
+        label: "{{ '编号' if task_instance.device_type == 'servo_press' else '螺栓编号'}}",
         value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
       },
-      execution_date: {label: '拧紧时间', value: new Date('{{task_instance.execution_date}}').toLocaleString()},
+      execution_date: {
+        label: "{{ '时间' if task_instance.device_type == 'servo_press' else '拧紧时间'}}",
+        value: new Date('{{task_instance.execution_date}}').toLocaleString()
+      },
       controller_name: {label: '控制器', value: '{{controller.controller_name}}'},
       tool_sn: {label: '工具序列号', value: '{{result.tool_sn}}'},
       line_code: {label: '工段', value: '{{controller.line_code}}'},

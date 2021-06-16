@@ -426,8 +426,7 @@ class Airflow(AirflowBaseView):
 
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
-        result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
-                                                       default_var={})
+
         controller_name = ti.controller_name.split('@')[0] if ti.controller_name else ''
         controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
@@ -435,8 +434,6 @@ class Airflow(AirflowBaseView):
         show_range = (ENV_CURVE_GRAPH_SHOW_RANGE == True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
         can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
-        display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
-                                    default_var={})
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
@@ -449,6 +446,11 @@ class Airflow(AirflowBaseView):
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
+            display_keys = Variable.get('servo_press_view_curve_page_keys', deserialize_json=True,
+                                        default_var={})
+            result_keys_translation_mapping = Variable.get('servo_press_result_keys_translation_mapping',
+                                                           deserialize_json=True,
+                                                           default_var={})
         else:
             cur_key_map = {
                 'cur_w': '角度',
@@ -456,6 +458,11 @@ class Airflow(AirflowBaseView):
                 'cur_t': '时间',
                 'cur_s': '转速'
             }
+            display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
+                                        default_var={})
+            result_keys_translation_mapping = Variable.get('result_keys_translation_mapping',
+                                                           deserialize_json=True,
+                                                           default_var={})
 
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
