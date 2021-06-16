@@ -257,6 +257,23 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_HOST_FIELD: str = conf.get('elasticsearch', 'HOST_FIELD')
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get('elasticsearch', 'OFFSET_FIELD')
 
+        host_params = {}
+
+        # Only add these fields if the ElasticsearchTaskHandler supports it
+        # This avoid chicken-egg situation between Airflow >= 2.1.1 and ES Provider >= 2.0.1
+        try:
+            import inspect
+
+            from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
+
+            es_handler_params = inspect.signature(ElasticsearchTaskHandler).parameters
+            if "host_field" in es_handler_params:
+                host_params["host_field"] = ELASTICSEARCH_HOST_FIELD
+            if "offset_field" in es_handler_params:
+                host_params["offset_field"] = ELASTICSEARCH_OFFSET_FIELD
+        except ImportError:
+            pass
+
         ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
                 'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
@@ -270,8 +287,7 @@ if REMOTE_LOGGING:
                 'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
                 'json_fields': ELASTICSEARCH_JSON_FIELDS,
-                'host_field': ELASTICSEARCH_HOST_FIELD,
-                'offset_field': ELASTICSEARCH_OFFSET_FIELD,
+                **host_params,
             },
         }
 
