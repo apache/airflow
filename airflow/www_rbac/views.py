@@ -426,8 +426,7 @@ class Airflow(AirflowBaseView):
 
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
-        result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
-                                                       default_var={})
+
         controller_name = ti.controller_name.split('@')[0] if ti.controller_name else ''
         controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
@@ -435,13 +434,35 @@ class Airflow(AirflowBaseView):
         show_range = (ENV_CURVE_GRAPH_SHOW_RANGE == True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
         can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
-        display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
-                                    default_var={})
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
         logging.info(msg)
+
+        if ti.device_type == 'servo_press':
+            cur_key_map = {
+                'cur_w': '距离',
+                'cur_m': '压力',
+                'cur_t': '时间',
+            }
+            display_keys = Variable.get('servo_press_view_curve_page_keys', deserialize_json=True,
+                                        default_var={})
+            result_keys_translation_mapping = Variable.get('servo_press_result_keys_translation_mapping',
+                                                           deserialize_json=True,
+                                                           default_var={})
+        else:
+            cur_key_map = {
+                'cur_w': '角度',
+                'cur_m': '扭矩',
+                'cur_t': '时间',
+                'cur_s': '转速'
+            }
+            display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
+                                        default_var={})
+            result_keys_translation_mapping = Variable.get('result_keys_translation_mapping',
+                                                           deserialize_json=True,
+                                                           default_var={})
 
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
@@ -452,7 +473,8 @@ class Airflow(AirflowBaseView):
                                     controller=controller,
                                     errorTags=error_tags,
                                     show_range=show_range,
-                                    display_keys=display_keys
+                                    display_keys=display_keys,
+                                    cur_key_map=cur_key_map
                                     )
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
@@ -2265,7 +2287,8 @@ class CurvesView(BaseCRUDView):
         if track_no:
             self._filters.add_filter(column_name='car_code', filter_class=self.datamodel.FilterEqual, value=track_no)
         if controller:
-            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains, value=controller)
+            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains,
+                                     value=controller)
 
         joined_filters = self._filters.get_joined_filters(self._base_filters)
         order_column, order_direction = "execution_date", "desc"
@@ -2279,8 +2302,11 @@ class CurvesView(BaseCRUDView):
         )
 
         error_tag_vals = ErrorTag.get_all_dict() or {}
+        device_type = None
         for t in lst:
             ret = []
+            if device_type is None and t.device_type is not None:
+                device_type = t.device_type
             try:
                 error_tags = json.loads(t.error_tag or '[]')
                 if not error_tags:
@@ -2297,7 +2323,9 @@ class CurvesView(BaseCRUDView):
 
         selected_tasks = {}
         tasks = list(get_task_instances_by_entity_ids(curves_list))
+
         for ti in tasks:
+
             selected_tasks[ti.entity_id] = {
                 'carCode': ti.car_code,
                 'value': ti.entity_id,
@@ -2312,10 +2340,25 @@ class CurvesView(BaseCRUDView):
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVES'], '查看曲线对比页面')
         logging.info(msg)
 
+        if device_type == 'servo_press':
+            cur_key_map = {
+                'cur_w': '距离',
+                'cur_m': '压力',
+                'cur_t': '时间',
+            }
+        else:
+            cur_key_map = {
+                'cur_w': '角度',
+                'cur_m': '扭矩',
+                'cur_t': '时间',
+                'cur_s': '转速'
+            }
+
         return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
                                     modelview_name=view_name,
                                     selected_curves=curves_list,
                                     selected_tasks=selected_tasks,
+                                    cur_key_map=cur_key_map,
                                     widgets=widgets)
 
     @expose('/analysis')
@@ -2433,6 +2476,7 @@ class TrackNoNotNullFilter(BaseFilter):
         ti = self.model
         ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
         return ret
+
 
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
