@@ -135,6 +135,13 @@ class TestTaskInstanceEndpoint:
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, session):
         self.create_task_instances(session)
+        # Update ti and set operator to None to
+        # test that operator field is nullable.
+        # This prevents issue when users upgrade to 2.0+
+        # from 1.10.x
+        # https://github.com/apache/airflow/issues/14421
+        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session='fetch')
+        session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
@@ -148,7 +155,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor_config": "{}",
             "hostname": "",
             "max_tries": 0,
-            "operator": "PythonOperator",
+            "operator": None,
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
