@@ -1144,7 +1144,7 @@
                             "default": 10
                         },
                         "periodSeconds": {
-                            "description": "Webserver Liveness probe period seconds.",
+                            "description": "Scheduler Liveness probe period seconds.",
                             "type": "integer",
                             "default": 30
                         }
