@@ -135,6 +135,7 @@ class BackfillJob(BaseJob):
         verbose=False,
         conf=None,
         rerun_failed_tasks=False,
+        rerun_succeeded_tasks=False,
         run_backwards=False,
         *args,
         **kwargs,
@@ -164,6 +165,9 @@ class BackfillJob(BaseJob):
         :param rerun_failed_tasks: flag to whether to
                                    auto rerun the failed task in backfill
         :type rerun_failed_tasks: bool
+        :param rerun_succeeded_tasks: flag to whether to
+                                   auto rerun the failed task in backfill
+        :type rerun_succeeded_tasks: bool
         :param run_backwards: Whether to process the dates from most to least recent
         :type run_backwards bool
         :param args:
@@ -182,6 +186,7 @@ class BackfillJob(BaseJob):
         self.verbose = verbose
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
+        self.rerun_succeeded_tasks = rerun_succeeded_tasks
         self.run_backwards = run_backwards
         super().__init__(*args, **kwargs)
 
@@ -441,7 +446,7 @@ class BackfillJob(BaseJob):
 
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
-                if ti.state == State.SUCCESS:
+                if ti.state == State.SUCCESS and self.rerun_succeeded_tasks == False:
                     ti_status.succeeded.add(key)
                     self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                     ti_status.to_run.pop(key)
@@ -470,6 +475,16 @@ class BackfillJob(BaseJob):
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
+                        ti.set_state(State.SCHEDULED, session=session)
+                elif self.rerun_succeeded_tasks:
+                    # Rerun succeeded tasks
+                    if ti.state in (State.SUCCESS):
+                        self.log.error("Task instance {ti} "
+                                       "with state {state}".format(ti=ti,
+                                                                   state=ti.state))
+                        if key in ti_status.running:
+                            ti_status.running.pop(key)
+                        # Reset the succeeded task in backfill to scheduled state
                         ti.set_state(State.SCHEDULED, session=session)
                 else:
                     # Default behaviour which works for subdag.
