@@ -2381,7 +2381,7 @@ class CurvesView(BaseCRUDView):
                 files.append(f)
             except Exception as e:
                 _logger.error(e)
-            return files
+        return files
 
     def generate_download_zip_file(self, files: List[str]):
         try:
