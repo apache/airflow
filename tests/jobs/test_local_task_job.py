@@ -715,9 +715,6 @@ class TestLocalTaskJob(unittest.TestCase):
             start_date=DEFAULT_DATE,
             session=session,
         )
-        ti = TaskInstance(op1, dr.execution_date)
-        ti.refresh_from_db()
-        ti.state = State.SUCCESS
         session.commit()
         assert dr.state == State.RUNNING
 
