@@ -272,8 +272,9 @@ class LocalTaskJob(BaseJob):
         Checks for paused dags with DagRuns in the running state and
         update the DagRun state if possible
         """
-        dag_run = self.task_instance.get_dagrun(session=session)
-        if dag_run:
-            dag = dag_run.dag = self.task_instance.task.dag
-            if dag.get_is_paused(session=session):
+        dag = self.task_instance.task.dag
+        if dag.get_is_paused():
+            dag_run = self.task_instance.get_dagrun(session=session)
+            if dag_run:
+                dag_run.dag = dag
                 dag_run.update_state(session=session, execute_callbacks=True)
