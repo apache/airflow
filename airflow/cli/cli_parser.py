@@ -897,7 +897,7 @@ DAGS_COMMANDS = (
             "backfill will first prompt users whether airflow should clear all the previous dag_run and "
             "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
             "will auto re-run the previous failed task instances  within the backfill date range. If "
-            "rerun_succeeded_tasks is used, backfill will auto re-run the previous failed task instances "
+            "rerun_succeeded_tasks is used, backfill will auto re-run the previous succeeded task instances "
             "within the backfill date range."
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
