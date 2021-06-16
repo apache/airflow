@@ -18,9 +18,9 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# We started with CeleryExecutor. Let's run tests first
+# We started with KubernetesExecutor. Let's run tests first
 "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
-for mode in KubernetesExecutor CeleryExecutor
+for mode in CeleryExecutor KubernetesExecutor
 do
     kind::upgrade_airflow_with_helm "${mode}"
     "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"

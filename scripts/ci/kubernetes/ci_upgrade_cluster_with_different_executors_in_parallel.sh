@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/kubernetes/ci_parallel.sh
+source "$( dirname "${BASH_SOURCE[0]}" )/ci_parallel.sh"
 
 export SEMAPHORE_NAME="kubernetes-tests-upgrade"
 
@@ -24,7 +26,8 @@ parallel::make_sure_gnu_parallel_is_installed
 parallel::make_sure_python_versions_are_specified
 parallel::make_sure_kubernetes_versions_are_specified
 
-"$( dirname "${BASH_SOURCE[0]}" )/ci_parallel.sh"
+get_maximum_parallel_k8s_jobs
+run_k8s_tests_in_parallel "ci_upgrade_cluster_with_different_executors_single_job.sh" "${@}"
 
 # this will exit with error code in case some of the tests failed
 parallel::print_job_summary_and_return_status_code

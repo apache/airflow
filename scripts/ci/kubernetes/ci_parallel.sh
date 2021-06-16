@@ -90,8 +90,3 @@ function run_k8s_tests_in_parallel() {
     set -e
     start_end::group_end
 }
-
-
-get_maximum_parallel_k8s_jobs
-
-run_k8s_tests_in_parallel "ci_setup_cluster_and_run_kubernetes_tests_single_job.sh" "${@}"

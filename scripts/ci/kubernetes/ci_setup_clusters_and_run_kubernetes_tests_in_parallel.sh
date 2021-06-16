@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# shellcheck source=scripts/ci/kubernetes/ci_parallel.sh
+source "$( dirname "${BASH_SOURCE[0]}" )/ci_parallel.sh"
+
 export SEMAPHORE_NAME="kubernetes-tests"
 
 initialization::set_output_color_variables
@@ -24,7 +27,9 @@ parallel::make_sure_gnu_parallel_is_installed
 parallel::make_sure_python_versions_are_specified
 parallel::make_sure_kubernetes_versions_are_specified
 
-"$( dirname "${BASH_SOURCE[0]}" )/ci_parallel.sh"
+get_maximum_parallel_k8s_jobs
+run_k8s_tests_in_parallel "ci_setup_cluster_and_run_kubernetes_tests_single_job.sh" "${@}"
+
 
 # this will exit with error code in case some of the tests failed
 parallel::print_job_summary_and_return_status_code
