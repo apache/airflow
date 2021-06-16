@@ -66,7 +66,8 @@ Bug Fixes
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Fix spelling (#15699)``
    * ``Add short description to BaseSQLToGCSOperator docstring (#15728)``
-
+   * ``More documentation update for June providers release (#16405)``
+   * ``Remove class references in changelogs (#16454)``
 
 3.0.0
 .....

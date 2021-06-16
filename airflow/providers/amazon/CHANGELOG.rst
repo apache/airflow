@@ -60,8 +60,7 @@ Bug Fixes
    * ``Update Docstrings of Modules with Missing Params (#15391)``
    * ``Fix spelling (#15699)``
    * ``Add Connection Documentation for Providers (#15499)``
-
-.. Review and move the new changes to one of the sections above:
+   * ``More documentation update for June providers release (#16405)``
 
 1.4.0
 .....

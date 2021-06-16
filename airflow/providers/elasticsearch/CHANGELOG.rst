@@ -42,9 +42,8 @@ Features
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Docs: Fix url for ''Elasticsearch'' (#16275)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Add ElasticSearch Connection Doc (#16436)``
+   * ``More documentation update for June providers release (#16405)``
 
 1.0.4
 .....

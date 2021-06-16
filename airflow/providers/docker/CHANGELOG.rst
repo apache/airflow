@@ -43,6 +43,8 @@ was replaced by the ``mounts`` parameter, which uses the newer
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
+   * ``Remove class references in changelogs (#16454)``
 
 1.2.0
 .....
