@@ -675,6 +675,7 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    portsOverride: []
     loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
@@ -739,6 +740,7 @@ flower:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    portsOverride: []
     loadBalancerIP: ~
 
   # Launch additional containers into the flower pods.

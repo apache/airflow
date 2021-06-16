@@ -44,9 +44,12 @@ spec:
     component: flower
     release: {{ .Release.Name }}
   ports:
+    {{- if .Values.flower.service.portsOverride }}
+    {{- toYaml .Values.flower.service.portsOverride | nindent 4 }}
+    {{- else }}
     - name: flower-ui
-      protocol: TCP
       port: {{ .Values.ports.flowerUI }}
+    {{- end }}
   {{- if .Values.flower.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.flower.service.loadBalancerIP }}
   {{- end }}

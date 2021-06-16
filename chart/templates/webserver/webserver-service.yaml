@@ -42,9 +42,12 @@ spec:
     component: webserver
     release: {{ .Release.Name }}
   ports:
+    {{- if .Values.webserver.service.portsOverride }}
+    {{- toYaml .Values.webserver.service.portsOverride | nindent 4 }}
+    {{- else }}
     - name: airflow-ui
-      protocol: TCP
       port: {{ .Values.ports.airflowUI }}
+    {{- end }}
   {{- if .Values.webserver.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.webserver.service.loadBalancerIP }}
   {{- end }}

@@ -1737,6 +1737,23 @@
                             "type": "object",
                             "default": {}
                         },
+                        "portsOverride": {
+                            "description": "Override ports for the webserver Service.",
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "name": "airflow-ui",
+                                    "port": 80,
+                                    "targetPort": "airflow-ui"
+                                },
+                                {
+                                    "name": "only_sidecar",
+                                    "port": 80,
+                                    "targetPort": 8888
+                                }
+                            ]
+                        },
                         "loadBalancerIP": {
                             "description": "Webserver Service loadBalancerIP.",
                             "type": [
@@ -1864,6 +1881,18 @@
                             "description": "Annotations for the flower Service.",
                             "type": "object",
                             "default": {}
+                        },
+                        "portsOverride": {
+                            "description": "Override ports for the flower Service.",
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "name": "flower-ui",
+                                    "port": 8080,
+                                    "targetPort": "flower-ui"
+                                }
+                            ]
                         },
                         "loadBalancerIP": {
                             "description": "Flower Service loadBalancerIP.",
