@@ -276,11 +276,8 @@
   }
 
   function renderChart() {
-    const {xName, yName} = chartParams;
+    const {xName, yName, yKey} = chartParams;
     const option = {
-      // title: {
-      //   text: `${xName}-${yName}图`
-      // },
       toolbox: {
         show: true,
         feature: {
@@ -367,46 +364,12 @@
           type: 'inside',
           yAxisIndex: [0,1,2],
           filterMode: 'none'
-        },
-        // {
-        //   type: 'slider',
-        //   yAxisIndex: 1,
-        //   filterMode: 'none'
-        // },
-        // {
-        //   type: 'inside',
-        //   yAxisIndex: 1,
-        //   filterMode: 'none'
-        // },
-        // {
-        //   type: 'slider',
-        //   yAxisIndex: 2,
-        //   filterMode: 'none'
-        // },
-        // {
-        //   type: 'inside',
-        //   yAxisIndex: 2,
-        //   filterMode: 'none'
-        // }
+        }
       ],
     legend: {
       type: 'scroll',
       data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
     },
-    // title: [
-    //   {
-    //     top: '3%',
-    //     left: 'center',
-    //     text: 'Gradient along the y axis'
-    // }, {
-    //     top: '35%',
-    //     left: 'center',
-    //     text: 'Gradient along the x axis'
-    // }, {
-    //     top: '65%',
-    //     left: 'center',
-    //     text: 'Gradient along the x axis'
-    // }],
     tooltip: {
       trigger: 'axis',
       axisPointer: {
@@ -486,7 +449,7 @@
     //     yAxisIndex: 2
     // }]
 };
-    if (yName === '全部') {
+    if (yKey === 'cur_a') {
       curveChart.setOption(options, true);
     }else {
       curveChart.setOption(option, true);

@@ -30,7 +30,7 @@
                style="z-index: 0"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-t-a" type="radio" name="chart-type" autocomplete="off">
-          时间/...
+          <span id="update-chart-all-text">全部</span>
         </label>
       </span>
   </div>
@@ -86,9 +86,7 @@
   });
   $('#update-chart-t-a').change(() => {
     setChartParams('cur_t', 'cur_a');
-    console.log('aaaa');
     renderChart();
-    console.log('合并图表');
   });
 
   function chartInit() {
