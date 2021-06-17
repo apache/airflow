@@ -2,7 +2,7 @@
 # Docs: https://www.gitpod.io/docs/config-gitpod-file/
 
 tasks:
-  - init: ./breeze
+  - init: ./breeze -y
     
   - openMode: split-right
     command: echo for running integration test with breeze
