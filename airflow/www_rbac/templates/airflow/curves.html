@@ -170,81 +170,35 @@
       renderChart();
     }
 
-    function getXdata(xKey) {
-      const entityId = selectedEIds[selectedEIds.length - 1]
-      if (!entityId || !curvesData[entityId] || !curvesData[entityId][xKey]) {
-        return [];
-      }
-      const curve = curvesData[entityId];
-      const xData = curve[xKey];
-      return xData;
-    }
-
-    function getYdata(yKey, entityId) {
-      // const entityId = selectedEIds.map(c => c)
-      if (!entityId || !curvesData[entityId] || !curvesData[entityId][yKey]) {
-        return [];
-      }
-      const curve = curvesData[entityId];
-      const yData = curve[yKey];
-      return yData;
-    }
-
     function randomHexColor() { //随机生成十六进制颜色
       return '#' + ('00000' + (Math.random() * 0x1000000 << 0).toString(16)).substr(-6);
     }
 
-    function getAlldata() {
+    function getAlldata(yKey, xKey) {
       if ((!curvesData) || Object.keys(curvesData).length === 0) {
         return [];
       }
       let allDatas = [];
-      for (let c of selectedEIds) {
+      selectedEIds.forEach(function (c) {
         const color = randomHexColor();
-        allDatas.push({
-          name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
-          type: 'line',
-          showSymbol: false,
-          data: getYdata('cur_m', c),
-          itemStyle: {
-            color: color
-          },
-          lineStyle: {
-            color: color,
-            width: 3
-          },
-        });
-        allDatas.push({
-          name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
-          type: 'line',
-          showSymbol: false,
-          data: getYdata('cur_w', c),
-          xAxisIndex: 1,
-          yAxisIndex: 1,
-          itemStyle: {
-            color: color
-          },
-          lineStyle: {
-            color: color,
-            width: 3
-          },
-        });
-        allDatas.push({
-          name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
-          type: 'line',
-          showSymbol: false,
-          data: getYdata('cur_s', c),
-          xAxisIndex: 2,
-          yAxisIndex: 2,
-          itemStyle: {
-            color: color
-          },
-          lineStyle: {
-            color: color,
-            width: 3
-          },
-        });
-      }
+        yKey.forEach(function (n, idx) {
+          allDatas.push({
+            name: extraData[c] && `${extraData[c].carCode}@${extraData[c].date}` || c,
+            type: 'line',
+            showSymbol: false,
+            data: genData(c, xKey, n),
+            xAxisIndex: idx,
+            yAxisIndex: idx,
+            itemStyle: {
+              color: color
+            },
+            lineStyle: {
+              color: color,
+              width: 3
+            },
+          });
+        })
+      });
       return allDatas;
     }
 
@@ -275,169 +229,6 @@
         }
       }));
     }
-
-    function renderChart() {
-      const {xName, yName, yKey} = chartParams;
-      const option = {
-        toolbox: {
-          show: true,
-          feature: {
-            dataZoom: {},
-            dataView: {readOnly: true},
-            saveAsImage: {}
-          }
-        },
-        legend: {
-          type: 'scroll',
-          data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
-        },
-        grid: {
-          bottom: 100
-        },
-        xAxis: {
-          type: 'value',
-          name: xName,
-          nameLocation: 'middle',
-          nameGap: 30,
-          axisLabel: {
-            fontSize: 16
-          }
-        },
-        yAxis: {
-          type: 'value',
-          name: yName,
-          nameLocation: 'middle',
-          nameRotate: 0,
-          nameGap: 50,
-          axisLabel: {
-            fontSize: 16
-          }
-        },
-        series: genDataSeries(),
-        textStyle: {
-          fontFamily: 'monospace',
-          fontSize: 18
-        },
-        dataZoom: [
-          {
-            type: 'slider',
-            xAxisIndex: 0,
-            filterMode: 'none'
-          },
-          {
-            type: 'slider',
-            yAxisIndex: 0,
-            filterMode: 'none'
-          },
-          {
-            type: 'inside',
-            xAxisIndex: 0,
-            filterMode: 'none'
-          },
-          {
-            type: 'inside',
-            yAxisIndex: 0,
-            filterMode: 'none'
-          }
-        ],
-        tooltip: {
-          trigger: 'axis'
-        }
-      };
-      const options = {
-        dataZoom: [
-          {
-            type: 'slider',
-            xAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          },
-          {
-            type: 'inside',
-            xAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          },
-          {
-            type: 'slider',
-            yAxisIndex: [0, 1, 2],
-            filterMode: 'none',
-              top: '5%',
-              bottom: '5%'
-          },
-          {
-            type: 'inside',
-            yAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          }
-        ],
-        legend: {
-          type: 'scroll',
-          data: selectedEIds.map(c => extraData[c] && `${extraData[c].carCode}@${extraData[c].date}`)
-        },
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: {
-            type: 'cross'
-          }
-        },
-        axisPointer: { // 同时出现提示竖线
-          link: {xAxisIndex: 'all'}
-        },
-        xAxis: [{
-          data: getXdata('cur_t'),
-          name: '时间'
-        }, {
-          data: getXdata('cur_t'),
-          name: '时间',
-          gridIndex: 1
-        }, {
-          data: getXdata('cur_t'),
-          name: '时间',
-          gridIndex: 2
-        }],
-        yAxis: [{
-          name: '扭矩',
-          axisLine: {
-            show: true,
-          },
-          axisLabel: {
-            formatter: '{value} N*m'
-          }
-        }, {
-          name: '角度',
-          axisLine: {
-            show: true,
-          },
-          axisLabel: {
-            formatter: '{value} °'
-          },
-          gridIndex: 1
-        }, {
-          name: '转速',
-          axisLine: {
-            show: true,
-          },
-          gridIndex: 2
-        }],
-        grid: [{
-          top: '6%',
-          bottom: '70%',
-        }, {
-          top: '37%',
-          bottom: '40%',
-        },
-          {
-            top: '70%',
-            bottom: '5%'
-          }],
-        series: getAlldata()
-      };
-      if (yKey === 'cur_a') {
-        curveChart.setOption(options, true);
-      } else {
-        curveChart.setOption(option, true);
-      }
-    }
-
 
     function queryCurves(selectedEntityIds) {
       const queryEntityIds = selectedEntityIds.filter(id => !Object.hasOwnProperty.call(curvesData, id));

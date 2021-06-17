@@ -60,9 +60,15 @@
 
   function setChartParams(xKey, yKey) {
     chartParams.xKey = xKey;
-    chartParams.yKey = yKey;
     chartParams.xName = curKeyMap[xKey];
-    chartParams.yName = curKeyMap[yKey];
+    if (yKey instanceof Array) {
+      chartParams.yKey = yKey;
+    } else {
+      chartParams.yKey = [yKey];
+    }
+    chartParams.yName = chartParams.yKey.map(function (k) {
+      return curKeyMap[k];
+    })
   }
 
   $('#update-chart-w-m').change(() => {
@@ -85,9 +91,110 @@
     renderChart();
   });
   $('#update-chart-t-a').change(() => {
-    setChartParams('cur_t', 'cur_a');
+    setChartParams('cur_t', ['cur_m', 'cur_w', 'cur_s']);
     renderChart();
   });
+
+  function renderChart() {
+    const {xName, yName, yKey, xKey} = chartParams;
+    const options = {
+      toolbox: {
+        show: true,
+        feature: {
+          dataZoom: {},
+          dataView: {readOnly: true},
+          saveAsImage: {}
+        }
+      },
+      textStyle: {
+        fontFamily: 'monospace',
+        fontSize: 18
+      },
+      axisPointer: { // 同时出现提示竖线
+        link: {xAxisIndex: 'all'}
+      },
+      dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          xAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none'
+        },
+        {
+          type: 'slider',
+          yAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none',
+          top: '5%',
+          bottom: '5%'
+        },
+        {
+          type: 'inside',
+          yAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none'
+        }
+      ],
+      legend: {
+        data: yName
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'cross'
+        }
+      },
+      xAxis: yName.map(function (n, idx) {
+        return {
+          type: 'value',
+          nameRotate: 0,
+          axisLabel: {
+            fontSize: 16
+          },
+          name: xName,
+          gridIndex: idx
+        }
+      }),
+      yAxis: yName.map(function (n, idx) {
+        return {
+          type: 'value',
+          nameLocation: 'middle',
+          nameRotate: 0,
+          nameGap: 50,
+          axisLabel: {
+            fontSize: 16
+          },
+          name: n,
+          gridIndex: idx,
+          axisLine: {
+            show: true,
+          }
+        }
+      }),
+      grid: yName.map(function (n, idx) {
+        const margin = 5;
+        const top = 10;
+        const bottom = 10;
+        const height = ((100 - top - bottom) - margin * (yName.length - 1)) / yName.length;
+        return {
+          top: top + (margin + height) * idx + '%',
+          bottom: bottom + (margin + height) * (yName.length - idx - 1) + '%',
+        }
+      }),
+      series: getAlldata(yKey, xKey)
+    };
+    curveChart.setOption(options, true);
+  }
 
   function chartInit() {
     curveChart = echarts.init(document.getElementById('echarts-main'), null, {renderer: 'svg'});
