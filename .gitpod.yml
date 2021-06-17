@@ -1,0 +1,10 @@
+# Reference: https://www.gitpod.io/docs/references/gitpod-yml
+# Docs: https://www.gitpod.io/docs/config-gitpod-file/
+
+tasks:
+  - init: ./breeze
+    
+# Ports to expose on workspace startup
+ports:
+  - port: 8000
+    onOpen: open-preview
