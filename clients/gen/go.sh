@@ -25,7 +25,7 @@ readonly CLEANUP_DIRS
 # shellcheck source=./clients/gen/common.sh
 source "${CLIENTS_GEN_DIR}/common.sh"
 
-VERSION=1.1.0
+VERSION=2.1.0
 readonly VERSION
 
 go_config=(
@@ -35,6 +35,8 @@ go_config=(
 
 validate_input "$@"
 
+# additional-properties key value tuples need to be separated by comma, not space
+IFS=,
 gen_client go \
     --package-name airflow \
     --git-repo-id airflow-client-go/airflow \

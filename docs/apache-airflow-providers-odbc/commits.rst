@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-05-11
+Latest change: 2021-06-13
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`8a4cfd734 <https://github.com/apache/airflow/commit/8a4cfd734127855c6de3236fddbcaba1bd96060e>`_  2021-06-13   ``OdbcHook returns None. Related to #15016 issue. (#15510)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `c8ef3a353 <https://github.com/apache/airflow/commit/c8ef3a3539f17b39d0a41d10a631d8d9ee564fde>`_  2021-05-11   ``Fix OdbcHook handling of port (#15772)``
 `807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 `40a2476a5 <https://github.com/apache/airflow/commit/40a2476a5db14ee26b5108d72635da116eab720b>`_  2021-04-28   ``Adds interactivity when generating provider documentation. (#15518)``

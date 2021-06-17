@@ -541,7 +541,6 @@ function focusedGroupKey() {
 function focusGroup(nodeId) {
   if (nodeId != null && zoom != null) {
     const { x } = g.node(nodeId);
-    const { y } = g.node(nodeId);
     // This is the total canvas size.
     const { width, height } = svg.node().getBoundingClientRect();
 
@@ -560,7 +559,8 @@ function focusGroup(nodeId) {
       1.5, // cap zoom level to 1.5 so nodes are not too large
     ) * 0.9;
 
-    const [deltaX, deltaY] = [width / 2 - x * scale, height / 2 - y * scale];
+    // deltaY of 5 keeps the zoom at the top of the view but with a slight margin
+    const [deltaX, deltaY] = [width / 2 - x * scale, 5];
     zoom.translate([deltaX, deltaY]);
     zoom.scale(scale);
     zoom.event(innerSvg.transition().duration(duration));

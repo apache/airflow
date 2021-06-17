@@ -447,6 +447,13 @@ workers:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 # Airflow scheduler settings
 scheduler:
@@ -533,7 +540,13 @@ scheduler:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
-
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
@@ -640,6 +653,7 @@ webserver:
   extraContainers: []
   # Add additional init containers into webserver.
   extraInitContainers: []
+
 
   # Mount additional volumes into webserver.
   extraVolumes: []
@@ -864,6 +878,16 @@ pgbouncer:
   tolerations: []
 
   uid: 65534
+
+  metricsExporterSidecar:
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 
 # Configuration for the redis provisioned by the chart
 redis:

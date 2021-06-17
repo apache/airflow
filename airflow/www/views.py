@@ -4093,7 +4093,8 @@ class DagDependenciesView(AirflowBaseView):
         title = "DAG Dependencies"
 
         if timezone.utcnow() > self.last_refresh + self.refresh_interval:
-            if SerializedDagModel.get_max_last_updated_datetime() > self.last_refresh:
+            max_last_updated = SerializedDagModel.get_max_last_updated_datetime()
+            if max_last_updated is None or max_last_updated > self.last_refresh:
                 self._calculate_graph()
             self.last_refresh = timezone.utcnow()
 

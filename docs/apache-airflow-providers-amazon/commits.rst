@@ -31,11 +31,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-06-02
+Latest change: 2021-06-13
 
 ================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================================
+`9cd7930c3 <https://github.com/apache/airflow/commit/9cd7930c34c2842bef0cdc1748d42e7caa722301>`_  2021-06-13   ``Update copy command for s3 to redshift (#16241)``
+`643f3c35a <https://github.com/apache/airflow/commit/643f3c35a6ba3def40de7db8e974c72e98cfad44>`_  2021-06-13   ``fix: AwsGlueJobOperator change order of args for load_file (#16216)``
+`30708b5b2 <https://github.com/apache/airflow/commit/30708b5b254960395d8061e8c403294b93900c4d>`_  2021-06-13   ``Add support of capacity provider strategy for ECSOperator (#15848)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `9fcdf3d4d <https://github.com/apache/airflow/commit/9fcdf3d4deae0dd77c734f5a3520fb75d66d0821>`_  2021-06-02   ``Fix S3 Select payload join (#16189)``
 `8d1663828 <https://github.com/apache/airflow/commit/8d16638285687fd0ef41d40340ab1c5bcffd507a>`_  2021-05-29   ``remove retry for now (#16150)``
 `5fbc86f03 <https://github.com/apache/airflow/commit/5fbc86f0364fbc4f7c2ba10cae4a13449709730c>`_  2021-05-27   ``Remove the 'not-allow-trailing-slash' rule on S3_hook (#15609)``

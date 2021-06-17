@@ -16,7 +16,6 @@
 # under the License.
 """Mask sensitive information from logs"""
 import collections
-import io
 import logging
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
@@ -165,7 +164,7 @@ class SecretsMasker(logging.Filter):
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self._redact_all(subval) for subval in item)
-        elif isinstance(item, Iterable):
+        elif isinstance(item, list):
             return list(self._redact_all(subval) for subval in item)
         else:
             return item
@@ -196,12 +195,11 @@ class SecretsMasker(logging.Filter):
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
                 return tuple(self.redact(subval) for subval in item)
-            elif isinstance(item, io.IOBase):
-                return item
-            elif isinstance(item, Iterable):
+            elif isinstance(item, list):
                 return list(self.redact(subval) for subval in item)
             else:
                 return item
+        # I think this should never happen, but it does not hurt to leave it just in case
         except Exception as e:  # pylint: disable=broad-except
             log.warning(
                 "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "

@@ -1701,7 +1701,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            concurrency=1,
+            max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
             next_dagrun_create_after=timezone.datetime(2038, 1, 2),

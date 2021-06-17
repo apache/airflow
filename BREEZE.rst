@@ -2137,6 +2137,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Default: both
 
+  --non-interactive
+
+          Runs the command in non-interactive mode.
+
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands
@@ -2242,12 +2246,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
                  mypy mypy-helm no-providers-in-core-examples no-relative-imports
                  pre-commit-descriptions pre-commit-hook-names pretty-format-json
-                 provide-create-sessions providers-init-file provider-yamls pydevd pydocstyle pylint
-                 pylint-tests python-no-log-warn pyupgrade restrict-start_date rst-backticks
-                 setup-order setup-extra-packages shellcheck sort-in-the-wild sort-spelling-wordlist
-                 stylelint trailing-whitespace ui-lint update-breeze-file update-extras
-                 update-local-yml-file update-setup-cfg-file verify-db-migrations-documented
-                 version-sync www-lint yamllint
+                 provide-create-sessions providers-changelogs providers-init-file provider-yamls
+                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
+                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
+                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
+                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 verify-db-migrations-documented version-sync www-lint yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

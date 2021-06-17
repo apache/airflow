@@ -320,6 +320,8 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
+          # Needs to fetch all history to be able to verify changelog generation
+          fetch-depth: 0
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -519,7 +521,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-      NO_INTERACTIVE: "true"
+      NON_INTERACTIVE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

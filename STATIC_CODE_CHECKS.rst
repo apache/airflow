@@ -146,6 +146,8 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK
 ----------------------------------- ---------------------------------------------------------------- ------------
+``providers-changelogs``              Updates documentation for providers changelogs
+----------------------------------- ---------------------------------------------------------------- ------------
 ``providers-init-file``               Check that provider's __init__.py file is removed
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``provider-yamls``                    Checks that provider.yaml files have the correct content

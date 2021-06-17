@@ -27,7 +27,7 @@ from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableD
 class TestDagTISlotsAvailableDep(unittest.TestCase):
     def test_concurrency_reached(self):
         """
-        Test concurrency reached should fail dep
+        Test max_active_tasks reached should fail dep
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
         task = Mock(dag=dag, pool_slots=1)

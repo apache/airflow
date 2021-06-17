@@ -550,11 +550,19 @@ def test_show_external_log_redirect_link_with_local_log_handler(capture_template
 
 
 class _ExternalHandler(ExternalLoggingMixin):
+    _supports_external_link = True
     LOG_NAME = 'ExternalLog'
 
     @property
-    def log_name(self):
+    def log_name(self) -> str:
         return self.LOG_NAME
+
+    def get_external_log_url(self, *args, **kwargs) -> str:
+        return 'http://external-service.com'
+
+    @property
+    def supports_external_link(self) -> bool:
+        return self._supports_external_link
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])
@@ -573,6 +581,25 @@ def test_show_external_log_redirect_link_with_external_log_handler(
         ctx = templates[0].local_context
         assert ctx['show_external_log_redirect']
         assert ctx['external_log_name'] == _ExternalHandler.LOG_NAME
+
+
+@pytest.mark.parametrize("endpoint", ["graph", "tree"])
+@unittest.mock.patch(
+    'airflow.utils.log.log_reader.TaskLogReader.log_handler',
+    new_callable=unittest.mock.PropertyMock,
+    return_value=_ExternalHandler(),
+)
+def test_external_log_redirect_link_with_external_log_handler_not_shown(
+    _external_handler, capture_templates, admin_client, endpoint
+):
+    """Show external links if log handler is external."""
+    _external_handler.return_value._supports_external_link = False
+    url = f'{endpoint}?dag_id=example_bash_operator'
+    with capture_templates() as templates:
+        admin_client.get(url, follow_redirects=True)
+        ctx = templates[0].local_context
+        assert not ctx['show_external_log_redirect']
+        assert ctx['external_log_name'] is None
 
 
 def _get_appbuilder_pk_string(model_view_cls, instance) -> str:

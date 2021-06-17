@@ -66,6 +66,11 @@ class ExternalLoggingMixin:
     def get_external_log_url(self, task_instance, try_number) -> str:
         """Return the URL for log visualization in the external service."""
 
+    @property
+    @abc.abstractmethod
+    def supports_external_link(self) -> bool:
+        """Return whether handler is able to support external links."""
+
 
 # TODO: Formally inherit from io.IOBase
 class StreamLogWriter:

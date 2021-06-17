@@ -249,16 +249,32 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
+
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+        # initContainer wait-for-airflow-migrations
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]
+        )
 
     def test_webserver_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {}
 
     @parameterized.expand(
         [

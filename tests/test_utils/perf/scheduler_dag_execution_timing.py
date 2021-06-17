@@ -215,7 +215,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     The dags you run with need to have an early enough start_date to create the
     desired number of runs.
 
-    Care should be taken that other limits (DAG concurrency, pool size etc) are
+    Care should be taken that other limits (DAG max_active_tasks, pool size etc) are
     not the bottleneck. This script doesn't help you in that regard.
 
     It is recommended to repeat the test at least 3 times (`--repeat=3`, the
@@ -228,7 +228,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     # releases too!
     os.environ['AIRFLOW__CORE__UNIT_TEST_MODE'] = 'True'
 
-    os.environ['AIRFLOW__CORE__DAG_CONCURRENCY'] = '500'
+    os.environ['AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG'] = '500'
 
     # Set this so that dags can dynamically configure their end_date
     os.environ['AIRFLOW_BENCHMARK_MAX_DAG_RUNS'] = str(num_runs)

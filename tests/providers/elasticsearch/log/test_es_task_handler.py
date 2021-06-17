@@ -43,6 +43,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
+    JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_execution_date(EXECUTION_DATE)}-1'
 
     @elasticmock
     def setUp(self):
@@ -396,27 +397,10 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
         assert self.es_task_handler.closed
 
     def test_render_log_id(self):
-        expected_log_id = (
-            'dag_for_testing_file_task_handler-'
-            'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
-        )
-        log_id = self.es_task_handler._render_log_id(self.ti, 1)
-        assert expected_log_id == log_id
+        assert self.LOG_ID == self.es_task_handler._render_log_id(self.ti, 1)
 
-        # Switch to use jinja template.
-        self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            '{{ ti.dag_id }}-{{ ti.task_id }}-{{ ts }}-{{ try_number }}',
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
-        )
-        log_id = self.es_task_handler._render_log_id(self.ti, 1)
-        assert expected_log_id == log_id
+        self.es_task_handler.json_format = True
+        assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(self.ti, 1)
 
     def test_clean_execution_date(self):
         clean_execution_date = self.es_task_handler._clean_execution_date(datetime(2016, 7, 8, 9, 10, 11, 12))
@@ -424,20 +408,25 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
 
     @parameterized.expand(
         [
-            # Common case
-            ('localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID.replace('T', ' '))),
+            # Common cases
+            (True, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(JSON_LOG_ID)),
+            (False, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID)),
             # Ignore template if "{log_id}"" is missing in the URL
-            ('localhost:5601', 'https://localhost:5601'),
+            (False, 'localhost:5601', 'https://localhost:5601'),
+            # scheme handling
+            (False, 'https://localhost:5601/path/{log_id}', 'https://localhost:5601/path/' + quote(LOG_ID)),
+            (False, 'http://localhost:5601/path/{log_id}', 'http://localhost:5601/path/' + quote(LOG_ID)),
+            (False, 'other://localhost:5601/path/{log_id}', 'other://localhost:5601/path/' + quote(LOG_ID)),
         ]
     )
-    def test_get_external_log_url(self, es_frontend, expected_url):
+    def test_get_external_log_url(self, json_format, es_frontend, expected_url):
         es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
             self.log_id_template,
             self.end_of_log_mark,
             self.write_stdout,
-            self.json_format,
+            json_format,
             self.json_fields,
             self.host_field,
             self.offset_field,
@@ -445,3 +434,13 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
         )
         url = es_task_handler.get_external_log_url(self.ti, self.ti.try_number)
         assert expected_url == url
+
+    @parameterized.expand(
+        [
+            ('localhost:5601/{log_id}', True),
+            (None, False),
+        ]
+    )
+    def test_supports_external_link(self, frontend, expected):
+        self.es_task_handler.frontend = frontend
+        assert self.es_task_handler.supports_external_link == expected

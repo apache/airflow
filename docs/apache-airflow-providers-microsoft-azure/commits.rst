@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2021-05-22
+Latest change: 2021-06-11
 
 ================================================================================================  ===========  ==============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==============================================================================
+`0c80a7d41 <https://github.com/apache/airflow/commit/0c80a7d41100bf8d18b661c8286d6056e6d5d2f1>`_  2021-06-11   ``Fixes AzureFileShare connection extras (#16388)``
+`29b7f795d <https://github.com/apache/airflow/commit/29b7f795d6fb9fb8cab14158905c1b141044236d>`_  2021-06-07   ``fix wasb remote logging when blob already exists (#16280)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 `c844ff742 <https://github.com/apache/airflow/commit/c844ff742e786973273c56348a09d073a4928878>`_  2021-05-18   ``Fix colon spacing in ''AzureDataExplorerHook'' docstring (#15841)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``

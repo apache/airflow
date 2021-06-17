@@ -596,7 +596,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context)
         assert start_mock.call_args[0][0].spec.containers[0].env_from == [
@@ -828,7 +828,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             task_id="task" + self.get_current_task_name(), pod_template_file=path, do_xcom_push=True
         )
 
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         with self.assertLogs(k.log, level=logging.DEBUG) as cm:
             k.execute(context)
@@ -922,7 +922,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             priority_class_name=priority_class_name,
         )
 
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -964,7 +964,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             termination_grace_period=0,
         )
         context = create_context(k)
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         k.execute(context)
         name = k.pod.metadata.name
         pod = client.read_namespaced_pod(name=name, namespace=namespace)
@@ -998,7 +998,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         with mock.patch(
             "airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod"
         ) as monitor_mock:
-            monitor_mock.return_value = (State.SUCCESS, None)
+            monitor_mock.return_value = (State.SUCCESS, None, None)
             k.execute(context)
             name = k.pod.metadata.name
             pod = client.read_namespaced_pod(name=name, namespace=namespace)

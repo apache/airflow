@@ -50,7 +50,7 @@ function run_prepare_documentation() {
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
-            "${OPTIONAL_NO_INTERACTIVE_FLAG[@]}" \
+            "${OPTIONAL_NON_INTERACTIVE_FLAG[@]}" \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then
@@ -76,7 +76,6 @@ function run_prepare_documentation() {
         python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
             update-changelog \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
-            "${OPTIONAL_NO_INTERACTIVE_FLAG[@]}" \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then
@@ -117,6 +116,10 @@ function run_prepare_documentation() {
         echo
         echo "${COLOR_RED}There were errors when preparing documentation. Exiting! ${COLOR_RESET}"
         exit 1
+    else
+        echo
+        echo "${COLOR_YELLOW}Please review the updated files, classify the changelog entries and commit the changes!${COLOR_RESET}"
+        echo
     fi
 }
 
@@ -137,9 +140,9 @@ if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; th
     shift
 fi
 
-OPTIONAL_NO_INTERACTIVE_FLAG=()
-if [[ ${NO_INTERACTIVE=} == "true" ]]; then
-    OPTIONAL_NO_INTERACTIVE_FLAG+=("--non-interactive")
+OPTIONAL_NON_INTERACTIVE_FLAG=()
+if [[ ${NON_INTERACTIVE=} == "true" ]]; then
+    OPTIONAL_NON_INTERACTIVE_FLAG+=("--non-interactive")
 fi
 
 

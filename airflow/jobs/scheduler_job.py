@@ -906,7 +906,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
-        dag concurrency, executor state, and priority.
+        dag max_active_tasks, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :type max_tis: int
@@ -969,9 +969,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        dag_concurrency_map: DefaultDict[str, int]
+        dag_max_active_tasks_map: DefaultDict[str, int]
         task_concurrency_map: DefaultDict[Tuple[str, str], int]
-        dag_concurrency_map, task_concurrency_map = self.__get_concurrency_maps(
+        dag_max_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
             states=list(EXECUTION_STATES), session=session
         )
 
@@ -1013,25 +1013,25 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     num_starving_tasks_total += num_unhandled
                     break
 
-                # Check to make sure that the task concurrency of the DAG hasn't been
+                # Check to make sure that the task max_active_tasks of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
 
-                current_dag_concurrency = dag_concurrency_map[dag_id]
-                dag_concurrency_limit = task_instance.dag_model.concurrency
+                current_max_active_tasks_per_dag = dag_max_active_tasks_map[dag_id]
+                max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
                     dag_id,
-                    current_dag_concurrency,
-                    dag_concurrency_limit,
+                    current_max_active_tasks_per_dag,
+                    max_active_tasks_per_dag_limit,
                 )
-                if current_dag_concurrency >= dag_concurrency_limit:
+                if current_max_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's task concurrency limit of %s",
+                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
                         task_instance,
                         dag_id,
-                        dag_concurrency_limit,
+                        max_active_tasks_per_dag_limit,
                     )
                     continue
 
@@ -1074,7 +1074,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                dag_concurrency_map[dag_id] += 1
+                dag_max_active_tasks_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
             Stats.gauge(f'pool.starving_tasks.{pool_name}', num_starving_tasks)

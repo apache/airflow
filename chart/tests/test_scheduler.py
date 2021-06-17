@@ -214,10 +214,22 @@ class SchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]
+        )
 
     def test_scheduler_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -391,3 +403,29 @@ class SchedulerTest(unittest.TestCase):
         assert "git-sync-init" in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
+
+    def test_log_groomer_resources(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "logGroomerSidecar": {
+                        "resources": {
+                            "requests": {"memory": "2Gi", "cpu": "1"},
+                            "limits": {"memory": "3Gi", "cpu": "2"},
+                        }
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "limits": {
+                "cpu": "2",
+                "memory": "3Gi",
+            },
+            "requests": {
+                "cpu": "1",
+                "memory": "2Gi",
+            },
+        } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])

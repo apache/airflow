@@ -54,6 +54,8 @@ spec:
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base
       ports: []
+      resources:
+{{ toYaml .Values.workers.resources | indent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
