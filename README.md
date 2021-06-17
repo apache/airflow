@@ -183,7 +183,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals).
 
-Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
+Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](http://airflow.apache.org/docs/).
 
 ## Installing from PyPI
 
