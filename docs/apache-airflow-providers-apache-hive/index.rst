@@ -68,19 +68,20 @@ are in ``airflow.providers.apache.hive`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-hive``
 
 PIP requirements
 ----------------
 
-================  ==================
-PIP package       Version required
-================  ==================
-``hmsclient``     ``>=0.1.0``
-``pyhive[hive]``  ``>=0.6.0``
-``thrift``        ``>=0.9.2``
-================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``hmsclient``       ``>=0.1.0``
+``pyhive[hive]``    ``>=0.6.0``
+``thrift``          ``>=0.9.2``
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------

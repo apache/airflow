@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-06-13
+Latest change: 2021-06-16
 
 ================================================================================================  ===========  ===============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `d99afc3c2 <https://github.com/apache/airflow/commit/d99afc3c21020e78fa3c5d2c80efce818ad2870c>`_  2021-06-13   ``postgres_hook_aws_conn_id (#16100)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `9c8391a13 <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``

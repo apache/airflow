@@ -71,7 +71,7 @@ are in ``airflow.providers.microsoft.azure`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-microsoft-azure``
 
 PIP requirements
@@ -80,6 +80,7 @@ PIP requirements
 ================================  ==================
 PIP package                       Version required
 ================================  ==================
+``apache-airflow``                ``>=2.1.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=3.0.1,<4``
 ``azure-datalake-store``          ``>=0.0.45``

@@ -45,6 +45,7 @@ was replaced by the ``mounts`` parameter, which uses the newer
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
    * ``Remove class references in changelogs (#16454)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.2.0
 .....

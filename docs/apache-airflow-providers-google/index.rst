@@ -79,7 +79,7 @@ are in ``airflow.providers.google`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-google``
 
 PIP requirements
@@ -88,6 +88,7 @@ PIP requirements
 ======================================  ===================
 PIP package                             Version required
 ======================================  ===================
+``apache-airflow``                      ``>=2.1.0``
 ``PyOpenSSL``
 ``google-ads``                          ``>=4.0.0,<8.0.0``
 ``google-api-core``                     ``>=1.25.1,<2.0.0``

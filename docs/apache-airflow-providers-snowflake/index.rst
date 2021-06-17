@@ -69,7 +69,7 @@ are in ``airflow.providers.snowflake`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-snowflake``
 
 PIP requirements
@@ -78,6 +78,7 @@ PIP requirements
 ==============================  ==================
 PIP package                     Version required
 ==============================  ==================
+``apache-airflow``              ``>=2.1.0``
 ``snowflake-connector-python``  ``>=2.4.1``
 ``snowflake-sqlalchemy``        ``>=1.1.0``
 ==============================  ==================

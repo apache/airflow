@@ -39,6 +39,7 @@ Breaking changes
    * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 2.0.0
 .....

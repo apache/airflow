@@ -44,13 +44,14 @@ Bug Fixes
 * ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
 * ``Bug Pod Template File Values Ignored (#16095)``
 * ``Fix issue with parsing error logs in the KPO (#15638)``
+* ``Fix unsuccessful KubernetesPod final_state call when &#39;is_delete_operator_pod=True&#39; (#15490)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Updated documentation for June 2021 provider release (#16294)``
-
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.2.0
 .....

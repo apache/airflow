@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-06-13
+Latest change: 2021-06-16
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `8a4cfd734 <https://github.com/apache/airflow/commit/8a4cfd734127855c6de3236fddbcaba1bd96060e>`_  2021-06-13   ``OdbcHook returns None. Related to #15016 issue. (#15510)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `c8ef3a353 <https://github.com/apache/airflow/commit/c8ef3a3539f17b39d0a41d10a631d8d9ee564fde>`_  2021-05-11   ``Fix OdbcHook handling of port (#15772)``

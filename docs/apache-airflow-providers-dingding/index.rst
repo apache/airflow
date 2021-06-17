@@ -68,7 +68,7 @@ are in ``airflow.providers.dingding`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-dingding``
 
 Cross provider package dependencies

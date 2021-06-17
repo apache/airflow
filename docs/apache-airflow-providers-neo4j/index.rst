@@ -74,16 +74,17 @@ are in ``airflow.providers.neo4j`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-neo4j``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``neo4j``      ``>=4.2.1``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``neo4j``           ``>=4.2.1``
+==================  ==================
 
 .. include:: ../../airflow/providers/neo4j/CHANGELOG.rst

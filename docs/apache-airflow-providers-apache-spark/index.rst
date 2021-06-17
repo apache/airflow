@@ -68,16 +68,17 @@ are in ``airflow.providers.apache.spark`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-spark``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
 ``pyspark``
-=============  ==================
+==================  ==================
 
 .. include:: ../../airflow/providers/apache/spark/CHANGELOG.rst

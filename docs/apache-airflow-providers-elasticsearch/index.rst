@@ -68,7 +68,7 @@ are in ``airflow.providers.elasticsearch`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-elasticsearch``
 
 PIP requirements
@@ -77,6 +77,7 @@ PIP requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
+``apache-airflow``       ``>=2.1.0``
 ``elasticsearch-dbapi``  ``==0.1.0``
 ``elasticsearch-dsl``    ``>=5.0.0``
 ``elasticsearch``        ``>7, <7.6.0``
