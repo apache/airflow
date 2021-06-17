@@ -2399,7 +2399,10 @@ class DAG(LoggingMixin):
         for missing_dag_id in missing_dag_ids:
             orm_dag = DagModel(dag_id=missing_dag_id)
             dag = dag_by_ids[missing_dag_id]
-            if dag.is_paused_upon_creation is not None:
+
+            if dag.is_subdag:
+                orm_dag.is_paused = dag.parent_dag.get_is_paused()
+            elif dag.is_paused_upon_creation is not None:
                 orm_dag.is_paused = dag.is_paused_upon_creation
             orm_dag.tags = []
             log.info("Creating ORM DAG for %s", dag.dag_id)
