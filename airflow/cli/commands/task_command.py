@@ -451,7 +451,7 @@ def task_clear(args):
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
-        dags = get_dag_by_file_location(args.dag_id)
+        dags = [get_dag_by_file_location(args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
         dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
