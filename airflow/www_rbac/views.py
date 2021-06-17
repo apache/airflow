@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import http
+import zipfile
 import uuid
 import copy
 import itertools
@@ -33,7 +34,7 @@ from datetime import timedelta
 from urllib.parse import unquote
 from airflow.settings import TIMEZONE
 from datetime import datetime
-
+from typing import List
 import six
 from six.moves.urllib.parse import quote
 import pprint
@@ -44,6 +45,8 @@ from flask import (
     Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
     session as flask_session, url_for,
 )
+
+from flask import send_file
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.baseviews import BaseCRUDView
@@ -94,6 +97,8 @@ from flask_appbuilder.models.sqla.filters import FilterEqualFunction, FilterInFu
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
+import pandas as pd
+from pathlib import Path
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
@@ -2271,6 +2276,12 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
+    download_static_folder = os.path.join(os.path.dirname(__file__), 'downloads/contents')
+
+    def __init__(self, *args, **kwargs):
+        ret = super(CurvesView, self).__init__(**kwargs)
+        os.makedirs(self.download_static_folder, exist_ok=True)
+
     def do_render(self, track_no=None, bolt_no=None, controller=None, craft_type=None):
         view_name = 'curves'
         curves = request.args.get('curves')
@@ -2380,6 +2391,77 @@ class CurvesView(BaseCRUDView):
         if not ret:
             raise AirflowNotFoundException
         return ret
+
+    def clean_download_static_files(self):
+        fds = ['*.json', '*.csv']
+        for fd in fds:
+            for f in Path(self.download_static_folder).glob(fd):
+                try:
+                    f.unlink()
+                except OSError as e:
+                    _logger.error(f"Error: {f} : {e}")
+
+    def do_download_contents(self, entities: List[str]) -> List[str]:
+        files = []
+        base_path = self.download_static_folder
+        for entity_id in entities:
+            try:
+                result = get_result(entity_id)
+                f = f'{entity_id}.json'.replace('/', '@')
+                f = os.path.join(base_path, f)
+                with open(f, 'w') as ff:
+                    ff.write(json.dumps(result, indent=4))
+                files.append(f)
+            except Exception as e:
+                _logger.error(e)
+            try:
+                curve = get_curve(entity_id)
+                f = f'{entity_id}.csv'.replace('/', '@')
+                f = os.path.join(base_path, f)
+                dd = pd.DataFrame.from_dict(curve)
+                dd.to_csv(f, index=False, header=True)
+                files.append(f)
+            except Exception as e:
+                _logger.error(e)
+        return files
+
+    def generate_download_zip_file(self, files: List[str]):
+        try:
+            fn = f'{self.download_static_folder}/curves.zip'
+            with zipfile.ZipFile(fn, 'w') as f:
+                for file in files:
+                    if not os.path.exists(file):
+                        continue
+                    f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+            return True
+        except Exception as e:
+            _logger.error(e)
+            return False
+
+    @expose('/download/<string:entity_ids>')
+    @has_access
+    def download_curves(self, entity_ids: str):
+        if not entity_ids or entity_ids == 'None':
+            return Response(status=http.HTTPStatus.OK)
+
+        fn = f'{self.download_static_folder}/curves.zip'
+        chk_file = Path(fn)
+
+        if chk_file.is_file():
+            chk_file.unlink()
+        entity_ids = entity_ids.replace('@', '/')
+        entities = entity_ids.split(',')
+        ll = len(entities)
+        if ll > 500:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'请求的曲线数量过大,最大只能500条，当前为{ll}')
+        files = self.do_download_contents(entities)
+        if not files:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'未生成数据')
+        ret = self.generate_download_zip_file(files)
+        if not ret:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'未生成压缩包数据')
+        return send_file(fn, mimetype='application/zip', attachment_filename='curves.zip',
+                         as_attachment=True)
 
     @expose('/<string:bolt_no>/<string:craft_type>')
     @has_access

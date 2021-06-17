@@ -94,6 +94,7 @@
       <div style="display: flex;flex-direction: row;justify-content: space-between;align-items: center">
         <button id="btn-clear-curves" class="btn btn-danger btn-block m-1" style="width: 30%">清空对比</button>
         <button id="btn-view-curves" class="btn btn-primary btn-block m-1" style="width: 30%">查看</button>
+        <button id="btn-download-curves" class="btn btn-primary btn-block m-1" style="width: 30%">下载</button>
         <button id="btn-view-spc" class="btn btn-primary btn-block m-1">SPC</button>
       </div>
     </div>
@@ -302,6 +303,29 @@
     });
   }
 
+  function downloadCurves() {
+    if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
+      const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
+      selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
+      extraData = Object.assign(extraData, backendSelectedTasks);
+    }
+    if (!selectedEIds || selectedEIds.length === 0) {
+      alert('未选中需要下载的曲线');
+      return;
+    }
+    const entityIdsStrList = selectedEIds.join(',');
+    const entityIdsStr = entityIdsStrList.replaceAll('/', '@');
+    const downloadUrls = '/curves/download/' + entityIdsStr;
+    return downloadURI(downloadUrls);
+
+  }
+
+  function downloadURI(uri) {
+      let link = document.createElement("a");
+      link.href = uri;
+      link.click();
+  }
+
   function viewCurves() {
     if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
       const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
@@ -376,6 +400,7 @@
     curvesListInit();
     render();
     $('#btn-view-curves').on('click', viewCurves);
+    $('#btn-download-curves').on('click', downloadCurves);
     $('#btn-clear-curves').on('click', clearCurves);
     $('#btn-view-spc').on('click', viewSPC);
     curveChart.on('click', (params) => {
