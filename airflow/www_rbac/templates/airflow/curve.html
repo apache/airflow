@@ -114,6 +114,87 @@
   let $errorTagsSelector = null;
   let $errorTagInput = null;
 
+  function getXdata(xKey) {
+    const xData = curve[xKey];
+    return xData;
+ }
+
+  function getYdata(yKey) {
+    const yData = curve[yKey];
+    return yData;
+  }
+
+  function randomHexColor() { //随机生成十六进制颜色
+    return '#' + ('00000' + (Math.random() * 0x1000000 << 0).toString(16)).substr(-6);
+  }
+
+  function getAlldata() {
+    // if ((!curvesData) || Object.keys(curvesData).length === 0) {
+    //   return [];
+    // }
+    let allDatas = [];
+      const color = randomHexColor();
+      const color1 = randomHexColor();
+      const color2 = randomHexColor();
+      allDatas.push({
+        name: '扭矩',
+        type: 'line',
+        showSymbol: false,
+        // areaStyle: {},
+        // emphasis: {
+        //   focus: 'series'
+        // },
+        data: getYdata('cur_m'),
+        itemStyle: {
+          color: color
+        },
+        lineStyle: {
+          color: color,
+          width: 3
+        },
+      });
+      allDatas.push({
+        name: '角度',
+        type: 'line',
+        showSymbol: false,
+        // areaStyle: {},
+        // emphasis: {
+        //   focus: 'series'
+        // },
+        data: getYdata('cur_w'),
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        itemStyle: {
+          color: color1
+        },
+        lineStyle: {
+          color: color1,
+          width: 3
+        },
+      });
+      allDatas.push({
+        name: '转速',
+        type: 'line',
+        showSymbol: false,
+        // areaStyle: {}, // 堆叠面积
+        // emphasis: {
+        //   focus: 'series'
+        // },
+        data: getYdata('cur_s'),
+        xAxisIndex: 2,
+        yAxisIndex: 2,
+        itemStyle: {
+          color: color2
+        },
+        lineStyle: {
+          color: color2,
+          width: 3
+        },
+      });
+
+    return allDatas;
+  }
+
   function genData() {
     const {xKey, yKey} = chartParams;
     const data = [];
@@ -227,8 +308,128 @@
 
   function renderChart() {
     const {xName, yName} = chartParams;
-
-    const option = {
+    if (yName === '全部') {
+      const options = {
+    dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          xAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        {
+          type: 'slider',
+          yAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          yAxisIndex: [0,1,2],
+          filterMode: 'none'
+        },
+        // {
+        //   type: 'slider',
+        //   yAxisIndex: 1,
+        //   filterMode: 'none'
+        // },
+        // {
+        //   type: 'inside',
+        //   yAxisIndex: 1,
+        //   filterMode: 'none'
+        // },
+        // {
+        //   type: 'slider',
+        //   yAxisIndex: 2,
+        //   filterMode: 'none'
+        // },
+        // {
+        //   type: 'inside',
+        //   yAxisIndex: 2,
+        //   filterMode: 'none'
+        // }
+      ],
+    legend: {
+        data: ['扭矩','角度', '转速']
+    },
+    // title: [
+    //   {
+    //     top: '3%',
+    //     left: 'center',
+    //     text: 'Gradient along the y axis'
+    // }, {
+    //     top: '35%',
+    //     left: 'center',
+    //     text: 'Gradient along the x axis'
+    // }, {
+    //     top: '65%',
+    //     left: 'center',
+    //     text: 'Gradient along the x axis'
+    // }],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+    axisPointer: { // 同时出现提示竖线
+      link: {xAxisIndex: 'all'}
+    },
+    xAxis: [{
+      data: getXdata('cur_t'),
+      name: '时间'
+    }, {
+      data: getXdata('cur_t'),
+      name: '时间',
+      gridIndex: 1
+    }, {
+      data: getXdata('cur_t'),
+      name: '时间',
+      gridIndex: 2
+    }],
+    yAxis: [{
+      name: '扭矩',
+      axisLine: {
+        show: true,
+      },
+      axisLabel: {
+        formatter: '{value} N*m'
+      }
+    }, {
+      name: '角度',
+      gridIndex: 1,
+      axisLine: {
+        show: true,
+      },
+      axisLabel: {
+        formatter: '{value} °'
+      },
+    }, {
+      name: '转速',
+      axisLine: {
+        show: true,
+      },
+      gridIndex: 2
+    }],
+    grid: [{
+        top: '5%',
+        bottom: '70%',
+    }, {
+        top: '38%',
+        bottom: '40%',
+    },
+    {
+        top: '70%',
+        bottom: '5%'
+    }],
+      series:getAlldata()
+};
+      curveChart.setOption(options, true);
+    }else {
+      const option = {
       toolbox: {
         show: true,
         feature: {
@@ -320,7 +521,8 @@
         trigger: 'axis'
       }
     };
-    curveChart.setOption(option);
+      curveChart.setOption(option, true);
+    }
   }
 
   function isEmptyValue(val) {
