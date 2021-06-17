@@ -44,7 +44,7 @@ Package apache-airflow-providers-apache-druid
 `Apache Druid <https://druid.apache.org/>`__.
 
 
-Release: 1.1.0
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -86,42 +86,13 @@ Dependent package                                                               
 `apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_  ``apache.hive``
 ==============================================================================================================  ===============
 
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+Downloading official packages
+-----------------------------
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+* `The apache-airflow-providers-apache-druid 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-druid-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-druid-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-druid-2.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-druid 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-2.0.0-py3-none-any.whl.sha512>`__)
 
-
-Changelog
----------
-
-1.1.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)``
-
-1.0.1
-.....
-
-Updated documentation and readme files.
-
-
-1.0.0
-.....
-
-Initial version of the provider.
+.. include:: ../../airflow/providers/apache/druid/CHANGELOG.rst

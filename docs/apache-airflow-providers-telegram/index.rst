@@ -57,7 +57,7 @@ Package apache-airflow-providers-telegram
 `Telegram <https://telegram.org/>`__
 
 
-Release: 1.0.2
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -77,44 +77,7 @@ PIP requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``python-telegram-bot``  ``==13.0``
+``python-telegram-bot``  ``~=13.0``
 =======================  ==================
 
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
- ..   http://www.apache.org/licenses/LICENSE-2.0
-
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
-
-Changelog
----------
-
-1.0.2
-.....
-
-Bug fixes
-~~~~~~~~~
-
-* ``Fix the AttributeError with text field in TelegramOperator (#13990)``
-
-1.0.1
-.....
-
-Updated documentation and readme files.
-
-1.0.0
-.....
-
-Initial version of the provider.
+.. include:: ../../airflow/providers/telegram/CHANGELOG.rst

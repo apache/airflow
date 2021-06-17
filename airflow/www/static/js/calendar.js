@@ -128,16 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('height', fullHeight)
       .call(dayTip);
 
-    // Add the title
-    svg
-      .append('g')
-      .append('text')
-      .attr('x', fullWidth / 2)
-      .attr('y', 20)
-      .attr('text-anchor', 'middle')
-      .attr('class', 'title')
-      .text('DAG states');
-
     // Add the legend
     const legend = svg
       .append('g')

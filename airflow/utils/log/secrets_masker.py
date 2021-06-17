@@ -27,15 +27,21 @@ if TYPE_CHECKING:
 
     RedactableItem = TypeVar('RedactableItem')
 
+
+log = logging.getLogger(__name__)
+
+
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
-        'password',
-        'secret',
-        'passwd',
-        'authorization',
+        'access_token',
         'api_key',
         'apikey',
-        'access_token',
+        'authorization',
+        'passphrase',
+        'passwd',
+        'password',
+        'private_key',
+        'secret',
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
@@ -158,7 +164,7 @@ class SecretsMasker(logging.Filter):
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
             return tuple(self._redact_all(subval) for subval in item)
-        elif isinstance(item, Iterable):
+        elif isinstance(item, list):
             return list(self._redact_all(subval) for subval in item)
         else:
             return item
@@ -173,24 +179,35 @@ class SecretsMasker(logging.Filter):
         is redacted.
 
         """
-        if name and should_hide_value_for_key(name):
-            return self._redact_all(item)
+        try:
+            if name and should_hide_value_for_key(name):
+                return self._redact_all(item)
 
-        if isinstance(item, dict):
-            return {dict_key: self.redact(subval, dict_key) for dict_key, subval in item.items()}
-        elif isinstance(item, str):
-            if self.replacer:
-                # We can't replace specific values, but the key-based redacting
-                # can still happen, so we can't short-circuit, we need to walk
-                # the structure.
-                return self.replacer.sub('***', item)
-            return item
-        elif isinstance(item, (tuple, set)):
-            # Turn set in to tuple!
-            return tuple(self.redact(subval) for subval in item)
-        elif isinstance(item, Iterable):
-            return list(self.redact(subval) for subval in item)
-        else:
+            if isinstance(item, dict):
+                return {dict_key: self.redact(subval, dict_key) for dict_key, subval in item.items()}
+            elif isinstance(item, str):
+                if self.replacer:
+                    # We can't replace specific values, but the key-based redacting
+                    # can still happen, so we can't short-circuit, we need to walk
+                    # the structure.
+                    return self.replacer.sub('***', item)
+                return item
+            elif isinstance(item, (tuple, set)):
+                # Turn set in to tuple!
+                return tuple(self.redact(subval) for subval in item)
+            elif isinstance(item, list):
+                return list(self.redact(subval) for subval in item)
+            else:
+                return item
+        # I think this should never happen, but it does not hurt to leave it just in case
+        except Exception as e:  # pylint: disable=broad-except
+            log.warning(
+                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
+                "Error was: %s: %s",
+                item,
+                type(e).__name__,
+                str(e),
+            )
             return item
 
     # pylint: enable=too-many-return-statements

@@ -38,7 +38,7 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
 
     [elasticsearch]
     host = <host>:<port>
-    log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+    log_id_template = {dag_id}-{task_id}-{execution_date}-{try_number}
     end_of_log_mark = end_of_log
     write_stdout =
     json_fields =
@@ -56,7 +56,7 @@ To output task logs to stdout in JSON format, the following config could be used
 
     [elasticsearch]
     host = <host>:<port>
-    log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+    log_id_template = {dag_id}-{task_id}-{execution_date}-{try_number}
     end_of_log_mark = end_of_log
     write_stdout = True
     json_format = True
@@ -98,5 +98,5 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
     [elasticsearch]
     # Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
     # Code will construct log_id using the log_id template from the argument above.
-    # NOTE: The code will prefix the https:// automatically, don't include that here.
+    # NOTE: scheme will default to https if one is not provided
     frontend = <host_port>/{log_id}

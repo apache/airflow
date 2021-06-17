@@ -50,7 +50,7 @@ function run_prepare_documentation() {
             --no-git-update \
             "${OPTIONAL_VERBOSE_FLAG[@]}" \
             "${OPTIONAL_RELEASE_VERSION_ARGUMENT[@]}" \
-            "${OPTIONAL_NO_INTERACTIVE_FLAG[@]}" \
+            "${OPTIONAL_NON_INTERACTIVE_FLAG[@]}" \
             "${provider_package}"
         res=$?
         if [[ ${res} == "64" ]]; then
@@ -71,6 +71,21 @@ function run_prepare_documentation() {
             echo "${COLOR_RED}Error when generating provider package '${provider_package}'${COLOR_RESET}"
             error_documentation+=("${provider_package}")
             continue
+        fi
+        # There is a separate group created in logs for each provider package
+        python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
+            update-changelog \
+            "${OPTIONAL_VERBOSE_FLAG[@]}" \
+            "${provider_package}"
+        res=$?
+        if [[ ${res} == "64" ]]; then
+            skipped_documentation+=("${provider_package}")
+            continue
+            echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
+        fi
+        if [[ ${res} == "65" ]]; then
+            echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
+            exit 1
         fi
         prepared_documentation+=("${provider_package}")
         set -e
@@ -101,6 +116,10 @@ function run_prepare_documentation() {
         echo
         echo "${COLOR_RED}There were errors when preparing documentation. Exiting! ${COLOR_RESET}"
         exit 1
+    else
+        echo
+        echo "${COLOR_YELLOW}Please review the updated files, classify the changelog entries and commit the changes!${COLOR_RESET}"
+        echo
     fi
 }
 
@@ -121,10 +140,9 @@ if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; th
     shift
 fi
 
-OPTIONAL_NO_INTERACTIVE_FLAG=()
-if [[ ${NO_INTERACTIVE=} == "true" ]]; then
-    OPTIONAL_NO_INTERACTIVE_FLAG+=("--non-interactive")
-    shift
+OPTIONAL_NON_INTERACTIVE_FLAG=()
+if [[ ${NON_INTERACTIVE=} == "true" ]]; then
+    OPTIONAL_NON_INTERACTIVE_FLAG+=("--non-interactive")
 fi
 
 

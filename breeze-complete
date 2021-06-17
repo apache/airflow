@@ -86,6 +86,7 @@ bats-tests
 bats-in-container-tests
 black
 blacken-docs
+boring-cyborg
 build
 build-providers-dependencies
 check-apache-license
@@ -126,6 +127,7 @@ pre-commit-descriptions
 pre-commit-hook-names
 pretty-format-json
 provide-create-sessions
+providers-changelogs
 providers-init-file
 provider-yamls
 pydevd
@@ -148,6 +150,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+verify-db-migrations-documented
 version-sync
 www-lint
 yamllint
@@ -186,7 +189,7 @@ additional-extras: additional-python-deps: disable-pypi-when-building skip-insta
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure
+use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive
 use-airflow-version:
 cleanup-docker-context-files
 test-type: preserve-volumes dry-run-docker

@@ -559,6 +559,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if wait_for_downstream:
             self.depends_on_past = True
 
+        if retries is not None and not isinstance(retries, int):
+            try:
+                parsed_retries = int(retries)
+            except (TypeError, ValueError):
+                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+            self.log.warning("Implicitly converting 'retries' for %s from %r to int", self, retries)
+            retries = parsed_retries
+
         self.retries = retries
         self.queue = queue
         self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool

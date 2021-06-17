@@ -32,7 +32,7 @@ Release: ``{{ RELEASE }}{{ VERSION_SUFFIX }}``
 {{  PROVIDER_DESCRIPTION | safe }}
 
 Provider package
-================
+----------------
 
 This is a provider package for ``{{PROVIDER_PACKAGE_ID}}`` provider. All classes for this provider package
 are in ``{{FULL_PACKAGE_NAME}}`` python package.
@@ -42,7 +42,7 @@ in the `documentation <https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{
 
 
 Installation
-============
+------------
 
 You can install this package on top of an existing airflow 2.* installation via
 ``pip install {{PACKAGE_PIP_NAME}}``
@@ -50,7 +50,7 @@ You can install this package on top of an existing airflow 2.* installation via
 {%- if PIP_REQUIREMENTS %}
 
 PIP requirements
-================
+----------------
 
 {{  PIP_REQUIREMENTS_TABLE_RST | safe }}
 
@@ -58,7 +58,7 @@ PIP requirements
 {%- if CROSS_PROVIDERS_DEPENDENCIES %}
 
 Cross provider package dependencies
-===================================
+-----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider packages in order to use them.
@@ -73,3 +73,5 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 {{ CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST | safe }}
 
 {%- endif %}
+
+{{ CHANGELOG | safe }}

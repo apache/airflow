@@ -316,8 +316,8 @@ class BaseSerialization:
         """
         Return true if ``value`` is the hard-coded default for the given attribute.
 
-        This takes in to account cases where the ``concurrency`` parameter is
-        stored in the ``_concurrency`` attribute.
+        This takes in to account cases where the ``max_active_tasks`` parameter is
+        stored in the ``_max_active_tasks`` attribute.
 
         And by using `is` here only and not `==` this copes with the case a
         user explicitly specifies an attribute with the same "value" as the
@@ -660,7 +660,7 @@ class SerializedDAG(DAG, BaseSerialization):
     @staticmethod
     def __get_constructor_defaults():  # pylint: disable=no-method-argument
         param_to_attr = {
-            'concurrency': '_concurrency',
+            'max_active_tasks': '_max_active_tasks',
             'description': '_description',
             'default_view': '_default_view',
             'access_control': '_access_control',

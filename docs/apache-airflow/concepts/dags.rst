@@ -412,10 +412,10 @@ DAG Visualization
 
 If you want to see a visual representation of a DAG, you have two options:
 
-* You can load up the Airflow UI, navigate to your DAG, and select "Graph View"
+* You can load up the Airflow UI, navigate to your DAG, and select "Graph"
 * You can run ``airflow dags show``, which renders it out as an image file
 
-We generally recommend you use the Graph View, as it will also show you the state of all the :ref:`Task Instances <concepts:task-instances>` within any DAG Run you select.
+We generally recommend you use the Graph view, as it will also show you the state of all the :ref:`Task Instances <concepts:task-instances>` within any DAG Run you select.
 
 Of course, as you develop out your DAGs they are going to get increasingly complex, so we provide a few ways to modify these DAG views to make them easier to understand.
 
@@ -425,7 +425,7 @@ Of course, as you develop out your DAGs they are going to get increasingly compl
 TaskGroups
 ~~~~~~~~~~
 
-A TaskGroup can be used to organize tasks into hierarchical groups in Graph View. It is useful for creating repeating patterns and cutting down visual clutter.
+A TaskGroup can be used to organize tasks into hierarchical groups in Graph view. It is useful for creating repeating patterns and cutting down visual clutter.
 
 Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
 
@@ -455,7 +455,7 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 Edge Labels
 ~~~~~~~~~~~
 
-As well as grouping tasks into groups, you can also label the *dependency edges* between different tasks in the Graph View - this can be especially useful for branching areas of your DAG, so you can label the conditions under which certain branches might run.
+As well as grouping tasks into groups, you can also label the *dependency edges* between different tasks in the Graph view - this can be especially useful for branching areas of your DAG, so you can label the conditions under which certain branches might run.
 
 To add labels, you can use them directly inline with the ``>>`` and ``<<`` operators:
 
@@ -485,7 +485,7 @@ Here's an example DAG which illustrates labeling different branches:
 DAG & Task Documentation
 ------------------------
 
-It's possible to add documentation or notes to your DAGs & task objects that are visible in the web interface ("Graph View" & "Tree View" for DAGs, "Task Instance Details" for tasks).
+It's possible to add documentation or notes to your DAGs & task objects that are visible in the web interface ("Graph" & "Tree" for DAGs, "Task Instance Details" for tasks).
 
 There are a set of special task attributes that get rendered as rich content if defined:
 

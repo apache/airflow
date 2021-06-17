@@ -349,7 +349,7 @@ class TestBackfillJob(unittest.TestCase):
     def test_backfill_respect_dag_concurrency_limit(self, mock_log):
 
         dag = self._get_dummy_dag('test_backfill_respect_concurrency_limit')
-        dag.concurrency = 2
+        dag.max_active_tasks = 2
 
         executor = MockExecutor()
 
@@ -369,9 +369,9 @@ class TestBackfillJob(unittest.TestCase):
         num_running_task_instances = 0
 
         for running_task_instances in executor.history:
-            assert len(running_task_instances) <= dag.concurrency
+            assert len(running_task_instances) <= dag.max_active_tasks
             num_running_task_instances += len(running_task_instances)
-            if len(running_task_instances) == dag.concurrency:
+            if len(running_task_instances) == dag.max_active_tasks:
                 concurrency_limit_reached_at_least_once = True
 
         assert 8 == num_running_task_instances
