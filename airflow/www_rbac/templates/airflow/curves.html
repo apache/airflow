@@ -315,7 +315,10 @@
       selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
       extraData = Object.assign(extraData, backendSelectedTasks);
     }
-
+    if (!selectedEIds || selectedEIds.length === 0) {
+      alert('未选中需要下载的曲线');
+      return;
+    }
     const entityIdsStrList = selectedEIds.join(',');
     const entityIdsStr = entityIdsStrList.replaceAll('/', '@');
     const downloadUrls = '/curves/download/' + entityIdsStr;
