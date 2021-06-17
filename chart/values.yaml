@@ -741,6 +741,11 @@ flower:
     annotations: {}
     loadBalancerIP: ~
 
+  # Launch additional containers into the flower pods.
+  extraContainers: []
+  # Mount additional volumes into the flower pods.
+  extraVolumes: []
+
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
   affinity: {}

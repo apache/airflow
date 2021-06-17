@@ -1899,6 +1899,16 @@
                         }
                     }
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers into the flower pods.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into the flower pods.",
+                    "type": "array",
+                    "default": []
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for Flower pods.",
                     "type": "object",
