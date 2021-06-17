@@ -100,6 +100,14 @@ function run_airflow_testing_in_docker() {
             # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
             chmod a+rwx "${MSSQL_DATA_VOLUME}"
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml")
+
+            # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
+            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rf -- /mssql/*' 2>/dev/null" EXIT
+            traps::add_trap "rm -rf -- '${MSSQL_DATA_VOLUME}'" EXIT
+
+            # Clean up at start too, in case a previous runer left it messy
+            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rf -- /mssql/*' 2>/dev/null || true
+            rm -rf -- "${MSSQL_DATA_VOLUME}" || true
         else
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml")
         fi
