@@ -501,10 +501,23 @@ class Airflow(AirflowBaseView):
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'],
                                        '查看曲线模板页面')
         logging.info(msg)
-
+        device_type = 'tightneing'  # fixme: 临时使用固定的device_type, 后续在控制器配置中添加
+        if device_type == 'servo_press':
+            cur_key_map = {
+                'cur_w': '距离',
+                'cur_m': '压力',
+                'cur_t': '时间',
+            }
+        else:
+            cur_key_map = {
+                'cur_w': '角度',
+                'cur_m': '扭矩',
+                'cur_t': '时间',
+                'cur_s': '转速'
+            }
         return self.render_template('airflow/curve_template.html', can_delete=can_delete,
                                     curve_template=curve_template, bolt_no=bolt_no,
-                                    craft_type=craft_type)
+                                    craft_type=craft_type, device_type=device_type, cur_key_map=cur_key_map)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
     @has_access
@@ -2336,7 +2349,6 @@ class CurvesView(BaseCRUDView):
         tasks = list(get_task_instances_by_entity_ids(curves_list))
 
         for ti in tasks:
-
             selected_tasks[ti.entity_id] = {
                 'carCode': ti.car_code,
                 'value': ti.entity_id,
