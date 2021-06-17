@@ -165,7 +165,6 @@ jobs:
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
-        # Also 2.7 and 3.5 versions are not allowed to proceed on main
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -175,13 +174,6 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          if [[ ${DEFAULT_BRANCH} != "v1-10-test" && \
-            ( ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ) \
-          ]]; then
-              echo "::set-output name=proceed::false"
-          else
-              echo "::set-output name=proceed::true"
-          fi
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -191,12 +183,10 @@ jobs:
           ref: "${{ needs.build-info.outputs.targetBranch }}"
           persist-credentials: false
           submodules: recursive
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-        if: steps.defaults.outputs.proceed == 'true'
       - name: >
           Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
           so that the PR does not override it
@@ -206,16 +196,12 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
-        if: steps.defaults.outputs.proceed == 'true'
 
   build-prod-images:
     timeout-minutes: 80
@@ -252,7 +238,6 @@ jobs:
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
-        # Also 2.7 and 3.5 versions are not allowed to proceed on main
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -263,12 +248,6 @@ jobs:
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
           if [[ ${DEFAULT_BRANCH} != "v1-10-test" && \
-            ( ${PYTHON_MAJOR_MINOR_VERSION} == "2.7" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.5" ) \
-          ]]; then
-              echo "::set-output name=proceed::false"
-          else
-              echo "::set-output name=proceed::true"
-          fi
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -278,12 +257,10 @@ jobs:
           ref: "${{ needs.build-info.outputs.targetBranch }}"
           persist-credentials: false
           submodules: recursive
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-        if: steps.defaults.outputs.proceed == 'true'
       - name: >
           Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
           so that the PR does not override it
@@ -293,22 +270,17 @@ jobs:
         run: |
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Free space"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         # Pull images built in the previous step
-        if: steps.defaults.outputs.proceed == 'true'
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
       - name: "Build PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-        if: steps.defaults.outputs.proceed == 'true'
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
-        if: steps.defaults.outputs.proceed == 'true'
 
   cancel-on-ci-build:
     name: "Cancel 'CI Build' jobs on workflow failed/cancelled"
