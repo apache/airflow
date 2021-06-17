@@ -379,17 +379,25 @@ def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_
     assert 'http://localhost/home' == response.headers['Location']
 
 
-class ExternalHandler(ExternalLoggingMixin):
+class _ExternalHandler(ExternalLoggingMixin):
     EXTERNAL_URL = 'http://external-service.com'
 
-    def get_external_log_url(self, *args, **kwargs):
+    @property
+    def log_name(self) -> str:
+        return 'ExternalLog'
+
+    def get_external_log_url(self, *args, **kwargs) -> str:
         return self.EXTERNAL_URL
+
+    @property
+    def supports_external_link(self) -> bool:
+        return True
 
 
 @unittest.mock.patch(
     'airflow.utils.log.log_reader.TaskLogReader.log_handler',
     new_callable=unittest.mock.PropertyMock,
-    return_value=ExternalHandler(),
+    return_value=_ExternalHandler(),
 )
 def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client):
     url_template = "redirect_to_external_log?dag_id={}&task_id={}&execution_date={}&try_number={}"
@@ -402,4 +410,4 @@ def test_redirect_to_external_log_with_external_log_handler(_, log_admin_client)
     )
     response = log_admin_client.get(url)
     assert 302 == response.status_code
-    assert ExternalHandler.EXTERNAL_URL == response.headers['Location']
+    assert _ExternalHandler.EXTERNAL_URL == response.headers['Location']

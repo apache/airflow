@@ -29,6 +29,6 @@ docker build . \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless" \
-    --tag "$(basename "$0")"
+    --tag "my-pypi-dev-runtime:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-pypi-dev-runtime:0.0.1"

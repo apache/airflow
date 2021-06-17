@@ -17,10 +17,13 @@
 # under the License.
 #
 import subprocess
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SparkSqlHook(BaseHook):
@@ -45,6 +48,7 @@ class SparkSqlHook(BaseHook):
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
     :param master: spark://host:port, mesos://host:port, yarn, or local
+        (Default: The ``host`` and ``port`` set in the Connection, or ``"yarn"``)
     :type master: str
     :param name: Name of the job.
     :type name: str
@@ -52,7 +56,8 @@ class SparkSqlHook(BaseHook):
     :type num_executors: int
     :param verbose: Whether to pass the verbose flag to spark-sql
     :type verbose: bool
-    :param yarn_queue: The YARN queue to submit to (Default: "default")
+    :param yarn_queue: The YARN queue to submit to
+        (Default: The ``queue`` value set in the Connection, or ``"default"``)
     :type yarn_queue: str
     """
 
@@ -72,16 +77,35 @@ class SparkSqlHook(BaseHook):
         executor_memory: Optional[str] = None,
         keytab: Optional[str] = None,
         principal: Optional[str] = None,
-        master: str = 'yarn',
+        master: Optional[str] = None,
         name: str = 'default-name',
         num_executors: Optional[int] = None,
         verbose: bool = True,
-        yarn_queue: str = 'default',
+        yarn_queue: Optional[str] = None,
     ) -> None:
         super().__init__()
+
+        try:
+            conn: "Optional[Connection]" = self.get_connection(conn_id)
+        except AirflowNotFoundException:
+            conn = None
+            options = {}
+        else:
+            options = conn.extra_dejson
+
+        # Set arguments to values set in Connection if not explicitly provided.
+        if master is None:
+            if conn is None:
+                master = "yarn"
+            elif conn.port:
+                master = f"{conn.host}:{conn.port}"
+            else:
+                master = conn.host
+        if yarn_queue is None:
+            yarn_queue = options.get("queue", "default")
+
         self._sql = sql
         self._conf = conf
-        self._conn = self.get_connection(conn_id)
         self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory

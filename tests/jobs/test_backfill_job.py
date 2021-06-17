@@ -349,7 +349,7 @@ class TestBackfillJob(unittest.TestCase):
     def test_backfill_respect_dag_concurrency_limit(self, mock_log):
 
         dag = self._get_dummy_dag('test_backfill_respect_concurrency_limit')
-        dag.concurrency = 2
+        dag.max_active_tasks = 2
 
         executor = MockExecutor()
 
@@ -369,9 +369,9 @@ class TestBackfillJob(unittest.TestCase):
         num_running_task_instances = 0
 
         for running_task_instances in executor.history:
-            assert len(running_task_instances) <= dag.concurrency
+            assert len(running_task_instances) <= dag.max_active_tasks
             num_running_task_instances += len(running_task_instances)
-            if len(running_task_instances) == dag.concurrency:
+            if len(running_task_instances) == dag.max_active_tasks:
                 concurrency_limit_reached_at_least_once = True
 
         assert 8 == num_running_task_instances
@@ -1055,7 +1055,9 @@ class TestBackfillJob(unittest.TestCase):
         )
 
         executor = MockExecutor()
-        sub_dag = dag.sub_dag(task_ids_or_regex="leave*", include_downstream=False, include_upstream=False)
+        sub_dag = dag.partial_subset(
+            task_ids_or_regex="leave*", include_downstream=False, include_upstream=False
+        )
         job = BackfillJob(dag=sub_dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, executor=executor)
         job.run()
 
@@ -1204,7 +1206,7 @@ class TestBackfillJob(unittest.TestCase):
         ti_downstream.refresh_from_db()
         assert ti_downstream.state == State.SUCCESS
 
-        sdag = subdag.sub_dag(
+        sdag = subdag.partial_subset(
             task_ids_or_regex='daily_job_subdag_task', include_downstream=True, include_upstream=False
         )
 

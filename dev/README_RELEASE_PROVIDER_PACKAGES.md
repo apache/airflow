@@ -25,7 +25,7 @@
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Generate release notes](#generate-release-notes)
-  - [Build regular provider packages for SVN apache upload](#build-regular-provider-packages-for-svn-apache-upload)
+  - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
@@ -88,7 +88,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 ./breeze prepare-provider-documentation [packages]
 ```
 
-This command will not only prepare documentation but will also allow the release manager to review
+This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
 links to particular commits. This should help to determine which version of provider should be released:
@@ -97,14 +97,20 @@ links to particular commits. This should help to determine which version of prov
 * increased minor version if new features are added
 * increased major version if breaking changes are added
 
-It also allows the release manager to update CHANGELOG.rst where high-level overview of the changes should be
-documented for the providers released.
+It also helps the release manager to update CHANGELOG.rst where high-level overview of the changes should be documented for the providers released.
 
-You can iterate and re-generate the same readme content as many times as you want.
+You should iterate and re-generate the same content after any change as many times as you want.
 The generated files should be added and committed to the repository.
 
+When you want to regenerate the changes before the release and make sure all changelogs
+are updated, run it in non-interactive mode:
 
-## Build regular provider packages for SVN apache upload
+```shell script
+./breeze --non-interactive prepare-provider-documentation [packages]
+```
+
+
+## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
 should keep the final version number without the rc suffix, even if they are rc1/rc2/... candidates.
@@ -357,6 +363,8 @@ which will last for 72 hours - which means that it will end on $(date -d '+3 day
 
 Consider this my (binding) +1.
 
+<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
+
 Airflow Providers are available at:
 https://dist.apache.org/repos/dist/dev/airflow/providers/
 
@@ -367,11 +375,11 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/
  Python "wheel" release.
 
 The test procedure for PMC members who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
 
 and for Contributors:
 
-https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
 
 
 Public keys are available at:
@@ -391,15 +399,7 @@ Please note that the version number excludes the 'rcX' string.
 This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-
-Each of the packages contains a link to the detailed changelog. The changelogs are moved to the official airflow documentation:
-https://github.com/apache/airflow-site/<TODO COPY LINK TO BRANCH>
-
-<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
-
-
-Note the links to documentation from PyPI packages are not working until we merge
-the changes to airflow site after releasing the packages officially.
+You can find packages as well as detailed changelog following the below links:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
@@ -601,14 +601,14 @@ USER ${AIRFLOW_UID}
 To build an image build and run a shell, run:
 
 ```shell script
-docker build . -t my-airflow
+docker build . --tag my-image:0.0.1
 docker run  -ti \
     --rm \
     -v "$PWD/data:/opt/airflow/" \
     -v "$PWD/keys/:/keys/" \
     -p 8080:8080 \
     -e AIRFLOW__CORE__LOAD_EXAMPLES=True \
-    my-airflow bash
+    my-image:0.0.1 bash
 ```
 
 ### Additional Verification

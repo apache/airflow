@@ -165,13 +165,16 @@
       type: string
       example: ~
       default: "32"
-    - name: dag_concurrency
+    - name: max_active_tasks_per_dag
       description: |
         The maximum number of task instances allowed to run concurrently in each DAG. To calculate
         the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``concurrency``,
-        which is defaulted as ``dag_concurrency``.
-      version_added: ~
+        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        which is defaulted as ``max_active_tasks_per_dag``.
+
+        An example scenario when this would be useful is when you want to stop a new dag with an early
+        start date from stealing all the executor slots in a cluster.
+      version_added: 2.2.0
       type: string
       example: ~
       default: "16"
@@ -366,7 +369,7 @@
       version_added: 1.10.10
       type: string
       example: "True"
-      default: ~
+      default: "True"
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -746,7 +749,7 @@
           deprecated since version 2.0. Please consider using
           `the Stable REST API <https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html>`__.
           For more information on migration, see
-          `UPDATING.md <https://github.com/apache/airflow/blob/master/UPDATING.md>`_
+          `UPDATING.md <https://github.com/apache/airflow/blob/main/UPDATING.md>`_
       version_added: 2.0.0
       type: boolean
       example: ~
@@ -1975,10 +1978,11 @@
       description: |
         Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
         Code will construct log_id using the log_id template from the argument above.
-        NOTE: The code will prefix the https:// automatically, don't include that here.
+        NOTE: scheme will default to https if one is not provided
       version_added: 1.10.4
       type: string
-      example: ~
+      example: "http://localhost:5601/app/kibana#/discover\
+        ?_a=(columns:!(message),query:(language:kuery,query:'log_id: \"{log_id}\"'),sort:!(log.offset,asc))"
       default: ""
     - name: write_stdout
       description: |
@@ -2001,6 +2005,20 @@
       type: string
       example: ~
       default: "asctime, filename, lineno, levelname, message"
+    - name: host_field
+      description: |
+        The field where host name is stored (normally either `host` or `host.name`)
+      version_added: 2.1.1
+      type: string
+      example: ~
+      default: "host"
+    - name: offset_field
+      description: |
+        The field where offset is stored (normally either `offset` or `log.offset`)
+      version_added: 2.1.1
+      type: string
+      example: ~
+      default: "offset"
 - name: elasticsearch_configs
   description: ~
   options:

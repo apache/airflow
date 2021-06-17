@@ -37,6 +37,7 @@ from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.sql import expression
 
 from airflow import models, settings
 from airflow.configuration import conf
@@ -670,6 +671,14 @@ class DagFileProcessor(LoggingMixin):
         return len(dagbag.dags), len(dagbag.import_errors)
 
 
+def _is_parent_process():
+    """
+    Returns True if the current process is the parent process. False if the current process is a child
+    process started by multiprocessing.
+    """
+    return multiprocessing.current_process().name == 'MainProcess'
+
+
 class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
@@ -745,12 +754,20 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
+        if not _is_parent_process():
+            # Only the parent process should perform the cleanup.
+            return
+
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
     def _debug_dump(self, signum, frame):  # pylint: disable=unused-argument
+        if not _is_parent_process():
+            # Only the parent process should perform the debug dump.
+            return
+
         try:
             sig_name = signal.Signals(signum).name  # pylint: disable=no-member
         except Exception:  # pylint: disable=broad-except
@@ -889,7 +906,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
-        dag concurrency, executor state, and priority.
+        dag max_active_tasks, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
         :type max_tis: int
@@ -922,6 +939,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
             .options(selectinload('dag_model'))
+            .order_by(-TI.priority_weight, TI.execution_date)
         )
         starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
         if starved_pools:
@@ -951,9 +969,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        dag_concurrency_map: DefaultDict[str, int]
+        dag_max_active_tasks_map: DefaultDict[str, int]
         task_concurrency_map: DefaultDict[Tuple[str, str], int]
-        dag_concurrency_map, task_concurrency_map = self.__get_concurrency_maps(
+        dag_max_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
             states=list(EXECUTION_STATES), session=session
         )
 
@@ -995,25 +1013,25 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                     num_starving_tasks_total += num_unhandled
                     break
 
-                # Check to make sure that the task concurrency of the DAG hasn't been
+                # Check to make sure that the task max_active_tasks of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
 
-                current_dag_concurrency = dag_concurrency_map[dag_id]
-                dag_concurrency_limit = task_instance.dag_model.concurrency
+                current_max_active_tasks_per_dag = dag_max_active_tasks_map[dag_id]
+                max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
                     dag_id,
-                    current_dag_concurrency,
-                    dag_concurrency_limit,
+                    current_max_active_tasks_per_dag,
+                    max_active_tasks_per_dag_limit,
                 )
-                if current_dag_concurrency >= dag_concurrency_limit:
+                if current_max_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's task concurrency limit of %s",
+                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
                         task_instance,
                         dag_id,
-                        dag_concurrency_limit,
+                        max_active_tasks_per_dag_limit,
                     )
                     continue
 
@@ -1056,7 +1074,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                dag_concurrency_map[dag_id] += 1
+                dag_max_active_tasks_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
             Stats.gauge(f'pool.starving_tasks.{pool_name}', num_starving_tasks)
@@ -1067,15 +1085,15 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
         self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
-
-        # set TIs to queued state
-        filter_for_tis = TI.filter_for_tis(executable_tis)
-        session.query(TI).filter(filter_for_tis).update(
-            # TODO[ha]: should we use func.now()? How does that work with DB timezone on mysql when it's not
-            # UTC?
-            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow(), TI.queued_by_job_id: self.id},
-            synchronize_session=False,
-        )
+        if len(executable_tis) > 0:
+            # set TIs to queued state
+            filter_for_tis = TI.filter_for_tis(executable_tis)
+            session.query(TI).filter(filter_for_tis).update(
+                # TODO[ha]: should we use func.now()? How does that work with DB timezone
+                # on mysql when it's not UTC?
+                {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow(), TI.queued_by_job_id: self.id},
+                synchronize_session=False,
+            )
 
         for ti in executable_tis:
             make_transient(ti)
@@ -1145,46 +1163,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         self._enqueue_task_instances_with_queued_state(queued_tis)
         return len(queued_tis)
-
-    @provide_session
-    def _change_state_for_tasks_failed_to_execute(self, session: Session = None):
-        """
-        If there are tasks left over in the executor,
-        we set them back to SCHEDULED to avoid creating hanging tasks.
-
-        :param session: session for ORM operations
-        """
-        if not self.executor.queued_tasks:
-            return
-
-        filter_for_ti_state_change = [
-            and_(
-                TI.dag_id == dag_id,
-                TI.task_id == task_id,
-                TI.execution_date == execution_date,
-                # The TI.try_number will return raw try_number+1 since the
-                # ti is not running. And we need to -1 to match the DB record.
-                TI._try_number == try_number - 1,  # pylint: disable=protected-access
-                TI.state == State.QUEUED,
-            )
-            for dag_id, task_id, execution_date, try_number in self.executor.queued_tasks.keys()
-        ]
-        ti_query = session.query(TI).filter(or_(*filter_for_ti_state_change))
-        tis_to_set_to_scheduled: List[TI] = with_row_locks(ti_query, session=session).all()
-        if not tis_to_set_to_scheduled:
-            return
-
-        # set TIs to queued state
-        filter_for_tis = TI.filter_for_tis(tis_to_set_to_scheduled)
-        session.query(TI).filter(filter_for_tis).update(
-            {TI.state: State.SCHEDULED, TI.queued_dttm: None}, synchronize_session=False
-        )
-
-        for task_instance in tis_to_set_to_scheduled:
-            self.executor.queued_tasks.pop(task_instance.key)
-
-        task_instance_str = "\n\t".join(repr(x) for x in tis_to_set_to_scheduled)
-        self.log.info("Set the following tasks to scheduled state:\n\t%s", task_instance_str)
 
     @provide_session
     def _process_executor_events(self, session: Session = None) -> int:
@@ -1580,14 +1558,24 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-        active_dagruns = (
-            session.query(DagRun.dag_id, DagRun.execution_date)
-            .filter(
-                tuple_(DagRun.dag_id, DagRun.execution_date).in_(
-                    [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
+
+        if session.bind.dialect.name == 'mssql':
+            active_dagruns_filter = or_(
+                *(
+                    and_(
+                        DagRun.dag_id == dm.dag_id,
+                        DagRun.execution_date == dm.next_dagrun,
+                    )
+                    for dm in dag_models
                 )
             )
-            .all()
+        else:
+            active_dagruns_filter = tuple_(DagRun.dag_id, DagRun.execution_date).in_(
+                [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
+            )
+
+        active_dagruns = (
+            session.query(DagRun.dag_id, DagRun.execution_date).filter(active_dagruns_filter).all()
         )
 
         for dag_model in dag_models:
@@ -1644,7 +1632,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(
                 DagRun.dag_id.in_([o.dag_id for o in dag_models]),
                 DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
-                DagRun.external_trigger.is_(False),
+                DagRun.external_trigger == expression.false(),
             )
             .group_by(DagRun.dag_id)
             .all()

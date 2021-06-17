@@ -20,6 +20,7 @@
 /* global document, window, $, */
 
 import getMetaValue from './meta_value';
+import { formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -112,7 +113,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
   subdagId = sd;
   executionDate = d;
   $('#task_id').text(t);
-  $('#execution_date').text(d);
+  $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
   $('#taskInstanceModal').css('margin-top', '0');
   $('#extra_links').prev('hr').hide();

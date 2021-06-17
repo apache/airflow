@@ -47,7 +47,7 @@ RUN pip install "apache-airflow-upgrade-check=={}"
 
 
 DOCKER_CMD = """
-docker build -t local/airflow .
+docker build --tag local/airflow .
 docker local/airflow info
 """
 
@@ -80,7 +80,7 @@ def create_docker(txt: str):
     print("\n[bold]To check installation run:[/bold]")
     print(
         """\
-        docker build -f Dockerfile.pmc -t local/airflow .
+        docker build -f Dockerfile.pmc --tag local/airflow .
         docker run local/airflow info
         """
     )

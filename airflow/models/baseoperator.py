@@ -172,6 +172,12 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag_params:
                 kwargs['params'] = dag_params
 
+            if default_args:
+                kwargs['default_args'] = default_args
+
+            if hasattr(self, '_hook_apply_defaults'):
+                args, kwargs = self._hook_apply_defaults(*args, **kwargs)  # pylint: disable=protected-access
+
             result = func(self, *args, **kwargs)
 
             # Here we set upstream task defined by XComArgs passed to template fields of the operator
@@ -552,6 +558,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
+
+        if retries is not None and not isinstance(retries, int):
+            try:
+                parsed_retries = int(retries)
+            except (TypeError, ValueError):
+                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+            self.log.warning("Implicitly converting 'retries' for %s from %r to int", self, retries)
+            retries = parsed_retries
 
         self.retries = retries
         self.queue = queue

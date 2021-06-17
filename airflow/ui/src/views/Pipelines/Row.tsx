@@ -17,99 +17,90 @@
  * under the License.
  */
 
+// Components to customize cell elements in the PipelinesTable
+
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
-  Flex,
-  Link,
-  Tr,
-  Td,
-  Tag,
   Tooltip,
-  useColorModeValue,
   Switch,
   useDisclosure,
   IconButton,
+  Link,
+  Tag,
 } from '@chakra-ui/react';
 
 import TriggerRunModal from 'components/TriggerRunModal';
-import compareObjectProps from 'utils/memo';
-import type { Dag, DagTag } from 'interfaces';
 import { useSaveDag } from 'api';
 import { MdPlayArrow } from 'react-icons/md';
+import type { DagTag as DagTagType } from 'interfaces';
 
-interface Props {
-  dag: Dag;
+interface PauseProps {
+  dagId: string;
+  isPaused: boolean;
+  offset?: number;
 }
 
-const Row: React.FC<Props> = ({ dag }) => {
-  const { isOpen, onToggle, onClose } = useDisclosure();
-  const mutation = useSaveDag(dag.dagId);
-  const togglePaused = () => mutation.mutate({ isPaused: !dag.isPaused });
-
-  const oddColor = useColorModeValue('gray.50', 'gray.900');
-  const hoverColor = useColorModeValue('gray.100', 'gray.700');
+export const PauseToggle: React.FC<PauseProps> = ({ dagId, isPaused, offset = 0 }) => {
+  const mutation = useSaveDag(dagId, offset);
+  const togglePaused = () => mutation.mutate({ isPaused: !isPaused });
 
   return (
-    <Tr
-      _odd={{ backgroundColor: oddColor }}
-      _hover={{ backgroundColor: hoverColor }}
+    <Tooltip
+      label={isPaused ? 'Activate DAG' : 'Pause DAG'}
+      aria-label={isPaused ? 'Activate DAG' : 'Pause DAG'}
+      hasArrow
     >
-      <Td onClick={(e) => e.stopPropagation()} paddingRight="0" width="58px">
-        <Tooltip
-          label={dag.isPaused ? 'Activate DAG' : 'Pause DAG'}
-          aria-label={dag.isPaused ? 'Activate DAG' : 'Pause DAG'}
-          hasArrow
-        >
-          {/* span helps tooltip find its position */}
-          <span>
-            <Switch
-              role="switch"
-              isChecked={!dag.isPaused}
-              onChange={togglePaused}
-            />
-          </span>
-        </Tooltip>
-      </Td>
-      <Td>
-        <Flex alignItems="center">
-          <Link
-            as={RouterLink}
-            to={`/pipelines/${dag.dagId}`}
-            fontWeight="bold"
-          >
-            {dag.dagId}
-          </Link>
-          {dag.tags.map((tag: DagTag) => (
-            <Tag
-              size="sm"
-              mt="1"
-              ml="1"
-              mb="1"
-              key={tag.name}
-            >
-              {tag.name}
-            </Tag>
-          ))}
-        </Flex>
-      </Td>
-      <Td textAlign="right">
-        <Tooltip
-          label="Trigger DAG"
-          aria-label="Trigger DAG"
-          hasArrow
-        >
-          <IconButton
-            size="sm"
-            aria-label="Trigger Dag"
-            icon={<MdPlayArrow />}
-            onClick={onToggle}
-          />
-        </Tooltip>
-        <TriggerRunModal dagId={dag.dagId} isOpen={isOpen} onClose={onClose} />
-      </Td>
-    </Tr>
+      {/* span helps tooltip find its position */}
+      <span>
+        <Switch
+          role="switch"
+          isChecked={!isPaused}
+          onChange={togglePaused}
+        />
+      </span>
+    </Tooltip>
   );
 };
 
-export default React.memo(Row, compareObjectProps);
+export const TriggerDagButton: React.FC<{ dagId: string }> = ({ dagId }) => {
+  const { isOpen, onToggle, onClose } = useDisclosure();
+  return (
+    <>
+      <Tooltip
+        label="Trigger DAG"
+        aria-label="Trigger DAG"
+        hasArrow
+      >
+        <IconButton
+          size="sm"
+          aria-label="Trigger Dag"
+          icon={<MdPlayArrow />}
+          onClick={onToggle}
+        />
+      </Tooltip>
+      <TriggerRunModal dagId={dagId} isOpen={isOpen} onClose={onClose} />
+    </>
+  );
+};
+
+export const DagName: React.FC<{ dagId: string }> = ({ dagId }) => (
+  <Link
+    as={RouterLink}
+    to={`/pipelines/${dagId}`}
+    fontWeight="bold"
+  >
+    {dagId}
+  </Link>
+);
+
+export const DagTag: React.FC<{ tag: DagTagType }> = ({ tag }) => (
+  <Tag
+    size="sm"
+    mt="1"
+    ml="1"
+    mb="1"
+  >
+    {tag.name}
+  </Tag>
+);

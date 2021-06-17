@@ -151,7 +151,7 @@ for different python versions:
    .. code-block:: bash
 
     pip install -e ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
@@ -164,7 +164,7 @@ You can also install Airflow in non-editable mode:
    .. code-block:: bash
 
     pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 This will copy the sources to directory where usually python packages are installed. You can see the list
 of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
@@ -173,7 +173,7 @@ sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable 
    .. code-block:: bash
 
     INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 Note: when you first initialize database (the next step), you may encounter some problems.
@@ -231,7 +231,7 @@ before running ``pip install`` command:
 .. code-block:: bash
 
   INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 This way no providers packages will be installed and they will always be imported from the "airflow/providers"
 folder.

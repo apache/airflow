@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import warnings
 from typing import Optional, Sequence, Union
 
@@ -133,8 +132,9 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         )
 
         if self.store_to_xcom_key:
-            file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object_name)
-            if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
+            file_size = hook.get_size(bucket_name=self.bucket, object_name=self.object_name)
+            if file_size < MAX_XCOM_SIZE:
+                file_bytes = hook.download(bucket_name=self.bucket, object_name=self.object_name)
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=str(file_bytes))
             else:
                 raise AirflowException('The size of the downloaded file is too large to push to XCom!')

@@ -48,7 +48,7 @@ data:
 
 {{- if .Values.airflowLocalSettings }}
   airflow_local_settings.py: |
-    {{ .Values.airflowLocalSettings | nindent 4 }}
+    {{ tpl .Values.airflowLocalSettings . | nindent 4 }}
 {{- end }}
 {{- if and .Values.dags.gitSync.enabled  .Values.dags.gitSync.knownHosts }}
   known_hosts: |

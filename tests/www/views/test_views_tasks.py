@@ -33,6 +33,7 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -175,6 +176,34 @@ def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
             "dag_details?dag_id=example_bash_operator",
             ["example_bash_operator"],
             id="existing-dagbag-dag-details",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=success'
+            f'&execution_date={DEFAULT_VAL}',
+            ['Wait a minute.'],
+            id="confirm-success",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&execution_date={DEFAULT_VAL}',
+            ['Wait a minute.'],
+            id="confirm-failed",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=invalid_dag&state=failed&execution_date={DEFAULT_VAL}',
+            ['DAG invalid_dag not found'],
+            id="confirm-failed",
+        ),
+        pytest.param(
+            f'confirm?task_id=invalid_task&dag_id=example_bash_operator&state=failed'
+            f'&execution_date={DEFAULT_VAL}',
+            ['Task invalid_task not found'],
+            id="confirm-failed",
+        ),
+        pytest.param(
+            f'confirm?task_id=runme_0&dag_id=example_bash_operator&state=invalid'
+            f'&execution_date={DEFAULT_VAL}',
+            ["Invalid state invalid, must be either &#39;success&#39; or &#39;failed&#39;"],
+            id="confirm-invalid",
         ),
     ],
 )
@@ -331,20 +360,6 @@ def test_code_from_db_all_example_dags(admin_client):
                 downstream="false",
                 future="false",
                 past="false",
-            ),
-            "Wait a minute",
-        ),
-        (
-            "failed",
-            dict(
-                task_id="run_this_last",
-                dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
-                confirmed="true",
-                upstream="false",
-                downstream="false",
-                future="false",
-                past="false",
                 origin="/graph?dag_id=example_bash_operator",
             ),
             "Marked failed on 1 task instances",
@@ -355,20 +370,6 @@ def test_code_from_db_all_example_dags(admin_client):
                 task_id="run_this_last",
                 dag_id="example_bash_operator",
                 execution_date=DEFAULT_DATE,
-                upstream="false",
-                downstream="false",
-                future="false",
-                past="false",
-            ),
-            'Wait a minute',
-        ),
-        (
-            "success",
-            dict(
-                task_id="run_this_last",
-                dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
-                confirmed="true",
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -405,9 +406,7 @@ def test_code_from_db_all_example_dags(admin_client):
     ],
     ids=[
         "paused",
-        "failed",
         "failed-flash-hint",
-        "success",
         "success-flash-hint",
         "clear",
         "run",
@@ -433,7 +432,7 @@ def test_dag_never_run(admin_client, url):
     )
     clear_db_runs()
     resp = admin_client.post(url, data=form, follow_redirects=True)
-    check_content_in_response(f"Cannot make {url}, seem that dag {dag_id} has never run", resp)
+    check_content_in_response(f"Cannot mark tasks as {url}, seem that dag {dag_id} has never run", resp)
 
 
 class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
@@ -551,11 +550,19 @@ def test_show_external_log_redirect_link_with_local_log_handler(capture_template
 
 
 class _ExternalHandler(ExternalLoggingMixin):
+    _supports_external_link = True
     LOG_NAME = 'ExternalLog'
 
     @property
-    def log_name(self):
+    def log_name(self) -> str:
         return self.LOG_NAME
+
+    def get_external_log_url(self, *args, **kwargs) -> str:
+        return 'http://external-service.com'
+
+    @property
+    def supports_external_link(self) -> bool:
+        return self._supports_external_link
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])
@@ -574,3 +581,121 @@ def test_show_external_log_redirect_link_with_external_log_handler(
         ctx = templates[0].local_context
         assert ctx['show_external_log_redirect']
         assert ctx['external_log_name'] == _ExternalHandler.LOG_NAME
+
+
+@pytest.mark.parametrize("endpoint", ["graph", "tree"])
+@unittest.mock.patch(
+    'airflow.utils.log.log_reader.TaskLogReader.log_handler',
+    new_callable=unittest.mock.PropertyMock,
+    return_value=_ExternalHandler(),
+)
+def test_external_log_redirect_link_with_external_log_handler_not_shown(
+    _external_handler, capture_templates, admin_client, endpoint
+):
+    """Show external links if log handler is external."""
+    _external_handler.return_value._supports_external_link = False
+    url = f'{endpoint}?dag_id=example_bash_operator'
+    with capture_templates() as templates:
+        admin_client.get(url, follow_redirects=True)
+        ctx = templates[0].local_context
+        assert not ctx['show_external_log_redirect']
+        assert ctx['external_log_name'] is None
+
+
+def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
+    """Utility to get Flask-Appbuilder's string format "pk" for an object.
+
+    Used to generate requests to FAB action views without *too* much difficulty.
+    The implementation relies on FAB internals, but unfortunately I don't see
+    a better way around it.
+
+    Example usage::
+
+        >>> from airflow.www.views import TaskInstanceModelView
+        >>> ti = session.Query(TaskInstance).filter(...).one()
+        >>> pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
+        >>> client.post("...", data={"action": "...", "rowid": pk})
+    """
+    pk_value = model_view_cls.datamodel.get_pk_value(instance)
+    return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
+
+
+def test_task_instance_clear(session, admin_client):
+    task_id = "runme_0"
+
+    # Set the state to success for clearing.
+    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
+    ti_q.update({"state": State.SUCCESS})
+    session.commit()
+
+    # Send a request to clear.
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": "clear", "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # Now the state should be None.
+    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    assert state == State.NONE
+
+
+def test_task_instance_clear_failure(admin_client):
+    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": "clear", "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    check_content_in_response("Failed to clear task instances:", resp)
+
+
+@pytest.mark.parametrize(
+    "action, expected_state",
+    [
+        ("set_running", State.RUNNING),
+        ("set_failed", State.FAILED),
+        ("set_success", State.SUCCESS),
+        ("set_retry", State.UP_FOR_RETRY),
+    ],
+    ids=["running", "failed", "success", "retry"],
+)
+def test_task_instance_set_state(session, admin_client, action, expected_state):
+    task_id = "runme_0"
+
+    # Send a request to clear.
+    ti_q = session.query(TaskInstance).filter(TaskInstance.task_id == task_id)
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, ti_q.one())
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # Now the state should be modified.
+    state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
+    assert state == expected_state
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "set_running",
+        "set_failed",
+        "set_success",
+        "set_retry",
+    ],
+)
+def test_task_instance_set_state_failure(admin_client, action):
+    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": action, "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    check_content_in_response("Failed to set state", resp)

@@ -160,6 +160,20 @@ class DecoratedOperator(BaseOperator):
             )
         return return_value
 
+    def _hook_apply_defaults(self, *args, **kwargs):
+        if 'python_callable' not in kwargs:
+            return args, kwargs
+
+        python_callable = kwargs['python_callable']
+        default_args = kwargs.get('default_args') or {}
+        op_kwargs = kwargs.get('op_kwargs') or {}
+        f_sig = signature(python_callable)
+        for arg in f_sig.parameters:
+            if arg not in op_kwargs and arg in default_args:
+                op_kwargs[arg] = default_args[arg]
+        kwargs['op_kwargs'] = op_kwargs
+        return args, kwargs
+
 
 T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
 

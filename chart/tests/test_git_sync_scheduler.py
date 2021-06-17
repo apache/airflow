@@ -98,6 +98,7 @@ class GitSyncSchedulerTest(unittest.TestCase):
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
         } == jmespath.search("spec.template.spec.containers[1]", docs[0])
 
     def test_validate_if_ssh_params_are_added(self):
@@ -230,3 +231,24 @@ class GitSyncSchedulerTest(unittest.TestCase):
         assert {"name": "FOO", "value": "bar"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
+
+    def test_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "resources": {
+                            "limits": {"cpu": "200m", 'memory': "128Mi"},
+                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        },
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[1].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])

@@ -640,12 +640,14 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.",
                 DeprecationWarning,
+                stacklevel=2,
             )
             gcp_conn_id = bigquery_conn_id
 
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
             DeprecationWarning,
+            stacklevel=2,
         )
 
         self.sql = sql
@@ -1638,7 +1640,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         warnings.warn(
             "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         self.dataset_id = dataset_id
         self.project_id = project_id

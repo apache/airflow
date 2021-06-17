@@ -28,6 +28,7 @@ import getMetaValue from './meta_value';
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const treeDataUrl = getMetaValue('tree_data');
+const numRuns = getMetaValue('num_runs');
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -70,7 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (node.depth > treeDepth) treeDepth = node.depth;
   });
   treeDepth += 1;
-  const squareX = window.innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
+
+  const innerWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
+  const squareX = innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
 
   const squareSpacing = 2;
   const margin = {
@@ -209,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('height', height)
       .attr('width', updateWidth);
 
-    d3.select(self.frameElement).transition()
+    d3.select(window.frameElement).transition()
       .duration(duration)
       .style('height', `${height}px`);
 
@@ -218,9 +221,36 @@ document.addEventListener('DOMContentLoaded', () => {
       n.x = j * barHeight;
     });
 
+    function toggles(clicked) {
+      // Collapse nodes with the same task id
+      d3.selectAll(`[task_id='${clicked.name}']`).each((d) => {
+        if (clicked !== d && d.children) {
+          d._children = d.children;
+          d.children = null;
+          update(d);
+        }
+      });
+
+      // Toggle clicked node
+      if (clicked._children) {
+        clicked.children = clicked._children;
+        clicked._children = null;
+      } else {
+        clicked._children = clicked.children;
+        clicked.children = null;
+      }
+      update(clicked);
+    }
+
     // Update the nodes…
     const node = svg.selectAll('g.node')
-      .data(updateNodes, (d) => d.id || (d.id = ++i));
+      .data(updateNodes, (d) => {
+        if (!d.id) {
+          i += 1;
+          d.id = i;
+        }
+        return d.id;
+      });
 
     const nodeEnter = node.enter().append('g')
       .attr('class', nodeClass)
@@ -387,30 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   update(root = data, false);
 
-  function toggles(clicked) {
-  // Collapse nodes with the same task id
-    d3.selectAll(`[task_id='${clicked.name}']`).each((d) => {
-      if (clicked !== d && d.children) {
-        d._children = d.children;
-        d.children = null;
-        update(d);
-      }
-    });
-
-    // Toggle clicked node
-    if (clicked._children) {
-      clicked.children = clicked._children;
-      clicked._children = null;
-    } else {
-      clicked._children = clicked.children;
-      clicked.children = null;
-    }
-    update(clicked);
-  }
-
   function handleRefresh() {
     $('#loading-dots').css('display', 'inline-block');
-    $.get(`${treeDataUrl}?dag_id=${dagId}`)
+    $.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}`)
       .done(
         (runs) => {
           const newData = {

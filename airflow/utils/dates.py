@@ -46,17 +46,21 @@ def date_range(
     can be something that can be added to `datetime.datetime`
     or a cron expression as a `str`
 
-    .. code-block:: python
-
-        date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
-            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
-            datetime.datetime(2016, 1, 3, 0, 0)]
-        date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
-            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
-            datetime.datetime(2016, 1, 3, 0, 0)]
-        date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
-            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
-            datetime.datetime(2016, 3, 1, 0, 0)]
+    .. code-block:: pycon
+        >>> from airflow.utils.dates import datterange
+        >>> from datetime import datetime, timedelta
+        >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
+        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 2, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 3, 0, 0, tzinfo=Timezone('UTC'))]
+        >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta="0 0 * * *")
+        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 2, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 1, 3, 0, 0, tzinfo=Timezone('UTC'))]
+        >>> date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
+        [datetime.datetime(2016, 1, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 2, 1, 0, 0, tzinfo=Timezone('UTC')),
+        datetime.datetime(2016, 3, 1, 0, 0, tzinfo=Timezone('UTC'))]
 
     :param start_date: anchor date to start the series from
     :type start_date: datetime.datetime
@@ -134,18 +138,21 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     Returns the datetime of the form start_date + i * delta
     which is closest to dt for any non-negative integer i.
     Note that delta may be a datetime.timedelta or a dateutil.relativedelta
-    >>> round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
-    datetime.datetime(2015, 1, 1, 0, 0)
-    >>> round_time(datetime(2015, 1, 2), relativedelta(months=1))
-    datetime.datetime(2015, 1, 1, 0, 0)
-    >>> round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-    datetime.datetime(2015, 9, 16, 0, 0)
-    >>> round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-    datetime.datetime(2015, 9, 15, 0, 0)
-    >>> round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-    datetime.datetime(2015, 9, 14, 0, 0)
-    >>> round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
-    datetime.datetime(2015, 9, 14, 0, 0)
+
+    .. code-block:: pycon
+
+        >>> round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
+        datetime.datetime(2015, 1, 1, 0, 0)
+        >>> round_time(datetime(2015, 1, 2), relativedelta(months=1))
+        datetime.datetime(2015, 1, 1, 0, 0)
+        >>> round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
+        datetime.datetime(2015, 9, 16, 0, 0)
+        >>> round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
+        datetime.datetime(2015, 9, 15, 0, 0)
+        >>> round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
+        datetime.datetime(2015, 9, 14, 0, 0)
+        >>> round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(2015, 9, 14, 0, 0))
+        datetime.datetime(2015, 9, 14, 0, 0)
     """
     if isinstance(delta, str):
         # It's cron based, so it's easy

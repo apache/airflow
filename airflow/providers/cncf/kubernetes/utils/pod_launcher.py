@@ -19,7 +19,7 @@ import json
 import math
 import time
 from datetime import datetime as dt
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import pendulum
 import tenacity
@@ -27,6 +27,8 @@ from kubernetes import client, watch
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
+from pendulum import Date, DateTime, Duration, Time
+from pendulum.parsing.exceptions import ParserError
 from requests.exceptions import BaseHTTPError
 
 from airflow.exceptions import AirflowException
@@ -129,23 +131,24 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
         """
-        Monitors a pod and returns the final state
+        Monitors a pod and returns the final state, pod and xcom result
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
-        if get_logs:
+        if get_logs:  # pylint: disable=too-many-nested-blocks
             read_logs_since_sec = None
             last_log_time = None
             while True:
                 logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
-                    last_log_time = pendulum.parse(timestamp)
                     self.log.info(message)
+                    if timestamp:
+                        last_log_time = timestamp
                 time.sleep(1)
 
                 if not self.base_container_is_running(pod):
@@ -167,9 +170,10 @@ class PodLauncher(LoggingMixin):
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
-        return self._task_status(self.read_pod(pod)), result
+        remote_pod = self.read_pod(pod)
+        return self._task_status(remote_pod), remote_pod, result
 
-    def parse_log_line(self, line: str) -> Tuple[str, str]:
+    def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
         """
         Parse K8s log line and returns the final state
 
@@ -183,7 +187,12 @@ class PodLauncher(LoggingMixin):
             raise Exception(f'Log not in "{{timestamp}} {{log}}" format. Got: {line}')
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
-        return timestamp, message
+        try:
+            last_log_time = pendulum.parse(timestamp)
+        except ParserError:
+            self.log.error("Error parsing timestamp. Will continue execution but won't update timestamp")
+            return None, line
+        return last_log_time, message
 
     def _task_status(self, event):
         self.log.info('Event: %s had an event of type %s', event.metadata.name, event.status.phase)

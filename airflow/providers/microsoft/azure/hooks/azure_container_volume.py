@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 
@@ -25,22 +26,66 @@ class AzureContainerVolumeHook(BaseHook):
     """
     A hook which wraps an Azure Volume.
 
-    :param  wasb_conn_id: :ref:`Wasb connection id<howto/connection:wasb>` of an Azure storage
-        account of which file shares should be mounted.
-    :type wasb_conn_id: str
+    :param azure_container_volume_conn_id: Reference to the
+        :ref:`Azure Container Volume connection id <howto/connection:azure_container_volume>`
+        of an Azure account of which container volumes should be used.
+    :type azure_container_volume_conn_id: str
     """
 
-    def __init__(self, wasb_conn_id: str = 'wasb_default') -> None:
+    conn_name_attr = "azure_container_volume_conn_id"
+    default_conn_name = 'azure_container_volume_default'
+    conn_type = 'azure_container_volume'
+    hook_name = 'Azure Container Volume'
+
+    def __init__(self, azure_container_volume_conn_id: str = 'azure_container_volume_default') -> None:
         super().__init__()
-        self.conn_id = wasb_conn_id
+        self.conn_id = azure_container_volume_conn_id
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField
+
+        return {
+            "extra__azure_container_volume__connection_string": PasswordField(
+                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        import json
+
+        return {
+            "hidden_fields": ['schema', 'port', 'host', "extra"],
+            "relabeling": {
+                'login': 'Azure Client ID',
+                'password': 'Azure Secret',
+            },
+            "placeholders": {
+                'extra': json.dumps(
+                    {
+                        "key_path": "path to json file for auth",
+                        "key_json": "specifies json dict for auth",
+                    },
+                    indent=1,
+                ),
+                'login': 'client_id (token credentials auth)',
+                'password': 'secret (token credentials auth)',
+                'extra__azure_container_volume__connection_string': 'connection string auth',
+            },
+        }
 
     def get_storagekey(self) -> str:
         """Get Azure File Volume storage key"""
         conn = self.get_connection(self.conn_id)
         service_options = conn.extra_dejson
 
-        if 'connection_string' in service_options:
-            for keyvalue in service_options['connection_string'].split(";"):
+        if 'extra__azure_container_volume__connection_string' in service_options:
+            for keyvalue in service_options['extra__azure_container_volume__connection_string'].split(";"):
                 key, value = keyvalue.split("=", 1)
                 if key == "AccountKey":
                     return value

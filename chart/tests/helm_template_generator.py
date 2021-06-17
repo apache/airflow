@@ -30,7 +30,7 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.15.0"
 
 crd_lookup = {
     'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501 # pylint: disable=line-too-long

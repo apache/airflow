@@ -411,6 +411,22 @@ class TestAirflowTaskDecorator(TestPythonBase):
             ret = do_run()
         assert ret.operator.owner == 'airflow'  # pylint: disable=maybe-no-member
 
+        @task_decorator
+        def test_apply_default_raise(unknow):
+            return unknow
+
+        with pytest.raises(TypeError):
+            with self.dag:
+                test_apply_default_raise()  # pylint: disable=no-value-for-parameter
+
+        @task_decorator
+        def test_apply_default(owner):
+            return owner
+
+        with self.dag:
+            ret = test_apply_default()  # pylint: disable=no-value-for-parameter
+        assert 'owner' in ret.operator.op_kwargs
+
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
@@ -438,9 +454,11 @@ class TestAirflowTaskDecorator(TestPythonBase):
         bigger_number.operator.run(  # pylint: disable=maybe-no-member
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
         )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        # pylint: disable=no-member, maybe-no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
-        assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
+        assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
+        # pylint: enable=no-member, maybe-no-member
 
     def test_dag_task(self):
         """Tests dag.task property to generate task"""

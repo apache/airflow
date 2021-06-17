@@ -20,6 +20,7 @@ import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
+from operator import attrgetter
 from time import time
 from typing import List, Optional, Tuple
 from urllib.parse import quote
@@ -32,16 +33,15 @@ from elasticsearch_dsl import Search
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
 
 
-class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
+class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -71,6 +71,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         write_stdout: bool,
         json_format: bool,
         json_fields: str,
+        host_field: str = "host",
+        offset_field: str = "offset",
         host: str = "localhost:9200",
         frontend: str = "localhost:5601",
         es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
@@ -84,29 +86,26 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.log_id_template, self.log_id_jinja_template = parse_template_string(log_id_template)
-
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
+        self.log_id_template = log_id_template
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
         self.write_stdout = write_stdout
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
+        self.host_field = host_field
+        self.offset_field = offset_field
         self.handler = None
         self.context_set = False
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        if self.log_id_jinja_template:
-            jinja_context = ti.get_template_context()
-            jinja_context['try_number'] = try_number
-            return self.log_id_jinja_template.render(**jinja_context)
-
         if self.json_format:
             execution_date = self._clean_execution_date(ti.execution_date)
         else:
             execution_date = ti.execution_date.isoformat()
+
         return self.log_id_template.format(
             dag_id=ti.dag_id, task_id=ti.task_id, execution_date=execution_date, try_number=try_number
         )
@@ -122,11 +121,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         """
         return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    @staticmethod
-    def _group_logs_by_host(logs):
+    def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)
         for log in logs:
-            key = getattr(log, 'host', 'default_host')
+            key = getattr(log, self.host_field, 'default_host')
             grouped_logs[key].append(log)
 
         # return items sorted by timestamp.
@@ -160,7 +158,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         logs = self.es_read(log_id, offset, metadata)
         logs_by_host = self._group_logs_by_host(logs)
 
-        next_offset = offset if not logs else logs[-1].offset
+        next_offset = offset if not logs else attrgetter(self.offset_field)(logs[-1])
 
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
         # on the client. Sending as a string prevents this issue.
@@ -227,14 +225,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :type metadata: dict
         """
         # Offset is the unique key for sorting logs given log_id.
-        search = Search(using=self.client).query('match_phrase', log_id=log_id).sort('offset')
+        search = Search(using=self.client).query('match_phrase', log_id=log_id).sort(self.offset_field)
 
-        search = search.filter('range', offset={'gt': int(offset)})
+        search = search.filter('range', **{self.offset_field: {'gt': int(offset)}})
         max_log_line = search.count()
         if 'download_logs' in metadata and metadata['download_logs'] and 'max_offset' not in metadata:
             try:
                 if max_log_line > 0:
-                    metadata['max_offset'] = search[max_log_line - 1].execute()[-1].offset
+                    metadata['max_offset'] = attrgetter(self.offset_field)(
+                        search[max_log_line - 1].execute()[-1]
+                    )
                 else:
                     metadata['max_offset'] = 0
             except Exception:  # pylint: disable=broad-except
@@ -335,14 +335,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: URL to the external log collection service
         :rtype: str
         """
-        log_id = self.log_id_template.format(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            execution_date=task_instance.execution_date,
-            try_number=try_number,
-        )
-        url = 'https://' + self.frontend.format(log_id=quote(log_id))
-        return url
+        log_id = self._render_log_id(task_instance, try_number)
+        scheme = '' if '://' in self.frontend else 'https://'
+        return scheme + self.frontend.format(log_id=quote(log_id))
+
+    @property
+    def supports_external_link(self) -> bool:
+        """Whether we can support external links"""
+        return bool(self.frontend)
 
 
 class _ESJsonLogFmt:

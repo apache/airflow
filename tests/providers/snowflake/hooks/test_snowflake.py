@@ -17,29 +17,24 @@
 # under the License.
 #
 import os
+import re
 import unittest
 from unittest import mock
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from parameterized import parameterized
 
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils.process_utils import patch_environ
 
 
 class TestSnowflakeHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock(rowcount=0)
-        self.cur2 = mock.MagicMock(rowcount=0)
-
-        self.cur.sfqid = 'uuid'
-        self.cur2.sfqid = 'uuid2'
-
         self.conn = conn = mock.MagicMock()
-        self.conn.cursor.return_value = self.cur
-        self.conn.execute_string.return_value = [self.cur, self.cur2]
 
         self.conn.login = 'user'
         self.conn.password = 'pw'
@@ -95,18 +90,25 @@ class TestSnowflakeHook(unittest.TestCase):
         )
         assert uri_shouldbe == self.db_hook.get_uri()
 
-    def test_single_element_list_calls_execute(self):
-        self.db_hook.run(['select * from table'])
-        self.cur.execute.assert_called()
-        assert self.db_hook.query_ids == ['uuid']
+    @parameterized.expand(
+        [
+            ('select * from table', ['uuid', 'uuid']),
+            ('select * from table;select * from table2', ['uuid', 'uuid', 'uuid2', 'uuid2']),
+            (['select * from table;'], ['uuid', 'uuid']),
+            (['select * from table;', 'select * from table2;'], ['uuid', 'uuid', 'uuid2', 'uuid2']),
+        ],
+    )
+    def test_run_storing_query_ids(self, sql, query_ids):
+        cur = mock.MagicMock(rowcount=0)
+        self.conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=query_ids)
+        mock_params = {"mock_param": "mock_param"}
+        self.db_hook.run(sql, parameters=mock_params)
 
-    def test_passed_string_calls_execute_string(self):
-        self.db_hook.run('select * from table; select * from table2')
-
-        assert self.db_hook.query_ids == ['uuid', 'uuid2']
-        self.conn.execute_string.assert_called()
-        self.cur.close.assert_called()
-        self.cur2.close.assert_called()
+        sql_list = sql if isinstance(sql, list) else re.findall(".*?[;]", sql)
+        cur.execute.assert_has_calls([mock.call(query, mock_params) for query in sql_list])
+        assert self.db_hook.query_ids == query_ids[::2]
+        cur.close.assert_called()
 
     def test_get_conn_params(self):
         conn_params_shouldbe = {
@@ -120,9 +122,28 @@ class TestSnowflakeHook(unittest.TestCase):
             'role': 'af_role',
             'authenticator': 'snowflake',
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": "AIRFLOW",
         }
         assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
         assert conn_params_shouldbe == self.db_hook._get_conn_params()
+
+    def test_get_conn_params_env_variable(self):
+        conn_params_shouldbe = {
+            'user': 'user',
+            'password': 'pw',
+            'schema': 'public',
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'authenticator': 'snowflake',
+            'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": "AIRFLOW_TEST",
+        }
+        with patch_environ({"AIRFLOW_SNOWFLAKE_PARTNER": 'AIRFLOW_TEST'}):
+            assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
+            assert conn_params_shouldbe == self.db_hook._get_conn_params()
 
     def test_get_conn(self):
         assert self.db_hook.get_conn() == self.conn

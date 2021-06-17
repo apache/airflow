@@ -119,7 +119,7 @@ function breeze::setup_default_breeze_constants() {
     export FORCE_PULL_IMAGES="false"
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI master and when we manually refresh the images to latest versions
+    # CI main and when we manually refresh the images to latest versions
     export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
@@ -673,6 +673,22 @@ function breeze::prepare_command_files() {
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
+    if [[ ${BACKEND} == "mssql" ]]; then
+        local docker_filesystem
+        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker || echo "unknown")
+        if [[ ${docker_filesystem} == "tmpfs" ]]; then
+            # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+            # O_DIRECT parameter for direct writing to the filesystem
+            # https://github.com/microsoft/mssql-docker/issues/13
+            # so we need to mount an external volume for its db location
+            # specified by MSSQL_DATA_VOLUME
+            backend_docker_compose_file="${backend_docker_compose_file}:${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml"
+        else
+            backend_docker_compose_file="${backend_docker_compose_file}:${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml"
+        fi
+    fi
+
+
     local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
     local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
@@ -1164,7 +1180,7 @@ function breeze::parse_arguments() {
             echo "GitHub image id: ${2}"
             echo
             echo "Force pulling the image, using GitHub registry and skip mounting local sources."
-            echo "This is in order to get the exact same version as used in CI environment for SHA/RUN_ID!."
+            echo "This is in order to get the exact same version as used in CI environment for SHA!."
             echo "You can specify --skip-mounting-local-sources to not mount local sources to get exact. "
             echo "behaviour as in the CI environment."
             echo
@@ -1237,6 +1253,12 @@ function breeze::parse_arguments() {
             echo "Selected package type: ${PACKAGE_FORMAT}"
             echo
             shift 2
+            ;;
+        --non-interactive)
+            export NON_INTERACTIVE="true"
+            echo "Running in non-interactive mode"
+            echo
+            shift
             ;;
         --installation-method)
             export AIRFLOW_INSTALLATION_METHOD="${2}"
@@ -1422,6 +1444,13 @@ function breeze::parse_arguments() {
                     INTEGRATIONS+=("${INTEGRATION}")
                 fi
             done
+            # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+            # O_DIRECT parameter for direct writing to the filesystem
+            # https://github.com/microsoft/mssql-docker/issues/13
+            # so we need to mount an external volume for its db location
+            # the external db must allow for parallel testing so external volume is mapped
+            # to the data volume. Stop should also clean the volume
+            rm -rf "${MSSQL_DATA_VOLUME:?"MSSQL_DATA_VOLUME should never be empty!"}"/*
             shift
             ;;
         restart)
@@ -1716,20 +1745,15 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
       '${CMDNAME} shell -- -c \"ls -la\"'
       '${CMDNAME} -- -c \"ls -la\"'
 
-      For DockerHub pull --dockerhub-user and --dockerhub-repo flags can be used to specify
+      For DockerHub pull: --dockerhub-user and --dockerhub-repo flags can be used to specify
       the repository to pull from. For GitHub repository, the --github-repository
-      flag can be used for the same purpose. You can also use
-      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to pull the image
-      with specific COMMIT_SHA tag or RUN_ID.
+      flag can be used for the same purpose. You can also use --github-image-id <COMMIT_SHA> in case
+      you want to pull the image with specific COMMIT_SHA tag.
 
       '${CMDNAME} shell \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
       '${CMDNAME} \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
-      '${CMDNAME} shell \\
-            --github-image-id 209845560' - pull/use image with RUN_ID
-      '${CMDNAME} \\
-            --github-image-id 209845560' - pull/use image with RUN_ID
 
 Most flags are applicable to the shell command as it will run build when needed.
 "
@@ -1772,18 +1796,15 @@ ${CMDNAME} build-image [FLAGS]
 
       You can also pass '--production-image' flag to build production image rather than CI image.
 
-      For DockerHub pull. '--dockerhub-user' and '--dockerhub-repo' flags can be used to specify
-      the repository to pull from. For GitHub repository, the '--github-repository'
-      flag can be used for the same purpose. You can also use
-      '--github-image-id <COMMIT_SHA>|<RUN_ID>' in case you want to pull the image with
-      specific COMMIT_SHA tag or RUN_ID.
-
+      For DockerHub pulling of base images: '--dockerhub-user' and '--dockerhub-repo' flags can be
+      used to specify the repository to pull from. For GitHub repository, the '--github-repository'
+      flag can be used for the same purpose.
 Flags:
 $(breeze::flag_airflow_variants)
 $(breeze::flag_build_different_airflow_version)
 $(breeze::flag_production_image)
 $(breeze::flag_build_docker_images)
-$(breeze::flag_pull_push_docker_images)
+$(breeze::flag_pull_push_docker_images "no_show_sha")
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_BUILD_IMAGE
@@ -1845,6 +1866,7 @@ ${CMDNAME} prepare-provider-documentation [FLAGS] [PACKAGE_ID ...]
 Flags:
 $(breeze::flag_version_suffix)
 $(breeze::flag_packages)
+$(breeze::flag_non_interactive)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION
@@ -1853,7 +1875,7 @@ ${CMDNAME} generate-constraints [FLAGS]
 
       Generates pinned constraint files with all extras from setup.py. Those files are generated in
       files folder - separate files for different python version. Those constraint files when
-      pushed to orphan constraints-master, constraints-2-0 branches are used
+      pushed to orphan constraints-main, constraints-2-0 branches are used
       to generate repeatable CI builds as well as run repeatable production image builds and
       upgrades when you want to include installing or updating some of the released providers
       released at the time particular airflow version was released. You can use those
@@ -1946,11 +1968,11 @@ ${CMDNAME} push_image [FLAGS]
       Pushes images to docker registry. You can push the images to DockerHub registry (default)
       or to the GitHub registry (if --use-github-registry flag is used).
 
-      For DockerHub pushes --dockerhub-user and --dockerhub-repo flags can be used to specify
+      For DockerHub pushes: --dockerhub-user and --dockerhub-repo flags can be used to specify
       the repository to push to. For GitHub repository, the --github-repository
       flag can be used for the same purpose. You can also add
-      --github-image-id <COMMIT_SHA>|<RUN_ID> in case you want to push image with specific
-      SHA tag or run id. In case you specify --github-repository or --github-image-id, you
+      --github-image-id <COMMIT_SHA> in case you want to push image with specific
+      SHA tag. In case you specify --github-repository or --github-image-id, you
       do not need to specify --use-github-registry flag.
 
       You can also add --production-image flag to switch to production image (default is CI one)
@@ -1965,8 +1987,6 @@ ${CMDNAME} push_image [FLAGS]
             --github-repository user/airflow' - to push to your user's fork
       '${CMDNAME} push-image \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - to push with COMMIT_SHA
-      '${CMDNAME} push-image \\
-            --github-image-id 209845560' - to push with RUN_ID
 
 Flags:
 $(breeze::flag_pull_push_docker_images)
@@ -2059,9 +2079,9 @@ ${FORMATTED_STATIC_CHECKS}
       '${CMDNAME} static-check mypy -- --files tests/core.py'
       '${CMDNAME} static-check mypy -- --all-files'
 
-      To check all files that differ between you current branch and master run:
+      To check all files that differ between you current branch and main run:
 
-      '${CMDNAME} static-check all -- --from-ref \$(git merge-base master HEAD) --to-ref HEAD'
+      '${CMDNAME} static-check all -- --from-ref \$(git merge-base main HEAD) --to-ref HEAD'
 
       To check all files that are in the HEAD commit run:
 
@@ -2443,7 +2463,7 @@ ${FORMATTED_INSTALL_AIRFLOW_VERSIONS}
 
 -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
         Installs Airflow directly from reference in GitHub when building PROD image.
-        This can be a GitHub branch like master or v2-1-test, or a tag like 2.1.0a1.
+        This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
 
 --installation-method INSTALLATION_METHOD
         Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2574,6 +2594,21 @@ ${FORMATTED_PACKAGE_FORMATS}
 "
 }
 
+#######################################################################################################
+#
+# Prints flags for non-interactive run
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_non_interactive() {
+    echo "
+--non-interactive
+
+        Runs the command in non-interactive mode.
+
+"
+}
 
 #######################################################################################################
 #
@@ -2754,7 +2789,7 @@ Build options:
         --use-github-registry flag) to build images. The pulled images will be used as cache.
         Those builds are usually faster than when ''--build-cache-local'' with the exception if
         the registry images are not yet updated. The DockerHub images are updated nightly and the
-        GitHub images are updated after merges to master so it might be that the images are still
+        GitHub images are updated after merges to main so it might be that the images are still
         outdated vs. the latest version of the Dockerfiles you are using. In this case, the
         ''--build-cache-local'' might be faster, especially if you iterate and change the
         Dockerfiles yourself.
@@ -2785,6 +2820,7 @@ Build options:
 #    Flag information.
 #######################################################################################################
 function breeze::flag_pull_push_docker_images() {
+    local show_sha="${1-'show_sha'}"
     echo "
 -D, --dockerhub-user DOCKERHUB_USER
         DockerHub user used to pull, push and build images. Default: ${_breeze_default_dockerhub_user:=}.
@@ -2813,15 +2849,18 @@ ${FORMATTED_GITHUB_REGISTRY}
 
         If you use this flag, automatically --use-github-registry flag is enabled.
 
--s, --github-image-id COMMIT_SHA|RUN_ID
-        <RUN_ID> or <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
+"
+
+    [[ "$show_sha" != "no_show_sha" ]] && echo "
+
+-s, --github-image-id COMMIT_SHA
+        <COMMIT_SHA> of the image. Images in GitHub registry are stored with those
         to be able to easily find the image for particular CI runs. Once you know the
-        <RUN_ID> or <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
+        <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
         automatically pull and use that image so that you can easily reproduce a problem
         that occurred in CI.
 
         If you use this flag, automatically --use-github-registry is enabled.
-
 
         Default: ${_breeze_default_github_image_id:=}.
 
@@ -3075,17 +3114,8 @@ function breeze::read_saved_environment_variables() {
     MYSQL_VERSION="${MYSQL_VERSION:=$(parameters::read_from_file MYSQL_VERSION)}"
     MYSQL_VERSION=${MYSQL_VERSION:=${_breeze_default_mysql_version}}
 
-    # Here you read DockerHub user/account that you use
-    # You can populate your own images in DockerHub this way and work with the,
-    # You can override it with "--dockerhub-user" option and it will be stored in .build directory
-    DOCKERHUB_USER="${DOCKERHUB_USER:=$(parameters::read_from_file DOCKERHUB_USER)}"
-    DOCKERHUB_USER="${DOCKERHUB_USER:=${_breeze_default_dockerhub_user}}"
-
-    # Here you read DockerHub repo that you use
-    # You can populate your own images in DockerHub this way and work with them
-    # You can override it with "--dockerhub-repo" option and it will be stored in .build directory
-    DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(parameters::read_from_file DOCKERHUB_REPO)}"
-    DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_breeze_default_dockerhub_repo}}"
+    MSSQL_VERSION="${MSSQL_VERSION:=$(parameters::read_from_file MSSQL_VERSION)}"
+    MSSQL_VERSION=${MSSQL_VERSION:=${_breeze_default_mssql_version}}
 }
 
 #######################################################################################################
@@ -3108,6 +3138,7 @@ function breeze::read_saved_environment_variables() {
 #     EXECUTOR
 #     POSTGRES_VERSION
 #     MYSQL_VERSION
+#     MSSQL_VERSION
 #     DOCKERHUB_USER
 #     DOCKERHUB_REPO
 #
@@ -3141,15 +3172,11 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "EXECUTOR" "Executors" "--executor"
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
+    parameters::check_and_save_allowed_param "MSSQL_VERSION" "MSSql version" "--mssql-version"
     parameters::check_and_save_allowed_param "GITHUB_REGISTRY" "GitHub Registry" "--github-registry"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
     parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
-
-
-    # Can't verify those - they can be anything, so let's just save them
-    parameters::save_to_file DOCKERHUB_USER
-    parameters::save_to_file DOCKERHUB_REPO
 }
 
 #######################################################################################################
@@ -3162,6 +3189,7 @@ function breeze::check_and_save_all_params() {
 #     WEBSERVER_HOST_PORT
 #     POSTGRES_HOST_PORT
 #     MYSQL_HOST_PORT
+#     MSSQL_HOST_PORT
 #
 #######################################################################################################
 function breeze::print_cheatsheet() {
@@ -3194,6 +3222,7 @@ function breeze::print_cheatsheet() {
         echo "     * ${FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555"
         echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
         echo "     * ${MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306"
+        echo "     * ${MSSQL_HOST_PORT} -> forwarded to MSSQL database  -> mssql:1443"
         echo "     * ${REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379"
         echo
         echo "   Here are links to those services that you can use on host:"
@@ -3552,7 +3581,7 @@ function breeze::run_breeze_command() {
         ;;
     perform_prepare_provider_documentation)
         docker_engine_resources::check_all_resources
-        runs::run_prepare_provider_documentation_interactively "${@}"
+        runs::run_prepare_provider_documentation "${@}"
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
