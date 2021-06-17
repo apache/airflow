@@ -69,8 +69,8 @@ class S3ToFTPOperator(BaseOperator):
         s3_obj = s3_hook.get_key(self.s3_key, self.s3_bucket)
 
         with NamedTemporaryFile() as local_tmp_file:
-            self.log.info(f'Downloading file from {self.s3_key}')
+            self.log.info('Downloading file from %s', self.s3_key)
             s3_obj.download_fileobj(local_tmp_file)
             local_tmp_file.seek(0)
             ftp_hook.store_file(self.ftp_path, local_tmp_file.name)
-            self.log.info(f'File stored in {self.ftp_path}')
+            self.log.info('File stored in %s', {self.ftp_path})
