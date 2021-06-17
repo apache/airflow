@@ -4,135 +4,136 @@
 {% import 'airflow/dialog.html' as dialog %}
 
 {% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/curve.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/select2.min.css') }}">
+  {{ super() }}
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/curve.css') }}">
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/select2.min.css') }}">
 {% endblock %}
 
 {% block body %}
-<div id="root">
+  <div id="root">
 
-  {% call panel.panel('基本信息','base-info-container') %}
-  <div class="overflow-auto  p-0">
-    <table class="table">
-      <tbody id="base-info-content">
-      </tbody>
-    </table>
-  </div>
-  {% endcall %}
-  {% call panel.panel('','result-check-container','flex-row') %}
-    {% if task_instance.device_type == 'tightening' %}
+    {% call panel.panel('基本信息','base-info-container') %}
+      <div class="overflow-auto  p-0">
+        <table class="table">
+          <tbody id="base-info-content">
+          </tbody>
+        </table>
+      </div>
+    {% endcall %}
+    {% call panel.panel('','result-check-container','flex-row') %}
+      {% if task_instance.device_type == 'tightening' %}
 
-      {{ result_panel.result_panel('拧紧结果', 'measure-result-card',result.measure_result) }}
-    {% else %}
-      {{ result_panel.result_panel('结果', 'measure-result-card',result.measure_result) }}
-    {% endif %}
-    {% if task_instance.should_analyze != False %}
-      {{ result_panel.result_panel('分析结果', 'analysis-result-card',task_instance.result,
+        {{ result_panel.result_panel('拧紧结果', 'measure-result-card',result.measure_result) }}
+      {% else %}
+        {{ result_panel.result_panel('结果', 'measure-result-card',result.measure_result) }}
+      {% endif %}
+      {% if task_instance.should_analyze != False %}
+        {{ result_panel.result_panel('分析结果', 'analysis-result-card',task_instance.result,
   verify_error_map.get('{}'.format(task_instance.verify_error),task_instance.verify_error)) }}
 
-    {% endif %}
-        {% if task_instance.should_analyze != False %}
+      {% endif %}
+      {% if task_instance.should_analyze != False %}
 
-  {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
+        {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
   else ('panel-success base-info-item' if task_instance.final_state =='OK' else 'panel-default base-info-item')) %}
-  <div class="panel-body d-flex flex-column justify-content-center align-items-center"
-       style="flex:1">
-    <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
+          <div class="panel-body d-flex flex-column justify-content-center align-items-center"
+               style="flex:1">
+            <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
 
-    {% if task_instance.final_state %}
-    <h2
-      class="double-check-result {{'text-danger' if task_instance.final_state =='NOK' else ('text-success' if task_instance.final_state =='OK' else '')}}"
-      style="font-weight: bolder">{{task_instance.final_state}}</h2>
-    {% elif can_verify %}
-    <h2 class="double-check-result">
-      <button id="btn_double_check_success" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
-              class="button-double-check btn btn-lg btn-success mr-2 shadow">
-        <div>
-          <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
-          <span style="font-weight: 800">OK</span>
-        </div>
-      </button>
-      <button id="btn_double_check_failed" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
-              class="button-double-check btn btn-lg btn-danger ml-2 shadow">
-        <div>
-          <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-          <span style="font-weight: 800">NOK</span>
-        </div>
-      </button>
-    </h2>
-    {% else %}
-    <h2 class="double-check-result">未确认</h2>
-    {% endif %}
-    <h4 id="error-tags"></h4>
+            {% if task_instance.final_state %}
+              <h2
+                class="double-check-result {{ 'text-danger' if task_instance.final_state =='NOK' else ('text-success' if task_instance.final_state =='OK' else '') }}"
+                style="font-weight: bolder">{{ task_instance.final_state }}</h2>
+            {% elif can_verify %}
+              <h2 class="double-check-result">
+                <button id="btn_double_check_success" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
+                        class="button-double-check btn btn-lg btn-success mr-2 shadow">
+                  <div>
+                    <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+                    <span style="font-weight: 800">OK</span>
+                  </div>
+                </button>
+                <button id="btn_double_check_failed" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
+                        class="button-double-check btn btn-lg btn-danger ml-2 shadow">
+                  <div>
+                    <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                    <span style="font-weight: 800">NOK</span>
+                  </div>
+                </button>
+              </h2>
+            {% else %}
+              <h2 class="double-check-result">未确认</h2>
+            {% endif %}
+            <h4 id="error-tags"></h4>
+          </div>
+        {% endcall %}
+      {% endif %}
+    {% endcall %}
+
+    {% include 'airflow/curve_chart.html' %}
+
+    {% call panel.panel('详细信息','result-container') %}
+      <div class=" overflow-auto p-0">
+        <table id="result_table" class="table position-relative ">
+          <thead>
+          <tr class="result-content-row active">
+            <th class="position-sticky" style="top:0">字段</th>
+            <th class="position-sticky " style="top:0">值</th>
+          </tr>
+          </thead>
+          <tbody id="result_detail"></tbody>
+        </table>
+      </div>
+      <button onclick="downloadCurveAndResult()"
+              class="btn btn-primary  m-2">{{ '下载结果和曲线' if task_instance.device_type == 'servo_press' else '下载拧紧结果和曲线' }}</button>
+    {% endcall %}
+
   </div>
+
+  {% call dialog.dialog('dialogModal') %}
   {% endcall %}
-        {% endif %}
-  {% endcall %}
-
-  {% include 'airflow/curve_chart.html' %}
-
-  {% call panel.panel('详细信息','result-container') %}
-  <div class=" overflow-auto p-0">
-    <table id="result_table" class="table position-relative ">
-      <thead>
-      <tr class="result-content-row active">
-        <th class="position-sticky" style="top:0">字段</th>
-        <th class="position-sticky " style="top:0">值</th>
-      </tr>
-      </thead>
-      <tbody id="result_detail"></tbody>
-    </table>
-  </div>
-  <button onclick="downloadCurveAndResult()" class="btn btn-primary  m-2">{{  '下载结果和曲线' if task_instance.device_type == 'servo_press' else '下载拧紧结果和曲线' }}</button>
-  {% endcall %}
-
-</div>
-
-{% call dialog.dialog('dialogModal') %}
-{% endcall %}
 {% endblock %}
 
 
 {% block tail_js %}
-{{ super() }}
-<script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
-<script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
-<script type="text/javascript">
-  const result = JSON.parse('{{ result|tojson|safe }}');
-  const showRange = JSON.parse('{{ show_range|tojson|safe }}');
-  const curve = JSON.parse('{{ curve|tojson|safe }}');
-  const errorTags = JSON.parse('{{ errorTags|tojson|safe }}');
-  const displayKeys = JSON.parse('{{ display_keys|tojson|safe }}');
-  const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
-  const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
-  const shouldAnalyze = {{ 'false' if task_instance.should_analyze == False else 'true' }};
-  let $errorTagsSelector = null;
-  let $errorTagInput = null;
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
+  <script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
+  <script type="text/javascript">
+    const result = JSON.parse('{{ result|tojson|safe }}');
+    const showRange = JSON.parse('{{ show_range|tojson|safe }}');
+    const curve = JSON.parse('{{ curve|tojson|safe }}');
+    const errorTags = JSON.parse('{{ errorTags|tojson|safe }}');
+    const displayKeys = JSON.parse('{{ display_keys|tojson|safe }}');
+    const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
+    const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
+    const shouldAnalyze = {{ 'false' if task_instance.should_analyze == False else 'true' }};
+    let $errorTagsSelector = null;
+    let $errorTagInput = null;
 
-  function getXdata(xKey) {
-    const xData = curve[xKey];
-    return xData;
- }
+    function getXdata(xKey) {
+      const xData = curve[xKey];
+      return xData;
+    }
 
-  function getYdata(yKey) {
-    const yData = curve[yKey];
-    return yData;
-  }
+    function getYdata(yKey) {
+      const yData = curve[yKey];
+      return yData;
+    }
 
-  function randomHexColor() { //随机生成十六进制颜色
-    return '#' + ('00000' + (Math.random() * 0x1000000 << 0).toString(16)).substr(-6);
-  }
+    function randomHexColor() { //随机生成十六进制颜色
+      return '#' + ('00000' + (Math.random() * 0x1000000 << 0).toString(16)).substr(-6);
+    }
 
-  function getAlldata() {
-    // if ((!curvesData) || Object.keys(curvesData).length === 0) {
-    //   return [];
-    // }
-    let allDatas = [];
+    function getAlldata() {
+      // if ((!curvesData) || Object.keys(curvesData).length === 0) {
+      //   return [];
+      // }
+      let allDatas = [];
       const color = randomHexColor();
       const color1 = randomHexColor();
       const color2 = randomHexColor();
@@ -180,535 +181,535 @@
         },
       });
 
-    return allDatas;
-  }
+      return allDatas;
+    }
 
-  function genData() {
-    const {xKey, yKey} = chartParams;
-    const data = [];
-    const xData = curve[xKey];
-    const yData = curve[yKey];
-    for (const x in xData) {
-      data.push([xData[x], yData[x]]);
+    function genData() {
+      const {xKey, yKey} = chartParams;
+      const data = [];
+      const xData = curve[xKey];
+      const yData = curve[yKey];
+      for (const x in xData) {
+        data.push([xData[x], yData[x]]);
+      }
+      return data;
     }
-    return data;
-  }
 
-  function genMarkLine(dataKey, name, value, color = null) {
-    if(Number.isNaN(+value)){
-      return null;
-    }
-    const {xKey, yKey} = chartParams;
-    let dataAxis = '';
-    if (xKey === dataKey) {
-      dataAxis = 'xAxis';
-    } else if (yKey === dataKey) {
-      dataAxis = 'yAxis';
-    } else {
-      return null;
-    }
-    return {
-      name,
-      [dataAxis]: +value,
-      lineStyle: {
-        color: color
+    function genMarkLine(dataKey, name, value, color = null) {
+      if (Number.isNaN(+value)) {
+        return null;
       }
-    };
-  }
-
-  function getMarkLineByDataKey() {
-    if (!showRange) {
-      return [];
-    }
-    const {xKey, yKey} = chartParams;
-    const dataKeys = [xKey, yKey];
-    return dataKeys.reduce(function (markLines, dataKey) {
-      if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
-        return markLines;
+      const {xKey, yKey} = chartParams;
+      let dataAxis = '';
+      if (xKey === dataKey) {
+        dataAxis = 'xAxis';
+      } else if (yKey === dataKey) {
+        dataAxis = 'yAxis';
+      } else {
+        return null;
       }
-      if (dataKey === 'cur_w') {
-        markLines.push(genMarkLine(dataKey, resultKeys.angle_max, result.angle_max, 'orange'));
-        markLines.push(genMarkLine(dataKey, resultKeys.angle_min, result.angle_min, 'orange'));
-        markLines.push(genMarkLine(dataKey, resultKeys.angle_target, result.angle_target, 'green'));
-        markLines.push(genMarkLine(dataKey, resultKeys.measure_angle, result.measure_angle));
-        return markLines;
-      }
-      if (dataKey === 'cur_m') {
-        markLines.push(genMarkLine(dataKey, resultKeys.torque_max, result.torque_max, 'orange'));
-        markLines.push(genMarkLine(dataKey, resultKeys.torque_min, result.torque_min, 'orange'));
-        markLines.push(genMarkLine(dataKey, resultKeys.torque_target, result.torque_target, 'green'));
-        markLines.push(genMarkLine(dataKey, resultKeys.measure_torque, result.measure_torque));
-        return markLines;
-      }
-    }, []).filter(Boolean);
-  }
-
-  function genMarkArea(dataKey, name, value, color = null) {
-    if(Number.isNaN(+value)){
-      return null;
-    }
-    const {xKey, yKey} = chartParams;
-    let dataAxis = '';
-    if (xKey === dataKey) {
-      dataAxis = 'xAxis';
-    } else if (yKey === dataKey) {
-      dataAxis = 'yAxis';
-    } else {
-      return null;
-    }
-    return {
-      name: '',
-      [dataAxis]: +value,
-      itemStyle: {
-        color: color,
-        opacity: 0.1
-      }
-    };
-  }
-
-  function getMarkAreaByDataKey() {
-    if (!showRange) {
-      return [];
-    }
-    const {xKey, yKey} = chartParams;
-    const dataKeys = [xKey, yKey];
-    return dataKeys.reduce(function (markArea, dataKey) {
-      if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
-        return markArea;
-      }
-      if (dataKey === 'cur_w') {
-        markArea.push([genMarkArea(dataKey, resultKeys.angle_max, result.angle_max, 'green'),
-          genMarkArea(dataKey, resultKeys.angle_min, result.angle_min, 'orange')]);
-        return markArea;
-      }
-      if (dataKey === 'cur_m') {
-        markArea.push([genMarkArea(dataKey, resultKeys.torque_max, result.torque_max, 'green'),
-          genMarkArea(dataKey, resultKeys.torque_min, result.torque_min, 'orange')]);
-        return markArea;
-      }
-    }, []).filter(function(m){
-      return m.every(Boolean);
-    });
-  }
-
-  function renderChart() {
-    const {xName, yName, yKey} = chartParams;
-    if (yKey === 'cur_a') {
-      const options = {
-        dataZoom: [
-          {
-            type: 'slider',
-            xAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          },
-          {
-            type: 'inside',
-            xAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          },
-          {
-            type: 'slider',
-            yAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          },
-          {
-            type: 'inside',
-            yAxisIndex: [0, 1, 2],
-            filterMode: 'none'
-          }
-        ],
-        legend: {
-          data: ['扭矩', '角度', '转速']
-        },
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: {
-            type: 'cross'
-          }
-        },
-        axisPointer: { // 同时出现提示竖线
-          link: {xAxisIndex: 'all'}
-        },
-        xAxis: [{
-          data: getXdata('cur_t'),
-          name: '时间'
-        }, {
-          data: getXdata('cur_t'),
-          name: '时间',
-          gridIndex: 1
-        }, {
-          data: getXdata('cur_t'),
-          name: '时间',
-          gridIndex: 2
-        }],
-        yAxis: [{
-          name: '扭矩',
-          axisLine: {
-            show: true,
-          },
-          axisLabel: {
-            formatter: '{value} N*m'
-          }
-        }, {
-          name: '角度',
-          gridIndex: 1,
-          axisLine: {
-            show: true,
-          },
-          axisLabel: {
-            formatter: '{value} °'
-          },
-        }, {
-          name: '转速',
-          axisLine: {
-            show: true,
-          },
-          gridIndex: 2
-        }],
-        grid: [{
-          top: '5%',
-          bottom: '70%',
-        }, {
-          top: '38%',
-          bottom: '40%',
-        },
-          {
-            top: '70%',
-            bottom: '5%'
-          }],
-        series: getAlldata()
-      };
-      curveChart.setOption(options, true);
-    } else {
-      const option = {
-      toolbox: {
-        show: true,
-        feature: {
-          dataZoom: {},
-          dataView: {readOnly: true},
-          saveAsImage: {}
-        }
-      },
-      legend: {
-        type: 'scroll',
-        data: [yName]
-      },
-      grid: {
-        bottom: 100
-      },
-      xAxis: {
-        type: 'value',
-        name: xName,
-        nameLocation: 'middle',
-        nameGap: 30,
-        axisLabel: {
-          fontSize: 16
-        }
-      },
-      yAxis: {
-        type: 'value',
-        name: yName,
-        nameLocation: 'middle',
-        nameRotate: 0,
-        nameGap: 50,
-        axisLabel: {
-          fontSize: 16
-        }
-      },
-      series: [{
-        name: yName,
-        type: 'line',
-        data: genData(),
-        symbol: 'circle',
-        showSymbol: false,
-        itemStyle: {
-          color: '#3083bf'
-        },
+      return {
+        name,
+        [dataAxis]: +value,
         lineStyle: {
-          color: '#3083bf',
-          width: 3
-        },
-        markLine: {
-          data: [
-            // { type: 'min', name: '最小值' },
-            // { type: 'max', name: '最大值' },
-            ...getMarkLineByDataKey()
-          ]
-        },
-        markArea: {
-          silent: true,
-          data: [
-            ...getMarkAreaByDataKey()
-          ]
+          color: color
         }
-      }],
-      textStyle: {
-        fontFamily: 'monospace',
-        fontSize: 18
-      },
-      dataZoom: [
-        {
-          type: 'slider',
-          xAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'slider',
-          yAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'inside',
-          xAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'inside',
-          yAxisIndex: 0,
-          filterMode: 'none'
+      };
+    }
+
+    function getMarkLineByDataKey() {
+      if (!showRange) {
+        return [];
+      }
+      const {xKey, yKey} = chartParams;
+      const dataKeys = [xKey, yKey];
+      return dataKeys.reduce(function (markLines, dataKey) {
+        if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
+          return markLines;
         }
-      ],
-      tooltip: {
-        trigger: 'axis'
+        if (dataKey === 'cur_w') {
+          markLines.push(genMarkLine(dataKey, resultKeys.angle_max, result.angle_max, 'orange'));
+          markLines.push(genMarkLine(dataKey, resultKeys.angle_min, result.angle_min, 'orange'));
+          markLines.push(genMarkLine(dataKey, resultKeys.angle_target, result.angle_target, 'green'));
+          markLines.push(genMarkLine(dataKey, resultKeys.measure_angle, result.measure_angle));
+          return markLines;
+        }
+        if (dataKey === 'cur_m') {
+          markLines.push(genMarkLine(dataKey, resultKeys.torque_max, result.torque_max, 'orange'));
+          markLines.push(genMarkLine(dataKey, resultKeys.torque_min, result.torque_min, 'orange'));
+          markLines.push(genMarkLine(dataKey, resultKeys.torque_target, result.torque_target, 'green'));
+          markLines.push(genMarkLine(dataKey, resultKeys.measure_torque, result.measure_torque));
+          return markLines;
+        }
+      }, []).filter(Boolean);
+    }
+
+    function genMarkArea(dataKey, name, value, color = null) {
+      if (Number.isNaN(+value)) {
+        return null;
       }
-    };
-      curveChart.setOption(option, true);
-    }
-  }
-
-  function isEmptyValue(val) {
-    return val === undefined || val === null || val === '';
-  }
-
-  function renderResultTableRow(key, value, alert = null) {
-    const $tr = $('<tr class="result-content-row">');
-    const $key = $(`<td class="result-content-item">${key}</td>`);
-    const $value = $(`<td class="result-content-item">${isEmptyValue(value) ? '' : value}</td>`);
-    if (alert === false) {
-      $tr.addClass('bg-success text-white font-weight-bold');
-    } else if (alert === true) {
-      $tr.addClass('bg-danger text-white font-weight-bold');
-    }
-    $tr.append([$key, $value]);
-    return $tr;
-  }
-
-  function parseResultErrorCode(code) {
-    if (!code) {
-      return '';
-    }
-    if (typeof code !== 'string') {
-      return code || '';
-    }
-    if (/[^0-1]/.test(code)) {
-      return code;
-    }
-    const codeArr = code.split('').reverse();
-    const messageArr = [];
-    codeArr.forEach((val, idx) => {
-      if (val === '0') {
-        return;
+      const {xKey, yKey} = chartParams;
+      let dataAxis = '';
+      if (xKey === dataKey) {
+        dataAxis = 'xAxis';
+      } else if (yKey === dataKey) {
+        dataAxis = 'yAxis';
+      } else {
+        return null;
       }
-      messageArr.push(resultErrs[`${idx + 1}`] || '');
-    });
-    return messageArr;
-  }
-
-  function renderResultDetail() {
-    const {detail} = displayKeys;
-    const $rows = [];
-
-    (detail || Object.keys(result)).forEach((k) => {
-      $rows.push(renderResultTableRow(resultKeys[k] || k, result[k]));
-    });
-    $('#result_detail').append($rows);
-  }
-
-  function submitDoubleCheck(finalState, finalErrorTags) {
-    const errorTagsArr = (finalErrorTags || []).map(t => JSON.parse(t));
-    $.ajax({
-      type: 'POST',
-      url: "{{ url_for('api_experimental.double_confirm_task',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
-      data: JSON.stringify({
-        csrf_token: '{{ csrf_token() }}',
-        final_state: finalState,
-        error_tags: errorTagsArr,
-        execution_date: '{{task_instance.execution_date}}'
-      }),
-      headers: {'X-CSRFToken': '{{ csrf_token() }}'},
-      dataType: 'json',
-      contentType: 'application/json'
-    }).then((resp) => {
-      const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
-      $('#double-check-card').addClass(resultClass);
-      $('.double-check-result').html(`${finalState}`)
-        .addClass(finalState === 'OK' ? 'text-success' : 'text-danger')
-        .css({'font-weight': 'bolder'});
-      $('#doubleCheckModal').modal('hide');
-      if (resp && resp.response === 'ok') {
-        $('#error-tags').html((errorTagsArr || []).map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
-          .join(','));
-      }
-    });
-  }
-
-  function tagsSelector() {
-    $errorTagsSelector = $(
-      '<label for="error-tag-select" id="error-tag-label-container" class="my-0">'
-      + '          <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple>'
-      + '            {% for err in errorTags %}'
-      + '            <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>'
-      + '            {% endfor %}'
-      + '          </select>'
-      + '        </label>',
-    );
-    $errorTagInput = $errorTagsSelector.find('.error-tag-select-input');
-    $errorTagInput.select2({
-      width: '100%'
-    });
-
-    $errorTagInput.val(getTaskErrorTags()).trigger('change');
-    return $errorTagsSelector;
-  }
-
-  function confirmDoubleCheck(status) {
-    const message = status === 'OK' ? `二次确认曲线结果为：${status}，曲线的标签将被清除。`
-      : `二次确认曲线结果为：${status}，请选择曲线标签：`;
-    const $content = $('<div/>');
-    const $message = $(`<h4 style="font-weight: normal">${message}</h4>`);
-    $content.append($message);
-    if (status === 'NOK') {
-      const $selector = tagsSelector();
-      $content.append($selector);
+      return {
+        name: '',
+        [dataAxis]: +value,
+        itemStyle: {
+          color: color,
+          opacity: 0.1
+        }
+      };
     }
-    showDialog('二次确认', $content, {
-      onConfirm() {
-        const finalErrorTags = $errorTagInput && $errorTagInput.val() || [];
-        submitDoubleCheck(status, finalErrorTags);
+
+    function getMarkAreaByDataKey() {
+      if (!showRange) {
+        return [];
       }
+      const {xKey, yKey} = chartParams;
+      const dataKeys = [xKey, yKey];
+      return dataKeys.reduce(function (markArea, dataKey) {
+        if (dataKey !== 'cur_w' && dataKey !== 'cur_m') {
+          return markArea;
+        }
+        if (dataKey === 'cur_w') {
+          markArea.push([genMarkArea(dataKey, resultKeys.angle_max, result.angle_max, 'green'),
+            genMarkArea(dataKey, resultKeys.angle_min, result.angle_min, 'orange')]);
+          return markArea;
+        }
+        if (dataKey === 'cur_m') {
+          markArea.push([genMarkArea(dataKey, resultKeys.torque_max, result.torque_max, 'green'),
+            genMarkArea(dataKey, resultKeys.torque_min, result.torque_min, 'orange')]);
+          return markArea;
+        }
+      }, []).filter(function (m) {
+        return m.every(Boolean);
+      });
+    }
+
+    function renderChart() {
+      const {xName, yName, yKey} = chartParams;
+      if (yKey === 'cur_a') {
+        const options = {
+          dataZoom: [
+            {
+              type: 'slider',
+              xAxisIndex: [0, 1, 2],
+              filterMode: 'none'
+            },
+            {
+              type: 'inside',
+              xAxisIndex: [0, 1, 2],
+              filterMode: 'none'
+            },
+            {
+              type: 'slider',
+              yAxisIndex: [0, 1, 2],
+              filterMode: 'none'
+            },
+            {
+              type: 'inside',
+              yAxisIndex: [0, 1, 2],
+              filterMode: 'none'
+            }
+          ],
+          legend: {
+            data: ['扭矩', '角度', '转速']
+          },
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+              type: 'cross'
+            }
+          },
+          axisPointer: { // 同时出现提示竖线
+            link: {xAxisIndex: 'all'}
+          },
+          xAxis: [{
+            data: getXdata('cur_t'),
+            name: '时间'
+          }, {
+            data: getXdata('cur_t'),
+            name: '时间',
+            gridIndex: 1
+          }, {
+            data: getXdata('cur_t'),
+            name: '时间',
+            gridIndex: 2
+          }],
+          yAxis: [{
+            name: '扭矩',
+            axisLine: {
+              show: true,
+            },
+            axisLabel: {
+              formatter: '{value} N*m'
+            }
+          }, {
+            name: '角度',
+            gridIndex: 1,
+            axisLine: {
+              show: true,
+            },
+            axisLabel: {
+              formatter: '{value} °'
+            },
+          }, {
+            name: '转速',
+            axisLine: {
+              show: true,
+            },
+            gridIndex: 2
+          }],
+          grid: [{
+            top: '5%',
+            bottom: '70%',
+          }, {
+            top: '38%',
+            bottom: '40%',
+          },
+            {
+              top: '70%',
+              bottom: '5%'
+            }],
+          series: getAlldata()
+        };
+        curveChart.setOption(options, true);
+      } else {
+        const option = {
+          toolbox: {
+            show: true,
+            feature: {
+              dataZoom: {},
+              dataView: {readOnly: true},
+              saveAsImage: {}
+            }
+          },
+          legend: {
+            type: 'scroll',
+            data: [yName]
+          },
+          grid: {
+            bottom: 100
+          },
+          xAxis: {
+            type: 'value',
+            name: xName,
+            nameLocation: 'middle',
+            nameGap: 30,
+            axisLabel: {
+              fontSize: 16
+            }
+          },
+          yAxis: {
+            type: 'value',
+            name: yName,
+            nameLocation: 'middle',
+            nameRotate: 0,
+            nameGap: 50,
+            axisLabel: {
+              fontSize: 16
+            }
+          },
+          series: [{
+            name: yName,
+            type: 'line',
+            data: genData(),
+            symbol: 'circle',
+            showSymbol: false,
+            itemStyle: {
+              color: '#3083bf'
+            },
+            lineStyle: {
+              color: '#3083bf',
+              width: 3
+            },
+            markLine: {
+              data: [
+                // { type: 'min', name: '最小值' },
+                // { type: 'max', name: '最大值' },
+                ...getMarkLineByDataKey()
+              ]
+            },
+            markArea: {
+              silent: true,
+              data: [
+                ...getMarkAreaByDataKey()
+              ]
+            }
+          }],
+          textStyle: {
+            fontFamily: 'monospace',
+            fontSize: 18
+          },
+          dataZoom: [
+            {
+              type: 'slider',
+              xAxisIndex: 0,
+              filterMode: 'none'
+            },
+            {
+              type: 'slider',
+              yAxisIndex: 0,
+              filterMode: 'none'
+            },
+            {
+              type: 'inside',
+              xAxisIndex: 0,
+              filterMode: 'none'
+            },
+            {
+              type: 'inside',
+              yAxisIndex: 0,
+              filterMode: 'none'
+            }
+          ],
+          tooltip: {
+            trigger: 'axis'
+          }
+        };
+        curveChart.setOption(option, true);
+      }
+    }
+
+    function isEmptyValue(val) {
+      return val === undefined || val === null || val === '';
+    }
+
+    function renderResultTableRow(key, value, alert = null) {
+      const $tr = $('<tr class="result-content-row">');
+      const $key = $(`<td class="result-content-item">${key}</td>`);
+      const $value = $(`<td class="result-content-item">${isEmptyValue(value) ? '' : value}</td>`);
+      if (alert === false) {
+        $tr.addClass('bg-success text-white font-weight-bold');
+      } else if (alert === true) {
+        $tr.addClass('bg-danger text-white font-weight-bold');
+      }
+      $tr.append([$key, $value]);
+      return $tr;
+    }
+
+    function parseResultErrorCode(code) {
+      if (!code) {
+        return '';
+      }
+      if (typeof code !== 'string') {
+        return code || '';
+      }
+      if (/[^0-1]/.test(code)) {
+        return code;
+      }
+      const codeArr = code.split('').reverse();
+      const messageArr = [];
+      codeArr.forEach((val, idx) => {
+        if (val === '0') {
+          return;
+        }
+        messageArr.push(resultErrs[`${idx + 1}`] || '');
+      });
+      return messageArr;
+    }
+
+    function renderResultDetail() {
+      const {detail} = displayKeys;
+      const $rows = [];
+
+      (detail || Object.keys(result)).forEach((k) => {
+        $rows.push(renderResultTableRow(resultKeys[k] || k, result[k]));
+      });
+      $('#result_detail').append($rows);
+    }
+
+    function submitDoubleCheck(finalState, finalErrorTags) {
+      const errorTagsArr = (finalErrorTags || []).map(t => JSON.parse(t));
+      $.ajax({
+        type: 'POST',
+        url: "{{ url_for('api_experimental.double_confirm_task',dag_id=task_instance.dag_id, task_id=task_instance.task_id, execution_date=task_instance.execution_date ) }}",
+        data: JSON.stringify({
+          csrf_token: '{{ csrf_token() }}',
+          final_state: finalState,
+          error_tags: errorTagsArr,
+          execution_date: '{{task_instance.execution_date}}'
+        }),
+        headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+        dataType: 'json',
+        contentType: 'application/json'
+      }).then((resp) => {
+        const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
+        $('#double-check-card').addClass(resultClass);
+        $('.double-check-result').html(`${finalState}`)
+          .addClass(finalState === 'OK' ? 'text-success' : 'text-danger')
+          .css({'font-weight': 'bolder'});
+        $('#doubleCheckModal').modal('hide');
+        if (resp && resp.response === 'ok') {
+          $('#error-tags').html((errorTagsArr || []).map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
+            .join(','));
+        }
+      });
+    }
+
+    function tagsSelector() {
+      $errorTagsSelector = $(
+        '<label for="error-tag-select" id="error-tag-label-container" class="my-0">'
+        + '          <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple>'
+        + '            {% for err in errorTags %}'
+          + '            <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>'
+          + '            {% endfor %}'
+        + '          </select>'
+        + '        </label>',
+      );
+      $errorTagInput = $errorTagsSelector.find('.error-tag-select-input');
+      $errorTagInput.select2({
+        width: '100%'
+      });
+
+      $errorTagInput.val(getTaskErrorTags()).trigger('change');
+      return $errorTagsSelector;
+    }
+
+    function confirmDoubleCheck(status) {
+      const message = status === 'OK' ? `二次确认曲线结果为：${status}，曲线的标签将被清除。`
+        : `二次确认曲线结果为：${status}，请选择曲线标签：`;
+      const $content = $('<div/>');
+      const $message = $(`<h4 style="font-weight: normal">${message}</h4>`);
+      $content.append($message);
+      if (status === 'NOK') {
+        const $selector = tagsSelector();
+        $content.append($selector);
+      }
+      showDialog('二次确认', $content, {
+        onConfirm() {
+          const finalErrorTags = $errorTagInput && $errorTagInput.val() || [];
+          submitDoubleCheck(status, finalErrorTags);
+        }
+      });
+    }
+
+    $('#btn_double_check_failed').click((e) => {
+      confirmDoubleCheck('NOK');
     });
-  }
+    $('#btn_double_check_success').click((e) => {
+      confirmDoubleCheck('OK');
+    });
 
-  $('#btn_double_check_failed').click((e) => {
-    confirmDoubleCheck('NOK');
-  });
-  $('#btn_double_check_success').click((e) => {
-    confirmDoubleCheck('OK');
-  });
-
-  function renderBaseInfoRow(label, value) {
-    return $(
-      `<tr>
+    function renderBaseInfoRow(label, value) {
+      return $(
+        `<tr>
         <td><h4 class="m-0 p-1" style="font-weight: normal">${label}</h4></td>
         <td><h4 class="m-0 p-1" style="font-weight: normal">${value}</h4></td>
       </tr>`
-    );
-  }
-
-  function renderBaseInfo() {
-    const baseInfo = {
-      entity_id: {
-        label: '曲线编号',
-        value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=task_instance.bolt_number,craft_type=task_instance.craft_type,curves=task_instance.entity_id.replace('/','@'))}}" + '">{{task_instance.entity_id}}</a>'
-      },
-      bolt_number: {
-        label: "{{ '编号' if task_instance.device_type == 'servo_press' else '螺栓编号'}}",
-        value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
-      },
-      execution_date: {
-        label: "{{ '时间' if task_instance.device_type == 'servo_press' else '拧紧时间'}}",
-        value: new Date('{{task_instance.execution_date}}').toLocaleString()
-      },
-      controller_name: {label: '控制器', value: '{{controller.controller_name}}'},
-      tool_sn: {label: '工具序列号', value: '{{result.tool_sn}}'},
-      line_code: {label: '工段', value: '{{controller.line_code}}'},
-      work_center_name: {label: '工位名称', value: '{{controller.work_center_name}}'},
-      work_center_code: {label: '工位编号', value: '{{controller.work_center_code}}'}
-    };
-    const {basic} = displayKeys;
-    const info = (basic || Object.keys(baseInfo)).map(function (k) {
-      return baseInfo[k] || {};
-    });
-
-    $('#base-info-content').append(info.map(i => renderBaseInfoRow(i.label, i.value)));
-  }
-
-  function getTaskErrorTags() {
-    try {
-      return JSON.parse('{{task_instance.error_tag if task_instance.error_tag else []}}').map(t => `${t}`);
-    } catch (e) {
-      console.error(e);
-      return [];
+      );
     }
-  }
 
-  function getErrorTagText(val) {
-    const tag = errorTags.find(e => e.value === val);
-    if (tag) {
-      return tag;
-    }
-    return null;
-  }
-
-  function getTaskErrorTagLabels() {
-    try {
-      const tagsVal = getTaskErrorTags();
-      return tagsVal.map(getErrorTagText).filter(t => !!t).map(t => t.label);
-    } catch (e) {
-      console.error(e);
-      return [];
-    }
-  }
-
-  function renderErrorTags() {
-    const tags = getTaskErrorTagLabels();
-    const tagsContainer = $('#error-tags');
-    tagsContainer.append(tags.join('，'));
-  }
-
-  function formatCurveFileContent() {
-    let content = '';
-    const length = curve.cur_t && curve.cur_t.length;
-    const keys = ['cur_w', 'cur_m', 'cur_t'];
-    content = keys.map(function (k) {
-      return curKeyMap[k];
-    }).join(',') + '\n';
-    for (let i = 0; i < length; i++) {
-      keys.forEach(function (k) {
-        content += curve[k][i];
-        content += ',';
+    function renderBaseInfo() {
+      const baseInfo = {
+        entity_id: {
+          label: '曲线编号',
+          value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=task_instance.bolt_number,craft_type=task_instance.craft_type,curves=task_instance.entity_id.replace('/','@'))}}" + '">{{task_instance.entity_id}}</a>'
+        },
+        bolt_number: {
+          label: "{{ '编号' if task_instance.device_type == 'servo_press' else '螺栓编号'}}",
+          value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
+        },
+        execution_date: {
+          label: "{{ '时间' if task_instance.device_type == 'servo_press' else '拧紧时间'}}",
+          value: new Date('{{task_instance.execution_date}}').toLocaleString()
+        },
+        controller_name: {label: '控制器', value: '{{controller.controller_name}}'},
+        tool_sn: {label: '工具序列号', value: '{{result.tool_sn}}'},
+        line_code: {label: '工段', value: '{{controller.line_code}}'},
+        work_center_name: {label: '工位名称', value: '{{controller.work_center_name}}'},
+        work_center_code: {label: '工位编号', value: '{{controller.work_center_code}}'}
+      };
+      const {basic} = displayKeys;
+      const info = (basic || Object.keys(baseInfo)).map(function (k) {
+        return baseInfo[k] || {};
       });
-      content += '\n';
+
+      $('#base-info-content').append(info.map(i => renderBaseInfoRow(i.label, i.value)));
     }
-    return content;
-  }
 
-  function doDownLoad(fileContent, fileName, fileType) {
-    var file = new Blob([fileContent], {type: fileType});
-    const url = URL.createObjectURL(file);
+    function getTaskErrorTags() {
+      try {
+        return JSON.parse('{{task_instance.error_tag if task_instance.error_tag else []}}').map(t => `${t}`);
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
 
-    var a = document.createElement('a');
-    a.download = fileName;
-    a.href = url;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
+    function getErrorTagText(val) {
+      const tag = errorTags.find(e => e.value === val);
+      if (tag) {
+        return tag;
+      }
+      return null;
+    }
 
-  function downloadCurveAndResult() {
-    const curveContent = formatCurveFileContent();
-    doDownLoad(curveContent, '{{task_instance.entity_id}}.csv'.replace('/', '@'), 'text/plain');
-    const resultContent = JSON.stringify(result);
-    doDownLoad(resultContent, '{{task_instance.entity_id}}.json'.replace('/', '@'), 'text/plain');
+    function getTaskErrorTagLabels() {
+      try {
+        const tagsVal = getTaskErrorTags();
+        return tagsVal.map(getErrorTagText).filter(t => !!t).map(t => t.label);
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    }
 
-  }
+    function renderErrorTags() {
+      const tags = getTaskErrorTagLabels();
+      const tagsContainer = $('#error-tags');
+      tagsContainer.append(tags.join('，'));
+    }
 
-  $(document).ready(() => {
-    renderBaseInfo();
-    chartInit();
-    renderChart();
-    renderResultDetail();
-    renderErrorTags();
-  });
-</script>
+    function formatCurveFileContent() {
+      let content = '';
+      const length = curve.cur_t && curve.cur_t.length;
+      const keys = ['cur_w', 'cur_m', 'cur_t'];
+      content = keys.map(function (k) {
+        return curKeyMap[k];
+      }).join(',') + '\n';
+      for (let i = 0; i < length; i++) {
+        keys.forEach(function (k) {
+          content += curve[k][i];
+          content += ',';
+        });
+        content += '\n';
+      }
+      return content;
+    }
+
+    function doDownLoad(fileContent, fileName, fileType) {
+      var file = new Blob([fileContent], {type: fileType});
+      const url = URL.createObjectURL(file);
+
+      var a = document.createElement('a');
+      a.download = fileName;
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function downloadCurveAndResult() {
+      const curveContent = formatCurveFileContent();
+      doDownLoad(curveContent, '{{task_instance.entity_id}}.csv'.replace('/', '@'), 'text/plain');
+      const resultContent = JSON.stringify(result);
+      doDownLoad(resultContent, '{{task_instance.entity_id}}.json'.replace('/', '@'), 'text/plain');
+
+    }
+
+    $(document).ready(() => {
+      renderBaseInfo();
+      chartInit();
+      renderChart();
+      renderResultDetail();
+      renderErrorTags();
+    });
+  </script>
 {% endblock %}
