@@ -2137,6 +2137,7 @@ components:
           type: integer
         operator:
           type: string
+          nullable: true
         queued_when:
           type: string
           nullable: true
