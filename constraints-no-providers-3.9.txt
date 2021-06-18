@@ -1,6 +1,6 @@
 # Editable install with no version control (apache-airflow==2.2.0.dev0)
 Babel==2.9.1
-Flask-AppBuilder==3.3.0
+Flask-AppBuilder==3.3.1
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -26,7 +26,7 @@ WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.6.5
 amqp==2.6.1
-anyio==3.1.0
+anyio==3.2.0
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.3
@@ -37,7 +37,7 @@ blinker==1.4
 cachetools==4.2.2
 cattrs==1.5.0
 celery==4.4.7
-certifi==2021.5.30
+certifi==2020.12.5
 cffi==1.14.5
 cgroupspy==0.1.6
 chardet==3.0.4
@@ -49,7 +49,7 @@ colorlog==5.0.1
 commonmark==0.9.1
 croniter==1.0.13
 cryptography==3.4.7
-dask==2021.6.0
+dask==2021.6.1
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.2
@@ -117,7 +117,7 @@ requests-kerberos==0.12.0
 requests-oauthlib==1.1.0
 requests==2.25.1
 rfc3986==1.5.0
-rich==10.3.0
+rich==10.4.0
 rsa==4.7.2
 sentry-sdk==1.1.0
 setproctitle==1.2.2

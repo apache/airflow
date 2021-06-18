@@ -3,7 +3,7 @@ APScheduler==3.6.3
 Authlib==0.15.4
 Babel==2.9.1
 Deprecated==1.2.12
-Flask-AppBuilder==3.3.0
+Flask-AppBuilder==3.3.1
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -14,7 +14,7 @@ Flask-OpenID==1.2.5
 Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.14.3
 Flask==1.1.4
-GitPython==3.1.14
+GitPython==3.1.18
 HeapDict==1.0.1
 JPype1==1.3.0
 JayDeBeApi==1.2.3
@@ -42,7 +42,7 @@ alembic==1.6.5
 amqp==2.6.1
 analytics-python==1.3.1
 ansiwrap==0.8.4
-anyio==3.1.0
+anyio==3.2.0
 apache-beam==2.30.0
 apispec==3.3.2
 appdirs==1.4.4
@@ -86,9 +86,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.6b0
 blinker==1.4
-boto3==1.17.96
+boto3==1.17.97
 boto==2.49.0
-botocore==1.20.96
+botocore==1.20.97
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
@@ -113,7 +113,7 @@ croniter==1.0.13
 cryptography==3.4.7
 curlify==2.2.1
 cx-Oracle==8.2.1
-dask==2021.6.0
+dask==2021.6.1
 datadog==0.41.0
 decorator==5.0.9
 defusedxml==0.7.1
@@ -170,7 +170,7 @@ google-cloud-kms==2.3.0
 google-cloud-language==1.3.0
 google-cloud-logging==2.5.0
 google-cloud-memcache==1.0.0
-google-cloud-monitoring==2.2.1
+google-cloud-monitoring==2.3.0
 google-cloud-os-login==2.2.1
 google-cloud-pubsub==2.5.0
 google-cloud-redis==2.1.1
@@ -185,7 +185,7 @@ google-cloud-videointelligence==1.16.1
 google-cloud-vision==1.0.0
 google-cloud-workflows==1.1.0
 google-crc32c==1.1.2
-google-resumable-media==1.3.0
+google-resumable-media==1.3.1
 googleapis-common-protos==1.53.0
 graphviz==0.16
 greenlet==1.1.0
@@ -230,7 +230,6 @@ kombu==4.6.11
 kubernetes==11.0.0
 kylinpy==2.8.4
 lazy-object-proxy==1.4.3
-ldap3==2.9
 libcst==0.3.19
 locket==0.2.1
 lockfile==0.12.2
@@ -291,7 +290,7 @@ pre-commit==2.13.0
 presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
-prompt-toolkit==3.0.18
+prompt-toolkit==3.0.19
 proto-plus==1.18.1
 protobuf==3.17.3
 psutil==5.8.0
@@ -356,7 +355,7 @@ requests-toolbelt==0.9.1
 requests==2.25.1
 responses==0.13.3
 rfc3986==1.5.0
-rich==10.3.0
+rich==10.4.0
 rsa==4.7.2
 s3transfer==0.4.2
 scrapbook==0.5.0
@@ -392,7 +391,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==5.2.1
-spython==0.1.13
+spython==0.1.14
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.1
 statsd==3.3.0
