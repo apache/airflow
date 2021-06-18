@@ -195,7 +195,7 @@ def get_sphinx_theme_version() -> str:
 # Start dependencies group
 amazon = [
     'boto3>=1.15.0,<1.18.0',
-    'watchtower~=0.7.3',
+    'watchtower~=1.0.6',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
