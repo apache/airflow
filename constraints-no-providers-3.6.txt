@@ -71,7 +71,7 @@ greenlet==1.1.0
 gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.13.6
-httpx==0.18.1
+httpx==0.18.2
 humanize==3.9.0
 idna==2.10
 immutables==0.15
