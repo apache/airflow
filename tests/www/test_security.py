@@ -88,7 +88,6 @@ class TestSecurity(unittest.TestCase):
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.delete_roles()
         cls.security_manager = cls.appbuilder.sm
-        cls.security_manager.reset_all_permissions()
 
     def setUp(self):
         clear_db_runs()
