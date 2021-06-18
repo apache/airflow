@@ -494,7 +494,8 @@ class Airflow(AirflowBaseView):
                                                                                   'Airflow')
 
         if curve_template is None:
-            return None
+            # todo: 不要返回错误页面
+            return circles(AirflowNotFoundException)
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
