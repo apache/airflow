@@ -295,6 +295,8 @@ following the ASF Policy.
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
 
+Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
+
 ## Who uses Apache Airflow?
 
 More than 400 organizations are using Apache Airflow
