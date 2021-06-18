@@ -99,7 +99,7 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-
+from airflow.configuration import AIRFLOW_HOME
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
 _logger = logging.getLogger(__name__)
@@ -2289,7 +2289,7 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
-    download_static_folder = os.path.join(os.path.dirname(__file__), 'downloads/contents')
+    download_static_folder = os.path.join(AIRFLOW_HOME, 'downloads/contents')
 
     def __init__(self, *args, **kwargs):
         ret = super(CurvesView, self).__init__(**kwargs)
@@ -2444,7 +2444,7 @@ class CurvesView(BaseCRUDView):
                 for file in files:
                     if not os.path.exists(file):
                         continue
-                    f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+                    f.write(file, arcname=os.path.basename(file), compress_type=zipfile.ZIP_DEFLATED)
             return True
         except Exception as e:
             _logger.error(e)
