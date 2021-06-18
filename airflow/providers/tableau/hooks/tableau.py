@@ -26,9 +26,7 @@ from airflow.hooks.base import BaseHook
 class TableauJobFinishCode(Enum):
     """
     The finish code indicates the status of the job.
-
     .. seealso:: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm#query_job
-
     """
 
     PENDING = -1
@@ -40,9 +38,7 @@ class TableauJobFinishCode(Enum):
 class TableauHook(BaseHook):
     """
     Connects to the Tableau Server Instance and allows to communicate with it.
-
     .. seealso:: https://tableau.github.io/server-client-python/docs/
-
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.
     :type site_id: Optional[str]
@@ -62,7 +58,8 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get('site_id', '')
         self.server = Server(self.conn.host)
-        self.server.add_http_options(options_dict={'verify': self.conn.extra_dejson.get('verify', False)})
+        self.server.add_http_options(options_dict={'verify': self.conn.extra_dejson.get('verify', True),
+                                                   'cert': self.conn.extra_dejson.get('cert', None)})
         self.server.use_server_version()
         self.tableau_conn = None
 
@@ -77,7 +74,6 @@ class TableauHook(BaseHook):
     def get_conn(self) -> Auth.contextmgr:
         """
         Signs in to the Tableau Server and automatically signs out if used as ContextManager.
-
         :return: an authorized Tableau Server Context Manager object.
         :rtype: tableauserverclient.server.Auth.contextmgr
         """
@@ -104,9 +100,7 @@ class TableauHook(BaseHook):
     def get_all(self, resource_name: str) -> Pager:
         """
         Get all items of the given resource.
-
         .. seealso:: https://tableau.github.io/server-client-python/docs/page-through-results
-
         :param resource_name: The name of the resource to paginate.
             For example: jobs or workbooks
         :type resource_name: str
