@@ -512,7 +512,6 @@ devel = [
     'importlib-resources~=1.4',
     'ipdb',
     'jira',
-    'jsonpath-ng',
     'jsondiff',
     'mongomock',
     'moto~=2.0',

@@ -56,16 +56,17 @@ are in ``airflow.providers.zendesk`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-zendesk``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
 ``zdesk``
-=============  ==================
+==================  ==================
 
 .. include:: ../../airflow/providers/zendesk/CHANGELOG.rst

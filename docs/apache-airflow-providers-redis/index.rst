@@ -61,16 +61,17 @@ are in ``airflow.providers.redis`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-redis``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``redis``      ``~=3.2``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``redis``           ``~=3.2``
+==================  ==================
 
 .. include:: ../../airflow/providers/redis/CHANGELOG.rst

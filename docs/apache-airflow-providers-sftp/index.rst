@@ -62,19 +62,20 @@ are in ``airflow.providers.sftp`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-sftp``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``paramiko``   ``>=2.6.0``
-``pysftp``     ``>=0.2.9``
-``sshtunnel``  ``>=0.1.4,<0.2``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``paramiko``        ``>=2.6.0``
+``pysftp``          ``>=0.2.9``
+``sshtunnel``       ``>=0.1.4,<0.2``
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------

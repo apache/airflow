@@ -19,13 +19,21 @@
 Changelog
 ---------
 
-2.0.0
+2.0.1
 .....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Auto-apply apply_default decorator (#15667)``
+* ``Remove support Jinja templated log_id in Elasticsearch (#16465)``
+
+  While undocumented, previously ``[elasticsearch] log_id`` supported a Jinja templated string.
+  Support for Jinja templates has now been removed. ``log_id`` should be a template string instead,
+  for example: ``{dag_id}-{task_id}-{execution_date}-{try_number}``.
+
+  If you used a Jinja template previously, the ``execution_date`` on your Elasticsearch documents will need
+  to be updated to the new format.
 
 .. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
    If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
@@ -36,14 +44,23 @@ Features
 ~~~~~~~~
 
 * ``Support remote logging in elasticsearch with filebeat 7 (#14625)``
+* ``Support non-https elasticsearch external links (#16489)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Fix external elasticsearch logs link (#16357)``
+* ``Fix Elasticsearch external log link with &#39;&#39;json_format&#39;&#39; (#16467)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
    * ``Docs: Fix url for ''Elasticsearch'' (#16275)``
    * ``Add ElasticSearch Connection Doc (#16436)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.0.4
 .....

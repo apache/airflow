@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-06-14
+Latest change: 2021-06-17
 
-================================================================================================  ===========  ===================================================================================
+================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ===================================================================================
+================================================================================================  ===========  ===============================================================================================
+`4c9735ff9 <https://github.com/apache/airflow/commit/4c9735ff9b0201758564fcd64166abde318ec8a7>`_  2021-06-17   ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `4752fb3eb <https://github.com/apache/airflow/commit/4752fb3eb8ac8827e6af6022fbcf751829ecb17a>`_  2021-06-14   ``Fix issue with parsing error logs in the KPO (#15638)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `2f16757e1 <https://github.com/apache/airflow/commit/2f16757e1a11ef42ac2b1a62622a5d34f8a1e996>`_  2021-06-03   ``Bug Pod Template File Values Ignored (#16095)``
@@ -44,7 +47,7 @@ Commit                                                                          
 `733bec9a0 <https://github.com/apache/airflow/commit/733bec9a04ab718a0f6289d93f4e2e4ea3e03d54>`_  2021-05-20   ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
 `37d549bde <https://github.com/apache/airflow/commit/37d549bde79cd560d24748ebe7f94730115c0e88>`_  2021-05-14   ``Save pod name to xcom for KubernetesPodOperator (#15755)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
-================================================================================================  ===========  ===================================================================================
+================================================================================================  ===========  ===============================================================================================
 
 1.2.0
 .....

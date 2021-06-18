@@ -61,7 +61,7 @@ are in ``airflow.providers.vertica`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-vertica``
 
 PIP requirements
@@ -70,6 +70,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
+``apache-airflow``  ``>=2.1.0``
 ``vertica-python``  ``>=0.5.1``
 ==================  ==================
 

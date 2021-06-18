@@ -67,17 +67,18 @@ are in ``airflow.providers.hashicorp`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-hashicorp``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``hvac``       ``~=0.10``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``hvac``            ``~=0.10``
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------

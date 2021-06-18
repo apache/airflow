@@ -69,16 +69,17 @@ are in ``airflow.providers.http`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-http``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``requests``   ``>=2.20.0``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``requests``        ``>=2.20.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/http/CHANGELOG.rst

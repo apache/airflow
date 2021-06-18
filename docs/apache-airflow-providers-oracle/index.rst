@@ -67,16 +67,17 @@ are in ``airflow.providers.oracle`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-oracle``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``cx_Oracle``  ``>=5.1.2``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``cx_Oracle``       ``>=5.1.2``
+==================  ==================
 
 .. include:: ../../airflow/providers/oracle/CHANGELOG.rst

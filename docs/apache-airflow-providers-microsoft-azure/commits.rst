@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2021-06-11
+Latest change: 2021-06-16
 
 ================================================================================================  ===========  ==============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==============================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `0c80a7d41 <https://github.com/apache/airflow/commit/0c80a7d41100bf8d18b661c8286d6056e6d5d2f1>`_  2021-06-11   ``Fixes AzureFileShare connection extras (#16388)``
 `29b7f795d <https://github.com/apache/airflow/commit/29b7f795d6fb9fb8cab14158905c1b141044236d>`_  2021-06-07   ``fix wasb remote logging when blob already exists (#16280)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``

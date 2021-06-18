@@ -48,6 +48,7 @@ Bug Fixes
    * ``Fix docstring formatting on ``SlackHook`` (#15840)``
    * ``Add Connection Documentation for Providers (#15499)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 3.0.0
 .....

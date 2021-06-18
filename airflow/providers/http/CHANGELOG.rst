@@ -46,6 +46,7 @@ Features
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add documentation for the HTTP connection (#15379)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.1.1
 .....

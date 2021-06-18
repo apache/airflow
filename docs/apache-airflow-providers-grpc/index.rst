@@ -67,7 +67,7 @@ are in ``airflow.providers.grpc`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-grpc``
 
 PIP requirements
@@ -76,6 +76,7 @@ PIP requirements
 ========================  ======================
 PIP package               Version required
 ========================  ======================
+``apache-airflow``        ``>=2.1.0``
 ``google-auth-httplib2``  ``>=0.0.1``
 ``google-auth``           ``>=1.0.0, <2.0.0dev``
 ``grpcio``                ``>=1.15.0``

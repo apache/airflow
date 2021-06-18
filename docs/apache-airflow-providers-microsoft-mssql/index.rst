@@ -61,16 +61,17 @@ are in ``airflow.providers.microsoft.mssql`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-microsoft-mssql``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``pymssql``    ``~=2.1,>=2.1.5``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pymssql``         ``~=2.1,>=2.1.5``
+==================  ==================
 
 .. include:: ../../airflow/providers/microsoft/mssql/CHANGELOG.rst

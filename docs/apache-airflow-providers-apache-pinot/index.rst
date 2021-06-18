@@ -55,16 +55,17 @@ are in ``airflow.providers.apache.pinot`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-pinot``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``pinotdb``    ``>0.1.2,<1.0.0``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pinotdb``         ``>0.1.2,<1.0.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/apache/pinot/CHANGELOG.rst

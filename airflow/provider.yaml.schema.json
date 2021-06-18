@@ -21,6 +21,13 @@
         "type": "string"
       }
     },
+    "additional-dependencies": {
+      "description": "Additional dependencies that should be added to the provider",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "integrations": {
       "description": "List of integrations supported by the provider.",
       "type": "array",

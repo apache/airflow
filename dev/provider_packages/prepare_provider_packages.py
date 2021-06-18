@@ -42,7 +42,6 @@ from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
 import click
-import jsonpath_ng
 import jsonschema
 import yaml
 from packaging.version import Version
@@ -96,10 +95,6 @@ DOCUMENTATION_PATH = os.path.join(SOURCE_DIR_PATH, "docs")
 TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
 GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
 GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
-
-PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
-    SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
-)
 
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = os.path.join(SOURCE_DIR_PATH, "airflow", "provider_info.schema.json")
 
@@ -364,9 +359,10 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     :return: install requirements of the package
     """
     dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-    airflow_dependency = 'apache-airflow>=2.1.0'
-    # Avoid circular dependency for the preinstalled packages
-    install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
+    provider_yaml = get_provider_yaml(provider_package_id)
+    install_requires = []
+    if "additional-dependencies" in provider_yaml:
+        install_requires = provider_yaml['additional-dependencies']
     install_requires.extend(dependencies)
     return install_requires
 
@@ -1264,27 +1260,6 @@ def get_package_pip_name(provider_package_id: str):
     return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
-def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
-    """
-    Validates provider info against 2.0.0 schema. We need to run this validation until we make Airflow
-    2.0.0 yank and add apache-airflow>=2.0.1 (possibly) to provider dependencies.
-
-    :param provider_info: provider info to validate
-    """
-
-    with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
-        schema = json.load(schema_file)
-    try:
-        jsonschema.validate(provider_info, schema=schema)
-    except jsonschema.ValidationError as ex:
-        print("[red]Provider info validated not against 2.0.0 schema[/]")
-        raise Exception(
-            "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
-            "If you added any fields please remove them via 'convert_to_provider_info' method.",
-            ex,
-        )
-
-
 def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) -> None:
     """
     Validates provider info against the runtime schema. This way we check if the provider info in the
@@ -1302,34 +1277,9 @@ def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) ->
         print("[red]Provider info not validated against runtime schema[/]")
         raise Exception(
             "Error when validating schema. The schema must be compatible with "
-            + "airflow/provider_info.schema.json. "
-            + "If you added any fields please remove them via 'convert_to_provider_info' method.",
+            + "airflow/provider_info.schema.json.",
             ex,
         )
-
-
-def convert_to_provider_info(provider_info: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
-    non future-compatible.
-
-    While we changed tho additionalProperties to 'true' in 2.0.1, we have to
-    make sure that the returned provider_info when preparing package is compatible with the older version
-    of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
-    and make provider packages depend on Airflow >=2.0.1.
-
-    Currently we have two provider schemas:
-    * provider.yaml.schema.json that is used to verify the schema while it is developed (it has, for example
-      additionalProperties set to false, to avoid typos in field names). This is the full set of
-      fields that are used for both: runtime information and documentation building.
-    * provider_info.schema.json that is used to verify the schema at runtime - it only contains
-      fields from provider.yaml that are necessary for runtime provider discovery.
-
-      This method converts the full provider.yaml schema into the limited version needed at runtime.
-    """
-    updated_provider_info = deepcopy(provider_info)
-    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers,additional-extras]")
-    return expression.filter(lambda x: True, updated_provider_info)
 
 
 def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
@@ -1350,17 +1300,13 @@ def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
 
 def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     """
-    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
-    than provider_info that is used at runtime. This method converts the full provider yaml file into
-    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    Retrieves provider info from the provider yaml file.
     :param provider_package_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
     provider_yaml_dict = get_provider_yaml(provider_package_id=provider_package_id)
-    provider_info = convert_to_provider_info(provider_yaml_dict)
-    validate_provider_info_with_2_0_0_schema(provider_info)
-    validate_provider_info_with_runtime_schema(provider_info)
-    return provider_info
+    validate_provider_info_with_runtime_schema(provider_yaml_dict)
+    return provider_yaml_dict
 
 
 def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ''):
@@ -1497,6 +1443,15 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
     )
 
 
+def get_provider_requirements(provider_package_id: str) -> List[str]:
+    provider_yaml = get_provider_yaml(provider_package_id)
+    requirements = (
+        provider_yaml['additional-dependencies'].copy() if 'additional-dependencies' in provider_yaml else []
+    )
+    requirements.extend(PROVIDERS_REQUIREMENTS[provider_package_id])
+    return requirements
+
+
 def get_provider_jinja_context(
     provider_info: Dict[str, Any],
     provider_details: ProviderPackageDetails,
@@ -1510,10 +1465,10 @@ def get_provider_jinja_context(
     )
     release_version_no_leading_zeros = strip_leading_zeros(current_release_version)
     pip_requirements_table = convert_pip_requirements_to_table(
-        PROVIDERS_REQUIREMENTS[provider_details.provider_package_id]
+        get_provider_requirements(provider_details.provider_package_id)
     )
     pip_requirements_table_rst = convert_pip_requirements_to_table(
-        PROVIDERS_REQUIREMENTS[provider_details.provider_package_id], markdown=False
+        get_provider_requirements(provider_details.provider_package_id), markdown=False
     )
     cross_providers_dependencies_table = convert_cross_package_dependencies_to_table(
         cross_providers_dependencies
