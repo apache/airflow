@@ -91,7 +91,9 @@
     renderChart();
   });
   $('#update-chart-t-a').change(() => {
-    setChartParams('cur_t', ['cur_m', 'cur_w', 'cur_s']);
+    setChartParams('cur_t', Object.keys(curKeyMap).filter(function (k) {
+      return k !== 'cur_t';
+    }));
     renderChart();
   });
 
