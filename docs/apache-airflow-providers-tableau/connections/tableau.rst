@@ -71,6 +71,9 @@ Extra (optional)
       This is used with token authentication.
     * ``personal_access_token``: The personal access token value.
       This is used with token authentication.
+    * ``verify``: Either a boolean, in which case it controls whether we verify the server’s TLS certificate, or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
+    * ``cert``: if String, path to ssl client cert file (.pem). If Tuple, (‘cert’, ‘key’) pair.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
