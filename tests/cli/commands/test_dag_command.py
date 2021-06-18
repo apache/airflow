@@ -274,6 +274,41 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
 
+    def test_cli_backfill_rerun_succeeded_tasks(self, mock_run):
+        """
+        Test that CLI respects -B argument and raises on interaction with rerun_succeeded_tasks
+        """
+        dag_id = 'test_rerun_succeeded_tasks'
+        run_date = DEFAULT_DATE + timedelta(days=1)
+        args = [
+            'dags',
+            'backfill',
+            dag_id,
+            '--local',
+            '--start-date',
+            run_date.isoformat(),
+            '--rerun_succeeded_tasks',
+        ]
+        dag = self.dagbag.get_dag(dag_id)
+
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
+        mock_run.assert_called_once_with(
+            start_date=run_date,
+            end_date=run_date,
+            conf=None,
+            delay_on_limit_secs=1.0,
+            donot_pickle=False,
+            ignore_first_depends_on_past=False,
+            ignore_task_deps=False,
+            local=True,
+            mark_success=False,
+            pool=None,
+            rerun_failed_tasks=False,
+            rerun_succeeded_tasks=True,
+            run_backwards=False,
+            verbose=False,
+        )
+
     def test_next_execution(self):
         dag_ids = [
             'example_bash_operator',  # schedule_interval is '0 0 * * *'
