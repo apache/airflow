@@ -418,7 +418,7 @@ Let's break this down into 3 steps: get data, insert data, merge data:
 
   @task
   def get_data():
-      url = "https://docs.google.com/uc?export=download&id=1TdzfHDvVrqUiF2ly3guXwwQvOlviF4N6"
+      url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
       response = requests.request("GET", url)
 
