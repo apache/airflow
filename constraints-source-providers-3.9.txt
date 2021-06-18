@@ -423,7 +423,7 @@ vertica-python==1.0.1
 vine==1.3.0
 virtualenv==20.4.7
 volatile==2.1.0
-watchtower==0.7.3
+watchtower==1.0.6
 wcwidth==0.2.5
 websocket-client==1.1.0
 wrapt==1.12.1
