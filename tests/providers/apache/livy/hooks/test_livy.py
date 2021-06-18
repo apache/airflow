@@ -255,7 +255,7 @@ class TestLivyHook(unittest.TestCase):
         resp = hook.post_batch(file='sparkapp')
 
         mock_request.assert_called_once_with(
-            method='POST', endpoint='/batches', data=json.dumps({'file': 'sparkapp'})
+            method='POST', endpoint='/batches', data=json.dumps({'file': 'sparkapp'}), headers={}
         )
 
         request_args = mock_request.call_args[1]
@@ -446,3 +446,16 @@ class TestLivyHook(unittest.TestCase):
         with self.subTest('random string'):
             with pytest.raises(TypeError):
                 LivyHook._validate_session_id('asd')
+
+    @requests_mock.mock()
+    def test_extra_headers(self, mock):
+        mock.register_uri(
+            'POST',
+            '//livy:8998/batches',
+            json={'id': BATCH_ID, 'state': BatchState.STARTING.value, 'log': []},
+            status_code=201,
+            request_headers={'X-Requested-By': 'user'},
+        )
+
+        hook = LivyHook(extra_headers={'X-Requested-By': 'user'})
+        hook.post_batch(file='sparkapp')

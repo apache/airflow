@@ -70,9 +70,13 @@ class LivyHook(HttpHook, LoggingMixin):
     hook_name = 'Apache Livy'
 
     def __init__(
-        self, livy_conn_id: str = default_conn_name, extra_options: Optional[Dict[str, Any]] = None
+        self,
+        livy_conn_id: str = default_conn_name,
+        extra_options: Optional[Dict[str, Any]] = None,
+        extra_headers: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
+        self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 
     def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
@@ -137,7 +141,9 @@ class LivyHook(HttpHook, LoggingMixin):
             self.get_conn()
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
-        response = self.run_method(method='POST', endpoint='/batches', data=batch_submit_body)
+        response = self.run_method(
+            method='POST', endpoint='/batches', data=batch_submit_body, headers=self.extra_headers
+        )
         self.log.debug("Got response: %s", response.text)
 
         try:
