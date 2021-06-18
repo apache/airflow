@@ -20,6 +20,7 @@ import glob
 import logging
 import os
 import subprocess
+import sys
 import unittest
 from copy import deepcopy
 from distutils import log
@@ -36,6 +37,7 @@ from setuptools.command.install import install as install_orig
 # And it is particularly useful when you add a new provider and there is no
 # PyPI version to install the provider package from
 INSTALL_PROVIDERS_FROM_SOURCES = 'INSTALL_PROVIDERS_FROM_SOURCES'
+PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +243,7 @@ cloudant = [
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
     'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0;python_version>="3.7"',
+    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
@@ -340,7 +342,7 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive[hive]>=0.6.0',
+    'pyhive[hive]>=0.6.0;python_version<"3.9"',
     'thrift>=0.9.2',
 ]
 http = [
@@ -642,7 +644,6 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
 }
 
-
 EXTRAS_REQUIREMENTS: Dict[str, List[str]] = deepcopy(CORE_EXTRAS_REQUIREMENTS)
 
 
@@ -847,9 +848,25 @@ def get_provider_package_from_package_id(package_id: str):
     return f"apache-airflow-providers-{package_suffix}"
 
 
+def get_excluded_providers():
+    """
+    Returns packages excluded for the current python version.
+
+    Currently the only excluded provider is apache hive for Python 3.9.
+    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
+
+    """
+    return ['apache.hive'] if PY39 else []
+
+
 def get_all_provider_packages():
     """Returns all provider packages configured in setup.py"""
-    return " ".join(get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS)
+    excluded_providers = get_excluded_providers()
+    return " ".join(
+        get_provider_package_from_package_id(package)
+        for package in PROVIDERS_REQUIREMENTS
+        if package not in excluded_providers
+    )
 
 
 class AirflowDistribution(Distribution):
