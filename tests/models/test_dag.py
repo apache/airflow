@@ -1957,3 +1957,61 @@ class TestDagDecorator(unittest.TestCase):
 
         dag = xcom_pass_to_op()
         assert dag.params['value'] == self.VALUE
+
+
+def test_set_task_instance_state():
+    """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
+
+    start_date = datetime_tz(2020, 1, 1)
+    with DAG("test_set_task_instance_state", start_date=start_date) as dag:
+        task_1 = DummyOperator(task_id="task_1")
+        task_2 = DummyOperator(task_id="task_2")
+        task_3 = DummyOperator(task_id="task_3")
+        task_4 = DummyOperator(task_id="task_4")
+        task_5 = DummyOperator(task_id="task_5")
+
+        task_1 >> [task_2, task_3, task_4, task_5]
+
+    dagrun = dag.create_dagrun(
+        start_date=start_date, execution_date=start_date, state=State.FAILED, run_type=DagRunType.SCHEDULED
+    )
+
+    def get_task_instance(session, task):
+        return (
+            session.query(TI)
+            .filter(
+                TI.dag_id == dag.dag_id,
+                TI.task_id == task.task_id,
+                TI.execution_date == start_date,
+            )
+            .one()
+        )
+
+    with create_session() as session:
+        get_task_instance(session, task_1).state = State.FAILED
+        get_task_instance(session, task_2).state = State.SUCCESS
+        get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_4).state = State.FAILED
+        get_task_instance(session, task_5).state = State.SKIPPED
+
+        session.commit()
+
+    altered = dag.set_task_instance_state(
+        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS
+    )
+
+    with create_session() as session:
+        # After _mark_task_instance_state, task_1 is marked as SUCCESS
+        assert get_task_instance(session, task_1).state == State.SUCCESS
+        # task_2 remains as SUCCESS
+        assert get_task_instance(session, task_2).state == State.SUCCESS
+        # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
+        assert get_task_instance(session, task_3).state == State.NONE
+        assert get_task_instance(session, task_4).state == State.NONE
+        # task_5 remains as SKIPPED
+        assert get_task_instance(session, task_5).state == State.SKIPPED
+        dagrun.refresh_from_db(session=session)
+        # dagrun should be set to RUNNING
+        assert dagrun.get_state() == State.RUNNING
+
+    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', start_date, 1)}

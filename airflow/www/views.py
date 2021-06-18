@@ -1789,55 +1789,17 @@ class Airflow(AirflowBaseView):
         state,
     ):
         dag = current_app.dag_bag.get_dag(dag_id)
-        task = dag.get_task(task_id)
-        task.dag = dag
-
         latest_execution_date = dag.get_latest_execution_date()
+
         if not latest_execution_date:
             flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
             return redirect(origin)
 
         execution_date = timezone.parse(execution_date)
 
-        from airflow.api.common.experimental.mark_tasks import set_state
-
-        with create_session() as session:
-            altered = set_state(
-                tasks=[task],
-                execution_date=execution_date,
-                upstream=upstream,
-                downstream=downstream,
-                future=future,
-                past=past,
-                state=state,
-                commit=True,
-                session=session,
-            )
-
-            # Clear downstream tasks that are in failed/upstream_failed state to resume them.
-            # Flush the session so that the tasks marked success are reflected in the db.
-            session.flush()
-            subdag = dag.partial_subset(
-                task_ids_or_regex={task_id},
-                include_downstream=True,
-                include_upstream=False,
-            )
-
-            end_date = execution_date if not future else None
-            start_date = execution_date if not past else None
-
-            subdag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=True,
-                include_parentdag=True,
-                only_failed=True,
-                session=session,
-                # Exclude the task itself from being cleared
-                exclude_task_ids={task_id},
-            )
-
-            session.commit()
+        altered = dag.set_task_instance_state(
+            task_id, execution_date, state, upstream=upstream, downstream=downstream, future=future, past=past
+        )
 
         flash(f"Marked {state} on {len(altered)} task instances")
         return redirect(origin)
