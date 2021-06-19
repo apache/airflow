@@ -49,6 +49,10 @@ class LivyHook(HttpHook, LoggingMixin):
 
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :type livy_conn_id: str
+    :param extra_options: A dictionary of options passed to Livy.
+    :type extra_options: Dict[str, Any]
+    :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+    :type extra_headers: Dict[str, Any]
 
     .. seealso::
         For more details refer to the Apache Livy API reference:
