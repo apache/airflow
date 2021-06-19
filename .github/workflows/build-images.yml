@@ -23,6 +23,9 @@ on:  # yamllint disable-line rule:truthy
   pull_request_target:
   push:
     branches: ['main', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+permissions:
+  # all other permissions are set to none
+  contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
@@ -38,7 +41,7 @@ env:
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-        secrets.CONSTRAINTS_GITHUB_REPOSITORY || github.repository }}
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # This token should not be empty in pull_request_target type of event.
@@ -130,6 +133,8 @@ jobs:
           BUILD_IMAGES_OVERRIDE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE }}
 
   build-ci-images:
+    permissions:
+      packages: write
     timeout-minutes: 80
     name: "Build CI images ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -204,6 +209,8 @@ jobs:
         run: ./scripts/ci/images/ci_push_ci_images.sh
 
   build-prod-images:
+    permissions:
+      packages: write
     timeout-minutes: 80
     name: "Build PROD images ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -282,6 +289,8 @@ jobs:
         run: ./scripts/ci/images/ci_push_production_images.sh
 
   cancel-on-ci-build:
+    permissions:
+      actions: write
     name: "Cancel 'CI Build' jobs on workflow failed/cancelled"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     if: failure() || cancelled()
