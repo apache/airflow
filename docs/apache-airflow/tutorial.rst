@@ -426,7 +426,7 @@ Let's break this down into 3 steps: get data, insert data, merge data:
           for row in response.text.split("\n"):
               file.write(row)
 
-Here we are passing a`GET` request to get the data from the URL and save it in `employees.csv` file on our Airflow instance.
+Here we are passing a``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance.
 
 .. code-block:: python
 
