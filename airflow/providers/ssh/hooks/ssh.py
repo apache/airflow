@@ -93,7 +93,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
             },
         }
 
-    def __init__(  # pylint: disable=too-many-statements
+    def __init__(  # pylint: disable=too-many-statements, too-many-branches
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -127,7 +127,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         self.client = None
 
         # Use connection to override defaults
-        if self.ssh_conn_id is not None:
+        if self.ssh_conn_id is not None:  # pylint: disable=too-many-nested-blocks
             conn = self.get_connection(self.ssh_conn_id)
             if self.username is None:
                 self.username = conn.login
