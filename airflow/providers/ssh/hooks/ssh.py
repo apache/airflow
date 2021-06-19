@@ -178,7 +178,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 if host_key is not None:
                     if host_key.startswith("ssh-"):
                         key_type, host_key = host_key.split(None)[:2]
-                        key_constructor = _host_key_mappings[key_type[4:]]
+                        key_constructor = self._host_key_mappings[key_type[4:]]
                     else:
                         key_constructor = paramiko.RSAKey
                     decoded_host_key = decodebytes(host_key.encode('utf-8'))
