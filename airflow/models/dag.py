@@ -1322,7 +1322,7 @@ class DAG(LoggingMixin):
         in failed or upstream_failed state.
 
         :param task_id: Task ID of the TaskInstance
-        :type task_id str
+        :type task_id: str
         :param execution_date: execution_date of the TaskInstance
         :type execution_date: datetime
         :param state: State to set the TaskInstance to
