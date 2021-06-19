@@ -50,7 +50,7 @@ colorlog==5.0.1
 commonmark==0.9.1
 croniter==1.0.13
 cryptography==3.4.7
-dask==2021.6.1
+dask==2021.6.0
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.2
