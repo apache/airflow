@@ -1314,6 +1314,7 @@ class DAG(LoggingMixin):
         downstream: Optional[bool] = False,
         future: Optional[bool] = False,
         past: Optional[bool] = False,
+        commit: Optional[bool] = True,
         session=None,
     ) -> List[TaskInstance]:
         """
@@ -1332,6 +1333,8 @@ class DAG(LoggingMixin):
         :type downstream: bool
         :param future: Include all future TaskInstances of the given task_id
         :type future: bool
+        :param commit: Commit changes
+        :type commit: bool
         :param past: Include all past TaskInstances of the given task_id
         :type past: bool
         """
@@ -1348,9 +1351,12 @@ class DAG(LoggingMixin):
             future=future,
             past=past,
             state=state,
-            commit=True,
+            commit=commit,
             session=session,
         )
+
+        if not commit:
+            return altered
 
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
         # Flush the session so that the tasks marked success are reflected in the db.
