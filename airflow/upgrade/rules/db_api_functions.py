@@ -63,8 +63,9 @@ def get_all_non_dbapi_children():
         next_generation = []
         for child in basehook_children:
             subclasses = child.__subclasses__()
-            if subclasses:
-                next_generation.extend(subclasses)
+            for subclass in subclasses:
+                if all(base_class.__name__ != 'DbApiHook' for base_class in subclass.__bases__):
+                    next_generation.append(subclass)
         res.extend(next_generation)
         basehook_children = next_generation
     return res
