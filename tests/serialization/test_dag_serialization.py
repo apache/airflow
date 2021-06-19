@@ -825,7 +825,11 @@ class TestStringifiedDAGs(unittest.TestCase):
             "has_on_failure_callback",
             "dag_dependencies",
         }
-        dag_params: set = set(dag_schema.keys()) - ignored_keys
+
+        keys_for_backwards_compat: set = {
+            "_concurrency",
+        }
+        dag_params: set = set(dag_schema.keys()) - ignored_keys - keys_for_backwards_compat
         assert set(DAG.get_serialized_fields()) == dag_params
 
     def test_operator_subclass_changing_base_defaults(self):

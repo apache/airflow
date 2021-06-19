@@ -48,6 +48,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Default Airflow version is updated to ``2.1.0``
+
+The default Airflow version that is installed with the Chart is now ``2.1.0``, previously it was ``2.0.2``.
+
 ### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 
 The `dags.gitSync.root` and `dags.gitSync.dest` parameters didn't provide any useful behaviors to chart users so they have been removed.
@@ -55,3 +59,8 @@ If you have them set in your values file you can safely remove them.
 
 The `dags.gitSync.excludeWebserver` parameter was mistakenly included in the charts `values.schema.json`. If you have it set in your values file,
 you can safely remove it.
+
+### `nodeSelector`, `affinity` and `tolerations` on `migrateDatabaseJob` and `createUserJob` jobs
+
+The `migrateDatabaseJob` and `createUserJob` jobs were incorrectly using the `webserver`'s `nodeSelector`, `affinity`
+and `tolerations` (if set). Each job is now configured separately.

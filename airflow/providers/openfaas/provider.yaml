@@ -22,9 +22,13 @@ description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
 versions:
+  - 2.0.0
   - 1.1.1
   - 1.1.0
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: OpenFaaS

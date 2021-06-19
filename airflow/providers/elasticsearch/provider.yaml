@@ -19,14 +19,18 @@
 package-name: apache-airflow-providers-elasticsearch
 name: Elasticsearch
 description: |
-    `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
+    `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 versions:
+  - 2.0.1
   - 1.0.4
   - 1.0.3
   - 1.0.2
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Elasticsearch

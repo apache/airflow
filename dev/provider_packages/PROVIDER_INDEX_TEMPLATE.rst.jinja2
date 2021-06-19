@@ -47,7 +47,7 @@ are in ``{{FULL_PACKAGE_NAME}}`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install {{PACKAGE_PIP_NAME}}``
 {%- if PIP_REQUIREMENTS %}
 
@@ -86,4 +86,4 @@ You can download officially released packages and verify their checksums and sig
 
 {%- endif %}
 
-{{ CHANGELOG | safe }}
+.. include:: {{ CHANGELOG_RELATIVE_PATH }}/CHANGELOG.rst

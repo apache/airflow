@@ -454,9 +454,11 @@ class TestAirflowTaskDecorator(TestPythonBase):
         bigger_number.operator.run(  # pylint: disable=maybe-no-member
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
         )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        # pylint: disable=no-member, maybe-no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
-        assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
+        assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
+        # pylint: enable=no-member, maybe-no-member
 
     def test_dag_task(self):
         """Tests dag.task property to generate task"""

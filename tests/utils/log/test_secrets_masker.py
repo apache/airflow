@@ -202,6 +202,14 @@ class TestSecretsMasker:
 
         assert filt.redact(value, name) == expected
 
+    def test_redact_filehandles(self, caplog):
+        filt = SecretsMasker()
+        with open("/dev/null", "w") as handle:
+            assert filt.redact(handle, None) == handle
+
+        # We shouldn't have logged a warning here
+        assert caplog.messages == []
+
 
 class TestShouldHideValueForKey:
     @pytest.mark.parametrize(

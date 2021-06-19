@@ -90,12 +90,12 @@ How to improve DAG performance?
 There are some Airflow configuration to allow for a larger scheduling capacity and frequency:
 
 - :ref:`config:core__parallelism`
-- :ref:`config:core__dag_concurrency`
+- :ref:`config:core__max_active_tasks_per_dag`
 - :ref:`config:core__max_active_runs_per_dag`
 
 DAGs have configurations that improves efficiency:
 
-- ``concurrency``: Overrides :ref:`config:core__dag_concurrency`.
+- ``max_active_tasks``: Overrides :ref:`config:core__max_active_tasks_per_dag`.
 - ``max_active_runs``: Overrides :ref:`config:core__max_active_runs_per_dag`.
 
 Operators or tasks also have configurations that improves efficiency and scheduling priority:

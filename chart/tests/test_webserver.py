@@ -198,6 +198,16 @@ class WebserverDeploymentTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_should_create_default_affinity(self):
+        docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
+
+        assert {"component": "webserver"} == jmespath.search(
+            "spec.template.spec.affinity.podAntiAffinity."
+            "preferredDuringSchedulingIgnoredDuringExecution[0]."
+            "podAffinityTerm.labelSelector.matchLabels",
+            docs[0],
+        )
+
     @parameterized.expand(
         [
             ({"enabled": False}, None),
@@ -239,16 +249,32 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
+
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+        # initContainer wait-for-airflow-migrations
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]
+        )
 
     def test_webserver_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
+        assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {}
 
     @parameterized.expand(
         [
@@ -325,6 +351,82 @@ class WebserverDeploymentTest(unittest.TestCase):
 
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @parameterized.expand(
+        [
+            ("1.10.15", {"gitSync": {"enabled": False}}),
+            ("1.10.15", {"persistence": {"enabled": False}}),
+            ("1.10.15", {"gitSync": {"enabled": False}, "persistence": {"enabled": False}}),
+            ("2.0.0", {"gitSync": {"enabled": True}}),
+            ("2.0.0", {"gitSync": {"enabled": False}}),
+            ("2.0.0", {"persistence": {"enabled": True}}),
+            ("2.0.0", {"persistence": {"enabled": False}}),
+            ("2.0.0", {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}),
+        ]
+    )
+    def test_no_dags_mount_or_volume_or_gitsync_sidecar_expected(self, airflow_version, dag_values):
+        docs = render_chart(
+            values={"dags": dag_values, "airflowVersion": airflow_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "dags" not in [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+
+    @parameterized.expand(
+        [
+            ("1.10.15", {"gitSync": {"enabled": True}}, True),
+            ("1.10.15", {"persistence": {"enabled": True}}, False),
+            ("1.10.15", {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}, True),
+        ]
+    )
+    def test_dags_mount(self, airflow_version, dag_values, expected_read_only):
+        docs = render_chart(
+            values={"dags": dag_values, "airflowVersion": airflow_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "mountPath": "/opt/airflow/dags",
+            "name": "dags",
+            "readOnly": expected_read_only,
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    def test_dags_gitsync_volume_and_sidecar_and_init_container(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True}}, "airflowVersion": "1.10.15"},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync-init" in [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+
+    @parameterized.expand(
+        [
+            ({"persistence": {"enabled": True}}, "RELEASE-NAME-dags"),
+            ({"persistence": {"enabled": True, "existingClaim": "test-claim"}}, "test-claim"),
+            ({"persistence": {"enabled": True}, "gitSync": {"enabled": True}}, "RELEASE-NAME-dags"),
+        ]
+    )
+    def test_dags_persistence_volume_no_sidecar(self, dags_values, expected_claim_name):
+        docs = render_chart(
+            values={"dags": dags_values, "airflowVersion": "1.10.15"},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "dags",
+            "persistentVolumeClaim": {"claimName": expected_claim_name},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+        # No gitsync sidecar or init container
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert 1 == len(jmespath.search("spec.template.spec.initContainers", docs[0]))
 
 
 class WebserverServiceTest(unittest.TestCase):

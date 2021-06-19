@@ -204,6 +204,37 @@ class TestFlowerDeployment:
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_volumes(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+            "spec.template.spec.volumes[-1]", docs[0]
+        )
+
 
 class TestFlowerService:
     @pytest.mark.parametrize(

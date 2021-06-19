@@ -22,10 +22,14 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 versions:
+  - 2.0.0
   - 1.2.0
   - 1.1.1
   - 1.1.0
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)

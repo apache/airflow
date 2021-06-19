@@ -40,29 +40,32 @@ class TestBaseChartTest(unittest.TestCase):
                 "fullnameOverride": "TEST-BASIC",
             },
         )
-        list_of_kind_names_tuples = [
+        list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
-        ]
-        assert list_of_kind_names_tuples == [
-            ('ServiceAccount', 'TEST-BASIC-flower'),
+        }
+        assert list_of_kind_names_tuples == {
             ('ServiceAccount', 'TEST-BASIC-create-user-job'),
+            ('ServiceAccount', 'TEST-BASIC-flower'),
             ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
             ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
             ('ServiceAccount', 'TEST-BASIC-worker'),
-            ('Secret', 'TEST-BASIC-postgresql'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
             ('Secret', 'TEST-BASIC-airflow-result-backend'),
+            ('Secret', 'TEST-BASIC-broker-url'),
+            ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Secret', 'TEST-BASIC-postgresql'),
+            ('Secret', 'TEST-BASIC-redis-password'),
             ('ConfigMap', 'TEST-BASIC-airflow-config'),
             ('Role', 'TEST-BASIC-pod-launcher-role'),
             ('Role', 'TEST-BASIC-pod-log-reader-role'),
             ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
             ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
+            ('Service', 'TEST-BASIC-flower'),
             ('Service', 'TEST-BASIC-postgresql-headless'),
             ('Service', 'TEST-BASIC-postgresql'),
-            ('Service', 'TEST-BASIC-flower'),
             ('Service', 'TEST-BASIC-redis'),
             ('Service', 'TEST-BASIC-statsd'),
             ('Service', 'TEST-BASIC-webserver'),
@@ -74,12 +77,9 @@ class TestBaseChartTest(unittest.TestCase):
             ('StatefulSet', 'TEST-BASIC-postgresql'),
             ('StatefulSet', 'TEST-BASIC-redis'),
             ('StatefulSet', 'TEST-BASIC-worker'),
-            ('Secret', 'TEST-BASIC-fernet-key'),
-            ('Secret', 'TEST-BASIC-redis-password'),
-            ('Secret', 'TEST-BASIC-broker-url'),
             ('Job', 'TEST-BASIC-create-user'),
             ('Job', 'TEST-BASIC-run-airflow-migrations'),
-        ]
+        }
         assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search('metadata.labels', k8s_object) or {}
