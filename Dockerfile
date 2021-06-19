@@ -232,11 +232,11 @@ ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ARG INSTALL_FROM_PYPI="true"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * chardet<4 - required to keep snowflake happy
+# * chardet<4 and certifi<2021.0.0 required to keep snowflake happy
 # * urllib3 - required to keep boto3 happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 
