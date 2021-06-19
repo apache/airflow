@@ -47,12 +47,12 @@ class DmsHook(AwsBaseHook):
         Describe replication tasks
 
         :return: Marker and list of replication tasks
-        :rtype: (str, list)
+        :rtype: (Optional[str], list)
         """
         dms_client = self.get_conn()
         response = dms_client.describe_replication_tasks(**kwargs)
 
-        return response['Marker'], response['ReplicationTasks']
+        return response.get('Marker'), response.get('ReplicationTasks', [])
 
     def find_replication_tasks_by_arn(
         self, replication_task_arn: str, without_settings: Optional[bool] = False
@@ -66,8 +66,7 @@ class DmsHook(AwsBaseHook):
 
         :return: list of replication tasks that match the ARN
         """
-        dms_client = self.get_conn()
-        response = dms_client.describe_replication_tasks(
+        _, tasks = self.describe_replication_tasks(
             Filters=[
                 {
                     'Name': 'replication-task-arn',
@@ -77,7 +76,7 @@ class DmsHook(AwsBaseHook):
             WithoutSettings=without_settings,
         )
 
-        return response['ReplicationTasks']
+        return tasks
 
     def get_task_status(self, replication_task_arn: str) -> Optional[str]:
         """
