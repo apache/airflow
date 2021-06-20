@@ -21,6 +21,10 @@ on:  # yamllint disable-line rule:truthy
   workflow_run:
     workflows: ["Label when reviewed"]
     types: ['requested']
+permissions:
+  # All other permissions are set to none
+  contents: read
+  pull-requests: write
 jobs:
 
   label-when-reviewed:

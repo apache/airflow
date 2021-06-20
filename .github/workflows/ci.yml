@@ -24,7 +24,9 @@ on:  # yamllint disable-line rule:truthy
     branches: ['main', 'v[0-9]+-[0-9]+-test']
   pull_request:
     branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
-
+permissions:
+  # All other permissions are set to none
+  contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
@@ -1099,6 +1101,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
 
   push-prod-images-to-github-registry:
+    permissions:
+      packages: write
     timeout-minutes: 10
     name: "Push PROD images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -1161,6 +1165,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PUSH_PYTHON_BASE_IMAGE: ${{ steps.push-python-image.outputs.wanted}}
 
   push-ci-images-to-github-registry:
+    permissions:
+      packages: write
     timeout-minutes: 10
     name: "Push CI images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -1205,6 +1211,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
 
   constraints:
+    permissions:
+      contents: write
     timeout-minutes: 10
     name: "Constraints"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
