@@ -84,6 +84,13 @@ class DAGRunCollection(NamedTuple):
     dag_runs: List[DagRun]
     total_entries: int
 
+class DAGStateSchema(Schema):
+    """Schema for setting DAG State"""
+    class Meta:
+        """Meta"""
+
+        model = DagRun
+    state = DagStateField(dump_only=False)
 
 class DAGRunCollectionSchema(Schema):
     """DAGRun Collection schema"""
@@ -111,23 +118,9 @@ class DagRunsBatchFormSchema(Schema):
     start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
     end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
     end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    
-    
-class DagRunSetStateFormSchema(Schema):
-    """Schema to validate and deserialize the Form(request payload) submitted to DagRun Set State endpoint"""
 
-    class Meta:
-        """Meta"""
-
-        datetimeformat = 'iso'
-        strict = True
-
-    run_id = fields.String()
-    dag_id = fields.String()
-    state = fields.String()
-    execution_date = fields.DateTime(missing=None, validate=validate_istimezone)
 
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()
-dagruns_setstate_form_schema = DagRunSetStateFormSchema()
+dagrun_set_state_schema = DAGStateSchema()
