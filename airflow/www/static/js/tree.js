@@ -72,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   treeDepth += 1;
 
-  const innerWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
   const squareX = (treeDepth * 25) + 200;
 
   const squareSpacing = 2;
