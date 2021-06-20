@@ -1,4 +1,7 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 238c9f284 (reduced pipleine_example size)
 Serial Number,Company Name,Employee Markme,Description,Leave
 9.78819E+12,TALES OF SHIVA,Mark,mark,0
 9.7801E+12,1Q84 THE COMPLETE TRILOGY,HARUKI MURAKAMI,Mark,0
@@ -99,6 +102,7 @@ Serial Number,Company Name,Employee Markme,Description,Leave
 9.78818E+12,TALES FROM THE JATAKAS,-,ACK,0
 9.78818E+12,RAMarkS OF MEWAR,-,ACK,0
 9.78818E+12,THE SONS OF THE PANDAVAS,-,ACK,0
+<<<<<<< HEAD
 =======
 Serial Number,Company Name,Employee Markme,Description,Leave
 9.78819E+12,TALES OF SHIVA,Mark,mark,0
@@ -19728,3 +19732,5 @@ Serial Number,Company Name,Employee Markme,Description,Leave
 9.79813E+12,ATHARVEDA ENGLISH,Mark,,0
 9.79813E+12,21 SHRESHTHA KAHANIYAN MUDRAKSHAS HINDI,Mark,,0
 >>>>>>> 422556715 (added pipeline_example-csv to docs, updated get url)
+=======
+>>>>>>> 238c9f284 (reduced pipleine_example size)
