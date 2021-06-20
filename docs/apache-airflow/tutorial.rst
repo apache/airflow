@@ -487,10 +487,6 @@ Lets look at our DAG:
           try:
               postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
               conn = postgres_hook.get_conn()
-<<<<<<< HEAD
-=======
-              conn = postgres_hook.get_conn()
->>>>>>> 0a3f9f537 (added postgres hook)
               cur = conn.cursor()
               cur.execute(query)
               conn.commit()
@@ -518,11 +514,7 @@ Go to your browser and go to the site http://localhost:8080/home and trigger you
 .. image:: img/new_tutorial-2.png
 
 The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
-<<<<<<< HEAD
 Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows
-=======
-Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
->>>>>>> 2b6719b18 (added postgres hook)
 
 
 What's Next?
