@@ -21,6 +21,22 @@ Contributor's Quick Guide
 
 .. contents:: :local:
 
+Note to Starters
+################
+
+There are two ways you can run the Airflow dev env on your machine:
+  1. With a Docker Container
+  2. With a local virtual environment
+Before deciding which method to choose, there are a couple factors to consider:
+Running Airflow in a container is the most reliable way: it provides a more consistent environment and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.). However it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
+If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
+
+- |Virtual Env Guide|
+
+.. |Virtual Env Guide| raw:: html
+
+   For a comprehensive venv tutorial - visit <a href="https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst"
+   target="_blank">Virtual Env Guide</a>
 
 Prerequisites
 #############
@@ -269,9 +285,10 @@ Setting up Breeze
 
   $ ./breeze stop
 
-6. Installing airflow in the local virtual environment ``airflow-env`` with breeze.
+Installing airflow in the local virtual environment ``airflow-env`` with breeze.
+--------------------------------------------------------------------------------
 
-   It may requires some packages to be installed, watch the output of the command to see which ones are missing.
+1. It may require some packages to be installed; watch the output of the command to see which ones are missing.
 
 .. code-block:: bash
 
@@ -279,7 +296,7 @@ Setting up Breeze
   $ ./breeze initialize-local-virtualenv --python 3.8
 
 
-7. Add following line to ~/.bashrc in order to call breeze command from anywhere.
+2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
 .. code-block:: bash
 
