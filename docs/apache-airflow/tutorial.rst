@@ -358,6 +358,10 @@ which are used to populate the run schedule with task instances from this dag.
         --start-date 2015-06-01 \
         --end-date 2015-06-07
 
+
+Pipeline Example
+''''''''''''''''''''
+
 Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
 
 Initial setup
@@ -415,8 +419,10 @@ Here we are passing a`GET` request to get the data from the URL and save it in `
   def insert_data():
       postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
       conn = postgres_hook.get_conn()
-      df = pd.read_csv("/usr/local/airflow/dags/files/employees.csv")
-      df.to_sql("Employees_temp", conn, if_exists="replace", chunksize=1000)
+      cur = conn.cursor()
+      with open('/usr/local/airflow/dags/files/employees.csv', 'r') as file:
+          cur.copy_from(f, "Employees_temp", columns=['Serial Number','Company Name','Employee Markme','Description','Leave'], sep=',')
+      conn.commit()
 
 Here we are dumping the file into a temporary table before merging the data to the final employees table
 
