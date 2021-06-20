@@ -514,7 +514,7 @@ Go to your browser and go to the site http://localhost:8080/home and trigger you
 .. image:: img/new_tutorial-2.png
 
 The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
-Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
+Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows
 
 
 What's Next?
