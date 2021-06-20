@@ -186,12 +186,14 @@ class BaseSerialization:
             if cls._is_excluded(value, key, object_to_serialize):
                 continue
 
-            if key in decorated_fields:
-                serialized_object[key] = cls._serialize(value)
-            else:
-                value = cls._serialize(value)
-                if isinstance(value, dict) and "__type" in value:
+            value = cls._serialize(value)
+            if key not in decorated_fields and isinstance(value, dict) and "__type" in value:
+                if isinstance(object_to_serialize, DAG) or key in BaseOperator.get_serialized_fields():
+                    # Extra check to make sure for operators that the non-standard serialized_fields
+                    # entries still support non-primitive types (e.g. dicts) with valid deserialization.
                     value = value["__var"]
+                serialized_object[key] = value
+            else:
                 serialized_object[key] = value
         return serialized_object
 

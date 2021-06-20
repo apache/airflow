@@ -25,6 +25,7 @@ import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from glob import glob
+from typing import Dict, Optional, Tuple
 from unittest import mock
 
 import pytest
@@ -849,6 +850,35 @@ class TestStringifiedDAGs(unittest.TestCase):
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
 
         assert serialized_op.do_xcom_push is False
+
+    def test_custom_operator_extra_serialized_fields(self):
+        class MyOperator(BaseOperator):
+            __serialized_fields: Optional[frozenset] = None
+
+            def __init__(self, a_dictionary_value: Dict, a_tuple_value: Tuple, **kwargs):
+                super().__init__(**kwargs)
+                self.a_dictionary_value = a_dictionary_value
+                self.a_tuple_value = a_tuple_value
+
+            @classmethod
+            def get_serialized_fields(cls):
+                if not cls.__serialized_fields:
+                    custom_fields = {"a_dictionary_value", "a_tuple_value"}
+                    cls.__serialized_fields = frozenset(BaseOperator.get_serialized_fields() | custom_fields)
+                return cls.__serialized_fields
+
+        my_simple_dict = {"a": 1337, "b": 7331}
+        my_simple_tuple = ("a", 1337, "b")
+
+        op = MyOperator(task_id="dummy", a_dictionary_value=my_simple_dict, a_tuple_value=my_simple_tuple)
+        assert op.a_dictionary_value == my_simple_dict
+        assert op.a_tuple_value == my_simple_tuple
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert serialized_op.a_dictionary_value == my_simple_dict  # type: ignore # pylint: disable=no-member
+        assert serialized_op.a_tuple_value == my_simple_tuple  # type: ignore # pylint: disable=no-member
 
     def test_no_new_fields_added_to_base_operator(self):
         """
