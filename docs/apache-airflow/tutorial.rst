@@ -487,6 +487,10 @@ Lets look at our DAG:
           try:
               postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
               conn = postgres_hook.get_conn()
+<<<<<<< HEAD
+=======
+              conn = postgres_hook.get_conn()
+>>>>>>> 0a3f9f537 (added postgres hook)
               cur = conn.cursor()
               cur.execute(query)
               conn.commit()
