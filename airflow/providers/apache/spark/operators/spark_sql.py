@@ -47,6 +47,7 @@ class SparkSqlOperator(BaseOperator):
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
     :param master: spark://host:port, mesos://host:port, yarn, or local
+        (Default: The ``host`` and ``port`` set in the Connection, or ``"yarn"``)
     :type master: str
     :param name: Name of the job
     :type name: str
@@ -54,7 +55,8 @@ class SparkSqlOperator(BaseOperator):
     :type num_executors: int
     :param verbose: Whether to pass the verbose flag to spark-sql
     :type verbose: bool
-    :param yarn_queue: The YARN queue to submit to (Default: "default")
+    :param yarn_queue: The YARN queue to submit to
+        (Default: The ``queue`` value set in the Connection, or ``"default"``)
     :type yarn_queue: str
     """
 
@@ -73,11 +75,11 @@ class SparkSqlOperator(BaseOperator):
         executor_memory: Optional[str] = None,
         keytab: Optional[str] = None,
         principal: Optional[str] = None,
-        master: str = 'yarn',
+        master: Optional[str] = None,
         name: str = 'default-name',
         num_executors: Optional[int] = None,
         verbose: bool = True,
-        yarn_queue: str = 'default',
+        yarn_queue: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)

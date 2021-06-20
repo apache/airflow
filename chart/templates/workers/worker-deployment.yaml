@@ -100,6 +100,8 @@ spec:
       initContainers:
       {{- if and $persistence .Values.workers.persistence.fixPermissions }}
         - name: volume-permissions
+          resources:
+{{ toYaml .Values.workers.resources | indent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           command:
@@ -114,6 +116,8 @@ spec:
               mountPath: {{ template "airflow_logs" . }}
       {{- end }}
         - name: wait-for-airflow-migrations
+          resources:
+{{ toYaml .Values.workers.resources | indent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
@@ -196,6 +200,8 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
+          resources:
+{{ toYaml .Values.workers.logGroomerSidecar.resources | indent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}

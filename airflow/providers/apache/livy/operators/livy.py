@@ -65,8 +65,11 @@ class LivyOperator(BaseOperator):
     :type livy_conn_id: str
     :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
     :type polling_interval: int
-    :type extra_options: A dictionary of options, where key is string and value
+    :param extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
+    :type extra_options: Dict[str, Any]
+    :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+    :type extra_headers: Dict[str, Any]
     """
 
     template_fields = ('spark_params',)
@@ -93,6 +96,7 @@ class LivyOperator(BaseOperator):
         livy_conn_id: str = 'livy_default',
         polling_interval: int = 0,
         extra_options: Optional[Dict[str, Any]] = None,
+        extra_headers: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
         # pylint: disable-msg=too-many-arguments
@@ -121,6 +125,7 @@ class LivyOperator(BaseOperator):
         self._livy_conn_id = livy_conn_id
         self._polling_interval = polling_interval
         self._extra_options = extra_options or {}
+        self._extra_headers = extra_headers or {}
 
         self._livy_hook: Optional[LivyHook] = None
         self._batch_id: Union[int, str]
@@ -133,7 +138,11 @@ class LivyOperator(BaseOperator):
         :rtype: LivyHook
         """
         if self._livy_hook is None or not isinstance(self._livy_hook, LivyHook):
-            self._livy_hook = LivyHook(livy_conn_id=self._livy_conn_id, extra_options=self._extra_options)
+            self._livy_hook = LivyHook(
+                livy_conn_id=self._livy_conn_id,
+                extra_headers=self._extra_headers,
+                extra_options=self._extra_options,
+            )
         return self._livy_hook
 
     def execute(self, context: Dict[Any, Any]) -> Any:

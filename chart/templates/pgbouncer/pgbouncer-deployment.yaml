@@ -126,6 +126,8 @@ spec:
                 # Allow existing queries clients to complete within 120 seconds
                 command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
         - name: metrics-exporter
+          resources:
+{{ toYaml .Values.pgbouncer.metricsExporterSidecar.resources | indent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncerExporter.pullPolicy }}
           env:

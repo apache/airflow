@@ -33,6 +33,11 @@
   </style>
 {% endblock %}
 
+{% block head_meta %}
+  {{ super() }}
+  <meta name="num_runs" content="{{ num_runs }}">
+{% endblock %}
+
 {% block content %}
   {{ super() }}
   <div class="row dag-view-tools">

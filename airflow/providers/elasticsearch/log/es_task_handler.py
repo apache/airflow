@@ -33,16 +33,15 @@ from elasticsearch_dsl import Search
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
 
 
-class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
+class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -87,10 +86,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.log_id_template, self.log_id_jinja_template = parse_template_string(log_id_template)
-
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
+        self.log_id_template = log_id_template
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
@@ -103,15 +101,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.context_set = False
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        if self.log_id_jinja_template:
-            jinja_context = ti.get_template_context()
-            jinja_context['try_number'] = try_number
-            return self.log_id_jinja_template.render(**jinja_context)
-
         if self.json_format:
             execution_date = self._clean_execution_date(ti.execution_date)
         else:
             execution_date = ti.execution_date.isoformat()
+
         return self.log_id_template.format(
             dag_id=ti.dag_id, task_id=ti.task_id, execution_date=execution_date, try_number=try_number
         )
@@ -341,14 +335,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: URL to the external log collection service
         :rtype: str
         """
-        log_id = self.log_id_template.format(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            execution_date=task_instance.execution_date,
-            try_number=try_number,
-        )
-        url = 'https://' + self.frontend.format(log_id=quote(log_id))
-        return url
+        log_id = self._render_log_id(task_instance, try_number)
+        scheme = '' if '://' in self.frontend else 'https://'
+        return scheme + self.frontend.format(log_id=quote(log_id))
+
+    @property
+    def supports_external_link(self) -> bool:
+        """Whether we can support external links"""
+        return bool(self.frontend)
 
 
 class _ESJsonLogFmt:

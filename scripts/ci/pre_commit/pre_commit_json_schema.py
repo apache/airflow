@@ -149,8 +149,6 @@ def _default_validator(validator, default, instance, schema):
 def _load_spec(spec_file: Optional[str], spec_url: Optional[str]):
     if spec_url:
         spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
-    else:
-        spec_file = spec_file
     with open(spec_file) as schema_file:
         schema = json.loads(schema_file.read())
     return schema

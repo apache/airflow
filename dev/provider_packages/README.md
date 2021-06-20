@@ -106,6 +106,8 @@ When you want to prepare release notes for a package, you need to run:
 The index.rst is updated automatically in the `docs/apache-airflow-providers-<provider>` folder
 
 You can run the script with multiple package names if you want to prepare several packages at the same time.
+By default, the command runs in interactive mode when you can decide one-by-one whether the package
+documentation should be prepared or not.
 
 As soon as you are satisfied with the release notes generated you can commit generated changes/new files
 to the repository.
@@ -115,6 +117,8 @@ You should manually update generated changelog and classify the commits updated 
 
 You can repeat this several times, the changes generated will automatically include new commits that
 appeared since last run.
+
+You can also run it in non-interactive mode adding `--non-interactive` flag.
 
 ## Preparing provider packages
 
@@ -324,7 +328,7 @@ without cleanup, might include artifacts from previous package to be included in
 rm -rf -- *.egg-info build/
 ```
 
-2) Generate setup.py/setup.cfg/MANIFEST.in/provider_info.py/README files  files for:
+2) Generate setup.py/setup.cfg/MANIFEST.in/provider_info.py/README files files for:
 
 * alpha/beta packages (specify a1,a2,.../b1,b2... suffix)
 * release candidates (specify r1,r2,... suffix) - those are release candidate

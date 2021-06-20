@@ -36,20 +36,18 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from os.path import dirname
+from os.path import dirname, relpath
+from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
 import click
-import jsonpath_ng
 import jsonschema
 import yaml
 from packaging.version import Version
 from rich import print
 from rich.console import Console
 from rich.syntax import Syntax
-
-from airflow.providers_manager import ProviderInfo
 
 try:
     from yaml import CSafeLoader as SafeLoader
@@ -89,8 +87,6 @@ Initial version of the provider.
 HTTPS_REMOTE = "apache-https-for-providers"
 HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
 
-PROVIDER_TEMPLATE_PREFIX = "PROVIDER_"
-
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir))
 AIRFLOW_PATH = os.path.join(SOURCE_DIR_PATH, "airflow")
@@ -99,10 +95,6 @@ DOCUMENTATION_PATH = os.path.join(SOURCE_DIR_PATH, "docs")
 TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages")
 GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
 GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
-
-PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
-    SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
-)
 
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = os.path.join(SOURCE_DIR_PATH, "airflow", "provider_info.schema.json")
 
@@ -162,6 +154,7 @@ option_force = click.option(
     help="Forces regeneration of already generated documentation",
 )
 argument_package_id = click.argument('package_id')
+argument_changelog_files = click.argument('changelog_files', nargs=-1)
 
 
 @contextmanager
@@ -366,9 +359,10 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     :return: install requirements of the package
     """
     dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-    airflow_dependency = 'apache-airflow>=2.1.0'
-    # Avoid circular dependency for the preinstalled packages
-    install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
+    provider_yaml = get_provider_yaml(provider_package_id)
+    install_requires = []
+    if "additional-dependencies" in provider_yaml:
+        install_requires = provider_yaml['additional-dependencies']
     install_requires.extend(dependencies)
     return install_requires
 
@@ -1219,32 +1213,6 @@ def get_additional_package_info(provider_package_path: str) -> str:
     return ""
 
 
-def get_changelog_for_package(provider_package_path: str) -> str:
-    """
-    Returns changelog_for the package.
-
-    :param provider_package_path: path for the package
-    :return: additional information for the path (empty string if missing)
-    """
-    changelog_path = os.path.join(provider_package_path, "CHANGELOG.rst")
-    if os.path.isfile(changelog_path):
-        with open(changelog_path) as changelog_file:
-            return changelog_file.read()
-    else:
-        print(f"[red]ERROR: Missing ${changelog_path}[/]")
-        print("Please add the file with initial content:")
-        print()
-        syntax = Syntax(
-            INITIAL_CHANGELOG_CONTENT,
-            "rst",
-            theme="ansi_dark",
-        )
-    console = Console(width=100)
-    console.print(syntax)
-    print()
-    raise Exception(f"Missing {changelog_path}")
-
-
 def is_camel_case_with_acronyms(s: str):
     """
     Checks if the string passed is Camel Case (with capitalised acronyms allowed).
@@ -1292,27 +1260,6 @@ def get_package_pip_name(provider_package_id: str):
     return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
-def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
-    """
-    Validates provider info against 2.0.0 schema. We need to run this validation until we make Airflow
-    2.0.0 yank and add apache-airflow>=2.0.1 (possibly) to provider dependencies.
-
-    :param provider_info: provider info to validate
-    """
-
-    with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
-        schema = json.load(schema_file)
-    try:
-        jsonschema.validate(provider_info, schema=schema)
-    except jsonschema.ValidationError as ex:
-        print("[red]Provider info validated not against 2.0.0 schema[/]")
-        raise Exception(
-            "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
-            "If you added any fields please remove them via 'convert_to_provider_info' method.",
-            ex,
-        )
-
-
 def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) -> None:
     """
     Validates provider info against the runtime schema. This way we check if the provider info in the
@@ -1330,34 +1277,9 @@ def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) ->
         print("[red]Provider info not validated against runtime schema[/]")
         raise Exception(
             "Error when validating schema. The schema must be compatible with "
-            + "airflow/provider_info.schema.json. "
-            + "If you added any fields please remove them via 'convert_to_provider_info' method.",
+            + "airflow/provider_info.schema.json.",
             ex,
         )
-
-
-def convert_to_provider_info(provider_info: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
-    non future-compatible.
-
-    While we changed tho additionalProperties to 'true' in 2.0.1, we have to
-    make sure that the returned provider_info when preparing package is compatible with the older version
-    of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
-    and make provider packages depend on Airflow >=2.0.1.
-
-    Currently we have two provider schemas:
-    * provider.yaml.schema.json that is used to verify the schema while it is developed (it has, for example
-      additionalProperties set to false, to avoid typos in field names). This is the full set of
-      fields that are used for both: runtime information and documentation building.
-    * provider_info.schema.json that is used to verify the schema at runtime - it only contains
-      fields from provider.yaml that are necessary for runtime provider discovery.
-
-      This method converts the full provider.yaml schema into the limited version needed at runtime.
-    """
-    updated_provider_info = deepcopy(provider_info)
-    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers,additional-extras]")
-    return expression.filter(lambda x: True, updated_provider_info)
 
 
 def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
@@ -1378,17 +1300,13 @@ def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
 
 def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     """
-    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
-    than provider_info that is used at runtime. This method converts the full provider yaml file into
-    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    Retrieves provider info from the provider yaml file.
     :param provider_package_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
     provider_yaml_dict = get_provider_yaml(provider_package_id=provider_package_id)
-    provider_info = convert_to_provider_info(provider_yaml_dict)
-    validate_provider_info_with_2_0_0_schema(provider_info)
-    validate_provider_info_with_runtime_schema(provider_info)
-    return provider_info
+    validate_provider_info_with_runtime_schema(provider_yaml_dict)
+    return provider_yaml_dict
 
 
 def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ''):
@@ -1525,22 +1443,32 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
     )
 
 
+def get_provider_requirements(provider_package_id: str) -> List[str]:
+    provider_yaml = get_provider_yaml(provider_package_id)
+    requirements = (
+        provider_yaml['additional-dependencies'].copy() if 'additional-dependencies' in provider_yaml else []
+    )
+    requirements.extend(PROVIDERS_REQUIREMENTS[provider_package_id])
+    return requirements
+
+
 def get_provider_jinja_context(
-    provider_info: ProviderInfo,
+    provider_info: Dict[str, Any],
     provider_details: ProviderPackageDetails,
     current_release_version: str,
     version_suffix: str,
 ):
     verify_provider_package(provider_details.provider_package_id)
+    changelog_path = verify_changelog_exists(provider_details.provider_package_id)
     cross_providers_dependencies = get_cross_provider_dependent_packages(
         provider_package_id=provider_details.provider_package_id
     )
     release_version_no_leading_zeros = strip_leading_zeros(current_release_version)
     pip_requirements_table = convert_pip_requirements_to_table(
-        PROVIDERS_REQUIREMENTS[provider_details.provider_package_id]
+        get_provider_requirements(provider_details.provider_package_id)
     )
     pip_requirements_table_rst = convert_pip_requirements_to_table(
-        PROVIDERS_REQUIREMENTS[provider_details.provider_package_id], markdown=False
+        get_provider_requirements(provider_details.provider_package_id), markdown=False
     )
     cross_providers_dependencies_table = convert_cross_package_dependencies_to_table(
         cross_providers_dependencies
@@ -1548,6 +1476,8 @@ def get_provider_jinja_context(
     cross_providers_dependencies_table_rst = convert_cross_package_dependencies_to_table(
         cross_providers_dependencies, markdown=False
     )
+    with open(changelog_path) as changelog_file:
+        changelog = changelog_file.read()
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1560,9 +1490,6 @@ def get_provider_jinja_context(
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "VERSION_SUFFIX": version_suffix or '',
         "ADDITIONAL_INFO": get_additional_package_info(
-            provider_package_path=provider_details.source_provider_package_path
-        ),
-        "CHANGELOG": get_changelog_for_package(
             provider_package_path=provider_details.source_provider_package_path
         ),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
@@ -1580,14 +1507,19 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
         "PIP_REQUIREMENTS_TABLE_RST": pip_requirements_table_rst,
         "PROVIDER_INFO": provider_info,
+        "CHANGELOG_RELATIVE_PATH": relpath(
+            provider_details.source_provider_package_path,
+            provider_details.documentation_provider_package_path,
+        ),
+        "CHANGELOG": changelog,
     }
     return context
 
 
 def prepare_readme_file(context):
-    readme_content = LICENCE_RST
-    readme_template_name = PROVIDER_TEMPLATE_PREFIX + "README"
-    readme_content += render_template(template_name=readme_template_name, context=context, extension=".rst")
+    readme_content = LICENCE_RST + render_template(
+        template_name="PROVIDER_README", context=context, extension=".rst"
+    )
     readme_file_path = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "README.rst")
     with open(readme_file_path, "wt") as readme_file:
         readme_file.write(readme_content)
@@ -1740,9 +1672,8 @@ def update_index_rst(
     provider_package_id,
     target_path,
 ):
-    index_template_name = PROVIDER_TEMPLATE_PREFIX + "INDEX"
     index_update = render_template(
-        template_name=index_template_name, context=context, extension='.rst', keep_trailing_newline=False
+        template_name="PROVIDER_INDEX", context=context, extension='.rst', keep_trailing_newline=True
     )
     index_file_path = os.path.join(target_path, "index.rst")
     old_text = ""
@@ -1764,9 +1695,8 @@ def update_commits_rst(
     provider_package_id,
     target_path,
 ):
-    commits_template_name = PROVIDER_TEMPLATE_PREFIX + "COMMITS"
     new_text = render_template(
-        template_name=commits_template_name, context=context, extension='.rst', keep_trailing_newline=True
+        template_name="PROVIDER_COMMITS", context=context, extension='.rst', keep_trailing_newline=True
     )
     index_file_path = os.path.join(target_path, "commits.rst")
     old_text = ""
@@ -1867,17 +1797,36 @@ def get_all_providers() -> List[str]:
     return list(PROVIDERS_REQUIREMENTS.keys())
 
 
-def verify_provider_package(package: str) -> None:
+def verify_provider_package(provider_package_id: str) -> None:
     """
     Verifies if the provider package is good.
-    :param package: package id to verify
+    :param provider_package_id: package id to verify
     :return: None
     """
-    if package not in get_provider_packages():
-        print(f"[red]Wrong package name: {package}[/]")
+    if provider_package_id not in get_provider_packages():
+        print(f"[red]Wrong package name: {provider_package_id}[/]")
         print("Use one of:")
         print(get_provider_packages())
-        raise Exception(f"The package {package} is not a provider package.")
+        raise Exception(f"The package {provider_package_id} is not a provider package.")
+
+
+def verify_changelog_exists(package: str) -> str:
+    provider_details = get_provider_details(package)
+    changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
+    if not os.path.isfile(changelog_path):
+        print(f"[red]ERROR: Missing ${changelog_path}[/]")
+        print("Please add the file with initial content:")
+        print()
+        syntax = Syntax(
+            INITIAL_CHANGELOG_CONTENT,
+            "rst",
+            theme="ansi_dark",
+        )
+        console = Console(width=200)
+        console.print(syntax)
+        print()
+        raise Exception(f"Missing {changelog_path}")
+    return changelog_path
 
 
 @cli.command()
@@ -2184,9 +2133,19 @@ def get_changes_classified(changes: List[Change]) -> ClassifiedChanges:
 @cli.command()
 @argument_package_id
 @option_verbose
-@option_interactive
-def update_changelog(package_id: str, verbose: bool, interactive: bool):
+def update_changelog(package_id: str, verbose: bool):
     """Updates changelog for the provider."""
+    if _update_changelog(package_id, verbose):
+        sys.exit(64)
+
+
+def _update_changelog(package_id: str, verbose: bool) -> bool:
+    """
+    Internal update changelog method
+    :param package_id: package id
+    :param verbose: verbose flag
+    :return: true if package is skipped
+    """
     with with_group("Updates changelog for last release"):
         verify_provider_package(package_id)
         provider_details = get_provider_details(package_id)
@@ -2207,12 +2166,13 @@ def update_changelog(package_id: str, verbose: bool, interactive: bool):
         )
         if not proceed:
             print(f"[yellow]The provider {package_id} is not being released. Skipping the package.[/]")
-            sys.exit(64)
+            return True
         generate_new_changelog(package_id, provider_details, changelog_path, changes)
         print()
         print(f"Update index.rst for {package_id}")
         print()
         update_index_rst(jinja_context, package_id, provider_details.documentation_provider_package_path)
+        return False
 
 
 def generate_new_changelog(package_id, provider_details, changelog_path, changes):
@@ -2268,6 +2228,29 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
     with open(changelog_path, "wt") as changelog:
         changelog.write("\n".join(new_changelog_lines))
         changelog.write("\n")
+
+
+def get_package_from_changelog(changelog_path: str):
+    folder = Path(changelog_path).parent
+    package = ''
+    separator = ''
+    while not os.path.basename(folder) == 'providers':
+        package = os.path.basename(folder) + separator + package
+        separator = '.'
+        folder = Path(folder).parent
+    return package
+
+
+@cli.command()
+@argument_changelog_files
+@option_git_update
+@option_verbose
+def update_changelogs(changelog_files: List[str], git_update: bool, verbose: bool):
+    if git_update:
+        make_sure_remote_apache_exists_and_fetch(git_update, verbose)
+    for changelog_file in changelog_files:
+        package_id = get_package_from_changelog(changelog_file)
+        _update_changelog(package_id=package_id, verbose=verbose)
 
 
 if __name__ == "__main__":

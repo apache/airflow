@@ -167,6 +167,7 @@ class LocalTaskJob(BaseJob):
         if not self.task_instance.test_mode:
             if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
                 self._run_mini_scheduler_on_child_tasks()
+            self._update_dagrun_state_for_paused_dag()
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -264,3 +265,16 @@ class LocalTaskJob(BaseJob):
                 exc_info=True,
             )
             session.rollback()
+
+    @provide_session
+    def _update_dagrun_state_for_paused_dag(self, session=None):
+        """
+        Checks for paused dags with DagRuns in the running state and
+        update the DagRun state if possible
+        """
+        dag = self.task_instance.task.dag
+        if dag.get_is_paused():
+            dag_run = self.task_instance.get_dagrun(session=session)
+            if dag_run:
+                dag_run.dag = dag
+                dag_run.update_state(session=session, execute_callbacks=True)

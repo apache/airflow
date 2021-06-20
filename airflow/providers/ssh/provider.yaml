@@ -28,6 +28,9 @@ versions:
   - 1.1.0
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Secure Shell (SSH)
     external-doc-url: https://tools.ietf.org/html/rfc4251

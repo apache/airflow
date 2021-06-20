@@ -22,6 +22,7 @@ import itertools
 import json
 import logging
 import math
+import re
 import socket
 import sys
 import traceback
@@ -78,6 +79,7 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
 from sqlalchemy import Date, and_, desc, func, or_, union_all
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
@@ -1978,10 +1980,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         origin = get_safe_url(args.get('origin'))
         execution_date = args.get('execution_date')
 
-        upstream = to_boolean(args.get('failed_upstream'))
-        downstream = to_boolean(args.get('failed_downstream'))
-        future = to_boolean(args.get('failed_future'))
-        past = to_boolean(args.get('failed_past'))
+        upstream = to_boolean(args.get('success_upstream'))
+        downstream = to_boolean(args.get('success_downstream'))
+        future = to_boolean(args.get('success_future'))
+        past = to_boolean(args.get('success_past'))
 
         return self._mark_task_instance_state(
             dag_id,
@@ -3124,6 +3126,7 @@ class ConnectionModelView(AirflowModelView):
         'edit': 'edit',
         'delete': 'delete',
         'action_muldelete': 'delete',
+        'action_mulduplicate': 'create',
     }
 
     base_permissions = [
@@ -3174,6 +3177,56 @@ class ConnectionModelView(AirflowModelView):
     def action_muldelete(self, items):
         """Multiple delete."""
         self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action(
+        'mulduplicate',
+        'Duplicate',
+        'Are you sure you want to duplicate the selected connections?',
+        single=False,
+    )
+    @provide_session
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
+        ]
+    )
+    def action_mulduplicate(self, connections, session=None):
+        """Duplicate Multiple connections"""
+        for selected_conn in connections:
+            new_conn_id = selected_conn.conn_id
+            match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+            if match:
+                conn_id_prefix = selected_conn.conn_id[: match.start()]
+                new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
+            else:
+                new_conn_id += '_copy1'
+
+            dup_conn = Connection(
+                new_conn_id,
+                selected_conn.conn_type,
+                selected_conn.description,
+                selected_conn.host,
+                selected_conn.login,
+                selected_conn.password,
+                selected_conn.schema,
+                selected_conn.port,
+                selected_conn.extra,
+            )
+
+            try:
+                session.add(dup_conn)
+                session.commit()
+                flash(f"Connection {new_conn_id} added successfully.", "success")
+            except IntegrityError:
+                flash(
+                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    "warning",
+                )
+                session.rollback()
+
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -4093,7 +4146,8 @@ class DagDependenciesView(AirflowBaseView):
         title = "DAG Dependencies"
 
         if timezone.utcnow() > self.last_refresh + self.refresh_interval:
-            if SerializedDagModel.get_max_last_updated_datetime() > self.last_refresh:
+            max_last_updated = SerializedDagModel.get_max_last_updated_datetime()
+            if max_last_updated is None or max_last_updated > self.last_refresh:
                 self._calculate_graph()
             self.last_refresh = timezone.utcnow()
 

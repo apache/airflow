@@ -453,3 +453,36 @@ class PodTemplateFileTest(unittest.TestCase):
             "component": "worker",
             "tier": "airflow",
         } == jmespath.search("metadata.labels", docs[0])
+
+    def test_should_add_resources(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "resources": {
+                        "requests": {"memory": "2Gi", "cpu": "1"},
+                        "limits": {"memory": "3Gi", "cpu": "2"},
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "limits": {
+                "cpu": "2",
+                "memory": "3Gi",
+            },
+            "requests": {
+                "cpu": "1",
+                "memory": "2Gi",
+            },
+        } == jmespath.search("spec.containers[0].resources", docs[0])
+
+    def test_empty_resources(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        assert {} == jmespath.search("spec.containers[0].resources", docs[0])

@@ -44,6 +44,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
+- [Semantic versioning](#semantic-versioning)
 - [Version Life Cycle](#version-life-cycle)
 - [Requirements](#requirements)
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
@@ -76,6 +77,35 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
+## Semantic versioning
+
+As of Airflow 2.0.0, we support strict [SemVer](https://semver.org/) approach for all packages released.
+
+There are few specific rules that we agreed to, that define details of versioning of the different
+packages:
+
+* **Airflow**: SemVer rules apply to core airflow only (excludes any changes to providers).
+  Changing limits for versions of Airflow dependencies is not a breaking change on its own.
+* **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
+  SemVer MAJOR and MINOR versions for the packages are independent from Airflow version.
+  For example `google 4.1.0` and `amazon 3.0.3` providers can happily be installed
+  with `Airflow 2.1.1`. If there are limits of cross-dependencies between providers and Airflow packages,
+  they are present in providers as `install_requires` limitations. We aim to keep backwards
+  compatibility of providers with all previously released Airflow 2 versions but
+  there will be sometimes breaking changes that might make some, or all
+  providers, to have minimum Airflow version specified. Change of that minimum supported Airflow version
+  is a breaking change for provider, because installing the new provider might automatically
+  upgrade Airflow (which might be undesired side effect of upgrading provider).
+* **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
+  versions for the chart are independent from the Airflow version. We aim to keep backwards
+  compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
+  only work starting from specific Airlfow releases. We might however limit the Helm
+  Chart to depend on minimal Airflow version.
+* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR version of Airflow.
+  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
+  all clients. The clients then can release their own PATCH releases with bugfixes,
+  independently of Airflow PATCH releases.
+
 ## Version Life Cycle
 
 Apache Airflow version life cycle:
@@ -97,14 +127,14 @@ We **highly** recommend upgrading to the latest Airflow major release at the ear
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)        | Stable version (2.0.2)   | Previous version (1.10.15) |
-| -------------------- | ------------------------- | ------------------------ | -------------------------  |
-| Python               | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            | 2.7, 3.5, 3.6, 3.7, 3.8    |
-| Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         | 1.18, 1.17, 1.16           |
-| PostgreSQL           | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      | 9.6, 10, 11, 12, 13        |
-| MySQL                | 5.7, 8                    | 5.7, 8                   | 5.6, 5.7                   |
-| SQLite               | 3.15.0+                   | 3.15.0+                  | 3.15.0+                    |
-| MSSQL(Experimental)  | 2017,2019                 |                          |                            |
+|                      | Main version (dev)        | Stable version (2.0.2)   |
+| -------------------- | ------------------------- | ------------------------ |
+| Python               | 3.6, 3.7, 3.8             | 3.6, 3.7, 3.8            |
+| Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         |
+| PostgreSQL           | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
+| MySQL                | 5.7, 8                    | 5.7, 8                   |
+| SQLite               | 3.15.0+                   | 3.15.0+                  |
+| MSSQL(Experimental)  | 2017,2019                 |                          |
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
@@ -153,7 +183,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals).
 
-Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
+Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
 ## Installing from PyPI
 
@@ -264,6 +294,8 @@ following the ASF Policy.
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
+
+Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
 ## Who uses Apache Airflow?
 

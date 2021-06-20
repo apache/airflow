@@ -1254,6 +1254,12 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
+        --non-interactive)
+            export NON_INTERACTIVE="true"
+            echo "Running in non-interactive mode"
+            echo
+            shift
+            ;;
         --installation-method)
             export AIRFLOW_INSTALLATION_METHOD="${2}"
             echo "Airflow installation method: ${AIRFLOW_INSTALLATION_METHOD}"
@@ -1860,6 +1866,7 @@ ${CMDNAME} prepare-provider-documentation [FLAGS] [PACKAGE_ID ...]
 Flags:
 $(breeze::flag_version_suffix)
 $(breeze::flag_packages)
+$(breeze::flag_non_interactive)
 $(breeze::flag_verbosity)
 "
     readonly DETAILED_USAGE_PREPARE_PROVIDER_DOCUMENTATION
@@ -2587,6 +2594,21 @@ ${FORMATTED_PACKAGE_FORMATS}
 "
 }
 
+#######################################################################################################
+#
+# Prints flags for non-interactive run
+#
+# Outputs:
+#    Flag information.
+#######################################################################################################
+function breeze::flag_non_interactive() {
+    echo "
+--non-interactive
+
+        Runs the command in non-interactive mode.
+
+"
+}
 
 #######################################################################################################
 #

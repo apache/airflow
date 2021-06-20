@@ -51,8 +51,8 @@
     "stylelint": "^13.6.1",
     "stylelint-config-standard": "^20.0.0",
     "url-loader": "4.1.0",
-    "webpack": "^4.16.3",
-    "webpack-cli": "^3.1.0",
+    "webpack": "4.44.2",
+    "webpack-cli": "3.3.12",
     "webpack-manifest-plugin": "^2.2.0"
   },
   "dependencies": {
@@ -65,14 +65,22 @@
     "datatables.net": "^1.10.23",
     "datatables.net-bs": "^1.10.23",
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
-    "jquery": ">=3.4.0",
+    "jquery": ">=3.5.0",
     "jshint": "^2.12.0",
     "moment-timezone": "^0.5.28",
     "nvd3": "^1.8.6",
-    "redoc": "^2.0.0-rc.48",
+    "redoc": "^2.0.0-rc.54",
     "url-search-params-polyfill": "^8.1.0"
   },
   "resolutions": {
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "css-what": ">=5.0.1",
+    "trim-newlines": ">=3.0.1",
+    "y18n": ">=5.0.5",
+    "postcss": ">=8.2.10",
+    "glob-parent": ">=5.1.2",
+    "ssri": ">= 8.0.1",
+    "jquery": ">=3.5.0",
+    "browserslist": ">=4.16.5"
   }
 }

@@ -104,6 +104,8 @@ spec:
       {{- end }}
       initContainers:
         - name: wait-for-airflow-migrations
+          resources:
+{{ toYaml .Values.scheduler.resources | indent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
@@ -198,6 +200,8 @@ spec:
 {{- end }}
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
         - name: scheduler-log-groomer
+          resources:
+{{ toYaml .Values.scheduler.logGroomerSidecar.resources | indent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           {{- if .Values.scheduler.logGroomerSidecar.command }}
