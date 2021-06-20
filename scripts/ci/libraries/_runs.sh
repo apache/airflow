@@ -73,6 +73,8 @@ function runs::run_prepare_provider_documentation() {
         "${term_flag}" \
         -v "${AIRFLOW_SOURCES}:/opt/airflow" \
         -e "NON_INTERACTIVE" \
+        -e "GENERATE_PROVIDERS_ISSUE" \
+        -e "GITHUB_TOKEN" \
         "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh" "${@}"
 }

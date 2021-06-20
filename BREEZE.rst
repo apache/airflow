@@ -2141,6 +2141,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Runs the command in non-interactive mode.
 
+  --generate-providers-issue
+
+          Generate providers issue that should be created.
+
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
           debugging - when you run breeze with --verbose flags you will be able to see the commands
