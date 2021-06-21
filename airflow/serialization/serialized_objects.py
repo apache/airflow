@@ -188,13 +188,16 @@ class BaseSerialization:
 
             value = cls._serialize(value)
             if key not in decorated_fields and isinstance(value, dict) and "__type" in value:
-                if isinstance(object_to_serialize, DAG) or key in BaseOperator.get_serialized_fields():
-                    # Extra check to make sure for operators that the non-standard serialized_fields
-                    # entries still support non-primitive types (e.g. dicts) with valid deserialization.
+                # Extra check to make sure for custom operators or dags that the non-standard
+                # serialized_fields still support non-primitive types (e.g. dicts).
+                if isinstance(object_to_serialize, DAG) and key in DAG.get_serialized_fields():
                     value = value["__var"]
-                serialized_object[key] = value
-            else:
-                serialized_object[key] = value
+                elif (
+                    isinstance(object_to_serialize, BaseOperator)
+                    and key in BaseOperator.get_serialized_fields()
+                ):
+                    value = value["__var"]
+            serialized_object[key] = value
         return serialized_object
 
     # pylint: disable=too-many-return-statements
@@ -257,8 +260,6 @@ class BaseSerialization:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
 
-    # pylint: enable=too-many-return-statements
-
     @classmethod
     def _deserialize(cls, encoded_var: Any) -> Any:  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for deserialization."""
@@ -270,6 +271,8 @@ class BaseSerialization:
 
         if not isinstance(encoded_var, dict):
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
+        if Encoding.VAR not in encoded_var:
+            raise ValueError(f"The required key {Encoding.VAR} is not present in dict {encoded_var}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
 
@@ -300,6 +303,8 @@ class BaseSerialization:
             return tuple(cls._deserialize(v) for v in var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
+
+    # pylint: enable=too-many-return-statements
 
     _deserialize_datetime = pendulum.from_timestamp
     _deserialize_timezone = pendulum.tz.timezone
@@ -726,12 +731,14 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
-            elif k == "edge_info":
+            elif k in ("edge_info", "dag_dependencies"):
                 # Value structure matches exactly
                 pass
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
-            # else use v as it is
+            elif k not in DAG.get_serialized_fields():  # pylint: disable=unsupported-membership-test
+                v = cls._deserialize(v)
+            # else use v as it is.
 
             setattr(dag, k, v)
 
