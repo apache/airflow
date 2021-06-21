@@ -40,7 +40,7 @@ celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
 cgroupspy==0.1.6
-chardet==3.0.4
+chardet==4.0.0
 click==7.1.2
 clickclick==20.10.2
 cloudpickle==1.4.1
@@ -80,6 +80,7 @@ jsonschema==3.2.0
 kombu==4.6.11
 kubernetes==11.0.0
 lazy-object-proxy==1.4.3
+ldap3==2.9
 locket==0.2.1
 lockfile==0.12.2
 marshmallow-enum==1.5.1
@@ -99,7 +100,6 @@ prison==0.1.3
 prometheus-client==0.8.0
 psutil==5.8.0
 pure-sasl==0.6.2
-pyOpenSSL==19.1.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycparser==2.20
@@ -108,6 +108,7 @@ pyrsistent==0.17.3
 python-daemon==2.3.0
 python-dateutil==2.8.1
 python-editor==1.0.4
+python-ldap==3.3.1
 python-nvd3==0.15.0
 python-slugify==4.0.1
 python3-openid==3.2.0
@@ -136,7 +137,7 @@ thrift==0.13.0
 toolz==0.11.1
 tornado==6.1
 unicodecsv==0.14.1
-urllib3==1.25.11
+urllib3==1.26.5
 vine==1.3.0
 virtualenv==20.4.7
 websocket-client==1.1.0
