@@ -174,8 +174,18 @@
 
     var data = spc_data["n-d"]["data"][spcQueryType]
     const option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'cross'
+        }
+      },
       xAxis: {
         type: 'category',
+        axisLabel: {
+          interval: 0,
+          rotate: -30
+        },
         data: data.x1
       },
       yAxis: [
@@ -207,7 +217,7 @@
       ]
     };
     spcCurveChartRS.setOption(option, true);
-    $('#spc-cpk-container').html('');
+    $('#spc-cpk-container').html('<span>CPK: ' + String(spc_data[type].data[spcQueryType].cpk) + '<span>');
     $('#spc-title-container').html(spc_data["n-d"].title);
   }
 
