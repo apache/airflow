@@ -103,7 +103,7 @@ function run_airflow_testing_in_docker() {
 
             # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
             traps::add_trap "rm -vrf -- '${MSSQL_DATA_VOLUME}' || true" EXIT
-            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/*'" EXIT
+            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/*' || true" EXIT
 
             # Clean up at start too, in case a previous runer left it messy
             docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/*'  || true
