@@ -24,7 +24,7 @@
   - [Build RC artifacts](#build-rc-artifacts)
   - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
-  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image)
+  - [Prepare production Docker Image](#prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -37,7 +37,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
-  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image-1)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
@@ -201,46 +201,16 @@ is not supposed to be used by and advertised to the end-users who do not read th
     git push origin ${VERSION}
     ```
 
-## \[Optional\] - Manually prepare production Docker Image
+## Prepare production Docker Image
 
-Production Docker images should be automatically built in 2-3 hours after the release tag has been
-pushed. If this did not happen - please login to DockerHub and check the status of builds:
-[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
-
-In case you need, you can also build and push the images manually:
+Production Docker images should be manually prepared and pushed by the release manager.
 
 ```shell script
-export VERSION=<VERSION_HERE>
-export DOCKER_REPO=docker.io/apache/airflow
-export DEFAULT_PYTHON_VERSION=3.6
-for python_version in "3.6" "3.7" "3.8"
-(
-  export DOCKER_TAG=${VERSION}-python${python_version}
-  ./scripts/ci/images/ci_build_dockerhub.sh
-)
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
-
-Once this succeeds you should push the "${VERSION}" image:
-
-```shell script
-docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
-```
-
-And latest images:
-
-```shell script
-for python_version in "3.6" "3.7" "3.8"
-(
-    docker tag apache/airflow:${VERSION}-python{python_version} apache/airflow:latest-python{python-version}
-    docker push apache/airflow:latest-python{python-version}
-)
-docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:latest
-```
-
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before the images are pushed.
+also performs image verification before pushing the images.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -647,28 +617,22 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     git push origin ${VERSION}
     ```
 
-## \[Optional\] - Manually prepare production Docker Image
+## Manually prepare production Docker Image
 
-Production Docker images should be automatically built in 2-3 hours after the release tag has been
-pushed. If this did not happen - please login to DockerHub and check the status of builds:
-[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
-
-In case you need, you can also build and push the images manually:
-
-### Airflow 2+:
 
 ```shell script
-export VERSION=<VERSION_HERE>
-export DOCKER_REPO=docker.io/apache/airflow
-for python_version in "3.6" "3.7" "3.8"
-(
-  export DOCKER_TAG=${VERSION}-python${python_version}
-  ./scripts/ci/images/ci_build_dockerhub.sh
-)
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before the images are pushed.
+also performs image verification before pushing the images.
+
+If this is the newest image released, push the latest image as well.
+
+```shell script
+docker tag "apache/airflow:${VERSION}" "apache/airflow:latest"
+docker push "apache/airflow:latest"
+```
 
 ## Publish documentation
 
