@@ -340,7 +340,18 @@ repos:
         language: pygrep
         name: Check for language that we do not accept as community
         description: Please use "deny_list" or "allow_list"  instead.
-        entry: "(?i)(black|white)[_-]?list"
+        entry:  > 
+            (?ix)
+            \bmaster\b|
+            \bhe\b|
+            \bshe\b|
+            \bhis\b|
+            \bher\b|
+            \bslave\b|
+            \bsanity\b|
+            \bdummy\b|
+            \bwhite\b|
+            \bblack\b
         pass_filenames: true
         exclude: >
           (?x)
