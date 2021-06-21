@@ -156,9 +156,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.6b0
 blinker==1.4
-boto3==1.17.97
+boto3==1.17.98
 boto==2.49.0
-botocore==1.20.97
+botocore==1.20.98
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
@@ -226,7 +226,7 @@ google-api-core==1.30.0
 google-api-python-client==1.12.8
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.4
-google-auth==1.31.0
+google-auth==1.32.0
 google-cloud-appengine-logging==0.1.1
 google-cloud-audit-log==0.1.0
 google-cloud-automl==2.3.0
@@ -245,7 +245,7 @@ google-cloud-logging==2.5.0
 google-cloud-memcache==1.0.0
 google-cloud-monitoring==2.3.0
 google-cloud-os-login==2.2.1
-google-cloud-pubsub==2.5.0
+google-cloud-pubsub==2.6.0
 google-cloud-redis==2.1.1
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
@@ -264,7 +264,7 @@ graphviz==0.16
 greenlet==1.1.0
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
-grpcio==1.38.0
+grpcio==1.38.1
 gunicorn==20.1.0
 h11==0.12.0
 hdfs==2.6.0

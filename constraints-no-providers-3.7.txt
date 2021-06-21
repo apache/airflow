@@ -38,7 +38,7 @@ cached-property==1.5.2
 cachetools==4.2.2
 cattrs==1.5.0
 celery==4.4.7
-certifi==2021.5.30
+certifi==2020.12.5
 cffi==1.14.5
 cgroupspy==0.1.6
 chardet==3.0.4
@@ -50,7 +50,7 @@ colorlog==5.0.1
 commonmark==0.9.1
 croniter==1.0.13
 cryptography==3.4.7
-dask==2021.6.1
+dask==2021.6.0
 defusedxml==0.7.1
 dill==0.3.2
 distlib==0.3.2
@@ -63,7 +63,7 @@ filelock==3.0.12
 flower==0.9.7
 fsspec==2021.6.0
 gevent==21.1.2
-google-auth==1.31.0
+google-auth==1.32.0
 graphviz==0.16
 greenlet==1.1.0
 gunicorn==20.1.0
