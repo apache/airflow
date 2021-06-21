@@ -204,7 +204,7 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(
             login='login',
             host='host',
-            extra=json.dumps({"host_key": TEST_HOST_KEY, "no_host_key_check": False}),
+            extra=json.dumps({"host_key": TEST_HOST_KEY}),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -215,7 +215,7 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(
             login='login',
             host='host',
-            extra=json.dumps({"host_key": "ssh-rsa " + TEST_HOST_KEY, "no_host_key_check": False}),
+            extra=json.dumps({"host_key": "ssh-rsa " + TEST_HOST_KEY}),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -226,7 +226,7 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(login='login', host='host', extra=json.dumps({"host_key": TEST_HOST_KEY}))
         get_connection.return_value = connection
         hook = SFTPHook()
-        assert hook.host_key is None
+        assert hook.host_key is not None
 
     @parameterized.expand(
         [
