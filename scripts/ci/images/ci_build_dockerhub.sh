@@ -17,128 +17,43 @@
 # under the License.
 
 # shellcheck disable=SC2030,SC2031
-
-# This is hook build used by DockerHub. We are also using it
-# on CI to potentially rebuild (and refresh layers that
-# are not cached) Docker images that are used to run CI jobs
+: "${PYTHON_MAJOR_MINOR_VERSION:?"ERROR: PYTHON_MAJOR_MINOR_VERSION not set !!!!"}"
+: "${INSTALL_AIRFLOW_VERSION:?"ERROR: INSTALL_AIRFLOW_VERSION not set !!!!"}"
 export FORCE_ANSWER_TO_QUESTIONS="yes"
 export VERBOSE="true"
-
-: "${DOCKER_REPO:?"ERROR: Please specify DOCKER_REPO variable following the pattern HOST/DOCKERHUB_USER/DOCKERHUB_REPO"}"
-
-echo "DOCKER_REPO=${DOCKER_REPO}"
-
-[[ ${DOCKER_REPO:=} =~ [^/]*/([^/]*)/([^/]*) ]] && \
-    export DOCKERHUB_USER=${BASH_REMATCH[1]} &&
-    export DOCKERHUB_REPO=${BASH_REMATCH[2]}
-
+# This is an image built from the "release" tag (either RC or final one).
+# In this case all packages are taken from PyPI rather than from locally built sources
+export INSTALL_FROM_PYPI="true"
+export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
+export INSTALL_PROVIDERS_FROM_SOURCES="false"
+export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+export DOCKER_CACHE="local"
+export FORCE_PULL_BASE_PYTHON_IMAGE="true"
+export DOCKER_TAG=${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}
+# Name the image based on the TAG rather than based on the branch name
+export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
+export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
+export AIRFLOW_CONSTRAINTS="constraints"
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 echo
-echo "DOCKERHUB_USER=${DOCKERHUB_USER}"
-echo "DOCKERHUB_REPO=${DOCKERHUB_REPO}"
+echo "Building and pushing ${INSTALL_AIRFLOW_VERSION} Airflow PROD image for ${PYTHON_MAJOR_MINOR_VERSION}"
 echo
-
-: "${DOCKER_TAG:?"ERROR: Please specify DOCKER_TAG variable following the pattern BRANCH-pythonX.Y"}"
-
-echo "DOCKER_TAG=${DOCKER_TAG}"
-
-[[ ${DOCKER_TAG:=} =~ .*-python([0-9.]*) ]] && export PYTHON_MAJOR_MINOR_VERSION=${BASH_REMATCH[1]}
-
-: "${PYTHON_MAJOR_MINOR_VERSION:?"The tag '${DOCKER_TAG}' should follow the pattern .*-pythonX.Y"}"
-
-echo "Detected PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION}"
-echo
-
-if [[ ! "${DOCKER_TAG}" =~ ^[0-9].* ]]; then
+rm -rf "${BUILD_CACHE_DIR}"
+rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
+build_images::prepare_prod_build
+build_images::build_prod_images
+verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+# Re-tag the image to be published in "apache/airflow"
+docker tag "apache/airflow-ci:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
+     "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
+docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
+if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
     echo
-    echo "Building airflow from branch or non-release tag: ${DOCKER_TAG}"
+    echo "Pushing default airflow image"
     echo
-    # All the packages: Airflow and providers will have a "dev" version suffix in the image that
-    # is built from non-release tag. If this is not set, then building images from locally build
-    # packages fails, because the packages with non-dev version are skipped (as they are already released)
-    export VERSION_SUFFIX_FOR_PYPI=".dev0"
-    # Only build and push CI image for the nightly-main, v2-*-test branches
-    # for tagged releases we build everything from PyPI, so we do not need CI images
-    # For development images, we have to build all packages from current sources because we want to produce
-    # `Latest and greatest` image from those branches. We need to build and push CI image as well as PROD
-    # image but we need to build CI image first, in order to use it to prepare provider packages
-    # The CI image provides an environment where we can reproducibly download the right .whl packages
-    # and build the provider packages and then build the production image using those .whl packages
-    # prepared. This is as close as it can get to production images - everything is build from
-    # packages, but not from PyPI - those packages are built locally using the latest sources!
-
-    # Note - we need sub-processes here, because we can run _script_init.sh only once per process
-    # and it determines how to build the image - since we are building two images here
-    # we need to run those in sub-processes
-    (
-        export INSTALL_FROM_PYPI="true"
-        export INSTALL_PROVIDERS_FROM_SOURCES="true"
-        export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
-        export AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-        export DOCKER_CACHE="pulled"
-        # shellcheck source=scripts/ci/libraries/_script_init.sh
-        . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-        echo
-        echo "Building and pushing CI image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
-        echo
-        rm -rf "${BUILD_CACHE_DIR}"
-        rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
-        build_images::prepare_ci_build
-        build_images::rebuild_ci_image_if_needed
-        verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
-        push_pull_remove_images::push_ci_images
-    )
-    (
-        export INSTALL_FROM_PYPI="false"
-        export INSTALL_PROVIDERS_FROM_SOURCES="false"
-        export INSTALL_FROM_DOCKER_CONTEXT_FILES="true"
-        export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-        export DOCKER_CACHE="pulled"
-        # shellcheck source=scripts/ci/libraries/_script_init.sh
-        . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-        echo
-        echo "Building and pushing PROD image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
-        echo
-        rm -rf "${BUILD_CACHE_DIR}"
-        rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
-        build_images::prepare_prod_build
-        build_images::build_prod_images_from_locally_built_airflow_packages
-        verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
-        push_pull_remove_images::push_prod_images
-    )
-else
-    echo
-    echo "Building airflow from release tag: ${DOCKER_TAG}"
-    echo
-    # This is an image built from the "release" tag (either RC or final one).
-    # In this case all packages are taken from PyPI rather than from locally built sources
-    export INSTALL_FROM_PYPI="true"
-    export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
-    export INSTALL_PROVIDERS_FROM_SOURCES="false"
-    export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-    export DOCKER_CACHE="local"
-    export FORCE_PULL_BASE_PYTHON_IMAGE="true"
-    # Name the image based on the TAG rather than based on the branch name
-    export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
-    export INSTALL_AIRFLOW_VERSION="${DOCKER_TAG%-python*}"
-    export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
-    export AIRFLOW_CONSTRAINTS="constraints"
-    # shellcheck source=scripts/ci/libraries/_script_init.sh
-    . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-    echo
-    echo "Building and pushing PROD image for ${PYTHON_MAJOR_MINOR_VERSION} in a sub-process"
-    echo
-    rm -rf "${BUILD_CACHE_DIR}"
-    rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
-    build_images::prepare_prod_build
-    build_images::build_prod_images
-    verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
-    push_pull_remove_images::push_prod_images
-    if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
-        # In case of default Python version we also push ":version" and ":latest" tag
-        docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-            "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
-        docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}" "apache/airflow:latest"
-        docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
-        docker push "apache/airflow:latest"
-    fi
+    # In case of default Python version we also push ":version" tag
+    docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
+        "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+    docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
 fi
