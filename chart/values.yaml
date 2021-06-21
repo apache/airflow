@@ -676,6 +676,16 @@ webserver:
     ## service annotations
     annotations: {}
     portsOverride: []
+    # To change the port used to access the webserver:
+    # portsOverride:
+    # - name: airflow-ui
+    #   port: 80
+    #   targetPort: airflow-ui
+    # To only expose a sidecar, not the webserver directly:
+    # portsOverride:
+    # - name: only_sidecar
+    #   port: 80
+    #   targetPort: 8888
     loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
@@ -741,6 +751,11 @@ flower:
     ## service annotations
     annotations: {}
     portsOverride: []
+    # To change the port used to access flower:
+    # portsOverride:
+    # - name: flower-ui
+    #   port: 8080
+    #   targetPort: flower-ui
     loadBalancerIP: ~
 
   # Launch additional containers into the flower pods.
