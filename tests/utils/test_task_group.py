@@ -836,8 +836,12 @@ def test_default_args():
     ):
         with TaskGroup("group1", default_args={"owner": "group"}):
             task_1 = DummyOperator(task_id='task_1')
+            task_2 = DummyOperator(task_id='task_2', owner='task')
+            task_3 = DummyOperator(task_id='task_3', default_args={"owner": "task"})
 
             assert task_1.owner == 'group'
+            assert task_2.owner == 'task'
+            assert task_3.owner == 'task'
 
 
 def test_duplicate_task_group_id():

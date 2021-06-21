@@ -70,7 +70,6 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
-from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -137,6 +136,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         @functools.wraps(func)
         def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
+            from airflow.utils.task_group import TaskGroupContext
 
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
