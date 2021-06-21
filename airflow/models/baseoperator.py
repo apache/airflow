@@ -70,6 +70,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
+from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -146,6 +147,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag:
                 dag_args = copy.copy(dag.default_args) or {}
                 dag_params = copy.copy(dag.params) or {}
+                task_group = TaskGroupContext.get_current_task_group(dag)
+                if task_group:
+                    dag_args.update(task_group.default_args)
 
             params = kwargs.get('params', {}) or {}
             dag_params.update(params)
