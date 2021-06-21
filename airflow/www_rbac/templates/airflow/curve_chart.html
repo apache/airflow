@@ -6,25 +6,31 @@
                id="update-chart-w-m-label"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-w-m" type="radio" name="chart-type" checked autocomplete="off">
-          角度/扭矩
+          <span id="update-chart-w-m-text">角度/扭矩</span>
         </label>
         <label class="btn btn-default font-weight-bold " for="update-chart-t-m" id="update-chart-t-m-label"
                style="z-index: 0"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-t-m" type="radio" name="chart-type" autocomplete="off">
-          时间/扭矩
+          <span id="update-chart-t-m-text">时间/扭矩</span>
         </label>
         <label class="btn btn-default font-weight-bold " for="update-chart-t-w" id="update-chart-t-w-label"
                style="z-index: 0"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-t-w" type="radio" name="chart-type" autocomplete="off">
-          时间/角度
+          <span id="update-chart-t-w-text">时间/角度</span>
         </label>
         <label class="btn btn-default font-weight-bold " for="update-chart-t-s" id="update-chart-t-s-label"
                style="z-index: 0"
                title="Also include past task instances when clearing this one">
           <input id="update-chart-t-s" type="radio" name="chart-type" autocomplete="off">
-          时间/转速
+          <span id="update-chart-t-s-text">时间/转速</span>
+        </label>
+        <label class="btn btn-default font-weight-bold " for="update-chart-t-a" id="update-chart-t-a-label"
+               style="z-index: 0"
+               title="Also include past task instances when clearing this one">
+          <input id="update-chart-t-a" type="radio" name="chart-type" autocomplete="off">
+          <span id="update-chart-all-text">全部</span>
         </label>
       </span>
   </div>
@@ -36,12 +42,14 @@
 <script>
   let curveChart = null;
 
-  const curKeyMap = {
-    cur_w: '角度',
-    cur_m: '扭矩',
-    cur_t: '时间',
-    cur_s: '转速'
-  };
+  const curKeyMap = JSON.parse('{{ cur_key_map|tojson|safe }}');
+  $('#update-chart-w-m-text').html(curKeyMap.cur_w + '/' + curKeyMap.cur_m);
+  $('#update-chart-t-m-text').html(curKeyMap.cur_t + '/' + curKeyMap.cur_m);
+  $('#update-chart-t-w-text').html(curKeyMap.cur_t + '/' + curKeyMap.cur_w);
+  if (!curKeyMap.cur_s) {
+    $('#update-chart-t-s-label').remove()
+  }
+
 
   const chartParams = {
     xKey: 'cur_w',
@@ -52,9 +60,15 @@
 
   function setChartParams(xKey, yKey) {
     chartParams.xKey = xKey;
-    chartParams.yKey = yKey;
     chartParams.xName = curKeyMap[xKey];
-    chartParams.yName = curKeyMap[yKey];
+    if (yKey instanceof Array) {
+      chartParams.yKey = yKey;
+    } else {
+      chartParams.yKey = [yKey];
+    }
+    chartParams.yName = chartParams.yKey.map(function (k) {
+      return curKeyMap[k];
+    })
   }
 
   $('#update-chart-w-m').change(() => {
@@ -76,9 +90,116 @@
     setChartParams('cur_t', 'cur_s');
     renderChart();
   });
+  $('#update-chart-t-a').change(() => {
+    setChartParams('cur_t', Object.keys(curKeyMap).filter(function (k) {
+      return k !== 'cur_t';
+    }));
+    renderChart();
+  });
+
+  function renderChart() {
+    const {xName, yName, yKey, xKey} = chartParams;
+    const options = {
+      toolbox: {
+        show: true,
+        feature: {
+          dataZoom: {},
+          dataView: {readOnly: true},
+          saveAsImage: {}
+        }
+      },
+      textStyle: {
+        fontFamily: 'monospace',
+        fontSize: 18
+      },
+      axisPointer: { // 同时出现提示竖线
+        link: {xAxisIndex: 'all'}
+      },
+      dataZoom: [
+        {
+          type: 'slider',
+          xAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none'
+        },
+        {
+          type: 'inside',
+          xAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none'
+        },
+        {
+          type: 'slider',
+          yAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none',
+          top: '5%',
+          bottom: '5%'
+        },
+        {
+          type: 'inside',
+          yAxisIndex: yName.map(function (n, idx) {
+            return idx;
+          }),
+          filterMode: 'none'
+        }
+      ],
+      legend: {
+        data: yName
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'cross'
+        }
+      },
+      xAxis: yName.map(function (n, idx) {
+        return {
+          type: 'value',
+          nameRotate: 0,
+          axisLabel: {
+            fontSize: 16
+          },
+          name: xName,
+          gridIndex: idx
+        }
+      }),
+      yAxis: yName.map(function (n, idx) {
+        return {
+          type: 'value',
+          nameLocation: 'middle',
+          nameRotate: 0,
+          nameGap: 50,
+          axisLabel: {
+            fontSize: 16
+          },
+          name: n,
+          gridIndex: idx,
+          axisLine: {
+            show: true,
+          }
+        }
+      }),
+      grid: yName.map(function (n, idx) {
+        const margin = 5;
+        const top = 10;
+        const bottom = 10;
+        const height = ((100 - top - bottom) - margin * (yName.length - 1)) / yName.length;
+        return {
+          top: top + (margin + height) * idx + '%',
+          bottom: bottom + (margin + height) * (yName.length - idx - 1) + '%',
+        }
+      }),
+      series: getAllData(yKey, xKey)
+    };
+    curveChart.setOption(options, true);
+  }
 
   function chartInit() {
-    curveChart = echarts.init(document.getElementById('echarts-main'), null, { renderer: 'svg' });
+    curveChart = echarts.init(document.getElementById('echarts-main'), null, {renderer: 'svg'});
 
     // 指定图表的配置项和数据
     const option = {};

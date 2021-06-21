@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import http
+import zipfile
 import uuid
 import copy
 import itertools
@@ -33,7 +34,7 @@ from datetime import timedelta
 from urllib.parse import unquote
 from airflow.settings import TIMEZONE
 from datetime import datetime
-
+from typing import List
 import six
 from six.moves.urllib.parse import quote
 import pprint
@@ -44,6 +45,8 @@ from flask import (
     Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
     session as flask_session, url_for,
 )
+
+from flask import send_file
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.baseviews import BaseCRUDView
@@ -94,6 +97,8 @@ from flask_appbuilder.models.sqla.filters import FilterEqualFunction, FilterInFu
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
+import pandas as pd
+from pathlib import Path
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
@@ -426,8 +431,7 @@ class Airflow(AirflowBaseView):
 
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
-        result_keys_translation_mapping = Variable.get('result_keys_translation_mapping', deserialize_json=True,
-                                                       default_var={})
+
         controller_name = ti.controller_name.split('@')[0] if ti.controller_name else ''
         controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
@@ -435,13 +439,35 @@ class Airflow(AirflowBaseView):
         show_range = (ENV_CURVE_GRAPH_SHOW_RANGE == True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
         can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
                      and _has_access('set_final_state_nok', 'TaskInstanceModelView')
-        display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
-                                    default_var={})
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
         logging.info(msg)
+
+        if ti.device_type == 'servo_press':
+            cur_key_map = {
+                'cur_w': '距离',
+                'cur_m': '压力',
+                'cur_t': '时间',
+            }
+            display_keys = Variable.get('servo_press_view_curve_page_keys', deserialize_json=True,
+                                        default_var={})
+            result_keys_translation_mapping = Variable.get('servo_press_result_keys_translation_mapping',
+                                                           deserialize_json=True,
+                                                           default_var={})
+        else:
+            cur_key_map = {
+                'cur_w': '角度',
+                'cur_m': '扭矩',
+                'cur_t': '时间',
+                'cur_s': '转速'
+            }
+            display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
+                                        default_var={})
+            result_keys_translation_mapping = Variable.get('result_keys_translation_mapping',
+                                                           deserialize_json=True,
+                                                           default_var={})
 
         return self.render_template('airflow/curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
@@ -452,7 +478,8 @@ class Airflow(AirflowBaseView):
                                     controller=controller,
                                     errorTags=error_tags,
                                     show_range=show_range,
-                                    display_keys=display_keys
+                                    display_keys=display_keys,
+                                    cur_key_map=cur_key_map
                                     )
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
@@ -474,10 +501,23 @@ class Airflow(AirflowBaseView):
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'],
                                        '查看曲线模板页面')
         logging.info(msg)
-
+        device_type = 'tightneing'  # fixme: 临时使用固定的device_type, 后续在控制器配置中添加
+        if device_type == 'servo_press':
+            cur_key_map = {
+                'cur_w': '距离',
+                'cur_m': '压力',
+                'cur_t': '时间',
+            }
+        else:
+            cur_key_map = {
+                'cur_w': '角度',
+                'cur_m': '扭矩',
+                'cur_t': '时间',
+                'cur_s': '转速'
+            }
         return self.render_template('airflow/curve_template.html', can_delete=can_delete,
                                     curve_template=curve_template, bolt_no=bolt_no,
-                                    craft_type=craft_type)
+                                    craft_type=craft_type, device_type=device_type, cur_key_map=cur_key_map)
 
     @expose('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
     @has_access
@@ -2249,6 +2289,12 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
+    download_static_folder = os.path.join(os.path.dirname(__file__), 'downloads/contents')
+
+    def __init__(self, *args, **kwargs):
+        ret = super(CurvesView, self).__init__(**kwargs)
+        os.makedirs(self.download_static_folder, exist_ok=True)
+
     def do_render(self, track_no=None, bolt_no=None, controller=None, craft_type=None):
         view_name = 'curves'
         curves = request.args.get('curves')
@@ -2265,7 +2311,8 @@ class CurvesView(BaseCRUDView):
         if track_no:
             self._filters.add_filter(column_name='car_code', filter_class=self.datamodel.FilterEqual, value=track_no)
         if controller:
-            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains, value=controller)
+            self._filters.add_filter(column_name='controller_name', filter_class=self.datamodel.FilterContains,
+                                     value=controller)
 
         joined_filters = self._filters.get_joined_filters(self._base_filters)
         order_column, order_direction = "execution_date", "desc"
@@ -2279,8 +2326,11 @@ class CurvesView(BaseCRUDView):
         )
 
         error_tag_vals = ErrorTag.get_all_dict() or {}
+        device_type = None
         for t in lst:
             ret = []
+            if device_type is None and t.device_type is not None:
+                device_type = t.device_type
             try:
                 error_tags = json.loads(t.error_tag or '[]')
                 if not error_tags:
@@ -2297,6 +2347,7 @@ class CurvesView(BaseCRUDView):
 
         selected_tasks = {}
         tasks = list(get_task_instances_by_entity_ids(curves_list))
+
         for ti in tasks:
             selected_tasks[ti.entity_id] = {
                 'carCode': ti.car_code,
@@ -2312,10 +2363,25 @@ class CurvesView(BaseCRUDView):
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVES'], '查看曲线对比页面')
         logging.info(msg)
 
+        if device_type == 'servo_press':
+            cur_key_map = {
+                'cur_w': '距离',
+                'cur_m': '压力',
+                'cur_t': '时间',
+            }
+        else:
+            cur_key_map = {
+                'cur_w': '角度',
+                'cur_m': '扭矩',
+                'cur_t': '时间',
+                'cur_s': '转速'
+            }
+
         return self.render_template('airflow/curves.html', tasks=lst, page=page, page_size=page_size, count=count,
                                     modelview_name=view_name,
                                     selected_curves=curves_list,
                                     selected_tasks=selected_tasks,
+                                    cur_key_map=cur_key_map,
                                     widgets=widgets)
 
     @expose('/analysis')
@@ -2337,6 +2403,77 @@ class CurvesView(BaseCRUDView):
         if not ret:
             raise AirflowNotFoundException
         return ret
+
+    def clean_download_static_files(self):
+        fds = ['*.json', '*.csv']
+        for fd in fds:
+            for f in Path(self.download_static_folder).glob(fd):
+                try:
+                    f.unlink()
+                except OSError as e:
+                    _logger.error(f"Error: {f} : {e}")
+
+    def do_download_contents(self, entities: List[str]) -> List[str]:
+        files = []
+        base_path = self.download_static_folder
+        for entity_id in entities:
+            try:
+                result = get_result(entity_id)
+                f = f'{entity_id}.json'.replace('/', '@')
+                f = os.path.join(base_path, f)
+                with open(f, 'w') as ff:
+                    ff.write(json.dumps(result, indent=4))
+                files.append(f)
+            except Exception as e:
+                _logger.error(e)
+            try:
+                curve = get_curve(entity_id)
+                f = f'{entity_id}.csv'.replace('/', '@')
+                f = os.path.join(base_path, f)
+                dd = pd.DataFrame.from_dict(curve)
+                dd.to_csv(f, index=False, header=True)
+                files.append(f)
+            except Exception as e:
+                _logger.error(e)
+        return files
+
+    def generate_download_zip_file(self, files: List[str]):
+        try:
+            fn = f'{self.download_static_folder}/curves.zip'
+            with zipfile.ZipFile(fn, 'w') as f:
+                for file in files:
+                    if not os.path.exists(file):
+                        continue
+                    f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+            return True
+        except Exception as e:
+            _logger.error(e)
+            return False
+
+    @expose('/download/<string:entity_ids>')
+    @has_access
+    def download_curves(self, entity_ids: str):
+        if not entity_ids or entity_ids == 'None':
+            return Response(status=http.HTTPStatus.OK)
+
+        fn = f'{self.download_static_folder}/curves.zip'
+        chk_file = Path(fn)
+
+        if chk_file.is_file():
+            chk_file.unlink()
+        entity_ids = entity_ids.replace('@', '/')
+        entities = entity_ids.split(',')
+        ll = len(entities)
+        if ll > 500:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'请求的曲线数量过大,最大只能500条，当前为{ll}')
+        files = self.do_download_contents(entities)
+        if not files:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'未生成数据')
+        ret = self.generate_download_zip_file(files)
+        if not ret:
+            return Response(status=http.HTTPStatus.BAD_REQUEST, response=f'未生成压缩包数据')
+        return send_file(fn, mimetype='application/zip', attachment_filename='curves.zip',
+                         as_attachment=True)
 
     @expose('/<string:bolt_no>/<string:craft_type>')
     @has_access
@@ -2433,6 +2570,7 @@ class TrackNoNotNullFilter(BaseFilter):
         ti = self.model
         ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
         return ret
+
 
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa

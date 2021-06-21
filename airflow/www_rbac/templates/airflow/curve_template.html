@@ -3,228 +3,228 @@
 {% import 'airflow/dialog.html' as dialog %}
 
 {% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/curve_template.css') }}">
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
-<script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
+  {{ super() }}
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/curve_template.css') }}">
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('static', filename='css/bootstrap-treeview.min.css') }}">
+  <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
 {% endblock %}
 
 {% block body %}
-<div id="root">
-  {% call panel.panel('曲线参数', 'result-container') %}
-  <div class=" overflow-auto p-0">
-    <table id="result_table" class="table">
-      <thead>
-      <tr class="result-content-row active">
-        <th class="position-sticky " style="top:0">参数</th>
-        <th class="position-sticky " style="top:0">值</th>
-      </tr>
-      </thead>
-      <tbody id="result_detail"></tbody>
-    </table>
+  <div id="root">
+    {% call panel.panel('曲线参数', 'result-container') %}
+      <div class=" overflow-auto p-0">
+        <table id="result_table" class="table">
+          <thead>
+          <tr class="result-content-row active">
+            <th class="position-sticky " style="top:0">参数</th>
+            <th class="position-sticky " style="top:0">值</th>
+          </tr>
+          </thead>
+          <tbody id="result_detail"></tbody>
+        </table>
+      </div>
+    {% endcall %}
+
+    {% include 'airflow/curve_chart.html' %}
+    {% call panel.panel('曲线模板簇', 'cluster-container') %}
+      <div id="tree" class="panel-body overflow-auto"></div>
+    {% endcall %}
   </div>
-  {% endcall %}
 
-  {% include 'airflow/curve_chart.html' %}
-  {% call panel.panel('曲线模板簇', 'cluster-container') %}
-  <div id="tree" class="panel-body overflow-auto"></div>
+  {% call dialog.dialog('dialogModal') %}
   {% endcall %}
-</div>
-
-{% call dialog.dialog('dialogModal') %}
-{% endcall %}
 {% endblock %}
 
 
 {% block tail_js %}
-{{ super() }}
-<script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
-<script type="text/javascript">
-  let curves = [];
-  const modes = [];
-  let tree = [];
-  let renderCurves = [];
-  let selectedNode = 0;
-  let curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
-  const timeStep = curveTemplate.curve_param.sampling_time;
-  const treeRoles = {
-    cluster: 'cluster',
-    group: 'group',
-    curve: 'curve'
-  };
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/bootstrap-treeview.js') }}" type="text/javascript"></script>
+  <script type="text/javascript">
+    let curves = [];
+    const modes = [];
+    let tree = [];
+    let renderCurves = [];
+    let selectedNode = 0;
+    let curveTemplate = JSON.parse('{{ curve_template|tojson|safe }}');
+    const timeStep = curveTemplate.curve_param.sampling_time;
+    const treeRoles = {
+      cluster: 'cluster',
+      group: 'group',
+      curve: 'curve'
+    };
 
-  // 曲线模板没有转速曲线，不显示按钮
-  $('#update-chart-t-s-label').detach();
+    // 曲线模板没有转速曲线，不显示按钮
+    $('#update-chart-t-s-label').detach();
 
-  function randomColor() {
-    return `#${(function (color) {
-      return (color += '0123456789abcdef'[Math.floor(Math.random() * 16)])
-      && (color.length === 6) ? color : arguments.callee(color);
-    }(''))}`;
-  }
-
-
-  function isEmptyValue(val) {
-    return val === undefined || val === null || val === '';
-  }
-
-  const treeItemClickActions = {
-    cluster: (event, data) => {
-      renderCurves = curves.filter(c => c.mode === data.mode);
-      renderChart();
-    },
-    group: (event, data) => {
-      renderCurves = curves.filter(c => c.mode === data.mode && c.centroid === data.centroid);
-      renderChart();
-    },
-    curve: (event, data) => {
-      renderCurves = curves.filter(c => c.mode === data.mode
-        && c.centroid === data.centroid
-        && c.idx === data.idx);
-      renderChart();
+    function randomColor() {
+      return `#${(function (color) {
+        return (color += '0123456789abcdef'[Math.floor(Math.random() * 16)])
+        && (color.length === 6) ? color : arguments.callee(color);
+      }(''))}`;
     }
-  };
 
-  function doRemoveCurve(version, mode, groupCenterIdx, curveIdx) {
-    $.ajax({
-      type: 'PUT',
-      url: "{{ url_for('Airflow.remove_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
-      data: JSON.stringify({
-        csrf_token: '{{ csrf_token() }}',
-        version,
-        mode,
-        group_center_idx: groupCenterIdx,
-        curve_idx: curveIdx
-      }),
-      headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
-      dataType: 'json',
-      contentType: 'application/json'
-    }).then((resp) => {
-      console.log(resp);
-      const { error, data } = resp;
-      if (error) {
-        return;
-      }
-      if (!resp.data) {
-        return;
-      }
-      curveTemplate = data;
-      render();
-    });
-  }
 
-  function showRemoveCurveDialog(name, color) {
-    const curve = curves.find(c => c.name === name);
-    console.log('{{ can_delete }}');
-    if ('{{ can_delete }}' !== 'True') {
-      return;
+    function isEmptyValue(val) {
+      return val === undefined || val === null || val === '';
     }
-    showDialog('删除曲线', `<h4>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</h4>`, {
-      onConfirm() {
-        doRemoveCurve(
-          curveTemplate.version || 0,
-          curve.mode,
-          curve.centroid,
-          curve.idx,
-        );
+
+    const treeItemClickActions = {
+      cluster: (event, data) => {
+        renderCurves = curves.filter(c => c.mode === data.mode);
+        renderChart();
       },
-      confirmText: '删除',
-      confirmClass: 'btn-danger'
-    });
-  }
+      group: (event, data) => {
+        renderCurves = curves.filter(c => c.mode === data.mode && c.centroid === data.centroid);
+        renderChart();
+      },
+      curve: (event, data) => {
+        renderCurves = curves.filter(c => c.mode === data.mode
+          && c.centroid === data.centroid
+          && c.idx === data.idx);
+        renderChart();
+      }
+    };
 
-  function templateListInit() {
-    const treeView = $('#tree');
-    treeView.treeview({
-      data: tree
-      // showCheckbox: true,
-    });
-    treeView.off('nodeSelected');
-    treeView.off('nodeChecked');
-    treeView.on('nodeSelected', (event, data) => {
-      selectedNode = data.nodeId;
-      treeItemClickActions[data.role](event, data);
-    }).on('nodeChecked', (event, data) => {
-      treeView.treeview('uncheckAll', { silent: true });
-      console.log('checked');
-      showRemoveCurveDialog(data.name, data.curveColor);
-      // treeItemClickActions[data.role](event, data);
-    });
-    treeView.treeview('selectNode', [selectedNode]);
-  }
-
-
-  function renderParamTableRow(key, value) {
-    const $tr = $('<tr class="result-content-row">');
-    const $key = $(`<td class="result-content-item">${key}</td>`);
-    let content = value;
-    if (typeof value === 'object') {
-      content = JSON.stringify(value);
-    }
-    const $value = $(`<td class="result-content-item">${isEmptyValue(content) ? '' : content}</td>`);
-    $tr.append([$key, $value]);
-    return $tr;
-  }
-
-  function renderCurveParam() {
-    const { curve_param: curveParam } = curveTemplate;
-    const $rows = [];
-    $('#result_detail').html('');
-    Object.entries(curveParam).forEach(([k, v]) => {
-      $rows.push(renderParamTableRow(k, v));
-    });
-    $('#result_detail').append($rows);
-  }
-
-  function genTimeSeries(step, length) {
-    const digits = (`${step}`).split('.')[1];
-    return Array.from(new Array(length), (item, idx) => +(idx * step).toFixed(digits ? digits.length : 4));
-  }
-
-
-  function loadCurvesData() {
-    tree = [];
-    curves = [];
-    const { template_cluster: templateCluster } = curveTemplate;
-    Object.entries(templateCluster).forEach(([mode, cluster]) => {
-      modes.push(mode);
-      const row = {
-        text: `<span style="user-select: none;">模板簇-模式${mode}</span>`,
-        nodes: [],
-        role: treeRoles.cluster,
-        mode
-      };
-      const { curve_template_group_array: templateGroup } = cluster;
-      templateGroup.forEach((group, groupIdx) => {
-        const { template_data_array: curvesData, template_centroid_index: centroid } = group;
-        const gRow = {
-          text: `<span style="user-select: none;">曲线聚类-${mode}-${centroid}</span>`,
-          nodes: [],
+    function doRemoveCurve(version, mode, groupCenterIdx, curveIdx) {
+      $.ajax({
+        type: 'PUT',
+        url: "{{ url_for('Airflow.remove_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
+        data: JSON.stringify({
+          csrf_token: '{{ csrf_token() }}',
+          version,
           mode,
-          centroid,
-          role: treeRoles.group
+          group_center_idx: groupCenterIdx,
+          curve_idx: curveIdx
+        }),
+        headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+        dataType: 'json',
+        contentType: 'application/json'
+      }).then((resp) => {
+        console.log(resp);
+        const {error, data} = resp;
+        if (error) {
+          return;
+        }
+        if (!resp.data) {
+          return;
+        }
+        curveTemplate = data;
+        render();
+      });
+    }
+
+    function showRemoveCurveDialog(name, color) {
+      const curve = curves.find(c => c.name === name);
+      console.log('{{ can_delete }}');
+      if ('{{ can_delete }}' !== 'True') {
+        return;
+      }
+      showDialog('删除曲线', `<h4>确认删除曲线 <span class="color-indicator" style="display:inline-block;background-color: ${color}"></span>${name}</h4>`, {
+        onConfirm() {
+          doRemoveCurve(
+            curveTemplate.version || 0,
+            curve.mode,
+            curve.centroid,
+            curve.idx,
+          );
+        },
+        confirmText: '删除',
+        confirmClass: 'btn-danger'
+      });
+    }
+
+    function templateListInit() {
+      const treeView = $('#tree');
+      treeView.treeview({
+        data: tree
+        // showCheckbox: true,
+      });
+      treeView.off('nodeSelected');
+      treeView.off('nodeChecked');
+      treeView.on('nodeSelected', (event, data) => {
+        selectedNode = data.nodeId;
+        treeItemClickActions[data.role](event, data);
+      }).on('nodeChecked', (event, data) => {
+        treeView.treeview('uncheckAll', {silent: true});
+        console.log('checked');
+        showRemoveCurveDialog(data.name, data.curveColor);
+        // treeItemClickActions[data.role](event, data);
+      });
+      treeView.treeview('selectNode', [selectedNode]);
+    }
+
+
+    function renderParamTableRow(key, value) {
+      const $tr = $('<tr class="result-content-row">');
+      const $key = $(`<td class="result-content-item">${key}</td>`);
+      let content = value;
+      if (typeof value === 'object') {
+        content = JSON.stringify(value);
+      }
+      const $value = $(`<td class="result-content-item">${isEmptyValue(content) ? '' : content}</td>`);
+      $tr.append([$key, $value]);
+      return $tr;
+    }
+
+    function renderCurveParam() {
+      const {curve_param: curveParam} = curveTemplate;
+      const $rows = [];
+      $('#result_detail').html('');
+      Object.entries(curveParam).forEach(([k, v]) => {
+        $rows.push(renderParamTableRow(k, v));
+      });
+      $('#result_detail').append($rows);
+    }
+
+    function genTimeSeries(step, length) {
+      const digits = (`${step}`).split('.')[1];
+      return Array.from(new Array(length), (item, idx) => +(idx * step).toFixed(digits ? digits.length : 4));
+    }
+
+
+    function loadCurvesData() {
+      tree = [];
+      curves = [];
+      const {template_cluster: templateCluster} = curveTemplate;
+      Object.entries(templateCluster).forEach(([mode, cluster]) => {
+        modes.push(mode);
+        const row = {
+          text: `<span style="user-select: none;">模板簇-模式${mode}</span>`,
+          nodes: [],
+          role: treeRoles.cluster,
+          mode
         };
-        curvesData.forEach((curve, idx) => {
-          const { template_angle: cur_w, template_torque: cur_m, start_point } = curve;
-          const color = randomColor();
-          const name = `曲线-${mode}-${centroid}-${idx}`;
-          curves.push({
-            start_point,
+        const {curve_template_group_array: templateGroup} = cluster;
+        templateGroup.forEach((group, groupIdx) => {
+          const {template_data_array: curvesData, template_centroid_index: centroid} = group;
+          const gRow = {
+            text: `<span style="user-select: none;">曲线聚类-${mode}-${centroid}</span>`,
+            nodes: [],
             mode,
             centroid,
-            idx,
-            cur_w,
-            cur_m,
-            color,
-            name,
-            cur_t: genTimeSeries(timeStep, cur_w.length)
-          });
-          gRow.nodes.push({
-            text: `<span style="user-select: none;height:100%;">
+            role: treeRoles.group
+          };
+          curvesData.forEach((curve, idx) => {
+            const {template_angle: cur_w, template_torque: cur_m, start_point} = curve;
+            const color = randomColor();
+            const name = `曲线-${mode}-${centroid}-${idx}`;
+            curves.push({
+              start_point,
+              mode,
+              centroid,
+              idx,
+              cur_w,
+              cur_m,
+              color,
+              name,
+              cur_t: genTimeSeries(timeStep, cur_w.length)
+            });
+            gRow.nodes.push({
+              text: `<span style="user-select: none;height:100%;">
                   <span  class="align-items-center d-inline-flex">${name}
                   <div class="color-indicator ml-2 mr-3" style="background-color: ${color};"></div>
                   {% if can_delete%}
@@ -232,142 +232,82 @@
                   {% endif %}
                   </span>
                 </span>`,
-            name,
-            curveColor: color,
-            role: treeRoles.curve,
-            centroid,
-            idx,
-            mode
+              name,
+              curveColor: color,
+              role: treeRoles.curve,
+              centroid,
+              idx,
+              mode
+            });
           });
+          row.nodes.push(gRow);
         });
-        row.nodes.push(gRow);
+        tree.push(row);
       });
-      tree.push(row);
-    });
-    renderCurves = curves.filter(c => c.mode === modes[0]);
-  }
-
-  function genData(curve, xKey, yKey) {
-    if (!curve || !curve[xKey] || !curve[yKey]) {
-      return [];
+      renderCurves = curves.filter(c => c.mode === modes[0]);
     }
-    const xData = curve[xKey];
-    const yData = curve[yKey];
-    return xData.map((x, idx) => [xData[idx], yData[idx]]);
-  }
 
-  function genDataSeries() {
-    const { xKey, yKey } = chartParams;
-    return renderCurves.map(c => ({
-      name: c.name,
-      type: 'line',
-      data: genData(c, xKey, yKey),
-      cursor: 'pointer',
-      symbol: 'circle',
-      showSymbol: false,
-      clip: false,
-      itemStyle: {
-        color: c.color,
-
-        borderWidth: 2,
-      },
-      lineStyle: {
-        color: c.color,
-        width: 3
-      },
-      markLine: {
-        // data: [
-        //   { type: 'min', name: '最小值' },
-        //   { type: 'max', name: '最大值' },
-        // ],
+    function genData(curve, xKey, yKey) {
+      if (!curve || !curve[xKey] || !curve[yKey]) {
+        return [];
       }
-    }));
-  }
+      const xData = curve[xKey];
+      const yData = curve[yKey];
+      return xData.map((x, idx) => [xData[idx], yData[idx]]);
+    }
 
-  function renderChart() {
-    const { xName, yName } = chartParams;
-    const option = {
-      // title: {
-      //   text: `${xName}-${yName}图`
-      // },
-      legend: {
-        type: 'scroll',
-        data: [yName]
-      },
-      grid: {
-        bottom: 100
-      },
-      xAxis: {
-        type: 'value',
-        name: xName,
-        nameLocation: 'middle',
-        nameGap: 30,
-        axisLabel: {
-          fontSize: 16
-        }
-      },
-      yAxis: {
-        type: 'value',
-        name: yName,
-        nameLocation: 'middle',
-        nameRotate: 0,
-        nameGap: 50,
-        axisLabel: {
-          fontSize: 16
-        }
-      },
-      series: genDataSeries(),
-      textStyle: {
-        fontFamily: 'monospace',
-        fontSize: 18
-      },
-      dataZoom: [
-        {
-          type: 'slider',
-          xAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'slider',
-          yAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'inside',
-          xAxisIndex: 0,
-          filterMode: 'none'
-        },
-        {
-          type: 'inside',
-          yAxisIndex: 0,
-          filterMode: 'none'
-        }
-      ],
-      tooltip: {
-        trigger: 'axis'
-      }
-    };
-    curveChart.setOption(option, true);
-  }
+    function genDataSeries() {
+      const {xKey, yKey} = chartParams;
+      const series = []
+      renderCurves.forEach(function (c) {
+        yKey.forEach(function (n, idx) {
+          series.push({
+            name: c.name,
+            type: 'line',
+            data: genData(c, xKey, n),
+            cursor: 'pointer',
+            symbol: 'circle',
+            showSymbol: false,
+            clip: false,
+            xAxisIndex: idx,
+            yAxisIndex: idx,
+            itemStyle: {
+              color: c.color,
+              borderWidth: 2,
+            },
+            lineStyle: {
+              color: c.color,
+              width: 3
+            },
+          });
+        })
+      });
+      return series;
+    }
 
-  function render() {
-    renderCurveParam();
-    loadCurvesData();
-    // updateTreeView();
-    templateListInit();
-    console.log(curves);
-  }
+    function getAllData(yKey, xKey) {
+      return genDataSeries()
+    }
 
-  $(document).ready(() => {
-    chartInit();
-    render();
-    templateListInit();
-    curveChart.on('click', (params) => {
-      if (params.componentType === 'series') {
-        console.log(params);
-        showRemoveCurveDialog(params.seriesName, params.color);
-      }
+
+    function render() {
+      renderCurveParam();
+      loadCurvesData();
+      // updateTreeView();
+      templateListInit();
+      console.log(curves);
+    }
+
+    $(document).ready(() => {
+      chartInit();
+      render();
+      templateListInit();
+      curveChart.on('click', (params) => {
+        if (params.componentType === 'series') {
+          console.log(params);
+          showRemoveCurveDialog(params.seriesName, params.color);
+        }
+      });
     });
-  });
-</script>
+  </script>
 {% endblock %}
