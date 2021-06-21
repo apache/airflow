@@ -114,6 +114,7 @@ custom_rules:
 - Fix running "upgrade_check" command in a PTY. (#14977)
 - Skip `DatabaseVersionCheckRule` check if invalid version is detected (#15122)
 - Fix too specific parsing of `False` in `LegacyUIDeprecated` (#14967)
+- Fix false positives when inheriting classes that inherit ``DbApiHook`` (#16543)
 
 ### 1.3.0
 
