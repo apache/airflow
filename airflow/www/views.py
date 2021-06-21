@@ -1496,6 +1496,7 @@ class Airflow(AirflowBaseView):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
 
@@ -1560,6 +1561,10 @@ class Airflow(AirflowBaseView):
                 )
 
         dag = current_app.dag_bag.get_dag(dag_id)
+
+        if unpause and dag.is_paused:
+            models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
+
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
