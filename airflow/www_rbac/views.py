@@ -447,7 +447,7 @@ class Airflow(AirflowBaseView):
 
         if ti.device_type == 'servo_press':
             cur_key_map = {
-                'cur_w': '距离',
+                'cur_w': '位移',
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
@@ -505,7 +505,7 @@ class Airflow(AirflowBaseView):
         device_type = 'tightneing'  # fixme: 临时使用固定的device_type, 后续在控制器配置中添加
         if device_type == 'servo_press':
             cur_key_map = {
-                'cur_w': '距离',
+                'cur_w': '位移',
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
@@ -2366,7 +2366,7 @@ class CurvesView(BaseCRUDView):
 
         if device_type == 'servo_press':
             cur_key_map = {
-                'cur_w': '距离',
+                'cur_w': '位移',
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
