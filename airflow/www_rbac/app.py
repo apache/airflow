@@ -178,10 +178,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
             # MDM 主数据管理
             appbuilder.add_view(views.TighteningControllerView,
-                                gettext("Tightening Controller"),
+                                gettext("Equipments"),
                                 category=gettext("Master Data Management"))
             appbuilder.add_view(views.ErrorTagModelView,
                                 gettext("Error Tags"),
+                                category=gettext("Master Data Management"))
+            appbuilder.add_view(views.DeviceTypeView,
+                                gettext("Device Type"),
                                 category=gettext("Master Data Management"))
             # 分析相关
             # appbuilder.add_view(views.XComModelView,

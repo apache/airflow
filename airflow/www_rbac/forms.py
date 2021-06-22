@@ -23,7 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import json
-
+from flask import current_app
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
 )
@@ -34,7 +34,10 @@ from flask_wtf import FlaskForm
 from wtforms import validators
 from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
                             StringField, DateTimeField, BooleanField)
+from wtforms.ext.sqlalchemy.fields import QuerySelectField
+from airflow.utils.db import provide_session, create_session
 from airflow.models import Connection
+from airflow.models.tightening_controller import DeviceTypeModel
 from airflow.utils import timezone
 from airflow.www_rbac.validators import ValidJson
 from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
@@ -199,9 +202,19 @@ class ErrorTagForm(DynamicForm):
         widget=BS3TextFieldWidget())
 
 
+def device_type_query():
+    print(current_app)
+    session = current_app.appbuilder.get_session()
+    return session.query(DeviceTypeModel)
+
+
+def _get_related_pk_func(obj):
+    return obj.id
+
+
 class TighteningControllerForm(DynamicForm):
     controller_name = StringField(
-        lazy_gettext('Controller Name'),
+        lazy_gettext('Equipment Name'),
         widget=BS3TextFieldWidget())
     line_code = StringField(
         lazy_gettext('Line Code'),
@@ -215,3 +228,10 @@ class TighteningControllerForm(DynamicForm):
     work_center_name = StringField(
         lazy_gettext('Work Center Name'),
         widget=BS3TextFieldWidget())
+
+    device_type = QuerySelectField(
+        lazy_gettext('Device Type'),
+        query_factory=device_type_query,
+        # get_pk_func=_get_related_pk_func,
+        widget=Select2Widget(extra_classes="readonly")
+    )
