@@ -47,7 +47,7 @@ from elasticsearch.exceptions import NotFoundError
 from .utilities import get_random_id
 
 
-# pylint: disable=redefined-builtin
+# pylint: disable=redefined-builtin, unused-argument
 class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 
