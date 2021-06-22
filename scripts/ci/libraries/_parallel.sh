@@ -174,7 +174,7 @@ function parallel::print_job_summary_and_return_status_code() {
         if [[ ${status} == "0" ]]; then
             parallel::output_log_for_successful_job "${job}"
         else
-            parallel::output_log_for_failed_job "${job}"    # <- THIS LINE SHOULD PRINT THE ROOT CAUSE OF THE PROBLEM
+            parallel::output_log_for_failed_job "${job}"
             # SKIPPED_FAILED_JOB failure does not trigger whole test failure
             if [[ ${SKIPPED_FAILED_JOB=} != "${job}" ]]; then
                 return_code=$((return_code + 1))
