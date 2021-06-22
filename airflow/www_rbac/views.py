@@ -73,7 +73,7 @@ from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.dagcode import DagCode
 from airflow.models.error_tag import ErrorTag
-from airflow.models.tightening_controller import TighteningController
+from airflow.models.tightening_controller import TighteningController, DeviceTypeModel
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -99,7 +99,7 @@ import logging
 import os
 import pandas as pd
 from pathlib import Path
-
+from airflow.configuration import AIRFLOW_HOME
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
 _logger = logging.getLogger(__name__)
@@ -447,7 +447,7 @@ class Airflow(AirflowBaseView):
 
         if ti.device_type == 'servo_press':
             cur_key_map = {
-                'cur_w': '距离',
+                'cur_w': '位移',
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
@@ -494,7 +494,8 @@ class Airflow(AirflowBaseView):
                                                                                   'Airflow')
 
         if curve_template is None:
-            return None
+            # todo: 不要返回错误页面
+            return circles(AirflowNotFoundException)
 
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
@@ -504,7 +505,7 @@ class Airflow(AirflowBaseView):
         device_type = 'tightneing'  # fixme: 临时使用固定的device_type, 后续在控制器配置中添加
         if device_type == 'servo_press':
             cur_key_map = {
-                'cur_w': '距离',
+                'cur_w': '位移',
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
@@ -2289,7 +2290,7 @@ class CurvesView(BaseCRUDView):
         'final_state': lazy_gettext('Final State')
     }
 
-    download_static_folder = os.path.join(os.path.dirname(__file__), 'downloads/contents')
+    download_static_folder = os.path.join(AIRFLOW_HOME, 'downloads/contents')
 
     def __init__(self, *args, **kwargs):
         ret = super(CurvesView, self).__init__(**kwargs)
@@ -2365,7 +2366,7 @@ class CurvesView(BaseCRUDView):
 
         if device_type == 'servo_press':
             cur_key_map = {
-                'cur_w': '距离',
+                'cur_w': '位移',
                 'cur_m': '压力',
                 'cur_t': '时间',
             }
@@ -2444,7 +2445,7 @@ class CurvesView(BaseCRUDView):
                 for file in files:
                     if not os.path.exists(file):
                         continue
-                    f.write(file, compress_type=zipfile.ZIP_DEFLATED)
+                    f.write(file, arcname=os.path.basename(file), compress_type=zipfile.ZIP_DEFLATED)
             return True
         except Exception as e:
             _logger.error(e)
@@ -2816,9 +2817,9 @@ class TighteningControllerView(AirflowModelView):
     base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete']
 
     extra_fields = []
-    list_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code', 'work_center_name']
+    list_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code', 'work_center_name', 'device_type']
     add_columns = edit_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code',
-                                  'work_center_name'] + extra_fields
+                                  'work_center_name', 'device_type'] + extra_fields
     add_form = edit_form = TighteningControllerForm
     add_template = 'airflow/tightening_controller_create.html'
     edit_template = 'airflow/tightening_controller_edit.html'
@@ -2828,7 +2829,8 @@ class TighteningControllerView(AirflowModelView):
         'line_code': lazy_gettext('Line Code'),
         'line_name': lazy_gettext('Line Name'),
         'work_center_code': lazy_gettext('Work Center Code'),
-        'work_center_name': lazy_gettext('Work Center Name')
+        'work_center_name': lazy_gettext('Work Center Name'),
+        'device_type_id': lazy_gettext('Device Type'),
     }
 
     base_order = ('id', 'asc')
@@ -2879,6 +2881,11 @@ class TighteningControllerView(AirflowModelView):
                                        '查看控制器')
         logging.info(msg)
         return super(TighteningControllerView, self).list()
+
+
+class DeviceTypeView(ModelView):
+    datamodel = AirflowModelView.CustomSQLAInterface(DeviceTypeModel)
+    related_views = [TighteningControllerView]
 
 
 class PoolModelView(AirflowModelView):
