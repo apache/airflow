@@ -61,6 +61,7 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -133,8 +134,9 @@ def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
 def clear_task_instances(
     tis,
     session,
-    dag_run_state: str = State.RUNNING,
+    activate_dag_runs=None,
     dag=None,
+    dag_run_state: Union[str, Literal[False]] = State.RUNNING,
 ):
     """
     Clears a set of task instances, but makes sure the running ones
@@ -145,6 +147,7 @@ def clear_task_instances(
     :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
         be changed.
     :param dag: DAG object
+    :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
     task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
@@ -204,6 +207,16 @@ def clear_task_instances(
 
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # noqa
             job.state = State.SHUTDOWN
+
+    if activate_dag_runs is not None:
+        warnings.warn(
+            "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
+            "Please use `dag_run_state`",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not activate_dag_runs:
+            dag_run_state = False
 
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
