@@ -32,7 +32,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.dag_processing.dag_processing import AbstractDagFileProcessorProcess
+from airflow.dag_processing.manager import AbstractDagFileProcessorProcess
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagbag import DagBag

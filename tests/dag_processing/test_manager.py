@@ -34,14 +34,14 @@ import pytest
 from freezegun import freeze_time
 
 from airflow.configuration import conf
-from airflow.dag_processing.dag_processing import (
+from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
     DagFileProcessorManager,
     DagFileStat,
     DagParsingSignal,
     DagParsingStat,
 )
-from airflow.dag_processing.dagfile_processor import DagFileProcessorProcess
+from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import DagBag, DagModel, TaskInstance as TI
 from airflow.models.serialized_dag import SerializedDagModel

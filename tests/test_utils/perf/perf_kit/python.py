@@ -91,7 +91,7 @@ if __name__ == "__main__":
         import logging
 
         import airflow
-        from airflow.dag_processing.dagfile_processor import DagFileProcessor
+        from airflow.dag_processing.processor import DagFileProcessor
 
         log = logging.getLogger(__name__)
         processor = DagFileProcessor(dag_ids=[], log=log)

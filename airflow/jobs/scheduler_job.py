@@ -37,8 +37,8 @@ from sqlalchemy.sql import expression
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.dag_processing.dag_processing import DagFileProcessorAgent
-from airflow.dag_processing.dagfile_processor import DagFileProcessorProcess
+from airflow.dag_processing.manager import DagFileProcessorAgent
+from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.exceptions import SerializedDagNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob

@@ -218,7 +218,7 @@ if __name__ == "__main__":
         import logging
         from unittest import mock
 
-        from airflow.dag_processing.dagfile_processor import DagFileProcessor
+        from airflow.dag_processing.processor import DagFileProcessor
 
         with mock.patch.dict(
             "os.environ",

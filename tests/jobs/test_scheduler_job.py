@@ -37,7 +37,7 @@ from sqlalchemy import func
 import airflow.example_dags
 import airflow.smart_sensor_dags
 from airflow import settings
-from airflow.dag_processing.dag_processing import DagFileProcessorAgent
+from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
@@ -118,7 +118,7 @@ class TestSchedulerJob(unittest.TestCase):
         # enqueue!
         self.null_exec = MockExecutor()
 
-        self.patcher = patch('airflow.utils.dag_processing.SerializedDagModel.remove_deleted_dags')
+        self.patcher = patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags')
         # Since we don't want to store the code for the DAG defined in this file
         self.patcher_dag_code = patch.object(settings, "STORE_DAG_CODE", False)
         self.patcher.start()
