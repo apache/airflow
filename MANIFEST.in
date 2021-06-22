@@ -29,6 +29,7 @@ graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
+exclude airflow/www/yarn.lock
 include airflow/alembic.ini
 include airflow/api_connexion/openapi/v1.yaml
 include airflow/git_version
