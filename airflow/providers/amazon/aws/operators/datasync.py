@@ -21,7 +21,7 @@ import logging
 import random
 from typing import List, Optional
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 
@@ -46,6 +46,9 @@ class AWSDataSyncOperator(BaseOperator):
     :param wait_interval_seconds: Time to wait between two
         consecutive calls to check TaskExecution status.
     :type wait_interval_seconds: int
+    :param max_iterations: Maximum number of
+        consecutive calls to check TaskExecution status.
+    :type max_iterations: int
     :param task_arn: AWS DataSync TaskArn to use. If None, then this operator will
         attempt to either search for an existing Task or attempt to create a new Task.
     :type task_arn: str
@@ -128,7 +131,8 @@ class AWSDataSyncOperator(BaseOperator):
         self,
         *,
         aws_conn_id: str = "aws_default",
-        wait_interval_seconds: int = 5,
+        wait_interval_seconds: int = 30,
+        max_iterations: int = 60,
         task_arn: Optional[str] = None,
         source_location_uri: Optional[str] = None,
         destination_location_uri: Optional[str] = None,
@@ -147,6 +151,7 @@ class AWSDataSyncOperator(BaseOperator):
         # Assignments
         self.aws_conn_id = aws_conn_id
         self.wait_interval_seconds = wait_interval_seconds
+        self.max_iterations = max_iterations
 
         self.task_arn = task_arn
 
@@ -355,8 +360,14 @@ class AWSDataSyncOperator(BaseOperator):
 
         # Wait for task execution to complete
         self.log.info("Waiting for TaskExecutionArn %s", self.task_execution_arn)
-        result = hook.wait_for_task_execution(self.task_execution_arn)
+        try:
+            result = hook.wait_for_task_execution(self.task_execution_arn, max_iterations=self.max_iterations)
+        except (AirflowTaskTimeout, AirflowException) as e:
+            self.log.error('Cancelling TaskExecution after Exception: %s', e)
+            self._cancel_datasync_task_execution()
+            raise
         self.log.info("Completed TaskExecutionArn %s", self.task_execution_arn)
+
         task_execution_description = hook.describe_task_execution(task_execution_arn=self.task_execution_arn)
         self.log.info("task_execution_description=%s", task_execution_description)
 
@@ -371,13 +382,17 @@ class AWSDataSyncOperator(BaseOperator):
         if not result:
             raise AirflowException(f"Failed TaskExecutionArn {self.task_execution_arn}")
 
-    def on_kill(self) -> None:
+    def _cancel_datasync_task_execution(self):
         """Cancel the submitted DataSync task."""
         hook = self.get_hook()
         if self.task_execution_arn:
             self.log.info("Cancelling TaskExecutionArn %s", self.task_execution_arn)
             hook.cancel_task_execution(task_execution_arn=self.task_execution_arn)
             self.log.info("Cancelled TaskExecutionArn %s", self.task_execution_arn)
+
+    def on_kill(self):
+        self.log.error('Cancelling TaskExecution after task was killed')
+        self._cancel_datasync_task_execution()
 
     def _delete_datasync_task(self) -> None:
         """Deletes an AWS DataSync Task."""
