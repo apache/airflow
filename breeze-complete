@@ -28,7 +28,7 @@ _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
 # registrys is good here even if it is not correct english. We are adding s automatically to all variables
-_breeze_allowed_github_registrys="docker.pkg.github.com ghcr.io"
+_breeze_allowed_github_registrys="ghcr.io docker.pkg.github.com"
 _breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.20.2 v1.19.7 v1.18.15"
 _breeze_allowed_helm_versions="v3.2.4"
