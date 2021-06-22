@@ -165,7 +165,7 @@ def get_table(history_map: Dict[str, TestHistory]) -> str:
             [
                 history.url,
                 "Succeeded" if history.states[0] else "Failed",
-                " ".join([reverse_status_map[state] for state in history.states]),
+                " ".join(reverse_status_map[state] for state in history.states),
                 get_history_status(history),
                 history.comment,
             ]

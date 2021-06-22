@@ -287,7 +287,7 @@ def task_list(args, dag=None):
     if args.tree:
         dag.tree_view()
     else:
-        tasks = sorted([t.task_id for t in dag.tasks])
+        tasks = sorted(t.task_id for t in dag.tasks)
         print("\n".join(tasks))
 
 

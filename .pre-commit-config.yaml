@@ -609,20 +609,6 @@ repos:
         additional_dependencies: ['flynt==0.63']
         files: \.py$
         exclude: ^airflow/_vendor/
-      - id: ui-lint
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: scripts/ci/static_checks/ui_lint.sh
-        pass_filenames: false
-      - id: www-lint
-        name: ESLint against current UI js files
-        language: node
-        'types_or': [javascript]
-        files: ^airflow/www/static/js/
-        entry: scripts/ci/static_checks/www_lint.sh
-        pass_filenames: false
       - id: bats-in-container-tests
         name: Run in container bats tests
         language: system

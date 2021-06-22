@@ -2249,12 +2249,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 pre-commit-hook-names provide-create-sessions providers-changelogs providers-init-file provider-yamls
-                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
-                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
-                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 verify-db-migrations-documented version-sync yamllint
+                 pre-commit-hook-names provide-create-sessions providers-changelogs
+                 providers-init-file provider-yamls pydevd pydocstyle pylint pylint-tests
+                 python-no-log-warn pyupgrade restrict-start_date rst-backticks setup-order
+                 setup-extra-packages shellcheck sort-in-the-wild sort-spelling-wordlist stylelint
+                 trailing-whitespace ui-lint update-breeze-file update-extras update-local-yml-file
+                 update-setup-cfg-file verify-db-migrations-documented version-sync yamllint
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
