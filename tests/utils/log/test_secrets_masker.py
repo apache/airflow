@@ -179,6 +179,8 @@ class TestSecretsMasker:
             ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
             # We don't mask dict _keys_.
             ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            # Non string dict keys
+            ({"secret", "other"}, None, {1: {"secret": "secret"}}, {1: {"secret": "***"}}),
             (
                 # Since this is a sensitive name, all the values should be redacted!
                 {"secret"},
@@ -221,6 +223,7 @@ class TestShouldHideValueForKey:
             ("google_api_key", True),
             ("GOOGLE_API_KEY", True),
             ("GOOGLE_APIKEY", True),
+            (1, False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):
