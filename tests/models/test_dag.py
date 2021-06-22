@@ -626,16 +626,16 @@ class TestDag(unittest.TestCase):
 
         start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
         dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
-        _next = dag.previous_schedule(start)
-        assert _next.isoformat() == "2018-03-25T01:00:00+00:00"
+        when = dag.previous_schedule(start)
+        assert when.isoformat() == "2018-03-25T01:00:00+00:00"
 
     def test_following_schedule_datetime_timezone(self):
         # Check that we don't get an AttributeError 'name' for self.timezone
 
         start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
         dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
-        _next = dag.following_schedule(start)
-        assert _next.isoformat() == "2018-03-25T03:00:00+00:00"
+        when = dag.following_schedule(start)
+        assert when.isoformat() == "2018-03-25T03:00:00+00:00"
 
     def test_following_schedule_datetime_timezone_utc0530(self):
         # Check that we don't get an AttributeError 'name' for self.timezone
@@ -658,8 +658,8 @@ class TestDag(unittest.TestCase):
 
         start = datetime.datetime(2018, 3, 25, 10, tzinfo=UTC0530())
         dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
-        _next = dag.following_schedule(start)
-        assert _next.isoformat() == "2018-03-25T05:30:00+00:00"
+        when = dag.following_schedule(start)
+        assert when.isoformat() == "2018-03-25T05:30:00+00:00"
 
     def test_dagtag_repr(self):
         clear_db_dags()
