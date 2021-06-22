@@ -52,6 +52,10 @@ https://developers.google.com/style/inclusive-documentation
 
 The default Airflow version that is installed with the Chart is now ``2.1.0``, previously it was ``2.0.2``.
 
+### Helm 2 no longer supported
+
+This chart has dropped support for [Helm 2 as it has been deprecated](https://helm.sh/blog/helm-v2-deprecation-timeline/) and no longer receiving security updates since November 2020.
+
 ### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 
 The `dags.gitSync.root` and `dags.gitSync.dest` parameters didn't provide any useful behaviors to chart users so they have been removed.
