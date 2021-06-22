@@ -369,9 +369,7 @@ class CeleryExecutor(BaseExecutor):
                 "\n\t".join(repr(x) for x in timedout_keys),
             )
             for key in timedout_keys:
-                self.event_buffer[key] = (State.FAILED, None)
-                del self.tasks[key]
-                del self.adopted_task_timeouts[key]
+                self.change_state(key, State.FAILED)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
