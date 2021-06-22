@@ -350,7 +350,7 @@ Images with a commit SHA (built for pull requests and pushes)
 
 .. code-block:: bash
 
-  docker.pkg.github.com.io/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA> - for CI images
+  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA> - for CI images
   docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<COMMIT_SHA>       - for production images
   docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<COMMIT_SHA> - for production build stage
   docker.pkg.github.com/apache-airflow/python-v2:X.Y-slim-buster-<COMMIT_SHA>   - for base Python images
