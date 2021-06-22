@@ -41,7 +41,9 @@ from airflow.exceptions import SerializedDagNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.stats import Stats
@@ -208,16 +210,16 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         """
         tis_changed = 0
         query = (
-            session.query(TI)
-            .outerjoin(TI.dag_run)
-            .filter(TI.dag_id.in_(list(self.dagbag.dag_ids)))
-            .filter(TI.state.in_(old_states))
+            session.query(models.TaskInstance)
+            .outerjoin(models.TaskInstance.dag_run)
+            .filter(models.TaskInstance.dag_id.in_(list(self.dagbag.dag_ids)))
+            .filter(models.TaskInstance.state.in_(old_states))
             .filter(
                 or_(
                     # pylint: disable=comparison-with-callable
-                    DR.state != State.RUNNING,
+                    models.DagRun.state != State.RUNNING,
                     # pylint: disable=no-member
-                    DR.state.is_(None),
+                    models.DagRun.state.is_(None),
                 )
             )
         )
@@ -234,25 +236,25 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             subq = query.subquery()
             current_time = timezone.utcnow()
             ti_prop_update = {
-                TI.state: new_state,
-                TI.start_date: current_time,
+                models.TaskInstance.state: new_state,
+                models.TaskInstance.start_date: current_time,
             }
 
             # Only add end_date and duration if the new_state is 'success', 'failed' or 'skipped'
             if new_state in State.finished:
                 ti_prop_update.update(
                     {
-                        TI.end_date: current_time,
-                        TI.duration: 0,
+                        models.TaskInstance.end_date: current_time,
+                        models.TaskInstance.duration: 0,
                     }
                 )
 
             tis_changed = (
-                session.query(TI)
+                session.query(models.TaskInstance)
                 .filter(
-                    TI.dag_id == subq.c.dag_id,
-                    TI.task_id == subq.c.task_id,
-                    TI.execution_date == subq.c.execution_date,
+                    models.TaskInstance.dag_id == subq.c.dag_id,
+                    models.TaskInstance.task_id == subq.c.task_id,
+                    models.TaskInstance.execution_date == subq.c.execution_date,
                 )
                 .update(ti_prop_update, synchronize_session=False)
             )
@@ -928,19 +930,19 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
     @retry_db_transaction
     def _get_next_dagruns_to_examine(self, session):
         """Get Next DagRuns to Examine with retries"""
-        return DR.next_dagruns_to_examine(session)
+        return DagRun.next_dagruns_to_examine(session)
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard, session):
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
-        query = DM.dags_needing_dagruns(session)
+        query = DagModel.dags_needing_dagruns(session)
         self._create_dag_runs(query.all(), session)
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
         # END: create dagruns
 
-    def _create_dag_runs(self, dag_models: Iterable[DM], session: Session) -> None:
+    def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
         """
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
@@ -954,18 +956,20 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             active_dagruns_filter = or_(
                 *(
                     and_(
-                        DR.dag_id == dm.dag_id,
-                        DR.execution_date == dm.next_dagrun,
+                        DagRun.dag_id == dm.dag_id,
+                        DagRun.execution_date == dm.next_dagrun,
                     )
                     for dm in dag_models
                 )
             )
         else:
-            active_dagruns_filter = tuple_(DR.dag_id, DR.execution_date).in_(
+            active_dagruns_filter = tuple_(DagRun.dag_id, DagRun.execution_date).in_(
                 [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
             )
 
-        active_dagruns = session.query(DR.dag_id, DR.execution_date).filter(active_dagruns_filter).all()
+        active_dagruns = (
+            session.query(DagRun.dag_id, DagRun.execution_date).filter(active_dagruns_filter).all()
+        )
 
         for dag_model in dag_models:
             try:
@@ -1008,7 +1012,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
 
-    def _update_dag_next_dagruns(self, dag_models: Iterable[DM], session: Session) -> None:
+    def _update_dag_next_dagruns(self, dag_models: Iterable[DagModel], session: Session) -> None:
         """
         Bulk update the next_dagrun and next_dagrun_create_after for all the dags.
 
@@ -1017,13 +1021,13 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Check max_active_runs, to see if we are _now_ at the limit for any of
         # these dag? (we've just created a DagRun for them after all)
         active_runs_of_dags = dict(
-            session.query(DR.dag_id, func.count('*'))
+            session.query(DagRun.dag_id, func.count('*'))
             .filter(
-                DR.dag_id.in_([o.dag_id for o in dag_models]),
-                DR.state == State.RUNNING,  # pylint: disable=comparison-with-callable
-                DR.external_trigger == expression.false(),
+                DagRun.dag_id.in_([o.dag_id for o in dag_models]),
+                DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
+                DagRun.external_trigger == expression.false(),
             )
-            .group_by(DR.dag_id)
+            .group_by(DagRun.dag_id)
             .all()
         )
 
@@ -1051,7 +1055,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
     def _schedule_dag_run(
         self,
-        dag_run: DR,
+        dag_run: DagRun,
         currently_active_runs: Set[datetime.datetime],
         session: Session,
     ) -> int:
@@ -1090,7 +1094,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
             # Work out if we should allow creating a new DagRun now?
-            self._update_dag_next_dagruns([session.query(DM).get(dag_run.dag_id)], session)
+            self._update_dag_next_dagruns([session.query(DagModel).get(dag_run.dag_id)], session)
 
             callback_to_execute = DagCallbackRequest(
                 full_filepath=dag.fileloc,
@@ -1135,7 +1139,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         return dag_run.schedule_tis(schedulable_tis, session)
 
     @provide_session
-    def _verify_integrity_if_dag_changed(self, dag_run: DR, session=None):
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session=None):
         """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
         if dag_run.dag_hash == latest_version:
@@ -1150,7 +1154,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
 
-    def _send_dag_callbacks_to_processor(self, dag_run: DR, callback: Optional[DagCallbackRequest] = None):
+    def _send_dag_callbacks_to_processor(
+        self, dag_run: DagRun, callback: Optional[DagCallbackRequest] = None
+    ):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
 
@@ -1233,9 +1239,9 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                         .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
                         .join(TI.dag_run)
                         .filter(
-                            DR.run_type != DagRunType.BACKFILL_JOB,
+                            DagRun.run_type != DagRunType.BACKFILL_JOB,
                             # pylint: disable=comparison-with-callable
-                            DR.state == State.RUNNING,
+                            DagRun.state == State.RUNNING,
                         )
                         .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))
                     )
