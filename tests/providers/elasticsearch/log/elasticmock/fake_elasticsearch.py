@@ -88,7 +88,7 @@ class FakeElasticsearch(Elasticsearch):
         'version',
         'version_type',
     )
-    def index(self, index, doc_type, body, id=None, params=None):
+    def index(self, index, doc_type, body, id=None, params=None, headers=None):
         if index not in self.__documents_dict:
             self.__documents_dict[index] = []
 
@@ -98,10 +98,24 @@ class FakeElasticsearch(Elasticsearch):
         version = 1
 
         self.__documents_dict[index].append(
-            {'_type': doc_type, '_id': id, '_source': body, '_index': index, '_version': version}
+            {
+                '_type': doc_type,
+                '_id': id,
+                '_source': body,
+                '_index': index,
+                '_version': version,
+                '_headers': headers,
+            }
         )
 
-        return {'_type': doc_type, '_id': id, 'created': True, '_version': version, '_index': index}
+        return {
+            '_type': doc_type,
+            '_id': id,
+            'created': True,
+            '_version': version,
+            '_index': index,
+            '_headers': headers,
+        }
 
     @query_params('parent', 'preference', 'realtime', 'refresh', 'routing')
     def exists(self, index, doc_type, id, params=None):
@@ -198,7 +212,7 @@ class FakeElasticsearch(Elasticsearch):
         'track_scores',
         'version',
     )
-    def count(self, index=None, doc_type=None, body=None, params=None):
+    def count(self, index=None, doc_type=None, body=None, params=None, headers=None):
         searchable_indexes = self._normalize_index_to_list(index)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
@@ -247,7 +261,7 @@ class FakeElasticsearch(Elasticsearch):
         'track_scores',
         'version',
     )
-    def search(self, index=None, doc_type=None, body=None, params=None):
+    def search(self, index=None, doc_type=None, body=None, params=None, headers=None):
         searchable_indexes = self._normalize_index_to_list(index)
 
         matches = self._find_match(index, doc_type, body)
@@ -275,7 +289,7 @@ class FakeElasticsearch(Elasticsearch):
     @query_params(
         'consistency', 'parent', 'refresh', 'replication', 'routing', 'timeout', 'version', 'version_type'
     )
-    def delete(self, index, doc_type, id, params=None):
+    def delete(self, index, doc_type, id, params=None, headers=None):
 
         found = False
 
