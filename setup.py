@@ -176,22 +176,6 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-def get_sphinx_theme_version() -> str:
-    """
-    Return sphinx theme version. If USE_THEME_FROM_GIT env variable is set, the theme is used from
-    GitHub to allow dynamically update it during development. However for regular PIP release
-    you cannot use @ package specification, so the latest available released theme package from
-    PIP is used.
-    :return: Version of sphinx theme to use.
-    """
-    if os.environ.get('USE_THEME_FROM_GIT'):
-        return (
-            "@ https://github.com/apache/airflow-site/releases/download/0.0.4/"
-            + "sphinx_airflow_theme-0.0.4-py3-none-any.whl"
-        )
-    return ''
-
-
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
@@ -258,7 +242,7 @@ deprecated_api = [
 doc = [
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
     'sphinx>=2.1.2, <3.5.0',
-    f'sphinx-airflow-theme{get_sphinx_theme_version()}',
+    'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-copybutton',
