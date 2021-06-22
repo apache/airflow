@@ -40,7 +40,6 @@ from airflow.configuration import conf
 from airflow.exceptions import SerializedDagNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.dagfile_processor import DagFileProcessorProcess
 from airflow.models import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -50,6 +49,7 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.dag_processing import DagFileProcessorAgent
+from airflow.utils.dagfile_processor import DagFileProcessorProcess
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session

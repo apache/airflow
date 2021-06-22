@@ -30,7 +30,6 @@ from parameterized import parameterized
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.dagfile_processor import DagFileProcessor
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, SlaMiss, TaskInstance
 from airflow.models.dagrun import DagRun
@@ -41,6 +40,7 @@ from airflow.operators.dummy import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.callback_requests import TaskCallbackRequest
+from airflow.utils.dagfile_processor import DagFileProcessor
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -245,7 +245,7 @@ class TestDagFileProcessor(unittest.TestCase):
             'Could not call sla_miss_callback for DAG %s', 'test_sla_miss'
         )
 
-    @mock.patch('airflow.jobs.dagfile_processor.send_email')
+    @mock.patch('airflow.utils.dagfile_processor.send_email')
     def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(self, mock_send_email):
         session = settings.Session()
 
