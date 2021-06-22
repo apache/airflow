@@ -50,7 +50,8 @@ class TaskGroup(TaskMixin):
     :param dag: The DAG that this TaskGroup belongs to.
     :type dag: airflow.models.DAG
     :param default_args: A dictionary of default parameters to be used
-        as constructor keyword parameters when initialising operators.
+        as constructor keyword parameters when initialising operators,
+        will override default_args defined in the DAG level.
         Note that operators have the same hook, and precede those defined
         here, meaning that if your dict contains `'depends_on_past': True`
         here and `'depends_on_past': False` in the operator's call
