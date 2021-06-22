@@ -110,10 +110,10 @@ class TestPool(unittest.TestCase):
                 "running": 0,
             },
             "test_pool": {
-                "open": -1,
+                "open": float('inf'),
                 "queued": 1,
                 "running": 1,
-                "total": -1,
+                "total": float('inf'),
             },
         } == pool.slots_stats()
 
