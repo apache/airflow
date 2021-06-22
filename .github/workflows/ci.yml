@@ -37,7 +37,7 @@ env:
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
-  GITHUB_REGISTRY: "ghcr.io"
+  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
