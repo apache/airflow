@@ -34,7 +34,7 @@ start_end::group_start "Configure Docker Registry"
 build_images::configure_docker_registry
 start_end::group_end
 
-export AIRFLOW_PROD_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+export AIRFLOW_PROD_IMAGE_NAME="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}"
 
 start_end::group_start "Waiting for ${AIRFLOW_PROD_IMAGE_NAME} image to appear"
 
