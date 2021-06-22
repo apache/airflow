@@ -37,6 +37,7 @@ from sqlalchemy import func
 import airflow.example_dags
 import airflow.smart_sensor_dags
 from airflow import settings
+from airflow.dag_processing.dag_processing import DagFileProcessorAgent
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.backfill_job import BackfillJob
@@ -50,7 +51,6 @@ from airflow.operators.dummy import DummyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.callback_requests import DagCallbackRequest
-from airflow.utils.dag_processing import DagFileProcessorAgent
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -2367,7 +2367,7 @@ class TestSchedulerJob(unittest.TestCase):
         dr = drs[0]
 
         # Verify that DagRun.verify_integrity is not called
-        with mock.patch('airflow.jobs.scheduler_job.DR.verify_integrity') as mock_verify_integrity:
+        with mock.patch('airflow.jobs.scheduler_job.DagRun.verify_integrity') as mock_verify_integrity:
             scheduled_tis = self.scheduler_job._schedule_dag_run(dr, {}, session)
             mock_verify_integrity.assert_not_called()
         session.flush()
