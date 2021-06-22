@@ -58,7 +58,7 @@ class DmsDescribeTasksOperator(BaseOperator):
         Describes AWS DMS replication tasks from Airflow
 
         :return: Marker and list of replication tasks
-        :rtype: (str, list)
+        :rtype: (Optional[str], list)
         """
         dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
         return dms_hook.describe_replication_tasks(**self.describe_tasks_kwargs)

@@ -44,12 +44,10 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  # This token should not be empty in pull_request_target type of event.
-  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
-  GITHUB_REGISTRY: ${{ secrets.OVERRIDE_GITHUB_REGISTRY }}
+  GITHUB_REGISTRY: "ghcr.io"
   TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 concurrency:

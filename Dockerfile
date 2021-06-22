@@ -253,13 +253,16 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
+    else \
+        # only compile assets if the prod image is build from sources
+        # otherwise they are already compiled-in
+        bash /scripts/docker/compile_www_assets.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
-    bash /scripts/docker/compile_www_assets.sh; \
     # make sure that all directories and files in .local are also group accessible
     find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw

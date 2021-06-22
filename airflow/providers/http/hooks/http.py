@@ -95,7 +95,7 @@ class HttpHook(BaseHook):
 
     def run(
         self,
-        endpoint: Optional[str],
+        endpoint: Optional[str] = None,
         data: Optional[Union[Dict[str, Any], str]] = None,
         headers: Optional[Dict[str, Any]] = None,
         extra_options: Optional[Dict[str, Any]] = None,
@@ -227,3 +227,11 @@ class HttpHook(BaseHook):
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         return self._retry_obj(self.run, *args, **kwargs)
+
+    def test_connection(self):
+        """Test HTTP Connection"""
+        try:
+            self.run()
+            return True, 'Connection successfully tested'
+        except Exception as e:  # noqa pylint: disable=broad-except
+            return False, str(e)

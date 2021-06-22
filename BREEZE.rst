@@ -1449,11 +1449,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
-          Default: docker.pkg.github.com.
+          Default: ghcr.io.
 
           If you use this flag, automatically --use-github-registry flag is enabled.
 
-                 docker.pkg.github.com ghcr.io
+                 ghcr.io docker.pkg.github.com
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
@@ -1623,11 +1623,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
-          Default: docker.pkg.github.com.
+          Default: ghcr.io.
 
           If you use this flag, automatically --use-github-registry flag is enabled.
 
-                 docker.pkg.github.com ghcr.io
+                 ghcr.io docker.pkg.github.com
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
@@ -2697,11 +2697,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
           registry.
 
-          Default: docker.pkg.github.com.
+          Default: ghcr.io.
 
           If you use this flag, automatically --use-github-registry flag is enabled.
 
-                 docker.pkg.github.com ghcr.io
+                 ghcr.io docker.pkg.github.com
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.

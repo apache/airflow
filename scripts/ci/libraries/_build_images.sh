@@ -422,30 +422,11 @@ function build_images::get_docker_image_names() {
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
-# either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
-# In case Personal Access token is not set, skip logging in
+# GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        local token=""
-        if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
-            # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
-            # There are plans to implement GITHUB_TOKEN authentication but this is not implemented yet
-            token="${CONTAINER_REGISTRY_TOKEN=}"
-            verbosity::print_info
-            verbosity::print_info "Using CONTAINER_REGISTRY_TOKEN!"
-            verbosity::print_info
-        elif [[ "${GITHUB_REGISTRY}" == "docker.pkg.github.com" ]]; then
-            token="${GITHUB_TOKEN}"
-            verbosity::print_info
-            verbosity::print_info "Using GITHUB_TOKEN!"
-            verbosity::print_info
-        else
-            echo
-            echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
-            echo
-            exit 1
-        fi
+        local token="${GITHUB_TOKEN}"
         if [[ -z "${token}" ]] ; then
             verbosity::print_info
             verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
