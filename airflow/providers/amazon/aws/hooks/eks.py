@@ -148,6 +148,40 @@ class EKSHook(AwsBaseHook):
         )
         return response
 
+    def create_fargate_profile(self, clusterName: str, fargateProfileName: str, podExecutionRoleArn: str, **kwargs) \
+        -> Dict:
+        """
+        Creates an AWS Fargate profile for an Amazon EKS cluster.
+
+        :param clusterName: The name of the Amazon EKS cluster to apply the Fargate profile to.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile.
+        :type fargateProfileName: str
+        :param podExecutionRoleArn: The Amazon Resource Name (ARN) of the pod execution role to use for pods that match
+        the selectors in the Fargate profile.
+        :type podExecutionRoleArn: str
+
+        :return: Returns descriptive information about the created Fargate profile.
+        :rtype: Dict
+        """
+        try:
+            eks_client = self.conn
+
+            response = eks_client.create_fargate_profile(
+                clusterName=clusterName,
+                fargateProfileName=fargateProfileName,
+                podExecutionRoleArn=podExecutionRoleArn,
+                **kwargs
+            )
+
+            self.log.info("Created fargate profile with the name %s.",
+                          response.get('fargateProfile').get('fargateProfileName'))
+            return response
+
+        except ClientError as e:
+            self.log.error(e.response["Error"]["Message"])
+            raise e
+
     def delete_cluster(self, name: str) -> Dict:
         """
         Deletes the Amazon EKS Cluster control plane.
@@ -187,6 +221,32 @@ class EKSHook(AwsBaseHook):
             response.get('nodegroup').get('clusterName'),
         )
         return response
+
+    def delete_fargate_profile(self, clusterName: str, fargateProfileName: str) -> Dict:
+        """
+        Deletes an AWS Fargate profile.
+
+        :param clusterName: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile to delete.
+        :type fargateProfileName: str
+
+        :return: Returns descriptive information about the deleted Fargate profile.
+        :rtype: Dict
+        """
+        try:
+            eks_client = self.conn
+
+            response = eks_client.delete_fargate_profile(
+                clusterName=clusterName,
+                fargateProfileName=fargateProfileName)
+
+            self.log.info("Deleted fargate profile with the name %s.", response.get('fargateProfile').get('fargateProfileName'))
+            return response
+
+        except ClientError as e:
+            self.log.error(e.response["Error"]["Message"])
+            raise e
 
     def describe_cluster(self, name: str, verbose: bool = False) -> Dict:
         """
@@ -237,6 +297,40 @@ class EKSHook(AwsBaseHook):
             nodegroup_data = response.get('nodegroup')
             self.log.info("Nodegroup Details: %s", json.dumps(nodegroup_data, cls=AirflowJsonEncoder))
         return response
+
+    def describe_fargate_profile(
+        self, clusterName: str, fargateProfileName: str, verbose: Optional[bool] = False
+    ) -> Dict:
+        """
+        Returns descriptive information about an AWS Fargate profile.
+
+        :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile to describe.
+        :type fargateProfileName: str
+        :param verbose: Provides additional logging if set to True.  Defaults to False.
+        :type verbose: bool
+
+        :return: Returns descriptive information about an AWS Fargate profile.
+        :rtype: Dict
+        """
+        try:
+            eks_client = self.conn
+
+            response = eks_client.describe_fargate_profile(clusterName=clusterName, fargateProfileName=fargateProfileName)
+            self.log.info(
+                "Retrieved details for Fargate profile named %s in cluster %s.",
+                response.get('fargateProfile').get('fargateProfileName'),
+                response.get('fargateProfile').get('clusterName'),
+            )
+            if verbose:
+                fargate_profile_data = response.get('fargateProfile')
+                self.log.info("Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder))
+            return response
+
+        except ClientError as e:
+            self.log.error(e.response["Error"]["Message"])
+            raise e
 
     def get_cluster_state(self, clusterName: str) -> ClusterStates:
         """
@@ -318,6 +412,47 @@ class EKSHook(AwsBaseHook):
         api_call = partial(eks_client.list_nodegroups, clusterName=clusterName)
 
         return self._list_all(api_call=api_call, response_key="nodegroups", verbose=verbose)
+
+    def list_fargate_profiles(
+        self,
+        clusterName: str,
+        maxResults: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
+        nextToken: Optional[str] = DEFAULT_PAGINATION_TOKEN,
+        verbose: Optional[bool] = False,
+    ) -> Dict:
+        """
+        Lists the AWS Fargate profiles associated with the specified cluster in an AWS account in the specified Region.
+
+        :param clusterName: The name of the Amazon EKS Cluster containing fargate profiles to list.
+        :type clusterName: str
+        :param maxResults: The maximum number of results returned by ListFargateProfiles in paginated output.
+        :type maxResults: int
+        :param nextToken: The nextToken value returned from a previous paginated ListFargateProfiles request.
+        :type nextToken: str
+        :param verbose: Provides additional logging if set to True.  Defaults to False.
+        :type verbose: bool
+
+        :return: A Dictionary containing a list of fargate profile names and a string containing
+           the next token if paginated.
+        :rtype: Dict
+        """
+        try:
+            eks_client = self.conn
+
+            response = eks_client.list_fargate_profiles(
+                clusterName=clusterName, maxResults=maxResults, nextToken=nextToken
+            )
+
+            fargate_profile_list = response.get('fargateProfileNames')
+
+            self.log.info("Retrieved list of %s fargate profiles.", len(fargate_profile_list))
+            if verbose:
+                self.log.info("Fargate profiles found: %s", fargate_profile_list)
+            return response
+
+        except ClientError as e:
+            self.log.error(e.response["Error"]["Message"])
+            raise e
 
     def _list_all(self, api_call: Callable, response_key: str, verbose: bool) -> List:
         """

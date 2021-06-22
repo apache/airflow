@@ -227,6 +227,55 @@ class EKSCreateNodegroupOperator(BaseOperator):
         )
 
 
+class EKSCreateFargateProfileOperator(BaseOperator):
+    """
+    Creates an AWS Fargate profile for an Amazon EKS cluster.
+
+    :param cluster_name: The name of the Amazon EKS cluster to apply the Fargate profile to.
+    :type cluster_name: str
+    :param fargate_profile_name: The name of the Fargate profile.
+    :type fargate_profile_name: str
+    :param pod_execution_role_arn:
+        The Amazon Resource Name (ARN) of the pod execution role to use for pods that match
+        the selectors in the Fargate profile.
+    :type pod_execution_role_arn: str
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+     :type aws_conn_id: str
+    """
+
+    def __init__(
+        self,
+        cluster_name: str,
+        pod_execution_role_arn: str,
+        fargate_profile_name: Optional[str],
+        conn_id: Optional[str] = CONN_ID,
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.clusterName = cluster_name
+        self.podExecutionRoleArn = pod_execution_role_arn
+        self.fargateProfileName = fargate_profile_name or cluster_name + "_fargate_profile_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.conn_id = conn_id
+        self.region = region
+
+    def execute(self, context):
+        eks_hook = EKSHook(
+            aws_conn_id=self.conn_id,
+            region_name=self.region,
+        )
+
+        return eks_hook.create_fargate_profile(
+            clusterName=self.clusterName,
+            fargateProfileName=self.fargateProfileName,
+            podExecutionRoleArn=self.podExecutionRoleArn,
+        )
+
+
 class EKSDeleteClusterOperator(BaseOperator):
     """
     Deletes the Amazon EKS Cluster control plane and all nodegroups attached to it.
@@ -364,6 +413,45 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         )
 
         eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+
+
+class EKSDeleteFargateProfileOperator(BaseOperator):
+    """
+    Deletes an AWS Fargate profile from an Amazon EKS Cluster.
+
+    :param cluster_name: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
+    :type cluster_name: str
+    :param fargate_profile_name: The name of the Fargate profile to delete.
+    :type fargate_profile_name: str
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+     :type aws_conn_id: str
+    """
+
+    def __init__(
+        self,
+        cluster_name: str,
+        fargate_profile_name: str,
+        conn_id: Optional[str] = CONN_ID,
+        region: Optional[str] = None,
+        **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self.clusterName = cluster_name
+        self.fargateProfileName = fargate_profile_name
+        self.conn_id = conn_id
+        self.region = region
+
+    def execute(self, context):
+        eks_hook = EKSHook(
+            aws_conn_id=self.conn_id,
+            region_name=self.region,
+        )
+
+        return eks_hook.delete_fargate_profile(clusterName=self.clusterName, fargateProfileName=self.fargateProfileName)
 
 
 class EKSPodOperator(KubernetesPodOperator):
