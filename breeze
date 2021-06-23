@@ -572,6 +572,7 @@ EOF
 #   BACKEND
 #   AIRFLOW_VERSION
 #   INSTALL_AIRFLOW_VERSION
+#   SSH_PORT
 #   WEBSERVER_HOST_PORT
 #   POSTGRES_HOST_PORT
 #   POSTGRES_VERSION
@@ -620,6 +621,7 @@ export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+export SSH_PORT="${SSH_PORT}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
 export REDIS_HOST_PORT="${REDIS_HOST_PORT}"
@@ -3197,6 +3199,7 @@ function breeze::check_and_save_all_params() {
 # Used global constants:
 #
 #     AIRFLOW_SOURCES
+#     SSH_PORT
 #     WEBSERVER_HOST_PORT
 #     POSTGRES_HOST_PORT
 #     MYSQL_HOST_PORT
@@ -3229,6 +3232,7 @@ function breeze::print_cheatsheet() {
         echo " Port forwarding:"
         echo
         echo "   Ports are forwarded to the running docker containers for webserver and database"
+        echo "     * ${SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22"
         echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080"
         echo "     * ${FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555"
         echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
@@ -3237,6 +3241,7 @@ function breeze::print_cheatsheet() {
         echo "     * ${REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379"
         echo
         echo "   Here are links to those services that you can use on host:"
+        echo "     * ssh connection for remote debugging: ssh -p ${SSH_PORT} airflow@127.0.0.1 pw: airflow"
         echo "     * Webserver: http://127.0.0.1:${WEBSERVER_HOST_PORT}"
         echo "     * Flower:    http://127.0.0.1:${FLOWER_HOST_PORT}"
         echo "     * Postgres:  jdbc:postgresql://127.0.0.1:${POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow"

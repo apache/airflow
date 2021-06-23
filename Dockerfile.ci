@@ -98,6 +98,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 COPY scripts/docker/*.sh /scripts/docker/
 RUN bash /scripts/docker/install_mysql.sh dev \
     && adduser airflow \
+    && echo "airflow:airflow" | chpasswd \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 

@@ -1068,6 +1068,7 @@ database client:
 
 You can change the used host port numbers by setting appropriate environment variables:
 
+* ``SSH_PORT``
 * ``WEBSERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
