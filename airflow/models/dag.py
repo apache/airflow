@@ -499,7 +499,7 @@ class DAG(LoggingMixin):
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
-                tz = pendulum.timezone(self.timezone.name)
+                tz = self.timezone
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self.normalized_schedule_interval is not None:
@@ -527,7 +527,7 @@ class DAG(LoggingMixin):
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_prev(datetime)
-                tz = pendulum.timezone(self.timezone.name)
+                tz = self.timezone
                 previous = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(previous)
         elif self.normalized_schedule_interval is not None:

@@ -621,6 +621,46 @@ class TestDag(unittest.TestCase):
         _next = dag.following_schedule(_next)
         assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
 
+    def test_previous_schedule_datetime_timezone(self):
+        # Check that we don't get an AttributeError 'name' for self.timezone
+
+        start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
+        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        when = dag.previous_schedule(start)
+        assert when.isoformat() == "2018-03-25T01:00:00+00:00"
+
+    def test_following_schedule_datetime_timezone(self):
+        # Check that we don't get an AttributeError 'name' for self.timezone
+
+        start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
+        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        when = dag.following_schedule(start)
+        assert when.isoformat() == "2018-03-25T03:00:00+00:00"
+
+    def test_following_schedule_datetime_timezone_utc0530(self):
+        # Check that we don't get an AttributeError 'name' for self.timezone
+        class UTC0530(datetime.tzinfo):
+            """tzinfo derived concrete class named "+0530" with offset of 19800"""
+
+            # can be configured here
+            _offset = datetime.timedelta(seconds=19800)
+            _dst = datetime.timedelta(0)
+            _name = "+0530"
+
+            def utcoffset(self, dt):
+                return self.__class__._offset
+
+            def dst(self, dt):
+                return self.__class__._dst
+
+            def tzname(self, dt):
+                return self.__class__._name
+
+        start = datetime.datetime(2018, 3, 25, 10, tzinfo=UTC0530())
+        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        when = dag.following_schedule(start)
+        assert when.isoformat() == "2018-03-25T05:30:00+00:00"
+
     def test_dagtag_repr(self):
         clear_db_dags()
         dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
