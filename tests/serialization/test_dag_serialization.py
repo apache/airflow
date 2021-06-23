@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 from glob import glob
 from unittest import mock
 
+import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
@@ -444,6 +445,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
             ),
+            (pendulum.datetime(2019, 8, 1, tz='UTC'), None, pendulum.datetime(2019, 8, 1, tz='UTC')),
         ]
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
