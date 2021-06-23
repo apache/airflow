@@ -167,3 +167,18 @@ def patch_user(username, update_mask=None):
     security_manager.update_user(user)
 
     return user_schema.dump(user)
+
+
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
+def delete_user(username):
+    """Delete a user"""
+    security_manager = current_app.appbuilder.sm
+
+    user = security_manager.find_user(username=username)
+    if user is None:
+        detail = f"The User with username `{username}` was not found"
+        raise NotFound(title="User not found", detail=detail)
+
+    user.roles = []  # Clear foreign keys on this user first.
+    security_manager.get_session.delete(user)
+    security_manager.get_session.commit()

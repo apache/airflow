@@ -19,6 +19,8 @@ import unittest.mock
 import pytest
 from flask_appbuilder.security.sqla.models import User
 from parameterized import parameterized
+from sqlalchemy.sql import exists
+from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
@@ -39,6 +41,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
         ],
@@ -266,6 +269,15 @@ def autoclean_user_payload(autoclean_username):
     }
 
 
+@pytest.fixture()
+def autoclean_admin_user(configured_app, autoclean_user_payload):
+    security_manager = configured_app.appbuilder.sm
+    return security_manager.add_user(
+        role=security_manager.find_role("Admin"),
+        **autoclean_user_payload,
+    )
+
+
 class TestPostUser(TestUserEndpoint):
     def test_with_default_role(self, autoclean_username, autoclean_user_payload):
         response = self.client.post(
@@ -359,14 +371,6 @@ class TestPostUser(TestUserEndpoint):
 
 
 class TestPatchUser(TestUserEndpoint):
-    @pytest.fixture()
-    def autoclean_admin_user(self, configured_app, autoclean_user_payload):
-        security_manager = configured_app.appbuilder.sm
-        return security_manager.add_user(
-            role=security_manager.find_role("Admin"),
-            **autoclean_user_payload,
-        )
-
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_change(self, autoclean_username, autoclean_user_payload):
         autoclean_user_payload["first_name"] = "Changed"
@@ -521,3 +525,39 @@ class TestPatchUser(TestUserEndpoint):
             'title': "Bad Request",
             'type': EXCEPTIONS_LINK_MAP[400],
         }
+
+
+class TestDeleteUser(TestUserEndpoint):
+    @pytest.mark.usefixtures("autoclean_admin_user")
+    def test_delete(self, autoclean_username):
+        response = self.client.delete(
+            f"/api/v1/users/{autoclean_username}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 204, response.json  # NO CONTENT.
+        assert not self.session.query(exists().where(User.username == autoclean_username)).scalar()
+
+    @pytest.mark.usefixtures("autoclean_admin_user")
+    def test_unauthenticated(self, autoclean_username):
+        response = self.client.delete(
+            f"/api/v1/users/{autoclean_username}",
+        )
+        assert response.status_code == 401, response.json
+        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
+
+    @pytest.mark.usefixtures("autoclean_admin_user")
+    def test_forbidden(self, autoclean_username):
+        response = self.client.delete(
+            f"/api/v1/users/{autoclean_username}",
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403, response.json
+        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 1
+
+    def test_not_found(self, autoclean_username):
+        # This test does not populate autoclean_admin_user into the database.
+        response = self.client.delete(
+            f"/api/v1/users/{autoclean_username}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404, response.json
