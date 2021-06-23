@@ -375,16 +375,18 @@
     // 当点击搜索时会提交Form 继承之前的url query
     var searchForm = document.getElementById("filter_form");
     searchForm.onsubmit = function () {
-        var query = window.location.search.substring(1);
-        var vars = query.split("&");
-        for (var i=0;i<vars.length;i++) {
-            var items = vars[i].split("=")
-            var input = document.createElement("input");
-            input.type = "hidden"
-            input.name = items[0]
-            input.value = items[1]
-            searchForm.appendChild(input)
-        }
+      var query = window.location.search.substring(1);
+      var vars = query.split("&").filter(function (v) {
+        return !/_flt_/.test(v);
+      });
+      for (var i = 0; i < vars.length; i++) {
+        var items = vars[i].split("=")
+        var input = document.createElement("input");
+        input.type = "hidden"
+        input.name = items[0]
+        input.value = items[1]
+        searchForm.appendChild(input)
+      }
     }
   </script>
 {% endblock %}
