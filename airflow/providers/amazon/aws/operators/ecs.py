@@ -266,11 +266,11 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.arn = response['tasks'][0]['taskArn']
 
     def _try_reattach_task(self):
-        task_def_resp = self.client.describe_task_definition(self.task_definition)
+        task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, launchType=self.launch_type, desiredStatus='RUNNING', family=ecs_task_family
+            cluster=self.cluster, desiredStatus='RUNNING', family=ecs_task_family
         )
         running_tasks = list_tasks_resp['taskArns']
 
