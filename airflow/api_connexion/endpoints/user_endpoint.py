@@ -18,6 +18,7 @@ from flask import current_app, request
 from flask_appbuilder.security.sqla.models import User
 from marshmallow import ValidationError
 from sqlalchemy import func
+from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -78,7 +79,7 @@ def post_user():
 
     user = security_manager.find_user(username=data["username"])
     if user is not None:
-        detail = f"Username `{user.username}` already exists."
+        detail = f"Username `{user.username}` already exists. Use PATCH to update."
         raise AlreadyExists(detail=detail)
 
     roles_to_add = []
@@ -103,4 +104,66 @@ def post_user():
     if roles_to_add:
         user.roles.extend(roles_to_add)
         security_manager.update_user(user)
+    return user_schema.dump(user)
+
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)])
+def patch_user(username, update_mask=None):
+    """Update a role"""
+    try:
+        data = user_schema.load(request.json)
+    except ValidationError as e:
+        raise BadRequest(detail=str(e.messages))
+
+    security_manager = current_app.appbuilder.sm
+
+    user = security_manager.find_user(username=username)
+    if user is None:
+        detail = f"The User with username `{username}` was not found"
+        raise NotFound(title="User not found", detail=detail)
+
+    # Get fields to update. 'username' is always excluded (and it's an error to
+    # include it in update_maek).
+    if update_mask is not None:
+        masked_data = {}
+        missing_mask_names = []
+        for field in update_mask:
+            field = field.strip()
+            try:
+                masked_data[field] = data[field]
+            except KeyError:
+                missing_mask_names.append(field)
+        if missing_mask_names:
+            detail = f"Unknown update masks: {', '.join(repr(n) for n in missing_mask_names)}"
+            raise BadRequest(detail=detail)
+        if "username" in masked_data:
+            raise BadRequest("Cannot update fields: 'username'")
+        data = masked_data
+    else:
+        data.pop("username", None)
+
+    if "roles" in data:
+        roles_to_update = []
+        missing_role_names = []
+        for role_data in data.pop("roles", ()):
+            role_name = role_data["name"]
+            role = security_manager.find_role(role_name)
+            if role is None:
+                missing_role_names.append(role_name)
+            else:
+                roles_to_update.append(role)
+        if missing_role_names:
+            detail = f"Unknown roles: {', '.join(repr(n) for n in missing_role_names)}"
+            raise BadRequest(detail=detail)
+    else:
+        roles_to_update = None  # Don't change existing value.
+
+    if "password" in data:
+        user.password = generate_password_hash(data.pop("password"))
+    if roles_to_update is not None:
+        user.roles = roles_to_update
+    for key, value in data.items():
+        setattr(user, key, value)
+    security_manager.update_user(user)
+
     return user_schema.dump(user)
