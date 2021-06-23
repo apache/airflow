@@ -44,7 +44,7 @@ from airflow.exceptions import (
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_cycle_tester import test_cycle
+from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -427,7 +427,7 @@ class DagBag(LoggingMixin):
         The only purpose of this is to avoid exposing ``recursive`` in ``bag_dag()``,
         intended to only be used by the ``_bag_dag()`` implementation.
         """
-        test_cycle(dag)  # throws if a task cycle is found
+        check_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
