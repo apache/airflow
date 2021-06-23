@@ -14,17 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import current_app
+from flask import current_app, request
 from flask_appbuilder.security.sqla.models import User
+from marshmallow import ValidationError
 from sqlalchemy import func
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
     user_collection_item_schema,
     user_collection_schema,
+    user_schema,
 )
 from airflow.security import permissions
 
@@ -62,3 +64,43 @@ def get_users(limit, order_by='id', offset=None):
     users = query.offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
+
+
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
+def post_user():
+    """Create a new user"""
+    try:
+        data = user_schema.load(request.json)
+    except ValidationError as e:
+        raise BadRequest(detail=str(e.messages))
+
+    security_manager = current_app.appbuilder.sm
+
+    user = security_manager.find_user(username=data["username"])
+    if user is not None:
+        detail = f"Username `{user.username}` already exists."
+        raise AlreadyExists(detail=detail)
+
+    roles_to_add = []
+    missing_role_names = []
+    for role_data in data.pop("roles", ()):
+        role_name = role_data["name"]
+        role = security_manager.find_role(role_name)
+        if role is None:
+            missing_role_names.append(role_name)
+        else:
+            roles_to_add.append(role)
+    if missing_role_names:
+        detail = f"Unknown roles: {', '.join(repr(n) for n in missing_role_names)}"
+        raise BadRequest(detail=detail)
+
+    if roles_to_add:
+        default_role = roles_to_add.pop()
+    else:  # No roles provided, use the F.A.B's default registered user role.
+        default_role = security_manager.find_role(security_manager.auth_user_registration_role)
+
+    user = security_manager.add_user(role=default_role, **data)
+    if roles_to_add:
+        user.roles.extend(roles_to_add)
+        security_manager.update_user(user)
+    return user_schema.dump(user)

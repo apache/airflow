@@ -1606,6 +1606,31 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
+    post:
+      summary: Create a user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: post_user
+      tags: [User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
   /users/{username}:
     parameters:
       - $ref: '#/components/parameters/Username'
@@ -1679,7 +1704,6 @@ components:
               name:
                 type: string
             nullable: true
-          readOnly: true
         created_on:
           type: string
           format: datetime

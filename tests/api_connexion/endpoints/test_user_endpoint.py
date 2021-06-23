@@ -35,6 +35,7 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
         ],
     )
@@ -55,9 +56,8 @@ class TestUserEndpoint:
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time
-        users = self.session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME)).all()
-        for user in users:
-            self.session.delete(user)
+        users = self.session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME))
+        users.delete(synchronize_session=False)
         self.session.commit()
 
     def _create_users(self, count, roles=None):
@@ -230,3 +230,121 @@ class TestGetUsersPagination(TestUserEndpoint):
         response = self.client.get("/api/v1/users?limit=180", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 200
         assert len(response.json['users']) == 150
+
+
+class TestPostUser(TestUserEndpoint):
+    USERNAME = "post_user"
+
+    def _delete_post_user(self):
+        user = self.session.query(User).filter(User.username == self.USERNAME).first()
+        if user is None:
+            return
+        user.roles = []
+        self.session.delete(user)
+        self.session.commit()
+
+    @pytest.fixture()
+    def autoclean_username(self):
+        self._delete_post_user()
+        yield self.USERNAME
+        self._delete_post_user()
+
+    @pytest.fixture()
+    def simple_payload(self, autoclean_username):
+        return {
+            "username": autoclean_username,
+            "password": "resutsop",
+            "email": "test@example.com",
+            "first_name": "Post",
+            "last_name": "User",
+        }
+
+    def test_with_default_role(self, autoclean_username, simple_payload):
+        response = self.client.post(
+            "/api/v1/users",
+            json=simple_payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.json
+
+        security_manager = self.app.appbuilder.sm
+        user = security_manager.find_user(autoclean_username)
+        assert user is not None
+        assert user.roles == [security_manager.find_role("Public")]
+
+    def test_with_custom_roles(self, autoclean_username, simple_payload):
+        response = self.client.post(
+            "/api/v1/users",
+            json={"roles": [{"name": "User"}, {"name": "Viewer"}], **simple_payload},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.json
+
+        security_manager = self.app.appbuilder.sm
+        user = security_manager.find_user(autoclean_username)
+        assert user is not None
+        assert {r.name for r in user.roles} == {"User", "Viewer"}
+
+    def test_unauthenticated(self, simple_payload):
+        response = self.client.post(
+            "/api/v1/users",
+            json=simple_payload,
+        )
+        assert response.status_code == 401, response.json
+
+    def test_forbidden(self, simple_payload):
+        response = self.client.post(
+            "/api/v1/users",
+            json=simple_payload,
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403, response.json
+
+    def test_already_exists(self, autoclean_username, simple_payload):
+        create_user(self.app, username=autoclean_username, role_name="TestNoPermissions")
+
+        response = self.client.post(
+            "/api/v1/users",
+            json=simple_payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 409, response.json
+
+    @pytest.mark.parametrize(
+        "payload_converter, error_message",
+        [
+            pytest.param(
+                lambda p: {k: v for k, v in p.items() if k != "username"},
+                "{'username': ['Missing data for required field.']}",
+                id="missing-required",
+            ),
+            pytest.param(
+                lambda p: {"i-am": "a typo", **p},
+                "{'i-am': ['Unknown field.']}",
+                id="unknown-user-field",
+            ),
+            pytest.param(
+                lambda p: {**p, "roles": [{"also": "a typo", "name": "User"}]},
+                "{'roles': {0: {'also': ['Unknown field.']}}}",
+                id="unknown-role-field",
+            ),
+            pytest.param(
+                lambda p: {**p, "roles": [{"name": "God"}, {"name": "User"}, {"name": "Overlord"}]},
+                "Unknown roles: 'God', 'Overlord'",
+                id="unknown-role",
+            ),
+        ],
+    )
+    def test_invalid_payload(self, simple_payload, payload_converter, error_message):
+        response = self.client.post(
+            "/api/v1/users",
+            json=payload_converter(simple_payload),
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 400, response.json
+        assert response.json == {
+            'detail': error_message,
+            'status': 400,
+            'title': "Bad Request",
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
