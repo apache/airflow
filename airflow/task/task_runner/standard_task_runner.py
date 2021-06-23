@@ -89,8 +89,8 @@ class StandardTaskRunner(BaseTaskRunner):
                 os.close(rpipe)
                 sys.stdout.flush()
                 # replace fds for the stdout/stderr with the newly created pipe
-                os.dup2(wpipe, 1)
-                os.dup2(wpipe, 2)
+                os.dup2(wpipe, sys.__stdout__.fileno())
+                os.dup2(wpipe, sys.__stderr__.fileno())
                 os.close(wpipe)
                 args.func(args, dag=self.dag)
                 return_code = 0
