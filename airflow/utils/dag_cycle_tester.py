@@ -27,8 +27,8 @@ CYCLE_DONE = 2
 def test_cycle(dag):
     """
     A wrapper function of check_cycle for backward compatibility reason.
-    New code should use check_cycle instead, since this function name test_cycle starts with test_ and pytest
-    will consider it as a unit test causing failure.
+    New code should use check_cycle instead. Since the function test_cycle starts with test_, pytest
+    will consider it as a unit test and cause failure.
     """
     from warnings import warn
     warn("Deprecated, please use check_cycle at the same module instead.", DeprecationWarning)
