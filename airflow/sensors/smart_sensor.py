@@ -435,6 +435,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         TI = TaskInstance
 
         count_marked = 0
+        query_result = []
         try:
             query_result = (
                 session.query(TI, SI)
