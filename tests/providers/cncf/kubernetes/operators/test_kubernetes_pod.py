@@ -60,7 +60,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
         }
 
     def run_pod(self, operator) -> k8s.V1Pod:
-        self.monitor_mock.return_value = (State.SUCCESS, None)
+        self.monitor_mock.return_value = (State.SUCCESS, None, None)
         context = self.create_context(operator)
         operator.execute(context=context)
         return self.start_mock.call_args[0][0]
@@ -83,7 +83,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path,
             cluster_context="default",
         )
-        self.monitor_mock.return_value = (State.SUCCESS, None)
+        self.monitor_mock.return_value = (State.SUCCESS, None, None)
         self.client_mock.list_namespaced_pod.return_value = []
         context = self.create_context(k)
         k.execute(context=context)
@@ -170,22 +170,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
         pod = k.create_pod_request_obj()
         assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
-
-    def test_image_pull_policy_not_set(self):
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context="default",
-        )
-        pod = k.create_pod_request_obj()
-        assert pod.spec.containers[0].image_pull_policy == "IfNotPresent"
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
@@ -334,6 +318,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
               labels:
                 foo: bar
             spec:
+              serviceAccountName: foo
               affinity:
                 nodeAffinity:
                   requiredDuringSchedulingIgnoredDuringExecution:
@@ -356,6 +341,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
               containers:
                 - name: base
                   image: ubuntu:16.04
+                  imagePullPolicy: Always
                   command:
                     - something
         """
@@ -384,7 +370,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
             assert pod.metadata.namespace == "mynamespace"
             assert pod.spec.containers[0].image == "ubuntu:16.04"
+            assert pod.spec.containers[0].image_pull_policy == "Always"
             assert pod.spec.containers[0].command == ["something"]
+            assert pod.spec.service_account_name == "foo"
             affinity = {
                 'node_affinity': {
                     'preferred_during_scheduling_ignored_during_execution': [
@@ -459,8 +447,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             do_xcom_push=False,
             cluster_context="default",
         )
-        self.monitor_mock.return_value = (State.FAILED, None)
         failed_pod_status = "read_pod_namespaced_result"
+        self.monitor_mock.return_value = (State.FAILED, failed_pod_status, None)
         read_namespaced_pod_mock = self.client_mock.return_value.read_namespaced_pod
         read_namespaced_pod_mock.return_value = failed_pod_status
 
@@ -472,8 +460,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             str(ctx.value)
             == f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}"
         )
-        assert self.client_mock.return_value.read_namespaced_pod.called
-        assert read_namespaced_pod_mock.call_args[0][0] == k.pod.metadata.name
+        assert not self.client_mock.return_value.read_namespaced_pod.called
 
     def test_no_need_to_describe_pod_on_success(self):
         name_base = "test"
@@ -490,7 +477,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             do_xcom_push=False,
             cluster_context="default",
         )
-        self.monitor_mock.return_value = (State.SUCCESS, None)
+        self.monitor_mock.return_value = (State.SUCCESS, None, None)
 
         context = self.create_context(k)
         k.execute(context=context)

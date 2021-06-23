@@ -401,13 +401,13 @@ function build_images::get_docker_image_names() {
     fi
 
     # Example:
-    #  docker.pkg.github.com/apache/airflow/master-python3.6-v2
+    #  docker.pkg.github.com/apache/airflow/main-python3.6-v2
     #  ghcr.io/apache/airflow-v2-1-test-python-v2:3.6-slim-buster
     #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
     export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
     # Example:
-    #   docker.pkg.github.com/apache/airflow/master-python3.6-build-v2
-    #   ghcr.io/apache/airflow-master-python3.6-build-v2
+    #   docker.pkg.github.com/apache/airflow/main-python3.6-build-v2
+    #   ghcr.io/apache/airflow-main-python3.6-build-v2
     export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
 
     # Example:
@@ -417,35 +417,16 @@ function build_images::get_docker_image_names() {
     export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
     # Example:
-    #  docker.pkg.github.com/apache/airflow/master-python3.8-ci-v2
+    #  docker.pkg.github.com/apache/airflow/main-python3.8-ci-v2
     export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
-# either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
-# In case Personal Access token is not set, skip logging in
+# GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        local token=""
-        if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
-            # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
-            # There are plans to implement GITHUB_TOKEN authentication but this is not implemented yet
-            token="${CONTAINER_REGISTRY_TOKEN=}"
-            verbosity::print_info
-            verbosity::print_info "Using CONTAINER_REGISTRY_TOKEN!"
-            verbosity::print_info
-        elif [[ "${GITHUB_REGISTRY}" == "docker.pkg.github.com" ]]; then
-            token="${GITHUB_TOKEN}"
-            verbosity::print_info
-            verbosity::print_info "Using GITHUB_TOKEN!"
-            verbosity::print_info
-        else
-            echo
-            echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
-            echo
-            exit 1
-        fi
+        local token="${GITHUB_TOKEN}"
         if [[ -z "${token}" ]] ; then
             verbosity::print_info
             verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
@@ -1057,13 +1038,13 @@ in the image.
 
 It can mean one of those:
 
-1) The master is currently broken (other PRs will fail with the same error)
+1) The main is currently broken (other PRs will fail with the same error)
 2) You changed some dependencies in setup.py or setup.cfg and they are conflicting.
 
 
 
 In case 1) - apologies for the trouble.Please let committers know and they will fix it. You might
-be asked to rebase to the latest master after the problem is fixed.
+be asked to rebase to the latest main after the problem is fixed.
 
 In case 2) - Follow the steps below:
 
@@ -1089,14 +1070,14 @@ CI image:
 
 ${COLOR_BLUE}
      ./breeze build-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
-     docker run -it apache/airflow:master-3.6-ci bash
+     docker run -it apache/airflow:main-3.6-ci bash
 ${COLOR_RESET}
 
 Production image:
 
 ${COLOR_BLUE}
      ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
-     docker run -it apache/airflow:master-3.6 bash
+     docker run -it apache/airflow:main-3.6 bash
 ${COLOR_RESET}
 
 * You will see error messages there telling which requirements are conflicting and which packages caused the

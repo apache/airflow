@@ -371,10 +371,12 @@ class TestCeleryExecutor(unittest.TestCase):
             key_1: queued_dttm + executor.task_adoption_timeout,
             key_2: queued_dttm + executor.task_adoption_timeout,
         }
+        executor.running = {key_1, key_2}
         executor.tasks = {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         executor.sync()
         assert executor.event_buffer == {key_1: (State.FAILED, None), key_2: (State.FAILED, None)}
         assert executor.tasks == {}
+        assert executor.running == set()
         assert executor.adopted_task_timeouts == {}
 
 
@@ -522,6 +524,7 @@ def register_signals():
     signal.signal(signal.SIGUSR2, orig_sigusr2)
 
 
+@pytest.mark.quarantined
 def test_send_tasks_to_celery_hang(register_signals):  # pylint: disable=unused-argument
     """
     Test that celery_executor does not hang after many runs.

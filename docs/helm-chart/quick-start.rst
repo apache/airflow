@@ -65,8 +65,17 @@ Run ``kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow``
 to port-forward the Airflow UI to http://localhost:8080/ to confirm
 Airflow is working.
 
-Build a Docker image from your DAGs
------------------------------------
+Extending Airflow Image
+-----------------------
+
+The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
+However when you try it out you want to add your own DAGS, custom dependencies,
+packages or even custom providers.
+
+The best way to achieve it, is to build your own, custom image.
+
+Adding DAGs to your image
+.........................
 
 1. Create a project
 
@@ -84,7 +93,7 @@ Build a Docker image from your DAGs
 
     .. code-block:: bash
 
-        docker build -t my-dags:0.0.1 .
+        docker build --tag my-dags:0.0.1 .
 
 
 3. Load the image into kind:
@@ -100,3 +109,90 @@ Build a Docker image from your DAGs
       helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
           --set images.airflow.repository=my-dags \
           --set images.airflow.tag=0.0.1
+
+Adding ``apt`` packages to your image
+.....................................
+
+Example below adds ``vim`` apt package.
+
+1. Create a project
+
+    .. code-block:: bash
+
+        mkdir my-airflow-project && cd my-airflow-project
+        cat <<EOM > Dockerfile
+        FROM apache/airflow
+        USER root
+        RUN apt-get update \
+          && apt-get install -y --no-install-recommends \
+                 vim \
+          && apt-get autoremove -yqq --purge \
+          && apt-get clean \
+          && rm -rf /var/lib/apt/lists/*
+        USER airflow
+        EOM
+
+
+2. Then build the image:
+
+    .. code-block:: bash
+
+        docker build --tag my-image:0.0.1 .
+
+
+3. Load the image into kind:
+
+    .. code-block:: bash
+
+      kind load docker-image my-image:0.0.1
+
+4. Upgrade Helm deployment:
+
+    .. code-block:: bash
+
+      helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
+          --set images.airflow.repository=my-image \
+          --set images.airflow.tag=0.0.1
+
+Adding ``PyPI`` packages to your image
+......................................
+
+Example below adds ``lxml`` PyPI package.
+
+1. Create a project
+
+    .. code-block:: bash
+
+        mkdir my-airflow-project && cd my-airflow-project
+        cat <<EOM > Dockerfile
+        FROM apache/airflow
+        RUN pip install --no-cache-dir lxml
+        EOM
+
+
+2. Then build the image:
+
+    .. code-block:: bash
+
+        docker build --tag my-image:0.0.1 .
+
+
+3. Load the image into kind:
+
+    .. code-block:: bash
+
+      kind load docker-image my-image:0.0.1
+
+4. Upgrade Helm deployment:
+
+    .. code-block:: bash
+
+      helm upgrade $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE \
+          --set images.airflow.repository=my-image \
+          --set images.airflow.tag=0.0.1
+
+Further extending and customizing the image
+...........................................
+
+See `Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
+details on how you can extend and customize the Airflow image.

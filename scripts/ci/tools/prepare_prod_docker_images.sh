@@ -15,11 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+AIRFLOW_SOURCES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../../../ && pwd)"
+export AIRFLOW_SOURCES_DIR
 
-# We do not push in the push step because we are building multiple images in the build step
-# and it is difficult to pass list of the built images from the build to push phase
-set -euo pipefail
+usage() {
+    local cmdname
+    cmdname="$(basename -- "$0")"
 
-echo
-echo "Skip pushing the image. All images were built and pushed in the build hook already!"
-echo
+    cat << EOF
+Usage: ${cmdname} <AIRFLOW_VERSION>
+
+Prepares prod docker images for the version specified.
+
+EOF
+}
+
+if [[ "$#" -ne 1 ]]; then
+    >&2 echo "You must provide Airflow version."
+    usage
+    exit 1
+fi
+
+export INSTALL_AIRFLOW_VERSION="${1}"
+
+for python_version in "3.6" "3.7" "3.8"
+do
+  export PYTHON_MAJOR_MINOR_VERSION=${python_version}
+  "${AIRFLOW_SOURCES_DIR}/scripts/ci/images/ci_build_dockerhub.sh"
+done

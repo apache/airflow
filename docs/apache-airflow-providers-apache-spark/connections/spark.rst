@@ -27,7 +27,7 @@ The Apache Spark connection type enables connection to Apache Spark.
 Default Connection IDs
 ----------------------
 
-Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default, Spark SQL hooks and operators point to ``spark_sql_default`` by default, but don't use it.
+Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default. Spark SQL hooks and operators point to ``spark_sql_default`` by default.
 
 Configuring the Connection
 --------------------------

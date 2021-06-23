@@ -76,7 +76,7 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info('Running: %s', self._command)
             self.log.info('Job %s: Subtask %s', self._task_instance.job_id, self._task_instance.task_id)
 
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date}"
+            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
             if hasattr(args, "job_id"):
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))

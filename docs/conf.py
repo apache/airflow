@@ -77,10 +77,15 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
-    PACKAGE_VERSION = 'devel'
+    PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
-    PACKAGE_VERSION = 'devel'  # TODO do we care? probably
+    CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
+
+    with open(CHART_YAML_FILE) as chart_file:
+        chart_yaml_contents = yaml.load(chart_file, SafeLoader)
+
+    PACKAGE_VERSION = chart_yaml_contents['version']
 else:
     PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
@@ -89,7 +94,6 @@ os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
 if PACKAGE_DIR:
     os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
 os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
-
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
@@ -258,9 +262,14 @@ if PACKAGE_NAME == 'apache-airflow':
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
     ]
+    # Replace "|version|" in links
     manual_substitutions_in_generated_html = [
         "installation.html",
     ]
+
+if PACKAGE_NAME == 'docker-stack':
+    # Replace "|version|" inside ```` quotes
+    manual_substitutions_in_generated_html = ["build.html"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -321,8 +330,8 @@ html_context = {
     'conf_py_path': f'/docs/{PACKAGE_NAME}/',
     'github_user': 'apache',
     'github_repo': 'airflow',
-    'github_version': 'devel',
-    'display_github': 'devel',
+    'github_version': 'main',
+    'display_github': 'main',
     'suffix': '.rst',
 }
 
@@ -339,8 +348,20 @@ if PACKAGE_NAME == 'apache-airflow':
     ) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
+    configs = default_config_yaml()
+
+    # We want the default/example we show in the docs to reflect the value _after_
+    # the config has been templated, not before
+    # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
+    keys_to_format = ["default", "example"]
+    for conf_section in configs:
+        for option in conf_section["options"]:
+            for key in keys_to_format:
+                if option[key] and "{{" in option[key]:
+                    option[key] = option[key].replace("{{", "{").replace("}}", "}")
+
     jinja_contexts = {
-        'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
+        'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
         'quick_start_ctx': {
             'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
             if FOR_PRODUCTION
@@ -589,7 +610,7 @@ if PACKAGE_NAME == 'apache-airflow':
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    'airflow/configuration/',
+    '*/airflow/_vendor/*',
     '*/example_dags/*',
     '*/_internal*',
     '*/node_modules/*',

@@ -74,10 +74,10 @@ official Apache releases must not include the rcN suffix.
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
-- We currently release Helm Chart from `master`/`main` branch:
+- We currently release Helm Chart from `main` branch:
 
     ```shell
-    git checkout master
+    git checkout main
     ```
 
 - Clean the checkout: the sdist step below will

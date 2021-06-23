@@ -17,7 +17,7 @@
 # under the License.
 from datetime import datetime, timedelta
 
-from six.moves.urllib.request import Request
+from requests import Request
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -58,7 +58,7 @@ with DAG(
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
         url += "artifact/myartifact.xml"  # Or any other artifact name
-        request = Request(url)
+        request = Request(method='GET', url=url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use
 

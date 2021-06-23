@@ -25,15 +25,27 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Change in ``DockerOperator`` and ``DockerSwarmOperator``
-````````````````````````````````````````````````````````
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
+* ``Replace DockerOperator's 'volumes' arg for 'mounts' (#15843)``
 
 The ``volumes`` parameter in
-:class:`~airflow.providers.docker.operators.docker.DockerOperator` and
-:class:`~airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator`
+``airflow.providers.docker.operators.docker.DockerOperator`` and
+``airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator``
 was replaced by the ``mounts`` parameter, which uses the newer
 `mount syntax <https://docs.docker.com/storage/>`__ instead of ``--bind``.
 
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
+   * ``Remove class references in changelogs (#16454)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.2.0
 .....

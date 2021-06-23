@@ -1003,7 +1003,7 @@ class TestDag(unittest.TestCase):
             op1 >> op2
             op2 >> op3
 
-        sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
+        sub_dag = dag.partial_subset('t2', include_upstream=True, include_downstream=False)
         assert id(sub_dag.task_dict['t1'].downstream_list[0].dag) == id(sub_dag)
 
         # Copied DAG should not include unused task IDs in used_group_ids
@@ -1223,20 +1223,6 @@ class TestDag(unittest.TestCase):
 
         assert dag.normalized_schedule_interval == expected_n_schedule_interval
         assert dag.schedule_interval == schedule_interval
-
-    def test_set_dag_runs_state(self):
-        clear_db_runs()
-        dag_id = "test_set_dag_runs_state"
-        dag = DAG(dag_id=dag_id)
-
-        for i in range(3):
-            dag.create_dagrun(run_id=f"test{i}", state=State.RUNNING)
-
-        dag.set_dag_runs_state(state=State.NONE)
-        drs = DagRun.find(dag_id=dag_id)
-
-        assert len(drs) == 3
-        assert all(dr.state == State.NONE for dr in drs)
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
@@ -1715,7 +1701,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            concurrency=1,
+            max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
             next_dagrun_create_after=timezone.datetime(2038, 1, 2),
@@ -1804,6 +1790,16 @@ class TestDagDecorator(unittest.TestCase):
     def tearDown(self):
         super().tearDown()
         clear_db_runs()
+
+    def test_fileloc(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            ...
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'noop_pipeline'
+        assert dag.fileloc == __file__
 
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""

@@ -28,14 +28,47 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-18
+
+================================================================================================  ===========  ===============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================================
+`db10c6841 <https://github.com/apache/airflow/commit/db10c6841b6295ab2b116c03025856084885c6a3>`_  2021-06-18   ``Add AWS DMS replication task operators (#15850)``
+`1c82b4d01 <https://github.com/apache/airflow/commit/1c82b4d015a1785a881bb916ffa0265249c2cde7>`_  2021-06-17   ``Fix S3ToFTPOperator (#13796)``
+`36dc6a810 <https://github.com/apache/airflow/commit/36dc6a8100c0261270f7f6fa20928508f90bac96>`_  2021-06-16   ``Make job name check optional in SageMakerTrainingOperator (#16327)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`9cd7930c3 <https://github.com/apache/airflow/commit/9cd7930c34c2842bef0cdc1748d42e7caa722301>`_  2021-06-13   ``Update copy command for s3 to redshift (#16241)``
+`643f3c35a <https://github.com/apache/airflow/commit/643f3c35a6ba3def40de7db8e974c72e98cfad44>`_  2021-06-13   ``fix: AwsGlueJobOperator change order of args for load_file (#16216)``
+`30708b5b2 <https://github.com/apache/airflow/commit/30708b5b254960395d8061e8c403294b93900c4d>`_  2021-06-13   ``Add support of capacity provider strategy for ECSOperator (#15848)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`9fcdf3d4d <https://github.com/apache/airflow/commit/9fcdf3d4deae0dd77c734f5a3520fb75d66d0821>`_  2021-06-02   ``Fix S3 Select payload join (#16189)``
+`8d1663828 <https://github.com/apache/airflow/commit/8d16638285687fd0ef41d40340ab1c5bcffd507a>`_  2021-05-29   ``remove retry for now (#16150)``
+`5fbc86f03 <https://github.com/apache/airflow/commit/5fbc86f0364fbc4f7c2ba10cae4a13449709730c>`_  2021-05-27   ``Remove the 'not-allow-trailing-slash' rule on S3_hook (#15609)``
+`904709d34 <https://github.com/apache/airflow/commit/904709d34fbe0b6062d72932b72954afe13ec148>`_  2021-05-27   ``Check synctatic correctness for code-snippets (#16005)``
+`476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+`821ea6fc1 <https://github.com/apache/airflow/commit/821ea6fc187a9780b8fe0dd76f140367681ba065>`_  2021-05-17   ``Fix spacing in ''AwsBatchWaitersHook'' docstring (#15839)``
+`146704605 <https://github.com/apache/airflow/commit/1467046058c40f6d448a24b6cda43c2037180c41>`_  2021-05-14   ``CloudwatchTaskHandler reads timestamp from Cloudwatch events (#15173)``
+`dab10d9fa <https://github.com/apache/airflow/commit/dab10d9fae6bfca0f9c0c504b77773d94ccee86d>`_  2021-05-10   ``MongoToS3Operator failed when running with a single query (not aggregate pipeline) (#15680)``
+`9c8391a13 <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`9953a047c <https://github.com/apache/airflow/commit/9953a047c4b0471ceb6effc669dce8d03c2f935b>`_  2021-05-07   ``Add Connection Documentation for the Hive Provider (#15704)``
+`0f97a3970 <https://github.com/apache/airflow/commit/0f97a3970d2c652beedbf2fbaa33e2b2bfd69bce>`_  2021-05-04   ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+`db557a8c4 <https://github.com/apache/airflow/commit/db557a8c4a3e1f0d67b2534010e5092be4f4a9fd>`_  2021-05-01   ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
+================================================================================================  ===========  ===============================================================================================
+
 1.4.0
 .....
 
-Latest change: 2021-04-29
+Latest change: 2021-05-01
 
 ================================================================================================  ===========  ==========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==========================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 `814e471d1 <https://github.com/apache/airflow/commit/814e471d137aad68bd64a21d20736e7b88403f97>`_  2021-04-29   ``Update pre-commit checks (#15583)``
 `bf2b48174 <https://github.com/apache/airflow/commit/bf2b48174a1ccfe398eefba7f04a5cacac421266>`_  2021-04-27   ``Add Connection Documentation for Providers (#15499)``
 `4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``

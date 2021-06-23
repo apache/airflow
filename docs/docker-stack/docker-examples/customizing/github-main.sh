@@ -16,13 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is hook build used by DockerHub. We are also using it
-# on Travis CI to potentially rebuild (and refresh layers that
-# are not cached) Docker images that are used to run CI jobs
+# This is an example docker build script. It is not intended for PRODUCTION use
+set -euo pipefail
+AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
+cd "${AIRFLOW_SOURCES}"
 
-_HOOK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# Dockerhub builds are run inside Docker container
-export SKIP_IN_CONTAINER_CHECK="true"
-
-exec "${_HOOK_DIR}/../scripts/ci/images/ci_build_dockerhub.sh"
+# [START build]
+docker build . \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/main.tar.gz#egg=apache-airflow" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
+    --tag "my-github-main:0.0.1"
+# [END build]
+docker rmi --force "my-github-main:0.0.1"

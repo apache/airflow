@@ -41,12 +41,24 @@ function initialization::create_directories() {
     # As well as hashes of the important files, but also we generate build scripts there that are
     # Used to execute the commands for breeze
     export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
-    export BUILD_CACHE_DIR
     readonly BUILD_CACHE_DIR
+
+    # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+    # O_DIRECT parameter for direct writing to the filesystem
+    # https://github.com/microsoft/mssql-docker/issues/13
+    # so we need to mount an external volume for its db location
+    # the external db must allow for parallel testing so external volume is mapped
+    # to the data volume
+    export MSSQL_DATA_VOLUME="${BUILD_CACHE_DIR}/tmp_mssql_volume"
 
     # Create those folders above in case they do not exist
     mkdir -p "${BUILD_CACHE_DIR}" >/dev/null
     mkdir -p "${FILES_DIR}" >/dev/null
+    mkdir -p "${MSSQL_DATA_VOLUME}" >/dev/null
+    # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
+    # This is a bit scary and we could get by making it group-writeable but the group would have
+    # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
+    chmod a+rwx "${MSSQL_DATA_VOLUME}"
 
     # By default we are not in CI environment GitHub Actions sets CI to "true"
     export CI="${CI="false"}"
@@ -90,7 +102,7 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("2.7" "3.5" "3.6" "3.7" "3.8")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
@@ -166,8 +178,8 @@ function initialization::initialize_base_variables() {
 # Determine current branch
 function initialization::initialize_branch_variables() {
     # Default branch used - this will be different in different branches
-    export DEFAULT_BRANCH=${DEFAULT_BRANCH="master"}
-    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-master"}
+    export DEFAULT_BRANCH=${DEFAULT_BRANCH="main"}
+    export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-main"}
     readonly DEFAULT_BRANCH
     readonly DEFAULT_CONSTRAINTS_BRANCH
 
@@ -284,7 +296,7 @@ function initialization::initialize_force_variables() {
     export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
-    # CI master and when we manually refresh the images to latest versions
+    # CI main and when we manually refresh the images to latest versions
     export FORCE_PULL_BASE_PYTHON_IMAGE="false"
 
     # Determines whether to force build without checking if it is needed
@@ -555,7 +567,7 @@ function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
     export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
     export GITHUB_REGISTRY_IMAGE_SUFFIX=${GITHUB_REGISTRY_IMAGE_SUFFIX:="-v2"}
-    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
+    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="ghcr.io"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
@@ -625,7 +637,7 @@ function initialization::initialize_common_environment() {
 }
 
 function initialization::set_default_python_version_if_empty() {
-    # default version of python used to tag the "master" and "latest" images in DockerHub
+    # default version of python used to tag the "main" and "latest" images in DockerHub
     export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
 
     # default python Major/Minor version
@@ -762,20 +774,20 @@ function initialization::get_environment_for_builds_on_ci() {
     if [[ ${CI:=} == "true" ]]; then
         export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${GITHUB_REPOSITORY}"
-        export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="master"}"
+        export CI_TARGET_BRANCH="${GITHUB_BASE_REF:="main"}"
         export CI_BUILD_ID="${GITHUB_RUN_ID="0"}"
         export CI_JOB_ID="${GITHUB_JOB="0"}"
         export CI_EVENT_TYPE="${GITHUB_EVENT_NAME="pull_request"}"
-        export CI_REF="${GITHUB_REF:="refs/head/master"}"
+        export CI_REF="${GITHUB_REF:="refs/head/main"}"
     else
         # CI PR settings
         export GITHUB_REPOSITORY="${GITHUB_REPOSITORY="apache/airflow"}"
         export CI_TARGET_REPO="${CI_TARGET_REPO="apache/airflow"}"
-        export CI_TARGET_BRANCH="${DEFAULT_BRANCH="master"}"
+        export CI_TARGET_BRANCH="${DEFAULT_BRANCH="main"}"
         export CI_BUILD_ID="${CI_BUILD_ID="0"}"
         export CI_JOB_ID="${CI_JOB_ID="0"}"
         export CI_EVENT_TYPE="${CI_EVENT_TYPE="pull_request"}"
-        export CI_REF="${CI_REF="refs/head/master"}"
+        export CI_REF="${CI_REF="refs/head/main"}"
     fi
 
     if [[ -z "${LIBRARY_PATH:-}" && -n "${LD_LIBRARY_PATH:-}" ]]; then

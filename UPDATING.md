@@ -26,7 +26,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Master](#master)
+- [Main](#main)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
@@ -54,7 +54,7 @@ assists users migrating to a new version.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Master
+## Main
 
 <!--
 
@@ -72,6 +72,60 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### DAG concurrency settings have been renamed
+
+`[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
+for better understanding.
+
+It is the maximum number of task instances allowed to run concurrently in each DAG. To calculate
+the number of tasks that is running concurrently for a DAG, add up the number of running
+tasks for all DAG runs of the DAG.
+
+This is configurable at the DAG level with ``max_active_tasks`` and a default can be set in `airflow.cfg` as
+`[core] max_active_tasks_per_dag`.
+
+**Before**:
+
+```ini
+[core]
+dag_concurrency = 16
+```
+
+**Now**:
+
+```ini
+[core]
+max_active_tasks_per_dag = 16
+```
+
+Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
+
+**Before**:
+
+```python
+dag = DAG(
+    dag_id="example_dag",
+    concurrency=3,
+    start_date=days_ago(2),
+)
+```
+
+**Now**:
+
+```python
+dag = DAG(
+    dag_id="example_dag",
+    max_active_tasks=3,
+    start_date=days_ago(2),
+)
+```
+
+If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `concurrency`.
+
+### Marking success/failed automatically clears failed downstream tasks
+
+When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
+
 ### Remove `TaskInstance.log_filepath` attribute
 
 This method returned incorrect values for a long time, because it did not take into account the different
@@ -81,6 +135,10 @@ but identifies logs based on labels.  For this reason, we decided to delete this
 
 If you need to read logs, you can use `airflow.utils.log.log_reader.TaskLogReader` class, which does not have
 the above restrictions.
+
+### If a sensor times out, it will not retry
+
+Previously, a sensor is retried when it times out until the number of ``retries`` are exhausted. So the effective timeout of a sensor is ``timeout * (retries + 1)``. This behaviour is now changed. A sensor will immediately fail without retrying if ``timeout`` is reached. If it's desirable to let the sensor continue running for longer time, set a larger ``timeout`` instead.
 
 ### Default Task Pools Slots can be set using ``[core] default_pool_task_slot_count``
 
@@ -147,7 +205,7 @@ and the Webserver used the serialized DAGs, there is no need to kill an existing
 worker and create a new one as frequently as `30` seconds.
 
 This setting can be raised to an even higher value, currently it is
-set to `6000` seconds (10 minutes) to
+set to `6000` seconds (100 minutes) to
 serve as a DagBag cache burst time.
 
 ### `default_queue` configuration has been moved to the `operators` section.
@@ -2988,7 +3046,7 @@ If you are logging to Google cloud storage, please see the [Google cloud platfor
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
 
-- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
+- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/main/airflow/config_templates/airflow_local_settings.py).
 - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
 - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
 - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your `PYTHONPATH`, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.

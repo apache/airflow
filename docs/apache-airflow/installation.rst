@@ -182,7 +182,7 @@ not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
-``constraints-master``, ``constraints-2-0`` orphan branches and then we create tag
+``constraints-main``, ``constraints-2-0`` orphan branches and then we create tag
 for each released version e.g. :subst-code:`constraints-|version|`. This way, when we keep a tested and working set of dependencies.
 
 Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
@@ -197,7 +197,7 @@ You can create the URL to the file substituting the variables in the template be
 
 where:
 
-- ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``master``, ``2-0``, for latest development version
+- ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
 There is also a no-providers constraint file, which contains just constraints required to install Airflow core. This allows
@@ -252,7 +252,7 @@ being installed.
 
 You can manually install all the providers you need. You can continue using the "providers" constraint files
 but the 'versioned' airflow constraints installs only the versions of providers that were available in PyPI at
-the time of preparing of the airflow version. However, usually you can use "master" version of the providers
+the time of preparing of the airflow version. However, usually you can use "main" version of the providers
 to install latest version of providers. Usually the providers work with most versions of Airflow, if there
 will be any incompatibilities, it will be captured as package dependencies.
 
@@ -260,16 +260,16 @@ will be any incompatibilities, it will be captured as package dependencies.
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-${PYTHON_VERSION}.txt"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --constraint "${CONSTRAINT_URL}"
 
-You can also upgrade the providers to latest versions (you need to use master version of constraints for that):
+You can also upgrade the providers to latest versions (you need to use main version of constraints for that):
 
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-${PYTHON_VERSION}.txt"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --upgrade --constraint "${CONSTRAINT_URL}"
 
 
@@ -297,9 +297,9 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 `Kubernetes version skew policy <https://kubernetes.io/docs/setup/release/version-skew-policy>`_.
 
 1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
-   EOL versions in master right after EOL date, and it is effectively removed when we release the
+   EOL versions in main right after EOL date, and it is effectively removed when we release the
    first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example for Python 3.6 it means that we drop support in master right after 23.12.2021, and the first
+   For example for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
    MAJOR or MINOR version of Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
@@ -308,7 +308,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
    become Python 3.7 images.
 
-3. We support a new version of Python/Kubernetes in master after they are officially released, as soon as we
+3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
 

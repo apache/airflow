@@ -254,7 +254,7 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in the CI. See `<CI.yml>`_ for details about Airflow CI.
+environment with enabled integrations and in the CI. See `<.github/workflows/ci.yml>`_ for details about Airflow CI.
 
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
@@ -595,7 +595,7 @@ Deploying Airflow to the Kubernetes cluster created is also done via ``kind-clus
 
 The deploy command performs those steps:
 
-1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
+1. It rebuilds the latest ``apache/airflow:main-pythonX.Y`` production images using the
    latest sources using local caching. It also adds example DAGs to the image, so that they do not
    have to be mounted inside.
 2. Loads the image to the Kind Cluster using the ``kind load`` command.
@@ -715,8 +715,8 @@ The typical session for tests with Kubernetes looks like follows:
 
        Use CI image.
 
-       Branch name:             master
-       Docker image:            apache/airflow:master-python3.7-ci
+       Branch name:             main
+       Docker image:            apache/airflow:main-python3.7-ci
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
@@ -757,8 +757,8 @@ The typical session for tests with Kubernetes looks like follows:
 
        Use CI image.
 
-       Branch name:             master
-       Docker image:            apache/airflow:master-python3.7-ci
+       Branch name:             main
+       Docker image:            apache/airflow:main-python3.7-ci
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
@@ -1300,7 +1300,7 @@ By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>
 the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
 
-The DAGs can be run in the master version of Airflow but they also work
+The DAGs can be run in the main version of Airflow but they also work
 with older versions.
 
 To run the tests for Airflow 1.10.* series, you need to run Breeze with

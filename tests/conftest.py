@@ -353,7 +353,7 @@ def skip_if_credential_file_missing(item):
 def skip_if_airflow_2_test(item):
     for _ in item.iter_markers(name="airflow_2"):
         if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            pytest.skip("The test works only with Airflow 2.0 / master branch")
+            pytest.skip("The test works only with Airflow 2.0 / main branch")
 
 
 def pytest_runtest_setup(item):

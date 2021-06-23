@@ -221,10 +221,10 @@ function needs_ui_tests() {
     initialization::ga_output run-ui-tests "${@}"
 }
 
-if [[ ${DEFAULT_BRANCH} == "master" ]]; then
+if [[ ${DEFAULT_BRANCH} == "main" ]]; then
     ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
 else
-    # Skips Provider tests in case current default branch is not master
+    # Skips Provider tests in case current default branch is not main
     ALL_TESTS="Always API Core Other CLI WWW Integration"
 fi
 readonly ALL_TESTS
@@ -649,7 +649,7 @@ function calculate_test_types_to_run() {
             kubernetes_tests_needed="true"
         fi
 
-        if [[ ${DEFAULT_BRANCH} == "master" ]]; then
+        if [[ ${DEFAULT_BRANCH} == "main" ]]; then
             if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
                 echo
                 echo "Adding Providers to selected files as ${COUNT_PROVIDERS_CHANGED_FILES} Provider files changed"
@@ -658,7 +658,7 @@ function calculate_test_types_to_run() {
             fi
         else
             echo
-            echo "Providers tests are not added because they are only run in case of master branch."
+            echo "Providers tests are not added because they are only run in case of main branch."
             echo
         fi
         if [[ ${COUNT_WWW_CHANGED_FILES} != "0" ]]; then

@@ -61,7 +61,7 @@ class AirflowConsole(Console):
             table.add_column(col)
 
         for row in data:
-            table.add_row(*[str(d) for d in row.values()])
+            table.add_row(*(str(d) for d in row.values()))
         self.print(table)
 
     def print_as_plain_table(self, data: List[Dict]):

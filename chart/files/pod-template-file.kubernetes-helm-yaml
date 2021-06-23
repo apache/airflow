@@ -19,6 +19,13 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: dummy-name
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
   {{- if .Values.airflowPodAnnotations }}
   annotations:
   {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
@@ -47,6 +54,8 @@ spec:
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base
       ports: []
+      resources:
+{{ toYaml .Values.workers.resources | indent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs

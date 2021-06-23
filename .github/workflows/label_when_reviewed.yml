@@ -18,7 +18,6 @@
 ---
 name: Label when reviewed
 on: pull_request_review  # yamllint disable-line rule:truthy
-
 jobs:
 
   label-when-reviewed:

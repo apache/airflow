@@ -92,13 +92,14 @@ def fetch_inventories():
                 f'{CACHE_DIR}/{pkg_name}/objects.inv',
             )
         )
-    to_download.append(
-        (
-            "apache-airflow",
-            S3_DOC_URL_VERSIONED.format(package_name='apache-airflow'),
-            f'{CACHE_DIR}/apache-airflow/objects.inv',
+    for pkg_name in ['apache-airflow', 'helm-chart']:
+        to_download.append(
+            (
+                pkg_name,
+                S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
+                f'{CACHE_DIR}/{pkg_name}/objects.inv',
+            )
         )
-    )
     for pkg_name in ['apache-airflow-providers', 'docker-stack']:
         to_download.append(
             (

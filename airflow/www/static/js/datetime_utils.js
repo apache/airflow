@@ -88,6 +88,12 @@ export function updateAllDateTimes() {
   $('.datetime input').each((_, el) => {
     el.value = moment(el.value).format();
   });
+
+  $('.js-format-date').each((_, el) => {
+    el.innerHTML = moment(el.innerHTML, 'YYYY-MM-DD').isValid()
+      ? formatDateTime(el.innerHTML)
+      : el.innerHTML;
+  });
 }
 
 export function setDisplayedTimezone(tz) {
