@@ -628,8 +628,15 @@ webserver:
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 
-  # Additional network policies as needed
+  # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for webserver NetworkPolicy ingress
+      from: []
+      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      ports:
+        - port: airflow-ui
 
   resources: {}
   #   limits:
@@ -720,8 +727,16 @@ flower:
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
 
-  # Additional network policies as needed
+  # Additional network policies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for flower NetworkPolicy ingress
+      from: []
+      # Ports for flower NetworkPolicy ingress (if ingressPeers is set)
+      ports:
+        - port: flower-ui
+
   resources: {}
   #   limits:
   #     cpu: 100m

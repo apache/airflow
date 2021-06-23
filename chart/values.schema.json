@@ -1626,9 +1626,42 @@
                     }
                 },
                 "extraNetworkPolicies": {
-                    "description": "Additional NetworkPolicies as needed.",
+                    "description": "Additional NetworkPolicies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`).",
                     "type": "array",
                     "default": []
+                },
+                "networkPolicy": {
+                    "description": "Webserver NetworkPolicy configuration",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "ingress": {
+                            "description": "Webserver NetworkPolicy ingress configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "from": {
+                                    "description": "Peers for webserver NetworkPolicy ingress.",
+                                    "type": "array",
+                                    "default": []
+                                },
+                                "ports": {
+                                    "description": "Ports for webserver NetworkPolicy ingress (if `from` is set).",
+                                    "type": "array",
+                                    "default": [
+                                        {
+                                            "port": "airflow-ui"
+                                        }
+                                    ],
+                                    "examples": [
+                                        {
+                                            "port": "sidecar"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 },
                 "resources": {
                     "description": "Resources for webserver pods.",
@@ -1827,9 +1860,42 @@
                     ]
                 },
                 "extraNetworkPolicies": {
-                    "description": "Additional NetworkPolicies as needed.",
+                    "description": "Additional NetworkPolicies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`).",
                     "type": "array",
                     "default": []
+                },
+                "networkPolicy": {
+                    "description": "Flower NetworkPolicy configuration",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "ingress": {
+                            "description": "Flower NetworkPolicy ingress configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "from": {
+                                    "description": "Peers for flower NetworkPolicy ingress.",
+                                    "type": "array",
+                                    "default": []
+                                },
+                                "ports": {
+                                    "description": "Ports for flower NetworkPolicy ingress (if `from` is set).",
+                                    "type": "array",
+                                    "default": [
+                                        {
+                                            "port": "flower-ui"
+                                        }
+                                    ],
+                                    "examples": [
+                                        {
+                                            "port": "sidecar"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 },
                 "resources": {
                     "description": "Resources for Flower pods.",
