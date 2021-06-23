@@ -1,8 +1,8 @@
 version = 1
 
-test_patterns = ["tests/**"]
+test_patterns = ["tests/**/**"]
 
-exclude_patterns = ["airflow/_vendor/**"]
+exclude_patterns = ["airflow/_vendor/**/**"]
 
 [[analyzers]]
 name = "python"
@@ -10,3 +10,7 @@ enabled = true
 
   [analyzers.meta]
   runtime_version = "3.x.x"
+
+[[transformers]]
+name = "yapf"
+enabled = true
