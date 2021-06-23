@@ -823,6 +823,27 @@ def test_task_group_context_mix():
     assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
 
 
+def test_default_args():
+    """Testing TaskGroup with default_args"""
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(
+        dag_id='example_task_group_default_args',
+        start_date=execution_date,
+        default_args={
+            "owner": "dag",
+        },
+    ):
+        with TaskGroup("group1", default_args={"owner": "group"}):
+            task_1 = DummyOperator(task_id='task_1')
+            task_2 = DummyOperator(task_id='task_2', owner='task')
+            task_3 = DummyOperator(task_id='task_3', default_args={"owner": "task"})
+
+            assert task_1.owner == 'group'
+            assert task_2.owner == 'task'
+            assert task_3.owner == 'task'
+
+
 def test_duplicate_task_group_id():
     """Testing automatic suffix assignment for duplicate group_id"""
 

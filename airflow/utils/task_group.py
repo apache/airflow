@@ -19,6 +19,7 @@
 A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
+import copy
 import re
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
@@ -48,6 +49,14 @@ class TaskGroup(TaskMixin):
     :type parent_group: TaskGroup
     :param dag: The DAG that this TaskGroup belongs to.
     :type dag: airflow.models.DAG
+    :param default_args: A dictionary of default parameters to be used
+        as constructor keyword parameters when initialising operators,
+        will override default_args defined in the DAG level.
+        Note that operators have the same hook, and precede those defined
+        here, meaning that if your dict contains `'depends_on_past': True`
+        here and `'depends_on_past': False` in the operator's call
+        `default_args`, the actual value will be `False`.
+    :type default_args: dict
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
     :type tooltip: str
     :param ui_color: The fill color of the TaskGroup node when displayed in the UI
@@ -65,6 +74,7 @@ class TaskGroup(TaskMixin):
         prefix_group_id: bool = True,
         parent_group: Optional["TaskGroup"] = None,
         dag: Optional["DAG"] = None,
+        default_args: Optional[Dict] = None,
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
@@ -73,6 +83,7 @@ class TaskGroup(TaskMixin):
         from airflow.models.dag import DagContext
 
         self.prefix_group_id = prefix_group_id
+        self.default_args = copy.deepcopy(default_args or {})
 
         if group_id is None:
             # This creates a root TaskGroup.
