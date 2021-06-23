@@ -19,7 +19,6 @@ import unittest.mock
 import pytest
 from flask_appbuilder.security.sqla.models import User
 from parameterized import parameterized
-from sqlalchemy.sql import exists
 from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -535,7 +534,7 @@ class TestDeleteUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204, response.json  # NO CONTENT.
-        assert not self.session.query(exists().where(User.username == autoclean_username)).scalar()
+        assert self.session.query(count(User.id)).filter(User.username == autoclean_username).scalar() == 0
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_unauthenticated(self, autoclean_username):
