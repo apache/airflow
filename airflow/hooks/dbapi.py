@@ -18,7 +18,7 @@
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlunsplit
 
 from sqlalchemy import create_engine
 
@@ -64,6 +64,7 @@ class DbApiHook(BaseHook):
             setattr(self, self.conn_name_attr, self.default_conn_name)
         else:
             setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
+        self.schema: Optional[str] = kwargs.pop("schema", None)
 
     def get_conn(self):
         """Returns a connection object"""
@@ -83,10 +84,8 @@ class DbApiHook(BaseHook):
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
-        uri = f'{conn.conn_type}://{login}{host}/'
-        if conn.schema:
-            uri += conn.schema
-        return uri
+        schema = self.schema or conn.schema or ''
+        return urlunsplit((conn.conn_type, f'{login}{host}', schema, '', ''))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
