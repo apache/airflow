@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Unio
 import cattr
 import pendulum
 from dateutil import relativedelta
+from pendulum.tz.zoneinfo.exceptions import InvalidTimezone
 
 try:
     from functools import cache
@@ -195,6 +196,24 @@ class BaseSerialization:
                 serialized_object[key] = value
         return serialized_object
 
+    @classmethod
+    def serialize_timezone(cls, var: datetime.tzinfo) -> Any:
+        """Serializes a timezone to json"""
+        tz_name = None
+        try:
+            tz_name = var.name
+        except AttributeError:
+            pass
+        if not tz_name:
+            try:
+                tz_name = var.tzname(datetime.datetime.utcnow())
+            except InvalidTimezone:
+                pass
+        if not tz_name:
+            raise TypeError(f"the timezone {var} can't be serialized")
+
+        return cls._encode(str(tz_name), type_=DAT.TIMEZONE)
+
     # pylint: disable=too-many-return-statements
     @classmethod
     def _serialize(cls, var: Any) -> Any:  # Unfortunately there is no support for recursive types in mypy
@@ -229,7 +248,7 @@ class BaseSerialization:
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
         elif isinstance(var, Timezone):
-            return cls._encode(str(var.name), type_=DAT.TIMEZONE)
+            return SerializedDAG.serialize_timezone(var)
         elif isinstance(var, relativedelta.relativedelta):
             encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
             if var.weekday and var.weekday.n:
@@ -300,7 +319,18 @@ class BaseSerialization:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
     _deserialize_datetime = pendulum.from_timestamp
-    _deserialize_timezone = pendulum.tz.timezone
+
+    @classmethod
+    def _deserialize_timezone(cls, tz_name: str) -> Timezone:
+        try:
+            return pendulum.tz.timezone(tz_name)
+        except InvalidTimezone:
+            pass
+        try:
+            return pendulum.parse("2021-01-01T12:00:00" + tz_name).tzinfo
+        except ValueError:
+            pass
+        raise ValueError("{tz_name} can't be converted to pendulum.tz.timezone.Timezone")
 
     @classmethod
     def _deserialize_timedelta(cls, seconds: int) -> datetime.timedelta:
