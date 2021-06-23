@@ -31,7 +31,7 @@ def test_cycle(dag):
     will consider it as a unit test and cause failure.
     """
     from warnings import warn
-    warn("Deprecated, please use check_cycle at the same module instead.", DeprecationWarning)
+    warn("Deprecated, please use `check_cycle` at the same module instead.", DeprecationWarning)
     return check_cycle(dag)
 
 
