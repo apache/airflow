@@ -441,7 +441,7 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 
     group1 >> task3
 
-TaskGroup also supports default_args like DAG, it will overwrite the default_args in DAG level::
+TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
     with DAG(dag_id='dag1', default_args={'start_date': datetime(2016, 1, 1), 'owner': 'dag'}):
         with TaskGroup('group1', default_args={'owner': 'group'}):
