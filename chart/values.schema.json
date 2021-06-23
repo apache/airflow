@@ -1737,6 +1737,28 @@
                             "type": "object",
                             "default": {}
                         },
+                        "ports": {
+                            "description": "Ports for the webserver Service.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "name": "airflow-ui",
+                                    "port": "{{ .Values.ports.airflowUI }}"
+                                }
+                            ],
+                            "examples": [
+                                {
+                                    "name": "airflow-ui",
+                                    "port": 80,
+                                    "targetPort": "airflow-ui"
+                                },
+                                {
+                                    "name": "only_sidecar",
+                                    "port": 80,
+                                    "targetPort": 8888
+                                }
+                            ]
+                        },
                         "loadBalancerIP": {
                             "description": "Webserver Service loadBalancerIP.",
                             "type": [
@@ -1864,6 +1886,23 @@
                             "description": "Annotations for the flower Service.",
                             "type": "object",
                             "default": {}
+                        },
+                        "ports": {
+                            "description": "Ports for the flower Service.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "name": "flower-ui",
+                                    "port": "{{ .Values.ports.flowerUI }}"
+                                }
+                            ],
+                            "examples": [
+                                {
+                                    "name": "flower-ui",
+                                    "port": 8080,
+                                    "targetPort": "flower-ui"
+                                }
+                            ]
                         },
                         "loadBalancerIP": {
                             "description": "Flower Service loadBalancerIP.",
