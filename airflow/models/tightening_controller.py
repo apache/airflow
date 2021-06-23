@@ -16,6 +16,10 @@ class DeviceTypeModel(Base):
     def __repr__(self):
         return self.name
 
+    def __init__(self, name=None, view_config=None):
+        self.name = name
+        self.view_config = view_config
+
 
 class TighteningController(Base):
     """

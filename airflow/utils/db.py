@@ -27,6 +27,7 @@ from functools import wraps
 import os
 import contextlib
 import json
+import re
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -86,6 +87,13 @@ def merge_conn(conn, session=None):
         session.add(conn)
         session.commit()
 
+@provide_session
+def merge_device_type(device_type, session=None):
+    from airflow.models.tightening_controller import DeviceTypeModel
+    if not session.query(DeviceTypeModel).filter(DeviceTypeModel.name == device_type.name).first():
+        session.add(device_type)
+        session.commit()
+
 
 @provide_session
 def merge_error_tag(err_tag, session=None):
@@ -138,6 +146,20 @@ def create_default_error_tags(session=None):
     # todo: error tag init
     for key, value in default_error_tags.items():
         merge_error_tag(err_tag=ErrorTag(lable=value, value=key))
+
+
+support_device_types = {
+    '拧紧工具': '{}',
+    '压机': '{}',
+}
+
+@provide_session
+def create_device_type_support(session=None):
+    if not session:
+        return
+    from airflow.models.tightening_controller import DeviceTypeModel
+    for name, view_config in support_device_types.items():
+        merge_error_tag(err_tag=DeviceTypeModel(name=name, view_config=view_config))
 
 
 @provide_session
@@ -440,6 +462,9 @@ def initdb(rbac=False):
 
     if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
         create_default_error_tags()
+
+    if conf.getboolean('core', 'LOAD_DEFAULT_DEVICE_TYPE', fallback=True):
+        create_device_type_support()
 
     if os.environ.get('FACTORY_CODE', '') in ['nd', '7200', 'ND']:
         create_default_nd_line_controller_map_var(session)
