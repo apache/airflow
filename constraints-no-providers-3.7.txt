@@ -61,7 +61,7 @@ email-validator==1.1.3
 eventlet==0.31.0
 filelock==3.0.12
 flower==0.9.7
-fsspec==2021.6.0
+fsspec==2021.6.1
 gevent==21.1.2
 google-auth==1.32.0
 graphviz==0.16
