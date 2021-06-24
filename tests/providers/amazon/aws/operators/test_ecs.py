@@ -340,11 +340,9 @@ class TestECSOperator(unittest.TestCase):
         if tags:
             extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
-        client_mock.describe_task_definition.assert_called_once_with('t')
+        client_mock.describe_task_definition.assert_called_once_with(taskDefinition='t')
 
-        client_mock.list_tasks.assert_called_once_with(
-            cluster='c', launchType=launch_type, desiredStatus='RUNNING', family='f'
-        )
+        client_mock.list_tasks.assert_called_once_with(cluster='c', desiredStatus='RUNNING', family='f')
 
         start_mock.assert_not_called()
         wait_mock.assert_called_once_with()

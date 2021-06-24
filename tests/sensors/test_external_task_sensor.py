@@ -31,11 +31,17 @@ from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 TEST_TASK_ID = 'time_sensor_check'
 DEV_NULL = '/dev/null'
+
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    clear_db_runs()
 
 
 class TestExternalTaskSensor(unittest.TestCase):
@@ -488,12 +494,12 @@ def assert_ti_state_equal(task_instance, state):
     assert task_instance.state == state
 
 
-def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE):
+def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, dry_run=False):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
-    subdag = dag.partial_subset(task_ids_or_regex=f"^{task.task_id}$", include_downstream=True)
-    subdag.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag)
+    partial: DAG = dag.partial_subset(task_ids_or_regex=[task.task_id], include_downstream=True)
+    return partial.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag, dry_run=dry_run)
 
 
 # pylint: disable=redefined-outer-name
@@ -608,44 +614,99 @@ def dag_bag_cyclic():
                   ^          |
                   |          |
     dag_1:        |          ---> task_a_1 >> task_b_1
-                  |                               |
-                  ---------------------------------
-
+                  |                              ^
+                  |                              |
+    dag_n:        |                              ---> task_a_n >> task_b_n
+                  |                                                   |
+                  -----------------------------------------------------
     """
-    dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
-    dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None)
-    task_a_0 = DummyOperator(task_id="task_a_0", dag=dag_0)
-    task_b_0 = ExternalTaskMarker(
-        task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3, dag=dag_0
-    )
-    task_a_0 >> task_b_0
+    def _factory(depth: int) -> DagBag:
+        dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
-    dag_1 = DAG("dag_1", start_date=DEFAULT_DATE, schedule_interval=None)
-    task_a_1 = ExternalTaskSensor(
-        task_id="task_a_1", external_dag_id=dag_0.dag_id, external_task_id=task_b_0.task_id, dag=dag_1
-    )
-    task_b_1 = ExternalTaskMarker(
-        task_id="task_b_1", external_dag_id="dag_0", external_task_id="task_a_0", recursion_depth=2, dag=dag_1
-    )
-    task_a_1 >> task_b_1
+        dags = []
 
-    for dag in [dag_0, dag_1]:
-        dag_bag.bag_dag(dag=dag, root_dag=dag)
+        with DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+            dags.append(dag)
+            task_a_0 = DummyOperator(task_id="task_a_0")
+            task_b_0 = ExternalTaskMarker(
+                task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3
+            )
+            task_a_0 >> task_b_0
 
-    return dag_bag
+        for n in range(1, depth):
+            with DAG(f"dag_{n}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+                dags.append(dag)
+                task_a = ExternalTaskSensor(
+                    task_id=f"task_a_{n}",
+                    external_dag_id=f"dag_{n-1}",
+                    external_task_id=f"task_b_{n-1}",
+                )
+                task_b = ExternalTaskMarker(
+                    task_id=f"task_b_{n}",
+                    external_dag_id=f"dag_{n+1}",
+                    external_task_id=f"task_a_{n+1}",
+                    recursion_depth=3,
+                )
+                task_a >> task_b
+
+        # Create the last dag wich loops back
+        with DAG(f"dag_{depth}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
+            dags.append(dag)
+            task_a = ExternalTaskSensor(
+                task_id=f"task_a_{depth}",
+                external_dag_id=f"dag_{depth-1}",
+                external_task_id=f"task_b_{depth-1}",
+            )
+            task_b = ExternalTaskMarker(
+                task_id=f"task_b_{depth}",
+                external_dag_id="dag_0",
+                external_task_id="task_a_0",
+                recursion_depth=2,
+            )
+            task_a >> task_b
+
+        for dag in dags:
+            dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+        return dag_bag
+
+    return _factory
 
 
-def test_external_task_marker_cyclic(dag_bag_cyclic):
+def test_external_task_marker_cyclic_deep(dag_bag_cyclic):
     """
     Tests clearing across multiple DAGs that have cyclic dependencies. AirflowException should be
     raised.
     """
-    run_tasks(dag_bag_cyclic)
-    dag_0 = dag_bag_cyclic.get_dag("dag_0")
+    dag_bag = dag_bag_cyclic(10)
+    run_tasks(dag_bag)
+    dag_0 = dag_bag.get_dag("dag_0")
     task_a_0 = dag_0.get_task("task_a_0")
     with pytest.raises(AirflowException, match="Maximum recursion depth 3"):
-        clear_tasks(dag_bag_cyclic, dag_0, task_a_0)
+        clear_tasks(dag_bag, dag_0, task_a_0)
+
+
+def test_external_task_marker_cyclic_shallow(dag_bag_cyclic):
+    """
+    Tests clearing across multiple DAGs that have cyclic dependencies shallower
+    than recursion_depth
+    """
+    dag_bag = dag_bag_cyclic(2)
+    run_tasks(dag_bag)
+    dag_0 = dag_bag.get_dag("dag_0")
+    task_a_0 = dag_0.get_task("task_a_0")
+
+    tis = clear_tasks(dag_bag, dag_0, task_a_0, dry_run=True)
+
+    assert [
+        ("dag_0", "task_a_0"),
+        ("dag_0", "task_b_0"),
+        ("dag_1", "task_a_1"),
+        ("dag_1", "task_b_1"),
+        ("dag_2", "task_a_2"),
+        ("dag_2", "task_b_2"),
+    ] == sorted((ti.dag_id, ti.task_id) for ti in tis)
 
 
 @pytest.fixture

@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.1.1](#airflow-211)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
@@ -150,9 +151,11 @@ not have any effect in an existing deployment where the ``default_pool`` already
 
 Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
 
+## Airflow 2.1.1
+
 ### `activate_dag_runs` argument of the function `clear_task_instances` is replaced with `dag_run_state`
 
-To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead.
+To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous paramater is still accepted, but is deprecated)
 
 ### `dag.set_dag_runs_state` is deprecated
 

@@ -63,7 +63,7 @@ def should_hide_value_for_key(name):
     """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden"""
     from airflow import settings
 
-    if name and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
+    if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
         name = name.strip().lower()
         return any(s in name for s in get_sensitive_variables_fields())
     return False

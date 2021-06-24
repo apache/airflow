@@ -23,6 +23,7 @@ on:  # yamllint disable-line rule:truthy
     types: ['requested']
 permissions:
   # All other permissions are set to none
+  checks: write
   contents: read
   pull-requests: write
 jobs:

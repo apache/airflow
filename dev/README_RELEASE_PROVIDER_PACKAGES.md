@@ -461,7 +461,7 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check.files.py` script to verify that all expected files are
+Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
