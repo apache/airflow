@@ -186,13 +186,17 @@ class BaseSerialization:
             if cls._is_excluded(value, key, object_to_serialize):
                 continue
 
+            value = cls._serialize(value)
             if key in decorated_fields:
-                serialized_object[key] = cls._serialize(value)
-            else:
-                value = cls._serialize(value)
-                if isinstance(value, dict) and "__type" in value:
-                    value = value["__var"]
-                serialized_object[key] = value
+                pass
+            elif not (isinstance(value, dict) and "__type" in value):
+                pass
+            elif key in DAG.get_serialized_fields() | BaseOperator.get_serialized_fields():
+                # Ensures to only optimize the serialization for fields present in the DAG and BaseOperator.
+                # Field added to custom extensions of the DAG and BaseOperator will keep __var/__type records.
+                # This prevents deserialization errors for classes extending the BaseOperator.
+                value = value["__var"]
+            serialized_object[key] = value
         return serialized_object
 
     @classmethod
@@ -265,6 +269,8 @@ class BaseSerialization:
 
         if not isinstance(encoded_var, dict):
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
+        if Encoding.VAR not in encoded_var:
+            raise ValueError(f"The required key {Encoding.VAR} is not present in dict {encoded_var}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
 
@@ -717,12 +723,15 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
-            elif k == "edge_info":
+            elif k in ("edge_info", "dag_dependencies"):
                 # Value structure matches exactly
                 pass
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
-            # else use v as it is
+            elif k not in DAG.get_serialized_fields():  # pylint: disable=unsupported-membership-test
+                # In this case k is in get_serialized_fields() of a custom class (e.g. class ExtendedDag(DAG))
+                v = cls._deserialize(v)
+            # else use v as it is.
 
             setattr(dag, k, v)
 

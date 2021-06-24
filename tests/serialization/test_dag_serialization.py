@@ -25,6 +25,7 @@ import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from glob import glob
+from typing import Dict, Optional, Tuple
 from unittest import mock
 
 import pendulum
@@ -843,6 +844,36 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag_params: set = set(dag_schema.keys()) - ignored_keys - keys_for_backwards_compat
         assert set(DAG.get_serialized_fields()) == dag_params
 
+    def test_dag_custom_serialized_fields_present(self):
+        class MyDAG(DAG):
+            __serialized_fields: Optional[frozenset] = None
+
+            def __init__(self, dag_id: str, a_tuple_value: Tuple, **kwargs):
+                super().__init__(dag_id, **kwargs)
+                self.a_tuple_value = a_tuple_value
+
+            @classmethod
+            def get_serialized_fields(cls):
+                if not cls.__serialized_fields:
+                    custom_fields = {"a_tuple_value"}
+                    cls.__serialized_fields = frozenset(super().get_serialized_fields() | custom_fields)
+                return cls.__serialized_fields
+
+        my_simple_tuple = ("a", 1337, "b", 7331)
+        dag = MyDAG(
+            "test_extra_serialized_template_fields",
+            a_tuple_value=my_simple_tuple,
+            start_date=datetime(2019, 8, 1),
+        )
+        with dag:
+            BaseOperator(task_id="task1")
+        assert dag.a_tuple_value == my_simple_tuple
+
+        blob = SerializedDAG.serialize_dag(dag)
+        serialized_dag = SerializedDAG.deserialize_dag(blob)
+
+        assert serialized_dag.a_tuple_value == my_simple_tuple  # type: ignore # pylint: disable=no-member
+
     def test_operator_subclass_changing_base_defaults(self):
         assert (
             BaseOperator(task_id='dummy').do_xcom_push is True
@@ -860,6 +891,30 @@ class TestStringifiedDAGs(unittest.TestCase):
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
 
         assert serialized_op.do_xcom_push is False
+
+    def test_operator_custom_serialized_fields_present(self):
+        class MyOperator(BaseOperator):
+            __serialized_fields: Optional[frozenset] = None
+
+            def __init__(self, a_dictionary_value: Dict, **kwargs):
+                super().__init__(**kwargs)
+                self.a_dictionary_value = a_dictionary_value
+
+            @classmethod
+            def get_serialized_fields(cls):
+                if not cls.__serialized_fields:
+                    custom_fields = {"a_dictionary_value"}
+                    cls.__serialized_fields = frozenset(super().get_serialized_fields() | custom_fields)
+                return cls.__serialized_fields
+
+        my_simple_dict = {"a": 1337, "b": 7331}
+        op = MyOperator(task_id="dummy", a_dictionary_value=my_simple_dict)
+        assert op.a_dictionary_value == my_simple_dict
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert serialized_op.a_dictionary_value == my_simple_dict  # type: ignore # pylint: disable=no-member
 
     def test_no_new_fields_added_to_base_operator(self):
         """
