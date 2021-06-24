@@ -50,7 +50,7 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
     """
     safe_dag_id = _strip_unsafe_kubernetes_special_chars(dag_id)
     safe_task_id = _strip_unsafe_kubernetes_special_chars(task_id)
-    return safe_dag_id + "-" + safe_task_id
+    return f"{safe_dag_id}-{safe_task_id}"
 
 
 def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]:
