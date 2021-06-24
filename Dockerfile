@@ -232,11 +232,11 @@ ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ARG INSTALL_FROM_PYPI="true"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * chardet<4 - required to keep snowflake happy
+# * chardet<4 and certifi<2021.0.0 required to keep snowflake happy
 # * urllib3 - required to keep boto3 happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 
@@ -253,13 +253,16 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
+    else \
+        # only compile assets if the prod image is build from sources
+        # otherwise they are already compiled-in
+        bash /scripts/docker/compile_www_assets.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
-    bash /scripts/docker/compile_www_assets.sh; \
     # make sure that all directories and files in .local are also group accessible
     find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw

@@ -55,8 +55,8 @@ MOCK_TASK_RESPONSE_DATA = {
     'ReplicationTaskArn': MOCK_TASK_ARN,
     'Status': 'creating',
 }
-MOCK_EMPTY_DESCRIBE_RESPONSE = {'Marker': None, 'ReplicationTasks': []}
-MOCK_DESCRIBE_RESPONSE = {'Marker': None, 'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA]}
+MOCK_DESCRIBE_RESPONSE = {'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA]}
+MOCK_DESCRIBE_RESPONSE_WITH_MARKER = {'ReplicationTasks': [MOCK_TASK_RESPONSE_DATA], 'Marker': 'marker'}
 MOCK_CREATE_RESPONSE = {'ReplicationTask': MOCK_TASK_RESPONSE_DATA}
 MOCK_START_RESPONSE = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'starting'}}
 MOCK_STOP_RESPONSE = {'ReplicationTask': {**MOCK_TASK_RESPONSE_DATA, 'Status': 'stopping'}}
@@ -72,7 +72,7 @@ class TestDmsHook(unittest.TestCase):
 
     @mock.patch.object(DmsHook, 'get_conn')
     def test_describe_replication_tasks_with_no_tasks_found(self, mock_conn):
-        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_EMPTY_DESCRIBE_RESPONSE
+        mock_conn.return_value.describe_replication_tasks.return_value = {}
 
         marker, tasks = self.dms.describe_replication_tasks()
 
@@ -91,6 +91,20 @@ class TestDmsHook(unittest.TestCase):
 
         mock_conn.return_value.describe_replication_tasks.assert_called_with(**describe_tasks_kwargs)
         assert marker is None
+        assert len(tasks) == 1
+        assert tasks[0]['ReplicationTaskArn'] == MOCK_TASK_ARN
+
+    @mock.patch.object(DmsHook, 'get_conn')
+    def test_describe_teplication_tasks_with_marker(self, mock_conn):
+        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE_WITH_MARKER
+        describe_tasks_kwargs = {
+            'Filters': [{'Name': 'replication-task-id', 'Values': [MOCK_DATA['replication_task_id']]}]
+        }
+
+        marker, tasks = self.dms.describe_replication_tasks(**describe_tasks_kwargs)
+
+        mock_conn.return_value.describe_replication_tasks.assert_called_with(**describe_tasks_kwargs)
+        assert marker == MOCK_DESCRIBE_RESPONSE_WITH_MARKER['Marker']
         assert len(tasks) == 1
         assert tasks[0]['ReplicationTaskArn'] == MOCK_TASK_ARN
 
@@ -125,7 +139,7 @@ class TestDmsHook(unittest.TestCase):
 
     @mock.patch.object(DmsHook, 'get_conn')
     def test_get_task_status_with_no_task_found(self, mock_conn):
-        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_EMPTY_DESCRIBE_RESPONSE
+        mock_conn.return_value.describe_replication_tasks.return_value = {}
         status = self.dms.get_task_status(MOCK_TASK_ARN)
 
         mock_conn.return_value.describe_replication_tasks.assert_called_once()

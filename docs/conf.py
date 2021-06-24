@@ -632,6 +632,15 @@ autoapi_root = '_api'
 # TOC tree entry yourself.
 autoapi_add_toctree_entry = False
 
+# By default autoapi will include private members -- we don't want that!
+autoapi_options = [
+    'members',
+    'undoc-members',
+    'show-inheritance',
+    'show-module-summary',
+    'special-members',
+]
+
 # -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
 

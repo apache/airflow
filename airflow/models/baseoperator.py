@@ -136,6 +136,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         @functools.wraps(func)
         def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
+            from airflow.utils.task_group import TaskGroupContext
 
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
@@ -146,6 +147,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag:
                 dag_args = copy.copy(dag.default_args) or {}
                 dag_params = copy.copy(dag.params) or {}
+                task_group = TaskGroupContext.get_current_task_group(dag)
+                if task_group:
+                    dag_args.update(task_group.default_args)
 
             params = kwargs.get('params', {}) or {}
             dag_params.update(params)

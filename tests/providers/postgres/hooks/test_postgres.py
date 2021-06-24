@@ -139,6 +139,33 @@ class TestPostgresHookConn(unittest.TestCase):
             [get_cluster_credentials_call, get_cluster_credentials_call]
         )
 
+    def test_get_uri_from_connection_without_schema_override(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="postgres",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
+        assert "postgres://login:password@host:1/schema" == self.db_hook.get_uri()
+
+    def test_get_uri_from_connection_with_schema_override(self):
+        hook = PostgresHook(schema='schema-override')
+        hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="postgres",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
+        assert "postgres://login:password@host:1/schema-override" == hook.get_uri()
+
 
 class TestPostgresHook(unittest.TestCase):
     def __init__(self, *args, **kwargs):

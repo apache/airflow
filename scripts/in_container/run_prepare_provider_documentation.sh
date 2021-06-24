@@ -96,19 +96,19 @@ function run_prepare_documentation() {
     echo
     if [[ "${#prepared_documentation[@]}" != "0" ]]; then
         echo "${COLOR_GREEN}   Success:${COLOR_RESET}"
-        echo "${prepared_documentation[@]}" | fold -w 100
+        echo "${prepared_documentation[@]}" | fold -sw 100
     fi
     if [[ "${#skipped_documentation[@]}" != "0" ]]; then
         echo "${COLOR_YELLOW}   Skipped:${COLOR_RESET}"
-        echo "${skipped_documentation[@]}" | fold -w 100
+        echo "${skipped_documentation[@]}" | fold -sw 100
     fi
     if [[ "${#doc_only_documentation[@]}" != "0" ]]; then
         echo "${COLOR_YELLOW}   Marked as doc-only (please commit those!):${COLOR_RESET}"
-        echo "${doc_only_documentation[@]}" | fold -w 100
+        echo "${doc_only_documentation[@]}" | fold -sw 100
     fi
     if [[ "${#error_documentation[@]}" != "0" ]]; then
         echo "${COLOR_RED}   Errors:${COLOR_RESET}"
-        echo "${error_documentation[@]}" | fold -w 100
+        echo "${error_documentation[@]}" | fold -sw 100 | sed "s/^/  /" | sed "s/$/\\/"
     fi
     echo
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
@@ -117,9 +117,28 @@ function run_prepare_documentation() {
         echo "${COLOR_RED}There were errors when preparing documentation. Exiting! ${COLOR_RESET}"
         exit 1
     else
+        if [[ ${GENERATE_PROVIDERS_ISSUE=} == "true" ]]; then
+            echo
+            python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content "${prepared_documentation[@]}"
+            echo
+        fi
+        echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}You can separately generate content of the issue to create to track testing status by running this command${COLOR_RESET}"
+        echo "${COLOR_YELLOW}You can optionally exclude some PRs via --excluded-pr-list option containing coma-separated list of pr numbers${COLOR_RESET}"
+        echo
+        echo "python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content \\"
+        echo "${prepared_documentation[@]}"  | fold -sw 100 | sed "s/^/  /" | sed "s/$/ \\\\/"
+        echo "  [--excluded-pr-list=\"\" ]"
+        echo
+        echo "${COLOR_YELLOW}You can also run it here by rerunning the prepare-providers-documentation${COLOR_RESET}"
+        echo "${COLOR_YELLOW}with --generate-providers-issue and --forward-credentials flag (you have to have GITHUB_TOKEN variable set)${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Please review the updated files, classify the changelog entries and commit the changes!${COLOR_RESET}"
         echo
+
     fi
 }
 

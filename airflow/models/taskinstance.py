@@ -34,7 +34,7 @@ import jinja2
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_, tuple_
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -61,6 +61,7 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -133,8 +134,9 @@ def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
 def clear_task_instances(
     tis,
     session,
-    dag_run_state: str = State.RUNNING,
+    activate_dag_runs=None,
     dag=None,
+    dag_run_state: Union[str, Literal[False]] = State.RUNNING,
 ):
     """
     Clears a set of task instances, but makes sure the running ones
@@ -145,6 +147,7 @@ def clear_task_instances(
     :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
         be changed.
     :param dag: DAG object
+    :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
     task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
@@ -205,6 +208,16 @@ def clear_task_instances(
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # noqa
             job.state = State.SHUTDOWN
 
+    if activate_dag_runs is not None:
+        warnings.warn(
+            "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
+            "Please use `dag_run_state`",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not activate_dag_runs:
+            dag_run_state = False
+
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -233,7 +246,7 @@ class TaskInstanceKey(NamedTuple):
     dag_id: str
     task_id: str
     execution_date: datetime
-    try_number: int
+    try_number: int = 1
 
     @property
     def primary(self) -> Tuple[str, str, datetime]:
@@ -248,6 +261,14 @@ class TaskInstanceKey(NamedTuple):
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
         """Returns TaskInstanceKey with provided ``try_number``"""
         return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, try_number)
+
+    @property
+    def key(self) -> "TaskInstanceKey":
+        """For API-compatibly with TaskInstance.
+
+        Returns self
+        """
+        return self
 
 
 class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
@@ -1936,11 +1957,14 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @staticmethod
     def filter_for_tis(tis: Iterable[Union["TaskInstance", TaskInstanceKey]]) -> Optional[BooleanClauseList]:
         """Returns SQLAlchemy filter to query selected task instances"""
+        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
+        # Or it might be a generator, but we need to be able to iterate over it more than once
+        tis = list(tis)
+
         if not tis:
             return None
 
-        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
-        first = list(tis)[0]
+        first = tis[0]
 
         dag_id = first.dag_id
         execution_date = first.execution_date
@@ -1959,14 +1983,20 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 TaskInstance.execution_date.in_(t.execution_date for t in tis),
                 TaskInstance.task_id == first_task_id,
             )
-        return or_(
-            and_(
-                TaskInstance.dag_id == ti.dag_id,
-                TaskInstance.task_id == ti.task_id,
-                TaskInstance.execution_date == ti.execution_date,
+
+        if settings.Session.bind.dialect.name == 'mssql':
+            return or_(
+                and_(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.execution_date == ti.execution_date,
+                )
+                for ti in tis
             )
-            for ti in tis
-        )
+        else:
+            return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.execution_date).in_(
+                [ti.key.primary for ti in tis]
+            )
 
 
 # State of the task instance.

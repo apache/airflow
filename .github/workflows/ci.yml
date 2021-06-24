@@ -24,7 +24,9 @@ on:  # yamllint disable-line rule:truthy
     branches: ['main', 'v[0-9]+-[0-9]+-test']
   pull_request:
     branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
-
+permissions:
+  # All other permissions are set to none
+  contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   FORCE_ANSWER_TO_QUESTIONS: "yes"
@@ -35,7 +37,6 @@ env:
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
-  # Might be either 'ghcr.io' or 'docker.pkg.github.com'
   GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
@@ -48,7 +49,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # In builds from forks, this token is empty, and this is good because such builds do not even try
   # to push images to the registry.
-  CONTAINER_REGISTRY_TOKEN: ${{ secrets.PAT_CR }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
@@ -320,8 +320,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-          # Needs to fetch all history to be able to verify changelog generation
-          fetch-depth: 0
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
@@ -522,6 +520,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       NON_INTERACTIVE: "true"
+      GENERATE_PROVIDERS_ISSUE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -569,6 +568,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
+      NON_INTERACTIVE: "true"
+      GENERATE_PROVIDERS_ISSUE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -1098,6 +1099,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           retention-days: 7
 
   push-prod-images-to-github-registry:
+    permissions:
+      packages: write
     timeout-minutes: 10
     name: "Push PROD images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -1160,6 +1163,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PUSH_PYTHON_BASE_IMAGE: ${{ steps.push-python-image.outputs.wanted}}
 
   push-ci-images-to-github-registry:
+    permissions:
+      packages: write
     timeout-minutes: 10
     name: "Push CI images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -1204,6 +1209,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
 
   constraints:
+    permissions:
+      contents: write
     timeout-minutes: 10
     name: "Constraints"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}

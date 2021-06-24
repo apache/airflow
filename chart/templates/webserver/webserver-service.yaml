@@ -42,9 +42,12 @@ spec:
     component: webserver
     release: {{ .Release.Name }}
   ports:
-    - name: airflow-ui
-      protocol: TCP
-      port: {{ .Values.ports.airflowUI }}
+  {{ range .Values.webserver.service.ports }}
+    -
+      {{- range $key, $val := . }}
+      {{ $key }}: {{ tpl (toString $val) $ }}
+      {{- end }}
+  {{- end }}
   {{- if .Values.webserver.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.webserver.service.loadBalancerIP }}
   {{- end }}
