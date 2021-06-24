@@ -199,18 +199,13 @@ class BaseSerialization:
     @classmethod
     def serialize_timezone(cls, var: datetime.tzinfo) -> Any:
         """Serializes a timezone to json"""
-        tz_name = None
-        try:
-            tz_name = var.name
-        except AttributeError:
-            pass
+        tz_name = getattr(var, 'name', None)
         if not tz_name:
             try:
                 tz_name = var.tzname(datetime.datetime.utcnow())
             except InvalidTimezone:
-                pass
-        if not tz_name:
-            raise TypeError(f"the timezone {var} can't be serialized")
+                raise TypeError(f"the timezone {var} can't be serialized")
+
 
         return cls._encode(str(tz_name), type_=DAT.TIMEZONE)
 
