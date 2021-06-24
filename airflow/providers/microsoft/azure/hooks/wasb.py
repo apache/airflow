@@ -46,6 +46,9 @@ class WasbHook(BaseHook):
     passed to the `BlockBlockService()` constructor. For example, authenticate
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
+    If no authentication configuration is provided, managed identity will be used (applicable
+    when using Azure compute infrastructure).
+
     :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :type wasb_conn_id: str
     :param public_read: Whether an anonymous public read access should be used. default is False
