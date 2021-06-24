@@ -203,9 +203,11 @@ class BaseSerialization:
         if not tz_name:
             try:
                 tz_name = var.tzname(datetime.datetime.utcnow())
-            except InvalidTimezone:
-                raise TypeError(f"the timezone {var} can't be serialized")
+            except:
+                pass
 
+        if not tz_name:
+            raise TypeError(f"the timezone {var} can't be serialized")
 
         return cls._encode(str(tz_name), type_=DAT.TIMEZONE)
 
@@ -325,7 +327,7 @@ class BaseSerialization:
             return pendulum.parse("2021-01-01T12:00:00" + tz_name).tzinfo
         except ValueError:
             pass
-        raise ValueError("{tz_name} can't be converted to pendulum.tz.timezone.Timezone")
+        raise ValueError(f"{tz_name} can't be converted to pendulum.tz.timezone.Timezone")
 
     @classmethod
     def _deserialize_timedelta(cls, seconds: int) -> datetime.timedelta:
