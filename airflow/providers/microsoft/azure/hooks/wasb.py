@@ -140,9 +140,13 @@ class WasbHook(BaseHook):
             return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
 
         # Fall back to old auth (password) or use managed identity if not provided.
+        credential = conn.password
+        if not credential:
+            credential = ManagedIdentityCredential()
+            self.log.info("Using managed identity as credential")
         return BlobServiceClient(
             account_url=f"https://{conn.login}.blob.core.windows.net/",
-            credential=conn.password or ManagedIdentityCredential(),
+            credential=conn.password,
             **extra,
         )
 
