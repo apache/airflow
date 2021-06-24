@@ -29,15 +29,13 @@ def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
     """
     Kubernetes only supports lowercase alphanumeric characters, "-" and "." in
     the pod name.
-    However, there are special rules about how "-" and "." can be used so let's
-    only keep
-    alphanumeric chars  see here for detail:
+    See here for detail:
     https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
 
     :param string: The requested Pod name
     :return: Pod name stripped of any unsafe characters
     """
-    return ''.join(ch.lower() for ch in list(string) if ch.isalnum())
+    return ''.join(ch.lower() for ch in list(string) if ch.isalnum() or ch in ['-'])
 
 
 def create_pod_id(dag_id: str, task_id: str) -> str:
@@ -52,7 +50,7 @@ def create_pod_id(dag_id: str, task_id: str) -> str:
     """
     safe_dag_id = _strip_unsafe_kubernetes_special_chars(dag_id)
     safe_task_id = _strip_unsafe_kubernetes_special_chars(task_id)
-    return safe_dag_id + safe_task_id
+    return safe_dag_id + "-" + safe_task_id
 
 
 def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]:
