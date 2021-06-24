@@ -1105,6 +1105,8 @@ config:
 
 multiNamespaceMode: false
 
+# The full text value to mount as the "pod_template_file.yaml" file used for KubernetesExecutor workers.
+# If not set, a default one is created using "files/pod-template-file.kubernetes-helm-yaml"
 podTemplate: ~
 
 # Git sync

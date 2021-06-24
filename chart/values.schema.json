@@ -2673,7 +2673,7 @@
             "default": false
         },
         "podTemplate": {
-            "description": "pod_template used for KubernetesExecutor workers",
+            "description": "The full text value to mount as the ``pod_template_file.yaml`` used for KubernetesExecutor workers",
             "type": [
                 "string",
                 "null"
