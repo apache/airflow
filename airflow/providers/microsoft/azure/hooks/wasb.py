@@ -348,13 +348,16 @@ class WasbHook(BaseHook):
         """
         container_client = self._get_container_client(container_name)
         try:
-            self.log.info('Attempting to create container: %s', container_name)
+            self.log.debug('Attempting to create container: %s', container_name)
             container_client.create_container()
             self.log.info("Created container: %s", container_name)
             return container_client
         except ResourceExistsError:
-            self.log.info("Container %s already exists", container_name)
+            self.log.debug("Container %s already exists", container_name)
             return container_client
+        except:  # noqa: E722
+            self.log.info('Error creating container: %s', container_name)
+            raise
 
     def delete_container(self, container_name: str) -> None:
         """
@@ -364,11 +367,14 @@ class WasbHook(BaseHook):
         :type container_name: str
         """
         try:
-            self.log.info('Attempting to delete container: %s', container_name)
+            self.log.debug('Attempting to delete container: %s', container_name)
             self._get_container_client(container_name).delete_container()
             self.log.info('Deleted container: %s', container_name)
         except ResourceNotFoundError:
-            self.log.info('Container %s not found', container_name)
+            self.log.info('Unable to delete container %s (not found)', container_name)
+        except:  # noqa: E722
+            self.log.info('Error deleting container: %s', container_name)
+            raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:
         """
