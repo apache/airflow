@@ -71,6 +71,13 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         'rsa': paramiko.RSAKey,
     }
 
+    _host_key_mappings = {
+        'rsa': paramiko.RSAKey,
+        'dss': paramiko.DSSKey,
+        'ecdsa': paramiko.ECDSAKey,
+        'ed25519': paramiko.Ed25519Key,
+    }
+
     conn_name_attr = 'ssh_conn_id'
     default_conn_name = 'ssh_default'
     conn_type = 'ssh'
@@ -86,7 +93,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
             },
         }
 
-    def __init__(  # pylint: disable=too-many-statements
+    def __init__(  # pylint: disable=too-many-statements, too-many-branches
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -120,7 +127,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         self.client = None
 
         # Use connection to override defaults
-        if self.ssh_conn_id is not None:
+        if self.ssh_conn_id is not None:  # pylint: disable=too-many-nested-blocks
             conn = self.get_connection(self.ssh_conn_id)
             if self.username is None:
                 self.username = conn.login
@@ -139,29 +146,45 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 private_key_passphrase = extra_options.get('private_key_passphrase')
                 if private_key:
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
+
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
-                if (
-                    "no_host_key_check" in extra_options
-                    and str(extra_options["no_host_key_check"]).lower() == 'false'
-                ):
-                    self.no_host_key_check = False
+
+                host_key = extra_options.get("host_key")
+                no_host_key_check = extra_options.get("no_host_key_check")
+
+                if no_host_key_check is not None:
+                    no_host_key_check = str(no_host_key_check).lower() == "true"
+                    if host_key is not None and no_host_key_check:
+                        raise ValueError("Must check host key when provided")
+
+                    self.no_host_key_check = no_host_key_check
+
                 if (
                     "allow_host_key_change" in extra_options
                     and str(extra_options["allow_host_key_change"]).lower() == 'true'
                 ):
                     self.allow_host_key_change = True
+
                 if (
                     "look_for_keys" in extra_options
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
-                if "host_key" in extra_options and self.no_host_key_check is False:
-                    decoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
-                    self.host_key = paramiko.RSAKey(data=decoded_host_key)
+
+                if host_key is not None:
+                    if host_key.startswith("ssh-"):
+                        key_type, host_key = host_key.split(None)[:2]
+                        key_constructor = self._host_key_mappings[key_type[4:]]
+                    else:
+                        key_constructor = paramiko.RSAKey
+                    decoded_host_key = decodebytes(host_key.encode('utf-8'))
+                    self.host_key = key_constructor(data=decoded_host_key)
+                    self.no_host_key_check = False
+
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
@@ -218,7 +241,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
-                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
