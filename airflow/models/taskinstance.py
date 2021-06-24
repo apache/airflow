@@ -1693,11 +1693,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                     "rendering of template_fields."
                 ) from e
 
-    def get_rendered_k8s_spec(self):
+    @provide_session
+    def get_rendered_k8s_spec(self, session=None):
         """Fetch rendered template fields from DB"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self)
+        rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self, session=session)
         if not rendered_k8s_spec:
             try:
                 rendered_k8s_spec = self.render_k8s_pod_yaml()
