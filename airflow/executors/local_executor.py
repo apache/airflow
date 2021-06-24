@@ -66,6 +66,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         # We know we've just started a new process, so lets disconnect from the metadata db now
         settings.engine.pool.dispose()
         settings.engine.dispose()
+        setproctitle("airflow worker -- LocalExecutor")
         return super().run()
 
     def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
@@ -79,12 +80,15 @@ class LocalWorkerBase(Process, LoggingMixin):
             return
 
         self.log.info("%s running %s", self.__class__.__name__, command)
+        setproctitle(f"airflow worker -- LocalExecutor: {command}")
         if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
             state = self._execute_work_in_subprocess(command)
         else:
             state = self._execute_work_in_fork(command)
 
         self.result_queue.put((key, state))
+        # Remove the command since the worker is done executing the task
+        setproctitle("airflow worker -- LocalExecutor")
 
     def _execute_work_in_subprocess(self, command: CommandType) -> str:
         try:
