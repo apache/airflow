@@ -19,6 +19,13 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``AWS DataSync default polling adjusted from 5s to 30s (#11011)``
+
 2.0.0
 .....
 
@@ -65,7 +72,6 @@ Bug Fixes
    * ``Add Connection Documentation for Providers (#15499)``
    * ``More documentation update for June providers release (#16405)``
    * ``Synchronizes updated changelog after buggfix release (#16464)``
-   * ``AWS DataSync default polling adjusted from 5s to 30s (#11011)``
 
 1.4.0
 .....
