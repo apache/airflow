@@ -146,7 +146,7 @@ class WasbHook(BaseHook):
             self.log.info("Using managed identity as credential")
         return BlobServiceClient(
             account_url=f"https://{conn.login}.blob.core.windows.net/",
-            credential=conn.password,
+            credential=credential,
             **extra,
         )
 
