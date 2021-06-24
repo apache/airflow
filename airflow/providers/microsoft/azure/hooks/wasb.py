@@ -29,7 +29,7 @@ field (see connection `wasb_default` for an example).
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential
+from azure.identity import ClientSecretCredential, ManagedIdentityCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
 
 from airflow.exceptions import AirflowException
@@ -138,11 +138,13 @@ class WasbHook(BaseHook):
             return BlobServiceClient(account_url=extra.get('sas_token'))
         if sas_token and not sas_token.startswith('https'):
             return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
-        else:
-            # Fall back to old auth
-            return BlobServiceClient(
-                account_url=f"https://{conn.login}.blob.core.windows.net/", credential=conn.password, **extra
-            )
+
+        # Fall back to old auth (password) or use managed identity if not provided.
+        return BlobServiceClient(
+            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            credential=conn.password or ManagedIdentityCredential(),
+            **extra,
+        )
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
