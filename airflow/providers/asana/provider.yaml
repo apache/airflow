@@ -23,6 +23,10 @@ description: |
 
 versions:
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Asana
     external-doc-url: https://developers.asana.com/docs

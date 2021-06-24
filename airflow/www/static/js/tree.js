@@ -28,6 +28,7 @@ import getMetaValue from './meta_value';
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const treeDataUrl = getMetaValue('tree_data');
+const numRuns = getMetaValue('num_runs');
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -71,8 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   treeDepth += 1;
 
-  const innerWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
-  const squareX = innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
+  const squareX = (treeDepth * 25) + 200;
 
   const squareSpacing = 2;
   const margin = {
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function handleRefresh() {
     $('#loading-dots').css('display', 'inline-block');
-    $.get(`${treeDataUrl}?dag_id=${dagId}`)
+    $.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}`)
       .done(
         (runs) => {
           const newData = {

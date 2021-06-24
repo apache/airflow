@@ -248,8 +248,10 @@ def post_clear_task_instances(dag_id: str, session=None):
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
-    task_instances = dag.clear(get_tis=True, **data)
-    if not data["dry_run"]:
+    dry_run = data.pop('dry_run')
+    # We always pass dry_run here, otherwise this would try to confirm on the terminal!
+    task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
+    if not dry_run:
         clear_task_instances(
             task_instances, session, dag=dag, dag_run_state=State.RUNNING if reset_dag_runs else False
         )

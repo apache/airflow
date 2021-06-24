@@ -145,6 +145,16 @@ class SchedulerTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_should_create_default_affinity(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert {"component": "scheduler"} == jmespath.search(
+            "spec.template.spec.affinity.podAntiAffinity."
+            "preferredDuringSchedulingIgnoredDuringExecution[0]."
+            "podAffinityTerm.labelSelector.matchLabels",
+            docs[0],
+        )
+
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
@@ -204,10 +214,22 @@ class SchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
         assert "169Mi" == jmespath.search(
             "spec.template.spec.containers[0].resources.requests.memory", docs[0]
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+        assert "128Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
+        )
+        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search(
+            "spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]
+        )
 
     def test_scheduler_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -364,3 +386,46 @@ class SchedulerTest(unittest.TestCase):
 
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            ({"gitSync": {"enabled": True}},),
+            ({"gitSync": {"enabled": True}, "persistence": {"enabled": True}},),
+        ]
+    )
+    def test_dags_gitsync_sidecar_and_init_container(self, dags_values):
+        docs = render_chart(
+            values={"dags": dags_values},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        assert "git-sync-init" in [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+
+    def test_log_groomer_resources(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "logGroomerSidecar": {
+                        "resources": {
+                            "requests": {"memory": "2Gi", "cpu": "1"},
+                            "limits": {"memory": "3Gi", "cpu": "2"},
+                        }
+                    }
+                }
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "limits": {
+                "cpu": "2",
+                "memory": "3Gi",
+            },
+            "requests": {
+                "cpu": "1",
+                "memory": "2Gi",
+            },
+        } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])

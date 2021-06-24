@@ -34,8 +34,7 @@ import jinja2
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_, tuple_
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
@@ -62,6 +61,7 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -70,7 +70,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
@@ -134,8 +134,9 @@ def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
 def clear_task_instances(
     tis,
     session,
-    dag_run_state: str = State.RUNNING,
+    activate_dag_runs=None,
     dag=None,
+    dag_run_state: Union[str, Literal[False]] = State.RUNNING,
 ):
     """
     Clears a set of task instances, but makes sure the running ones
@@ -146,6 +147,7 @@ def clear_task_instances(
     :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
         be changed.
     :param dag: DAG object
+    :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
     task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
@@ -206,6 +208,16 @@ def clear_task_instances(
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # noqa
             job.state = State.SHUTDOWN
 
+    if activate_dag_runs is not None:
+        warnings.warn(
+            "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
+            "Please use `dag_run_state`",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not activate_dag_runs:
+            dag_run_state = False
+
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -234,7 +246,7 @@ class TaskInstanceKey(NamedTuple):
     dag_id: str
     task_id: str
     execution_date: datetime
-    try_number: int
+    try_number: int = 1
 
     @property
     def primary(self) -> Tuple[str, str, datetime]:
@@ -249,6 +261,14 @@ class TaskInstanceKey(NamedTuple):
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
         """Returns TaskInstanceKey with provided ``try_number``"""
         return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, try_number)
+
+    @property
+    def key(self) -> "TaskInstanceKey":
+        """For API-compatibly with TaskInstance.
+
+        Returns self
+        """
+        return self
 
 
 class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
@@ -534,12 +554,13 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
         return base_url + (
-            "/success"
+            "/confirm"
             f"?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
             f"&execution_date={iso}"
             "&upstream=false"
             "&downstream=false"
+            "&state=success"
         )
 
     @provide_session
@@ -1088,12 +1109,23 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
 
-    def _date_or_empty(self, attr):
-        if hasattr(self, attr):
-            date = getattr(self, attr)
-            if date:
-                return date.strftime('%Y%m%dT%H%M%S')
-        return ''
+    def _date_or_empty(self, attr: str):
+        result = getattr(self, attr, None)  # type: datetime
+        return result.strftime('%Y%m%dT%H%M%S') if result else ''
+
+    def _log_state(self, lead_msg: str = ''):
+        self.log.info(
+            '%sMarking task as %s.'
+            + ' dag_id=%s, task_id=%s,'
+            + ' execution_date=%s, start_date=%s, end_date=%s',
+            lead_msg,
+            self.state.upper(),
+            self.dag_id,
+            self.task_id,
+            self._date_or_empty('execution_date'),
+            self._date_or_empty('start_date'),
+            self._date_or_empty('end_date'),
+        )
 
     @provide_session
     @Sentry.enrich_errors
@@ -1148,15 +1180,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 self.log.info(e)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
-            self.log.info(
-                'Marking task as SKIPPED. '
-                'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                self.dag_id,
-                self.task_id,
-                self._date_or_empty('execution_date'),
-                self._date_or_empty('start_date'),
-                self._date_or_empty('end_date'),
-            )
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode)
@@ -1182,79 +1205,15 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         finally:
             Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
 
-        # Recording SUCCESS
+        # Recording SKIPPED or SUCCESS
         self.end_date = timezone.utcnow()
-        self.log.info(
-            'Marking task as SUCCESS. '
-            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-            self.dag_id,
-            self.task_id,
-            self._date_or_empty('execution_date'),
-            self._date_or_empty('start_date'),
-            self._date_or_empty('end_date'),
-        )
+        self._log_state()
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
 
         session.commit()
-
-        if not test_mode:
-            self._run_mini_scheduler_on_child_tasks(session)
-
-    @provide_session
-    @Sentry.enrich_errors
-    def _run_mini_scheduler_on_child_tasks(self, session=None) -> None:
-        if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
-            from airflow.models.dagrun import DagRun  # Avoid circular import
-
-            try:
-                # Re-select the row with a lock
-                dag_run = with_row_locks(
-                    session.query(DagRun).filter_by(
-                        dag_id=self.dag_id,
-                        execution_date=self.execution_date,
-                    ),
-                    session=session,
-                ).one()
-
-                # Get a partial dag with just the specific tasks we want to
-                # examine. In order for dep checks to work correctly, we
-                # include ourself (so TriggerRuleDep can check the state of the
-                # task we just executed)
-                partial_dag = self.task.dag.partial_subset(
-                    self.task.downstream_task_ids,
-                    include_downstream=False,
-                    include_upstream=False,
-                    include_direct_upstream=True,
-                )
-
-                dag_run.dag = partial_dag
-                info = dag_run.task_instance_scheduling_decisions(session)
-
-                skippable_task_ids = {
-                    task_id
-                    for task_id in partial_dag.task_ids
-                    if task_id not in self.task.downstream_task_ids
-                }
-
-                schedulable_tis = [ti for ti in info.schedulable_tis if ti.task_id not in skippable_task_ids]
-                for schedulable_ti in schedulable_tis:
-                    if not hasattr(schedulable_ti, "task"):
-                        schedulable_ti.task = self.task.dag.get_task(schedulable_ti.task_id)
-
-                num = dag_run.schedule_tis(schedulable_tis)
-                self.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
-
-                session.commit()
-            except OperationalError as e:
-                # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-                self.log.info(
-                    f"Skipping mini scheduling run due to exception: {e.statement}",
-                    exc_info=True,
-                )
-                session.rollback()
 
     def _prepare_and_execute_task_with_callbacks(self, context, task):
         """Prepare Task for Execution"""
@@ -1408,6 +1367,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             session=session,
         )
         if not res:
+            self.log.info("CHECK AND CHANGE")
             return
 
         try:
@@ -1514,25 +1474,12 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
-            if force_fail:
-                log_message = "Immediate failure requested. Marking task as FAILED."
-            else:
-                log_message = "Marking task as FAILED."
             email_for_state = task.email_on_failure
         else:
             self.state = State.UP_FOR_RETRY
-            log_message = "Marking task as UP_FOR_RETRY."
             email_for_state = task.email_on_retry
 
-        self.log.info(
-            '%s dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-            log_message,
-            self.dag_id,
-            self.task_id,
-            self._safe_date('execution_date', '%Y%m%dT%H%M%S'),
-            self._safe_date('start_date', '%Y%m%dT%H%M%S'),
-            self._safe_date('end_date', '%Y%m%dT%H%M%S'),
-        )
+        self._log_state('Immediate failure requested. ' if force_fail else '')
         if email_for_state and task.email:
             try:
                 self.email_alert(error)
@@ -1557,12 +1504,6 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
         return self.task.retries and self.try_number <= self.max_tries
-
-    def _safe_date(self, date_attr, fmt):
-        result = getattr(self, date_attr, None)
-        if result is not None:
-            return result.strftime(fmt)
-        return ''
 
     @provide_session
     def get_template_context(self, session=None) -> Context:  # pylint: disable=too-many-locals
@@ -2016,11 +1957,14 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
     @staticmethod
     def filter_for_tis(tis: Iterable[Union["TaskInstance", TaskInstanceKey]]) -> Optional[BooleanClauseList]:
         """Returns SQLAlchemy filter to query selected task instances"""
+        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
+        # Or it might be a generator, but we need to be able to iterate over it more than once
+        tis = list(tis)
+
         if not tis:
             return None
 
-        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
-        first = list(tis)[0]
+        first = tis[0]
 
         dag_id = first.dag_id
         execution_date = first.execution_date
@@ -2039,14 +1983,20 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 TaskInstance.execution_date.in_(t.execution_date for t in tis),
                 TaskInstance.task_id == first_task_id,
             )
-        return or_(
-            and_(
-                TaskInstance.dag_id == ti.dag_id,
-                TaskInstance.task_id == ti.task_id,
-                TaskInstance.execution_date == ti.execution_date,
+
+        if settings.Session.bind.dialect.name == 'mssql':
+            return or_(
+                and_(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.execution_date == ti.execution_date,
+                )
+                for ti in tis
             )
-            for ti in tis
-        )
+        else:
+            return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.execution_date).in_(
+                [ti.key.primary for ti in tis]
+            )
 
 
 # State of the task instance.

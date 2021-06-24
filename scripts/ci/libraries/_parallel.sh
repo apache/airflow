@@ -60,6 +60,10 @@ function parallel::monitor_loop() {
     local progress_report_number=1
     local start_time
     local end_time
+    # To continue supporting Bash v3 we can't use associative arrays - so use a
+    # normal array and just check if the value is in it -- it will only ever be
+    # a few items long so it won't be too expensive
+    declare -a finished_jobs=()
     start_time=${SECONDS}
     while true
     do
@@ -72,12 +76,30 @@ function parallel::monitor_loop() {
         for directory in "${PARALLEL_MONITORED_DIR}"/*/*
         do
             parallel_process=$(basename "${directory}")
+            if ( IFS=$'\x1F';  [[ "$IFS${finished_jobs[*]}$IFS" == *"$IFS${parallel_process}$IFS"* ]] ) ; then
+              # Already finished, so don't print anything
+              continue
+            fi
 
             echo "${COLOR_BLUE}### The last lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
             echo
             tail -2 "${directory}/stdout" || true
             echo
+
+            if [[ -s "${directory}/status" ]]; then
+              finished_jobs+=("$parallel_process")
+              status=$(cat "${directory}/status")
+
+              if [[ $status == 0 ]]; then
+                local color="$COLOR_GREEN"
+              else
+                local color="$COLOR_RED"
+              fi
+              echo "${color}### Test ${parallel_process} exited with ${status}${COLOR_RESET}"
+            fi
+
             echo
+
         done
         echo
         echo "${COLOR_YELLOW}########### Monitoring progress end: ${progress_report_number} #################${COLOR_RESET}"

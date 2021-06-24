@@ -93,10 +93,18 @@ class GoogleDriveToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.bucket_name = destination_bucket or bucket_name
         if destination_bucket:
-            warnings.warn("`destination_bucket` is deprecated please use `bucket_name`", DeprecationWarning)
+            warnings.warn(
+                "`destination_bucket` is deprecated please use `bucket_name`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.object_name = destination_object or object_name
         if destination_object:
-            warnings.warn("`destination_object` is deprecated please use `object_name`", DeprecationWarning)
+            warnings.warn(
+                "`destination_object` is deprecated please use `object_name`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name

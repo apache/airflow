@@ -42,6 +42,7 @@ from typing import (
     Type,
     Union,
     cast,
+    overload,
 )
 
 import jinja2
@@ -65,10 +66,10 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagparam import DagParam
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
-from airflow.typing_compat import RePatternType
+from airflow.typing_compat import Literal, RePatternType
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
@@ -167,7 +168,7 @@ class DAG(LoggingMixin):
         params can be overridden at the task level.
     :type params: dict
     :param concurrency: the number of task instances allowed to run
-        concurrently in a single DagRun
+        concurrently
     :type concurrency: int
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
@@ -193,7 +194,7 @@ class DAG(LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
-    :param access_control: Specify optional DAG-level permissions, e.g.,
+    :param access_control: Specify optional DAG-level actions, e.g.,
         "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
     :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
@@ -216,6 +217,10 @@ class DAG(LoggingMixin):
         <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
+    :param render_template_as_native_obj: If True, uses a Jinja ```NativeEnvironment``
+        to render templates as native Python types. If False, a Jinja
+        ``Environment`` is used to render templates as string values.
+    :type render_template_as_native_obj: bool
     :param tags: List of tags to help filtering DAGS in the UI.
     :type tags: List[str]
     """
@@ -246,7 +251,8 @@ class DAG(LoggingMixin):
         user_defined_macros: Optional[Dict] = None,
         user_defined_filters: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
-        concurrency: int = conf.getint('core', 'dag_concurrency'),
+        concurrency: Optional[int] = None,
+        max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
         sla_miss_callback: Optional[Callable] = None,
@@ -279,7 +285,15 @@ class DAG(LoggingMixin):
 
         self._dag_id = dag_id
         self._full_filepath = full_filepath if full_filepath else ''
-        self._concurrency = concurrency
+        if concurrency and not max_active_tasks:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            max_active_tasks = concurrency
+        self._max_active_tasks = max_active_tasks
         self._pickle_id: Optional[int] = None
 
         self._description = description
@@ -411,9 +425,9 @@ class DAG(LoggingMixin):
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
         """
-        Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
+        Looks for outdated dag level actions (can_dag_read and can_dag_edit) in DAG
         access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
-        and replaces them with updated permissions (can_read and can_edit).
+        and replaces them with updated actions (can_read and can_edit).
         """
         if not access_control:
             return None
@@ -486,7 +500,7 @@ class DAG(LoggingMixin):
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
-                tz = pendulum.timezone(self.timezone.name)
+                tz = self.timezone
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self.normalized_schedule_interval is not None:
@@ -514,7 +528,7 @@ class DAG(LoggingMixin):
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_prev(datetime)
-                tz = pendulum.timezone(self.timezone.name)
+                tz = self.timezone
                 previous = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(previous)
         elif self.normalized_schedule_interval is not None:
@@ -552,8 +566,8 @@ class DAG(LoggingMixin):
         """
         Get the next execution date after the given ``date_last_automated_dagrun``, according to
         schedule_interval, start_date, end_date etc.  This doesn't check max active run or any other
-        "concurrency" type limits, it only performs calculations based on the various date and interval fields
-        of this dag and it's tasks.
+        "max_active_tasks" type limits, it only performs calculations based on the various date
+        and interval fields of this dag and it's tasks.
 
         :param date_last_automated_dagrun: The execution_date of the last scheduler or
             backfill triggered run for this dag
@@ -697,11 +711,25 @@ class DAG(LoggingMixin):
 
     @property
     def concurrency(self) -> int:
-        return self._concurrency
+        # TODO: Remove in Airflow 3.0
+        warnings.warn(
+            "The 'DAG.concurrency' attribute is deprecated. Please use 'DAG.max_active_tasks'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._max_active_tasks
 
     @concurrency.setter
     def concurrency(self, value: int):
-        self._concurrency = value
+        self._max_active_tasks = value
+
+    @property
+    def max_active_tasks(self) -> int:
+        return self._max_active_tasks
+
+    @max_active_tasks.setter
+    def max_active_tasks(self, value: int):
+        self._max_active_tasks = value
 
     @property
     def access_control(self):
@@ -782,7 +810,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
         """
-        Returns a boolean indicating whether the concurrency limit for this DAG
+        Returns a boolean indicating whether the max_active_tasks limit for this DAG
         has been reached
         """
         TI = TaskInstance
@@ -790,7 +818,7 @@ class DAG(LoggingMixin):
             TI.dag_id == self.dag_id,
             TI.state == State.RUNNING,
         )
-        return qry.scalar() >= self.concurrency
+        return qry.scalar() >= self.max_active_tasks
 
     @property
     def concurrency_reached(self):
@@ -801,6 +829,12 @@ class DAG(LoggingMixin):
             stacklevel=2,
         )
         return self.get_concurrency_reached()
+
+    @provide_session
+    def get_is_active(self, session=None) -> Optional[None]:
+        """Returns a boolean indicating whether this DAG is active"""
+        qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
+        return qry.value(DagModel.is_active)
 
     @provide_session
     def get_is_paused(self, session=None) -> Optional[None]:
@@ -905,22 +939,29 @@ class DAG(LoggingMixin):
         return query.scalar()
 
     @provide_session
-    def get_dagrun(self, execution_date, session=None):
+    def get_dagrun(
+        self,
+        execution_date: Optional[str] = None,
+        run_id: Optional[str] = None,
+        session: Optional[Session] = None,
+    ):
         """
-        Returns the dag run for a given execution date if it exists, otherwise
+        Returns the dag run for a given execution date or run_id if it exists, otherwise
         none.
 
         :param execution_date: The execution date of the DagRun to find.
+        :param run_id: The run_id of the DagRun to find.
         :param session:
         :return: The DagRun if found, otherwise None.
         """
-        dagrun = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
-            .first()
-        )
-
-        return dagrun
+        if not (execution_date or run_id):
+            raise TypeError("You must provide either the execution_date or the run_id")
+        query = session.query(DagRun)
+        if execution_date:
+            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
+        if run_id:
+            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.run_id == run_id)
+        return query.first()
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=None):
@@ -1020,16 +1061,121 @@ class DAG(LoggingMixin):
         self.get_task(upstream_task_id).set_downstream(self.get_task(downstream_task_id))
 
     @provide_session
-    def get_task_instances(self, start_date=None, end_date=None, state=None, session=None):
+    def get_task_instances(
+        self, start_date=None, end_date=None, state=None, session=None
+    ) -> Iterable[TaskInstance]:
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
 
-        tis = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.execution_date >= start_date,
-            TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+        return (
+            self._get_task_instances(
+                task_ids=None,
+                start_date=start_date,
+                end_date=end_date,
+                state=state,
+                include_subdags=False,
+                include_parentdag=False,
+                include_dependent_dags=False,
+                exclude_task_ids=[],
+                as_pk_tuple=False,
+                session=session,
+            )
+            .order_by(TaskInstance.execution_date)
+            .all()
         )
+
+    @overload
+    def _get_task_instances(
+        self,
+        *,
+        task_ids,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+        state: Union[str, List[str]],
+        include_subdags: bool,
+        include_parentdag: bool,
+        include_dependent_dags: bool,
+        exclude_task_ids: Collection[str],
+        as_pk_tuple: Literal[True],
+        session: Session,
+        dag_bag: "DagBag" = None,
+        recursion_depth: int = 0,
+        max_recursion_depth: int = None,
+        visited_external_tis: Set[Tuple[str, str, datetime]] = None,
+    ) -> Set["TaskInstanceKey"]:
+        ...  # pragma: no cover
+
+    @overload
+    def _get_task_instances(
+        self,
+        *,
+        task_ids,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+        state: Union[str, List[str]],
+        include_subdags: bool,
+        include_parentdag: bool,
+        include_dependent_dags: bool,
+        as_pk_tuple: Literal[False],
+        exclude_task_ids: Collection[str],
+        session: Session,
+        dag_bag: "DagBag" = None,
+        recursion_depth: int = 0,
+        max_recursion_depth: int = None,
+        visited_external_tis: Set[Tuple[str, str, datetime]] = None,
+    ) -> Iterable[TaskInstance]:
+        ...  # pragma: no cover
+
+    def _get_task_instances(
+        self,
+        *,
+        task_ids,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+        state: Union[str, List[str]],
+        include_subdags: bool,
+        include_parentdag: bool,
+        include_dependent_dags: bool,
+        as_pk_tuple: bool,
+        exclude_task_ids: Collection[str],
+        session: Session,
+        dag_bag: "DagBag" = None,
+        recursion_depth: int = 0,
+        max_recursion_depth: int = None,
+        visited_external_tis: Set[Tuple[str, str, datetime]] = None,
+    ) -> Union[Iterable[TaskInstance], Set[TaskInstanceKey]]:
+        TI = TaskInstance
+
+        # If we are looking at subdags/dependent dags we want to avoid UNION calls
+        # in SQL (it doesn't play nice with fields that have no equality operator,
+        # like JSON types), we instead build our result set separately.
+        #
+        # This will be empty if we are only looking at one dag, in which case
+        # we can return the filtered TI query object directly.
+        result: Set[TaskInstanceKey] = set()
+
+        # Do we want full objects, or just the primary columns?
+        if as_pk_tuple:
+            tis = session.query(TI.dag_id, TI.task_id, TI.execution_date)
+        else:
+            tis = session.query(TaskInstance)
+
+        if include_subdags:
+            # Crafting the right filter for dag_id and task_ids combo
+            conditions = []
+            for dag in self.subdags + [self]:
+                conditions.append(
+                    (TaskInstance.dag_id == dag.dag_id) & TaskInstance.task_id.in_(dag.task_ids)
+                )
+            tis = tis.filter(or_(*conditions))
+        else:
+            tis = tis.filter(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
+        if start_date:
+            tis = tis.filter(TaskInstance.execution_date >= start_date)
+        if task_ids:
+            tis = tis.filter(TaskInstance.task_id.in_(task_ids))
+
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
@@ -1038,6 +1184,8 @@ class DAG(LoggingMixin):
         if state:
             if isinstance(state, str):
                 tis = tis.filter(TaskInstance.state == state)
+            elif len(state) == 1:
+                tis = tis.filter(TaskInstance.state == state[0])
             else:
                 # this is required to deal with NULL values
                 if None in state:
@@ -1050,7 +1198,132 @@ class DAG(LoggingMixin):
                         )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
-        tis = tis.order_by(TaskInstance.execution_date).all()
+
+        # Next, get any of them from our parent DAG (if there is one)
+        if include_parentdag and self.is_subdag and self.parent_dag is not None:
+            p_dag = self.parent_dag.partial_subset(
+                task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
+                include_upstream=False,
+                include_downstream=True,
+            )
+            result.update(
+                p_dag._get_task_instances(
+                    task_ids=task_ids,
+                    start_date=start_date,
+                    end_date=end_date,
+                    state=state,
+                    include_subdags=include_subdags,
+                    include_parentdag=False,
+                    include_dependent_dags=include_dependent_dags,
+                    as_pk_tuple=True,
+                    exclude_task_ids=exclude_task_ids,
+                    session=session,
+                    dag_bag=dag_bag,
+                    recursion_depth=recursion_depth,
+                    max_recursion_depth=max_recursion_depth,
+                    visited_external_tis=visited_external_tis,
+                )
+            )
+
+        if include_dependent_dags:
+            # Recursively find external tasks indicated by ExternalTaskMarker
+            from airflow.sensors.external_task import ExternalTaskMarker
+
+            query = tis
+            if as_pk_tuple:
+                condition = TI.filter_for_tis(TaskInstanceKey(*cols) for cols in tis.all())
+                if condition is not None:
+                    query = session.query(TI).filter(condition)
+
+            if visited_external_tis is None:
+                visited_external_tis = set()
+
+            for ti in query.filter(TI.operator == ExternalTaskMarker.__name__):
+                ti_key = ti.key.primary
+                if ti_key in visited_external_tis:
+                    continue
+
+                visited_external_tis.add(ti_key)
+
+                task: ExternalTaskMarker = cast(ExternalTaskMarker, copy.copy(self.get_task(ti.task_id)))
+                ti.task = task
+
+                if max_recursion_depth is None:
+                    # Maximum recursion depth allowed is the recursion_depth of the first
+                    # ExternalTaskMarker in the tasks to be visited.
+                    max_recursion_depth = task.recursion_depth
+
+                if recursion_depth + 1 > max_recursion_depth:
+                    # Prevent cycles or accidents.
+                    raise AirflowException(
+                        "Maximum recursion depth {} reached for {} {}. "
+                        "Attempted to clear too many tasks "
+                        "or there may be a cyclic dependency.".format(
+                            max_recursion_depth, ExternalTaskMarker.__name__, ti.task_id
+                        )
+                    )
+                ti.render_templates()
+                external_tis = session.query(TI).filter(
+                    TI.dag_id == task.external_dag_id,
+                    TI.task_id == task.external_task_id,
+                    TI.execution_date == pendulum.parse(task.execution_date),
+                )
+
+                for tii in external_tis:
+                    if not dag_bag:
+                        dag_bag = DagBag(read_dags_from_db=True)
+                    external_dag = dag_bag.get_dag(tii.dag_id, session=session)
+                    if not external_dag:
+                        raise AirflowException(f"Could not find dag {tii.dag_id}")
+                    downstream = external_dag.partial_subset(
+                        task_ids_or_regex=[tii.task_id],
+                        include_upstream=False,
+                        include_downstream=True,
+                    )
+                    result.update(
+                        downstream._get_task_instances(
+                            task_ids=None,
+                            start_date=tii.execution_date,
+                            end_date=tii.execution_date,
+                            state=state,
+                            include_subdags=include_subdags,
+                            include_dependent_dags=include_dependent_dags,
+                            include_parentdag=False,
+                            as_pk_tuple=True,
+                            exclude_task_ids=exclude_task_ids,
+                            dag_bag=dag_bag,
+                            session=session,
+                            recursion_depth=recursion_depth + 1,
+                            max_recursion_depth=max_recursion_depth,
+                            visited_external_tis=visited_external_tis,
+                        )
+                    )
+
+        if result or as_pk_tuple:
+            # Only execute the `ti` query if we have also collected some other results (i.e. subdags etc.)
+            if as_pk_tuple:
+                result.update(TaskInstanceKey(*cols) for cols in tis.all())
+            else:
+                result.update(ti.key for ti in tis.all())
+
+            if exclude_task_ids:
+                result = set(
+                    filter(
+                        lambda key: key.task_id not in exclude_task_ids,
+                        result,
+                    )
+                )
+
+        if as_pk_tuple:
+            return result
+        elif result:
+            # We've been asked for objects, lets combine it all back in to a result set
+            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.execution_date)
+
+            tis = session.query(TI).filter(TI.filter_for_tis(result))
+        elif exclude_task_ids:
+            tis = tis.filter(TI.task_id.notin_(list(exclude_task_ids)))
+
         return tis
 
     @property
@@ -1129,7 +1402,7 @@ class DAG(LoggingMixin):
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=3,
         )
         dag_ids = dag_ids or [self.dag_id]
         query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
@@ -1157,7 +1430,6 @@ class DAG(LoggingMixin):
         recursion_depth=0,
         max_recursion_depth=None,
         dag_bag=None,
-        visited_external_tis=None,
         exclude_task_ids: FrozenSet[str] = frozenset({}),
     ):
         """
@@ -1187,153 +1459,60 @@ class DAG(LoggingMixin):
         :type dry_run: bool
         :param session: The sqlalchemy session to use
         :type session: sqlalchemy.orm.session.Session
-        :param get_tis: Return the sqlalchemy query for finding the TaskInstance without clearing the tasks
-        :type get_tis: bool
-        :param recursion_depth: The recursion depth of nested calls to DAG.clear().
-        :type recursion_depth: int
-        :param max_recursion_depth: The maximum recursion depth allowed. This is determined by the
-            first encountered ExternalTaskMarker. Default is None indicating no ExternalTaskMarker
-            has been encountered.
-        :type max_recursion_depth: int
-        :param dag_bag: The DagBag used to find the dags
+        :param dag_bag: The DagBag used to find the dags subdags (Optional)
         :type dag_bag: airflow.models.dagbag.DagBag
-        :param visited_external_tis: A set used internally to keep track of the visited TaskInstance when
-            clearing tasks across multiple DAGs linked by ExternalTaskMarker to avoid redundant work.
-        :type visited_external_tis: set
         :param exclude_task_ids: A set of ``task_id`` that should not be cleared
         :type exclude_task_ids: frozenset
         """
-        TI = TaskInstance
-        tis = session.query(TI)
-        if include_subdags:
-            # Crafting the right filter for dag_id and task_ids combo
-            conditions = []
-            for dag in self.subdags + [self]:
-                conditions.append((TI.dag_id == dag.dag_id) & TI.task_id.in_(dag.task_ids))
-            tis = tis.filter(or_(*conditions))
-        else:
-            tis = session.query(TI).filter(TI.dag_id == self.dag_id)
-            tis = tis.filter(TI.task_id.in_(self.task_ids))
-
-        if include_parentdag and self.is_subdag and self.parent_dag is not None:
-            p_dag = self.parent_dag.partial_subset(
-                task_ids_or_regex=r"^{}$".format(self.dag_id.split('.')[1]),
-                include_upstream=False,
-                include_downstream=True,
-            )
-
-            tis = tis.union(
-                p_dag.clear(
-                    start_date=start_date,
-                    end_date=end_date,
-                    only_failed=only_failed,
-                    only_running=only_running,
-                    confirm_prompt=confirm_prompt,
-                    include_subdags=include_subdags,
-                    include_parentdag=False,
-                    dag_run_state=dag_run_state,
-                    get_tis=True,
-                    session=session,
-                    recursion_depth=recursion_depth,
-                    max_recursion_depth=max_recursion_depth,
-                    dag_bag=dag_bag,
-                    visited_external_tis=visited_external_tis,
-                )
-            )
-
-        if start_date:
-            tis = tis.filter(TI.execution_date >= start_date)
-        if end_date:
-            tis = tis.filter(TI.execution_date <= end_date)
-        if only_failed:
-            tis = tis.filter(or_(TI.state == State.FAILED, TI.state == State.UPSTREAM_FAILED))
-        if only_running:
-            tis = tis.filter(TI.state == State.RUNNING)
-        if task_ids:
-            tis = tis.filter(TI.task_id.in_(task_ids))
-
-        if include_subdags:
-            from airflow.sensors.external_task import ExternalTaskMarker
-
-            # Recursively find external tasks indicated by ExternalTaskMarker
-            instances = tis.all()
-            for ti in instances:
-                if ti.operator == ExternalTaskMarker.__name__:
-                    if visited_external_tis is None:
-                        visited_external_tis = set()
-                    ti_key = ti.key.primary
-                    if ti_key not in visited_external_tis:
-                        # Only clear this ExternalTaskMarker if it's not already visited by the
-                        # recursive calls to dag.clear().
-                        task: ExternalTaskMarker = cast(
-                            ExternalTaskMarker, copy.copy(self.get_task(ti.task_id))
-                        )
-                        ti.task = task
-
-                        if recursion_depth == 0:
-                            # Maximum recursion depth allowed is the recursion_depth of the first
-                            # ExternalTaskMarker in the tasks to be cleared.
-                            max_recursion_depth = task.recursion_depth
-
-                        if recursion_depth + 1 > max_recursion_depth:
-                            # Prevent cycles or accidents.
-                            raise AirflowException(
-                                "Maximum recursion depth {} reached for {} {}. "
-                                "Attempted to clear too many tasks "
-                                "or there may be a cyclic dependency.".format(
-                                    max_recursion_depth, ExternalTaskMarker.__name__, ti.task_id
-                                )
-                            )
-                        ti.render_templates()
-                        external_tis = session.query(TI).filter(
-                            TI.dag_id == task.external_dag_id,
-                            TI.task_id == task.external_task_id,
-                            TI.execution_date == pendulum.parse(task.execution_date),
-                        )
-
-                        for tii in external_tis:
-                            if not dag_bag:
-                                dag_bag = DagBag(read_dags_from_db=True)
-                            external_dag = dag_bag.get_dag(tii.dag_id)
-                            if not external_dag:
-                                raise AirflowException(f"Could not find dag {tii.dag_id}")
-                            downstream = external_dag.partial_subset(
-                                task_ids_or_regex=fr"^{tii.task_id}$",
-                                include_upstream=False,
-                                include_downstream=True,
-                            )
-                            tis = tis.union(
-                                downstream.clear(
-                                    start_date=tii.execution_date,
-                                    end_date=tii.execution_date,
-                                    only_failed=only_failed,
-                                    only_running=only_running,
-                                    confirm_prompt=confirm_prompt,
-                                    include_subdags=include_subdags,
-                                    include_parentdag=False,
-                                    dag_run_state=dag_run_state,
-                                    get_tis=True,
-                                    session=session,
-                                    recursion_depth=recursion_depth + 1,
-                                    max_recursion_depth=max_recursion_depth,
-                                    dag_bag=dag_bag,
-                                    visited_external_tis=visited_external_tis,
-                                )
-                            )
-                        visited_external_tis.add(ti_key)
-
         if get_tis:
-            return tis
+            warnings.warn(
+                "Passing `get_tis` to dag.clear() is deprecated. Use `dry_run` parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            dry_run = True
 
-        # Exclude these task_ids from clearing
-        tis = [ti for ti in tis if ti.task_id not in exclude_task_ids]
+        if recursion_depth:
+            warnings.warn(
+                "Passing `recursion_depth` to dag.clear() is deprecated.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if max_recursion_depth:
+            warnings.warn(
+                "Passing `max_recursion_depth` to dag.clear() is deprecated.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        state = []
+        if only_failed:
+            state += [State.FAILED, State.UPSTREAM_FAILED]
+            only_failed = None
+        if only_running:
+            # Yes, having `+=` doesn't make sense, but this was the existing behaviour
+            state += [State.RUNNING]
+            only_running = None
+
+        tis = self._get_task_instances(
+            task_ids=task_ids,
+            start_date=start_date,
+            end_date=end_date,
+            state=state,
+            include_subdags=include_subdags,
+            include_parentdag=include_parentdag,
+            include_dependent_dags=include_subdags,  # compat, yes this is not a typo
+            as_pk_tuple=False,
+            session=session,
+            dag_bag=dag_bag,
+            exclude_task_ids=exclude_task_ids,
+        )
 
         if dry_run:
-            session.expunge_all()
             return tis
 
-        # Do not use count() here, it's actually much slower than just retrieving all the rows when
-        # tis has multiple UNION statements.
+        tis = tis.all()
+
         count = len(tis)
         do_it = True
         if count == 0:
@@ -1356,7 +1535,7 @@ class DAG(LoggingMixin):
             count = 0
             print("Cancelled, nothing was cleared.")
 
-        session.commit()
+        session.flush()
         return count
 
     @classmethod
@@ -1896,7 +2075,7 @@ class DAG(LoggingMixin):
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
-            orm_dag.concurrency = dag.concurrency
+            orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.has_task_concurrency_limits = any(t.task_concurrency is not None for t in dag.tasks)
 
             orm_dag.calculate_dagrun_date_fields(
@@ -2129,7 +2308,7 @@ class DagModel(Base):
     # Tags for view filter
     tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
-    concurrency = Column(Integer, nullable=False)
+    max_active_tasks = Column(Integer, nullable=False)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
 
@@ -2145,10 +2324,18 @@ class DagModel(Base):
 
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
-    def __init__(self, **kwargs):
+    def __init__(self, concurrency=None, **kwargs):
         super().__init__(**kwargs)
-        if self.concurrency is None:
-            self.concurrency = conf.getint('core', 'dag_concurrency')
+        if self.max_active_tasks is None:
+            if concurrency:
+                warnings.warn(
+                    "The 'DagModel.concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.max_active_tasks = concurrency
+            else:
+                self.max_active_tasks = conf.getint('core', 'max_active_tasks_per_dag')
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
@@ -2347,6 +2534,10 @@ def dag(*dag_args, **dag_kwargs):
                 f_kwargs = {}
                 for name, value in f_sig.arguments.items():
                     f_kwargs[name] = dag_obj.param(name, value)
+
+                # set file location to caller source path
+                back = sys._getframe().f_back
+                dag_obj.fileloc = back.f_code.co_filename if back else ""
 
                 # Invoke function to create operators in the DAG scope.
                 f(**f_kwargs)

@@ -299,9 +299,10 @@ repos:
       - id: build-providers-dependencies
         name: Build cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh
-        language: system
+        language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
+        additional_dependencies: ['setuptools']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
@@ -629,6 +630,26 @@ repos:
         additional_dependencies: ['flynt==0.63']
         files: \.py$
         exclude: ^airflow/_vendor/
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: scripts/ci/static_checks/ui_lint.sh
+        pass_filenames: false
+      - id: www-lint
+        name: ESLint against current UI js files
+        language: node
+        'types_or': [javascript]
+        files: ^airflow/www/static/js/
+        entry: scripts/ci/static_checks/www_lint.sh
+        pass_filenames: false
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
+        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
+        pass_filenames: false
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
@@ -685,24 +706,4 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-      - id: ui-lint
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: scripts/ci/static_checks/ui_lint.sh
-        pass_filenames: false
-      - id: www-lint
-        name: ESLint against current UI js files
-        language: node
-        'types_or': [javascript]
-        files: ^airflow/www/static/js/
-        entry: scripts/ci/static_checks/www_lint.sh
-        pass_filenames: false
-      - id: bats-in-container-tests
-        name: Run in container bats tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
-        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
-        pass_filenames: false
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

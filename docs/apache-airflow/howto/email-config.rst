@@ -29,8 +29,11 @@ in the ``[email]`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
-To configure SMTP credentials, create a connection called ``smtp_default``, or
-choose a custom connection name and set it in ``email_conn_id``.
+To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
+If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
+connection called ``smtp_default``, or choose a custom connection name and set the ``email_conn_id`` with it's name in
+the configuration & store SMTP username-password in it. Other SMTP settings like host, port etc always gets picked up
+from the configuration only. The connection can be of any type (for example 'HTTP connection').
 
 If you want to check which email backend is currently set, you can use ``airflow config get-value email email_backend`` command as in
 the example below.

@@ -196,6 +196,33 @@ class PgbouncerTest(unittest.TestCase):
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
+    def test_metrics_exporter_resources(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "resources": {
+                            "requests": {"memory": "2Gi", "cpu": "1"},
+                            "limits": {"memory": "3Gi", "cpu": "2"},
+                        }
+                    },
+                }
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "limits": {
+                "cpu": "2",
+                "memory": "3Gi",
+            },
+            "requests": {
+                "cpu": "1",
+                "memory": "2Gi",
+            },
+        } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
+
 
 class PgbouncerConfigTest(unittest.TestCase):
     def test_config_not_created_by_default(self):

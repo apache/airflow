@@ -52,6 +52,10 @@ https://developers.google.com/style/inclusive-documentation
 
 The default Airflow version that is installed with the Chart is now ``2.1.0``, previously it was ``2.0.2``.
 
+### Helm 2 no longer supported
+
+This chart has dropped support for [Helm 2 as it has been deprecated](https://helm.sh/blog/helm-v2-deprecation-timeline/) and no longer receiving security updates since November 2020.
+
 ### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 
 The `dags.gitSync.root` and `dags.gitSync.dest` parameters didn't provide any useful behaviors to chart users so they have been removed.
@@ -59,3 +63,8 @@ If you have them set in your values file you can safely remove them.
 
 The `dags.gitSync.excludeWebserver` parameter was mistakenly included in the charts `values.schema.json`. If you have it set in your values file,
 you can safely remove it.
+
+### `nodeSelector`, `affinity` and `tolerations` on `migrateDatabaseJob` and `createUserJob` jobs
+
+The `migrateDatabaseJob` and `createUserJob` jobs were incorrectly using the `webserver`'s `nodeSelector`, `affinity`
+and `tolerations` (if set). Each job is now configured separately.

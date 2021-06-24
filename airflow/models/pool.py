@@ -106,6 +106,8 @@ class Pool(Base):
 
         pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
+            if total_slots == -1:
+                total_slots = float('inf')  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
         state_count_by_pool = (
@@ -115,8 +117,10 @@ class Pool(Base):
         ).all()
 
         # calculate queued and running metrics
-        count: int
         for (pool_name, state, count) in state_count_by_pool:
+            # Some databases return decimal.Decimal here.
+            count = int(count)
+
             stats_dict: Optional[PoolStats] = pools.get(pool_name)
             if not stats_dict:
                 continue

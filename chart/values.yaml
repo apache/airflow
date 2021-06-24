@@ -421,7 +421,15 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: worker
+            topologyKey: "kubernetes.io/hostname"
   tolerations: []
   # hostAliases to use in worker pods.
   # See:
@@ -439,6 +447,13 @@ workers:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 # Airflow scheduler settings
 scheduler:
@@ -507,7 +522,15 @@ scheduler:
 
   # Select certain nodes for airflow scheduler pods.
   nodeSelector: {}
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: scheduler
+            topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
   logGroomerSidecar:
@@ -517,11 +540,19 @@ scheduler:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
-
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
   annotations: {}
+  # jobAnnotations are annotations on the create user job
+  jobAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -534,10 +565,16 @@ createUserJob:
     # Annotations to add to create user kubernetes service account.
     annotations: {}
 
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+
 # Airflow database migration job settings
 migrateDatabaseJob:
   # Annotations on the database migration pod
   annotations: {}
+  # jobAnnotations are annotations on the database migration job
+  jobAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -549,6 +586,10 @@ migrateDatabaseJob:
 
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
+
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # Airflow webserver settings
 webserver:
@@ -613,6 +654,7 @@ webserver:
   # Add additional init containers into webserver.
   extraInitContainers: []
 
+
   # Mount additional volumes into webserver.
   extraVolumes: []
   extraVolumeMounts: []
@@ -633,11 +675,32 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    ports:
+      - name: airflow-ui
+        port: "{{ .Values.ports.airflowUI }}"
+    # To change the port used to access the webserver:
+    # ports:
+    #   - name: airflow-ui
+    #     port: 80
+    #     targetPort: airflow-ui
+    # To only expose a sidecar, not the webserver directly:
+    # ports:
+    #   - name: only_sidecar
+    #     port: 80
+    #     targetPort: 8888
     loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
-  affinity: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: webserver
+            topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
 # Flower settings
@@ -689,7 +752,20 @@ flower:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    ports:
+      - name: flower-ui
+        port: "{{ .Values.ports.flowerUI }}"
+    # To change the port used to access flower:
+    # ports:
+    #   - name: flower-ui
+    #     port: 8080
+    #     targetPort: flower-ui
     loadBalancerIP: ~
+
+  # Launch additional containers into the flower pods.
+  extraContainers: []
+  # Mount additional volumes into the flower pods.
+  extraVolumes: []
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
@@ -828,6 +904,16 @@ pgbouncer:
   tolerations: []
 
   uid: 65534
+
+  metricsExporterSidecar:
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 
 # Configuration for the redis provisioned by the chart
 redis:
@@ -1019,6 +1105,8 @@ config:
 
 multiNamespaceMode: false
 
+# The full text value to mount as the "pod_template_file.yaml" file used for KubernetesExecutor workers.
+# If not set, a default one is created using "files/pod-template-file.kubernetes-helm-yaml"
 podTemplate: ~
 
 # Git sync

@@ -1058,7 +1058,7 @@
                 "affinity": {
                     "description": "Specify scheduling constraints for worker pods.",
                     "type": "object",
-                    "default": {}
+                    "default": "See values.yaml"
                 },
                 "tolerations": {
                     "description": "Specify Tolerations for worker pods.",
@@ -1112,6 +1112,23 @@
                                 "bash",
                                 "/clean-logs"
                             ]
+                        },
+                        "resources": {
+                            "description": "Resources for Airflow workers log groomer sidecar.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1144,7 +1161,7 @@
                             "default": 10
                         },
                         "periodSeconds": {
-                            "description": "Webserver Liveness probe period seconds.",
+                            "description": "Scheduler Liveness probe period seconds.",
                             "type": "integer",
                             "default": 30
                         }
@@ -1298,7 +1315,7 @@
                 "affinity": {
                     "description": "Specify scheduling constraints for scheduler pods.",
                     "type": "object",
-                    "default": {}
+                    "default": "See values.yaml"
                 },
                 "tolerations": {
                     "description": "Specify Tolerations for scheduler pods.",
@@ -1338,6 +1355,23 @@
                                 "bash",
                                 "/clean-logs"
                             ]
+                        },
+                        "resources": {
+                            "description": "Resources for log groomer sidecar.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1351,6 +1385,11 @@
             "properties": {
                 "annotations": {
                     "description": "Annotations to add to the create user job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the create user job job.",
                     "type": "object",
                     "default": {}
                 },
@@ -1377,6 +1416,24 @@
                             "default": {}
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for the create user job pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for the create user job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for the create user job pod.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -1388,6 +1445,11 @@
             "properties": {
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the migrate database job.",
                     "type": "object",
                     "default": {}
                 },
@@ -1414,6 +1476,24 @@
                             "default": {}
                         }
                     }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for the migrate database job pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for the migrate database job pod.",
+                    "type": "object",
+                    "default": {}
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for the migrate database job pod.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -1657,6 +1737,28 @@
                             "type": "object",
                             "default": {}
                         },
+                        "ports": {
+                            "description": "Ports for the webserver Service.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "name": "airflow-ui",
+                                    "port": "{{ .Values.ports.airflowUI }}"
+                                }
+                            ],
+                            "examples": [
+                                {
+                                    "name": "airflow-ui",
+                                    "port": 80,
+                                    "targetPort": "airflow-ui"
+                                },
+                                {
+                                    "name": "only_sidecar",
+                                    "port": 80,
+                                    "targetPort": 8888
+                                }
+                            ]
+                        },
                         "loadBalancerIP": {
                             "description": "Webserver Service loadBalancerIP.",
                             "type": [
@@ -1678,7 +1780,7 @@
                 "affinity": {
                     "description": "Specify scheduling constraints for webserver pods.",
                     "type": "object",
-                    "default": {}
+                    "default": "See values.yaml"
                 },
                 "tolerations": {
                     "description": "Specify Tolerations for webserver pods.",
@@ -1785,6 +1887,23 @@
                             "type": "object",
                             "default": {}
                         },
+                        "ports": {
+                            "description": "Ports for the flower Service.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "name": "flower-ui",
+                                    "port": "{{ .Values.ports.flowerUI }}"
+                                }
+                            ],
+                            "examples": [
+                                {
+                                    "name": "flower-ui",
+                                    "port": 8080,
+                                    "targetPort": "flower-ui"
+                                }
+                            ]
+                        },
                         "loadBalancerIP": {
                             "description": "Flower Service loadBalancerIP.",
                             "type": [
@@ -1818,6 +1937,16 @@
                             "default": {}
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into the flower pods.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into the flower pods.",
+                    "type": "array",
+                    "default": []
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for Flower pods.",
@@ -2164,6 +2293,31 @@
                     "description": "PgBouncer run as user parameter.",
                     "type": "integer",
                     "default": 65534
+                },
+                "metricsExporterSidecar": {
+                    "description": "PgBouncer - metrics exporter settings.",
+                    "type": "object",
+                    "x-docsSection": "PgBouncer",
+                    "additionalProperties": false,
+                    "properties": {
+                        "resources": {
+                            "description": "Resources for the PgBouncer metric exporter.",
+                            "type": "object",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 }
             }
         },
@@ -2519,7 +2673,7 @@
             "default": false
         },
         "podTemplate": {
-            "description": "pod_template used for KubernetesExecutor workers",
+            "description": "The full text value to mount as the ``pod_template_file.yaml`` used for KubernetesExecutor workers",
             "type": [
                 "string",
                 "null"

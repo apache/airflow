@@ -218,3 +218,39 @@ class TestWrappedMarkdown(unittest.TestCase):
         )
 
         assert '<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered
+
+    def test_wrapped_markdown_with_raw_code_block(self):
+        rendered = wrapped_markdown(
+            """\
+            # Markdown code block
+
+            Inline `code` works well.
+
+                Code block
+                does not
+                respect
+                newlines
+
+            """
+        )
+
+        assert (
+            '<div class="rich_doc" ><h1>Markdown code block</h1>\n'
+            '<p>Inline <code>code</code> works well.</p>\n'
+            '<pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre></div>'
+        ) == rendered
+
+    def test_wrapped_markdown_with_nested_list(self):
+        rendered = wrapped_markdown(
+            """
+            ### Docstring with a code block
+
+            - And
+                - A nested list
+            """
+        )
+
+        assert (
+            '<div class="rich_doc" ><h3>Docstring with a code block</h3>\n'
+            '<ul>\n<li>And<ul>\n<li>A nested list</li>\n</ul>\n</li>\n</ul></div>'
+        ) == rendered

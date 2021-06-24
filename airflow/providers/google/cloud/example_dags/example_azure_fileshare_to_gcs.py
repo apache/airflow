@@ -47,7 +47,7 @@ with DAG(
         share_name=AZURE_SHARE_NAME,
         dest_gcs=DEST_GCS_BUCKET,
         directory_name=AZURE_DIRECTORY_NAME,
-        wasb_conn_id='azure_fileshare_default',
+        azure_fileshare_conn_id='azure_fileshare_default',
         gcp_conn_id='google_cloud_default',
         replace=False,
         gzip=True,

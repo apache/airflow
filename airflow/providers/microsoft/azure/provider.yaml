@@ -29,6 +29,9 @@ versions:
   - 1.1.0
   - 1.0.0
 
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Microsoft Azure Batch
     external-doc-url: https://azure.microsoft.com/en-us/services/batch/
@@ -155,6 +158,8 @@ hook-class-names:
   - airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook
   - airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook
   - airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook
+  - airflow.providers.microsoft.azure.hooks.azure_fileshare.AzureFileShareHook
+  - airflow.providers.microsoft.azure.hooks.azure_container_volume.AzureContainerVolumeHook
   - airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
   - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook

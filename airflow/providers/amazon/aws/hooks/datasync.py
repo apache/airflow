@@ -36,7 +36,7 @@ class AWSDataSyncHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`
 
     :param wait_interval_seconds: Time to wait between two
-        consecutive calls to check TaskExecution status. Defaults to 5 seconds.
+        consecutive calls to check TaskExecution status. Defaults to 30 seconds.
     :type wait_interval_seconds: Optional[int]
     :raises ValueError: If wait_interval_seconds is not between 0 and 15*60 seconds.
     """
@@ -52,7 +52,7 @@ class AWSDataSyncHook(AwsBaseHook):
     TASK_EXECUTION_FAILURE_STATES = ("ERROR",)
     TASK_EXECUTION_SUCCESS_STATES = ("SUCCESS",)
 
-    def __init__(self, wait_interval_seconds: int = 5, *args, **kwargs) -> None:
+    def __init__(self, wait_interval_seconds: int = 30, *args, **kwargs) -> None:
         super().__init__(client_type='datasync', *args, **kwargs)  # type: ignore[misc]
         self.locations: list = []
         self.tasks: list = []
@@ -279,7 +279,7 @@ class AWSDataSyncHook(AwsBaseHook):
             return task_description["CurrentTaskExecutionArn"]
         return None
 
-    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 2 * 180) -> bool:
+    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 60) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.

@@ -136,6 +136,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         @functools.wraps(func)
         def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
+            from airflow.utils.task_group import TaskGroupContext
 
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
@@ -146,6 +147,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag:
                 dag_args = copy.copy(dag.default_args) or {}
                 dag_params = copy.copy(dag.params) or {}
+                task_group = TaskGroupContext.get_current_task_group(dag)
+                if task_group:
+                    dag_args.update(task_group.default_args)
 
             params = kwargs.get('params', {}) or {}
             dag_params.update(params)
@@ -558,6 +562,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
+
+        if retries is not None and not isinstance(retries, int):
+            try:
+                parsed_retries = int(retries)
+            except (TypeError, ValueError):
+                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+            self.log.warning("Implicitly converting 'retries' for %s from %r to int", self, retries)
+            retries = parsed_retries
 
         self.retries = retries
         self.queue = queue

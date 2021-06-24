@@ -262,7 +262,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         if not self.kubernetes_jwt_path:
             raise VaultError("The kubernetes_jwt_path should be set here. This should not happen.")
         with open(self.kubernetes_jwt_path) as f:
-            jwt = f.read()
+            jwt = f.read().strip()
             if self.auth_mount_point:
                 _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point)
             else:
@@ -328,7 +328,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     def _set_token(self, _client: hvac.Client) -> None:
         if self.token_path:
             with open(self.token_path) as f:
-                _client.token = f.read()
+                _client.token = f.read().strip()
         else:
             _client.token = self.token
 
