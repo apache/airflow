@@ -187,16 +187,15 @@ class BaseSerialization:
                 continue
 
             value = cls._serialize(value)
-            if key not in decorated_fields and isinstance(value, dict) and "__type" in value:
-                # Extra check to make sure for custom operators or dags that the non-standard
-                # serialized_fields still support non-primitive types (e.g. dicts).
-                if isinstance(object_to_serialize, DAG) and key in DAG.get_serialized_fields():
-                    value = value["__var"]
-                elif (
-                    isinstance(object_to_serialize, BaseOperator)
-                    and key in BaseOperator.get_serialized_fields()
-                ):
-                    value = value["__var"]
+            if key in decorated_fields:
+                pass
+            elif not (isinstance(value, dict) and "__type" in value):
+                pass
+            elif key in DAG.get_serialized_fields() | BaseOperator.get_serialized_fields():
+                # Ensures to only optimize the serialization for fields present in the DAG and BaseOperator.
+                # Field added to custom extensions of the DAG and BaseOperator will keep __var/__type records.
+                # This prevents deserialization errors for classes extending the BaseOperator.
+                value = value["__var"]
             serialized_object[key] = value
         return serialized_object
 
@@ -260,6 +259,8 @@ class BaseSerialization:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
 
+    # pylint: enable=too-many-return-statements
+
     @classmethod
     def _deserialize(cls, encoded_var: Any) -> Any:  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for deserialization."""
@@ -303,8 +304,6 @@ class BaseSerialization:
             return tuple(cls._deserialize(v) for v in var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
-
-    # pylint: enable=too-many-return-statements
 
     _deserialize_datetime = pendulum.from_timestamp
     _deserialize_timezone = pendulum.tz.timezone
@@ -737,6 +736,7 @@ class SerializedDAG(DAG, BaseSerialization):
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
             elif k not in DAG.get_serialized_fields():  # pylint: disable=unsupported-membership-test
+                # In this case k is in get_serialized_fields() of a custom class (e.g. class ExtendedDag(DAG))
                 v = cls._deserialize(v)
             # else use v as it is.
 
