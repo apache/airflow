@@ -31,7 +31,7 @@ from multiprocessing.managers import SyncManager
 from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import getproctitle, setproctitle  # pylint: disable=no-name-in-module
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -344,7 +344,10 @@ class LocalExecutor(BaseExecutor):
 
     def start(self) -> None:
         """Starts the executor"""
+        old_proctitle = getproctitle()
+        setproctitle("airflow executor -- LocalExecutor")
         self.manager = Manager()
+        setproctitle(old_proctitle)
         self.result_queue = self.manager.Queue()
         self.workers = []
         self.workers_used = 0
