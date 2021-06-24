@@ -42,6 +42,14 @@ class ConnectorProtocol(Protocol):
         """
 
 
+#########################################################################################
+#                                                                                       #
+#  Note! Be extra careful when changing this file. This hook is used as a base for      #
+#  a number of DBApi-related hooks and providers depend on the methods implemented      #
+#  here. Whatever you add here, has to backwards compatible unless                      #
+#  `>=<Airflow version>` is added to providers' requirements using the new feature      #
+#                                                                                       #
+#########################################################################################
 class DbApiHook(BaseHook):
     """Abstract base class for sql hooks."""
 
