@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint: disable=no-member
+
 import unittest
 from datetime import timedelta
 from unittest.mock import Mock, patch
