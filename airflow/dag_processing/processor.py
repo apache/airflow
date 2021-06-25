@@ -408,9 +408,9 @@ class DagFileProcessor(LoggingMixin):
                 )
 
             dttm = dag.following_schedule(ti.execution_date)
-            while dttm < timezone.utcnow():
+            while dttm < ts:
                 following_schedule = dag.following_schedule(dttm)
-                if following_schedule + task.sla < timezone.utcnow():
+                if following_schedule + task.sla < ts:
                     session.merge(
                         SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, execution_date=dttm, timestamp=ts)
                     )
