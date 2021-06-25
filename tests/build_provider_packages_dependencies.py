@@ -84,7 +84,7 @@ def get_provider_from_file_name(file_name: str) -> Optional[str]:
     return provider
 
 
-def get_file_suffix(file_name):
+def get_file_suffix(file_name) -> Optional[str]:
     if AIRFLOW_PROVIDERS_FILE_PREFIX in file_name:
         return file_name[file_name.find(AIRFLOW_PROVIDERS_FILE_PREFIX) :]
     if AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX in file_name:
@@ -114,9 +114,10 @@ class ImportFinder(NodeVisitor):
     AST visitor that collects all imported names in its imports
     """
 
-    def __init__(self, filename) -> None:
+    def __init__(self, filename: str) -> None:
+        
         self.imports: List[str] = []
-        self.filename = filename
+        self.filename: str = filename
         self.handled_import_exception = List[str]
         self.tried_imports: List[str] = []
 
