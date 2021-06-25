@@ -268,8 +268,10 @@
       series: [{
         name: 'x bar',
         type: 'line',
+        label: {show: true},
         stack: 'all',
-        symbolSize: 6,
+        symbol: 'triangle',
+        symbolSize: 20,
         data: XBarData.data,
         markLine: {
           silent: true,
@@ -324,7 +326,9 @@
       series: [{
         name: RS,
         type: 'line',
-        symbolSize: 6,
+        label: {show: true},
+        symbol: 'triangle',
+        symbolSize: 20,
         data: RSData.data,
         markLine: {
           silent: true,
