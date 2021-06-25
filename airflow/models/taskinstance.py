@@ -465,6 +465,12 @@ class TaskInstance(Base, LoggingMixin):
         """Setting Next Try Number"""
         return self._try_number + 1
 
+    @property
+    def run_id(self):
+        """Fetches the run_id from the associated DagRun"""
+        # TODO: Remove this once run_id is added as a column in TaskInstance
+        return self.get_dagrun().run_id
+
     def command_as_list(
         self,
         mark_success=False,
@@ -507,7 +513,7 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstance.generate_command(
             self.dag_id,
             self.task_id,
-            self.execution_date,
+            self.run_id,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
@@ -526,7 +532,7 @@ class TaskInstance(Base, LoggingMixin):
     def generate_command(
         dag_id: str,
         task_id: str,
-        execution_date: datetime,
+        run_id: str,
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -547,8 +553,8 @@ class TaskInstance(Base, LoggingMixin):
         :type dag_id: str
         :param task_id: Task ID
         :type task_id: str
-        :param execution_date: Execution date for the task
-        :type execution_date: datetime
+        :param run_id: The run_id of this task's DagRun
+        :type run_id: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
@@ -580,8 +586,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         :rtype: list[str]
         """
-        iso = execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", dag_id, task_id, iso]
+        cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
             cmd.extend(["--mark-success"])
         if pickle_id:
