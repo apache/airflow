@@ -75,7 +75,7 @@ class CleanCommand(Command):
             try:
                 os.remove(file)
             except Exception as e:  # noqa pylint: disable=broad-except
-                logger.warning(f"Error when removing {file}: {e}")
+                logger.warning("Error when removing %s: %s", file, e)
 
     def run(self) -> None:
         """Remove temporary files and directories."""
@@ -833,7 +833,7 @@ def get_provider_package_from_package_id(package_id: str) -> str:
     return f"apache-airflow-providers-{package_suffix}"
 
 
-def get_excluded_providers() -> List:
+def get_excluded_providers() -> List[str]:
     """
     Returns packages excluded for the current python version.
 
