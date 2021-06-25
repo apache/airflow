@@ -19,7 +19,7 @@
 import os
 
 import flask
-from setproctitle import setproctitle
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 
 from airflow.configuration import conf
 
