@@ -1879,10 +1879,10 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         execution_date = args.get('execution_date')
         state = args.get('state')
 
-        upstream = to_boolean(args.get('failed_upstream'))
-        downstream = to_boolean(args.get('failed_downstream'))
-        future = to_boolean(args.get('failed_future'))
-        past = to_boolean(args.get('failed_past'))
+        upstream = to_boolean(args.get('failed_upstream') or args.get('success_upstream'))
+        downstream = to_boolean(args.get('failed_downstream') or args.get('success_downstream'))
+        future = to_boolean(args.get('failed_future') or args.get('success_future'))
+        past = to_boolean(args.get('failed_past') or args.get('success_past'))
 
         try:
             dag = current_app.dag_bag.get_dag(dag_id)
