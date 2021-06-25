@@ -39,7 +39,6 @@ from flask_appbuilder.security.views import (
     UserStatsChartView,
     ViewMenuModelView,
 )
-from flask_appbuilder.basemanager import BaseManager
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
