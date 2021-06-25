@@ -67,7 +67,11 @@ jobs:
         # Override automatic language detection by changing the below list
         # Supported options are ['csharp', 'cpp', 'go', 'java', 'javascript', 'python']
         language: ['python', 'javascript']
-
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
