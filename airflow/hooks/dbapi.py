@@ -211,13 +211,17 @@ class DbApiHook(BaseHook):
         self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
         if parameters:
             cur.execute(sql_statement, parameters)
-            res = cur.fetchall()
-            result={'sql_statement': res,'headers': list(map(lambda t: t[0], cur.description))}
-            self.log.info("Query Results: %s", result)
+            if self.log.isEnabledFor(logging.DEBUG):
+
+                res = cur.fetchall()
+                result={'sql_statement': res,'headers': list(map(lambda t: t[0], cur.description))}
+                self.log.info("Query Results: %s", result)
+            
         else:
             cur.execute(sql_statement)
-            res = cur.fetchall()
-            self.log.info("Query Results: %s", result)
+            if self.log.isEnabledFor(logging.DEBUG):
+                res = cur.fetchall()
+                self.log.info("Query Results: %s", result)
 
         # According to PEP 249, this is -1 when query result is not applicable.
         if cur.rowcount >= 0:
