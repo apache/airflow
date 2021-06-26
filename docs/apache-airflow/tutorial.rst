@@ -1,23 +1,3 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
- ..   http://www.apache.org/licenses/LICENSE-2.0
-
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
-
-
-
 Tutorial
 ================
 
@@ -397,7 +377,7 @@ Create a Employee table in postgres using this
   );
 
 
-Let's break this down into 3 steps: get data, insert data, merge data:
+Let's break this down into 2 steps: get data & merge data:
 
 .. code-block:: python
 
@@ -411,12 +391,6 @@ Let's break this down into 3 steps: get data, insert data, merge data:
           for row in response.text.split("\n"):
               file.write(row)
 
-Here we are passing a`GET` request to get the data from the URL and save it in `employees.csv` file on our Airflow instance.
-
-.. code-block:: python
-
-  @task
-  def insert_data():
       postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
@@ -424,7 +398,7 @@ Here we are passing a`GET` request to get the data from the URL and save it in `
           cur.copy_from(f, "Employees_temp", columns=['Serial Number','Company Name','Employee Markme','Description','Leave'], sep=',')
       conn.commit()
 
-Here we are dumping the file into a temporary table before merging the data to the final employees table
+Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table
 
 .. code-block:: python
 
@@ -464,20 +438,20 @@ Lets look at our DAG:
   def Etl():
       @task
       def get_data():
-          url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
+      url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
-          response = requests.request("GET", url)
+      response = requests.request("GET", url)
 
-          with open("employees.csv", "w") as file:
-              for row in response.text.split("\n"):
-                  file.write(row)
+      with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+          for row in response.text.split("\n"):
+              file.write(row)
 
-      @task
-      def insert_data():
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
-          conn = postgres_hook.get_conn()
-          df = pd.read_csv("employees.csv")
-          df.to_sql("Employees_temp", conn, if_exists="replace", chunksize=1000)
+      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      conn = postgres_hook.get_conn()
+      cur = conn.cursor()
+      with open('/usr/local/airflow/dags/files/employees.csv', 'r') as file:
+          cur.copy_from(f, "Employees_temp", columns=['Serial Number','Company Name','Employee Markme','Description','Leave'], sep=',')
+      conn.commit()
 
       @task
       def merge_data():
@@ -500,7 +474,7 @@ Lets look at our DAG:
           except Exception as e:
               return 1
 
-      get_data() >> insert_data() >> merge_data()
+      get_data() >> merge_data()
 
 
   dag = Etl()
@@ -509,6 +483,7 @@ This dag runs daily at 00:00.
 Add this python file to airflow/dags folder and go back to the main folder and run
 
 .. code-block:: bash
+
   docker-compose up airflow-init
   docker-compose up
 
