@@ -44,15 +44,15 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 - [Project Focus](#project-focus)
 - [Principles](#principles)
-- [Semantic versioning](#semantic-versioning)
-- [Version Life Cycle](#version-life-cycle)
 - [Requirements](#requirements)
-- [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Getting started](#getting-started)
 - [Installing from PyPI](#installing-from-pypi)
 - [Official source code](#official-source-code)
 - [Convenience packages](#convenience-packages)
 - [User Interface](#user-interface)
+- [Semantic versioning](#semantic-versioning)
+- [Version Life Cycle](#version-life-cycle)
+- [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -77,52 +77,6 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
-## Semantic versioning
-
-As of Airflow 2.0.0, we support strict [SemVer](https://semver.org/) approach for all packages released.
-
-There are few specific rules that we agreed to, that define details of versioning of the different
-packages:
-
-* **Airflow**: SemVer rules apply to core airflow only (excludes any changes to providers).
-  Changing limits for versions of Airflow dependencies is not a breaking change on its own.
-* **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
-  SemVer MAJOR and MINOR versions for the packages are independent from Airflow version.
-  For example `google 4.1.0` and `amazon 3.0.3` providers can happily be installed
-  with `Airflow 2.1.1`. If there are limits of cross-dependencies between providers and Airflow packages,
-  they are present in providers as `install_requires` limitations. We aim to keep backwards
-  compatibility of providers with all previously released Airflow 2 versions but
-  there will be sometimes breaking changes that might make some, or all
-  providers, to have minimum Airflow version specified. Change of that minimum supported Airflow version
-  is a breaking change for provider, because installing the new provider might automatically
-  upgrade Airflow (which might be undesired side effect of upgrading provider).
-* **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
-  versions for the chart are independent from the Airflow version. We aim to keep backwards
-  compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
-  only work starting from specific Airlfow releases. We might however limit the Helm
-  Chart to depend on minimal Airflow version.
-* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR version of Airflow.
-  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
-  all clients. The clients then can release their own PATCH releases with bugfixes,
-  independently of Airflow PATCH releases.
-
-## Version Life Cycle
-
-Apache Airflow version life cycle:
-
-| Version | Current Patch/Minor | State     | First Release | Limited Support | EOL/Terminated |
-|---------|---------------------|-----------|---------------|-----------------|----------------|
-| 2       | 2.1.0               | Supported | Dec 17, 2020  | Dec 2021        | TBD            |
-| 1.10    | 1.10.15             | EOL       | Aug 27, 2018  | Dec 17, 2020    | June 17, 2021  |
-| 1.9     | 1.9.0               | EOL       | Jan 03, 2018  | Aug 27, 2018    | Aug 27, 2018   |
-| 1.8     | 1.8.2               | EOL       | Mar 19, 2017  | Jan 03, 2018    | Jan 03, 2018   |
-| 1.7     | 1.7.1.2             | EOL       | Mar 28, 2016  | Mar 19, 2017    | Mar 19, 2017   |
-
-Limited support versions will be supported with security and critical bug fix only.
-EOL versions will not get any fixes nor support.
-We always recommend that all users run the latest available minor release for whatever major version is in use.
-We **highly** recommend upgrading to the latest Airflow major release at the earliest convenient time and before EOL date.
-
 ## Requirements
 
 Apache Airflow is tested with:
@@ -142,34 +96,6 @@ MariaDB is not tested/recommended.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
-
-## Support for Python and Kubernetes versions
-
-As of Airflow 2.0 we agreed to certain rules we follow for Python and Kubernetes support.
-They are based on the official release schedule of Python and Kubernetes, nicely summarized in the
-[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches) and
-[Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
-
-1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
-   EOL versions in main right after EOL date, and it is effectively removed when we release the
-   first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
-   For example for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
-   MAJOR or MINOR version of Airflow released after will not have it.
-
-2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
-   in terms of "smoke tests" in CI PRs which are run using this default version and default reference
-   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.0`` images
-   are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
-   become Python 3.7 images.
-
-3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
-   make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
-   new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
-
-### Additional notes on Python version requirements
-
-* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
-  when using Python 3
 
 ## Getting started
 
@@ -243,6 +169,7 @@ and our official source code releases:
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.
 
+
 ## Convenience packages
 
 There are other ways of installing and using Airflow. Those are "convenience" methods - they are
@@ -290,6 +217,80 @@ following the ASF Policy.
 
   ![Code](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/code.png)
 
+
+## Semantic versioning
+
+As of Airflow 2.0.0, we support strict [SemVer](https://semver.org/) approach for all packages released.
+
+There are few specific rules that we agreed to, that define details of versioning of the different
+packages:
+
+* **Airflow**: SemVer rules apply to core airflow only (excludes any changes to providers).
+  Changing limits for versions of Airflow dependencies is not a breaking change on its own.
+* **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
+  SemVer MAJOR and MINOR versions for the packages are independent from Airflow version.
+  For example `google 4.1.0` and `amazon 3.0.3` providers can happily be installed
+  with `Airflow 2.1.1`. If there are limits of cross-dependencies between providers and Airflow packages,
+  they are present in providers as `install_requires` limitations. We aim to keep backwards
+  compatibility of providers with all previously released Airflow 2 versions but
+  there will be sometimes breaking changes that might make some, or all
+  providers, to have minimum Airflow version specified. Change of that minimum supported Airflow version
+  is a breaking change for provider, because installing the new provider might automatically
+  upgrade Airflow (which might be undesired side effect of upgrading provider).
+* **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
+  versions for the chart are independent from the Airflow version. We aim to keep backwards
+  compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
+  only work starting from specific Airlfow releases. We might however limit the Helm
+  Chart to depend on minimal Airflow version.
+* **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR version of Airflow.
+  The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
+  all clients. The clients then can release their own PATCH releases with bugfixes,
+  independently of Airflow PATCH releases.
+
+## Version Life Cycle
+
+Apache Airflow version life cycle:
+
+| Version | Current Patch/Minor | State     | First Release | Limited Support | EOL/Terminated |
+|---------|---------------------|-----------|---------------|-----------------|----------------|
+| 2       | 2.1.0               | Supported | Dec 17, 2020  | Dec 2021        | TBD            |
+| 1.10    | 1.10.15             | EOL       | Aug 27, 2018  | Dec 17, 2020    | June 17, 2021  |
+| 1.9     | 1.9.0               | EOL       | Jan 03, 2018  | Aug 27, 2018    | Aug 27, 2018   |
+| 1.8     | 1.8.2               | EOL       | Mar 19, 2017  | Jan 03, 2018    | Jan 03, 2018   |
+| 1.7     | 1.7.1.2             | EOL       | Mar 28, 2016  | Mar 19, 2017    | Mar 19, 2017   |
+
+Limited support versions will be supported with security and critical bug fix only.
+EOL versions will not get any fixes nor support.
+We always recommend that all users run the latest available minor release for whatever major version is in use.
+We **highly** recommend upgrading to the latest Airflow major release at the earliest convenient time and before EOL date.
+
+## Support for Python and Kubernetes versions
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python and Kubernetes support.
+They are based on the official release schedule of Python and Kubernetes, nicely summarized in the
+[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches) and
+[Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
+
+1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
+   EOL versions in main right after EOL date, and it is effectively removed when we release the
+   first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
+   For example for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
+   MAJOR or MINOR version of Airflow released after will not have it.
+
+2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
+   in terms of "smoke tests" in CI PRs which are run using this default version and default reference
+   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.0`` images
+   are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
+   become Python 3.7 images.
+
+3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
+   make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
+   new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
+
+### Additional notes on Python version requirements
+
+* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
+  when using Python 3
 
 ## Contributing
 
