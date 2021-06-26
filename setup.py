@@ -250,7 +250,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
-    'sphinxcontrib-spelling==5.2.1',
+    'sphinxcontrib-spelling==7.2.1',
 ]
 docker = [
     'docker',
