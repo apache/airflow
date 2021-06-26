@@ -24,8 +24,8 @@ from airflow.sensors.base import BaseSensorOperator
 class S3PrefixSensor(BaseSensorOperator):
     """
     Waits for a prefix to exist. A prefix is the first part of a key,
-    thus enabling checking of constructs similar to glob airfl* or
-    SQL LIKE 'airfl%'. There is the possibility to precise a delimiter to
+    thus enabling checking of constructs similar to glob ``airfl*`` or
+    SQL LIKE ``'airfl%'``. There is the possibility to precise a delimiter to
     indicate the hierarchy or keys, meaning that the match will stop at that
     delimiter. Current code accepts sane delimiters, i.e. characters that
     are NOT special characters in the Python regex engine.
