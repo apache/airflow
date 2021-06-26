@@ -25,7 +25,6 @@ graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
 graft scripts/systemd
-graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
