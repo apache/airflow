@@ -394,8 +394,19 @@ Let's break this down into 2 steps: get data & merge data:
       postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
-      with open('/usr/local/airflow/dags/files/employees.csv', 'r') as file:
-          cur.copy_from(f, "Employees_temp", columns=['Serial Number','Company Name','Employee Markme','Description','Leave'], sep=',')
+      with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
+          cur.copy_from(
+              f,
+              "Employees_temp",
+              columns=[
+                  "Serial Number",
+                  "Company Name",
+                  "Employee Markme",
+                  "Description",
+                  "Leave",
+              ],
+              sep=",",
+          )
       conn.commit()
 
 Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table
@@ -438,32 +449,43 @@ Lets look at our DAG:
   def Etl():
       @task
       def get_data():
-      url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
+          url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
-      response = requests.request("GET", url)
+          response = requests.request("GET", url)
 
-      with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
-          for row in response.text.split("\n"):
-              file.write(row)
+          with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+              for row in response.text.split("\n"):
+                  file.write(row)
 
-      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
-      conn = postgres_hook.get_conn()
-      cur = conn.cursor()
-      with open('/usr/local/airflow/dags/files/employees.csv', 'r') as file:
-          cur.copy_from(f, "Employees_temp", columns=['Serial Number','Company Name','Employee Markme','Description','Leave'], sep=',')
-      conn.commit()
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
+              cur.copy_from(
+                  f,
+                  "Employees_temp",
+                  columns=[
+                      "Serial Number",
+                      "Company Name",
+                      "Employee Markme",
+                      "Description",
+                      "Leave",
+                  ],
+                  sep=",",
+              )
+          conn.commit()
 
       @task
       def merge_data():
           query = """
-      delete
-      from "Employees" e using "Employees_temp" et
-      where e."Serial Number" = et."Serial Number";
+                  delete
+                  from "Employees" e using "Employees_temp" et
+                  where e."Serial Number" = et."Serial Number";
 
-      insert into "Employees"
-      select *
-      from "Employees_temp";
-      """
+                  insert into "Employees"
+                  select *
+                  from "Employees_temp";
+                  """
           try:
               postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
               conn = postgres_hook.get_conn()
