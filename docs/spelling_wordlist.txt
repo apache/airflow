@@ -396,6 +396,7 @@ Tomasz
 Tooltip
 Tsai
 Tuneables
+Tzu
 Tzu-ping
 UA
 Uellendall
@@ -924,6 +925,7 @@ javascript
 jaydebeapi
 jdbc
 jdk
+jedcunningham
 jenkins
 jghoman
 jhtimmins
@@ -1425,6 +1427,7 @@ updateMask
 updateonly
 upsert
 upserts
+uranusjr
 uri
 uris
 url
