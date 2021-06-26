@@ -158,7 +158,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
    in terms of "smoke tests" in CI PRs which are run using this default version and default reference
-   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.0.2`` images
+   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.0`` images
    are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
    become Python 3.7 images.
 
@@ -215,15 +215,15 @@ them to appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install apache-airflow==2.0.2 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.7.txt"
+pip install apache-airflow==2.1.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.0/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==2.0.2 \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.7.txt"
+pip install apache-airflow[postgres,google]==2.1.0 \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.0/constraints-3.7.txt"
 ```
 
 For information on installing provider packages check
