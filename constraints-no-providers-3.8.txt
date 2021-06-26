@@ -26,7 +26,7 @@ WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.6.5
 amqp==2.6.1
-anyio==3.2.0
+anyio==3.2.1
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.3
@@ -39,15 +39,15 @@ cattrs==1.5.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
-cgroupspy==0.1.6
-chardet==3.0.4
+cgroupspy==0.2.1
+chardet==4.0.0
 click==7.1.2
 clickclick==20.10.2
 cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==5.0.1
 commonmark==0.9.1
-croniter==1.0.13
+croniter==1.0.15
 cryptography==3.4.7
 dask==2021.6.0
 defusedxml==0.7.1
@@ -71,7 +71,7 @@ httpcore==0.13.6
 httpx==0.18.2
 humanize==3.9.0
 idna==2.10
-importlib-metadata==1.7.0
+importlib-metadata==4.5.0
 importlib-resources==1.5.0
 inflection==0.5.1
 iso8601==0.1.14
@@ -101,7 +101,6 @@ prison==0.1.3
 prometheus-client==0.8.0
 psutil==5.8.0
 pure-sasl==0.6.2
-pyOpenSSL==19.1.0
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
 pycparser==2.20
@@ -139,7 +138,7 @@ thrift==0.13.0
 toolz==0.11.1
 tornado==6.1
 unicodecsv==0.14.1
-urllib3==1.25.11
+urllib3==1.26.6
 vine==1.3.0
 virtualenv==20.4.7
 websocket-client==1.1.0

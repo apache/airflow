@@ -26,7 +26,7 @@ WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.6.5
 amqp==2.6.1
-anyio==3.2.0
+anyio==3.2.1
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==1.12.3
@@ -39,7 +39,7 @@ cattrs==1.5.0
 celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.5
-cgroupspy==0.1.6
+cgroupspy==0.2.1
 chardet==4.0.0
 click==7.1.2
 clickclick==20.10.2
@@ -47,7 +47,7 @@ cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==5.0.1
 commonmark==0.9.1
-croniter==1.0.13
+croniter==1.0.15
 cryptography==3.4.7
 dask==2021.6.0
 defusedxml==0.7.1
@@ -60,7 +60,7 @@ email-validator==1.1.3
 eventlet==0.31.0
 filelock==3.0.12
 flower==0.9.7
-fsspec==2021.6.0
+fsspec==2021.6.1
 gevent==21.1.2
 google-auth==1.32.0
 graphviz==0.16
@@ -88,11 +88,11 @@ marshmallow-oneofschema==2.1.0
 marshmallow-sqlalchemy==0.23.1
 marshmallow==3.12.1
 msgpack==1.0.2
-numpy==1.20.3
+numpy==1.21.0
 oauthlib==2.1.0
 openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.1
-pandas==1.2.4
+pandas==1.2.5
 partd==1.2.0
 pendulum==2.1.2
 plyvel==1.3.0
@@ -137,7 +137,7 @@ thrift==0.13.0
 toolz==0.11.1
 tornado==6.1
 unicodecsv==0.14.1
-urllib3==1.26.5
+urllib3==1.26.6
 vine==1.3.0
 virtualenv==20.4.7
 websocket-client==1.1.0
