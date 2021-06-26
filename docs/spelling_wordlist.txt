@@ -61,6 +61,7 @@ Chao
 CheckOperator
 Checklicence
 Checkr
+Chung
 Cinimex
 ClassifyTextResponse
 CloudTasksClient
@@ -77,6 +78,7 @@ Configs
 ContainerPort
 Cron
 Ctrl
+Cunningham
 DBs
 Daemonize
 DagFileProcessorManager
@@ -200,6 +202,7 @@ JPype
 Jakob
 Jarek
 Jdbc
+Jed
 Jiajie
 Jinja
 Jinjafied
@@ -393,6 +396,7 @@ Tomasz
 Tooltip
 Tsai
 Tuneables
+Tzu-ping
 UA
 Uellendall
 Umask
