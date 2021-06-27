@@ -349,6 +349,102 @@ class TestECSOperator(unittest.TestCase):
         check_mock.assert_called_once_with()
         assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
 
+    @parameterized.expand(
+        [
+            ['EC2', None],
+            ['FARGATE', None],
+            ['EC2', {'testTagKey': 'testTagValue'}],
+            ['', {'testTagKey': 'testTagValue'}],
+        ]
+    )
+    @mock.patch.object(ECSOperator,
+                       "xcom_pull",
+                       return_value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55")
+    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
+    @mock.patch.object(ECSOperator, '_check_success_task')
+    @mock.patch.object(ECSOperator, '_start_task')
+    def test_reattach_prev_task_successful(self, launch_type, tags, start_mock, check_mock, wait_mock, xcom_mock):
+
+        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        client_mock = self.aws_hook_mock.return_value.get_conn.return_value
+        client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
+        client_mock.list_tasks.return_value = {
+            'taskArns': [
+                'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b54',
+                'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+            ]
+        }
+
+        self.ecs.reattach_prev_task = True
+        self.ecs.execute(None)
+
+        self.aws_hook_mock.return_value.get_conn.assert_called_once()
+        extend_args = {}
+        if launch_type:
+            extend_args['launchType'] = launch_type
+        if launch_type == 'FARGATE':
+            extend_args['platformVersion'] = 'LATEST'
+        if tags:
+            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
+
+        client_mock.describe_task_definition.assert_called_once_with(taskDefinition='t')
+
+        client_mock.list_tasks.assert_called_once_with(cluster='c', desiredStatus='RUNNING', family='f')
+
+        start_mock.assert_not_called()
+        xcom_mock.assert_called_once_with(key='ecs_task_arn', task_ids='task_task_arn')
+        wait_mock.assert_called_once_with()
+        check_mock.assert_called_once_with()
+        assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+
+    @parameterized.expand(
+        [
+            ['EC2', None],
+            ['FARGATE', None],
+            ['EC2', {'testTagKey': 'testTagValue'}],
+            ['', {'testTagKey': 'testTagValue'}],
+        ]
+    )
+    @mock.patch.object(ECSOperator, '_xcom_del')
+    @mock.patch.object(ECSOperator, '_xcom_set')
+    @mock.patch.object(ECSOperator, '_try_reattach_task')
+    @mock.patch.object(ECSOperator, '_wait_for_task_ended')
+    @mock.patch.object(ECSOperator, '_check_success_task')
+    def test_reattach_prev_task_first_try(self, launch_type, tags, check_mock, wait_mock, reattach_mock, xcom_set_mock, xcom_del_mock):
+
+        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        client_mock = self.aws_hook_mock.return_value.get_conn.return_value
+        client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
+        client_mock.list_tasks.return_value = {
+            'taskArns': []
+        }
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+
+        self.ecs.reattach_prev_task = True
+        self.ecs.execute(None)
+
+        self.aws_hook_mock.return_value.get_conn.assert_called_once()
+        extend_args = {}
+        if launch_type:
+            extend_args['launchType'] = launch_type
+        if launch_type == 'FARGATE':
+            extend_args['platformVersion'] = 'LATEST'
+        if tags:
+            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
+
+        reattach_mock.called_once()
+        xcom_set_mock.assert_called_once_with(
+            None,
+            key="ecs_task_arn",
+            task_id="task_task_arn",
+            value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
+        )
+        client_mock.run_task.assert_called_once()
+        wait_mock.assert_called_once_with()
+        check_mock.assert_called_once_with()
+        xcom_del_mock.assert_called_once()
+        assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+
     @mock.patch.object(ECSOperator, '_last_log_message', return_value="Log output")
     def test_execute_xcom_with_log(self, mock_cloudwatch_log_message):
         self.ecs.do_xcom_push = True
