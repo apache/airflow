@@ -67,6 +67,10 @@ rect.shutdown {
   fill: blue;
 }
 
+rect.restarting {
+  fill: goldenrod;
+}
+
 rect.upstream_failed {
   fill: orange;
 }

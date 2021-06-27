@@ -202,7 +202,7 @@ class BaseJob(Base, LoggingMixin):
                 session.merge(self)
                 previous_heartbeat = self.latest_heartbeat
 
-            if self.state == State.SHUTDOWN:
+            if self.state in State.terminated_states:
                 self.kill()
 
             # Figure out how long to sleep for

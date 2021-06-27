@@ -158,7 +158,9 @@ def clear_task_instances(
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
-                ti.state = State.SHUTDOWN
+                # If a task is cleared when running, set its state to RESTARTING so that
+                # the task is terminated and becomes eligible for retry.
+                ti.state = State.RESTARTING
                 job_ids.append(ti.job_id)
         else:
             task_id = ti.task_id
@@ -211,7 +213,7 @@ def clear_task_instances(
         from airflow.jobs.base_job import BaseJob
 
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
-            job.state = State.SHUTDOWN
+            job.state = State.RESTARTING
 
     if activate_dag_runs is not None:
         warnings.warn(
@@ -1519,6 +1521,11 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
+        if self.state == State.RESTARTING:
+            # If a task is cleared when running, it goes into RESTARTING state and is always
+            # eligible for retry
+            return True
+
         return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session

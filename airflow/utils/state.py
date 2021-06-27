@@ -40,6 +40,7 @@ class TaskInstanceState(str, Enum):
     RUNNING = "running"  # Task is executing
     SUCCESS = "success"  # Task completed
     SHUTDOWN = "shutdown"  # External request to shut down
+    RESTARTING = "restarting"  # Cleared by user when running
     FAILED = "failed"  # Task errored out
     UP_FOR_RETRY = "up_for_retry"  # Task failed but has retries left
     UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
@@ -84,6 +85,7 @@ class State:
     SCHEDULED = TaskInstanceState.SCHEDULED
     QUEUED = TaskInstanceState.QUEUED
     SHUTDOWN = TaskInstanceState.SHUTDOWN
+    RESTARTING = TaskInstanceState.RESTARTING
     UP_FOR_RETRY = TaskInstanceState.UP_FOR_RETRY
     UP_FOR_RESCHEDULE = TaskInstanceState.UP_FOR_RESCHEDULE
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
@@ -105,6 +107,7 @@ class State:
         TaskInstanceState.RUNNING: 'lime',
         TaskInstanceState.SUCCESS: 'green',
         TaskInstanceState.SHUTDOWN: 'blue',
+        TaskInstanceState.RESTARTING: 'goldenrod',
         TaskInstanceState.FAILED: 'red',
         TaskInstanceState.UP_FOR_RETRY: 'gold',
         TaskInstanceState.UP_FOR_RESCHEDULE: 'turquoise',
@@ -159,6 +162,7 @@ class State:
             TaskInstanceState.RUNNING,
             TaskInstanceState.SENSING,
             TaskInstanceState.SHUTDOWN,
+            TaskInstanceState.RESTARTING,
             TaskInstanceState.UP_FOR_RETRY,
             TaskInstanceState.UP_FOR_RESCHEDULE,
         ]
@@ -180,6 +184,11 @@ class State:
     )
     """
     A list of states indicating that a task or dag is a success state.
+    """
+
+    terminated_states = frozenset([TaskInstanceState.SHUTDOWN, TaskInstanceState.RESTARTING])
+    """
+    A list of states indicating that a task has been terminated.
     """
 
 
