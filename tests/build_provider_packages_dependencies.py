@@ -115,7 +115,6 @@ class ImportFinder(NodeVisitor):
     """
 
     def __init__(self, filename: str) -> None:
-        
         self.imports: List[str] = []
         self.filename = filename
         self.handled_import_exception = List[str]
