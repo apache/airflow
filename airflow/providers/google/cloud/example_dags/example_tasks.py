@@ -49,7 +49,7 @@ from airflow.providers.google.cloud.operators.tasks import (
 from airflow.utils.dates import days_ago
 
 timestamp = timestamp_pb2.Timestamp()
-timestamp.FromDatetime(datetime.now() + timedelta(hours=12))  # pylint: disable=no-member
+timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
 
 LOCATION = "europe-west1"
 QUEUE_ID = os.environ.get('GCP_TASKS_QUEUE_ID', "cloud-tasks-queue")

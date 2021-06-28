@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=invalid-name
+
 """Interact with AWS S3, using the boto3 library."""
 import fnmatch
 import gzip as gz
@@ -38,7 +38,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def provide_bucket_name(func: T) -> T:

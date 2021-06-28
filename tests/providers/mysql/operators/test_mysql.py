@@ -102,7 +102,7 @@ class TestMySql(unittest.TestCase):
                 database="foobar",
             )
 
-            from MySQLdb import OperationalError  # pylint: disable=no-name-in-module
+            from MySQLdb import OperationalError
 
             try:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

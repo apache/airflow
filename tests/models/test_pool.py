@@ -59,10 +59,10 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        assert 3 == pool.open_slots()  # pylint: disable=no-value-for-parameter
-        assert 1 == pool.running_slots()  # pylint: disable=no-value-for-parameter
-        assert 1 == pool.queued_slots()  # pylint: disable=no-value-for-parameter
-        assert 2 == pool.occupied_slots()  # pylint: disable=no-value-for-parameter
+        assert 3 == pool.open_slots()
+        assert 1 == pool.running_slots()
+        assert 1 == pool.queued_slots()
+        assert 2 == pool.occupied_slots()
         assert {
             "default_pool": {
                 "open": 128,
@@ -98,10 +98,10 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        assert float('inf') == pool.open_slots()  # pylint: disable=no-value-for-parameter
-        assert 1 == pool.running_slots()  # pylint: disable=no-value-for-parameter
-        assert 1 == pool.queued_slots()  # pylint: disable=no-value-for-parameter
-        assert 2 == pool.occupied_slots()  # pylint: disable=no-value-for-parameter
+        assert float('inf') == pool.open_slots()
+        assert 1 == pool.running_slots()
+        assert 1 == pool.queued_slots()
+        assert 2 == pool.occupied_slots()
         assert {
             "default_pool": {
                 "open": 128,

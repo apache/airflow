@@ -92,7 +92,7 @@ def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
     return Metadata(type_name, source, data)
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def apply_lineage(func: T) -> T:
@@ -138,7 +138,7 @@ def prepare_lineage(func: T) -> T:
     * "list of datasets" -> manually defined list of data
 
     """
-    # pylint: disable=protected-access
+
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
         from airflow.models.base import Operator

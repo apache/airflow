@@ -417,7 +417,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1
             )
-            manager._find_zombies()  # pylint: disable=no-value-for-parameter
+            manager._find_zombies()
             requests = manager._callback_to_execute[dag.full_filepath]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.full_filepath

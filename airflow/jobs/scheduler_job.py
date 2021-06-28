@@ -1,4 +1,3 @@
-# pylint: disable=no-name-in-module
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -678,7 +677,7 @@ def _is_parent_process():
     return multiprocessing.current_process().name == 'MainProcess'
 
 
-class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
+class SchedulerJob(BaseJob):
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
     that are ready to run. It figures out the latest runs for each
@@ -751,7 +750,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
-    def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
+    def _exit_gracefully(self, signum, frame) -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -762,14 +761,14 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
-    def _debug_dump(self, signum, frame):  # pylint: disable=unused-argument
+    def _debug_dump(self, signum, frame):
         if not _is_parent_process():
             # Only the parent process should perform the debug dump.
             return
 
         try:
-            sig_name = signal.Signals(signum).name  # pylint: disable=no-member
-        except Exception:  # pylint: disable=broad-except
+            sig_name = signal.Signals(signum).name
+        except Exception:
             sig_name = str(signum)
 
         self.log.info("%s\n%s received, printing debug\n%s", "-" * 80, sig_name, "-" * 80)
@@ -822,9 +821,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .filter(models.TaskInstance.state.in_(old_states))
             .filter(
                 or_(
-                    # pylint: disable=comparison-with-callable
                     models.DagRun.state != State.RUNNING,
-                    # pylint: disable=no-member
                     models.DagRun.state.is_(None),
                 )
             )
@@ -900,7 +897,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             task_map[(dag_id, task_id)] = count
         return dag_map, task_map
 
-    # pylint: disable=too-many-locals,too-many-statements
     @provide_session
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
         """
@@ -980,7 +976,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
-        # pylint: disable=too-many-nested-blocks
+
         for pool, task_instances in pool_to_task_instances.items():
             pool_name = pool
             if pool not in pools:
@@ -1315,17 +1311,17 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 models.DAG.deactivate_stale_dags(execute_start_time)
 
             settings.Session.remove()  # type: ignore
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
             try:
                 self.executor.end()
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Exception when executing Executor.end")
             try:
                 self.processor_agent.end()
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
@@ -1658,7 +1654,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             session.query(DagRun.dag_id, func.count('*'))
             .filter(
                 DagRun.dag_id.in_([o.dag_id for o in dag_models]),
-                DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
+                DagRun.state == State.RUNNING,
                 DagRun.external_trigger.is_(False),
             )
             .group_by(DagRun.dag_id)
@@ -1874,7 +1870,6 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                         .join(TI.dag_run)
                         .filter(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
-                            # pylint: disable=comparison-with-callable
                             DagRun.state == State.RUNNING,
                         )
                         .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))

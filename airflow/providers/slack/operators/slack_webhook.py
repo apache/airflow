@@ -69,7 +69,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
         'proxy',
     ]
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

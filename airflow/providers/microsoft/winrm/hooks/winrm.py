@@ -31,7 +31,8 @@ except ImportError:
 
 
 # TODO: Fixme please - I have too complex implementation
-# pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-branches
+
+
 class WinRMHook(BaseHook):
     """
     Hook for winrm remote execution using pywinrm.

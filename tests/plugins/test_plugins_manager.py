@@ -64,7 +64,7 @@ class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
         self.app = app
-        self.appbuilder = app.appbuilder  # pylint: disable=no-member
+        self.appbuilder = app.appbuilder
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -135,7 +135,7 @@ def test_flaskappbuilder_nomenu_views():
     appbuilder_class_name = str(v_nomenu_appbuilder_package['view'].__class__.__name__)
 
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-        appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
+        appbuilder = application.create_app(testing=True).appbuilder
 
         plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
 

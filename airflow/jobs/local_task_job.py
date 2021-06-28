@@ -72,7 +72,6 @@ class LocalTaskJob(BaseJob):
     def _execute(self):
         self.task_runner = get_task_runner(self)
 
-        # pylint: disable=unused-argument
         def signal_handler(signum, frame):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
@@ -80,12 +79,9 @@ class LocalTaskJob(BaseJob):
             self.task_instance.refresh_from_db()
             if self.task_instance.state not in State.finished:
                 self.task_instance.set_state(State.FAILED)
-            self.task_instance._run_finished_callback(  # pylint: disable=protected-access
-                error="task received sigterm"
-            )
+            self.task_instance._run_finished_callback(error="task received sigterm")
             raise AirflowException("LocalTaskJob received SIGTERM signal")
 
-        # pylint: enable=unused-argument
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
@@ -161,7 +157,7 @@ class LocalTaskJob(BaseJob):
             self.task_instance.set_state(State.FAILED)
         if self.task_instance.state != State.SUCCESS:
             error = self.task_runner.deserialize_run_error()
-        self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
+        self.task_instance._run_finished_callback(error=error)
         if not self.task_instance.test_mode:
             self._update_dagrun_state_for_paused_dag()
 
@@ -209,7 +205,7 @@ class LocalTaskJob(BaseJob):
                 # error file will not be populated and it must be updated by
                 # external source suck as web UI
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
-            ti._run_finished_callback(error=error)  # pylint: disable=protected-access
+            ti._run_finished_callback(error=error)
             self.terminating = True
 
     @provide_session

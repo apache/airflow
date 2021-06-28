@@ -66,7 +66,6 @@ class SlackWebhookHook(HttpHook):
     conn_type = 'slackwebhook'
     hook_name = 'Slack Webhook'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         http_conn_id=None,

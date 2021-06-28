@@ -20,8 +20,6 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-
-# pylint: disable=no-name-in-module
 from snowflake import connector
 from snowflake.connector import SnowflakeConnection
 
@@ -148,9 +146,7 @@ class SnowflakeHook(DbApiHook):
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(
-            self.snowflake_conn_id  # type: ignore[attr-defined] # pylint: disable=no-member
-        )
+        conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
         account = conn.extra_dejson.get('extra__snowflake__account', '') or conn.extra_dejson.get(
             'account', ''
         )
@@ -228,10 +224,8 @@ class SnowflakeHook(DbApiHook):
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:  # type: ignore[attr-defined]  # pylint: disable=no-member
-            connection_object = self.get_connection(
-                self.snowflake_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-            )
+        if self.snowflake_conn_id:  # type: ignore[attr-defined]
+            connection_object = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
             if 'aws_secret_access_key' in connection_object.extra_dejson:
                 aws_access_key_id = connection_object.extra_dejson.get(
                     'aws_access_key_id'

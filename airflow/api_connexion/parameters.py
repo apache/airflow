@@ -64,7 +64,7 @@ def check_limit(value: int):
     return value
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Callable[[T], T]:

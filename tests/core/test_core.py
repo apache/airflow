@@ -254,10 +254,10 @@ class TestCore(unittest.TestCase):
         """
 
         class NonBoolObject:
-            def __len__(self):  # pylint: disable=invalid-length-returned
+            def __len__(self):
                 return NotImplemented
 
-            def __bool__(self):  # pylint: disable=invalid-bool-returned, bad-option-value
+            def __bool__(self):
                 return NotImplemented
 
         op = OperatorSubclass(
@@ -367,11 +367,11 @@ class TestCore(unittest.TestCase):
         session = settings.Session()
         try:
             op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         try:
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         op1_fails = (
             session.query(TaskFail)

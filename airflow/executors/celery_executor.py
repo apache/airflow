@@ -39,7 +39,7 @@ from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
@@ -116,21 +116,21 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
 
         args.func(args)
         ret = 0
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         log.exception("Failed to execute task %s.", str(e))
         ret = 1
     finally:
         Sentry.flush()
         logging.shutdown()
-        os._exit(ret)  # pylint: disable=protected-access
+        os._exit(ret)
 
 
 def _execute_in_subprocess(command_to_exec: CommandType) -> None:
     env = os.environ.copy()
     try:
-        # pylint: disable=unexpected-keyword-arg
+
         subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
-        # pylint: disable=unexpected-keyword-arg
+
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
@@ -166,14 +166,13 @@ def send_task_to_executor(
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
 
 
-# pylint: disable=unused-import
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
@@ -196,9 +195,6 @@ def on_celery_import_modules(*args, **kwargs):
         import kubernetes.client  # noqa: F401
     except ImportError:
         pass
-
-
-# pylint: enable=unused-import
 
 
 class CeleryExecutor(BaseExecutor):
@@ -292,9 +288,7 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error(  # pylint: disable=logging-not-lazy
-                    CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback
-                )
+                self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
                 self.event_buffer[key] = (State.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
@@ -413,7 +407,7 @@ class CeleryExecutor(BaseExecutor):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
     def end(self, synchronous: bool = False) -> None:
@@ -511,7 +505,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
             # to get the current state of the task
             info = async_result.info if hasattr(async_result, 'info') else None
             return async_result.task_id, async_result.state, info
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
 
@@ -592,7 +586,7 @@ class BulkStateFetcher(LoggingMixin):
             states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}
             for task_id, state_or_exception, info in task_id_to_states_and_info:
                 if isinstance(state_or_exception, ExceptionWithTraceback):
-                    self.log.error(  # pylint: disable=logging-not-lazy
+                    self.log.error(
                         CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
                         state_or_exception.exception,
                         state_or_exception.traceback,

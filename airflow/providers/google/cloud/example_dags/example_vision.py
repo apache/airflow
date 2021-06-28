@@ -57,23 +57,23 @@ from airflow.providers.google.cloud.operators.vision import (
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_vision_retry_import]
-from google.api_core.retry import Retry  # isort:skip pylint: disable=wrong-import-order
+from google.api_core.retry import Retry  # isort:skip
 
 # [END howto_operator_vision_retry_import]
 # [START howto_operator_vision_product_set_import]
-from google.cloud.vision_v1.types import ProductSet  # isort:skip pylint: disable=wrong-import-order
+from google.cloud.vision_v1.types import ProductSet  # isort:skip
 
 # [END howto_operator_vision_product_set_import]
 # [START howto_operator_vision_product_import]
-from google.cloud.vision_v1.types import Product  # isort:skip pylint: disable=wrong-import-order
+from google.cloud.vision_v1.types import Product  # isort:skip
 
 # [END howto_operator_vision_product_import]
 # [START howto_operator_vision_reference_image_import]
-from google.cloud.vision_v1.types import ReferenceImage  # isort:skip pylint: disable=wrong-import-order
+from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
 
 # [END howto_operator_vision_reference_image_import]
 # [START howto_operator_vision_enums_import]
-from google.cloud.vision import enums  # isort:skip pylint: disable=wrong-import-order
+from google.cloud.vision import enums  # isort:skip
 
 # [END howto_operator_vision_enums_import]
 

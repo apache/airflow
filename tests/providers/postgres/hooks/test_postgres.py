@@ -43,7 +43,7 @@ class TestPostgresHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user='login', password='password', host='host', dbname='schema', port=None

@@ -98,7 +98,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         cql: str,
         bucket: str,
         filename: str,
@@ -183,7 +183,6 @@ class CassandraToGCSOperator(BaseOperator):
         # Close all sessions and connection associated with this Cassandra cluster
         hook.shutdown_cluster()
 
-    # pylint: disable=consider-using-with
     def _write_local_data_files(self, cursor):
         """
         Takes a cursor, and writes results to a local file.
@@ -210,7 +209,6 @@ class CassandraToGCSOperator(BaseOperator):
 
         return tmp_file_handles
 
-    # pylint: disable=consider-using-with
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a
@@ -251,9 +249,7 @@ class CassandraToGCSOperator(BaseOperator):
         return {n: cls.convert_value(v) for n, v in zip(names, values)}
 
     @classmethod
-    def convert_value(  # pylint: disable=too-many-return-statements
-        cls, value: Optional[Any]
-    ) -> Optional[Any]:
+    def convert_value(cls, value: Optional[Any]) -> Optional[Any]:
         """Convert value to BQ type."""
         if not value:
             return value

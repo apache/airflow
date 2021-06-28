@@ -31,7 +31,6 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
-# pylint: disable=unused-import
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
@@ -47,7 +46,7 @@ try:
         TIMEZONE = pendulum.tz.local_timezone()
     else:
         TIMEZONE = pendulum.tz.timezone(tz)
-except Exception:  # pylint: disable=broad-except
+except Exception:
     pass
 log.info("Configured default timezone %s", TIMEZONE)
 
@@ -79,7 +78,7 @@ engine: Optional[Engine] = None
 Session: Optional[SASession] = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json  # pylint: disable=self-assigning-variable
+json = json
 
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
@@ -118,7 +117,7 @@ def custom_show_warning(message, category, filename, lineno, file=None, line=Non
 warnings.showwarning = custom_show_warning
 
 
-def task_policy(task) -> None:  # pylint: disable=unused-argument
+def task_policy(task) -> None:
     """
     This policy setting allows altering tasks after they are loaded in
     the DagBag. It allows administrator to rewire some task's parameters.
@@ -141,7 +140,7 @@ def task_policy(task) -> None:  # pylint: disable=unused-argument
     """
 
 
-def dag_policy(dag) -> None:  # pylint: disable=unused-argument
+def dag_policy(dag) -> None:
     """
     This policy setting allows altering DAGs after they are loaded in
     the DagBag. It allows administrator to rewire some DAG's parameters.
@@ -161,7 +160,7 @@ def dag_policy(dag) -> None:  # pylint: disable=unused-argument
     """
 
 
-def task_instance_mutation_hook(task_instance):  # pylint: disable=unused-argument
+def task_instance_mutation_hook(task_instance):
     """
     This setting allows altering task instances before they are queued by
     the Airflow scheduler.
@@ -176,7 +175,7 @@ def task_instance_mutation_hook(task_instance):  # pylint: disable=unused-argume
     """
 
 
-def pod_mutation_hook(pod):  # pylint: disable=unused-argument
+def pod_mutation_hook(pod):
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
     before they are passed to the Kubernetes client by the ``PodLauncher``
@@ -191,7 +190,6 @@ def pod_mutation_hook(pod):  # pylint: disable=unused-argument
     """
 
 
-# pylint: disable=global-statement
 def configure_vars():
     """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
@@ -346,12 +344,12 @@ def validate_session():
         check_session = sessionmaker(bind=engine)
         session = check_session()
         try:
-            session.execute("select 1")  # pylint: disable=no-member
+            session.execute("select 1")
             conn_status = True
         except exc.DBAPIError as err:
             log.error(err)
             conn_status = False
-        session.close()  # pylint: disable=no-member
+        session.close()
         return conn_status
 
 
@@ -410,11 +408,11 @@ def get_session_lifetime_config():
 
 def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         import airflow_local_settings
 
         if hasattr(airflow_local_settings, "__all__"):
-            for i in airflow_local_settings.__all__:  # pylint: disable=no-member
+            for i in airflow_local_settings.__all__:
                 globals()[i] = getattr(airflow_local_settings, i)
         else:
             for k, v in airflow_local_settings.__dict__.items():
@@ -451,9 +449,6 @@ def initialize():
 
     # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
-
-
-# pylint: enable=global-statement
 
 
 # Const stuff

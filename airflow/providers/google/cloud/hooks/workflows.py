@@ -19,8 +19,6 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
-
-# pylint: disable=no-name-in-module
 from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
 from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
 from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
@@ -28,8 +26,6 @@ from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflow
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-
-# pylint: enable=no-name-in-module
 
 
 class WorkflowsHook(GoogleBaseHook):

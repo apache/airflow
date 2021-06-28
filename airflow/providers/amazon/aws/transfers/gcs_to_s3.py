@@ -95,7 +95,7 @@ class GCSToS3Operator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         bucket: str,
         prefix: Optional[str] = None,
         delimiter: Optional[str] = None,

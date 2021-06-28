@@ -106,7 +106,7 @@ def cleanup_pods(args):
             ]
         ),
     }
-    while True:  # pylint: disable=too-many-nested-blocks
+    while True:
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
@@ -130,7 +130,7 @@ def cleanup_pods(args):
                     print(f"Can't remove POD: {e}", file=sys.stderr)
                 continue
             print(f'No action taken on pod {pod_name}')
-        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        continue_token = pod_list.metadata._continue
         if not continue_token:
             break
         list_kwargs["_continue"] = continue_token

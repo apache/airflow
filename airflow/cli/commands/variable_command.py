@@ -91,7 +91,7 @@ def _import_helper(filepath):
         for k, v in var_json.items():
             try:
                 Variable.set(k, v, serialize_json=not isinstance(v, str))
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 print(f'Variable import failed: {repr(e)}')
                 fail_count += 1
             else:
@@ -111,7 +111,7 @@ def _variable_export_helper(filepath):
         for var in qry:
             try:
                 val = data.decode(var.val)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 val = var.val
             var_dict[var.key] = val
 

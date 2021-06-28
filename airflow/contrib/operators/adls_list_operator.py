@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator  # noqa
 
 warnings.warn(

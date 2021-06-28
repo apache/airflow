@@ -61,7 +61,7 @@ setattr(object1, 'ref', object2)
 
 # Essentially similar to airflow.models.baseoperator.BaseOperator
 class DummyClass(metaclass=BaseOperatorMeta):
-    def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
+    def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
 
     def set_xcomargs_dependencies(self):
@@ -84,11 +84,11 @@ class TestBaseOperator(unittest.TestCase):
 
     def test_default_args(self):
         default_args = {'test_param': True}
-        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        dummy_class = DummyClass(default_args=default_args)
         assert dummy_class.test_param
 
         default_args = {'test_param': True, 'test_sub_param': True}
-        dummy_subclass = DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        dummy_subclass = DummySubClass(default_args=default_args)
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
 
@@ -98,16 +98,16 @@ class TestBaseOperator(unittest.TestCase):
         assert dummy_subclass.test_sub_param
 
         with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
-            DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+            DummySubClass(default_args=default_args)
 
     def test_incorrect_default_args(self):
         default_args = {'test_param': True, 'extra_param': True}
-        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        dummy_class = DummyClass(default_args=default_args)
         assert dummy_class.test_param
 
         default_args = {'random_params': True}
         with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
-            DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+            DummyClass(default_args=default_args)
 
     @parameterized.expand(
         [
@@ -392,7 +392,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 3)]
         with pytest.raises(TypeError):
-            chain([op1, op2], 1)  # noqa
+            chain([op1, op2], 1)
 
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())

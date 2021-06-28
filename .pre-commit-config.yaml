@@ -218,7 +218,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D107,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
@@ -228,6 +228,14 @@ repos:
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
+          ^airflow/_vendor/
+        additional_dependencies: ['toml']
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.2.3
+    hooks:
+      - id: yesqa
+        exclude: |
+          (?x)
           ^airflow/_vendor/
   - repo: local
     hooks:
@@ -339,14 +347,7 @@ repos:
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra\.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
           git|
-          ^pylintrc |
           ^CHANGELOG\.txt$
-      - id: consistent-pylint
-        language: pygrep
-        name: Check for inconsistent pylint disable/enable without space
-        entry: "pylint:disable|pylint:enable"
-        pass_filenames: true
-        files: \.py$
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -609,11 +610,12 @@ repos:
         additional_dependencies: ['flynt==0.63']
         files: \.py$
         exclude: ^airflow/_vendor/
-      - id: bats-in-container-tests
-        name: Run in container bats tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
-        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: ./scripts/ci/static_checks/eslint.sh
         pass_filenames: false
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
@@ -622,6 +624,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
         language: system
         always_run: true
+        pass_filenames: false
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
+        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
         pass_filenames: false
       - id: mypy
         name: Run mypy
@@ -642,28 +650,6 @@ repos:
         files: ^docs/.*\.py$
         exclude: rtd-deprecation
         require_serial: false
-      - id: pylint
-        name: Run pylint for main code
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^tests|^kubernetes_tests|^airflow/_vendor/
-        pass_filenames: true
-        require_serial: true
-      - id: pylint
-        name: Run pylint for tests
-        language: system
-        entry: env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: ^tests/.*\.py$
-        pass_filenames: true
-        require_serial: true
-      - id: pylint
-        name: Run pylint for helm chart tests
-        language: system
-        entry: env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: ^chart/.*\.py$
-        pass_filenames: true
-        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
