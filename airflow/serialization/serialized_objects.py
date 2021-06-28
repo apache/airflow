@@ -195,7 +195,6 @@ class BaseSerialization:
                 serialized_object[key] = value
         return serialized_object
 
-    # pylint: disable=too-many-return-statements
     @classmethod
     def _serialize(cls, var: Any) -> Any:  # Unfortunately there is no support for recursive types in mypy
         """Helper function of depth first search for serialization.
@@ -255,10 +254,8 @@ class BaseSerialization:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
 
-    # pylint: enable=too-many-return-statements
-
     @classmethod
-    def _deserialize(cls, encoded_var: Any) -> Any:  # pylint: disable=too-many-return-statements
+    def _deserialize(cls, encoded_var: Any) -> Any:
         """Helper function of depth first search for deserialization."""
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
@@ -308,7 +305,7 @@ class BaseSerialization:
 
     @classmethod
     def _is_constructor_param(cls, attrname: str, instance: Any) -> bool:
-        # pylint: disable=unused-argument
+
         return attrname in cls._CONSTRUCTOR_PARAMS
 
     @classmethod
@@ -328,7 +325,6 @@ class BaseSerialization:
         to account for the case where the default value of the field is None but has the
         ``field = field or {}`` set.
         """
-        # pylint: disable=unused-argument
         if attrname in cls._CONSTRUCTOR_PARAMS and (
             cls._CONSTRUCTOR_PARAMS[attrname] is value or (value in [{}, []])
         ):
@@ -453,7 +449,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         op_extra_links_from_plugin = {}
 
         # We don't want to load Extra Operator links in Scheduler
-        if cls._load_operator_extra_links:  # pylint: disable=too-many-nested-blocks
+        if cls._load_operator_extra_links:
             from airflow import plugins_manager
 
             plugins_manager.initialize_extra_operators_links_plugins()
@@ -502,10 +498,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
             elif k == "deps":
                 v = cls._deserialize_deps(v)
-            elif (
-                k in cls._decorated_fields
-                or k not in op.get_serialized_fields()  # pylint: disable=unsupported-membership-test
-            ):
+            elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
 
@@ -658,7 +651,7 @@ class SerializedDAG(DAG, BaseSerialization):
     _decorated_fields = {'schedule_interval', 'default_args', '_access_control'}
 
     @staticmethod
-    def __get_constructor_defaults():  # pylint: disable=no-method-argument
+    def __get_constructor_defaults():
         param_to_attr = {
             'max_active_tasks': '_max_active_tasks',
             'description': '_description',
@@ -713,9 +706,9 @@ class SerializedDAG(DAG, BaseSerialization):
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
-                # pylint: disable=protected-access
+
                 SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
-                # pylint: enable=protected-access
+
                 v = {task["task_id"]: SerializedBaseOperator.deserialize_operator(task) for task in v}
                 k = "task_dict"
             elif k == "timezone":
@@ -734,7 +727,7 @@ class SerializedDAG(DAG, BaseSerialization):
             setattr(dag, k, v)
 
         # Set _task_group
-        # pylint: disable=protected-access
+
         if "_task_group" in encoded_dag:
             dag._task_group = SerializedTaskGroup.deserialize_task_group(  # type: ignore
                 encoded_dag["_task_group"], None, dag.task_dict
@@ -745,7 +738,6 @@ class SerializedDAG(DAG, BaseSerialization):
             dag._task_group = TaskGroup.create_root(dag)
             for task in dag.tasks:
                 dag.task_group.add(task)
-        # pylint: enable=protected-access
 
         # Set has_on_*_callbacks to True if they exist in Serialized blob as False is the default
         if "has_on_success_callback" in encoded_dag:
@@ -772,7 +764,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
-                # noqa: E501 # pylint: disable=protected-access
+
                 dag.task_dict[task_id]._upstream_task_ids.add(serializable_task.task_id)
 
         return dag
@@ -805,7 +797,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             return None
 
         serialize_group = {
-            "_group_id": task_group._group_id,  # pylint: disable=protected-access
+            "_group_id": task_group._group_id,
             "prefix_group_id": task_group.prefix_group_id,
             "tooltip": task_group.tooltip,
             "ui_color": task_group.ui_color,

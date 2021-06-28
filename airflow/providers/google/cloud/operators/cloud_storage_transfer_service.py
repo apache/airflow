@@ -821,7 +821,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     )
     ui_color = '#e09411'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         s3_bucket: str,
@@ -991,7 +991,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     )
     ui_color = '#e09411'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         source_bucket: str,

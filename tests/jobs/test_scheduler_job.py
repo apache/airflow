@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# pylint: disable=attribute-defined-outside-init
+
 import datetime
 import os
 import shutil
@@ -904,7 +904,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.rollback()
 
     # TODO: This is a hack, I think I need to just remove the setting and have it on always
-    def test_find_executable_task_instances_task_concurrency(self):  # pylint: disable=too-many-statements
+    def test_find_executable_task_instances_task_concurrency(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_task_concurrency'
         task_id_1 = 'dummy'
         task_id_2 = 'dummy2'
@@ -1767,7 +1767,7 @@ class TestSchedulerJob(unittest.TestCase):
         run_kwargs=None,
         advance_execution_date=False,
         session=None,
-    ):  # pylint: disable=unused-argument
+    ):
 
         """
         Helper for testing DagRun states with simple two-task DAGS.
@@ -2496,7 +2496,7 @@ class TestSchedulerJob(unittest.TestCase):
             self.scheduler_job.heartrate = 0
             self.scheduler_job.run()
 
-        do_schedule()  # pylint: disable=no-value-for-parameter
+        do_schedule()
         with create_session() as session:
             ti = (
                 session.query(TaskInstance)
@@ -2531,7 +2531,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         # To verify that task does get re-queued.
         executor.do_update = True
-        do_schedule()  # pylint: disable=no-value-for-parameter
+        do_schedule()
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
@@ -2604,7 +2604,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         try:
             running_date = running_dates[0]
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             running_date = 'Except'
 
         assert execution_date == running_date, 'Running Date must match Execution Date'
@@ -2865,7 +2865,7 @@ class TestSchedulerJob(unittest.TestCase):
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
         }
-        for root, _, files in os.walk(TEST_DAG_FOLDER):  # pylint: disable=too-many-nested-blocks
+        for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ignored_files:
@@ -2878,7 +2878,7 @@ class TestSchedulerJob(unittest.TestCase):
             'helper.py',
         }
         example_dag_folder = airflow.example_dags.__path__[0]
-        for root, _, files in os.walk(example_dag_folder):  # pylint: disable=too-many-nested-blocks
+        for root, _, files in os.walk(example_dag_folder):
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ['__init__.py'] and file_name not in ignored_files:
@@ -3699,11 +3699,11 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         [
             # expected, dag_count, task_count
             # One DAG with one task per DAG file
-            (24, 1, 1),  # noqa
+            (24, 1, 1),
             # One DAG with five tasks per DAG  file
-            (28, 1, 5),  # noqa
+            (28, 1, 5),
             # 10 DAGs with 10 tasks per DAG file
-            (195, 10, 10),  # noqa
+            (195, 10, 10),
         ]
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
@@ -3762,35 +3762,35 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         [
             # expected, dag_count, task_count, start_ago, schedule_interval, shape
             # One DAG with one task per DAG file
-            ([9, 9, 9, 9], 1, 1, "1d", "None", "no_structure"),  # noqa
-            ([9, 9, 9, 9], 1, 1, "1d", "None", "linear"),  # noqa
-            ([21, 12, 12, 12], 1, 1, "1d", "@once", "no_structure"),  # noqa
-            ([21, 12, 12, 12], 1, 1, "1d", "@once", "linear"),  # noqa
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "no_structure"),  # noqa
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "linear"),  # noqa
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "binary_tree"),  # noqa
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "star"),  # noqa
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "grid"),  # noqa
+            ([9, 9, 9, 9], 1, 1, "1d", "None", "no_structure"),
+            ([9, 9, 9, 9], 1, 1, "1d", "None", "linear"),
+            ([21, 12, 12, 12], 1, 1, "1d", "@once", "no_structure"),
+            ([21, 12, 12, 12], 1, 1, "1d", "@once", "linear"),
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "no_structure"),
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "linear"),
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "binary_tree"),
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "star"),
+            ([21, 22, 24, 26], 1, 1, "1d", "30m", "grid"),
             # One DAG with five tasks per DAG  file
-            ([9, 9, 9, 9], 1, 5, "1d", "None", "no_structure"),  # noqa
-            ([9, 9, 9, 9], 1, 5, "1d", "None", "linear"),  # noqa
-            ([21, 12, 12, 12], 1, 5, "1d", "@once", "no_structure"),  # noqa
-            ([22, 13, 13, 13], 1, 5, "1d", "@once", "linear"),  # noqa
-            ([21, 22, 24, 26], 1, 5, "1d", "30m", "no_structure"),  # noqa
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "linear"),  # noqa
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "binary_tree"),  # noqa
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "star"),  # noqa
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "grid"),  # noqa
+            ([9, 9, 9, 9], 1, 5, "1d", "None", "no_structure"),
+            ([9, 9, 9, 9], 1, 5, "1d", "None", "linear"),
+            ([21, 12, 12, 12], 1, 5, "1d", "@once", "no_structure"),
+            ([22, 13, 13, 13], 1, 5, "1d", "@once", "linear"),
+            ([21, 22, 24, 26], 1, 5, "1d", "30m", "no_structure"),
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "linear"),
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "binary_tree"),
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "star"),
+            ([22, 24, 27, 30], 1, 5, "1d", "30m", "grid"),
             # 10 DAGs with 10 tasks per DAG file
-            ([9, 9, 9, 9], 10, 10, "1d", "None", "no_structure"),  # noqa
-            ([9, 9, 9, 9], 10, 10, "1d", "None", "linear"),  # noqa
-            ([84, 27, 27, 27], 10, 10, "1d", "@once", "no_structure"),  # noqa
-            ([94, 40, 40, 40], 10, 10, "1d", "@once", "linear"),  # noqa
-            ([84, 88, 88, 88], 10, 10, "1d", "30m", "no_structure"),  # noqa
-            ([94, 114, 114, 114], 10, 10, "1d", "30m", "linear"),  # noqa
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "binary_tree"),  # noqa
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "star"),  # noqa
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "grid"),  # noqa
+            ([9, 9, 9, 9], 10, 10, "1d", "None", "no_structure"),
+            ([9, 9, 9, 9], 10, 10, "1d", "None", "linear"),
+            ([84, 27, 27, 27], 10, 10, "1d", "@once", "no_structure"),
+            ([94, 40, 40, 40], 10, 10, "1d", "@once", "linear"),
+            ([84, 88, 88, 88], 10, 10, "1d", "30m", "no_structure"),
+            ([94, 114, 114, 114], 10, 10, "1d", "30m", "linear"),
+            ([94, 108, 108, 108], 10, 10, "1d", "30m", "binary_tree"),
+            ([94, 108, 108, 108], 10, 10, "1d", "30m", "star"),
+            ([94, 108, 108, 108], 10, 10, "1d", "30m", "grid"),
         ]
     )
     def test_process_dags_queries_count(

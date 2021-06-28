@@ -3359,14 +3359,8 @@ function breeze::run_static_checks() {
         echo "Running: pre-commit run" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
         echo
         pre-commit run "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-    elif [[ ${static_check} == "all-but-pylint" ]]; then
-        echo
-        echo "Setting SKIP=pylint. Running: pre-commit run" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-        echo
-        echo
-        SKIP=pylint pre-commit run "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
     else
-        if [[ ${static_check} == *"pylint"* || ${static_check} == *"mypy"* || ${static_check} == *"flake8"* ]]; then
+        if [[ ${static_check} == *"mypy"* || ${static_check} == *"flake8"* ]]; then
             echo
             echo "Running build pre-commit before running the requested static check"
             echo

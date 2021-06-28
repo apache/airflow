@@ -2052,7 +2052,7 @@ class DAG(LoggingMixin):
             session.query(DagRun.dag_id, func.count('*'))
             .filter(
                 DagRun.dag_id.in_(existing_dag_ids),
-                DagRun.state == State.RUNNING,  # pylint: disable=comparison-with-callable
+                DagRun.state == State.RUNNING,
                 DagRun.external_trigger == expression.false(),
             )
             .group_by(DagRun.dag_id)

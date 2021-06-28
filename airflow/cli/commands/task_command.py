@@ -166,7 +166,7 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
                 ", ".join(f"--{o}" for o in unsupported_options),
             )
         )
-    ti._run_raw_task(  # pylint: disable=protected-access
+    ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
@@ -412,7 +412,7 @@ def task_test(args, dag=None):
             ti.dry_run()
         else:
             ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         if args.post_mortem:
             debugger = _guess_debugger()
             debugger.post_mortem()

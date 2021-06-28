@@ -26,7 +26,7 @@ from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import List, Optional, Set, Tuple
 
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
 
@@ -168,7 +168,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
                 )
                 result_channel.send(result)
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
             raise
@@ -230,7 +230,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, Mul
         self._process.terminate()
         # Arbitrarily wait 5s for the process to die
         with suppress(TimeoutError):
-            self._process._popen.wait(5)  # type: ignore  # pylint: disable=protected-access
+            self._process._popen.wait(5)  # type: ignore
         if sigkill:
             self._kill_process()
         self._parent_channel.close()
@@ -417,15 +417,12 @@ class DagFileProcessor(LoggingMixin):
                 dttm = dag.following_schedule(dttm)
         session.commit()
 
-        # pylint: disable=singleton-comparison
         slas: List[SlaMiss] = (
             session.query(SlaMiss)
             .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
             .all()
         )
-        # pylint: enable=singleton-comparison
-
-        if slas:  # pylint: disable=too-many-nested-blocks
+        if slas:
             sla_dates: List[datetime.datetime] = [sla.execution_date for sla in slas]
             fetched_tis: List[TI] = (
                 session.query(TI)
@@ -455,7 +452,7 @@ class DagFileProcessor(LoggingMixin):
                 try:
                     dag.sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis)
                     notification_sent = True
-                except Exception:  # pylint: disable=broad-except
+                except Exception:
                     self.log.exception("Could not call sla_miss_callback for DAG %s", dag.dag_id)
             email_content = f"""\
             Here's a list of tasks that missed their SLAs:
@@ -489,7 +486,7 @@ class DagFileProcessor(LoggingMixin):
                     send_email(emails, f"[airflow] SLA miss on DAG={dag.dag_id}", email_content)
                     email_sent = True
                     notification_sent = True
-                except Exception:  # pylint: disable=broad-except
+                except Exception:
                     Stats.incr('sla_email_notification_failure')
                     self.log.exception("Could not send SLA Miss email notification for DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
@@ -545,7 +542,7 @@ class DagFileProcessor(LoggingMixin):
                     self.manage_slas(dagbag.dags.get(request.dag_id))
                 elif isinstance(request, DagCallbackRequest):
                     self._execute_dag_callbacks(dagbag, request, session)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception(
                     "Error executing %s callback for file: %s",
                     request.__class__.__name__,
@@ -614,7 +611,7 @@ class DagFileProcessor(LoggingMixin):
 
         try:
             dagbag = DagBag(file_path, include_examples=False, include_smart_sensor=False)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
             return 0, 0
@@ -644,7 +641,7 @@ class DagFileProcessor(LoggingMixin):
         # Record import errors into the ORM
         try:
             self.update_import_errors(session, dagbag)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.exception("Error logging import errors!")
 
         return len(dagbag.dags), len(dagbag.import_errors)

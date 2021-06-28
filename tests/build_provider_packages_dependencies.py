@@ -123,7 +123,7 @@ class ImportFinder(NodeVisitor):
     def process_import(self, import_name: str) -> None:
         self.imports.append(import_name)
 
-    def get_import_name_from_import_from(self, node: ImportFrom) -> List[str]:  # noqa
+    def get_import_name_from_import_from(self, node: ImportFrom) -> List[str]:
         """
         Retrieves import name from the "from" import.
         :param node: ImportFrom name
@@ -136,11 +136,11 @@ class ImportFinder(NodeVisitor):
             import_names.append(fullname)
         return import_names
 
-    def visit_Import(self, node: Import) -> None:  # pylint: disable=invalid-name
+    def visit_Import(self, node: Import):
         for alias in node.names:
             self.process_import(alias.name)
 
-    def visit_ImportFrom(self, node: ImportFrom) -> None:  # pylint: disable=invalid-name
+    def visit_ImportFrom(self, node: ImportFrom):
         if node.module == '__future__':
             return
         for fullname in self.get_import_name_from_import_from(node):

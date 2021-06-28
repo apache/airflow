@@ -74,7 +74,7 @@ class CleanCommand(Command):
         for file in files:
             try:
                 os.remove(file)
-            except Exception as e:  # noqa pylint: disable=broad-except
+            except Exception as e:
                 logger.warning("Error when removing %s: %s", file, e)
 
     def run(self) -> None:
@@ -104,7 +104,7 @@ class CompileAssets(Command):
     def finalize_options(self) -> None:
         """Set final values for options."""
 
-    def run(self) -> None:  # noqa
+    def run(self) -> None:
         """Run a command to compile and build assets."""
         subprocess.check_call('./airflow/www/compile_assets.sh')
 
@@ -124,7 +124,7 @@ class ListExtras(Command):
     def finalize_options(self) -> None:
         """Set final values for options."""
 
-    def run(self) -> None:  # noqa
+    def run(self) -> None:
         """List extras."""
         print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
@@ -507,7 +507,6 @@ devel = [
     'pipdeptree',
     'pre-commit',
     'pygithub',
-    'pylint~=2.8.1',
     'pysftp',
     'pytest~=6.0',
     'pytest-cov',
@@ -800,7 +799,7 @@ def sort_extras_requirements() -> Dict[str, List[str]]:
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
-    sorted_requirements = dict(sorted(EXTRAS_REQUIREMENTS.items()))  # noqa
+    sorted_requirements = dict(sorted(EXTRAS_REQUIREMENTS.items()))
     for extra_list in sorted_requirements.values():
         extra_list.sort()
     return sorted_requirements
@@ -836,10 +835,8 @@ def get_provider_package_from_package_id(package_id: str) -> str:
 def get_excluded_providers() -> List[str]:
     """
     Returns packages excluded for the current python version.
-
     Currently the only excluded provider is apache hive for Python 3.9.
     Until https://github.com/dropbox/PyHive/issues/380 is fixed.
-
     """
     return ['apache.hive'] if PY39 else []
 
@@ -855,15 +852,9 @@ def get_all_provider_packages() -> str:
 
 
 class AirflowDistribution(Distribution):
-    """
-    The setuptools.Distribution subclass with Airflow specific behaviour
+    """The setuptools.Distribution subclass with Airflow specific behaviour"""
 
-    The reason for pylint: disable=signature-differs of parse_config_files is explained here:
-    https://github.com/PyCQA/pylint/issues/3737
-
-    """
-
-    def parse_config_files(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
+    def parse_config_files(self, *args, **kwargs) -> None:
         """
         Ensure that when we have been asked to install providers from sources
         that we don't *also* try to install those providers from PyPI.
@@ -872,7 +863,7 @@ class AirflowDistribution(Distribution):
         """
         super().parse_config_files(*args, **kwargs)
         if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
-            self.install_requires = [  # noqa  pylint: disable=attribute-defined-outside-init
+            self.install_requires = [
                 req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
             ]
             provider_yaml_files = glob.glob("airflow/providers/**/provider.yaml", recursive=True)

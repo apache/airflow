@@ -96,7 +96,7 @@ class SkipMixin(LoggingMixin):
 
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         try:
-            task_id = self.task_id  # noqa
+            task_id = self.task_id
         except AttributeError:
             task_id = None
 

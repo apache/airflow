@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook  # noqa
 
 warnings.warn(

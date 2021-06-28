@@ -76,7 +76,7 @@ class TestPiiAnonymizer(unittest.TestCase):
 class TestAirflowInfo:
     @classmethod
     def setup_class(cls):
-        # pylint: disable=attribute-defined-outside-init
+
         cls.parser = cli_parser.get_parser()
 
     @classmethod

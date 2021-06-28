@@ -64,12 +64,12 @@ class TraceQueries:
     def before_cursor_execute(
         self,
         conn,
-        cursor,  # pylint: disable=unused-argument
-        statement,  # pylint: disable=unused-argument
-        parameters,  # pylint: disable=unused-argument
-        context,  # pylint: disable=unused-argument
+        cursor,
+        statement,
+        parameters,
+        context,
         executemany,
-    ):  # pylint: disable=unused-argument
+    ):
         """
         Executed before cursor.
 
@@ -88,12 +88,12 @@ class TraceQueries:
     def after_cursor_execute(
         self,
         conn,
-        cursor,  # pylint: disable=unused-argument
+        cursor,
         statement,
         parameters,
-        context,  # pylint: disable=unused-argument
+        context,
         executemany,
-    ):  # pylint: disable=unused-argument
+    ):
         """
         Executed after cursor.
 
@@ -141,14 +141,14 @@ class TraceQueries:
         event.listen(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
 
-    def __exit__(self, type_, value, traceback):  # noqa pylint: disable=redefined-outer-name
+    def __exit__(self, type_, value, traceback):
         import airflow.settings
 
         event.remove(airflow.settings.engine, "before_cursor_execute", self.before_cursor_execute)
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
 
 
-trace_queries = TraceQueries  # pylint: disable=invalid-name
+trace_queries = TraceQueries
 
 
 class CountQueriesResult:
@@ -180,7 +180,7 @@ class CountQueries:
         event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
-    def __exit__(self, type_, value, traceback):  # noqa pylint: disable=redefined-outer-name
+    def __exit__(self, type_, value, traceback):
         import airflow.settings
 
         event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
@@ -188,13 +188,13 @@ class CountQueries:
 
     def after_cursor_execute(
         self,
-        conn,  # pylint: disable=unused-argument
-        cursor,  # pylint: disable=unused-argument
-        statement,  # pylint: disable=unused-argument
-        parameters,  # pylint: disable=unused-argument
-        context,  # pylint: disable=unused-argument
+        conn,
+        cursor,
+        statement,
+        parameters,
+        context,
         executemany,
-    ):  # pylint: disable=unused-argument
+    ):
         """
         Executed after cursor.
 
@@ -208,7 +208,7 @@ class CountQueries:
         self.result.count += 1
 
 
-count_queries = CountQueries  # pylint: disable=invalid-name
+count_queries = CountQueries
 
 if __name__ == "__main__":
 

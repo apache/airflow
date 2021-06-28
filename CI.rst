@@ -653,9 +653,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | CI Images                 | Waits for CI Images (3)                      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
-| Static checks             | Performs static checks without pylint        | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Static checks: pylint     | Performs pylint static checks                | Yes   | Yes   | Yes  |
+| Static checks             | Performs static checks                       | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Build docs                | Builds documentation                         | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+

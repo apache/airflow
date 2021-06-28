@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor  # noqa
 
 warnings.warn(

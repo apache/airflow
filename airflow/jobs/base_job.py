@@ -144,7 +144,7 @@ class BaseJob(Base, LoggingMixin):
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
         session.commit()

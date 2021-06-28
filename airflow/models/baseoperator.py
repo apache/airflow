@@ -74,13 +74,13 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
-    from airflow.utils.task_group import TaskGroup  # pylint: disable=cyclic-import
+    from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskStateChangeCallback = Callable[[Context], None]
 
-T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar('T', bound=Callable)
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -110,7 +110,6 @@ class BaseOperatorMeta(abc.ABCMeta):
             and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
         }
 
-        # pylint: disable=invalid-name,missing-docstring
         class autostacklevel_warn:
             def __init__(self):
                 self.warnings = __import__('warnings')
@@ -123,8 +122,6 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             def warn(self, message, category=None, stacklevel=1, source=None):
                 self.warnings.warn(message, category, stacklevel + 2, source)
-
-        # pylint: enable=invalid-name,missing-docstring
 
         if func.__globals__.get('warnings') is sys.modules['warnings']:
             # Yes, this is slightly hacky, but it _automatically_ sets the right
@@ -180,7 +177,7 @@ class BaseOperatorMeta(abc.ABCMeta):
                 kwargs['default_args'] = default_args
 
             if hasattr(self, '_hook_apply_defaults'):
-                args, kwargs = self._hook_apply_defaults(*args, **kwargs)  # pylint: disable=protected-access
+                args, kwargs = self._hook_apply_defaults(*args, **kwargs)
 
             result = func(self, *args, **kwargs)
 
@@ -188,7 +185,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             self.set_xcomargs_dependencies()
 
             # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
-            self._BaseOperator__instantiated = True  # pylint: disable=protected-access
+            self._BaseOperator__instantiated = True
             return result
 
         return cast(T, apply_defaults)
@@ -199,7 +196,6 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
 
-# pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
 class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta):
     """
@@ -460,7 +456,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     # Set to True before calling execute method
     _lock_for_execution = False
 
-    # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
     def __init__(
         self,
         task_id: str,
@@ -478,7 +473,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         wait_for_downstream: bool = False,
         dag=None,
         params: Optional[Dict] = None,
-        default_args: Optional[Dict] = None,  # pylint: disable=unused-argument
+        default_args: Optional[Dict] = None,
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = conf.get('operators', 'default_queue'),
@@ -588,7 +583,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.retry_delay = retry_delay
         else:
             self.log.debug("Retry_delay isn't timedelta object, assuming secs")
-            self.retry_delay = timedelta(seconds=retry_delay)  # noqa
+            self.retry_delay = timedelta(seconds=retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
         if max_retry_delay:
@@ -596,7 +591,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 self.max_retry_delay = max_retry_delay
             else:
                 self.log.debug("Max_retry_delay isn't timedelta object, assuming secs")
-                self.max_retry_delay = timedelta(seconds=max_retry_delay)  # noqa
+                self.max_retry_delay = timedelta(seconds=max_retry_delay)
 
         self.params = params or {}  # Available in templates!
         self.priority_weight = priority_weight
@@ -823,7 +818,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         returns a copy of the task
         """
         other = copy.copy(self)
-        other._lock_for_execution = True  # pylint: disable=protected-access
+        other._lock_for_execution = True
         return other
 
     def set_xcomargs_dependencies(self) -> None:
@@ -849,7 +844,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """
         from airflow.models.xcom_arg import XComArg
 
-        def apply_set_upstream(arg: Any):  # noqa
+        def apply_set_upstream(arg: Any):
             if isinstance(arg, XComArg):
                 self.set_upstream(arg.operator)
             elif isinstance(arg, (tuple, set, list)):
@@ -967,13 +962,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        shallow_copy = (
-            cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
-        )  # pylint: disable=protected-access
+        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
         for k, v in self.__dict__.items():
             if k not in shallow_copy:
-                setattr(result, k, copy.deepcopy(v, memo))  # noqa
+                setattr(result, k, copy.deepcopy(v, memo))
             else:
                 setattr(result, k, copy.copy(v))
         return result
@@ -985,7 +978,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return state
 
     def __setstate__(self, state):
-        self.__dict__ = state  # pylint: disable=attribute-defined-outside-init
+        self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
@@ -1016,7 +1009,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 rendered_content = self.render_template(content, context, jinja_env, seen_oids)
                 setattr(parent, attr_name, rendered_content)
 
-    def render_template(  # pylint: disable=too-many-return-statements
+    def render_template(
         self,
         content: Any,
         context: Dict,
@@ -1055,10 +1048,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             return content.resolve(context)
 
         if isinstance(content, tuple):
-            if type(content) is not tuple:  # pylint: disable=unidiomatic-typecheck
+            if type(content) is not tuple:
                 # Special case for named tuples
                 return content.__class__(
-                    *(self.render_template(element, context, jinja_env) for element in content)  # noqa
+                    *(self.render_template(element, context, jinja_env) for element in content)
                 )
             else:
                 return tuple(self.render_template(element, context, jinja_env) for element in content)
@@ -1097,7 +1090,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.dag.get_template_env()
             if self.has_dag()
             else airflow.templates.SandboxedEnvironment(cache_size=0)
-        )  # noqa
+        )
 
     def prepare_template(self) -> None:
         """
@@ -1109,26 +1102,26 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def resolve_template_files(self) -> None:
         """Getting the content of files for template_field / template_ext"""
-        if self.template_ext:  # pylint: disable=too-many-nested-blocks
+        if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:  # pylint: disable=no-else-continue
+                if content is None:
                     continue
                 elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])
-                    except Exception as e:  # pylint: disable=broad-except
+                    except Exception as e:
                         self.log.exception(e)
                 elif isinstance(content, list):
                     env = self.dag.get_template_env()
-                    for i in range(len(content)):  # pylint: disable=consider-using-enumerate
+                    for i in range(len(content)):
                         if isinstance(content[i], str) and any(
                             content[i].endswith(ext) for ext in self.template_ext
                         ):
                             try:
                                 content[i] = env.loader.get_source(env, content[i])[0]
-                            except Exception as e:  # pylint: disable=broad-except
+                            except Exception as e:
                                 self.log.exception(e)
         self.prepare_template()
 
@@ -1338,9 +1331,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
         dags = {
-            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access,no-member
-            for task in self.roots + task_list
-            if task.has_dag()  # pylint: disable=no-member
+            task._dag.dag_id: task._dag for task in self.roots + task_list if task.has_dag()  # type: ignore
         }
 
         if len(dags) > 1:
@@ -1647,7 +1638,7 @@ def cross_downstream(
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[List[Type[BaseOperator]]] = []  # pylint: disable=invalid-name
+    operators: ClassVar[List[Type[BaseOperator]]] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

@@ -105,8 +105,8 @@ with models.DAG(
     # [END howto_bigquery_delete_data_transfer]
 
     (
-        gcp_bigquery_create_transfer  # noqa
-        >> gcp_bigquery_start_transfer  # noqa
-        >> gcp_run_sensor  # noqa
-        >> gcp_bigquery_delete_transfer  # noqa
+        gcp_bigquery_create_transfer
+        >> gcp_bigquery_start_transfer
+        >> gcp_run_sensor
+        >> gcp_bigquery_delete_transfer
     )

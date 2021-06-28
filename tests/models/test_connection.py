@@ -185,7 +185,7 @@ class TestConnection(unittest.TestCase):
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
-            '__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D',  # noqa: E501 # pylint: disable=C0301
+            '__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D',  # noqa: E501
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',
@@ -350,7 +350,6 @@ class TestConnection(unittest.TestCase):
         ),
     ]
 
-    # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
 
@@ -373,7 +372,6 @@ class TestConnection(unittest.TestCase):
 
         self.mask_secret.assert_has_calls(expected_calls)
 
-    # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
         """
@@ -395,7 +393,6 @@ class TestConnection(unittest.TestCase):
         assert connection.schema == new_conn.schema
         assert connection.extra_dejson == new_conn.extra_dejson
 
-    # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
         """

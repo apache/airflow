@@ -77,7 +77,6 @@ EOF
 
 _breeze_allowed_static_checks=$(cat <<-EOF
 all
-all-but-pylint
 airflow-config-yaml
 airflow-providers-available
 airflow-provider-yaml-files-ok
@@ -96,7 +95,6 @@ check-hooks-apply
 check-integrations
 check-merge-conflict
 check-xml
-consistent-pylint
 daysago-import-check
 debug-statements
 detect-private-key
@@ -132,8 +130,6 @@ providers-init-file
 provider-yamls
 pydevd
 pydocstyle
-pylint
-pylint-tests
 python-no-log-warn
 pyupgrade
 restrict-start_date
@@ -154,6 +150,7 @@ verify-db-migrations-documented
 version-sync
 www-lint
 yamllint
+yesqa
 EOF
 )
 

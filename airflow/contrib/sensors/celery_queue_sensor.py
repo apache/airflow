@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.celery.sensors.celery_queue import CeleryQueueSensor  # noqa
 
 warnings.warn(

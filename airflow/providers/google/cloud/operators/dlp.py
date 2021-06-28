@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=R0913, C0302
+
 """
 This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using

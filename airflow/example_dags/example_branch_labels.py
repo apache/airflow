@@ -36,5 +36,5 @@ with DAG("example_branch_labels", schedule_interval="@daily", start_date=days_ag
     report = DummyOperator(task_id="report")
 
     ingest >> analyse >> check
-    check >> Label("No errors") >> save >> report  # pylint: disable=expression-not-assigned
-    check >> Label("Errors found") >> describe >> error >> report  # pylint: disable=expression-not-assigned
+    check >> Label("No errors") >> save >> report
+    check >> Label("Errors found") >> describe >> error >> report

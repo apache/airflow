@@ -91,7 +91,7 @@ class AsanaHook(BaseHook):
         """
         merged_params = self._merge_create_task_parameters(task_name, params)
         self._validate_create_task_parameters(merged_params)
-        response = self.client.tasks.create(params=merged_params)  # pylint: disable=no-member
+        response = self.client.tasks.create(params=merged_params)
         return response
 
     def _merge_create_task_parameters(self, task_name: str, task_params: dict) -> dict:
@@ -134,7 +134,7 @@ class AsanaHook(BaseHook):
         :return: A dict containing the response from Asana
         """
         try:
-            response = self.client.tasks.delete_task(task_id)  # pylint: disable=no-member
+            response = self.client.tasks.delete_task(task_id)
             return response
         except NotFoundError:
             self.log.info("Asana task %s not found for deletion.", task_id)
@@ -150,7 +150,7 @@ class AsanaHook(BaseHook):
         """
         merged_params = self._merge_find_task_parameters(params)
         self._validate_find_task_parameters(merged_params)
-        response = self.client.tasks.find_all(params=merged_params)  # pylint: disable=no-member
+        response = self.client.tasks.find_all(params=merged_params)
         return list(response)
 
     def _merge_find_task_parameters(self, search_parameters: dict) -> dict:
@@ -198,7 +198,7 @@ class AsanaHook(BaseHook):
             https://developers.asana.com/docs/update-a-task
         :return: A dict containing the updated task's attributes
         """
-        response = self.client.tasks.update(task_id, params)  # pylint: disable=no-member
+        response = self.client.tasks.update(task_id, params)
         return response
 
     def create_project(self, params: dict) -> dict:
@@ -212,7 +212,7 @@ class AsanaHook(BaseHook):
         """
         merged_params = self._merge_project_parameters(params)
         self._validate_create_project_parameters(merged_params)
-        response = self.client.projects.create(merged_params)  # pylint: disable=no-member
+        response = self.client.projects.create(merged_params)
         return response
 
     @staticmethod
@@ -251,7 +251,7 @@ class AsanaHook(BaseHook):
         :return: A list of dicts containing attributes of matching Asana projects
         """
         merged_params = self._merge_project_parameters(params)
-        response = self.client.projects.find_all(merged_params)  # pylint: disable=no-member
+        response = self.client.projects.find_all(merged_params)
         return list(response)
 
     def update_project(self, project_id: str, params: dict) -> dict:
@@ -264,7 +264,7 @@ class AsanaHook(BaseHook):
             for a list of possible parameters
         :return: A dict containing the updated project's attributes
         """
-        response = self.client.projects.update(project_id, params)  # pylint: disable=no-member
+        response = self.client.projects.update(project_id, params)
         return response
 
     def delete_project(self, project_id: str) -> dict:
@@ -275,7 +275,7 @@ class AsanaHook(BaseHook):
         :return: A dict containing the response from Asana
         """
         try:
-            response = self.client.projects.delete(project_id)  # pylint: disable=no-member
+            response = self.client.projects.delete(project_id)
             return response
         except NotFoundError:
             self.log.info("Asana project %s not found for deletion.", project_id)

@@ -83,7 +83,7 @@ class CallbackWrapper:
         self.task_state_in_callback = ""
         self.callback_ran = False
 
-    def success_handler(self, context):  # pylint: disable=unused-argument
+    def success_handler(self, context):
         self.callback_ran = True
         session = settings.Session()
         temp_instance = (
@@ -740,7 +740,7 @@ class TestTaskInstance(unittest.TestCase):
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+            trs = TaskReschedule.find_for_task_instance(ti)
             assert len(trs) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
@@ -841,7 +841,7 @@ class TestTaskInstance(unittest.TestCase):
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+            trs = TaskReschedule.find_for_task_instance(ti)
             assert len(trs) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
@@ -855,7 +855,7 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.state == State.NONE
         assert ti._try_number == 0
         # Check that reschedules for ti have also been cleared.
-        trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+        trs = TaskReschedule.find_for_task_instance(ti)
         assert not trs
 
     def test_depends_on_past(self):
@@ -961,7 +961,7 @@ class TestTaskInstance(unittest.TestCase):
         run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = TI(downstream, run_date)
-        dep_results = TriggerRuleDep()._evaluate_trigger_rule(  # pylint: disable=no-value-for-parameter
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             successes=successes,
             skipped=skipped,

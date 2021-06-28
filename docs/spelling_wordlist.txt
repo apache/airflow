@@ -272,7 +272,6 @@ Pubsub
 Py
 PyPI
 Pyarrow
-Pylint
 Pyspark
 PythonOperator
 Qplum
@@ -1079,7 +1078,6 @@ pydruid
 pyexasol
 pyhive
 pyhs
-pylint
 pymongo
 pymssql
 pymysql

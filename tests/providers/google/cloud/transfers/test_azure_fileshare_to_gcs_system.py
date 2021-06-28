@@ -51,7 +51,7 @@ def provide_azure_fileshare_with_directory():
             login=AZURE_LOGIN,
             password=AZURE_KEY,
         )
-        session.add(azure_fileshare_conn_id)  # pylint: disable=expression-not-assigned
+        session.add(azure_fileshare_conn_id)
 
     with provide_azure_fileshare(
         share_name=AZURE_SHARE_NAME,

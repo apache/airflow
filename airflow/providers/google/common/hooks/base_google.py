@@ -97,22 +97,22 @@ def is_operation_in_progress_exception(exception: Exception) -> bool:
     return False
 
 
-class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+class retry_if_temporary_quota(tenacity.retry_if_exception):
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_soft_quota_exception)
 
 
-class retry_if_operation_in_progress(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+class retry_if_operation_in_progress(tenacity.retry_if_exception):
     """Retries if there was an exception for exceeding the temporary quote limit."""
 
     def __init__(self):
         super().__init__(is_operation_in_progress_exception)
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
-RT = TypeVar('RT')  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
+RT = TypeVar('RT')
 
 
 class GoogleBaseHook(BaseHook):
@@ -270,7 +270,7 @@ class GoogleBaseHook(BaseHook):
 
         http_authorized = self._authorize()
         oauth2_client = discovery.build('oauth2', "v1", http=http_authorized, cache_discovery=False)
-        return oauth2_client.tokeninfo().execute()['email']  # pylint: disable=no-member
+        return oauth2_client.tokeninfo().execute()['email']
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
         """
@@ -453,12 +453,8 @@ class GoogleBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        key_path = self._get_field(
-            'key_path', None
-        )  # type: Optional[str]  # noqa: E501  #  pylint: disable=protected-access
-        keyfile_dict = self._get_field(
-            'keyfile_dict', None
-        )  # type: Optional[Dict]  # noqa: E501  # pylint: disable=protected-access
+        key_path = self._get_field('key_path', None)  # type: Optional[str]    #
+        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "

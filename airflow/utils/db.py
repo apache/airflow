@@ -23,8 +23,8 @@ from sqlalchemy import Table, exc, func
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
-from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
+from airflow.jobs.base_job import BaseJob  # noqa: F401
+from airflow.models import (  # noqa: F401
     DAG,
     XCOM_RETURN_KEY,
     BaseOperator,
@@ -47,13 +47,10 @@ from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
 )
 
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
-    create_session,
-    provide_session,
-)
+from airflow.utils.session import create_session, provide_session  # noqa: F401
 
 log = logging.getLogger(__name__)
 
@@ -577,7 +574,7 @@ def initdb():
 
     from flask_appbuilder.models.sqla import Base
 
-    Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
+    Base.metadata.create_all(settings.engine)
 
 
 def _get_alembic_config():
@@ -745,10 +742,10 @@ def drop_airflow_models(connection):
     Base.metadata.remove(user)
     Base.metadata.remove(chart)
     # alembic adds significant import time, so we import it lazily
-    from alembic.migration import MigrationContext  # noqa
+    from alembic.migration import MigrationContext
 
     migration_ctx = MigrationContext.configure(connection)
-    version = migration_ctx._version  # noqa pylint: disable=protected-access
+    version = migration_ctx._version
     if version.exists(connection):
         version.drop(connection)
 
@@ -762,7 +759,7 @@ def drop_flask_models(connection):
     """
     from flask_appbuilder.models.sqla import Base
 
-    Base.metadata.drop_all(connection)  # pylint: disable=no-member
+    Base.metadata.drop_all(connection)
 
 
 @provide_session

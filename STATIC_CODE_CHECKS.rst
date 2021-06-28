@@ -64,7 +64,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``boring-cyborg``                     Checks for Boring Cyborg configuration consistency
 ----------------------------------- ---------------------------------------------------------------- ------------
-``build``                             Builds image for mypy, pylint, flake8                                *
+``build``                             Builds image for mypy, flake8                                        *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build-providers-dependencies``      Regenerates the JSON file with cross-provider dependencies
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -81,8 +81,6 @@ require Breeze Docker images to be installed locally:
 ``check-merge-conflicts``             Checks that merge conflicts are not being committed
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-xml``                         Checks XML files with xmllint
------------------------------------ ---------------------------------------------------------------- ------------
-``consistent-pylint``                 Consistent usage of pylint enable/disable with space
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``daysago-import-check``              Checks if daysago is properly imported
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -156,8 +154,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydocstyle``                        Runs pydocstyle
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pylint``                            Runs pylint check                                                    *
------------------------------------ ---------------------------------------------------------------- ------------
 ``python-no-log-warn``                Checks if there are no deprecate log warn
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``restrict-start_date``               'start_date' should not be in default_args in example_dags
@@ -193,6 +189,8 @@ require Breeze Docker images to be installed locally:
 ``verify-db-migrations-documented``   Verify DB Migrations have been documented
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``www-lint``                          Static checks of js in airflow/www/static/js/ folder
+----------------------------------- ---------------------------------------------------------------- ------------
+``yesqa``                             Removes unnecessary noqa statements
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks YAML files with yamllint
 =================================== ================================================================ ============
@@ -294,79 +292,13 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=pylint,mypy pre-commit run --all-files
+    SKIP=mypy,flake8,build pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
 ``git commit`` command.
 
 To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
-
-Pylint Static Code Checks
--------------------------
-
-We are in the process of fixing the code flagged with pylint checks for the whole Airflow project.
-This is a huge task so we implemented an incremental approach for the process.
-Currently most of the code is excluded from pylint checks via scripts/ci/pylint_todo.txt.
-We have an open JIRA issue AIRFLOW-4364 which has a number of sub-tasks for each of
-the modules that should be made compatible. Fixing problems identified with pylint is one of
-straightforward and easy tasks to do (but time-consuming), so if you are a first-time
-contributor to Airflow, you can choose one of the sub-tasks as your first issue to fix.
-
-To fix a pylint issue, do the following:
-
-1.  Remove module/modules from the
-    `scripts/ci/static_checks/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
-
-2.  Run `<scripts/ci/static_checks/pylint.sh>`__.
-
-3.  Fix all the issues reported by pylint.
-
-4.  Re-run `<scripts/ci/static_checks/pylint.sh>`__.
-
-5.  If you see "success", submit a PR following
-    `Pull Request guidelines <#pull-request-guidelines>`__.
-
-
-These are guidelines for fixing errors reported by pylint:
-
--   Fix the errors rather than disable pylint checks. Often you can easily
-    refactor the code (IntelliJ/PyCharm might be helpful when extracting methods
-    in complex code or moving methods around).
-
--   If disabling a particular problem, make sure to disable only that error by
-    using the symbolic name of the error as reported by pylint.
-
-.. code-block:: python
-
-    from airflow import *  # pylint: disable=wildcard-import
-
-
--   If there is a single line where you need to disable a particular error,
-    consider adding a comment to the line that causes the problem. For example:
-
-
-.. code-block:: python
-
-    def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
-        ...
-
-
--   For multiple lines/block of code, to disable an error, you can surround the
-    block with ``pylint:disable/pylint:enable`` comment lines. For example:
-
-.. code-block:: python
-
-    # pylint: disable=too-few-public-methods
-    class LoginForm(Form):
-        """Form for the user"""
-
-        username = StringField("Username", [InputRequired()])
-        password = PasswordField("Password", [InputRequired()])
-
-
-    # pylint: enable=too-few-public-methods
-
 
 Running Static Code Checks via Breeze
 -------------------------------------
@@ -375,14 +307,8 @@ The static code checks can be launched using the Breeze environment.
 
 You run the static code checks via ``./breeze static-check`` or commands.
 
-Note that it may take a lot of time to run checks for all files with pylint on macOS due to a slow
-filesystem for macOS Docker. As a workaround, you can add their arguments after ``--`` as extra arguments.
-For example ``--files`` flag. By default those checks are run only on the files you've changed in your
-commit, but you can also add ``-- --all-files`` flag to run check on all files.
-
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
-option. Note that the ``all`` static check runs all configured static checks. Also since pylint tests take
-a lot of time, you can run a special ``all-but-pylint`` check that skips pylint checks.
+option. Note that the ``all`` static check runs all configured static checks.
 
 Run the ``mypy`` check for the currently staged changes:
 
@@ -420,30 +346,11 @@ Run all tests for all files:
 
      ./breeze static-check all -- --all-files
 
-Run all tests but pylint for all files:
+Run all tests for last commit :
 
 .. code-block:: bash
 
-     ./breeze static-check all-but-pylint --all-files
-
-Run pylint checks for all changed files:
-
-.. code-block:: bash
-
-     ./breeze static-check pylint
-
-Run pylint checks for selected files:
-
-.. code-block:: bash
-
-     ./breeze static-check pylint -- --files airflow/configuration.py
-
-
-Run pylint checks for all files:
-
-.. code-block:: bash
-
-     ./breeze static-check pylint -- --all-files
+     ./breeze static-check all -- --ref-from HEAD^ --ref-to HEAD
 
 
 The ``license`` check is run via a separate script and a separate Docker image containing the
@@ -465,7 +372,6 @@ this, run the following scripts:
 * `<scripts/ci/static_checks/flake8.sh>`_ - runs Flake8 source code style enforcement tool.
 * `<scripts/ci/static_checks/lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
 * `<scripts/ci/static_checks/mypy.sh>`_ - runs a check for Mypy type annotation consistency.
-* `<scripts/ci/static_checks/pylint.sh>`_ - runs Pylint static code checker.
 
 The scripts may ask you to rebuild the images, if needed.
 
@@ -482,7 +388,6 @@ If you are already in the Breeze Docker environment (by running the ``./breeze``
 you can also run the same static checks via run_scripts:
 
 * Mypy: ``./scripts/in_container/run_mypy.sh airflow tests``
-* Pylint: ``./scripts/in_container/run_pylint.sh``
 * Flake8: ``./scripts/in_container/run_flake8.sh``
 * License check: ``./scripts/in_container/run_check_licence.sh``
 * Documentation: ``./scripts/in_container/run_docs_build.sh``
@@ -497,20 +402,20 @@ In the Docker container:
 
 .. code-block::
 
-  ./scripts/in_container/run_pylint.sh ./airflow/example_dags/
+  ./scripts/in_container/run_mypy.sh ./airflow/example_dags/
 
 or
 
 .. code-block::
 
-  ./scripts/in_container/run_pylint.sh ./airflow/example_dags/test_utils.py
+  ./scripts/in_container/run_mypy.sh ./airflow/example_dags/test_utils.py
 
 On the host:
 
 .. code-block::
 
-  ./scripts/ci/static_checks/pylint.sh ./airflow/example_dags/
+  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/
 
 .. code-block::
 
-  ./scripts/ci/static_checks/pylint.sh ./airflow/example_dags/test_utils.py
+  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/test_utils.py

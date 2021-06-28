@@ -96,7 +96,7 @@ def get_dag_runs(
     offset=None,
     limit=None,
     order_by='id',
-):  # pylint: disable=too-many-arguments
+):
     """Get all DAG Runs."""
     query = session.query(DagRun)
 
@@ -134,7 +134,7 @@ def _fetch_dag_runs(
     limit,
     offset,
     order_by,
-):  # pylint: disable=too-many-arguments
+):
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,

@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     import jinja2
 
 
-class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class KubernetesPodOperator(BaseOperator):
     """
     Execute a task in a Kubernetes Pod
 
@@ -175,7 +175,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     template_ext = ('yaml', 'yml', 'json')
 
     # fmt: off
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(
         # fmt: on
         self,
         *,

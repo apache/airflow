@@ -319,7 +319,7 @@ class DbApiHook(BaseHook):
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):  # pylint: disable=unused-argument
+    def _serialize_cell(cell, conn=None):
         """
         Returns the SQL literal of the cell as a string.
 
@@ -368,7 +368,7 @@ class DbApiHook(BaseHook):
                     if cur.fetchone():
                         status = True
                         message = 'Connection successfully tested'
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             status = False
             message = str(e)
 

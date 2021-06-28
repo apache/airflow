@@ -482,7 +482,7 @@ class TestDag(unittest.TestCase):
         jinja_env = dag.get_template_env()
 
         assert 'hello' in jinja_env.filters
-        assert jinja_env.filters['hello'] == jinja_udf  # pylint: disable=comparison-with-callable
+        assert jinja_env.filters['hello'] == jinja_udf
 
     def test_resolve_template_files_value(self):
 
@@ -948,7 +948,6 @@ class TestDag(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active
 
-        # pylint: disable=no-member
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
         session.close()
 
@@ -1206,7 +1205,7 @@ class TestDag(unittest.TestCase):
             dag_.last_loaded = dag.last_loaded
 
         # test identity equality
-        assert dag == dag  # pylint: disable=comparison-with-itself
+        assert dag == dag
 
         # test dag (in)equality based on _comps
         assert dag_eq == dag
@@ -1887,7 +1886,7 @@ class TestDagDecorator(unittest.TestCase):
 
         # Test that if arg is not passed it raises a type error as expected.
         with pytest.raises(TypeError):
-            noop_pipeline()  # pylint: disable=no-value-for-parameter
+            noop_pipeline()
 
     def test_dag_param_resolves(self):
         """Test that dag param is correctly resolved by operator"""
@@ -1899,7 +1898,7 @@ class TestDagDecorator(unittest.TestCase):
                 return num
 
             xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator  # pylint: disable=maybe-no-member
+            self.operator = xcom_arg.operator
 
         dag = xcom_pass_to_op()
 
@@ -1926,7 +1925,7 @@ class TestDagDecorator(unittest.TestCase):
             assert isinstance(value, DagParam)
 
             xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator  # pylint: disable=maybe-no-member
+            self.operator = xcom_arg.operator
 
         dag = xcom_pass_to_op()
         new_value = 52
@@ -1952,7 +1951,7 @@ class TestDagDecorator(unittest.TestCase):
                 return num
 
             xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator  # pylint: disable=maybe-no-member
+            self.operator = xcom_arg.operator
 
         dag = xcom_pass_to_op()
         assert dag.params['value'] == self.VALUE

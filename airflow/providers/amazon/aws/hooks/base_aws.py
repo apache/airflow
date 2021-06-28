@@ -117,7 +117,7 @@ class _SessionFactory(LoggingMixin):
             botocore_session = self._assume_role_with_web_identity(
                 role_arn=role_arn,
                 assume_role_kwargs=assume_role_kwargs,
-                base_session=session._session,  # pylint: disable=protected-access
+                base_session=session._session,
             )
             return boto3.session.Session(
                 region_name=session.region_name,
@@ -311,7 +311,7 @@ class _SessionFactory(LoggingMixin):
             time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
         )
         botocore_session = botocore.session.Session()
-        botocore_session._credentials = aws_creds  # pylint: disable=protected-access
+        botocore_session._credentials = aws_creds
         return botocore_session
 
     def _get_google_identity_token_loader(self):

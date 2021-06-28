@@ -30,7 +30,7 @@ from sphinx.transforms.post_transforms.code import HighlightLanguageTransform
 
 LOGGER = logging.getLogger(__name__)
 
-OriginalCodeBlock: Directive = directives._directives['code-block']  # pylint: disable=protected-access
+OriginalCodeBlock: Directive = directives._directives['code-block']
 
 _SUBSTITUTION_OPTION_NAME = 'substitutions'
 

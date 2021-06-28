@@ -125,7 +125,7 @@ class TestAwsBaseHook(unittest.TestCase):
         resource_from_hook = hook.get_resource_type('dynamodb')
 
         # this table needs to be created in production
-        table = resource_from_hook.create_table(  # pylint: disable=no-member
+        table = resource_from_hook.create_table(
             TableName='test_airflow',
             KeySchema=[
                 {'AttributeName': 'id', 'KeyType': 'HASH'},
@@ -144,7 +144,7 @@ class TestAwsBaseHook(unittest.TestCase):
         hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
         session_from_hook = hook.get_session()
         resource_from_session = session_from_hook.resource('dynamodb')
-        table = resource_from_session.create_table(  # pylint: disable=no-member
+        table = resource_from_session.create_table(
             TableName='test_airflow',
             KeySchema=[
                 {'AttributeName': 'id', 'KeyType': 'HASH'},
@@ -432,7 +432,7 @@ class ThrowErrorUntilCount:
         return True
 
 
-def _always_true_predicate(e: Exception):  # pylint: disable=unused-argument
+def _always_true_predicate(e: Exception):
     return True
 
 
@@ -441,7 +441,7 @@ def _retryable_test(thing):
     return thing()
 
 
-def _always_false_predicate(e: Exception):  # pylint: disable=unused-argument
+def _always_false_predicate(e: Exception):
     return False
 
 

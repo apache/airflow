@@ -1,4 +1,3 @@
-# pylint: disable=no-member
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,7 +20,7 @@ from unittest import TestCase, mock
 from google.api_core.exceptions import NotFound, PermissionDenied
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient  # noqa
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.version import version
 
 INTERNAL_CLIENT_MODULE = "airflow.providers.google.cloud._internal_client.secret_manager_client"

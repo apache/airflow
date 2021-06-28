@@ -105,7 +105,7 @@ def _set_current_user(user):
     ctx.user = user
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):

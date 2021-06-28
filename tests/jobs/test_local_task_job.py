@@ -132,7 +132,7 @@ class TestLocalTaskJob(unittest.TestCase):
         job1.task_runner = StandardTaskRunner(job1)
         job1.task_runner.process = mock.Mock()
         with pytest.raises(AirflowException):
-            job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
+            job1.heartbeat_callback()
 
         job1.task_runner.process.pid = 1
         ti.state = State.RUNNING
@@ -145,7 +145,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException):
-            job1.heartbeat_callback()  # pylint: disable=no-value-for-parameter
+            job1.heartbeat_callback()
 
     def test_heartbeat_failed_fast(self):
         """
@@ -467,7 +467,7 @@ class TestLocalTaskJob(unittest.TestCase):
         dag = DAG(dag_id='test_mark_success', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         def task_function(ti):
-            # pylint: disable=unused-argument
+
             time.sleep(60)
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
@@ -540,7 +540,7 @@ class TestLocalTaskJob(unittest.TestCase):
         dag = DAG(dag_id='test_mark_failure', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         def task_function(ti):
-            # pylint: disable=unused-argument
+
             time.sleep(60)
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
@@ -624,7 +624,7 @@ class TestLocalTaskJob(unittest.TestCase):
     def test_fast_follow(
         self, conf, dependencies, init_state, first_run_state, second_run_state, error_message
     ):
-        # pylint: disable=too-many-locals
+
         with conf_vars(conf):
             session = settings.Session()
 

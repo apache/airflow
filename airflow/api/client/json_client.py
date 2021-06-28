@@ -31,12 +31,12 @@ class Client(api_client.Client):
         }
         if json is not None:
             params['json'] = json
-        resp = getattr(self._session, method.lower())(**params)  # pylint: disable=not-callable
+        resp = getattr(self._session, method.lower())(**params)
         if not resp.ok:
             # It is justified here because there might be many resp types.
             try:
                 data = resp.json()
-            except Exception:  # noqa pylint: disable=broad-except
+            except Exception:
                 data = {}
             raise OSError(data.get('error', 'Server error'))
 

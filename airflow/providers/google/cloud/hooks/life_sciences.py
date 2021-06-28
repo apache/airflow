@@ -100,12 +100,7 @@ class LifeSciencesHook(GoogleBaseHook):
         parent = self._location_path(project_id=project_id, location=location)
         service = self.get_conn()
 
-        request = (
-            service.projects()  # pylint: disable=no-member
-            .locations()
-            .pipelines()
-            .run(parent=parent, body=body)
-        )
+        request = service.projects().locations().pipelines().run(parent=parent, body=body)
 
         response = request.execute(num_retries=self.num_retries)
 
@@ -147,7 +142,7 @@ class LifeSciencesHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             operation_response = (
-                service.projects()  # pylint: disable=no-member
+                service.projects()
                 .locations()
                 .operations()
                 .get(name=operation_name)

@@ -37,7 +37,7 @@ def create_session():
         session.close()
 
 
-RT = TypeVar("RT")  # pylint: disable=invalid-name
+RT = TypeVar("RT")
 
 
 def find_session_idx(func: Callable[..., RT]) -> int:

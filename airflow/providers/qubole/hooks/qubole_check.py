@@ -98,7 +98,7 @@ class QuboleCheckHook(QuboleHook):
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
-    def get_first(self, sql):  # pylint: disable=unused-argument
+    def get_first(self, sql):
         """Get Qubole query first record list"""
         self.execute(context=self.context)
         query_result = self.get_query_results()

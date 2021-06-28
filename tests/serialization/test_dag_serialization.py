@@ -272,7 +272,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 )
             )
         )
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -979,7 +979,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         with DAG("test_edge_info_serialization", start_date=datetime(2020, 1, 1)) as dag:
             task1 = DummyOperator(task_id="task1")
             task2 = DummyOperator(task_id="task2")
-            task1 >> Label("test label") >> task2  # pylint: disable=W0106
+            task1 >> Label("test label") >> task2
 
         dag_dict = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(dag_dict)

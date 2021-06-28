@@ -233,5 +233,5 @@ class HttpHook(BaseHook):
         try:
             self.run()
             return True, 'Connection successfully tested'
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             return False, str(e)

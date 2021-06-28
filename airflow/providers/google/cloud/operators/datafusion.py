@@ -789,7 +789,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         pipeline_name: str,

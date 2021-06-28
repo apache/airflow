@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.mongo.sensors.mongo import MongoSensor  # noqa
 
 warnings.warn(

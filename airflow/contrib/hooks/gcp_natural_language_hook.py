@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook  # noqa
 
 warnings.warn(

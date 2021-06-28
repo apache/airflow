@@ -43,7 +43,7 @@ config = import_string(LOGGING_CLASS_PATH)
 handler_config = config['handlers']['task']
 try:
     formatter_config = config['formatters'][handler_config['formatter']]
-except Exception as err:  # pylint: disable=broad-except
+except Exception as err:
     formatter_config = None
     print(err)
 dictConfigurator = DictConfigurator(config)
@@ -79,7 +79,7 @@ class SensorWork:
         self.execution_context = json.loads(si.execution_context) if si.execution_context else {}
         try:
             self.log = self._get_sensor_logger(si)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log = None
             print(e)
         self.hashcode = si.hashcode
@@ -105,7 +105,7 @@ class SensorWork:
         Create task log handler for a sensor work.
         :return: log handler
         """
-        from airflow.utils.log.secrets_masker import _secrets_masker  # noqa
+        from airflow.utils.log.secrets_masker import _secrets_masker
 
         handler_config_copy = {k: handler_config[k] for k in handler_config}
         del handler_config_copy['filters']
@@ -147,7 +147,7 @@ class SensorWork:
         for handler in self.log.handlers:
             try:
                 handler.close()
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 print(e)
 
     @property
@@ -371,7 +371,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         for ti in tis:
             try:
                 sensor_works.append(SensorWork(ti))
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Exception at creating sensor work for ti %s", ti.key)
 
         self.log.info("%d tasks detected.", len(sensor_works))
@@ -480,7 +480,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
             session.commit()
 
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.warning(
                 "Exception _mark_multi_state in smart sensor for hashcode %s",
                 str(poke_hash),  # cast to str in advance for highlighting
@@ -508,7 +508,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                 email = sensor_work.execution_context.get('email')
 
                 send_email(email, subject, html_content)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 sensor_work.log.warning("Exception alerting email.", exc_info=True)
 
         def handle_failure(sensor_work, ti):
@@ -668,7 +668,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
                     self._check_and_handle_ti_timeout(sensor_work)
 
                 self.cached_sensor_exceptions.pop(cache_key, None)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             # The retry_infra_failure decorator inside hive_hooks will raise exception with
             # is_infra_failure == True. Long poking timeout here is also considered an infra
             # failure. Other exceptions should fail.
@@ -739,7 +739,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             Stats.gauge("smart_sensor_operator.poked_exception", count_poke_exception)
             Stats.gauge("smart_sensor_operator.exception_failures", count_exception_failures)
             Stats.gauge("smart_sensor_operator.infra_failures", count_infra_failure)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.exception("Exception at getting loop stats %s")
 
     def execute(self, context):

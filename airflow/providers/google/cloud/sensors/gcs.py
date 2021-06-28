@@ -65,7 +65,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self,
         *,
         bucket: str,
-        object: str,  # pylint: disable=redefined-builtin
+        object: str,
         google_cloud_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -139,7 +139,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     def __init__(
         self,
         bucket: str,
-        object: str,  # pylint: disable=redefined-builtin
+        object: str,
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,

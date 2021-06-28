@@ -44,7 +44,7 @@ class DataprepExampleDagsTest(GoogleSystemTest):
                 conn_type="dataprep",
                 extra=json.dumps(EXTRA),
             )
-            session.add(dataprep_conn_id)  # pylint: disable=expression-not-assigned
+            session.add(dataprep_conn_id)
 
     def tearDown(self):
         clear_db_connections()

@@ -29,7 +29,7 @@ class TestBasicAuth:
     def set_attrs(self, minimal_app_for_experimental_api):
         self.app = minimal_app_for_experimental_api
 
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+        self.appbuilder = self.app.appbuilder
         role_admin = self.appbuilder.sm.find_role("Admin")
         tester = self.appbuilder.sm.find_user(username="test")
         if not tester:

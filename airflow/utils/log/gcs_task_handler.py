@@ -18,7 +18,6 @@
 """This module is deprecated. Please use :mod:`airflow.providers.google.cloud.log.gcs_task_handler`."""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler  # noqa
 
 warnings.warn(

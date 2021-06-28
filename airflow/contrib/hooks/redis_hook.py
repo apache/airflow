@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.redis.hooks.redis import RedisHook  # noqa
 
 warnings.warn(

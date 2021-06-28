@@ -110,7 +110,7 @@ class WasbHook(BaseHook):
         self.public_read = public_read
         self.connection = self.get_conn()
 
-    def get_conn(self) -> BlobServiceClient:  # pylint: disable=too-many-return-statements
+    def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}

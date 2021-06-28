@@ -47,7 +47,6 @@ class _QuboleCheckOperatorMixin:
         )
 
 
-# pylint: disable=too-many-ancestors
 class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOperator):
     """
     Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
@@ -116,7 +115,8 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 
 
 # TODO(xinbinhuang): refactor to reduce levels of inheritance
-# pylint: disable=too-many-ancestors
+
+
 class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator, QuboleOperator):
     """
     Performs a simple value check using Qubole command.

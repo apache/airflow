@@ -2240,23 +2240,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml airflow-providers-available
-                 airflow-provider-yaml-files-ok base-operator bats-tests bats-in-container-tests
-                 black blacken-docs boring-cyborg build build-providers-dependencies
-                 check-apache-license check-builtin-literals check-executables-have-shebangs
-                 check-hooks-apply check-integrations check-merge-conflict check-xml
-                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 flynt forbid-tabs
-                 helm-lint identity incorrect-use-of-LoggingMixin insert-license isort json-schema
-                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
-                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
-                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
+                 all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
+                 base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
+                 build build-providers-dependencies check-apache-license check-builtin-literals
+                 check-executables-have-shebangs check-hooks-apply check-integrations
+                 check-merge-conflict check-xml daysago-import-check debug-statements
+                 detect-private-key doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 flynt forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
+                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
+                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports pre-commit-descriptions pre-commit-hook-names pretty-format-json
                  provide-create-sessions providers-changelogs providers-init-file provider-yamls
-                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
-                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
-                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 verify-db-migrations-documented version-sync www-lint yamllint
+                 pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date rst-backticks
+                 setup-order setup-extra-packages shellcheck sort-in-the-wild sort-spelling-wordlist
+                 stylelint trailing-whitespace ui-lint update-breeze-file update-extras
+                 update-local-yml-file update-setup-cfg-file verify-db-migrations-documented
+                 version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:

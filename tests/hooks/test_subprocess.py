@@ -37,7 +37,7 @@ class TestSubprocessHook(unittest.TestCase):
             ('empty env', {}, {OS_ENV_KEY: ''}),
             ('no env', None, {OS_ENV_KEY: OS_ENV_VAL}),
         ]
-    )  # pylint: disable=unused-argument
+    )
     def test_env(self, name, env, expected):
         """
         Test that env variables are exported correctly to the command environment.

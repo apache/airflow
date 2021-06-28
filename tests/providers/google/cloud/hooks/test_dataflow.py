@@ -179,7 +179,7 @@ def mock_init(
     gcp_conn_id,
     delegate_to=None,
     impersonation_chain=None,
-):  # pylint: disable=unused-argument
+):
     pass
 
 
@@ -209,7 +209,7 @@ class TestDataflowHook(unittest.TestCase):
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
                 dataflow=PY_FILE,
@@ -254,7 +254,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables["region"] = TEST_LOCATION
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
                 dataflow=PY_FILE,
@@ -298,7 +298,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
                 dataflow=PY_FILE,
@@ -344,7 +344,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables['extra-package'] = ['a.whl', 'b.whl']
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
                 dataflow=PY_FILE,
@@ -394,7 +394,7 @@ class TestDataflowHook(unittest.TestCase):
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
                 dataflow=PY_FILE,
@@ -447,7 +447,7 @@ class TestDataflowHook(unittest.TestCase):
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
                 dataflow=PY_FILE,
@@ -489,7 +489,7 @@ class TestDataflowHook(unittest.TestCase):
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"), self.assertRaisesRegex(
             AirflowException, "Invalid method invocation."
         ):
-            self.dataflow_hook.start_python_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
                 dataflow=PY_FILE,
@@ -511,7 +511,7 @@ class TestDataflowHook(unittest.TestCase):
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
                 jar=JAR_FILE,
@@ -551,7 +551,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables['mock-option'] = ['a.whl', 'b.whl']
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
                 jar=JAR_FILE,
@@ -591,7 +591,7 @@ class TestDataflowHook(unittest.TestCase):
         passed_variables['region'] = TEST_LOCATION
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
                 jar=JAR_FILE,
@@ -628,7 +628,7 @@ class TestDataflowHook(unittest.TestCase):
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
         with self.assertWarnsRegex(DeprecationWarning, "This method is deprecated"):
-            self.dataflow_hook.start_java_dataflow(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
                 jar=JAR_FILE,
@@ -806,7 +806,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
         variables = {'zone': 'us-central1-f', 'tempLocation': 'gs://test/temp'}
-        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+        self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME,
             variables=copy.deepcopy(variables),
             parameters=PARAMETERS,
@@ -849,7 +849,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             mock_conn.return_value.projects.return_value.locations.return_value.templates.return_value.launch
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
-        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+        self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME,
             variables={'region': TEST_LOCATION},
             parameters=PARAMETERS,
@@ -889,7 +889,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
         )
         launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
 
-        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+        self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME,
             variables={},
             parameters=PARAMETERS,
@@ -935,7 +935,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
                   .launch)
         # fmt: on
         method.return_value.execute.return_value = {'job': {'id': TEST_JOB_ID}}
-        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+        self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME,
             variables=options_with_runtime_env,
             parameters=PARAMETERS,
@@ -984,7 +984,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
                   .launch)
         # fmt: on
         method.return_value.execute.return_value = {'job': {'id': TEST_JOB_ID}}
-        self.dataflow_hook.start_template_dataflow(  # pylint: disable=no-value-for-parameter
+        self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME,
             variables=options_with_runtime_env,
             parameters=PARAMETERS,

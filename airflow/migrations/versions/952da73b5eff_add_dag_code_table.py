@@ -52,7 +52,7 @@ def upgrade():
 
     """Apply add source code table"""
     op.create_table(
-        'dag_code',  # pylint: disable=no-member
+        'dag_code',
         sa.Column('fileloc_hash', sa.BigInteger(), nullable=False, primary_key=True, autoincrement=False),
         sa.Column('fileloc', sa.String(length=2000), nullable=False),
         sa.Column('source_code', sa.UnicodeText(), nullable=False),

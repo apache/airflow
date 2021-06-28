@@ -74,12 +74,7 @@ class DataFusionHook(GoogleBaseHook):
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)
             operation = (
-                self.get_conn()  # pylint: disable=no-member
-                .projects()
-                .locations()
-                .operations()
-                .get(name=operation.get("name"))
-                .execute()
+                self.get_conn().projects().locations().operations().get(name=operation.get("name")).execute()
             )
             if operation.get("done"):
                 break
@@ -181,7 +176,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -203,7 +198,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -234,7 +229,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -260,7 +255,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         instance = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -299,7 +294,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()

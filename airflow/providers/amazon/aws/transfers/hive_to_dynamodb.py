@@ -59,7 +59,7 @@ class HiveToDynamoDBOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,

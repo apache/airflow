@@ -310,7 +310,7 @@ jobs:
     needs: [build-info, ci-images]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "pylint,identity"
+      SKIP: "identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
@@ -340,20 +340,20 @@ jobs:
 ${{ hashFiles('setup.py', 'setup.cfg') }}"
           restore-keys: "\
 pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
-      - name: "Cache pre-commit envs: no-pylint"
+      - name: "Cache pre-commit envs"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
+          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
 
       - name: "Cache eslint"
         uses: actions/cache@v2
         with:
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
-      - name: "Static checks: except pylint"
+      - name: "Static checks"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
           VERBOSE: false
@@ -368,7 +368,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
+      SKIP: "build,mypy,flake8,bats-in-container-tests,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
@@ -400,68 +400,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 ${{ hashFiles('setup.py', 'setup.cfg') }}"
           restore-keys: "\
 pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
-      - name: "Cache pre-commit envs: no-pylint"
+      - name: "Cache pre-commit envs"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+          key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
+          restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: basic checks only"
         run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
           VERBOSE: false
-
-  static-checks-pylint:
-    timeout-minutes: 60
-    name: "Pylint"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, ci-images]
-    if: needs.build-info.outputs.basic-checks-only == 'false'
-    env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      # We want to make sure we have latest sources as only in_container scripts are added
-      # to the image but we want to static-check all of them
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
-      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
-        id: host-python-version
-      - name: "Cache pre-commit local-installation"
-        uses: actions/cache@v2
-        with:
-          path: ~/.local
-          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('setup.py', 'setup.cfg') }}"
-          restore-keys: "\
-pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
-      - name: "Cache pre-commit envs - pylint"
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-pylint-${{steps.host-python-version.outputs.host-python-version}}
-      - name: "Static checks: pylint"
-        run: ./scripts/ci/static_checks/run_static_checks.sh pylint
-        env:
-          VERBOSE: false
-
   docs:
     timeout-minutes: 45
     name: "Build docs"
@@ -1178,7 +1127,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs:
       - build-info
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-postgres
       - tests-mysql
@@ -1241,7 +1189,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs:
       - build-info
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-postgres
       - tests-mysql
@@ -1288,7 +1235,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - ci-images
       - prod-images
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-mysql
       - tests-mssql
@@ -1357,7 +1303,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - docs
       - build-info
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-postgres
       - tests-mysql

@@ -37,7 +37,7 @@ from airflow.version import version
 
 log = logging.getLogger(__name__)
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):

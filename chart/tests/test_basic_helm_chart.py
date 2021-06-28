@@ -253,7 +253,7 @@ class TestBaseChartTest(unittest.TestCase):
 
         objs_with_image = get_k8s_objs_with_image(k8s_objects)
         for obj in objs_with_image:
-            image: str = obj["image"]  # pylint: disable=invalid-sequence-index
+            image: str = obj["image"]
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
                 assert "command" not in obj

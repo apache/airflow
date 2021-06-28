@@ -28,18 +28,15 @@ import subprocess
 from abc import abstractmethod
 from multiprocessing import Manager, Process
 from multiprocessing.managers import SyncManager
-from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
-from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
+from queue import Empty, Queue
+from typing import Any, List, Optional, Tuple, Union
 
-from setproctitle import getproctitle, setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
-from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
-    TaskInstanceKey,
-    TaskInstanceStateType,
-)
+from airflow.models.taskinstance import TaskInstanceKey, TaskInstanceStateType
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -127,12 +124,12 @@ class LocalWorkerBase(Process, LoggingMixin):
             args.func(args)
             ret = 0
             return State.SUCCESS
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.error("Failed to execute task %s.", str(e))
         finally:
             Sentry.flush()
             logging.shutdown()
-            os._exit(ret)  # pylint: disable=protected-access
+            os._exit(ret)
             raise RuntimeError('unreachable -- keep mypy happy')
 
     @abstractmethod
@@ -231,7 +228,6 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
-        # pylint: disable=unused-argument # pragma: no cover
         def execute_async(
             self,
             key: TaskInstanceKey,
@@ -254,7 +250,6 @@ class LocalExecutor(BaseExecutor):
             self.executor.workers_active += 1
             local_worker.start()
 
-        # pylint: enable=unused-argument # pragma: no cover
         def sync(self) -> None:
             """Sync will get called periodically by the heartbeat method."""
             if not self.executor.result_queue:
@@ -306,8 +301,8 @@ class LocalExecutor(BaseExecutor):
             self,
             key: TaskInstanceKey,
             command: CommandType,
-            queue: Optional[str] = None,  # pylint: disable=unused-argument
-            executor_config: Optional[Any] = None,  # pylint: disable=unused-argument
+            queue: Optional[str] = None,
+            executor_config: Optional[Any] = None,
         ) -> None:
             """
             Executes task asynchronously.

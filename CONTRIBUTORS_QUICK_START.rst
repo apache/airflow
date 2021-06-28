@@ -632,8 +632,7 @@ All Tests are inside ./tests directory.
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
-      run_ci_tests.sh*                            run_pylint.sh*
+      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
       run_extract_tests.sh*                       stop_tmux_airflow.sh*
@@ -830,8 +829,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
-      run_ci_tests.sh*                            run_pylint.sh*
+      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
       run_extract_tests.sh*                       stop_tmux_airflow.sh*
@@ -874,14 +872,6 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
    <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
    Pre-commit Hooks</a>
-
-  - |Pylint Static Code Checks|
-
-  .. |Pylint Static Code Checks| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pylint-static-code-checks"
-   target="_blank">Pylint Static Code Checks</a>
-
 
   - |Running Static Code Checks via Breeze|
 

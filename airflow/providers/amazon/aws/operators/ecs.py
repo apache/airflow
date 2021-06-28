@@ -54,7 +54,6 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    # pylint: disable=C0103, line-too-long
     def run_task(self, **kwargs) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
@@ -79,10 +78,8 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
 
-    # pylint: enable=C0103, line-too-long
 
-
-class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
@@ -154,7 +151,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         *,
         task_definition: str,
         cluster: str,
-        overrides: dict,  # pylint: disable=too-many-arguments
+        overrides: dict,
         aws_conn_id: Optional[str] = None,
         region_name: Optional[str] = None,
         launch_type: str = 'EC2',
