@@ -202,9 +202,7 @@ class ECSOperator(BaseOperator):
         self.reattach_prev_task = reattach_prev_task
 
         if self.reattach_prev_task and self.reattach:
-            raise AirflowException(
-                "reattach_prev_task and reattach cannot be both True"
-            )
+            raise AirflowException("reattach_prev_task and reattach cannot be both True")
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -288,12 +286,7 @@ class ECSOperator(BaseOperator):
 
         if self.reattach_prev_task:
             # Save the task ARN in XCom to be able to reattach it if needed
-            self._xcom_set(
-                context,
-                key="ecs_task_arn",
-                value=self.arn,
-                task_id=f"{self.task_id}_task_arn"
-            )
+            self._xcom_set(context, key="ecs_task_arn", value=self.arn, task_id=f"{self.task_id}_task_arn")
 
     def _xcom_set(self, context, key, value, task_id):
         XCom.set(
@@ -315,9 +308,7 @@ class ECSOperator(BaseOperator):
 
         # Check if the ECS task previously launched is already running
         if self.reattach_prev_task:
-            previous_task_arn = self.xcom_pull(
-                task_ids=f"{self.task_id}_task_arn", key="ecs_task_arn"
-            )
+            previous_task_arn = self.xcom_pull(task_ids=f"{self.task_id}_task_arn", key="ecs_task_arn")
             self.log.info(f"Previously launched task = {previous_task_arn}")
             if previous_task_arn in running_tasks:
                 self.arn = previous_task_arn
@@ -329,9 +320,7 @@ class ECSOperator(BaseOperator):
             running_tasks_count = len(running_tasks)
             if running_tasks_count > 1:
                 self.arn = running_tasks[0]
-                self.log.warning(
-                    "More than 1 ECS Task found. Reattaching to %s", self.arn
-                )
+                self.log.warning("More than 1 ECS Task found. Reattaching to %s", self.arn)
             elif running_tasks_count == 1:
                 self.arn = running_tasks[0]
                 self.log.info("Reattaching task from same family: %s", self.arn)

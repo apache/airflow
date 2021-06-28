@@ -357,13 +357,17 @@ class TestECSOperator(unittest.TestCase):
             ['', {'testTagKey': 'testTagValue'}],
         ]
     )
-    @mock.patch.object(ECSOperator,
-                       "xcom_pull",
-                       return_value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55")
+    @mock.patch.object(
+        ECSOperator,
+        "xcom_pull",
+        return_value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
+    )
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
     @mock.patch.object(ECSOperator, '_start_task')
-    def test_reattach_prev_task_successful(self, launch_type, tags, start_mock, check_mock, wait_mock, xcom_mock):
+    def test_reattach_prev_task_successful(
+        self, launch_type, tags, start_mock, check_mock, wait_mock, xcom_mock
+    ):
 
         self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
@@ -371,7 +375,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.list_tasks.return_value = {
             'taskArns': [
                 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b54',
-                'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+                'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55',
             ]
         }
 
@@ -410,14 +414,14 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_try_reattach_task')
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
-    def test_reattach_prev_task_first_try(self, launch_type, tags, check_mock, wait_mock, reattach_mock, xcom_set_mock, xcom_del_mock):
+    def test_reattach_prev_task_first_try(
+        self, launch_type, tags, check_mock, wait_mock, reattach_mock, xcom_set_mock, xcom_del_mock
+    ):
 
         self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
-        client_mock.list_tasks.return_value = {
-            'taskArns': []
-        }
+        client_mock.list_tasks.return_value = {'taskArns': []}
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.reattach_prev_task = True
