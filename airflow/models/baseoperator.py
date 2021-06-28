@@ -325,7 +325,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         has not succeeded yet.
         The scheduler pays special attention for jobs with an SLA and
         sends alert
-        emails for sla misses. SLA misses are also recorded in the database
+        emails for SLA misses. SLA misses are also recorded in the database
         for future reference. All tasks that share the same SLA time
         get bundled in a single email, sent soon after that time. SLA
         notification are sent once and only once for each task instance.
