@@ -278,7 +278,7 @@ idna-ssl==1.1.0
 idna==2.10
 imagesize==1.2.0
 immutables==0.15
-importlib-metadata==4.5.0
+importlib-metadata==4.6.0
 importlib-resources==1.5.0
 inflection==0.5.1
 iniconfig==1.1.1

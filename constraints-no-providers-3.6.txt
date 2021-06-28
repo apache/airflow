@@ -75,7 +75,7 @@ httpx==0.18.2
 humanize==3.9.0
 idna==2.10
 immutables==0.15
-importlib-metadata==4.5.0
+importlib-metadata==4.6.0
 importlib-resources==1.5.0
 inflection==0.5.1
 iso8601==0.1.14
