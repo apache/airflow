@@ -1709,7 +1709,7 @@
       type: float
       example: ~
       default: "15.0"
-    - name: clean_tis_without_dag
+    - name: clean_tis_without_dag_interval
       description: |
         How often (in seconds) to check and fail task instances and dagruns whose corresponding
         DAG is missing

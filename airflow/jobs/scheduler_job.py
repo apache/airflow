@@ -733,7 +733,7 @@ class SchedulerJob(BaseJob):
             self._clean_tis_without_dagrun,
         )
         timers.call_regular_interval(
-            conf.getfloat('scheduler', 'clean_tis_without_dag', fallback=15.0),
+            conf.getfloat('scheduler', 'clean_tis_without_dag_interval', fallback=15.0),
             self._clean_tis_without_dag,
         )
 

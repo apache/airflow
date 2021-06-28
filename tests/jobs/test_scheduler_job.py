@@ -1515,7 +1515,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.scheduler_job.processor_agent = processor
 
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), conf_vars(
-            {('scheduler', 'clean_tis_without_dag'): '0.001'}
+            {('scheduler', 'clean_tis_without_dag_interval'): '0.001'}
         ):
             self.scheduler_job._run_scheduler_loop()
 
