@@ -24,7 +24,7 @@ from hvac.exceptions import VaultError
 from requests import Response
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.hashicorp._internal_client.vault_client import (  # noqa
+from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
@@ -115,7 +115,7 @@ class VaultHook(BaseHook):
     conn_type = 'vault'
     hook_name = 'Hashicorp Vault'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         vault_conn_id: str = default_conn_name,
         auth_type: Optional[str] = None,

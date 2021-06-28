@@ -19,7 +19,7 @@
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator  # pylint: disable=cyclic-import
+    from airflow.models.baseoperator import BaseOperator
 
 
 class LineageBackend:

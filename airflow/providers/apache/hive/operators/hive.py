@@ -77,7 +77,6 @@ class HiveOperator(BaseOperator):
     )
     ui_color = '#f0e4ec'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

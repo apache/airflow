@@ -160,7 +160,7 @@ def execute_interactive(cmd: List[str], **kwargs):
 
     # open pseudo-terminal to interact with subprocess
     master_fd, slave_fd = pty.openpty()
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
             cmd, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, universal_newlines=True, **kwargs
@@ -233,7 +233,7 @@ def patch_environ(new_env_variables: Dict[str, str]):
     """
     current_env_state = {key: os.environ.get(key) for key in new_env_variables.keys()}
     os.environ.update(new_env_variables)
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         yield
     finally:
         for key, old_value in current_env_state.items():

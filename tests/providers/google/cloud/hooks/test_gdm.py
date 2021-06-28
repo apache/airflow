@@ -30,7 +30,7 @@ def mock_init(
     gcp_conn_id,
     delegate_to=None,
     impersonation_chain=None,
-):  # pylint: disable=unused-argument
+):
     pass
 
 

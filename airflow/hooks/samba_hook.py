@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.samba.hooks.samba import SambaHook  # noqa
 
 warnings.warn(

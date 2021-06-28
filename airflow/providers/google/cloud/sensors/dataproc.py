@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Dataproc Job sensor."""
-# pylint: disable=C0302
+
 
 from google.cloud.dataproc_v1beta2.types import JobStatus
 

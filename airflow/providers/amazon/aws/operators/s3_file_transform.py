@@ -96,7 +96,7 @@ class S3FileTransformOperator(BaseOperator):
         replace: bool = False,
         **kwargs,
     ) -> None:
-        # pylint: disable=too-many-arguments
+
         super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id

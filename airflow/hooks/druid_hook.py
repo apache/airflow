@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook  # noqa
 
 warnings.warn(

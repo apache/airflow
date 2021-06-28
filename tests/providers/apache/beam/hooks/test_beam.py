@@ -60,7 +60,7 @@ class TestBeamHook(unittest.TestCase):
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
 
-        hook.start_python_pipeline(  # pylint: disable=no-value-for-parameter
+        hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
             py_file=PY_FILE,
             py_options=PY_OPTIONS,
@@ -92,7 +92,7 @@ class TestBeamHook(unittest.TestCase):
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
 
-        hook.start_python_pipeline(  # pylint: disable=no-value-for-parameter
+        hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
             py_file=PY_FILE,
             py_options=PY_OPTIONS,
@@ -128,7 +128,7 @@ class TestBeamHook(unittest.TestCase):
         mock_virtualenv.return_value = '/dummy_dir/bin/python'
         process_line_callback = MagicMock()
 
-        hook.start_python_pipeline(  # pylint: disable=no-value-for-parameter
+        hook.start_python_pipeline(
             variables=copy.deepcopy(BEAM_VARIABLES_PY),
             py_file=PY_FILE,
             py_options=PY_OPTIONS,
@@ -161,7 +161,7 @@ class TestBeamHook(unittest.TestCase):
         process_line_callback = MagicMock()
 
         with self.assertRaisesRegex(AirflowException, "Invalid method invocation."):
-            hook.start_python_pipeline(  # pylint: disable=no-value-for-parameter
+            hook.start_python_pipeline(
                 variables=copy.deepcopy(BEAM_VARIABLES_PY),
                 py_file=PY_FILE,
                 py_options=PY_OPTIONS,
@@ -178,7 +178,7 @@ class TestBeamHook(unittest.TestCase):
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
 
-        hook.start_java_pipeline(  # pylint: disable=no-value-for-parameter
+        hook.start_java_pipeline(
             jar=JAR_FILE,
             variables=copy.deepcopy(BEAM_VARIABLES_JAVA),
             process_line_callback=process_line_callback,
@@ -201,7 +201,7 @@ class TestBeamHook(unittest.TestCase):
         wait_for_done = mock_runner.return_value.wait_for_done
         process_line_callback = MagicMock()
 
-        hook.start_java_pipeline(  # pylint: disable=no-value-for-parameter
+        hook.start_java_pipeline(
             jar=JAR_FILE,
             variables=copy.deepcopy(BEAM_VARIABLES_JAVA),
             job_class=JOB_CLASS,

@@ -163,7 +163,7 @@ class TestCassandraHook(unittest.TestCase):
             assert isinstance(policy, expected_policy_type)
             if expected_child_policy_type:
                 assert isinstance(policy._child_policy, expected_child_policy_type)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             thrown = True
         assert should_throw == thrown
 

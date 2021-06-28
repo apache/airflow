@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.hashicorp.secrets.vault import VaultBackend  # noqa
 
 warnings.warn(

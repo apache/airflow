@@ -79,7 +79,7 @@ class HiveToDruidOperator(BaseOperator):
     template_fields = ('sql', 'intervals')
     template_ext = ('.sql',)
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,

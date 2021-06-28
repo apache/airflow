@@ -52,7 +52,6 @@ YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(descript
 # [END howto_operator_google_api_to_s3_transfer_advanced_env_variables]
 
 
-# pylint: disable=unused-argument
 # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
 def _check_and_transform_video_ids(xcom_key, task_ids, task_instance, **kwargs):
     video_ids_response = task_instance.xcom_pull(task_ids=task_ids, key=xcom_key)
@@ -65,7 +64,7 @@ def _check_and_transform_video_ids(xcom_key, task_ids, task_instance, **kwargs):
 
 
 # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-# pylint: enable=unused-argument
+
 
 s3_directory, s3_file = S3_DESTINATION_KEY.rsplit('/', 1)
 s3_file_name, _ = s3_file.rsplit('.', 1)

@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 _kerberos_security_mode = conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
-        from hdfs.ext.kerberos import KerberosClient  # pylint: disable=ungrouped-imports
+        from hdfs.ext.kerberos import KerberosClient
     except ImportError:
         log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise

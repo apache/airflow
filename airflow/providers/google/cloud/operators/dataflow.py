@@ -42,9 +42,9 @@ class CheckJobRunning(Enum):
     WaitForRun - wait for job to finish and then continue with new job
     """
 
-    IgnoreJob = 1  # pylint: disable=invalid-name
-    FinishIfRunning = 2  # pylint: disable=invalid-name
-    WaitForRun = 3  # pylint: disable=invalid-name
+    IgnoreJob = 1
+    FinishIfRunning = 2
+    WaitForRun = 3
 
 
 class DataflowConfiguration:
@@ -169,7 +169,6 @@ class DataflowConfiguration:
         self.check_if_running = check_if_running
 
 
-# pylint: disable=too-many-instance-attributes
 class DataflowCreateJavaJobOperator(BaseOperator):
     """
     Start a Java Cloud Dataflow batch job. The parameters of the operation
@@ -347,7 +346,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     template_fields = ["options", "jar", "job_name"]
     ui_color = "#0273d4"
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -432,21 +430,17 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         with ExitStack() as exit_stack:
             if self.jar.lower().startswith("gs://"):
                 gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
-                tmp_gcs_file = exit_stack.enter_context(  # pylint: disable=no-member
-                    gcs_hook.provide_file(object_url=self.jar)
-                )
+                tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
                 is_running = False
                 if self.check_if_running != CheckJobRunning.IgnoreJob:
-                    is_running = (
-                        self.dataflow_hook.is_job_dataflow_running(  # pylint: disable=no-value-for-parameter
-                            name=self.job_name,
-                            variables=pipeline_options,
-                        )
+                    is_running = self.dataflow_hook.is_job_dataflow_running(
+                        name=self.job_name,
+                        variables=pipeline_options,
                     )
                     while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                        # pylint: disable=no-value-for-parameter
+
                         is_running = self.dataflow_hook.is_job_dataflow_running(
                             name=self.job_name,
                             variables=pipeline_options,
@@ -459,7 +453,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                         job_class=self.job_class,
                         process_line_callback=process_line_callback,
                     )
-                    self.dataflow_hook.wait_for_done(  # pylint: disable=no-value-for-parameter
+                    self.dataflow_hook.wait_for_done(
                         job_name=job_name,
                         location=self.location,
                         job_id=self.job_id,
@@ -476,7 +470,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
             )
 
 
-# pylint: disable=too-many-instance-attributes
 class DataflowTemplatedJobStartOperator(BaseOperator):
     """
     Start a Templated Cloud Dataflow job. The parameters of the operation
@@ -633,7 +626,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     ]
     ui_color = "#0273d4"
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         template: str,
@@ -926,7 +919,6 @@ class DataflowStartSqlJobOperator(BaseOperator):
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
 
 
-# pylint: disable=too-many-instance-attributes
 class DataflowCreatePythonJobOperator(BaseOperator):
     """
     Launching Cloud Dataflow jobs written in python. Note that both
@@ -1046,7 +1038,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
     template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         py_file: str,
@@ -1134,9 +1126,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         with ExitStack() as exit_stack:
             if self.py_file.lower().startswith("gs://"):
                 gcs_hook = GCSHook(self.gcp_conn_id, self.delegate_to)
-                tmp_gcs_file = exit_stack.enter_context(  # pylint: disable=no-member
-                    gcs_hook.provide_file(object_url=self.py_file)
-                )
+                tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
             self.beam_hook.start_python_pipeline(
@@ -1149,7 +1139,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 process_line_callback=process_line_callback,
             )
 
-            self.dataflow_hook.wait_for_done(  # pylint: disable=no-value-for-parameter
+            self.dataflow_hook.wait_for_done(
                 job_name=job_name,
                 location=self.location,
                 job_id=self.job_id,

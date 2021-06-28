@@ -90,7 +90,7 @@ class TestTableauHook(unittest.TestCase):
     @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
     @patch('airflow.providers.tableau.hooks.tableau.Server')
     @patch('airflow.providers.tableau.hooks.tableau.Pager', return_value=[1, 2, 3])
-    def test_get_all(self, mock_pager, mock_server, mock_tableau_auth):  # pylint: disable=unused-argument
+    def test_get_all(self, mock_pager, mock_server, mock_tableau_auth):
         """
         Test get all
         """

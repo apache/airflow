@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDocumentSensor  # noqa
 
 warnings.warn(

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook  # noqa
 
 warnings.warn(

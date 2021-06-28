@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.dingding.operators.dingding import DingdingOperator  # noqa
 
 warnings.warn(

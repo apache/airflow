@@ -1,4 +1,3 @@
-# flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -47,9 +46,7 @@ except ImportError:
 
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
-from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
-    THIRD_PARTY_INDEXES,
-)
+from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
 
@@ -65,7 +62,7 @@ if PACKAGE_NAME == 'apache-airflow':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
-    from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
+    from provider_yaml_utils import load_package_data
 
     ALL_PROVIDER_YAMLS = load_package_data()
     try:

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jira.operators.jira import JiraOperator  # noqa
 
 warnings.warn(

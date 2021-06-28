@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook  # noqa
 
 warnings.warn(

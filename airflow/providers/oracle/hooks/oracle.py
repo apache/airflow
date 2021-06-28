@@ -41,7 +41,6 @@ class OracleHook(DbApiHook):
 
     supports_autocommit = False
 
-    # pylint: disable=c-extension-no-member
     def get_conn(self) -> 'OracleHook':
         """
         Returns a oracle connection object
@@ -74,9 +73,7 @@ class OracleHook(DbApiHook):
 
 
         """
-        conn = self.get_connection(
-            self.oracle_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        conn = self.get_connection(self.oracle_conn_id)  # type: ignore[attr-defined]
         conn_config = {'user': conn.login, 'password': conn.password}
         sid = conn.extra_dejson.get('sid')
         mod = conn.extra_dejson.get('module')

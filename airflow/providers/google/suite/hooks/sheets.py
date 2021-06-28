@@ -110,7 +110,7 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: List
         """
         service = self.get_conn()
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -155,7 +155,7 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -212,7 +212,7 @@ class GSheetsHook(GoogleBaseHook):
         """
         service = self.get_conn()
         body = {"range": range_, "majorDimension": major_dimension, "values": values}
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -289,7 +289,7 @@ class GSheetsHook(GoogleBaseHook):
             "responseValueRenderOption": value_render_option,
             "responseDateTimeRenderOption": date_time_render_option,
         }
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -344,7 +344,7 @@ class GSheetsHook(GoogleBaseHook):
         """
         service = self.get_conn()
         body = {"range": range_, "majorDimension": major_dimension, "values": values}
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -376,7 +376,7 @@ class GSheetsHook(GoogleBaseHook):
         :rtype: Dict
         """
         service = self.get_conn()
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -400,7 +400,7 @@ class GSheetsHook(GoogleBaseHook):
         """
         service = self.get_conn()
         body = {"ranges": ranges}
-        # pylint: disable=no-member
+
         response = (
             service.spreadsheets()
             .values()
@@ -419,7 +419,7 @@ class GSheetsHook(GoogleBaseHook):
         :return: An spreadsheet that matches the sheet filter.
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .spreadsheets()
             .get(spreadsheetId=spreadsheet_id)
             .execute(num_retries=self.num_retries)
@@ -459,7 +459,7 @@ class GSheetsHook(GoogleBaseHook):
         :return: An spreadsheet object.
         """
         self.log.info("Creating spreadsheet: %s", spreadsheet['properties']['title'])
-        # pylint: disable=no-member
+
         response = (
             self.get_conn().spreadsheets().create(body=spreadsheet).execute(num_retries=self.num_retries)
         )

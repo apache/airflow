@@ -29,7 +29,7 @@ from setproctitle import setproctitle
 from airflow.configuration import conf
 
 
-def flask_app():  # noqa: D103
+def flask_app():
     flask_app = Flask(__name__)
     max_request_age = conf.getint('webserver', 'log_request_clock_grace', fallback=30)
     log_directory = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))

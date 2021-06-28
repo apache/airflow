@@ -37,7 +37,7 @@ depends_on = None
 
 def upgrade():
     """Apply Add scheduling_decision to DagRun and DAG"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     is_mysql = bool(conn.dialect.name == "mysql")
     is_sqlite = bool(conn.dialect.name == "sqlite")
     timestamp = sa.TIMESTAMP(timezone=True) if not is_mysql else mysql.TIMESTAMP(fsp=6, timezone=True)
@@ -85,7 +85,7 @@ def upgrade():
 
 def downgrade():
     """Unapply Add scheduling_decision to DagRun and DAG"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
 
     if is_sqlite:

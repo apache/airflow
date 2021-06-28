@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook  # noqa
 
 warnings.warn(

@@ -880,7 +880,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             single_dag_run=False,
         )
-        self.app.dag_bag.sync_to_db()  # pylint: disable=no-member
+        self.app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -932,9 +932,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
 
-        failed_dag_runs = (
-            session.query(DagRun).filter(DagRun.state == "failed").count()  # pylint: disable=W0143
-        )
+        failed_dag_runs = session.query(DagRun).filter(DagRun.state == "failed").count()
         assert 200 == response.status_code
         expected_response = [
             {
@@ -1024,7 +1022,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             single_dag_run=False,
         )
-        self.app.dag_bag.sync_to_db()  # pylint: disable=no-member
+        self.app.dag_bag.sync_to_db()
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1067,7 +1065,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             ]
         }
 
-        dag = self.app.dag_bag.dags['example_python_operator']  # pylint: disable=no-member
+        dag = self.app.dag_bag.dags['example_python_operator']
         task = dag.task_dict['print_the_context']
         mock_set_state.assert_called_once_with(
             commit=False,

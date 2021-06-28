@@ -34,11 +34,7 @@ from docs.exts.docs_build.code_utils import (
     pretty_format_path,
 )
 from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
-
-# pylint: disable=no-name-in-module
 from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
-
-# pylint: enable=no-name-in-module
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -164,7 +160,7 @@ class AirflowDocsBuilder:
             )
             console.print(f"[blue]{self.package_name:60}:[/] The output is hidden until an error occurs.")
         with open(self.log_spelling_filename, "wt") as output:
-            completed_proc = run(  # pylint: disable=subprocess-run-check
+            completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
                 env=env,
@@ -243,7 +239,7 @@ class AirflowDocsBuilder:
                 f"The output is hidden until an error occurs."
             )
         with open(self.log_build_filename, "wt") as output:
-            completed_proc = run(  # pylint: disable=subprocess-run-check
+            completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
                 env=env,

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.vertica.operators.vertica import VerticaOperator  # noqa
 
 warnings.warn(

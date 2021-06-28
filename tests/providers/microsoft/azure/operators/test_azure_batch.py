@@ -40,7 +40,7 @@ FORMULA = """$curTime = time();
              $TargetDedicated = $isWorkingWeekdayHour ? 20:10;"""
 
 
-class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-instance-attributes
+class TestAzureBatchOperator(unittest.TestCase):
     # set up the test environment
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook")
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")

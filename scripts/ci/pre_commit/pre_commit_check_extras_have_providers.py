@@ -29,7 +29,7 @@ AIRFLOW_SOURCES_DIR = os.path.abspath(os.path.join(dirname(__file__), os.pardir,
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 # flake8: noqa: F401
-# pylint: disable=wrong-import-position
+
 from setup import ALL_PROVIDERS  # noqa
 
 sys.path.append(AIRFLOW_SOURCES_DIR)

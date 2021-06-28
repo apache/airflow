@@ -67,7 +67,7 @@ class CountQueries:
         self.result[f"{stack_info}"] += 1
 
 
-count_queries = CountQueries  # pylint: disable=invalid-name
+count_queries = CountQueries
 
 
 @contextmanager

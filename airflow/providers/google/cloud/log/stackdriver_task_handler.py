@@ -89,8 +89,7 @@ class StackdriverTaskHandler(logging.Handler):
     def __init__(
         self,
         gcp_key_path: Optional[str] = None,
-        # See: https://github.com/PyCQA/pylint/issues/2377
-        scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,  # pylint: disable=unsubscriptable-object
+        scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,
         name: str = DEFAULT_LOGGER_NAME,
         transport: Type[Transport] = BackgroundThreadTransport,
         resource: Resource = _GLOBAL_RESOURCE,
@@ -98,8 +97,7 @@ class StackdriverTaskHandler(logging.Handler):
     ):
         super().__init__()
         self.gcp_key_path: Optional[str] = gcp_key_path
-        # See: https://github.com/PyCQA/pylint/issues/2377
-        self.scopes: Optional[Collection[str]] = scopes  # pylint: disable=unsubscriptable-object
+        self.scopes: Optional[Collection[str]] = scopes
         self.name: str = name
         self.transport_type: Type[Transport] = transport
         self.resource: Resource = resource

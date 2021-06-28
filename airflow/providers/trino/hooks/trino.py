@@ -60,9 +60,7 @@ class TrinoHook(DbApiHook):
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
-        db = self.get_connection(
-            self.trino_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
         if db.password and extra.get('auth') == 'kerberos':
@@ -99,15 +97,13 @@ class TrinoHook(DbApiHook):
             # Unfortunately verify parameter is available via public API.
             # The PR is merged in the trino library, but has not been released.
             # See: https://github.com/trinodb/trino-python-client/pull/31
-            trino_conn._http_session.verify = _boolify(extra['verify'])  # pylint: disable=protected-access
+            trino_conn._http_session.verify = _boolify(extra['verify'])
 
         return trino_conn
 
     def get_isolation_level(self) -> Any:
         """Returns an isolation level"""
-        db = self.get_connection(
-            self.trino_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 

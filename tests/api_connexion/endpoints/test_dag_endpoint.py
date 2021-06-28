@@ -59,11 +59,11 @@ def configured_app(minimal_app_for_api):
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
     create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )

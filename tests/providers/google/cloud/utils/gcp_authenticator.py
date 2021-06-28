@@ -18,7 +18,7 @@
 import json
 import os
 import subprocess
-from typing import Optional  # noqa: W0611
+from typing import Optional
 
 from airflow import settings
 from airflow.exceptions import AirflowException
