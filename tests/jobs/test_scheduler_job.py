@@ -3650,7 +3650,7 @@ def test_task_with_upstream_skip_process_task_instances():
     assert dr is not None
 
     with create_session() as session:
-        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}  # pylint: disable=no-member
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
         # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
         tis[dummy1.task_id].state = State.SKIPPED
         tis[dummy2.task_id].state = State.SUCCESS
