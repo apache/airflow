@@ -44,6 +44,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowNotFoundException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -51,6 +52,7 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
@@ -1637,6 +1639,30 @@ class TaskInstance(Base, LoggingMixin):
                 """Get Airflow Variable after deserializing JSON value"""
                 return Variable.get(item, default_var=default_var, deserialize_json=True)
 
+        class ConnectionAccessor:
+            """
+            Wrapper around Connection. This way you can get connections in
+            templates by using ``{{ conn.value.conn_id }}`` or
+            ``{{ conn.value.get('conn_id', 'fallback') }}``.
+            """
+
+            def __getattr__(
+                self,
+                item: str,
+            ):
+                return Connection.get_connection_from_secrets(item)
+
+            @staticmethod
+            def get(
+                item: str,
+                default_conn: Any = None,
+            ):
+                """Get Airflow Connection value"""
+                try:
+                    return Connection.get_connection_from_secrets(item)
+                except AirflowNotFoundException:
+                    return default_conn
+
         return {
             'conf': conf,
             'dag': task.dag,
@@ -1674,6 +1700,9 @@ class TaskInstance(Base, LoggingMixin):
             'var': {
                 'json': VariableJsonAccessor(),
                 'value': VariableAccessor(),
+            },
+            'conn': {
+                'value': ConnectionAccessor(),
             },
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,

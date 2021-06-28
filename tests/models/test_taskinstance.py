@@ -40,6 +40,7 @@ from airflow.exceptions import (
 )
 from airflow.models import (
     DAG,
+    Connection,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -59,6 +60,7 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
+from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -67,6 +69,7 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_connections
 
 
 class CallbackWrapper:
@@ -1552,6 +1555,43 @@ class TestTaskInstance(unittest.TestCase):
         assert isinstance(template_context["execution_date"], pendulum.DateTime)
         assert isinstance(template_context["next_execution_date"], pendulum.DateTime)
         assert isinstance(template_context["prev_execution_date"], pendulum.DateTime)
+
+    @parameterized.expand(
+        [
+            ('{{ conn.value.get("a_connection").host }}', 'hostvalue'),
+            ('{{ conn.value.get("a_connection", "unused_fallback").host }}', 'hostvalue'),
+            ('{{ conn.value.get("missing_connection", {"host": "fallback_host"}).host }}', 'fallback_host'),
+            ('{{ conn.value.a_connection.host }}', 'hostvalue'),
+            ('{{ conn.value.a_connection.login }}', 'loginvalue'),
+            ('{{ conn.value.a_connection.password }}', 'passwordvalue'),
+        ]
+    )
+    def test_template_with_connection(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        with create_session() as session:
+            clear_db_connections(add_default_connections_back=False)
+            merge_conn(
+                Connection(
+                    conn_id="a_connection",
+                    conn_type="a_type",
+                    description="a_conn_description",
+                    host="hostvalue",
+                    login="loginvalue",
+                    password="passwordvalue",
+                    schema="schemavalues",
+                ),
+                session,
+            )
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        assert result == expected_output
 
     @parameterized.expand(
         [
