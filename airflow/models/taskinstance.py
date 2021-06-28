@@ -1642,8 +1642,8 @@ class TaskInstance(Base, LoggingMixin):
         class ConnectionAccessor:
             """
             Wrapper around Connection. This way you can get connections in
-            templates by using ``{{ conn.value.conn_id }}`` or
-            ``{{ conn.value.get('conn_id', 'fallback') }}``.
+            templates by using ``{{ conn.conn_id }}`` or
+            ``{{ conn.get('conn_id', 'fallback') }}``.
             """
 
             def __getattr__(
@@ -1701,9 +1701,7 @@ class TaskInstance(Base, LoggingMixin):
                 'json': VariableJsonAccessor(),
                 'value': VariableAccessor(),
             },
-            'conn': {
-                'value': ConnectionAccessor(),
-            },
+            'conn': ConnectionAccessor(),
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,
         }

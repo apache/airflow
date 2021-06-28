@@ -1558,12 +1558,12 @@ class TestTaskInstance(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ('{{ conn.value.get("a_connection").host }}', 'hostvalue'),
-            ('{{ conn.value.get("a_connection", "unused_fallback").host }}', 'hostvalue'),
-            ('{{ conn.value.get("missing_connection", {"host": "fallback_host"}).host }}', 'fallback_host'),
-            ('{{ conn.value.a_connection.host }}', 'hostvalue'),
-            ('{{ conn.value.a_connection.login }}', 'loginvalue'),
-            ('{{ conn.value.a_connection.password }}', 'passwordvalue'),
+            ('{{ conn.get("a_connection").host }}', 'hostvalue'),
+            ('{{ conn.get("a_connection", "unused_fallback").host }}', 'hostvalue'),
+            ('{{ conn.get("missing_connection", {"host": "fallback_host"}).host }}', 'fallback_host'),
+            ('{{ conn.a_connection.host }}', 'hostvalue'),
+            ('{{ conn.a_connection.login }}', 'loginvalue'),
+            ('{{ conn.a_connection.password }}', 'passwordvalue'),
         ]
     )
     def test_template_with_connection(self, content, expected_output):
