@@ -3660,7 +3660,7 @@ def test_task_with_upstream_skip_process_task_instances():
     # dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
 
     with create_session() as session:
-        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}  # pylint: disable=no-member
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
         assert tis[dummy1.task_id].state == State.SKIPPED
         assert tis[dummy2.task_id].state == State.SUCCESS
         # dummy3 should be skipped because dummy1 is skipped.
