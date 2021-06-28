@@ -111,6 +111,7 @@ from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from airflow.utils.strings import to_boolean
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -1583,6 +1584,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
             response = self.render_template(
                 'airflow/confirm.html',
+                endpoint=None,
                 message="Here's the list of task instances you are about to clear:",
                 details=details,
             )
@@ -1799,7 +1801,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         task_id,
         origin,
         execution_date,
-        confirmed,
         upstream,
         downstream,
         future,
@@ -1812,14 +1813,14 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         latest_execution_date = dag.get_latest_execution_date()
         if not latest_execution_date:
-            flash(f"Cannot make {state}, seem that dag {dag_id} has never run", "error")
+            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
             return redirect(origin)
 
         execution_date = timezone.parse(execution_date)
 
         from airflow.api.common.experimental.mark_tasks import set_state
 
-        if confirmed:
+        with create_session() as session:
             altered = set_state(
                 tasks=[task],
                 execution_date=execution_date,
@@ -1829,10 +1830,87 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                 past=past,
                 state=state,
                 commit=True,
+                session=session,
             )
 
-            flash(f"Marked {state} on {len(altered)} task instances")
-            return redirect(origin)
+            # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+            # Flush the session so that the tasks marked success are reflected in the db.
+            session.flush()
+            subdag = dag.partial_subset(
+                task_ids_or_regex={task_id},
+                include_downstream=True,
+                include_upstream=False,
+            )
+
+            end_date = execution_date if not future else None
+            start_date = execution_date if not past else None
+
+            subdag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=True,
+                include_parentdag=True,
+                only_failed=True,
+                session=session,
+                # Exclude the task itself from being cleared
+                exclude_task_ids={task_id},
+            )
+
+            session.commit()
+
+        flash(f"Marked {state} on {len(altered)} task instances")
+        return redirect(origin)
+
+    @expose('/confirm', methods=['GET'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @action_logging
+    def confirm(self):
+        """Show confirmation page for marking tasks as success or failed."""
+        args = request.args
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        execution_date = args.get('execution_date')
+        state = args.get('state')
+
+        upstream = to_boolean(args.get('upstream'))
+        downstream = to_boolean(args.get('downstream'))
+        future = to_boolean(args.get('future'))
+        past = to_boolean(args.get('past'))
+
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+        except airflow.exceptions.SerializedDagNotFound:
+            flash(f'DAG {dag_id} not found', "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        try:
+            task = dag.get_task(task_id)
+        except airflow.exceptions.TaskNotFound:
+            flash(f"Task {task_id} not found", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        task.dag = dag
+
+        if state not in (
+            'success',
+            'failed',
+        ):
+            flash(f"Invalid state {state}, must be either 'success' or 'failed'", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        latest_execution_date = dag.get_latest_execution_date()
+        if not latest_execution_date:
+            flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+
+        execution_date = timezone.parse(execution_date)
+
+        from airflow.api.common.experimental.mark_tasks import set_state
 
         to_be_altered = set_state(
             tasks=[task],
@@ -1849,6 +1927,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         response = self.render_template(
             "airflow/confirm.html",
+            endpoint=url_for(f'Airflow.{state}'),
             message=f"Here's the list of task instances you are about to mark as {state}:",
             details=details,
         )
@@ -1865,23 +1944,22 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def failed(self):
         """Mark task as failed."""
-        dag_id = request.form.get('dag_id')
-        task_id = request.form.get('task_id')
-        origin = get_safe_url(request.form.get('origin'))
-        execution_date = request.form.get('execution_date')
+        args = request.form
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        origin = get_safe_url(args.get('origin'))
+        execution_date = args.get('execution_date')
 
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('failed_upstream') == "true"
-        downstream = request.form.get('failed_downstream') == "true"
-        future = request.form.get('failed_future') == "true"
-        past = request.form.get('failed_past') == "true"
+        upstream = to_boolean(args.get('upstream'))
+        downstream = to_boolean(args.get('downstream'))
+        future = to_boolean(args.get('future'))
+        past = to_boolean(args.get('past'))
 
         return self._mark_task_instance_state(
             dag_id,
             task_id,
             origin,
             execution_date,
-            confirmed,
             upstream,
             downstream,
             future,
@@ -1899,23 +1977,22 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def success(self):
         """Mark task as success."""
-        dag_id = request.form.get('dag_id')
-        task_id = request.form.get('task_id')
-        origin = get_safe_url(request.form.get('origin'))
-        execution_date = request.form.get('execution_date')
+        args = request.form
+        dag_id = args.get('dag_id')
+        task_id = args.get('task_id')
+        origin = get_safe_url(args.get('origin'))
+        execution_date = args.get('execution_date')
 
-        confirmed = request.form.get('confirmed') == "true"
-        upstream = request.form.get('success_upstream') == "true"
-        downstream = request.form.get('success_downstream') == "true"
-        future = request.form.get('success_future') == "true"
-        past = request.form.get('success_past') == "true"
+        upstream = to_boolean(args.get('upstream'))
+        downstream = to_boolean(args.get('downstream'))
+        future = to_boolean(args.get('future'))
+        past = to_boolean(args.get('past'))
 
         return self._mark_task_instance_state(
             dag_id,
             task_id,
             origin,
             execution_date,
-            confirmed,
             upstream,
             downstream,
             future,
