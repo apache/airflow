@@ -22,6 +22,7 @@
 
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
@@ -37,7 +38,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
-  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image-1)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
@@ -56,8 +57,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     # Set Version
-    export VERSION=2.0.2rc3
+    export VERSION=2.1.2rc3
     export VERSION_SUFFIX=rc3
+    export VERSION_CONSTRAINT_BRANCH=2-1
     export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -105,7 +107,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout constraints-2-0
+    git checkout constraints-${VERSION_CONSTRAINT_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
@@ -126,6 +128,18 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
+
+
+## Manually prepare production Docker Image
+
+
+```shell script
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before pushing the images.
+
 
 ## [\Optional\] Create new release branch
 
