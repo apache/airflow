@@ -44,13 +44,16 @@ rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
 build_images::prepare_prod_build
 build_images::build_prod_images
 verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+echo
+echo "Pushing airflow image as apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
+echo
 # Re-tag the image to be published in "apache/airflow"
 docker tag "apache/airflow-ci:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
      "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
 docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
 if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
     echo
-    echo "Pushing default airflow image"
+    echo "Pushing default airflow image as apache/airflow:${INSTALL_AIRFLOW_VERSION}"
     echo
     # In case of default Python version we also push ":version" tag
     docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
