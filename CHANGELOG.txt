@@ -1,3 +1,54 @@
+Airflow 2.1.1, 2021-06-29
+-------------------------
+
+Bug Fixes
+"""""""""
+
+
+- Don't crash attempting to mask secrets in dict with non-string keys (#16601)
+- Always install sphinx_airflow_theme from ``PyPI`` (#16594)
+- Remove limitation for elasticsearch library (#16553)
+- Adding extra requirements for build and runtime of the PROD image. (#16170)
+- Cattrs 1.7.0 released by the end of May 2021 break lineage usage (#16173)
+- Removes unnecessary packages from setup_requires (#16139)
+- Pins docutils to <0.17 until breaking behaviour is fixed (#16133)
+- Improvements for Docker Image docs (#14843)
+- Ensure that ``dag_run.conf`` is a dict (#15057)
+- Fix CLI connections import and migrate logic from secrets to Connection model (#15425)
+- Fix Dag Details start date bug (#16206)
+- Fix DAG run state not updated while DAG is paused (#16343)
+- Allow null value for operator field in task_instance schema(REST API) (#16516)
+- Avoid recursion going too deep when redacting logs (#16491)
+- Backfill: Don't create a DagRun if no tasks match task regex (#16461)
+- Tree View UI for larger DAGs & more consistent spacing in Tree View (#16522)
+- Correctly handle None returns from Query.scalar() (#16345)
+- Adding ``only_active`` parameter to /dags endpoint (#14306)
+- Don't show stale Serialized DAGs if they are deleted in DB (#16368)
+- Make REST API List DAGs endpoint consistent with UI/CLI behaviour (#16318)
+- Support remote logging in elasticsearch with ``filebeat 7`` (#14625)
+- Queue tasks with higher priority and earlier execution_date first. (#15210)
+- Make task ID on legend have enough width and width of line chart to be 100%.  (#15915)
+- Fix normalize-url vulnerability (#16375)
+- Validate retries value on init for better errors (#16415)
+- add num_runs query param for tree refresh (#16437)
+- Fix templated default/example values in config ref docs (#16442)
+- Add ``passphrase`` and ``private_key`` to default sensitive field names (#16392)
+- Fix tasks in an infinite slots pool were never scheduled (#15247)
+- Fix Orphaned tasks stuck in CeleryExecutor as running (#16550)
+- Don't fail to log if we can't redact something (#16118)
+- Set max tree width to 1200 pixels (#16067)
+- Fill the "job_id" field for ``airflow task run`` without ``--local``/``--raw`` for KubeExecutor (#16108)
+- Fixes problem where conf variable was used before initialization (#16088)
+- Fix apply defaults for task decorator (#16085)
+- Parse recently modified files even if just parsed (#16075)
+- Ensure that we don't try to mask empty string in logs (#16057)
+- Don't die when masking ``log.exception`` when there is no exception (#16047)
+- Restores apply_defaults import in base_sensor_operator (#16040)
+- Fix auto-refresh in tree view When webserver ui is not in ``/`` (#16018)
+- Fix dag.clear() to set multiple dags to running when necessary (#15382)
+- Fix Celery executor getting stuck randomly because of reset_signals in multiprocessing (#15989)
+
+
 Airflow 2.1.0, 2021-05-21
 -------------------------
 

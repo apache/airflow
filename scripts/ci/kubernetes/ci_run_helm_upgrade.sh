@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck source=scripts/ci/libraries/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-description "Airflow celery worker daemon"
-
-start on started networking
-stop on (deconfiguring-networking or runlevel [016])
-
-respawn
-respawn limit 5 30
-
-setuid airflow
-setgid airflow
-
-# env AIRFLOW_CONFIG=
-# env AIRFLOW_HOME=
-# export AIRFLOW_CONFIG
-# export AIRFLOW_HOME
-
-exec usr/local/bin/airflow celery worker
+# We started with KubernetesExecutor. Let's run tests first
+"$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+for mode in CeleryExecutor KubernetesExecutor
+do
+    kind::upgrade_airflow_with_helm "${mode}"
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+done

@@ -157,7 +157,7 @@ labelPRBasedOnFilePath:
     - airflow/executors/**/*
     - airflow/jobs/**/*
     - airflow/task/task_runner/**/*
-    - airflow/utils/dag_processing.py
+    - airflow/dag_processing/**/*
     - docs/apache-airflow/executor/**/*
     - docs/apache-airflow/concepts/scheduler.rst
     - tests/executors/**/*

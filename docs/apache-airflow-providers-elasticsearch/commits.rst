@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.1
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  =====================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =====================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `3cf67be38 <https://github.com/apache/airflow/commit/3cf67be3875fa0b91408ed0433779970e4f6acf5>`_  2021-06-16   ``Support non-https elasticsearch external links (#16489)``
 `247ba3187 <https://github.com/apache/airflow/commit/247ba31872aa5a8a9e92f781a6beba75945ece1b>`_  2021-06-16   ``Fix Elasticsearch external log link with ''json_format'' (#16467)``
 `5e12b3de3 <https://github.com/apache/airflow/commit/5e12b3de31dd1cf3d6e5088edbf497f91dcae4d8>`_  2021-06-16   ``Remove support jinja templated log_id in elasticsearch (#16465)``

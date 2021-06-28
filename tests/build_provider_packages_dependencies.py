@@ -20,15 +20,15 @@ import sys
 from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
 from os.path import dirname, sep
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from setup import PROVIDERS_REQUIREMENTS
 
 sys.path.append(os.path.join(dirname(__file__), os.pardir))
 
 
-AIRFLOW_PROVIDERS_FILE_PREFIX = "airflow" + sep + "providers" + sep
-AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX = "tests" + sep + "providers" + sep
+AIRFLOW_PROVIDERS_FILE_PREFIX = f"airflow{sep}providers{sep}"
+AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX = f"tests{sep}providers{sep}"
 AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."
 
 # List of information messages generated
@@ -84,7 +84,7 @@ def get_provider_from_file_name(file_name: str) -> Optional[str]:
     return provider
 
 
-def get_file_suffix(file_name):
+def get_file_suffix(file_name) -> Optional[str]:
     if AIRFLOW_PROVIDERS_FILE_PREFIX in file_name:
         return file_name[file_name.find(AIRFLOW_PROVIDERS_FILE_PREFIX) :]
     if AIRFLOW_TESTS_PROVIDERS_FILE_PREFIX in file_name:
@@ -114,13 +114,13 @@ class ImportFinder(NodeVisitor):
     AST visitor that collects all imported names in its imports
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename: str) -> None:
         self.imports: List[str] = []
         self.filename = filename
         self.handled_import_exception = List[str]
         self.tried_imports: List[str] = []
 
-    def process_import(self, import_name: str):
+    def process_import(self, import_name: str) -> None:
         self.imports.append(import_name)
 
     def get_import_name_from_import_from(self, node: ImportFrom) -> List[str]:  # noqa
@@ -136,11 +136,11 @@ class ImportFinder(NodeVisitor):
             import_names.append(fullname)
         return import_names
 
-    def visit_Import(self, node: Import):  # pylint: disable=invalid-name
+    def visit_Import(self, node: Import) -> None:  # pylint: disable=invalid-name
         for alias in node.names:
             self.process_import(alias.name)
 
-    def visit_ImportFrom(self, node: ImportFrom):  # pylint: disable=invalid-name
+    def visit_ImportFrom(self, node: ImportFrom) -> None:  # pylint: disable=invalid-name
         if node.module == '__future__':
             return
         for fullname in self.get_import_name_from_import_from(node):
@@ -164,7 +164,7 @@ def get_imports_from_file(file_name: str) -> List[str]:
     return visitor.imports
 
 
-def check_if_different_provider_used(file_name: str):
+def check_if_different_provider_used(file_name: str) -> None:
     file_provider = get_provider_from_file_name(file_name)
     if not file_provider:
         return
@@ -175,7 +175,7 @@ def check_if_different_provider_used(file_name: str):
             dependencies[file_provider].append(import_provider)
 
 
-def parse_arguments():
+def parse_arguments() -> Tuple[str, str, str]:
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -209,7 +209,7 @@ FOOTER = """========================== ===========================
 """
 
 
-def insert_documentation(deps_dict: Dict[str, List[str]], res: List[str]):
+def insert_documentation(deps_dict: Dict[str, List[str]], res: List[str]) -> None:
     res += HEADER.splitlines(keepends=True)
     for package, deps in deps_dict.items():
         deps_str = ",".join(deps)

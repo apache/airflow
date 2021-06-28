@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,25 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+LIBRARIES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../libraries/" && pwd)
+# shellcheck source=scripts/ci/libraries/_all_libs.sh
+source "${LIBRARIES_DIR}/_all_libs.sh"
 
-description "Airflow scheduler daemon"
+export SEMAPHORE_NAME="kubernetes-tests-upgrade"
 
-start on started networking
-stop on (deconfiguring-networking or runlevel [016])
+initialization::set_output_color_variables
 
-respawn
-respawn limit 5 10
+parallel::make_sure_gnu_parallel_is_installed
+parallel::make_sure_python_versions_are_specified
+parallel::make_sure_kubernetes_versions_are_specified
 
-setuid airflow
-setgid airflow
+parallel::get_maximum_parallel_k8s_jobs
+parallel::run_helm_tests_in_parallel \
+    "$(dirname "${BASH_SOURCE[0]}")/ci_upgrade_cluster_with_different_executors_single_job.sh" "${@}"
 
-# env AIRFLOW_CONFIG=
-# env AIRFLOW_HOME=
-# export AIRFLOW_CONFIG
-# export AIRFLOW_HOME
-
-# required setting, 0 sets it to unlimited. Scheduler will restart after every X runs
-env SCHEDULER_RUNS=5
-export SCHEDULER_RUNS
-
-exec usr/local/bin/airflow scheduler -n ${SCHEDULER_RUNS}
+# this will exit with error code in case some of the tests failed
+parallel::print_job_summary_and_return_status_code

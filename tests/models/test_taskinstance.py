@@ -1851,7 +1851,8 @@ class TestTaskInstance(unittest.TestCase):
             session.query(RenderedTaskInstanceFields).delete()
 
     @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    def test_get_rendered_k8s_spec(self):
+    @mock.patch("airflow.settings.pod_mutation_hook")
+    def test_render_k8s_pod_yaml(self, pod_mutation_hook):
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
 
@@ -1896,23 +1897,38 @@ class TestTaskInstance(unittest.TestCase):
             },
         }
 
-        with create_session() as session:
-            rtif = RenderedTaskInstanceFields(ti)
-            session.add(rtif)
-            assert rtif.k8s_pod_yaml == expected_pod_spec
+        assert ti.render_k8s_pod_yaml() == expected_pod_spec
+        pod_mutation_hook.assert_called_once_with(mock.ANY)
 
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
+    @mock.patch.object(RenderedTaskInstanceFields, 'get_k8s_pod_yaml')
+    def test_get_rendered_k8s_spec(self, rtif_get_k8s_pod_yaml):
         # Create new TI for the same Task
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
-            new_task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+            task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
 
-        new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
-        pod_spec = new_ti.get_rendered_k8s_spec()
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
 
-        assert expected_pod_spec == pod_spec
+        patcher = mock.patch.object(ti, 'render_k8s_pod_yaml', autospec=True)
 
-        # CleanUp
-        with create_session() as session:
-            session.query(RenderedTaskInstanceFields).delete()
+        fake_spec = {"ermagawds": "pods"}
+
+        session = mock.Mock()
+
+        with patcher as render_k8s_pod_yaml:
+            rtif_get_k8s_pod_yaml.return_value = fake_spec
+            assert ti.get_rendered_k8s_spec(session) == fake_spec
+
+            rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
+            render_k8s_pod_yaml.assert_not_called()
+
+            # Now test that when we _dont_ find it in the DB, it calles render_k8s_pod_yaml
+            rtif_get_k8s_pod_yaml.return_value = None
+            render_k8s_pod_yaml.return_value = fake_spec
+
+            assert ti.get_rendered_k8s_spec(session) == fake_spec
+
+            render_k8s_pod_yaml.assert_called_once()
 
     def test_set_state_up_for_retry(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)

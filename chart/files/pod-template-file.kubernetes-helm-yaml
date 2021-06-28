@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+{{- $nodeSelector := or .Values.nodeSelector .Values.workers.nodeSelector }}
+{{- $affinity := or .Values.affinity .Values.workers.affinity }}
+{{- $tolerations := or .Values.tolerations .Values.workers.tolerations }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -84,9 +87,9 @@ spec:
   securityContext:
     runAsUser: {{ .Values.uid }}
     fsGroup: {{ .Values.gid }}
-  nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
-  affinity: {{ toYaml .Values.affinity | nindent 4 }}
-  tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
+  nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}
+  affinity: {{ toYaml $affinity | nindent 4 }}
+  tolerations: {{ toYaml $tolerations | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}

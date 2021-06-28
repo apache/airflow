@@ -57,7 +57,7 @@ Container Registry used as cache
 For the CI builds of our we are using Container Registry to store results of the "Build Image" workflow
 and pass it to the "CI Build" workflow.
 
-Currently in main version of Airflow we run tests in 3 different versions of Python (3.6, 3.7, 3.8)
+Currently in main version of Airflow we run tests in 4 different versions of Python (3.6, 3.7, 3.8, 3.9)
 which means that we have to build 6 images (3 CI ones and 3 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
 we are utilising ``pull_request_target`` feature of GitHub Actions.
@@ -779,7 +779,7 @@ The image names follow the patterns:
 +--------------+----------------------------+--------------------------------+--------------------------------------------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v1-10-test" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor). For "main" and "v2-*-test" should be in ["3.6", "3.7", "3.8"].
+* <X.Y> - Python version (Major + Minor). For "main" and "v2-*-test" should be in ["3.6", "3.7", "3.8", "3.9"].
 * <COMMIT_SHA> - for images that get merged to "main", "v2-*-test" of "v1-10-test", or built as part of a
   pull request the images are tagged with the (full length) commit SHA of that particular branch. For pull
   requests the SHA used is the tip of the pull request branch.

@@ -29,7 +29,7 @@ field (see connection `wasb_default` for an example).
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential
+from azure.identity import ClientSecretCredential, ManagedIdentityCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
 
 from airflow.exceptions import AirflowException
@@ -45,6 +45,9 @@ class WasbHook(BaseHook):
     Additional options passed in the 'extra' field of the connection will be
     passed to the `BlockBlockService()` constructor. For example, authenticate
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
+
+    If no authentication configuration is provided, managed identity will be used (applicable
+    when using Azure compute infrastructure).
 
     :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :type wasb_conn_id: str
@@ -138,11 +141,17 @@ class WasbHook(BaseHook):
             return BlobServiceClient(account_url=extra.get('sas_token'))
         if sas_token and not sas_token.startswith('https'):
             return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
-        else:
-            # Fall back to old auth
-            return BlobServiceClient(
-                account_url=f"https://{conn.login}.blob.core.windows.net/", credential=conn.password, **extra
-            )
+
+        # Fall back to old auth (password) or use managed identity if not provided.
+        credential = conn.password
+        if not credential:
+            credential = ManagedIdentityCredential()
+            self.log.info("Using managed identity as credential")
+        return BlobServiceClient(
+            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            credential=credential,
+            **extra,
+        )
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """

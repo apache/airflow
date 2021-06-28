@@ -28,6 +28,13 @@
         "type": "string"
       }
     },
+    "excluded-python-versions": {
+      "description": "List of python versions excluded for that provider",
+      "type": "array",
+      "items": {
+          "type": "string"
+      }
+    },
     "integrations": {
       "description": "List of integrations supported by the provider.",
       "type": "array",

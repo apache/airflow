@@ -14,21 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-description "Airflow webserver daemon"
-
-start on started networking
-stop on (deconfiguring-networking or runlevel [016])
-
-respawn
-respawn limit 5 30
-
-setuid airflow
-setgid airflow
-
-# env AIRFLOW_CONFIG=
-# env AIRFLOW_HOME=
-# export AIRFLOW_CONFIG
-# export AIRFLOW_HOME
-
-exec usr/local/bin/airflow webserver

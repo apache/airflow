@@ -495,7 +495,6 @@ function build_images::rebuild_ci_image_if_needed() {
         push_pull_remove_images::pull_ci_images_if_needed
         return
     fi
-
     local needs_docker_build="false"
     md5sum::check_if_docker_build_is_needed
     build_images::get_local_build_cache_hash
@@ -526,7 +525,7 @@ function build_images::rebuild_ci_image_if_needed() {
                 local root_files_count
                 root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${root_files_count} != "0" ]]; then
-                    ./scripts/ci/tools/ci_fix_ownership.sh
+                    ./scripts/ci/tools/ci_fix_ownership.sh || true
                 fi
             fi
             verbosity::print_info

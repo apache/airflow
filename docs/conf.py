@@ -649,6 +649,9 @@ redirects_file = 'redirects.txt'
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
 spelling_word_list_filename = [os.path.join(CONF_DIR, 'spelling_wordlist.txt')]
+if PACKAGE_NAME == 'apache-airflow':
+    spelling_exclude_patterns = ['project.rst', 'changelog.rst']
+spelling_ignore_contributor_names = False
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/

@@ -358,24 +358,9 @@ which are used to populate the run schedule with task instances from this dag.
         --start-date 2015-06-01 \
         --end-date 2015-06-07
 
-What's Next?
--------------
-That's it, you have written, tested and backfilled your very first Airflow
-pipeline. Merging your code into a code repository that has a master scheduler
-running against it should get it to get triggered and run every day.
 
-Here's a few things you might want to do next:
-
-.. seealso::
-    - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
-    - Take an in-depth tour of the UI - click all the things!
-    - Keep reading the docs!
-
-      - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
-      - Review the :ref:`Command Line Interface Reference<cli>`
-      - Review the :ref:`List of operators <pythonapi:operators>`
-      - Review the :ref:`Macros reference<macros>`
-    - Write your first pipeline!
+Pipeline Example
+''''''''''''''''''''
 
 Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
 
@@ -412,7 +397,7 @@ Create a Employee table in postgres using this
   );
 
 
-Let's break this down into 3 steps: get data, insert data, merge data:
+Let's break this down into 2 steps: get data & merge data:
 
 .. code-block:: python
 
@@ -426,19 +411,25 @@ Let's break this down into 3 steps: get data, insert data, merge data:
           for row in response.text.split("\n"):
               file.write(row)
 
-Here we are passing a``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance.
+      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      conn = postgres_hook.get_conn()
+      cur = conn.cursor()
+      with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
+          cur.copy_from(
+              f,
+              "Employees_temp",
+              columns=[
+                  "Serial Number",
+                  "Company Name",
+                  "Employee Markme",
+                  "Description",
+                  "Leave",
+              ],
+              sep=",",
+          )
+      conn.commit()
 
-.. code-block:: python
-
-  @task
-  def insert_data():
-      engine = create_engine(
-          "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
-      )
-      df = pd.read_csv("/usr/local/airflow/dags/files/employees.csv")
-      df.to_sql("Employees_temp", con=engine, if_exists="replace", chunksize=1000)
-
-Here we are dumping the file into a temporary table before merging the data to the final employees table
+Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table
 
 .. code-block:: python
 
@@ -454,12 +445,11 @@ Here we are dumping the file into a temporary table before merging the data to t
           from "Employees_temp";
       """
       try:
-          engine = create_engine(
-              "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
-          )
-          session = sessionmaker(bind=engine)()
-          session.execute(query)
-          session.commit()
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          cur.execute(query)
+          conn.commit()
           return 0
       except Exception as e:
           return 1
@@ -479,45 +469,54 @@ Lets look at our DAG:
   def Etl():
       @task
       def get_data():
-          url = "https://docs.google.com/uc?export=download&id=1a0RGUW2oYxyhIQYuezG_u8cxgUaAQtZw"
+          url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
           response = requests.request("GET", url)
 
-          with open("employees.csv", "w") as file:
+          with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
               for row in response.text.split("\n"):
                   file.write(row)
 
-      @task
-      def insert_data():
-          engine = create_engine(
-              "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
-          )
-          df = pd.read_csv("employees.csv")
-          df.to_sql("Employees_temp", con=engine, if_exists="replace", chunksize=1000)
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
+              cur.copy_from(
+                  f,
+                  "Employees_temp",
+                  columns=[
+                      "Serial Number",
+                      "Company Name",
+                      "Employee Markme",
+                      "Description",
+                      "Leave",
+                  ],
+                  sep=",",
+              )
+          conn.commit()
 
       @task
       def merge_data():
           query = """
-      delete
-      from "Employees" e using "Employees_temp" et
-      where e."Serial Number" = et."Serial Number";
+                  delete
+                  from "Employees" e using "Employees_temp" et
+                  where e."Serial Number" = et."Serial Number";
 
-      insert into "Employees"
-      select *
-      from "Employees_temp";
-      """
+                  insert into "Employees"
+                  select *
+                  from "Employees_temp";
+                  """
           try:
-              engine = create_engine(
-                  "postgresql+psycopg2://postgres:password@localhost:5432/postgres"
-              )
-              session = sessionmaker(bind=engine)()
-              session.execute(query)
-              session.commit()
+              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              conn = postgres_hook.get_conn()
+              cur = conn.cursor()
+              cur.execute(query)
+              conn.commit()
               return 0
           except Exception as e:
               return 1
 
-      get_data() >> insert_data() >> merge_data()
+      get_data() >> merge_data()
 
 
   dag = Etl()
@@ -527,7 +526,8 @@ Add this python file to airflow/dags folder and go back to the main folder and r
 
 .. code-block:: bash
 
-  docker-compose -f  docker-compose-LocalExecutor.yml up -d
+  docker-compose up airflow-init
+  docker-compose up
 
 Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example
 
@@ -537,4 +537,24 @@ Go to your browser and go to the site http://localhost:8080/home and trigger you
 .. image:: img/new_tutorial-2.png
 
 The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
-Before the DAG run my local table had 100 rows after the DAG run it had approx 2k rows
+Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows
+
+
+What's Next?
+-------------
+That's it, you have written, tested and backfilled your very first Airflow
+pipeline. Merging your code into a code repository that has a master scheduler
+running against it should get it to get triggered and run every day.
+
+Here's a few things you might want to do next:
+
+.. seealso::
+    - Read the :doc:`/concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more.
+    - Take an in-depth tour of the UI - click all the things!
+    - Keep reading the docs!
+
+      - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
+      - Review the :ref:`Command Line Interface Reference<cli>`
+      - Review the :ref:`List of operators <pythonapi:operators>`
+      - Review the :ref:`Macros reference<macros>`
+    - Write your first pipeline!

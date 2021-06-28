@@ -40,7 +40,6 @@ configuring an Airflow environment.
     variable
     run-behind-proxy
     run-with-systemd
-    run-with-upstart
     use-test-config
     define_extra_link
     email-config
