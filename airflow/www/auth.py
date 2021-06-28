@@ -20,7 +20,7 @@ from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
 from flask import current_app, flash, redirect, request, url_for
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:

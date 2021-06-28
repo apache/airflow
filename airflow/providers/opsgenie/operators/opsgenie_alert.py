@@ -68,7 +68,6 @@ class OpsgenieAlertOperator(BaseOperator):
 
     template_fields = ('message', 'alias', 'description', 'entity', 'priority', 'note')
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

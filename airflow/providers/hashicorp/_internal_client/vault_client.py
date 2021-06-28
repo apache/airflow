@@ -46,7 +46,7 @@ VALID_AUTH_TYPES: List[str] = [
 ]
 
 
-class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attributes
+class _VaultClient(LoggingMixin):
     """
     Retrieves Authenticated client from Hashicorp Vault. This is purely internal class promoting
     authentication code reuse between the Hook and the SecretBackend, it should not be used directly in
@@ -109,7 +109,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     :type radius_port: int
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         url: Optional[str] = None,
         auth_type: str = 'token',
@@ -275,7 +275,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             _client.auth.github.login(token=self.token)
 
     def _auth_gcp(self, _client: hvac.Client) -> None:
-        from airflow.providers.google.cloud.utils.credentials_provider import (  # noqa
+        from airflow.providers.google.cloud.utils.credentials_provider import (
             _get_scopes,
             get_credentials_and_project_id,
         )

@@ -44,7 +44,7 @@ class TestCliUsers:
         self.app = app
         self.dagbag = dagbag
         self.parser = parser
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+        self.appbuilder = self.app.appbuilder
         self.clear_roles_and_roles()
         yield
         self.clear_roles_and_roles()

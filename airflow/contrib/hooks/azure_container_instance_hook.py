@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instanc
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.hooks.azure_container_instance import (  # noqa
     AzureContainerInstanceHook,
 )

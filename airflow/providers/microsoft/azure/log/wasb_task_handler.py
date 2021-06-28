@@ -141,7 +141,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.check_for_blob(self.wasb_container, remote_log_location)
-        # pylint: disable=broad-except
+
         except Exception as e:
             self.log.debug('Exception when trying to check remote location: "%s"', e)
         return False

@@ -70,7 +70,7 @@ def set_state(
     state: str = State.SUCCESS,
     commit: bool = False,
     session=None,
-):  # pylint: disable=too-many-arguments,too-many-locals
+):
     """
     Set the state of a task instance and if needed its relatives. Can set state
     for future tasks (calculated from execution_date) and retroactively
@@ -134,14 +134,13 @@ def set_state(
     return tis_altered
 
 
-# Flake and pylint disagree about correct indents here
-def all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates):  # noqa: E123
+def all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates):
     """Get *all* tasks of the sub dags"""
     qry_sub_dag = (
         session.query(TaskInstance)
         .filter(TaskInstance.dag_id.in_(sub_dag_run_ids), TaskInstance.execution_date.in_(confirmed_dates))
         .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
-    )  # noqa: E123
+    )
     return qry_sub_dag
 
 
@@ -152,7 +151,7 @@ def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.execution_date.in_(confirmed_dates),
-            TaskInstance.task_id.in_(task_ids),  # noqa: E123
+            TaskInstance.task_id.in_(task_ids),
         )
         .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
     )

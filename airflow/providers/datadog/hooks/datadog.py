@@ -110,7 +110,6 @@ class DatadogHook(BaseHook, LoggingMixin):
         self.validate_response(response)
         return response
 
-    # pylint: disable=too-many-arguments
     def post_event(
         self,
         title: str,

@@ -27,7 +27,7 @@ from airflow.www.app import cached_app
 @suppress_logs_and_warning
 def roles_list(args):
     """Lists all existing roles"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     roles = appbuilder.sm.get_all_roles()
     AirflowConsole().print_as(
         data=sorted(r.name for r in roles), output=args.output, mapper=lambda x: {"name": x}
@@ -38,7 +38,7 @@ def roles_list(args):
 @suppress_logs_and_warning
 def roles_create(args):
     """Creates new empty role in DB"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     for role_name in args.role:
         appbuilder.sm.add_role(role_name)
     print(f"Added {len(args.role)} role(s)")

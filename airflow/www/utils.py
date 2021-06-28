@@ -27,7 +27,7 @@ from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
+from pygments.formatters import HtmlFormatter
 
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -37,7 +37,7 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 
-def get_sensitive_variables_fields():  # noqa: D103
+def get_sensitive_variables_fields():
     import warnings
 
     from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
@@ -51,7 +51,7 @@ def get_sensitive_variables_fields():  # noqa: D103
     return get_sensitive_variables_fields()
 
 
-def should_hide_value_for_key(key_name):  # noqa: D103
+def should_hide_value_for_key(key_name):
     import warnings
 
     from airflow.utils.log.secrets_masker import should_hide_value_for_key
@@ -140,7 +140,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
     if current_page > 0:
         page_link = f'?{get_params(page=current_page - 1, search=search, status=status, tags=tags)}'
 
-    output.append(previous_node.format(href_link=page_link, disabled=is_disabled))  # noqa
+    output.append(previous_node.format(href_link=page_link, disabled=is_disabled))
 
     mid = int(window / 2)
     last_page = num_of_pages - 1
@@ -152,7 +152,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
     else:
         pages = list(range(num_of_pages - window, last_page + 1))
 
-    def is_current(current, page):  # noqa
+    def is_current(current, page):
         return page == current
 
     for page in pages:
@@ -163,7 +163,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
             else f'?{get_params(page=page, search=search, status=status, tags=tags)}',
             'page_num': page + 1,
         }
-        output.append(page_node.format(**vals))  # noqa
+        output.append(page_node.format(**vals))
 
     is_disabled = 'disabled' if current_page >= num_of_pages - 1 else ''
 
@@ -173,7 +173,7 @@ def generate_pages(current_page, num_of_pages, search=None, status=None, tags=No
         else f'?{get_params(page=current_page + 1, search=search, status=status, tags=tags)}'
     )
 
-    output.append(next_node.format(href_link=page_link, disabled=is_disabled))  # noqa
+    output.append(next_node.format(href_link=page_link, disabled=is_disabled))
 
     last_node_link = (
         void_link
@@ -220,7 +220,7 @@ def task_instance_link(attr):
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
     )
-    return Markup(  # noqa
+    return Markup(
         """
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
@@ -237,7 +237,7 @@ def state_token(state):
     """Returns a formatted string with HTML for a given State"""
     color = State.color(state)
     fg_color = State.color_fg(state)
-    return Markup(  # noqa
+    return Markup(
         """
         <span class="label" style="color:{fg_color}; background-color:{color};"
             title="Current State: {state}">{state}</span>
@@ -256,7 +256,7 @@ def nobr_f(attr_name):
 
     def nobr(attr):
         f = attr.get(attr_name)
-        return Markup("<nobr>{}</nobr>").format(f)  # noqa
+        return Markup("<nobr>{}</nobr>").format(f)
 
     return nobr
 
@@ -264,7 +264,7 @@ def nobr_f(attr_name):
 def datetime_f(attr_name):
     """Returns a formatted string with HTML for given DataTime"""
 
-    def dt(attr):  # pylint: disable=invalid-name
+    def dt(attr):
         f = attr.get(attr_name)
         as_iso = f.isoformat() if f else ''
         if not as_iso:
@@ -273,12 +273,9 @@ def datetime_f(attr_name):
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
         # The empty title will be replaced in JS code when non-UTC dates are displayed
-        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)  # noqa
+        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
 
     return dt
-
-
-# pylint: enable=invalid-name
 
 
 def json_f(attr_name):
@@ -287,7 +284,7 @@ def json_f(attr_name):
     def json_(attr):
         f = attr.get(attr_name)
         serialized = json.dumps(f)
-        return Markup('<nobr>{}</nobr>').format(serialized)  # noqa
+        return Markup('<nobr>{}</nobr>').format(serialized)
 
     return json_
 
@@ -297,7 +294,7 @@ def dag_link(attr):
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')  # noqa
+    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')
 
 
 def dag_run_link(attr):
@@ -306,10 +303,10 @@ def dag_run_link(attr):
     run_id = attr.get('run_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
-    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)  # noqa
+    return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
-def pygment_html_render(s, lexer=lexers.TextLexer):  # noqa pylint: disable=no-member
+def pygment_html_render(s, lexer=lexers.TextLexer):
     """Highlight text using a given Lexer"""
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
@@ -321,11 +318,11 @@ def render(obj, lexer):
         out = Markup(pygment_html_render(obj, lexer))
     elif isinstance(obj, (tuple, list)):
         for i, text_to_render in enumerate(obj):
-            out += Markup("<div>List item #{}</div>").format(i)  # noqa
+            out += Markup("<div>List item #{}</div>").format(i)
             out += Markup("<div>" + pygment_html_render(text_to_render, lexer) + "</div>")
     elif isinstance(obj, dict):
         for k, v in obj.items():
-            out += Markup('<div>Dict item "{}"</div>').format(k)  # noqa
+            out += Markup('<div>Dict item "{}"</div>').format(k)
             out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
     return out
 
@@ -349,7 +346,6 @@ def wrapped_markdown(s, css_class='rich_doc'):
     return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
 
 
-# pylint: disable=no-member
 def get_attr_renderer():
     """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
     return {
@@ -374,9 +370,6 @@ def get_attr_renderer():
     }
 
 
-# pylint: enable=no-member
-
-
 def get_chart_height(dag):
     """
     We use the number of tasks in the DAG as a heuristic to
@@ -388,33 +381,33 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-class UtcAwareFilterMixin:  # noqa: D101
+class UtcAwareFilterMixin:
     """Mixin for filter for UTC time."""
 
     def apply(self, query, value):
         """Apply the filter."""
         value = timezone.parse(value, timezone=timezone.utc)
 
-        return super().apply(query, value)  # noqa
+        return super().apply(query, value)
 
 
-class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):  # noqa: D101
+class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
     """Equality filter for UTC time."""
 
 
-class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):  # noqa: D101
+class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):
     """Greater Than filter for UTC time."""
 
 
-class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):  # noqa: D101
+class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):
     """Smaller Than filter for UTC time."""
 
 
-class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):  # noqa: D101
+class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
     """Not Equal To filter for UTC time."""
 
 
-class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):  # noqa: D101
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     """Retrieve conversion tables for UTC-Aware filters."""
 
     conversion_table = (

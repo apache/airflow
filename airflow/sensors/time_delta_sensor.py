@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.time_delta import TimeDeltaSensor  # noqa
 
 warnings.warn(

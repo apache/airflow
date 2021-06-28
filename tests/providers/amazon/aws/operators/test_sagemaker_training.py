@@ -61,7 +61,6 @@ create_training_params = {
 }
 
 
-# pylint: disable=unused-argument
 class TestSageMakerTrainingOperator(unittest.TestCase):
     def setUp(self):
         self.sagemaker = SageMakerTrainingOperator(

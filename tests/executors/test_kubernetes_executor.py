@@ -47,7 +47,6 @@ except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
 
-# pylint: disable=unused-argument
 class TestAirflowKubernetesScheduler(unittest.TestCase):
     @staticmethod
     def _gen_random_string(seed, str_len):
@@ -123,9 +122,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     @mock.patch('airflow.executors.kubernetes_executor.client')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
-    def test_delete_pod_successfully(
-        self, mock_watcher, mock_client, mock_kube_client
-    ):  # pylint: disable=unused-argument
+    def test_delete_pod_successfully(self, mock_watcher, mock_client, mock_kube_client):
         pod_id = "my-pod-1"
         namespace = "my-namespace-1"
 
@@ -143,9 +140,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     @mock.patch('airflow.executors.kubernetes_executor.client')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
-    def test_delete_pod_raises_404(
-        self, mock_watcher, mock_client, mock_kube_client
-    ):  # pylint: disable=unused-argument
+    def test_delete_pod_raises_404(self, mock_watcher, mock_client, mock_kube_client):
         pod_id = "my-pod-1"
         namespace = "my-namespace-2"
 
@@ -166,9 +161,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     @mock.patch('airflow.executors.kubernetes_executor.client')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
-    def test_delete_pod_404_not_raised(
-        self, mock_watcher, mock_client, mock_kube_client
-    ):  # pylint: disable=unused-argument
+    def test_delete_pod_404_not_raised(self, mock_watcher, mock_client, mock_kube_client):
         pod_id = "my-pod-1"
         namespace = "my-namespace-3"
 
@@ -404,8 +397,6 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor._change_state(key, State.FAILED, 'pod_id', 'default')
         assert executor.event_buffer[key][0] == State.FAILED
         mock_delete_pod.assert_not_called()
-
-    # pylint: enable=unused-argument
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')

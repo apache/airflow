@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=not-callable
+
 
 import re
 import unittest
@@ -1234,7 +1234,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     def test_close(self, mock_get_service):
         bq_cursor = self.hook.get_cursor()
-        result = bq_cursor.close()  # pylint: disable=assignment-from-no-return
+        result = bq_cursor.close()
         assert result is None
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -1745,7 +1745,6 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
             retry=DEFAULT_RETRY,
         )
 
-    # pylint: disable=too-many-locals
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
     def test_create_external_table_with_kms(self, mock_create):
         external_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"

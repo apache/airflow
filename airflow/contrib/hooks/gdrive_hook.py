@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook  # noqa
 
 warnings.warn(

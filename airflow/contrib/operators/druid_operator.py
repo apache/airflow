@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.druid.operators.druid import DruidOperator  # noqa
 
 warnings.warn(

@@ -58,7 +58,7 @@ class Variable(Base, LoggingMixin):
         self.description = description
 
     @reconstructor
-    def on_db_load(self):  # pylint: disable=missing-function-docstring
+    def on_db_load(self):
         if self._val:
             mask_secret(self.val, self.key)
 
@@ -75,7 +75,7 @@ class Variable(Base, LoggingMixin):
             except InvalidFernetToken:
                 self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
@@ -89,7 +89,7 @@ class Variable(Base, LoggingMixin):
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def val(cls):  # pylint: disable=no-self-argument
+    def val(cls):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
         return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
 

@@ -64,7 +64,7 @@ class BashSensor(BaseSensorOperator):
                 script_location = tmp_dir + "/" + fname
                 self.log.info("Temporary script location: %s", script_location)
                 self.log.info("Running command: %s", bash_command)
-                # pylint: disable=subprocess-popen-preexec-fn
+
                 with Popen(
                     ['bash', fname],
                     stdout=PIPE,

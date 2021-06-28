@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.zendesk.hooks.zendesk import Zendesk, ZendeskError, ZendeskHook  # noqa
 
 warnings.warn(

@@ -60,7 +60,7 @@ class ExasolToS3Operator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         query_or_table: str,

@@ -309,11 +309,9 @@ def test_build_task_group_with_task_decorator():
 
         tsk_1 >> group234 >> tsk_5
 
-    # pylint: disable=no-member
     assert tsk_1.operator in tsk_2.operator.upstream_list
     assert tsk_1.operator in tsk_3.operator.upstream_list
     assert tsk_5.operator in tsk_4.operator.downstream_list
-    # pylint: enable=no-member
 
     assert extract_node_id(task_group_to_dict(dag.task_group)) == {
         'id': None,

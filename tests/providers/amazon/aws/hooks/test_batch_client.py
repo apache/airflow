@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=missing-docstring
 
 import unittest
 from unittest import mock

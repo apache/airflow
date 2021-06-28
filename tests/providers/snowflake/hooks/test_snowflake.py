@@ -121,7 +121,7 @@ class TestSnowflakeHook(unittest.TestCase):
             'authenticator': 'snowflake',
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
         }
-        assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
+        assert self.db_hook.snowflake_conn_id == 'snowflake_default'
         assert conn_params_shouldbe == self.db_hook._get_conn_params()
 
     def test_get_conn(self):

@@ -108,7 +108,6 @@ class KylinCubeOperator(BaseOperator):
     }
     jobs_end_status = {"FINISHED", "ERROR", "DISCARDED", "KILLED", "SUICIDAL", "STOPPED"}
 
-    # pylint: disable=too-many-arguments,inconsistent-return-statements
     def __init__(
         self,
         *,

@@ -34,7 +34,7 @@ def _trigger_dag(
     conf: Optional[Union[dict, str]] = None,
     execution_date: Optional[datetime] = None,
     replace_microseconds: bool = True,
-) -> List[DagRun]:  # pylint: disable=too-many-arguments
+) -> List[DagRun]:
     """Triggers DAG run.
 
     :param dag_id: DAG ID

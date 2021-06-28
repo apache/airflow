@@ -118,7 +118,7 @@ class AwsBatchOperator(BaseOperator):
         region_name: Optional[str] = None,
         tags: Optional[dict] = None,
         **kwargs,
-    ):  # pylint: disable=too-many-arguments
+    ):
 
         BaseOperator.__init__(self, **kwargs)
         self.job_id = job_id
@@ -150,7 +150,7 @@ class AwsBatchOperator(BaseOperator):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
-    def submit_job(self, context: Dict):  # pylint: disable=unused-argument
+    def submit_job(self, context: Dict):
         """
         Submit an AWS Batch job
 
@@ -181,7 +181,7 @@ class AwsBatchOperator(BaseOperator):
             self.log.error("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
-    def monitor_job(self, context: Dict):  # pylint: disable=unused-argument
+    def monitor_job(self, context: Dict):
         """
         Monitor an AWS Batch job
 

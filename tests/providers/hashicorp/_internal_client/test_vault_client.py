@@ -1,4 +1,3 @@
-# pylint: disable=no-member
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -23,7 +22,7 @@ from unittest.mock import mock_open, patch
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
 
-from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
+from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 
 
 class TestVaultClient(TestCase):

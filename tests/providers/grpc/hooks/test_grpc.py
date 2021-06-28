@@ -49,13 +49,13 @@ def get_airflow_connection_with_port():
 
 
 class StubClass:
-    def __init__(self, _):  # pylint: disable=unused-argument
+    def __init__(self, _):
         pass
 
-    def single_call(self, data):  # noqa
+    def single_call(self, data):
         return data
 
-    def stream_call(self, data):  # noqa pylint: disable=unused-argument
+    def stream_call(self, data):
         return ["streaming", "call"]
 
 

@@ -125,7 +125,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             metadata=(),
         )
         mask = FieldMask(paths=["enabled"])
-        alert_policy_disabled.enabled = True  # pylint: disable=no-member
+        alert_policy_disabled.enabled = True
         mock_policy_client.return_value.update_alert_policy.assert_called_once_with(
             request=dict(alert_policy=alert_policy_disabled, update_mask=mask),
             retry=DEFAULT,
@@ -158,7 +158,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             metadata=(),
         )
         mask = FieldMask(paths=["enabled"])
-        alert_policy_enabled.enabled = False  # pylint: disable=no-member
+        alert_policy_enabled.enabled = False
         mock_policy_client.return_value.update_alert_policy.assert_called_once_with(
             request=dict(alert_policy=alert_policy_enabled, update_mask=mask),
             retry=DEFAULT,
@@ -206,7 +206,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
         alert_policy_to_create.name = None
         alert_policy_to_create.creation_record = None
         alert_policy_to_create.mutation_record = None
-        # pylint: disable=unsubscriptable-object
+
         alert_policy_to_create.conditions[0].name = None
         mock_policy_client.return_value.create_alert_policy.assert_called_once_with(
             request=dict(
@@ -318,7 +318,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        notification_channel_disabled.enabled = True  # pylint: disable=no-member
+        notification_channel_disabled.enabled = True
         mask = FieldMask(paths=['enabled'])
         mock_channel_client.return_value.update_notification_channel.assert_called_once_with(
             request=dict(notification_channel=notification_channel_disabled, update_mask=mask),
@@ -348,7 +348,7 @@ class TestStackdriverHookMethods(unittest.TestCase):
             project_id=PROJECT_ID,
         )
 
-        notification_channel_enabled.enabled = False  # pylint: disable=no-member
+        notification_channel_enabled.enabled = False
         mask = FieldMask(paths=['enabled'])
         mock_channel_client.return_value.update_notification_channel.assert_called_once_with(
             request=dict(notification_channel=notification_channel_enabled, update_mask=mask),

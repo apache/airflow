@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from croniter import croniter
-from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
+from dateutil.relativedelta import relativedelta  # for doctest
 
 from airflow.utils import timezone
 
@@ -34,7 +34,6 @@ cron_presets: Dict[str, str] = {
 }
 
 
-# pylint: disable=too-many-branches
 def date_range(
     start_date: datetime,
     end_date: Optional[datetime] = None,

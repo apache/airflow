@@ -53,7 +53,7 @@ class Pool(Base):
     DEFAULT_POOL_NAME = 'default_pool'
 
     def __repr__(self):
-        return str(self.pool)  # pylint: disable=E0012
+        return str(self.pool)
 
     @staticmethod
     @provide_session

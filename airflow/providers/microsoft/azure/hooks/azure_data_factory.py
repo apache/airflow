@@ -70,7 +70,7 @@ def provide_targeted_factory(func: Callable) -> Callable:
     return wrapper
 
 
-class AzureDataFactoryHook(BaseHook):  # pylint: disable=too-many-public-methods
+class AzureDataFactoryHook(BaseHook):
     """
     A hook to interact with Azure Data Factory.
 
