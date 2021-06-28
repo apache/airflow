@@ -1564,6 +1564,7 @@ class TestTaskInstance(unittest.TestCase):
             ('{{ conn.a_connection.host }}', 'hostvalue'),
             ('{{ conn.a_connection.login }}', 'loginvalue'),
             ('{{ conn.a_connection.password }}', 'passwordvalue'),
+            ('{{ conn.a_connection.extra_dejson["extra__asana__workspace"] }}', 'extra1'),
         ]
     )
     def test_template_with_connection(self, content, expected_output):
@@ -1581,6 +1582,9 @@ class TestTaskInstance(unittest.TestCase):
                     login="loginvalue",
                     password="passwordvalue",
                     schema="schemavalues",
+                    extra={
+                        "extra__asana__workspace": "extra1",
+                    },
                 ),
                 session,
             )
