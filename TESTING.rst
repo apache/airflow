@@ -659,6 +659,8 @@ in the host.
 
 You can enter the shell via those scripts
 
+.. code-block:: bash
+
       export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
 
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
