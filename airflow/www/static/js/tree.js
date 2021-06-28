@@ -332,7 +332,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .style('stroke-opacity', (d) => (d.external_trigger ? '0' : '1'))
       .on('mouseover', function (d) {
         // Calculate duration if it doesn't exist
-        const tt = tiTooltip({ ...d, duration: d.duration || moment(d.end_date).diff(d.start_date, 'seconds') });
+        const tt = tiTooltip({
+          ...d,
+          // if end_date is undefined then moment will default to now instead of null
+          duration: d.duration || d.end_date ? moment(d.end_date).diff(d.start_date, 'seconds') : null,
+        });
         taskTip.direction('n');
         taskTip.show(tt, this);
         d3.select(this).transition().duration(duration)
