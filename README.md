@@ -59,6 +59,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
 - [Airflow merchandise](#airflow-merchandise)
 - [Links](#links)
+- [Sponsors](#sponsors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -324,3 +325,12 @@ If you would love to have Apache Airflow stickers, t-shirt etc. then check out
 
 - [Documentation](https://airflow.apache.org/docs/apache-airflow/stable/)
 - [Chat](https://s.apache.org/airflow-slack)
+
+## Sponsors
+
+The CI infrastructure for Apache Airflow has been sponsored by:
+
+<!-- Orderd by most recently "funded" -->
+
+<a href="https://astronomer.io"><img src="https://assets2.astronomer.io/logos/logoForLIGHTbackground.png" alt="astronomer.io" width="200px"></a>
+<a href="https://aws.amazon.com/opensource/"><img src="docs/integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png" alt="AWS OpenSource" width="200px"></a>
