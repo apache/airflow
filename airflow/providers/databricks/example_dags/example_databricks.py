@@ -35,15 +35,14 @@ from airflow import DAG
 from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-    'email': ['airflow@example.com'],
-    'depends_on_past': False,
-}
 
 with DAG(
     dag_id='example_databricks_operator',
-    default_args=default_args,
+    default_args={
+        'owner': 'airflow',
+        'email': ['airflow@example.com'],
+        'depends_on_past': False,
+    },
     schedule_interval='@daily',
     start_date=days_ago(2),
     tags=['example'],

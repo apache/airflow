@@ -97,13 +97,8 @@ tolerations = [k8s.V1Toleration(key="key", operator="Equal", value="value")]
 # [END howto_operator_k8s_cluster_resources]
 
 
-default_args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_kubernetes_operator',
-    default_args=default_args,
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],
@@ -163,3 +158,5 @@ with DAG(
         task_id="pod_task_xcom_result",
     )
     # [END howto_operator_k8s_write_xcom]
+
+    write_xcom >> pod_task_xcom_result

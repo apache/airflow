@@ -27,9 +27,6 @@ from airflow.operators.python import PythonOperator
 from airflow.settings import AIRFLOW_HOME
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +35,6 @@ try:
 
     with DAG(
         dag_id='example_kubernetes_executor_config',
-        default_args=default_args,
         schedule_interval=None,
         start_date=days_ago(2),
         tags=['example3'],

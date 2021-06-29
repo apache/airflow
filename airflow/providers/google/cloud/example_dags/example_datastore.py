@@ -90,14 +90,14 @@ COMMIT_BODY = {
             }
         }
     ],
-    "transaction": "{{ task_instance.xcom_pull('begin_transaction_commit') }}",
+    "transaction": begin_transaction_commit.output,
 }
 # [END how_to_commit_def]
 
 # [START how_to_query_def]
 QUERY = {
     "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
-    "readOptions": {"transaction": "{{ task_instance.xcom_pull('begin_transaction_query') }}"},
+    "readOptions": {"transaction": begin_transaction_query.output},
     "query": {},
 }
 # [END how_to_query_def]
@@ -128,7 +128,7 @@ with models.DAG(
     )
     # [END how_to_commit_task]
 
-    allocate_ids >> begin_transaction_commit >> commit_task
+    allocate_ids >> begin_transaction_commit
 
     begin_transaction_query = CloudDatastoreBeginTransactionOperator(
         task_id="begin_transaction_query",
@@ -140,7 +140,7 @@ with models.DAG(
     run_query = CloudDatastoreRunQueryOperator(task_id="run_query", body=QUERY, project_id=GCP_PROJECT_ID)
     # [END how_to_run_query]
 
-    allocate_ids >> begin_transaction_query >> run_query
+    allocate_ids >> begin_transaction_query
 
     begin_transaction_to_rollback = CloudDatastoreBeginTransactionOperator(
         task_id="begin_transaction_to_rollback",
@@ -151,7 +151,11 @@ with models.DAG(
     # [START how_to_rollback_transaction]
     rollback_transaction = CloudDatastoreRollbackOperator(
         task_id="rollback_transaction",
-        transaction="{{ task_instance.xcom_pull('begin_transaction_to_rollback') }}",
+        transaction=begin_transaction_to_rollback.output,
     )
-    begin_transaction_to_rollback >> rollback_transaction
     # [END how_to_rollback_transaction]
+
+    # Task dependencies created via `XComArgs`:
+    #   begin_transaction_commit >> commit_task
+    #   begin_transaction_to_rollback >> rollback_transaction
+    #   begin_transaction_query >> run_query

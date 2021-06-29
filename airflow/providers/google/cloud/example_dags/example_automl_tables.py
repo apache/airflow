@@ -101,7 +101,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
+    dataset_id = create_dataset_task.output['dataset_id']
     # [END howto_operator_automl_create_dataset]
 
     MODEL["dataset_id"] = dataset_id
@@ -134,12 +134,14 @@ with models.DAG(
     )
     # [END howto_operator_automl_column_specs]
 
+    list_columns_spec_task = str(list_columns_spec_task.output).strip("{ }")
+
     # [START howto_operator_automl_update_dataset]
     update = deepcopy(DATASET)
     update["name"] = '{{ task_instance.xcom_pull("create_dataset_task")["name"] }}'
     update["tables_dataset_metadata"][  # type: ignore
         "target_column_spec_id"
-    ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec_task'), target) }}"
+    ] = f"{{{{ get_target_column_spec({list_columns_spec_task.output}, target) }}}}"
 
     update_dataset_task = AutoMLTablesUpdateDatasetOperator(
         task_id="update_dataset_task",
@@ -156,7 +158,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    model_id = "{{ task_instance.xcom_pull('create_model_task', key='model_id') }}"
+    model_id = create_model_task.output['model_id']
     # [END howto_operator_automl_create_model]
 
     # [START howto_operator_automl_delete_model]
@@ -176,15 +178,21 @@ with models.DAG(
     )
 
     (
-        create_dataset_task  # noqa
-        >> import_dataset_task  # noqa
-        >> list_tables_spec_task  # noqa
-        >> list_columns_spec_task  # noqa
-        >> update_dataset_task  # noqa
+        import_dataset_task # noqa
+        >> list_tables_spec_task # noqa
+        >> list_columns_spec_task # noqa
+        >> update_dataset_task # noqa
         >> create_model_task  # noqa
-        >> delete_model_task  # noqa
-        >> delete_datasets_task  # noqa
     )
+    delete_model_task >> delete_datasets_task
+
+    # Task dependencies created via `XComArgs`:
+    #   create_dataset_task >> import_dataset_task
+    #   create_dataset_task >> list_tables_spec_task
+    #   create_dataset_task >> list_columns_spec_task
+    #   create_dataset_task >> create_model_task
+    #   create_model_task >> delete_model_task
+    #   create_dataset_task >> delete_datasets_task
 
 
 # Example DAG for AutoML datasets operations
@@ -201,7 +209,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
+    dataset_id = create_dataset_task.output['dataset_id']
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -233,23 +241,30 @@ with models.DAG(
     )
     # [END howto_operator_list_dataset]
 
+    dataset_id_list_output = str(list_datasets_task.output['dataset_id_list']).strip("{ }")
+
     # [START howto_operator_delete_dataset]
     delete_datasets_task = AutoMLDeleteDatasetOperator(
         task_id="delete_datasets_task",
-        dataset_id="{{ task_instance.xcom_pull('list_datasets_task', key='dataset_id_list') | list }}",
+        dataset_id=f"{{{{ {dataset_id_list_output} | list }}}}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_delete_dataset]
 
     (
-        create_dataset_task  # noqa
-        >> import_dataset_task  # noqa
+        import_dataset_task  # noqa
         >> list_tables_spec_task  # noqa
         >> list_columns_spec_task  # noqa
         >> list_datasets_task  # noqa
         >> delete_datasets_task  # noqa
     )
+
+    # Task dependencies created via `XComArgs`:
+    # create_dataset_task >> import_dataset_task
+    # create_dataset_task >> list_tables_spec_task
+    # create_dataset_task >> list_columns_spec_task
+
 
 with models.DAG(
     "example_gcp_get_deploy",

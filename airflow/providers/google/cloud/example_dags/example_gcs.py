@@ -75,7 +75,7 @@ with models.DAG(
 
     list_buckets_result = BashOperator(
         task_id="list_buckets_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
+        bash_command=f"echo {list_buckets.output}",
     )
 
     upload_file = LocalFilesystemToGCSOperator(
@@ -136,7 +136,7 @@ with models.DAG(
     delete_bucket_2 = GCSDeleteBucketOperator(task_id="delete_bucket_2", bucket_name=BUCKET_2)
     # [END howto_operator_gcs_delete_bucket]
 
-    [create_bucket1, create_bucket2] >> list_buckets >> list_buckets_result
+    [create_bucket1, create_bucket2] >> list_buckets
     [create_bucket1, create_bucket2] >> upload_file
     upload_file >> [download_file, copy_file]
     upload_file >> gcs_bucket_create_acl_entry_task >> gcs_object_create_acl_entry_task >> delete_files
@@ -155,6 +155,10 @@ with models.DAG(
     copy_file >> delete_bucket_1
     copy_file >> delete_bucket_2
     delete_files >> delete_bucket_1
+
+    # Task dependency created via `XComArgs`:
+    #   list_buckets >> list_buckets_result
+
 
 with models.DAG(
     "example_gcs_sensors",

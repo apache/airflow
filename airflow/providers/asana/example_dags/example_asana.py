@@ -27,14 +27,9 @@ from airflow.providers.asana.operators.asana_tasks import (
 )
 from airflow.utils.dates import days_ago
 
-default_args = {
-    "owner": "airflow",
-}
-
 
 with DAG(
     "example_asana",
-    default_args=default_args,
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:

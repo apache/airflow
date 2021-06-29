@@ -57,7 +57,7 @@ with models.DAG(
     # [START print_spreadsheet_url]
     print_spreadsheet_url = BashOperator(
         task_id="print_spreadsheet_url",
-        bash_command="echo {{ task_instance.xcom_pull('create_spreadsheet', key='spreadsheet_url') }}",
+        bash_command=f"echo {create_spreadsheet.output['spreadsheet_url']}",
     )
     # [END print_spreadsheet_url]
 
@@ -70,5 +70,7 @@ with models.DAG(
     )
     # [END upload_gcs_to_sheet]
 
-    create_spreadsheet >> print_spreadsheet_url
     upload_sheet_to_gcs >> upload_gcs_to_sheet
+
+    # Task dependency created via `XComArgs`:
+    #   create_spreadsheet >> print_spreadsheet_url

@@ -26,11 +26,6 @@ from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-    'depends_on_past': True,
-}
-
 
 def should_run(**kwargs):
     """
@@ -55,7 +50,7 @@ with DAG(
     dag_id='example_branch_dop_operator_v3',
     schedule_interval='*/1 * * * *',
     start_date=days_ago(2),
-    default_args=args,
+    default_args={'depends_on_past': True},
     tags=['example'],
 ) as dag:
 
