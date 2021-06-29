@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 class Variable(Base, LoggingMixin):
@@ -207,7 +207,7 @@ class Variable(Base, LoggingMixin):
                     return var_val
             except Exception:  # pylint: disable=broad-except
                 log.exception(
-                    'Unable to retrieve variable from Alternative Secrets Backend. '
+                    'Unable to retrieve variable from alternative secrets backend. '
                     'Checking default secrets backends.'
                 )
         return None

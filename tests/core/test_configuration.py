@@ -281,7 +281,7 @@ sql_alchemy_conn = airflow
         with pytest.raises(
             AirflowConfigException,
             match=re.escape(
-                'Cannot retrieve config from Alternative Secrets Backend. '
+                'Cannot retrieve config from alternative secrets backend. '
                 'Make sure it is configured properly and that the Backend '
                 'is accessible.'
             ),

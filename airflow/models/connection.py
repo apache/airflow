@@ -36,7 +36,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
@@ -398,7 +398,7 @@ class Connection(Base, LoggingMixin):
                     return conn
             except Exception:  # pylint: disable=broad-except
                 log.exception(
-                    'Unable to retrieve connection from Alternative Secrets Backend. '
+                    'Unable to retrieve connection from alternative secrets backend. '
                     'Checking default secrets backends.'
                 )
 
