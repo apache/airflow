@@ -75,9 +75,7 @@ with models.DAG(
         task_id="gcp_bigquery_create_transfer",
     )
 
-    transfer_config_id = (
-        "{{ task_instance.xcom_pull('gcp_bigquery_create_transfer', key='transfer_config_id') }}"
-    )
+    transfer_config_id = gcp_bigquery_create_transfer.output["transfer_config_id"]
     # [END howto_bigquery_create_data_transfer]
 
     # [START howto_bigquery_start_transfer]
@@ -86,14 +84,13 @@ with models.DAG(
         transfer_config_id=transfer_config_id,
         requested_run_time={"seconds": int(time.time() + 60)},
     )
-    run_id = "{{ task_instance.xcom_pull('gcp_bigquery_start_transfer', key='run_id') }}"
     # [END howto_bigquery_start_transfer]
 
     # [START howto_bigquery_dts_sensor]
     gcp_run_sensor = BigQueryDataTransferServiceTransferRunSensor(
         task_id="gcp_run_sensor",
         transfer_config_id=transfer_config_id,
-        run_id=run_id,
+        run_id=gcp_bigquery_start_transfer.output["run_id"],
         expected_statuses={"SUCCEEDED"},
     )
     # [END howto_bigquery_dts_sensor]
@@ -104,9 +101,10 @@ with models.DAG(
     )
     # [END howto_bigquery_delete_data_transfer]
 
-    (
-        gcp_bigquery_create_transfer
-        >> gcp_bigquery_start_transfer
-        >> gcp_run_sensor
-        >> gcp_bigquery_delete_transfer
-    )
+    gcp_run_sensor >> gcp_bigquery_delete_transfer
+
+    # Task dependencies created via `XComArgs`:
+    #   gcp_bigquery_create_transfer >> gcp_bigquery_start_transfer
+    #   gcp_bigquery_create_transfer >> gcp_run_sensor
+    #   gcp_bigquery_start_transfer >> gcp_run_sensor
+    #   gcp_bigquery_create_transfer >> gcp_bigquery_delete_transfer

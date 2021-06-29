@@ -18,50 +18,61 @@
 
 """Example DAG demonstrating the usage of XComs."""
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, get_current_context
 from airflow.utils.dates import days_ago
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}
+value_3 = 'some value'
 
 
 def push(**kwargs):
     """Pushes an XCom without a specific target"""
+
+    # Using the "classic" approach
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
+
+    # Using the approach available as of Airflow 2.0.  When using this approach, `**kwargs`
+    # is not needed to access the execution context.
+    context = get_current_context()
+    context['ti'].xcom_push(key='other value from pusher 1', value=value_2)
 
 
 def push_by_returning(**kwargs):
     """Pushes an XCom without a specific target, just by returning it"""
-    return value_2
+    return value_3
 
 
-def puller(**kwargs):
+def _compare_values(pulled_value, check_value):
+    if pulled_value != check_value:
+        raise ValueError(f'The two values differ {pulled_value} and {check_value}')
+
+
+def puller(pulled_value_1, pulled_value_2, pulled_value_3, **kwargs):
     """Pull all previously pushed XComs and check if the pushed values match the pulled values."""
-    ti = kwargs['ti']
 
-    # get value_1
-    pulled_value_1 = ti.xcom_pull(key=None, task_ids='push')
-    if pulled_value_1 != value_1:
-        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
+    # Check pulled values from function args
+    _compare_values(pulled_value_1, value_1)
+    _compare_values(pulled_value_2, value_2)
+    _compare_values(pulled_value_3, value_3)
 
-    # get value_2
-    pulled_value_2 = ti.xcom_pull(task_ids='push_by_returning')
-    if pulled_value_2 != value_2:
-        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
+    # Check pulled values with "classic" approach
+    pulled_value_1 = kwargs['ti'].xcom_pull(key='value from pusher 1', task_ids='push')
+    pulled_value_2 = kwargs['ti'].xcom_pull(key='other value from pusher 1', task_ids='push')
+    _compare_values(pulled_value_1, value_1)
+    _compare_values(pulled_value_2, value_2)
 
-    # get both value_1 and value_2
-    pulled_value_1, pulled_value_2 = ti.xcom_pull(key=None, task_ids=['push', 'push_by_returning'])
-    if pulled_value_1 != value_1:
-        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
-    if pulled_value_2 != value_2:
-        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
+    # Check pulled value 3 using the approach availble as of Airflow 2.0. Again, when using
+    # this approach, `**kwargs` is not needed to access the execution context.
+    context = get_current_context()
+    pulled_value_3 = context['ti'].xcom_pull(task_ids='push_by_returning')
+    _compare_values(pulled_value_3, value_3)
 
 
 with DAG(
     'example_xcom',
     schedule_interval="@once",
     start_date=days_ago(2),
-    default_args={'owner': 'airflow'},
     tags=['example'],
 ) as dag:
 
@@ -78,6 +89,13 @@ with DAG(
     pull = PythonOperator(
         task_id='puller',
         python_callable=puller,
+        op_kwargs={
+            'pulled_value_1': push1.output['value from pusher 1'],
+            'pulled_value_2': push1.output['other value from pusher 1'],
+            'pulled_value_3': push2.output,
+        },
     )
 
-    pull << [push1, push2]
+    # Task dependencies created via `XComArgs`:
+    #   push1 >> pull
+    #   push2 >> pull

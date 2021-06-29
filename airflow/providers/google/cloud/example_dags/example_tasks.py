@@ -114,9 +114,8 @@ with models.DAG(
 
     get_queue_result = BashOperator(
         task_id="get_queue_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('get_queue') }}\"",
+        bash_command=f"echo {get_queue.output}",
     )
-    get_queue >> get_queue_result
 
     update_queue = CloudTasksQueueUpdateOperator(
         task_queue=Queue(stackdriver_logging_config=dict(sampling_ratio=1)),
@@ -171,3 +170,6 @@ with models.DAG(
     )
 
     chain(purge_queue, create_task, tasks_get, list_tasks, run_task, delete_task, delete_queue)
+
+    # Task dependency created via `XComArgs`:
+    #   get_queue >> get_queue_result

@@ -24,19 +24,18 @@ DEST_GCS_BUCKET = os.environ.get('GCP_GCS_BUCKET', 'gs://INVALID BUCKET NAME')
 AZURE_SHARE_NAME = os.environ.get('AZURE_SHARE_NAME', 'test-azure-share')
 AZURE_DIRECTORY_NAME = "test-azure-dir"
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
 
 with DAG(
     dag_id='azure_fileshare_to_gcs_example',
-    default_args=default_args,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5),
+    },
     schedule_interval=None,
     start_date=datetime(2018, 11, 1),
     tags=['example'],

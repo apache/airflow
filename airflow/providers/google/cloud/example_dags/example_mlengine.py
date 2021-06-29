@@ -100,7 +100,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_print_model]
     get_model_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('get-model') }}\"",
+        bash_command=f"echo {get_model.output}",
         task_id="get-model-result",
     )
     # [END howto_operator_gcp_mlengine_print_model]
@@ -158,7 +158,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_print_versions]
     list_version_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('list-version') }}\"",
+        bash_command=f"echo {list_version.output}",
         task_id="list-version-result",
     )
     # [END howto_operator_gcp_mlengine_print_versions]
@@ -191,12 +191,11 @@ with models.DAG(
 
     training >> create_version
     training >> create_version_2
-    create_model >> get_model >> [get_model_result, delete_model]
+    create_model >> get_model >> delete_model
     create_model >> create_version >> create_version_2 >> set_defaults_version >> list_version
     create_version >> prediction
     create_version_2 >> prediction
     prediction >> delete_version
-    list_version >> list_version_result
     list_version >> delete_version
     delete_version >> delete_model
 
@@ -253,3 +252,7 @@ with models.DAG(
 
     create_model >> create_version >> evaluate_prediction
     evaluate_validation >> delete_version
+
+    # Task dependencies created via `XComArgs`:
+    #   get_model >> get_model_result
+    #   list_version >> list_version_result
