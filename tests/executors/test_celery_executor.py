@@ -329,9 +329,11 @@ class TestCeleryExecutor(unittest.TestCase):
         ti1 = TaskInstance(task=task_1, execution_date=exec_date)
         ti1.external_executor_id = '231'
         ti1.queued_dttm = queued_dttm
+        ti1.state = State.QUEUED
         ti2 = TaskInstance(task=task_2, execution_date=exec_date)
         ti2.external_executor_id = '232'
         ti2.queued_dttm = queued_dttm
+        ti2.state = State.QUEUED
 
         tis = [ti1, ti2]
         executor = celery_executor.CeleryExecutor()

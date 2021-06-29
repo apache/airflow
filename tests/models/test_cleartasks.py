@@ -56,6 +56,7 @@ class TestClearTasks(unittest.TestCase):
 
         ti0.run()
         ti1.run()
+
         with create_session() as session:
             qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
             clear_task_instances(qry, session, dag=dag)
@@ -67,6 +68,29 @@ class TestClearTasks(unittest.TestCase):
         assert ti0.max_tries == 1
         assert ti1.try_number == 2
         assert ti1.max_tries == 3
+
+    def test_clear_task_instances_external_executor_id(self):
+        dag = DAG(
+            'test_clear_task_instances_external_executor_id',
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        )
+        task0 = DummyOperator(task_id='task0', owner='test', dag=dag)
+        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ti0.state = State.SUCCESS
+        ti0.external_executor_id = "some_external_executor_id"
+
+        with create_session() as session:
+            session.add(ti0)
+            session.commit()
+
+            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+            clear_task_instances(qry, session, dag=dag)
+
+            ti0.refresh_from_db()
+
+            assert ti0.state is None
+            assert ti0.external_executor_id is None
 
     def test_clear_task_instances_without_task(self):
         dag = DAG(
