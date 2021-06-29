@@ -244,7 +244,9 @@ class SSHHook(BaseHook):
                 if self.port == SSH_PORT:
                     client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
                 else:
-                    client_host_keys.add(f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key)
+                    client_host_keys.add(
+                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                    )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
