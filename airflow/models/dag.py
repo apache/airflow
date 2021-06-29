@@ -2416,7 +2416,6 @@ class DagModel(Base):
                         dag_model.is_active = True
             else:
                 continue
-        session.commit()
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session):
