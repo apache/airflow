@@ -380,13 +380,8 @@ function handleRefresh() {
 
           // end refresh if all states are final
           if (!states.some((state) => (
-            state === null
-            || state === 'running'
-            || state === 'scheduled'
-            || state === 'queued'
-            || state === 'up_for_retry'
-            || state === 'up_for_reschedule'
-          ))) {
+            ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1))
+          ) {
             $('#auto_refresh').prop('checked', false);
             clearInterval(refreshInterval);
           }
