@@ -33,7 +33,7 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
-ARG AIRFLOW_VERSION="2.0.2"
+ARG AIRFLOW_VERSION="2.2.0.dev0"
 ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
