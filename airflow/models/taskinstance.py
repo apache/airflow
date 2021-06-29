@@ -1643,7 +1643,7 @@ class TaskInstance(Base, LoggingMixin):
             """
             Wrapper around Connection. This way you can get connections in
             templates by using ``{{ conn.conn_id }}`` or
-            ``{{ conn.get('conn_id', 'fallback') }}``.
+            ``{{ conn.get('conn_id') }}``.
             """
 
             def __getattr__(
