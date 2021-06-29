@@ -18,7 +18,7 @@
  */
 
 /*
-  global d3, localStorage, dagreD3, nodes, edges, arrange, document,
+  global d3, localStorage, dagreD3, nodes, edges, arrange, document, $
 */
 
 const highlightColor = '#000000';
@@ -36,6 +36,12 @@ const g = new dagreD3.graphlib.Graph()
     rankdir: arrange,
   })
   .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
+
+// Sometimes the data doesn't load when the scheduler isn't running.
+if (!nodes.length) {
+  $('#error').show();
+  $('#error_msg').text('There was an issue loading dependencies. Make sure everything is up and running, then try again.');
+}
 
 // Set all nodes and styles
 nodes.forEach((node) => {
