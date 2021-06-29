@@ -230,7 +230,7 @@ class BaseSerialization:
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
         elif isinstance(var, Timezone):
-            return cls._encode(_get_tzname_or_offset(var), type_=DAT.TIMEZONE)
+            return cls._encode(get_tzname_or_offset(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
             if var.weekday and var.weekday.n:
