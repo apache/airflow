@@ -76,6 +76,7 @@ from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pendulum.datetime import DateTime
+from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, or_, union_all
@@ -1510,7 +1511,14 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
-        execution_date = timezone.parse(request_execution_date)
+        try:
+            execution_date = timezone.parse(request_execution_date)
+        except ParserError:
+            flash("Invalid execution date", "error")
+            form = DateTimeForm(data={'execution_date': timezone.utcnow().isoformat()})
+            return self.render_template(
+                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
+            )
 
         dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
         if dr:
@@ -1523,8 +1531,9 @@ class Airflow(AirflowBaseView):
                 run_conf = json.loads(request_conf)
                 if not isinstance(run_conf, dict):
                     flash("Invalid JSON configuration, must be a dict", "error")
+                    form = DateTimeForm(data={'execution_date': execution_date})
                     return self.render_template(
-                        'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf
+                        'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")

@@ -23,6 +23,7 @@ from typing import Callable, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, g, request
+from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
 from airflow.utils.session import create_session
@@ -53,7 +54,10 @@ def action_logging(f: T) -> T:
             )
 
             if 'execution_date' in request.values:
-                log.execution_date = pendulum.parse(request.values.get('execution_date'), strict=False)
+                try:
+                    log.execution_date = pendulum.parse(request.values.get('execution_date'), strict=False)
+                except ParserError:
+                    pass
 
             session.add(log)
 

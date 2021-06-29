@@ -90,6 +90,17 @@ def test_trigger_dag_conf_not_dict(admin_client):
     assert run is None
 
 
+def test_trigger_dag_wrong_execution_date(admin_client):
+    test_dag_id = "example_bash_operator"
+
+    response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'execution_date': "not_a_date"})
+    check_content_in_response("Invalid execution date", response)
+
+    with create_session() as session:
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    assert run is None
+
+
 def test_trigger_dag_execution_date(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
