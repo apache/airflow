@@ -27,7 +27,7 @@ import cattr
 import pendulum
 from dateutil import relativedelta
 
-from airflow.utils.timezone import _get_tzname_or_offset
+from airflow.utils.timezone import get_tzname_or_offset
 
 try:
     from functools import cache
