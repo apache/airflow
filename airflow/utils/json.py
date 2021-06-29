@@ -38,7 +38,7 @@ class AirflowJsonEncoder(JSONEncoder):
         self.default = self._default
 
     @staticmethod
-    def _default(obj):  # pylint: disable=too-many-return-statements
+    def _default(obj):
         """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')

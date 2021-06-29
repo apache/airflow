@@ -35,7 +35,7 @@ except ImportError:
     from getpass import getuser
 
 
-class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -93,7 +93,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
             },
         }
 
-    def __init__(  # pylint: disable=too-many-statements, too-many-branches
+    def __init__(
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -127,7 +127,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         self.client = None
 
         # Use connection to override defaults
-        if self.ssh_conn_id is not None:  # pylint: disable=too-many-nested-blocks
+        if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
             if self.username is None:
                 self.username = conn.login

@@ -274,7 +274,8 @@ function parallel::get_maximum_parallel_k8s_jobs() {
 function parallel::run_single_helm_test() {
     local kubernetes_version=$1
     local python_version=$2
-    local single_job_filename=$3
+    local executor=$3
+    local single_job_filename=$4
     local job="Cluster-${kubernetes_version}-python-${python_version}"
 
     mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${job}"
@@ -283,7 +284,7 @@ function parallel::run_single_helm_test() {
     echo "Starting helm tests for kubernetes version ${kubernetes_version}, python version: ${python_version}"
     parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
         --jobs "${MAX_PARALLEL_K8S_JOBS}" "${single_job_filename}" \
-                "${kubernetes_version}" "${python_version}" >"${JOB_LOG}" 2>&1
+                "${kubernetes_version}" "${python_version}" "${executor}" >"${JOB_LOG}" 2>&1
 }
 
 function parallel::run_helm_tests_in_parallel() {
@@ -305,7 +306,8 @@ function parallel::run_helm_tests_in_parallel() {
         export FORWARDED_PORT_NUMBER
         API_SERVER_PORT=$((19090 + index))
         export API_SERVER_PORT
-        parallel::run_single_helm_test "${kubernetes_version}" "${python_version}" "${single_job_filename}" "${@}"
+        # shellcheck disable=SC2153
+        parallel::run_single_helm_test "${kubernetes_version}" "${python_version}" "${EXECUTOR}" "${single_job_filename}" "${@}"
     done
     set +e
     parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait

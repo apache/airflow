@@ -32,7 +32,7 @@ from airflow.www.app import cached_app
 @suppress_logs_and_warning
 def users_list(args):
     """Lists users at the command line"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
 
@@ -44,7 +44,7 @@ def users_list(args):
 @cli_utils.action_logging
 def users_create(args):
     """Creates new user in the DB"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
@@ -77,7 +77,7 @@ def _find_user(args):
     if args.username and args.email:
         raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
 
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
 
     user = appbuilder.sm.find_user(username=args.username, email=args.email)
     if not user:
@@ -90,7 +90,7 @@ def users_delete(args):
     """Deletes user from DB"""
     user = _find_user(args)
 
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
 
     if appbuilder.sm.del_register_user(user):
         print(f'User {args.username} deleted')
@@ -103,7 +103,7 @@ def users_manage_role(args, remove=False):
     """Deletes or appends user roles"""
     user = _find_user(args)
 
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
@@ -128,7 +128,7 @@ def users_manage_role(args, remove=False):
 
 def users_export(args):
     """Exports all users to the json file"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
 
@@ -159,7 +159,7 @@ def users_import(args):
     if not os.path.exists(json_file):
         raise SystemExit(f"File '{json_file}' does not exist")
 
-    users_list = None  # pylint: disable=redefined-outer-name
+    users_list = None
     try:
         with open(json_file) as file:
             users_list = json.loads(file.read())
@@ -174,8 +174,8 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list):  # pylint: disable=redefined-outer-name
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+def _import_users(users_list):
+    appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []
 

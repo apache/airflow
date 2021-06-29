@@ -115,6 +115,10 @@ class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in Dag definition"""
 
 
+class AirflowTimetableInvalid(AirflowException):
+    """Raise when a DAG has an invalid timetable."""
+
+
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
 

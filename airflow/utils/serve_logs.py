@@ -19,7 +19,7 @@
 import os
 
 import flask
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 
 from airflow.configuration import conf
 
@@ -31,7 +31,7 @@ def serve_logs():
     setproctitle("airflow serve-logs")
 
     @flask_app.route('/log/<path:filename>')
-    def serve_logs_view(filename):  # pylint: disable=unused-variable
+    def serve_logs_view(filename):
         log_directory = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
             log_directory, filename, mimetype="application/json", as_attachment=False

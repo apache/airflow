@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
 warnings.warn(

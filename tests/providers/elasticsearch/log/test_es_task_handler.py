@@ -38,7 +38,7 @@ from airflow.utils.timezone import datetime
 from .elasticmock import elasticmock
 
 
-class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-many-instance-attributes
+class TestElasticsearchTaskHandler(unittest.TestCase):
     DAG_ID = 'dag_for_testing_file_task_handler'
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
@@ -69,9 +69,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
             self.offset_field,
         )
 
-        self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
-            hosts=[{'host': 'localhost', 'port': 9200}]
-        )
+        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'

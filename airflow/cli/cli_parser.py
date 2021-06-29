@@ -63,7 +63,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
             raise ArgumentError(action, message)
         if value == 'kubernetes':
             try:
-                import kubernetes.client  # noqa: F401 pylint: disable=unused-import
+                import kubernetes.client  # noqa: F401
             except ImportError:
                 message = (
                     'The kubernetes subcommand requires that you pip install the kubernetes python client.'
@@ -89,7 +89,6 @@ _UNSET = object()
 class Arg:
     """Class to keep information about command line argument"""
 
-    # pylint: disable=redefined-builtin,unused-argument,too-many-arguments
     def __init__(
         self,
         flags=_UNSET,
@@ -112,8 +111,6 @@ class Arg:
                 continue
 
             self.kwargs[k] = v
-
-    # pylint: enable=redefined-builtin,unused-argument,too-many-arguments
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser"""
@@ -1650,7 +1647,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
     """
 
     def _format_action(self, action: Action):
-        if isinstance(action, argparse._SubParsersAction):  # pylint: disable=protected-access
+        if isinstance(action, argparse._SubParsersAction):
 
             parts = []
             action_header = self._format_action_invocation(action)
@@ -1658,7 +1655,7 @@ class AirflowHelpFormatter(argparse.HelpFormatter):
             parts.append(action_header)
 
             self._indent()
-            subactions = action._get_subactions()  # pylint: disable=protected-access
+            subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
@@ -1712,9 +1709,7 @@ def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
     yield from sorted(optional, key=lambda x: get_long_option(x).lower())
 
 
-def _add_command(
-    subparsers: argparse._SubParsersAction, sub: CLICommand  # pylint: disable=protected-access
-) -> None:
+def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> None:
     sub_proc = subparsers.add_parser(
         sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
     )

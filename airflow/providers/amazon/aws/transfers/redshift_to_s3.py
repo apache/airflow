@@ -75,7 +75,7 @@ class RedshiftToS3Operator(BaseOperator):
     template_ext = ()
     ui_color = '#ededed'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         s3_bucket: str,

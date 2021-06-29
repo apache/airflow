@@ -18,10 +18,13 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+EXECUTOR=KubernetesExecutor
+export EXECUTOR
+
 # We started with KubernetesExecutor. Let's run tests first
 "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
-for mode in CeleryExecutor KubernetesExecutor
+for EXECUTOR in CeleryExecutor KubernetesExecutor
 do
-    kind::upgrade_airflow_with_helm "${mode}"
+    kind::upgrade_airflow_with_helm "${EXECUTOR}"
     "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
 done

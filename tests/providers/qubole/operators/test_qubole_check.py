@@ -36,7 +36,6 @@ from airflow.providers.qubole.operators.qubole_check import (
 )
 
 
-# pylint: disable=unused-argument
 @pytest.mark.parametrize(
     "operator_class, kwargs, parent_check_operator",
     [

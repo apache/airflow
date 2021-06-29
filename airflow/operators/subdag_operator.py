@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator  # noqa
 
 warnings.warn(

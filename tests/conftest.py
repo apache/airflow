@@ -32,7 +32,7 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
 
-from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip # pylint: disable=wrong-import-position
+from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
 )
@@ -95,9 +95,9 @@ def trace_sql(request):
         if columns == ['num']:
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
-            exit_stack.enter_context(count_queries(print_fn=pytest_print))  # pylint: disable=no-member
+            exit_stack.enter_context(count_queries(print_fn=pytest_print))
         elif any(c for c in ['time', 'trace', 'sql', 'parameters']):
-            exit_stack.enter_context(  # pylint: disable=no-member
+            exit_stack.enter_context(
                 trace_queries(
                     display_num='num' in columns,
                     display_time='time' in columns,

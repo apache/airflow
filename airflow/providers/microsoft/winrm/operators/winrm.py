@@ -94,7 +94,6 @@ class WinRMOperator(BaseOperator):
 
         winrm_client = self.winrm_hook.get_conn()
 
-        # pylint: disable=too-many-nested-blocks
         try:
             if self.ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", self.command)
@@ -114,7 +113,7 @@ class WinRMOperator(BaseOperator):
             command_done = False
             while not command_done:
                 try:
-                    # pylint: disable=protected-access
+
                     (
                         stdout,
                         stderr,

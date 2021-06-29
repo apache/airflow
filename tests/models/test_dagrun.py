@@ -651,8 +651,8 @@ class TestDagRun(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         task = dag.tasks[0]
 
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0), is_backfill=True)
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0), is_backfill=True)
 
         prev_ti = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
         ti = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
@@ -678,8 +678,8 @@ class TestDagRun(unittest.TestCase):
 
         # For ti.set_state() to work, the DagRun has to exist,
         # Otherwise ti.previous_ti returns an unpersisted TI
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0), is_backfill=True)
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0), is_backfill=True)
 
         prev_ti_downstream = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
         ti = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))

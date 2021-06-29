@@ -35,8 +35,6 @@ PIPELINE = {"test": "pipeline"}
 INSTANCE_URL = "http://datafusion.instance.com"
 RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
-# pylint: disable=redefined-outer-name
-
 
 @pytest.fixture
 def hook():

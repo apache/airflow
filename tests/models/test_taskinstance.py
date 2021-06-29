@@ -40,6 +40,7 @@ from airflow.exceptions import (
 )
 from airflow.models import (
     DAG,
+    Connection,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -59,6 +60,7 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
+from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -67,6 +69,7 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_connections
 
 
 class CallbackWrapper:
@@ -83,7 +86,7 @@ class CallbackWrapper:
         self.task_state_in_callback = ""
         self.callback_ran = False
 
-    def success_handler(self, context):  # pylint: disable=unused-argument
+    def success_handler(self, context):
         self.callback_ran = True
         session = settings.Session()
         temp_instance = (
@@ -740,7 +743,7 @@ class TestTaskInstance(unittest.TestCase):
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+            trs = TaskReschedule.find_for_task_instance(ti)
             assert len(trs) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
@@ -841,7 +844,7 @@ class TestTaskInstance(unittest.TestCase):
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+            trs = TaskReschedule.find_for_task_instance(ti)
             assert len(trs) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
@@ -855,7 +858,7 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.state == State.NONE
         assert ti._try_number == 0
         # Check that reschedules for ti have also been cleared.
-        trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+        trs = TaskReschedule.find_for_task_instance(ti)
         assert not trs
 
     def test_depends_on_past(self):
@@ -867,6 +870,12 @@ class TestTaskInstance(unittest.TestCase):
             depends_on_past=True,
         )
         dag.clear()
+
+        dag.create_dagrun(
+            execution_date=DEFAULT_DATE,
+            state=State.FAILED,
+            run_type=DagRunType.SCHEDULED,
+        )
 
         run_date = task.start_date + datetime.timedelta(days=5)
 
@@ -961,7 +970,7 @@ class TestTaskInstance(unittest.TestCase):
         run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = TI(downstream, run_date)
-        dep_results = TriggerRuleDep()._evaluate_trigger_rule(  # pylint: disable=no-value-for-parameter
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             successes=successes,
             skipped=skipped,
@@ -1546,6 +1555,48 @@ class TestTaskInstance(unittest.TestCase):
         assert isinstance(template_context["execution_date"], pendulum.DateTime)
         assert isinstance(template_context["next_execution_date"], pendulum.DateTime)
         assert isinstance(template_context["prev_execution_date"], pendulum.DateTime)
+
+    @parameterized.expand(
+        [
+            ('{{ conn.get("a_connection").host }}', 'hostvalue'),
+            ('{{ conn.get("a_connection", "unused_fallback").host }}', 'hostvalue'),
+            ('{{ conn.get("missing_connection", {"host": "fallback_host"}).host }}', 'fallback_host'),
+            ('{{ conn.a_connection.host }}', 'hostvalue'),
+            ('{{ conn.a_connection.login }}', 'loginvalue'),
+            ('{{ conn.a_connection.password }}', 'passwordvalue'),
+            ('{{ conn.a_connection.extra_dejson["extra__asana__workspace"] }}', 'extra1'),
+            ('{{ conn.a_connection.extra_dejson.extra__asana__workspace }}', 'extra1'),
+        ]
+    )
+    def test_template_with_connection(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        with create_session() as session:
+            clear_db_connections(add_default_connections_back=False)
+            merge_conn(
+                Connection(
+                    conn_id="a_connection",
+                    conn_type="a_type",
+                    description="a_conn_description",
+                    host="hostvalue",
+                    login="loginvalue",
+                    password="passwordvalue",
+                    schema="schemavalues",
+                    extra={
+                        "extra__asana__workspace": "extra1",
+                    },
+                ),
+                session,
+            )
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        assert result == expected_output
 
     @parameterized.expand(
         [

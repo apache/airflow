@@ -66,7 +66,7 @@ class TestGetLog:
     default_time = "2020-06-10T20:00:00+00:00"
 
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app, configure_loggers) -> None:  # pylint: disable=unused-argument
+    def setup_attrs(self, configured_app, configure_loggers) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
         # Make sure that the configure_logging is not cached
@@ -110,7 +110,7 @@ class TestGetLog:
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     def _prepare_db(self):
-        dagbag = self.app.dag_bag  # pylint: disable=no-member
+        dagbag = self.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         dag.sync_to_db()
         dagbag.dags.pop(self.DAG_ID, None)
@@ -173,7 +173,7 @@ class TestGetLog:
         self._create_dagrun(session)
 
         # Recreate DAG without tasks
-        dagbag = self.app.dag_bag  # pylint: disable=no-member
+        dagbag = self.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
         del dagbag.dags[self.DAG_ID]
         dagbag.bag_dag(dag=dag, root_dag=dag)

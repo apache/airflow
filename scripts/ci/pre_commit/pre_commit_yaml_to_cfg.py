@@ -81,7 +81,7 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
         configfile.writelines(FILE_HEADER)
         config_yaml = read_default_config_yaml(yaml_config_file_path)
 
-        for section in config_yaml:  # pylint: disable=too-many-nested-blocks
+        for section in config_yaml:
             _write_section(configfile, section)
 
 

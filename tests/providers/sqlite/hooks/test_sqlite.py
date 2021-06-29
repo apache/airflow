@@ -44,7 +44,7 @@ class TestSqliteHookConn(unittest.TestCase):
 
     @patch('airflow.providers.sqlite.hooks.sqlite.sqlite3.connect')
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with('host')
         self.db_hook.get_connection.assert_called_once_with('non_default')

@@ -814,7 +814,6 @@ function initialization::make_constants_read_only() {
     readonly KIND_VERSION
     readonly HELM_VERSION
     readonly KUBECTL_VERSION
-    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 

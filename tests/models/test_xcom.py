@@ -247,7 +247,7 @@ class TestXCom(unittest.TestCase):
 
     @mock.patch("airflow.models.xcom.XCom.orm_deserialize_value")
     def test_xcom_init_on_load_uses_orm_deserialize_value(self, mock_orm_deserialize):
-        # pylint: disable=unexpected-keyword-arg
+
         instance = BaseXCom(
             key="key",
             value="value",
@@ -256,6 +256,6 @@ class TestXCom(unittest.TestCase):
             task_id="task_id",
             dag_id="dag_id",
         )
-        # pylint: enable=unexpected-keyword-arg
+
         instance.init_on_load()
         mock_orm_deserialize.assert_called_once_with()

@@ -34,7 +34,6 @@ except (ImportError, NameError):
     pass
 
 
-# pylint: disable=too-many-instance-attributes
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -118,7 +117,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "relabeling": {},
         }
 
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
         self,
         conf: Optional[Dict[str, Any]] = None,
@@ -427,7 +425,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             env.update(self._env)
             kwargs["env"] = env
 
-        # pylint: disable=consider-using-with
         self._submit_sp = subprocess.Popen(
             spark_submit_cmd,
             stdout=subprocess.PIPE,

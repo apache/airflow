@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 AddressesType = Union[str, Iterable[str]]
 
 
-def send_email(  # pylint: disable=too-many-locals
+def send_email(
     to: AddressesType,
     subject: str,
     html_content: str,

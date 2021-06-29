@@ -41,7 +41,9 @@ from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.timetables.simple import NullTimetable, OnceTimetable
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
+from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 executor_config_pod = k8s.V1Pod(
     metadata=k8s.V1ObjectMeta(name="my-name"),
@@ -272,7 +274,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 )
             )
         )
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -503,14 +505,21 @@ class TestStringifiedDAGs(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, None, None),
-            ("@weekly", "@weekly", "0 0 * * 0"),
-            ("@once", "@once", None),
-            ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1), timedelta(days=1)),
+            (None, None, NullTimetable()),
+            ("@weekly", "@weekly", cron_timetable("0 0 * * 0")),
+            ("@once", "@once", OnceTimetable()),
+            (
+                {"__type": "timedelta", "__var": 86400.0},
+                timedelta(days=1),
+                delta_timetable(timedelta(days=1)),
+            ),
         ]
     )
     def test_deserialization_schedule_interval(
-        self, serialized_schedule_interval, expected_schedule_interval, expected_n_schedule_interval
+        self,
+        serialized_schedule_interval,
+        expected_schedule_interval,
+        expected_timetable,
     ):
         serialized = {
             "__version": 1,
@@ -529,7 +538,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.schedule_interval == expected_schedule_interval
-        assert dag.normalized_schedule_interval == expected_n_schedule_interval
+        assert dag.timetable == expected_timetable
 
     @parameterized.expand(
         [
@@ -979,7 +988,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         with DAG("test_edge_info_serialization", start_date=datetime(2020, 1, 1)) as dag:
             task1 = DummyOperator(task_id="task1")
             task2 = DummyOperator(task_id="task2")
-            task1 >> Label("test label") >> task2  # pylint: disable=W0106
+            task1 >> Label("test label") >> task2
 
         dag_dict = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(dag_dict)

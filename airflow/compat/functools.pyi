@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS="quit"
 
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+# This stub exists to work around false linter errors due to python/mypy#10408.
+# TODO: Remove this file after the upstream fix is available in our toolchain.
 
-function refresh_pylint_todo() {
-    docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        "${AIRFLOW_CI_IMAGE}" \
-        "/opt/airflow/scripts/in_container/refresh_pylint_todo.sh"
-}
+from typing import Callable, TypeVar
 
-build_images::prepare_ci_build
+T = TypeVar("T")
 
-build_images::rebuild_ci_image_if_needed
-
-refresh_pylint_todo
+def cached_property(f: Callable[..., T]) -> T: ...
+def cache(f: T) -> T: ...

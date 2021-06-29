@@ -174,23 +174,21 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
-        SerializedDAG._load_operator_extra_links = self.load_op_links  # pylint: disable=protected-access
+        SerializedDAG._load_operator_extra_links = self.load_op_links
 
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:
-            dag = SerializedDAG.from_json(self.data)  # noqa
+            dag = SerializedDAG.from_json(self.data)
         return dag
 
     @classmethod
     @provide_session
     def remove_dag(cls, dag_id: str, session: Session = None):
         """Deletes a DAG with given dag_id.
-
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
         """
-        # pylint: disable=no-member
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
@@ -207,7 +205,6 @@ class SerializedDagModel(Base):
             "Deleting Serialized DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__
         )
 
-        # pylint: disable=no-member
         session.execute(
             cls.__table__.delete().where(
                 and_(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))

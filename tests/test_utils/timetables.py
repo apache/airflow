@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,22 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# In case of the pylint checks we filter out some files which are still in pylint_todo.txt list
-function pylint::filter_out_files_from_pylint_todo_list() {
-  FILTERED_FILES=()
-  set +e
-  local file
-  for file in "$@"
-  do
-      if [[ ${file} == "airflow/migrations/versions/"* ]]; then
-          # Skip all generated migration scripts
-          continue
-      fi
-      if ! grep -x "./${file}" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt" >/dev/null; then
-          FILTERED_FILES+=("${file}")
-      fi
-  done
-  set -e
-  export FILTERED_FILES
-  readonly FILTERED_FILES
-}
+from airflow import settings
+from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+
+
+def cron_timetable(expr: str) -> CronDataIntervalTimetable:
+    return CronDataIntervalTimetable(expr, settings.TIMEZONE)
+
+
+def delta_timetable(delta) -> DeltaDataIntervalTimetable:
+    return DeltaDataIntervalTimetable(delta)

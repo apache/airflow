@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# pylint: disable=attribute-defined-outside-init
+
 import datetime
 import os
 import unittest

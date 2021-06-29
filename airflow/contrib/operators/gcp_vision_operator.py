@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.google.cloud.operators.vision import (  # noqa # pylint: disable=unused-import
+from airflow.providers.google.cloud.operators.vision import (  # noqa
     CloudVisionAddProductToProductSetOperator,
     CloudVisionCreateProductOperator,
     CloudVisionCreateProductSetOperator,

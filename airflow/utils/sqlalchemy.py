@@ -37,7 +37,6 @@ utc = pendulum.tz.timezone('UTC')
 using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
-# pylint: enable=unused-argument
 class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.DateTime` with

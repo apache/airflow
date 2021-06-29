@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=missing-docstring
+
 import logging
 
 from airflow.configuration import conf

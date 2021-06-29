@@ -777,7 +777,7 @@ class HiveMetastoreHook(BaseHook):
         try:
             self.get_table(table_name, db)
             return True
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             return False
 
     def drop_partitions(self, table_name, part_vals, delete_data=False, db='default'):
@@ -838,7 +838,7 @@ class HiveServer2Hook(DbApiHook):
         """Returns a Hive connection object."""
         username: Optional[str] = None
         password: Optional[str] = None
-        # pylint: disable=no-member
+
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
 
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
@@ -874,8 +874,6 @@ class HiveServer2Hook(DbApiHook):
             database=schema or db.schema or 'default',
         )
 
-        # pylint: enable=no-member
-
     def _get_results(
         self,
         hql: Union[str, str, List[str]],
@@ -893,9 +891,9 @@ class HiveServer2Hook(DbApiHook):
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command
-            # pylint: disable=no-member
+
             db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-            # pylint: enable=no-member
+
             if db.extra_dejson.get('run_set_variable_statements', True):
                 env_context = get_context_from_env_var()
                 if hive_conf:

@@ -86,9 +86,7 @@ class CloudFirestoreHook(GoogleBaseHook):
             # > Request contains an invalid argument.
             # At the same time, the Non-Authorized Client has no problems.
             non_authorized_conn = build("firestore", self.api_version, cache_discovery=False)
-            self._conn = build_from_document(
-                non_authorized_conn._rootDesc, http=http_authorized  # pylint: disable=protected-access
-            )
+            self._conn = build_from_document(non_authorized_conn._rootDesc, http=http_authorized)
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -113,7 +111,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         name = f"projects/{project_id}/databases/{database_id}"
 
         operation = (
-            service.projects()  # pylint: disable=no-member
+            service.projects()
             .databases()
             .exportDocuments(name=name, body=body)
             .execute(num_retries=self.num_retries)
@@ -135,7 +133,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             operation_response = (
-                service.projects()  # pylint: disable=no-member
+                service.projects()
                 .databases()
                 .operations()
                 .get(name=operation_name)

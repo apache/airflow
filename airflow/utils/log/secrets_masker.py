@@ -170,7 +170,6 @@ class SecretsMasker(logging.Filter):
         else:
             return item
 
-    # pylint: disable=too-many-return-statements
     def _redact(self, item: "RedactableItem", name: Optional[str], depth: int) -> "RedactableItem":
         # Avoid spending too much effort on redacting on deeply nested
         # structures. This also avoid infinite recursion if a structure has
@@ -200,7 +199,7 @@ class SecretsMasker(logging.Filter):
             else:
                 return item
         # I think this should never happen, but it does not hurt to leave it just in case
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             log.warning(
                 "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
                 "Error was: %s: %s",
@@ -219,7 +218,6 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    # pylint: enable=too-many-return-statements
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
         if isinstance(secret, dict):

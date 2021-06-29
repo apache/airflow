@@ -21,7 +21,6 @@ This module is deprecated. Please use
 """
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.operators.azure_container_instances import (  # noqa
     AzureContainerInstancesOperator,
 )

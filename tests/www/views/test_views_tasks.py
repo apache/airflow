@@ -50,7 +50,7 @@ def reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app, reset_dagruns):  # pylint: disable=unused-argument
+def init_dagruns(app, reset_dagruns):
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,

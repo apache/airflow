@@ -44,6 +44,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowNotFoundException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -51,6 +52,7 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
@@ -116,7 +118,7 @@ def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
         return None
     try:
         return pickle.loads(data)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return "Failed to load task run error"
 
 
@@ -125,7 +127,7 @@ def set_error_file(error_file: str, error: Union[str, Exception]) -> None:
     with open(error_file, "wb") as fd:
         try:
             pickle.dump(error, fd)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             # local class objects cannot be pickled, so we fallback
             # to store the string representation instead
             pickle.dump(str(error), fd)
@@ -205,7 +207,7 @@ def clear_task_instances(
     if job_ids:
         from airflow.jobs.base_job import BaseJob
 
-        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # noqa
+        for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
             job.state = State.SHUTDOWN
 
     if activate_dag_runs is not None:
@@ -271,7 +273,7 @@ class TaskInstanceKey(NamedTuple):
         return self
 
 
-class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
+class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance. This table is the
     authority and single source of truth around what tasks have run and the
@@ -408,7 +410,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         """Setting Next Try Number"""
         return self._try_number + 1
 
-    def command_as_list(  # pylint: disable=too-many-arguments
+    def command_as_list(
         self,
         mark_success=False,
         ignore_all_deps=False,
@@ -457,7 +459,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
 
     @staticmethod
     def generate_command(
-        dag_id: str,  # pylint: disable=too-many-arguments
+        dag_id: str,
         task_id: str,
         execution_date: datetime,
         mark_success: bool = False,
@@ -633,7 +635,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             self.state = ti.state
             # Get the raw value of try_number column, don't read through the
             # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number  # noqa pylint: disable=protected-access
+            self.try_number = ti._try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.unixname = ti.unixname
@@ -762,11 +764,18 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             # LEGACY: most likely running from unit tests
             if not dr:
                 # Means that this TaskInstance is NOT being run from a DR, but from a catchup
-                previous_scheduled_date = dag.previous_schedule(self.execution_date)
-                if not previous_scheduled_date:
+                try:
+                    # XXX: This uses DAG internals, but as the outer comment
+                    # said, the block is only reached for legacy reasons for
+                    # development code, so that's OK-ish.
+                    schedule = dag.timetable._schedule
+                except AttributeError:
                     return None
-
-                return TaskInstance(task=self.task, execution_date=previous_scheduled_date)
+                dt = pendulum.instance(self.execution_date)
+                return TaskInstance(
+                    task=self.task,
+                    execution_date=schedule.get_prev(dt),
+                )
 
             dr.dag = dag
 
@@ -934,7 +943,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             ti_hash = int(
                 hashlib.sha1(
                     "{}#{}#{}#{}".format(
-                        self.dag_id, self.task_id, self.execution_date, self.try_number  # noqa
+                        self.dag_id, self.task_id, self.execution_date, self.try_number
                     ).encode('utf-8')
                 ).hexdigest(),
                 16,
@@ -978,7 +987,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         return dr
 
     @provide_session
-    def check_and_change_state_before_execution(  # pylint: disable=too-many-arguments
+    def check_and_change_state_before_execution(
         self,
         verbose: bool = True,
         ignore_all_deps: bool = False,
@@ -1222,7 +1231,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         task_copy = task.prepare_for_execution()
         self.task = task_copy
 
-        def signal_handler(signum, frame):  # pylint: disable=unused-argument
+        def signal_handler(signum, frame):
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             task_copy.on_kill()
             raise AirflowException("Task received SIGTERM signal")
@@ -1257,7 +1266,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 registered = False
                 try:
                     registered = task_copy.register_in_sensor_service(self, context)
-                except Exception:  # pylint: disable=broad-except
+                except Exception:
                     self.log.warning(
                         "Failed to register in sensor service."
                         " Continue to run task in non smart sensor mode.",
@@ -1311,7 +1320,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         try:
             if task.on_execute_callback:
                 task.on_execute_callback(context)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.exception("Failed when executing execute callback")
 
     def _run_finished_callback(self, error: Optional[Union[str, Exception]] = None) -> None:
@@ -1340,7 +1349,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 task.on_retry_callback(context)
 
     @provide_session
-    def run(  # pylint: disable=too-many-arguments
+    def run(
         self,
         verbose: bool = True,
         ignore_all_deps: bool = False,
@@ -1483,7 +1492,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         if email_for_state and task.email:
             try:
                 self.email_alert(error)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception('Failed to send email to: %s', task.email)
 
         if not test_mode:
@@ -1506,7 +1515,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session
-    def get_template_context(self, session=None) -> Context:  # pylint: disable=too-many-locals
+    def get_template_context(self, session=None) -> Context:
         """Return TI Context"""
         task = self.task
         from airflow import macros
@@ -1597,8 +1606,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             @staticmethod
             def get(
                 item: str,
-                # pylint: disable=protected-access
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,  # noqa
+                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
             ):
                 """Get Airflow Variable value"""
                 return Variable.get(item, default_var=default_var)
@@ -1626,11 +1634,34 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
             @staticmethod
             def get(
                 item: str,
-                # pylint: disable=protected-access
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,  # noqa
+                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
             ):
                 """Get Airflow Variable after deserializing JSON value"""
                 return Variable.get(item, default_var=default_var, deserialize_json=True)
+
+        class ConnectionAccessor:
+            """
+            Wrapper around Connection. This way you can get connections in
+            templates by using ``{{ conn.conn_id }}`` or
+            ``{{ conn.get('conn_id') }}``.
+            """
+
+            def __getattr__(
+                self,
+                item: str,
+            ):
+                return Connection.get_connection_from_secrets(item)
+
+            @staticmethod
+            def get(
+                item: str,
+                default_conn: Any = None,
+            ):
+                """Get Airflow Connection value"""
+                try:
+                    return Connection.get_connection_from_secrets(item)
+                except AirflowNotFoundException:
+                    return default_conn
 
         return {
             'conf': conf,
@@ -1670,6 +1701,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
                 'json': VariableJsonAccessor(),
                 'value': VariableAccessor(),
             },
+            'conn': ConnectionAccessor(),
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,
         }
@@ -1869,7 +1901,7 @@ class TaskInstance(Base, LoggingMixin):  # pylint: disable=R0902,R0904
         )
 
     @provide_session
-    def xcom_pull(  # pylint: disable=inconsistent-return-statements
+    def xcom_pull(
         self,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[str] = None,
@@ -2031,7 +2063,6 @@ class SimpleTaskInstance:
         self._queue: str = ti.queue
         self._key = ti.key
 
-    # pylint: disable=missing-docstring
     @property
     def dag_id(self) -> str:
         return self._dag_id

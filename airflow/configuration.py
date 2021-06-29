@@ -102,7 +102,7 @@ def default_config_yaml() -> List[dict]:
         return yaml.safe_load(config_file)
 
 
-class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
+class AirflowConfigParser(ConfigParser):
     """Custom Airflow Configparser supporting defaults and deprecated options"""
 
     # These configuration elements can be fetched as the stdout of commands
@@ -267,7 +267,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                     + f"{list_mode}. Possible values are {', '.join(file_parser_modes)}."
                 )
 
-    def _using_old_value(self, old, current_value):  # noqa
+    def _using_old_value(self, old, current_value):
         return old.search(current_value) is not None
 
     def _update_env_var(self, section, name, new_value):
@@ -452,7 +452,7 @@ class AirflowConfigParser(ConfigParser):  # pylint: disable=too-many-ancestors
                 f'Current value: "{val}".'
             )
 
-    def getimport(self, section, key, **kwargs):  # noqa
+    def getimport(self, section, key, **kwargs):
         """
         Reads options, imports the full qualified name, and returns the object.
 
@@ -781,7 +781,7 @@ def parameterized_config(template):
     :param template: a config content templated with {{variables}}
     """
     all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
-    return template.format(**all_vars)  # noqa
+    return template.format(**all_vars)
 
 
 def get_airflow_test_config(airflow_home):
@@ -878,7 +878,7 @@ def initialize_config():
 
 
 # Historical convenience functions to access config entries
-def load_test_config():  # noqa: D103
+def load_test_config():
     """Historical load_test_config"""
     warnings.warn(
         "Accessing configuration method 'load_test_config' directly from the configuration module is "
@@ -890,7 +890,7 @@ def load_test_config():  # noqa: D103
     conf.load_test_config()
 
 
-def get(*args, **kwargs):  # noqa: D103
+def get(*args, **kwargs):
     """Historical get"""
     warnings.warn(
         "Accessing configuration method 'get' directly from the configuration module is "
@@ -902,7 +902,7 @@ def get(*args, **kwargs):  # noqa: D103
     return conf.get(*args, **kwargs)
 
 
-def getboolean(*args, **kwargs):  # noqa: D103
+def getboolean(*args, **kwargs):
     """Historical getboolean"""
     warnings.warn(
         "Accessing configuration method 'getboolean' directly from the configuration module is "
@@ -914,7 +914,7 @@ def getboolean(*args, **kwargs):  # noqa: D103
     return conf.getboolean(*args, **kwargs)
 
 
-def getfloat(*args, **kwargs):  # noqa: D103
+def getfloat(*args, **kwargs):
     """Historical getfloat"""
     warnings.warn(
         "Accessing configuration method 'getfloat' directly from the configuration module is "
@@ -926,7 +926,7 @@ def getfloat(*args, **kwargs):  # noqa: D103
     return conf.getfloat(*args, **kwargs)
 
 
-def getint(*args, **kwargs):  # noqa: D103
+def getint(*args, **kwargs):
     """Historical getint"""
     warnings.warn(
         "Accessing configuration method 'getint' directly from the configuration module is "
@@ -938,7 +938,7 @@ def getint(*args, **kwargs):  # noqa: D103
     return conf.getint(*args, **kwargs)
 
 
-def getsection(*args, **kwargs):  # noqa: D103
+def getsection(*args, **kwargs):
     """Historical getsection"""
     warnings.warn(
         "Accessing configuration method 'getsection' directly from the configuration module is "
@@ -950,7 +950,7 @@ def getsection(*args, **kwargs):  # noqa: D103
     return conf.getsection(*args, **kwargs)
 
 
-def has_option(*args, **kwargs):  # noqa: D103
+def has_option(*args, **kwargs):
     """Historical has_option"""
     warnings.warn(
         "Accessing configuration method 'has_option' directly from the configuration module is "
@@ -962,7 +962,7 @@ def has_option(*args, **kwargs):  # noqa: D103
     return conf.has_option(*args, **kwargs)
 
 
-def remove_option(*args, **kwargs):  # noqa: D103
+def remove_option(*args, **kwargs):
     """Historical remove_option"""
     warnings.warn(
         "Accessing configuration method 'remove_option' directly from the configuration module is "
@@ -974,7 +974,7 @@ def remove_option(*args, **kwargs):  # noqa: D103
     return conf.remove_option(*args, **kwargs)
 
 
-def as_dict(*args, **kwargs):  # noqa: D103
+def as_dict(*args, **kwargs):
     """Historical as_dict"""
     warnings.warn(
         "Accessing configuration method 'as_dict' directly from the configuration module is "
@@ -986,7 +986,7 @@ def as_dict(*args, **kwargs):  # noqa: D103
     return conf.as_dict(*args, **kwargs)
 
 
-def set(*args, **kwargs):  # noqa pylint: disable=redefined-builtin
+def set(*args, **kwargs):
     """Historical set"""
     warnings.warn(
         "Accessing configuration method 'set' directly from the configuration module is "

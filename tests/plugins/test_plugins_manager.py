@@ -33,13 +33,13 @@ from tests.test_utils.mock_plugins import mock_plugin_manager
 importlib_metadata_string = 'importlib_metadata'
 
 try:
-    import importlib_metadata  # pylint: disable=unused-import
+    import importlib_metadata
 
     # If importlib_metadata is installed, it takes precedence over built-in importlib.metadata in PY39
     # so we should use the default declared above
 except ImportError:
     try:
-        import importlib.metadata  # pylint: disable=unused-import
+        import importlib.metadata
 
         # only when we do not have importlib_metadata, the importlib.metadata is actually used
         importlib_metadata = 'importlib.metadata'
@@ -64,7 +64,7 @@ class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
         self.app = app
-        self.appbuilder = app.appbuilder  # pylint: disable=no-member
+        self.appbuilder = app.appbuilder
 
     def test_flaskappbuilder_views(self):
         from tests.plugins.test_plugin import v_appbuilder_package
@@ -135,7 +135,7 @@ def test_flaskappbuilder_nomenu_views():
     appbuilder_class_name = str(v_nomenu_appbuilder_package['view'].__class__.__name__)
 
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-        appbuilder = application.create_app(testing=True).appbuilder  # pylint: disable=no-member
+        appbuilder = application.create_app(testing=True).appbuilder
 
         plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
 

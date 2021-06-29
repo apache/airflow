@@ -39,7 +39,7 @@ from airflow.utils import timezone
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
-from airflow.utils.decorators import apply_defaults  # pylint: disable=unused-import
+from airflow.utils.decorators import apply_defaults
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):

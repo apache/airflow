@@ -47,7 +47,6 @@ from elasticsearch.exceptions import NotFoundError
 from .utilities import get_random_id
 
 
-# pylint: disable=redefined-builtin,unused-argument
 class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 
@@ -332,7 +331,7 @@ class FakeElasticsearch(Elasticsearch):
             ]
         return result_dict
 
-    def _find_match(self, index, doc_type, body):  # pylint: disable=unused-argument
+    def _find_match(self, index, doc_type, body):
         searchable_indexes = self._normalize_index_to_list(index)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
@@ -396,6 +395,3 @@ class FakeElasticsearch(Elasticsearch):
             raise ValueError("Invalid param 'index'")
 
         return searchable_doc_types
-
-
-# pylint: enable=redefined-builtin

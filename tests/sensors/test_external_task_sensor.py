@@ -167,7 +167,7 @@ exit 0
             # The test_with_failure task is excepted to fail
             # once per minute (the run on the first second of
             # each minute).
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             failed_tis = (
                 session.query(TI)
                 .filter(
@@ -502,7 +502,6 @@ def clear_tasks(dag_bag, dag, task, start_date=DEFAULT_DATE, end_date=DEFAULT_DA
     return partial.clear(start_date=start_date, end_date=end_date, dag_bag=dag_bag, dry_run=dry_run)
 
 
-# pylint: disable=redefined-outer-name
 def test_external_task_marker_transitive(dag_bag_ext):
     """
     Test clearing tasks across DAGs.
@@ -517,7 +516,6 @@ def test_external_task_marker_transitive(dag_bag_ext):
     assert_ti_state_equal(ti_b_3, State.NONE)
 
 
-# pylint: disable=redefined-outer-name
 def test_external_task_marker_clear_activate(dag_bag_parent_child):
     """
     Test clearing tasks across DAGs and make sure the right DagRuns are activated.

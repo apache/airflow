@@ -122,8 +122,8 @@ class TestEdgeModifierBuilding:
         # Unpack the fixture
         dag, (op1, op2, op3, op4) = test_dag
         # Arrange the operators with a Label in the middle
-        op1 >> Label("Label 1") >> op2  # pylint: disable=W0106
-        op3 << Label("Label 2") << op2 >> op4  # pylint: disable=W0106
+        op1 >> Label("Label 1") >> op2
+        op3 << Label("Label 2") << op2 >> op4
         # Check that the DAG has the right edge info
         assert dag.get_edge_info(op1.task_id, op2.task_id) == {"label": "Label 1"}
         assert dag.get_edge_info(op2.task_id, op3.task_id) == {"label": "Label 2"}
@@ -134,7 +134,7 @@ class TestEdgeModifierBuilding:
         # Unpack the fixture
         dag, (op1, op2, op3, op4) = test_dag
         # Arrange the operators with a Label in the middle
-        op1 >> Label("Label 1") >> [op2, op3] << Label("Label 2") << op4  # pylint: disable=W0106
+        op1 >> Label("Label 1") >> [op2, op3] << Label("Label 2") << op4
         # Check that the DAG has the right edge info
         assert dag.get_edge_info(op1.task_id, op2.task_id) == {"label": "Label 1"}
         assert dag.get_edge_info(op1.task_id, op3.task_id) == {"label": "Label 1"}
@@ -146,7 +146,7 @@ class TestEdgeModifierBuilding:
         dag, (op1, op2, op3, op4) = test_dag
         # Arrange the operators with a Label in the middle
         op1_arg = XComArg(op1, "test_key")
-        op1_arg >> Label("Label 1") >> [op2, op3]  # pylint: disable=W0106
+        op1_arg >> Label("Label 1") >> [op2, op3]
         op1_arg >> op4
         # Check that the DAG has the right edge info
         assert dag.get_edge_info(op1.task_id, op2.task_id) == {"label": "Label 1"}
@@ -157,7 +157,7 @@ class TestEdgeModifierBuilding:
         # Unpack the fixture
         dag, group, (op1, op2, op3, op4) = test_taskgroup_dag
         # Arrange them with a Label in the middle
-        op1 >> Label("Group label") >> group >> op4  # pylint: disable=W0106
+        op1 >> Label("Group label") >> group >> op4
         # Check that the DAG has the right edge info
         assert dag.get_edge_info(op1.task_id, op2.task_id) == {"label": "Group label"}
         assert dag.get_edge_info(op1.task_id, op3.task_id) == {"label": "Group label"}

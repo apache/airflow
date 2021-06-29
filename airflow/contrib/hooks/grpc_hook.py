@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.grpc.hooks.grpc import GrpcHook  # noqa
 
 warnings.warn(

@@ -109,7 +109,7 @@ We have the following test types (separated by packages in which they are):
 
 We also have several special kinds of tests that are not separated by packages but they are marked with
 pytest markers. They can be found in any of those packages and they can be selected by the appropriate
-pylint custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
+pytest custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
 
 * Integration - tests that require external integration images running in docker-compose
 * Quarantined - tests that are flaky and need to be fixed
@@ -175,11 +175,11 @@ The logic implemented for the changes works as follows:
     Quarantined tests are described in `TESTING.rst <TESTING.rst>`_
 
 11) There is a special case of static checks. In case the above logic determines that the CI image
-    needs to be build, we run long and more comprehensive version of static checks - including Pylint,
+    needs to be build, we run long and more comprehensive version of static checks - including
     Mypy, Flake8. And those tests are run on all files, no matter how many files changed.
     In case the image is not built, we run only simpler set of changes - the longer static checks
     that require CI image are skipped, and we only run the tests on the files that changed in the incoming
-    commit - unlike pylint/flake8/mypy, those static checks are per-file based and they should not miss any
+    commit - unlike flake8/mypy, those static checks are per-file based and they should not miss any
     important change.
 
 Similarly to selective tests we also run selective security scans. In Pull requests,

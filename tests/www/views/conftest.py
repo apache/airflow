@@ -65,7 +65,7 @@ def app(examples_dag_bag):
     app.dag_bag = examples_dag_bag
     app.jinja_env.undefined = jinja2.StrictUndefined
 
-    security_manager = app.appbuilder.sm  # pylint: disable=no-member
+    security_manager = app.appbuilder.sm
     if not security_manager.find_user(username='test'):
         security_manager.add_user(
             username='test',
@@ -181,7 +181,7 @@ def capture_templates(app):
     def manager() -> Generator[List[_TemplateWithContext], None, None]:
         recorded = []
 
-        def record(sender, template, context, **extra):  # pylint: disable=unused-argument
+        def record(sender, template, context, **extra):
             recorded.append(_TemplateWithContext(template, context))
 
         flask.template_rendered.connect(record, app)  # type: ignore

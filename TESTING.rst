@@ -625,6 +625,8 @@ Running Kubernetes tests via shell:
 
 .. code-block:: bash
 
+      export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
+
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
 
@@ -656,6 +658,10 @@ Where ``KIND_CLUSTER_NAME`` is the name of the cluster and ``HOST_PYTHON_VERSION
 in the host.
 
 You can enter the shell via those scripts
+
+.. code-block:: bash
+
+      export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
 
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [--help]             - Prints this help message

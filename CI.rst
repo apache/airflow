@@ -573,22 +573,6 @@ Those runs and their corresponding ``Build Images`` runs are only executed in ma
 repository, they are not executed in forks - we want to be nice to the contributors and not use their
 free build minutes on GitHub Actions.
 
-Sometimes (bugs in DockerHub or prolonged periods when the scheduled builds are failing)
-the automated build for nightly main is not executed for a long time. Such builds can be manually
-prepared and pushed by a maintainer who has the rights to push images to DockerHub (committers need
-to file JIRA ticket to Apache Infra in order to get an access).
-
-.. code-block:: bash
-
-  export BRANCH=main
-  export DOCKER_REPO=docker.io/apache/airflow
-  for python_version in "3.6" "3.7" "3.8"
-  (
-    export DOCKER_TAG=${BRANCH}-python${python_version}
-    ./scripts/ci/images/ci_build_dockerhub.sh
-  )
-
-
 
 Workflows
 =========
@@ -669,9 +653,7 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | CI Images                 | Waits for CI Images (3)                      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
-| Static checks             | Performs static checks without pylint        | Yes   | Yes   | Yes  |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Static checks: pylint     | Performs pylint static checks                | Yes   | Yes   | Yes  |
+| Static checks             | Performs static checks                       | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Build docs                | Builds documentation                         | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+

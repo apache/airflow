@@ -55,7 +55,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 
 
-# pylint: disable=R0904, C0302
 class CloudDLPHook(GoogleBaseHook):
     """
     Hook for Google Cloud Data Loss Prevention (DLP) APIs.

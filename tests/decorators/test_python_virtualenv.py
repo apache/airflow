@@ -70,7 +70,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
         @task.virtualenv(system_site_packages=False, python_version=PYTHON_VERSION, use_dill=True)
         def f():
             try:
-                import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+                import funcsigs  # noqa: F401
             except ImportError:
                 return True
             raise Exception
@@ -78,7 +78,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
         with self.dag:
             ret = f()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_system_site_packages(self):
         @task.virtualenv(
@@ -88,7 +88,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
             use_dill=True,
         )
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            import funcsigs  # noqa: F401
 
         with self.dag:
             ret = f()
@@ -103,7 +103,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
             use_dill=True,
         )
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
+            import funcsigs
 
             if funcsigs.__version__ != '0.4':
                 raise Exception
@@ -121,7 +121,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
             use_dill=True,
         )
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            import funcsigs  # noqa: F401
 
         with self.dag:
             ret = f()
@@ -142,7 +142,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
     def test_python_2(self):
         @task.virtualenv(python_version=2, requirements=['dill'])
         def f():
-            {}.iteritems()  # pylint: disable=no-member
+            {}.iteritems()
 
         with self.dag:
             ret = f()
@@ -152,22 +152,22 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
     def test_python_2_7(self):
         @task.virtualenv(python_version='2.7', requirements=['dill'])
         def f():
-            {}.iteritems()  # pylint: disable=no-member
+            {}.iteritems()
             return True
 
         with self.dag:
             ret = f()
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_3(self):
         @task.virtualenv(python_version=3, use_dill=False, requirements=['dill'])
         def f():
-            import sys  # pylint: disable=reimported,unused-import,redefined-outer-name
+            import sys
 
             print(sys.version)
             try:
-                {}.iteritems()  # pylint: disable=no-member
+                {}.iteritems()
             except AttributeError:
                 return
             raise Exception
@@ -187,9 +187,9 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
     def test_string_args(self):
         @task.virtualenv(python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
         def f():
-            global virtualenv_string_args  # pylint: disable=global-statement,global-variable-not-assigned
-            print(virtualenv_string_args)  # pylint: disable=undefined-variable
-            if virtualenv_string_args[0] != virtualenv_string_args[2]:  # pylint: disable=undefined-variable
+            global virtualenv_string_args
+            print(virtualenv_string_args)
+            if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
 
         with self.dag:
@@ -208,7 +208,7 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
         with self.dag:
             ret = f(0, 1, c=True)
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_return_none(self):
         @task.virtualenv

@@ -79,7 +79,7 @@ class TestECSOperator(unittest.TestCase):
         self.ecs.get_hook()
 
     def setUp(self):
-        self.set_up_operator()  # pylint: disable=no-value-for-parameter
+        self.set_up_operator()
 
     def test_init(self):
         assert self.ecs.region_name == 'eu-west-1'
@@ -149,7 +149,7 @@ class TestECSOperator(unittest.TestCase):
         self, launch_type, capacity_provider_strategy, tags, expected_args, check_mock, wait_mock
     ):
 
-        self.set_up_operator(  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(
             launch_type=launch_type, capacity_provider_strategy=capacity_provider_strategy, tags=tags
         )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
@@ -276,16 +276,16 @@ class TestECSOperator(unittest.TestCase):
                     'stoppedReason': 'Host EC2 (instance i-1234567890abcdef) terminated.',
                     "containers": [
                         {
-                            "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501 # pylint: disable=line-too-long
+                            "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501
                             "lastStatus": "RUNNING",
                             "name": "wordpress",
-                            "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
+                            "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
                         }
                     ],
                     "desiredStatus": "STOPPED",
                     "lastStatus": "STOPPED",
-                    "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
-                    "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11",  # noqa: E501 # pylint: disable=line-too-long
+                    "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
+                    "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11",  # noqa: E501
                 }
             ]
         }
@@ -321,7 +321,7 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_start_task')
     def test_reattach_successful(self, launch_type, tags, start_mock, check_mock, wait_mock):
 
-        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(launch_type=launch_type, tags=tags)
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
         client_mock.list_tasks.return_value = {

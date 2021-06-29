@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook  # noqa
 
 warnings.warn(

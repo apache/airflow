@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.docker.operators.docker import DockerOperator  # noqa
 
 warnings.warn(

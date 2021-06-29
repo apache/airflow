@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOperator  # noqa
 
 warnings.warn(

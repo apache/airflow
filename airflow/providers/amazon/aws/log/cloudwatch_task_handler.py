@@ -62,7 +62,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
             return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.error(
                 'Could not create an AwsLogsHook with connection id "%s". '
                 'Please make sure that apache-airflow[aws] is installed and '
@@ -122,7 +122,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             )
 
             return '\n'.join(self._event_to_str(event) for event in events)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
                 self.log_group, stream_name
             )

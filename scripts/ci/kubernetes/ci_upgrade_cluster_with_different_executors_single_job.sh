@@ -30,6 +30,13 @@ fi
 export PYTHON_MAJOR_MINOR_VERSION=$1
 shift
 
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires executor mode as third parameter"
+  exit 1
+fi
+export EXECUTOR=$1
+shift
+
 
 # Requires PARALLEL_JOB_STATUS
 
@@ -41,6 +48,7 @@ fi
 echo
 echo "KUBERNETES_VERSION:         ${KUBERNETES_VERSION}"
 echo "PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}"
+echo "EXECUTOR:                   ${EXECUTOR}"
 echo
 
 # shellcheck source=scripts/ci/libraries/_script_init.sh

@@ -25,10 +25,10 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
+import celery.contrib.testing.tasks  # noqa: F401
 import pytest
 from celery import Celery
-from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend  # noqa
+from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from celery.result import AsyncResult
@@ -141,7 +141,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
+                for (key, simple_ti, command, queue, task) in task_tuples_to_send:
                     executor.queued_tasks[key] = (command, 1, queue, simple_ti)
                     executor.task_publish_retries[key] = 1
 
@@ -447,7 +447,7 @@ class TestBulkStateFetcher(unittest.TestCase):
             with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
                 "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
             ) as cm:
-                mock_session = mock_backend.ResultSession.return_value  # pylint: disable=no-member
+                mock_session = mock_backend.ResultSession.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
@@ -525,7 +525,7 @@ def register_signals():
 
 
 @pytest.mark.quarantined
-def test_send_tasks_to_celery_hang(register_signals):  # pylint: disable=unused-argument
+def test_send_tasks_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.
     """

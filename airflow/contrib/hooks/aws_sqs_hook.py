@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook  # noqa
 
 warnings.warn(

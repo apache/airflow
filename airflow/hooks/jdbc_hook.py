@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, jaydebeapi  # noqa
 
 warnings.warn(

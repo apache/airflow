@@ -124,7 +124,7 @@ class TestSnowflakeHook(unittest.TestCase):
             'session_parameters': {"QUERY_TAG": "This is a test hook"},
             "application": "AIRFLOW",
         }
-        assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
+        assert self.db_hook.snowflake_conn_id == 'snowflake_default'
         assert conn_params_shouldbe == self.db_hook._get_conn_params()
 
     def test_get_conn_params_env_variable(self):
@@ -142,7 +142,7 @@ class TestSnowflakeHook(unittest.TestCase):
             "application": "AIRFLOW_TEST",
         }
         with patch_environ({"AIRFLOW_SNOWFLAKE_PARTNER": 'AIRFLOW_TEST'}):
-            assert self.db_hook.snowflake_conn_id == 'snowflake_default'  # pylint: disable=no-member
+            assert self.db_hook.snowflake_conn_id == 'snowflake_default'
             assert conn_params_shouldbe == self.db_hook._get_conn_params()
 
     def test_get_conn(self):

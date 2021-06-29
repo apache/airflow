@@ -126,7 +126,7 @@ def get_task_instances(
     queue: Optional[List[str]] = None,
     offset: Optional[int] = None,
     session=None,
-):  # pylint: disable=too-many-arguments
+):
     """Get list of task instances."""
     base_query = session.query(TI)
 

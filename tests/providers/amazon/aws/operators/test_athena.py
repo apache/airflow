@@ -43,7 +43,6 @@ query_context = {'Database': MOCK_DATA['database']}
 result_configuration = {'OutputLocation': MOCK_DATA['outputLocation']}
 
 
-# pylint: disable=unused-argument
 class TestAWSAthenaOperator(unittest.TestCase):
     def setUp(self):
         args = {
@@ -211,6 +210,3 @@ class TestAWSAthenaOperator(unittest.TestCase):
         ti.run()
 
         assert ti.xcom_pull(task_ids='test_aws_athena_operator') == ATHENA_QUERY_ID
-
-
-# pylint: enable=unused-argument

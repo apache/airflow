@@ -65,7 +65,7 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
 def ask_yesno(question):
     """Helper to get yes / no answer from user."""
     yes = {'yes', 'y'}
-    no = {'no', 'n'}  # pylint: disable=invalid-name
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -95,8 +95,8 @@ def as_tuple(obj):
         return tuple([obj])
 
 
-T = TypeVar('T')  # pylint: disable=invalid-name
-S = TypeVar('S')  # pylint: disable=invalid-name
+T = TypeVar('T')
+S = TypeVar('S')
 
 
 def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
