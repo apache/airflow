@@ -102,9 +102,8 @@ supplied in case the variable does not exist.
 Similarly, Airflow Connections data can be accessed via the ``conn`` template variable.
 For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
 ``{{ conn.my_conn_id.password }}``, etc.
-Just like with ``var`` it's possible to fetch a connection by string or provide defaults with
-``{{ conn.get('my_conn_id').host }}`` or
-``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``
+Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{ conn.get('my_conn_id_'+index).host }}``
+) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``)
 
 Macros
 ------

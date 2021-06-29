@@ -27,7 +27,7 @@ They can be managed via the UI or via the CLI; see :doc:`/howto/connection` for 
 You can use Connections directly from your own code, you can use them via Hooks or use them from :ref:`templates <concepts:jinja-templating>`::
 
 
-    echo {{ conn.<variable_name>.host }}
+    echo {{ conn.<conn_id>.host }}
 
 Hooks
 -----
