@@ -18,11 +18,11 @@
 import datetime
 import typing
 
-from cached_property import cached_property
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.typing_compat import Protocol
 from airflow.utils.dates import cron_presets
