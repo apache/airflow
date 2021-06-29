@@ -1,3 +1,5 @@
+
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -126,7 +128,7 @@ Time zone aware DAGs
 --------------------
 
 Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware ``start_date``
-using ``pendulum``.
+using ``pendulum``. Don't use other ``datetime.tzinfo`` implementations.
 
 .. code-block:: python
 
