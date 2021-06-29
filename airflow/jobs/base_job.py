@@ -25,6 +25,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -94,8 +95,11 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = self.executor.__class__.__name__
+        if executor:
+            self.executor = executor
+            self.executor_class = executor.__class__.__name__
+        else:
+            self.executor_class = conf.get('core', 'EXECUTOR')
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -103,6 +107,10 @@ class BaseJob(Base, LoggingMixin):
         self.unixname = getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         super().__init__(*args, **kwargs)
+
+    @cached_property
+    def executor(self):
+        return ExecutorLoader.get_default_executor()
 
     @classmethod
     @provide_session
