@@ -48,7 +48,10 @@
       }
     },
     "timezone": {
-      "type": "string"
+      "anyOf": [
+          { "type": "string" },
+          { "type": "integer"}
+      ]
     },
     "dict": {
       "description": "A python dictionary containing values of any type",

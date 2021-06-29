@@ -21,6 +21,7 @@ from typing import Optional, Union
 
 import pendulum
 from pendulum.datetime import DateTime
+from pendulum.tz.zoneinfo.exceptions import InvalidTimezone
 
 from airflow.settings import TIMEZONE
 
@@ -184,3 +185,38 @@ def coerce_datetime(v: Union[None, dt.datetime, DateTime]) -> Optional[DateTime]
     if v.tzinfo is None:
         v = make_aware(v)
     return pendulum.instance(v)
+
+
+def _get_tzname_or_offset(obj):
+    if _is_valid_pendulum_tzname(obj):
+        return obj
+    if hasattr(obj, 'name'):
+        candidate = obj.name
+        if _is_valid_pendulum_tzname(candidate):
+            return candidate
+    try:
+        candidate = obj.tzname(dt.datetime.now(dt.timezone.utc))
+        if _is_valid_pendulum_tzname(candidate):
+            return candidate
+    except (NotImplementedError, ValueError):
+        pass
+
+    try:
+        candidate = int(obj.utcoffset(dt.datetime.now(dt.timezone.utc)).total_seconds())
+        if _is_valid_pendulum_tzname(candidate):
+            return candidate
+    except (NotImplementedError, ValueError):
+        pass
+
+    raise ValueError(f"Can't get a timezone name or offset from {obj}")
+
+
+def _is_valid_pendulum_tzname(name):
+    if isinstance(name, (str, int)):
+        try:
+            pendulum.timezone(name)
+            return True
+        except InvalidTimezone:
+            return False
+    else:
+        return False

@@ -32,6 +32,7 @@ import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 from parameterized import parameterized
+from pendulum.tz.timezone import FixedTimezone
 
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -441,16 +442,44 @@ class TestStringifiedDAGs(unittest.TestCase):
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
                 datetime(2019, 8, 2, tzinfo=timezone.utc),
                 datetime(2019, 8, 2, tzinfo=timezone.utc),
+                'UTC',
             ),
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
+                'UTC',
             ),
             (pendulum.datetime(2019, 8, 1, tz='UTC'), None, pendulum.datetime(2019, 8, 1, tz='UTC')),
+            (
+                pendulum.parse("2019-08-01T00:00:00.000+00:00"),
+                None,
+                pendulum.parse("2019-08-01T00:00:00.000+00:00"),
+                '+00:00',
+            ),
+            (
+                pendulum.parse("2019-08-01T00:00:00.000+01:30"),
+                None,
+                pendulum.parse("2019-08-01T00:00:00.000+01:30"),
+                '+01:30',
+            ),
+            (
+                pendulum.datetime(2019, 8, 1, tz='Europe/Stockholm'),
+                None,
+                pendulum.datetime(2019, 8, 1, tz='Europe/Stockholm'),
+                'Europe/Stockholm',
+            ),
+            (
+                pendulum.datetime(2019, 8, 1, tz=FixedTimezone(3600)),
+                None,
+                pendulum.datetime(2019, 8, 1, tz=FixedTimezone(3600)),
+                '+01:00',
+            ),
         ]
     )
-    def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
+    def test_deserialization_start_date(
+        self, dag_start_date, task_start_date, expected_task_start_date, tzname=None
+    ):
         dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
         BaseOperator(task_id='simple_task', dag=dag, start_date=task_start_date)
 
@@ -465,6 +494,12 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
         assert simple_task.start_date == expected_task_start_date
+        # timezone may have been converted but the offset and name should be the same
+        assert dag.timezone.utcoffset(dag_start_date) == dag_start_date.tzinfo.utcoffset(dag_start_date)
+        if tzname:
+            assert dag.timezone.name == tzname
+        else:
+            assert dag.timezone.tzname(dag_start_date) == dag_start_date.tzinfo.tzname(dag_start_date)
 
     def test_deserialization_with_dag_context(self):
         with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1, tzinfo=timezone.utc)) as dag:
@@ -502,6 +537,34 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
         assert simple_task.end_date == expected_task_end_date
+
+    @parameterized.expand(
+        [
+            ('UTC', pendulum.timezone('UTC')),
+            ('Europe/Stockholm', pendulum.timezone('Europe/Stockholm')),
+            (3600, pendulum.timezone(3600)),
+            (0, pendulum.timezone(0)),
+        ]
+    )
+    def test_deserialization_timezone_present(self, timezone_str, expected_tzinfo):
+        # Checks that it can deserialize the old "timezone" field now replaced with "schedule_timezone"
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": timezone_str,
+                "schedule_interval": "@hourly",
+            },
+        }
+
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+
+        assert dag.schedule_interval == "@hourly"
+        assert dag.timezone == expected_tzinfo
 
     @parameterized.expand(
         [

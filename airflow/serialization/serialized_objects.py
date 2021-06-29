@@ -27,6 +27,8 @@ import cattr
 import pendulum
 from dateutil import relativedelta
 
+from airflow.utils.timezone import _get_tzname_or_offset
+
 try:
     from functools import cache
 except ImportError:
@@ -228,7 +230,7 @@ class BaseSerialization:
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
         elif isinstance(var, Timezone):
-            return cls._encode(str(var.name), type_=DAT.TIMEZONE)
+            return cls._encode(_get_tzname_or_offset(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
             if var.weekday and var.weekday.n:
@@ -284,7 +286,7 @@ class BaseSerialization:
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
-            return Timezone(var)
+            return pendulum.timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             if 'weekday' in var:
                 var['weekday'] = relativedelta.weekday(*var['weekday'])  # type: ignore

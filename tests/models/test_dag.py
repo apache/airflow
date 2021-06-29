@@ -963,6 +963,42 @@ class TestDag(unittest.TestCase):
         dag = DAG('DAG', default_args=default_args)
         assert dag.timezone.name == local_tz.name
 
+    @parameterized.expand([('UTC',), ('Europe/Stockholm',), (3600,)])
+    def test_dag_schedule_timezone_specified(self, tzname):
+        dag = DAG('DAG', schedule_timezone=tzname)
+        assert dag.schedule_timezone == tzname
+        if isinstance(tzname, str):
+            assert dag.timezone.name == tzname
+        else:
+            assert (
+                int(dag.timezone.utcoffset(datetime.datetime.now(datetime.timezone.utc)).total_seconds())
+                == tzname
+            )
+
+    @parameterized.expand(
+        [
+            (datetime.datetime(2021, 6, 1), 'UTC'),
+            (pendulum.parse("2021-06-01T00:00:00+00:00"), '+00:00'),
+            (pendulum.datetime(2021, 6, 1, tz=timezone.utc), 'UTC'),
+            (pendulum.datetime(2021, 6, 1, tz=pendulum.timezone('Europe/Stockholm')), 'Europe/Stockholm'),
+        ]
+    )
+    def test_dag_schedule_timezone_from_start_date(self, start_date, tzname):
+        dag = DAG('DAG', start_date=start_date)
+        assert dag.timezone.name == tzname
+
+    @parameterized.expand(
+        [
+            (datetime.datetime(2021, 6, 1), 'UTC'),
+            (pendulum.parse("2021-06-01T00:00:00+00:00"), '+00:00'),
+            (pendulum.datetime(2021, 6, 1, tz=timezone.utc), 'UTC'),
+            (pendulum.datetime(2021, 6, 1, tz=pendulum.timezone('Europe/Stockholm')), 'Europe/Stockholm'),
+        ]
+    )
+    def test_dag_schedule_timezone_from_default_args(self, start_date, tzname):
+        dag = DAG('DAG', default_args={"start_date": start_date})
+        assert dag.timezone.name == tzname
+
     def test_roots(self):
         """Verify if dag.roots returns the root tasks of a DAG."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
