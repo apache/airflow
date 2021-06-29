@@ -225,7 +225,7 @@ google-cloud-appengine-logging==0.1.1
 google-cloud-audit-log==0.1.0
 google-cloud-automl==2.3.0
 google-cloud-bigquery-datatransfer==3.2.0
-google-cloud-bigquery-storage==2.4.0
+google-cloud-bigquery-storage==2.5.0
 google-cloud-bigquery==2.20.0
 google-cloud-bigtable==1.7.0
 google-cloud-container==1.0.1
@@ -359,7 +359,7 @@ presto-python-client==0.7.0
 prison==0.1.3
 prometheus-client==0.8.0
 prompt-toolkit==3.0.19
-proto-plus==1.18.1
+proto-plus==1.19.0
 protobuf==3.17.3
 psutil==5.8.0
 psycopg2-binary==2.9.1
