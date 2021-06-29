@@ -401,7 +401,10 @@ class DagFileProcessor(LoggingMixin):
         ts = timezone.utcnow()
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
-            if task.sla and not isinstance(task.sla, timedelta):
+            if not task.sla:
+                continue
+  
+            if not isinstance(task.sla, timedelta):
                 raise TypeError(
                     f"SLA is expected to be timedelta object, got "
                     f"{type(task.sla)} in {task.dag_id}:{task.task_id}"
