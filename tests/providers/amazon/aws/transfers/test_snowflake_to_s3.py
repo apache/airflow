@@ -56,11 +56,11 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
         unload_query = f"""
         COPY INTO 's3://{s3_bucket}/{s3_path}'
         FROM {schema}.{table}
-        STORAGE_INTEGRATION = S3
-        FILE_FORMAT = ({file_format})
-        {unload_options}
-        HEADER = True;
-        """
+        STORAGE_INTEGRATION = S3"""
+
+        unload_query += f'FILE_FORMAT = ({file_format})'
+        unload_query += unload_options
+        unload_query += f'HEADER = {include_header};'
 
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
