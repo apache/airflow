@@ -26,40 +26,40 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class LoggingCommandExecutor(LoggingMixin):
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
-            self.log.info("Executing in silent mode: '%s'", " ".join([shlex.quote(c) for c in cmd]))
+            self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
             with open(os.devnull, 'w') as dev_null:
                 return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT, env=env, cwd=cwd)
         else:
-            self.log.info("Executing: '%s'", " ".join([shlex.quote(c) for c in cmd]))
-            process = subprocess.Popen(
+            self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            with subprocess.Popen(
                 args=cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,
                 cwd=cwd,
                 env=env,
-            )
-            output, err = process.communicate()
-            retcode = process.poll()
-            self.log.info("Stdout: %s", output)
-            self.log.info("Stderr: %s", err)
-            if retcode:
-                self.log.error("Error when executing %s", " ".join([shlex.quote(c) for c in cmd]))
-            return retcode
+            ) as process:
+                output, err = process.communicate()
+                retcode = process.poll()
+                self.log.info("Stdout: %s", output)
+                self.log.info("Stderr: %s", err)
+                if retcode:
+                    self.log.error("Error when executing %s", " ".join(shlex.quote(c) for c in cmd))
+                return retcode
 
     def check_output(self, cmd):
-        self.log.info("Executing for output: '%s'", " ".join([shlex.quote(c) for c in cmd]))
-        process = subprocess.Popen(args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, err = process.communicate()
-        retcode = process.poll()
-        if retcode:
-            self.log.error("Error when executing '%s'", " ".join([shlex.quote(c) for c in cmd]))
-            self.log.info("Stdout: %s", output)
-            self.log.info("Stderr: %s", err)
-            raise AirflowException(
-                f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
-            )
-        return output
+        self.log.info("Executing for output: '%s'", " ".join(shlex.quote(c) for c in cmd))
+        with subprocess.Popen(args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
+            output, err = process.communicate()
+            retcode = process.poll()
+            if retcode:
+                self.log.error("Error when executing '%s'", " ".join(shlex.quote(c) for c in cmd))
+                self.log.info("Stdout: %s", output)
+                self.log.info("Stderr: %s", err)
+                raise AirflowException(
+                    f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
+                )
+            return output
 
 
 def get_executor() -> LoggingCommandExecutor:

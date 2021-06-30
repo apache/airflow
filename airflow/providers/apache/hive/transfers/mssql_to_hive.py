@@ -28,7 +28,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MsSqlToHiveOperator(BaseOperator):
@@ -63,8 +62,9 @@ class MsSqlToHiveOperator(BaseOperator):
     :type delimiter: str
     :param mssql_conn_id: source Microsoft SQL Server connection
     :type mssql_conn_id: str
-    :param hive_conn_id: destination hive connection
-    :type hive_conn_id: str
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :type hive_cli_conn_id: str
     :param tblproperties: TBLPROPERTIES of the hive table being created
     :type tblproperties: dict
     """
@@ -73,7 +73,6 @@ class MsSqlToHiveOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -104,9 +103,9 @@ class MsSqlToHiveOperator(BaseOperator):
     def type_map(cls, mssql_type: int) -> str:
         """Maps MsSQL type to Hive type."""
         map_dict = {
-            pymssql.BINARY.value: 'INT',  # pylint: disable=c-extension-no-member
-            pymssql.DECIMAL.value: 'FLOAT',  # pylint: disable=c-extension-no-member
-            pymssql.NUMBER.value: 'INT',  # pylint: disable=c-extension-no-member
+            pymssql.BINARY.value: 'INT',
+            pymssql.DECIMAL.value: 'FLOAT',
+            pymssql.NUMBER.value: 'INT',
         }
         return map_dict.get(mssql_type, 'STRING')
 

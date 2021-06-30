@@ -19,12 +19,40 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Extend HTTP extra_options to LivyHook and operator (#14816)``
+
+
 1.0.1
 .....
 
-Updated documentation and readme files.
+* ``Updated documentation and readme files.``
 
 1.0.0
 .....
 
-Initial version of the provider.
+* ``Initial version of the provider.``

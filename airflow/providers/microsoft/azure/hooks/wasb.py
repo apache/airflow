@@ -29,7 +29,7 @@ field (see connection `wasb_default` for an example).
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential
+from azure.identity import ClientSecretCredential, ManagedIdentityCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
 
 from airflow.exceptions import AirflowException
@@ -46,7 +46,10 @@ class WasbHook(BaseHook):
     passed to the `BlockBlockService()` constructor. For example, authenticate
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
-    :param wasb_conn_id: Reference to the wasb connection.
+    If no authentication configuration is provided, managed identity will be used (applicable
+    when using Azure compute infrastructure).
+
+    :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :type wasb_conn_id: str
     :param public_read: Whether an anonymous public read access should be used. default is False
     :type public_read: bool
@@ -57,13 +60,57 @@ class WasbHook(BaseHook):
     conn_type = 'wasb'
     hook_name = 'Azure Blob Storage'
 
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "extra__wasb__connection_string": PasswordField(
+                lazy_gettext('Blob Storage Connection String (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__wasb__shared_access_key": PasswordField(
+                lazy_gettext('Blob Storage Shared Access Key (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__wasb__tenant_id": StringField(
+                lazy_gettext('Tenant Id (Active Directory Auth)'), widget=BS3TextFieldWidget()
+            ),
+            "extra__wasb__sas_token": PasswordField(
+                lazy_gettext('SAS Token (optional)'), widget=BS3PasswordFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'port', 'host'],
+            "relabeling": {
+                'login': 'Blob Storage Login (optional)',
+                'password': 'Blob Storage Key (optional)',
+                'host': 'Account Name (Active Directory Auth)',
+            },
+            "placeholders": {
+                'extra': 'additional options for use with FileService and AzureFileVolume',
+                'login': 'account name',
+                'password': 'secret',
+                'host': 'account url',
+                'extra__wasb__connection_string': 'connection string auth',
+                'extra__wasb__tenant_id': 'tenant',
+                'extra__wasb__shared_access_key': 'shared access key',
+                'extra__wasb__sas_token': 'account url or token',
+            },
+        }
+
     def __init__(self, wasb_conn_id: str = default_conn_name, public_read: bool = False) -> None:
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
         self.connection = self.get_conn()
 
-    def get_conn(self) -> BlobServiceClient:  # pylint: disable=too-many-return-statements
+    def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
@@ -74,28 +121,37 @@ class WasbHook(BaseHook):
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
             return BlobServiceClient(account_url=conn.host)
 
-        if extra.get('connection_string'):
+        if extra.get('connection_string') or extra.get('extra__wasb__connection_string'):
             # connection_string auth takes priority
-            return BlobServiceClient.from_connection_string(extra.get('connection_string'))
-        if extra.get('shared_access_key'):
+            connection_string = extra.get('connection_string') or extra.get('extra__wasb__connection_string')
+            return BlobServiceClient.from_connection_string(connection_string)
+        if extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key'):
+            shared_access_key = extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key')
             # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=extra.get('shared_access_key'))
-        if extra.get('tenant_id'):
+            return BlobServiceClient(account_url=conn.host, credential=shared_access_key)
+        if extra.get('tenant_id') or extra.get('extra__wasb__tenant_id'):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(extra.get('tenant_id'), app_id, app_secret)
+            tenant = extra.get('tenant_id') or extra.get('extra__wasb__tenant_id')
+            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
-        sas_token = extra.get('sas_token')
+        sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
         if sas_token and sas_token.startswith('https'):
             return BlobServiceClient(account_url=extra.get('sas_token'))
         if sas_token and not sas_token.startswith('https'):
             return BlobServiceClient(account_url=f"https://{conn.login}.blob.core.windows.net/" + sas_token)
-        else:
-            # Fall back to old auth
-            return BlobServiceClient(
-                account_url=f"https://{conn.login}.blob.core.windows.net/", credential=conn.password, **extra
-            )
+
+        # Fall back to old auth (password) or use managed identity if not provided.
+        credential = conn.password
+        if not credential:
+            credential = ManagedIdentityCredential()
+            self.log.info("Using managed identity as credential")
+        return BlobServiceClient(
+            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            credential=credential,
+            **extra,
+        )
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
@@ -244,7 +300,7 @@ class WasbHook(BaseHook):
         :param kwargs: Optional keyword arguments that `BlobClient.download_blob` takes.
         :type kwargs: object
         """
-        return self.download(container_name, blob_name, **kwargs).readall()
+        return self.download(container_name, blob_name, **kwargs).content_as_text()
 
     def upload(
         self,
@@ -301,13 +357,16 @@ class WasbHook(BaseHook):
         """
         container_client = self._get_container_client(container_name)
         try:
-            self.log.info('Attempting to create container: %s', container_name)
+            self.log.debug('Attempting to create container: %s', container_name)
             container_client.create_container()
             self.log.info("Created container: %s", container_name)
             return container_client
         except ResourceExistsError:
-            self.log.info("Container %s already exists", container_name)
+            self.log.debug("Container %s already exists", container_name)
             return container_client
+        except:  # noqa: E722
+            self.log.info('Error creating container: %s', container_name)
+            raise
 
     def delete_container(self, container_name: str) -> None:
         """
@@ -317,11 +376,14 @@ class WasbHook(BaseHook):
         :type container_name: str
         """
         try:
-            self.log.info('Attempting to delete container: %s', container_name)
+            self.log.debug('Attempting to delete container: %s', container_name)
             self._get_container_client(container_name).delete_container()
             self.log.info('Deleted container: %s', container_name)
         except ResourceNotFoundError:
-            self.log.info('Container %s not found', container_name)
+            self.log.info('Unable to delete container %s (not found)', container_name)
+        except:  # noqa: E722
+            self.log.info('Error deleting container: %s', container_name)
+            raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:
         """
@@ -342,6 +404,7 @@ class WasbHook(BaseHook):
         blob_name: str,
         is_prefix: bool = False,
         ignore_if_missing: bool = False,
+        delimiter: str = '',
         **kwargs,
     ) -> None:
         """
@@ -360,7 +423,9 @@ class WasbHook(BaseHook):
         :type kwargs: object
         """
         if is_prefix:
-            blobs_to_delete = self.get_blobs_list(container_name, prefix=blob_name, **kwargs)
+            blobs_to_delete = self.get_blobs_list(
+                container_name, prefix=blob_name, delimiter=delimiter, **kwargs
+            )
         elif self.check_for_blob(container_name, blob_name):
             blobs_to_delete = [blob_name]
         else:

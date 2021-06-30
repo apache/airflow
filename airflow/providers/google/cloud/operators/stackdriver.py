@@ -23,7 +23,6 @@ from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
-from airflow.utils.decorators import apply_defaults
 
 
 class StackdriverListAlertPoliciesOperator(BaseOperator):
@@ -92,8 +91,6 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     )
     ui_color = "#e5ffcc"
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -201,7 +198,6 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -292,7 +288,6 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -385,7 +380,6 @@ class StackdriverUpsertAlertOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -474,7 +468,6 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -582,8 +575,6 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -692,7 +683,6 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -785,7 +775,6 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -880,7 +869,6 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -971,7 +959,6 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.sensors.bigquery`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.sensors.bigquery`."""
 
 import warnings
 
@@ -39,6 +39,6 @@ class BigQueryTableSensor(BigQueryTableExistenceSensor):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

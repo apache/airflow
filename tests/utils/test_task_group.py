@@ -19,8 +19,13 @@
 import pendulum
 import pytest
 
+from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.models import DAG
+from airflow.models.xcom_arg import XComArg
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
 
@@ -269,7 +274,7 @@ def test_build_task_group_with_task_decorator():
     """
     Test that TaskGroup can be used with the @task decorator.
     """
-    from airflow.operators.python import task
+    from airflow.decorators import task
 
     @task
     def task_1():
@@ -304,11 +309,9 @@ def test_build_task_group_with_task_decorator():
 
         tsk_1 >> group234 >> tsk_5
 
-    # pylint: disable=no-member
     assert tsk_1.operator in tsk_2.operator.upstream_list
     assert tsk_1.operator in tsk_3.operator.upstream_list
     assert tsk_5.operator in tsk_4.operator.downstream_list
-    # pylint: enable=no-member
 
     assert extract_node_id(task_group_to_dict(dag.task_group)) == {
         'id': None,
@@ -342,7 +345,7 @@ def test_build_task_group_with_task_decorator():
 
 def test_sub_dag_task_group():
     """
-    Tests dag.sub_dag() updates task_group correctly.
+    Tests dag.partial_subset() updates task_group correctly.
     """
     execution_date = pendulum.parse("20200101")
     with DAG("test_test_task_group_sub_dag", start_date=execution_date) as dag:
@@ -365,7 +368,7 @@ def test_sub_dag_task_group():
         group234 >> group6
         group234 >> task7
 
-    subdag = dag.sub_dag(task_ids_or_regex="task5", include_upstream=True, include_downstream=False)
+    subdag = dag.partial_subset(task_ids_or_regex="task5", include_upstream=True, include_downstream=False)
 
     assert extract_node_id(task_group_to_dict(subdag.task_group)) == {
         'id': None,
@@ -576,3 +579,422 @@ def test_task_without_dag():
     assert op1.dag == op2.dag == op3.dag
     assert dag.task_group.children.keys() == {"op1", "op2", "op3"}
     assert dag.task_group.children.keys() == dag.task_dict.keys()
+
+
+# taskgroup decorator tests
+
+
+def test_build_task_group_deco_context_manager():
+    """
+    Tests Following :
+    1. Nested TaskGroup creation using taskgroup decorator should create same TaskGroup which can be
+    created using TaskGroup context manager.
+    2. TaskGroup consisting Tasks created using task decorator.
+    3. Node Ids of dags created with taskgroup decorator.
+    """
+
+    from airflow.decorators import task
+
+    # Creating Tasks
+    @task
+    def task_start():
+        """Dummy Task which is First Task of Dag"""
+        return '[Task_start]'
+
+    @task
+    def task_end():
+        """Dummy Task which is Last Task of Dag"""
+        print('[ Task_End ]')
+
+    @task
+    def task_1(value):
+        """Dummy Task1"""
+        return f'[ Task1 {value} ]'
+
+    @task
+    def task_2(value):
+        """Dummy Task2"""
+        print(f'[ Task2 {value} ]')
+
+    @task
+    def task_3(value):
+        """Dummy Task3"""
+        return f'[ Task3 {value} ]'
+
+    @task
+    def task_4(value):
+        """Dummy Task3"""
+        print(f'[ Task4 {value} ]')
+
+    # Creating TaskGroups
+    @task_group_decorator
+    def section_1(value):
+        """TaskGroup for grouping related Tasks"""
+
+        @task_group_decorator()
+        def section_2(value2):
+            """TaskGroup for grouping related Tasks"""
+            return task_4(task_3(value2))
+
+        op1 = task_2(task_1(value))
+        return section_2(op1)
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(
+        dag_id="example_nested_task_group_decorator", start_date=execution_date, tags=["example"]
+    ) as dag:
+        t_start = task_start()
+        sec_1 = section_1(t_start)
+        sec_1.set_downstream(task_end())
+
+    # Testing TaskGroup created using taskgroup decorator
+    assert set(dag.task_group.children.keys()) == {"task_start", "task_end", "section_1"}
+    assert set(dag.task_group.children['section_1'].children.keys()) == {
+        'section_1.task_1',
+        'section_1.task_2',
+        'section_1.section_2',
+    }
+
+    # Testing TaskGroup consisting Tasks created using task decorator
+    assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
+    assert dag.task_dict['section_1.task_2'].downstream_task_ids == {'section_1.section_2.task_3'}
+    assert dag.task_dict['section_1.section_2.task_4'].downstream_task_ids == {'task_end'}
+
+    # Node IDs test
+    node_ids = {
+        'id': None,
+        'children': [
+            {
+                'id': 'section_1',
+                'children': [
+                    {
+                        'id': 'section_1.section_2',
+                        'children': [
+                            {'id': 'section_1.section_2.task_3'},
+                            {'id': 'section_1.section_2.task_4'},
+                        ],
+                    },
+                    {'id': 'section_1.task_1'},
+                    {'id': 'section_1.task_2'},
+                ],
+            },
+            {'id': 'task_end'},
+            {'id': 'task_start'},
+        ],
+    }
+
+    assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
+
+
+def test_build_task_group_with_operators():
+    """Tests DAG with Tasks created with *Operators and TaskGroup created with taskgroup decorator"""
+
+    from airflow.decorators import task
+
+    def task_start():
+        """Dummy Task which is First Task of Dag"""
+        return '[Task_start]'
+
+    def task_end():
+        """Dummy Task which is Last Task of Dag"""
+        print('[ Task_End  ]')
+
+    # Creating Tasks
+    @task
+    def task_1(value):
+        """Dummy Task1"""
+        return f'[ Task1 {value} ]'
+
+    @task
+    def task_2(value):
+        """Dummy Task2"""
+        return f'[ Task2 {value} ]'
+
+    @task
+    def task_3(value):
+        """Dummy Task3"""
+        print(f'[ Task3 {value} ]')
+
+    # Creating TaskGroups
+    @task_group_decorator(group_id='section_1')
+    def section_a(value):
+        """TaskGroup for grouping related Tasks"""
+        return task_3(task_2(task_1(value)))
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(dag_id="example_task_group_decorator_mix", start_date=execution_date, tags=["example"]) as dag:
+        t_start = PythonOperator(task_id='task_start', python_callable=task_start, dag=dag)
+        sec_1 = section_a(t_start.output)
+        t_end = PythonOperator(task_id='task_end', python_callable=task_end, dag=dag)
+        sec_1.set_downstream(t_end)
+
+    # Testing Tasks ing DAG
+    assert set(dag.task_group.children.keys()) == {'section_1', 'task_start', 'task_end'}
+    assert set(dag.task_group.children['section_1'].children.keys()) == {
+        'section_1.task_2',
+        'section_1.task_3',
+        'section_1.task_1',
+    }
+
+    # Testing Tasks downstream
+    assert dag.task_dict['task_start'].downstream_task_ids == {'section_1.task_1'}
+    assert dag.task_dict['section_1.task_3'].downstream_task_ids == {'task_end'}
+
+
+def test_task_group_context_mix():
+    """Test cases to check nested TaskGroup context manager with taskgroup decorator"""
+
+    from airflow.decorators import task
+
+    def task_start():
+        """Dummy Task which is First Task of Dag"""
+        return '[Task_start]'
+
+    def task_end():
+        """Dummy Task which is Last Task of Dag"""
+        print('[ Task_End  ]')
+
+    # Creating Tasks
+    @task
+    def task_1(value):
+        """Dummy Task1"""
+        return f'[ Task1 {value} ]'
+
+    @task
+    def task_2(value):
+        """Dummy Task2"""
+        return f'[ Task2 {value} ]'
+
+    @task
+    def task_3(value):
+        """Dummy Task3"""
+        print(f'[ Task3 {value} ]')
+
+    # Creating TaskGroups
+    @task_group_decorator
+    def section_2(value):
+        """TaskGroup for grouping related Tasks"""
+        return task_3(task_2(task_1(value)))
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(dag_id="example_task_group_decorator_mix", start_date=execution_date, tags=["example"]) as dag:
+        t_start = PythonOperator(task_id='task_start', python_callable=task_start, dag=dag)
+
+        with TaskGroup("section_1", tooltip="section_1") as section_1:
+            sec_2 = section_2(t_start.output)
+            task_s1 = DummyOperator(task_id="task_1")
+            task_s2 = BashOperator(task_id="task_2", bash_command='echo 1')
+            task_s3 = DummyOperator(task_id="task_3")
+
+            sec_2.set_downstream(task_s1)
+            task_s1 >> [task_s2, task_s3]
+
+        t_end = PythonOperator(task_id='task_end', python_callable=task_end, dag=dag)
+        t_start >> section_1 >> t_end
+
+    node_ids = {
+        'id': None,
+        'children': [
+            {
+                'id': 'section_1',
+                'children': [
+                    {
+                        'id': 'section_1.section_2',
+                        'children': [
+                            {'id': 'section_1.section_2.task_1'},
+                            {'id': 'section_1.section_2.task_2'},
+                            {'id': 'section_1.section_2.task_3'},
+                        ],
+                    },
+                    {'id': 'section_1.task_1'},
+                    {'id': 'section_1.task_2'},
+                    {'id': 'section_1.task_3'},
+                    {'id': 'section_1.upstream_join_id'},
+                    {'id': 'section_1.downstream_join_id'},
+                ],
+            },
+            {'id': 'task_end'},
+            {'id': 'task_start'},
+        ],
+    }
+
+    assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
+
+
+def test_default_args():
+    """Testing TaskGroup with default_args"""
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(
+        dag_id='example_task_group_default_args',
+        start_date=execution_date,
+        default_args={
+            "owner": "dag",
+        },
+    ):
+        with TaskGroup("group1", default_args={"owner": "group"}):
+            task_1 = DummyOperator(task_id='task_1')
+            task_2 = DummyOperator(task_id='task_2', owner='task')
+            task_3 = DummyOperator(task_id='task_3', default_args={"owner": "task"})
+
+            assert task_1.owner == 'group'
+            assert task_2.owner == 'task'
+            assert task_3.owner == 'task'
+
+
+def test_duplicate_task_group_id():
+    """Testing automatic suffix assignment for duplicate group_id"""
+
+    from airflow.decorators import task
+
+    @task(task_id='start_task')
+    def task_start():
+        """Dummy Task which is First Task of Dag"""
+        print('[Task_start]')
+
+    @task(task_id='end_task')
+    def task_end():
+        """Dummy Task which is Last Task of Dag"""
+        print('[Task_End]')
+
+    # Creating Tasks
+    @task(task_id='task')
+    def task_1():
+        """Dummy Task1"""
+        print('[Task1]')
+
+    @task(task_id='task')
+    def task_2():
+        """Dummy Task2"""
+        print('[Task2]')
+
+    @task(task_id='task1')
+    def task_3():
+        """Dummy Task3"""
+        print('[Task3]')
+
+    @task_group_decorator('task_group1')
+    def task_group1():
+        task_start()
+        task_1()
+        task_2()
+
+    @task_group_decorator(group_id='task_group1')
+    def task_group2():
+        task_3()
+
+    @task_group_decorator(group_id='task_group1')
+    def task_group3():
+        task_end()
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(dag_id="example_duplicate_task_group_id", start_date=execution_date, tags=["example"]) as dag:
+        task_group1()
+        task_group2()
+        task_group3()
+    node_ids = {
+        'id': None,
+        'children': [
+            {
+                'id': 'task_group1',
+                'children': [
+                    {'id': 'task_group1.start_task'},
+                    {'id': 'task_group1.task'},
+                    {'id': 'task_group1.task__1'},
+                ],
+            },
+            {'id': 'task_group1__1', 'children': [{'id': 'task_group1__1.task1'}]},
+            {'id': 'task_group1__2', 'children': [{'id': 'task_group1__2.end_task'}]},
+        ],
+    }
+
+    assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
+
+
+def test_call_taskgroup_twice():
+    """Test for using same taskgroup decorated function twice"""
+    from airflow.decorators import task
+
+    @task(task_id='start_task')
+    def task_start():
+        """Dummy Task which is First Task of Dag"""
+        print('[Task_start]')
+
+    @task(task_id='end_task')
+    def task_end():
+        """Dummy Task which is Last Task of Dag"""
+        print('[Task_End]')
+
+    # Creating Tasks
+    @task(task_id='task')
+    def task_1():
+        """Dummy Task1"""
+        print('[Task1]')
+
+    @task_group_decorator
+    def task_group1(name: str):
+        print(f'Starting taskgroup {name}')
+        task_start()
+        task_1()
+        task_end()
+
+    execution_date = pendulum.parse("20201109")
+    with DAG(dag_id="example_multi_call_task_groups", start_date=execution_date, tags=["example"]) as dag:
+        task_group1('Call1')
+        task_group1('Call2')
+
+    node_ids = {
+        'id': None,
+        'children': [
+            {
+                'id': 'task_group1',
+                'children': [
+                    {'id': 'task_group1.end_task'},
+                    {'id': 'task_group1.start_task'},
+                    {'id': 'task_group1.task'},
+                ],
+            },
+            {
+                'id': 'task_group1__1',
+                'children': [
+                    {'id': 'task_group1__1.end_task'},
+                    {'id': 'task_group1__1.start_task'},
+                    {'id': 'task_group1__1.task'},
+                ],
+            },
+        ],
+    }
+
+    assert extract_node_id(task_group_to_dict(dag.task_group)) == node_ids
+
+
+def test_pass_taskgroup_output_to_task():
+    """Test that the output of a task group can be passed to a task."""
+    from airflow.decorators import task
+
+    @task
+    def one():
+        return 1
+
+    @task_group_decorator
+    def addition_task_group(num):
+        @task
+        def add_one(i):
+            return i + 1
+
+        return add_one(num)
+
+    @task
+    def increment(num):
+        return num + 1
+
+    @dag(schedule_interval=None, start_date=days_ago(1), default_args={"owner": "airflow"})
+    def wrap():
+        total_1 = one()
+        assert isinstance(total_1, XComArg)
+        total_2 = addition_task_group(total_1)
+        assert isinstance(total_2, XComArg)
+        total_3 = increment(total_2)
+        assert isinstance(total_3, XComArg)
+
+    wrap()

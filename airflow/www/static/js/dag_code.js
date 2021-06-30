@@ -17,20 +17,11 @@
  * under the License.
  */
 
+/* global $ */
+
 import getMetaValue from './meta_value';
 
-const isDemoMode = getMetaValue('demo_mode');
 const isWrapped = getMetaValue('wrapped');
-
-document.addEventListener('DOMContentLoaded', () => {
-  // We blur task_ids in demo mode
-  if (isDemoMode) {
-    $('pre span.s').css({
-      'text-shadow': '0 0 10px red',
-      color: 'transparent',
-    });
-  }
-});
 
 // pygments generates the HTML so set wrap toggle via js
 if (isWrapped) {

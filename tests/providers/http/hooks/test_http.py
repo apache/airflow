@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import os
 import unittest
+from collections import OrderedDict
 from unittest import mock
 
 import pytest
@@ -278,6 +280,94 @@ class TestHttpHook(unittest.TestCase):
         with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
             # will raise NoMockAddress exception if obj1 != request.json()
             HttpHook(method=method).run('v1/test', json=obj1)
+
+    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    def test_verify_set_to_true_by_default(self, mock_session_send):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ):
+            self.get_hook.run('/some/endpoint')
+            mock_session_send.assert_called_once_with(
+                mock.ANY,
+                allow_redirects=True,
+                cert=None,
+                proxies=OrderedDict(),
+                stream=False,
+                timeout=None,
+                verify=True,
+            )
+
+    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
+    def test_requests_ca_bundle_env_var(self, mock_session_send):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ):
+
+            self.get_hook.run('/some/endpoint')
+
+            mock_session_send.assert_called_once_with(
+                mock.ANY,
+                allow_redirects=True,
+                cert=None,
+                proxies=OrderedDict(),
+                stream=False,
+                timeout=None,
+                verify='/tmp/test.crt',
+            )
+
+    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
+    def test_verify_respects_requests_ca_bundle_env_var(self, mock_session_send):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ):
+
+            self.get_hook.run('/some/endpoint', extra_options={'verify': True})
+
+            mock_session_send.assert_called_once_with(
+                mock.ANY,
+                allow_redirects=True,
+                cert=None,
+                proxies=OrderedDict(),
+                stream=False,
+                timeout=None,
+                verify='/tmp/test.crt',
+            )
+
+    @mock.patch('airflow.providers.http.hooks.http.requests.Session.send')
+    @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
+    def test_verify_false_parameter_overwrites_set_requests_ca_bundle_env_var(self, mock_session_send):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ):
+            self.get_hook.run('/some/endpoint', extra_options={'verify': False})
+
+            mock_session_send.assert_called_once_with(
+                mock.ANY,
+                allow_redirects=True,
+                cert=None,
+                proxies=OrderedDict(),
+                stream=False,
+                timeout=None,
+                verify=False,
+            )
+
+    @requests_mock.mock()
+    def test_connection_success(self, m):
+        m.get('http://test:8080', status_code=200, json={"status": {"status": 200}}, reason='OK')
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            status, msg = self.get_hook.test_connection()
+            assert status is True
+            assert msg == 'Connection successfully tested'
+
+    @requests_mock.mock()
+    def test_connection_failure(self, m):
+        m.get('http://test:8080', status_code=500, json={"message": "internal server error"}, reason='NOT_OK')
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection):
+            status, msg = self.get_hook.test_connection()
+            assert status is False
+            assert msg == '500:NOT_OK'
 
 
 send_email_test = mock.Mock()

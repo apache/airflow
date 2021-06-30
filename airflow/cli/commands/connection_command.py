@@ -22,14 +22,14 @@ import sys
 from typing import Any, Dict, List
 from urllib.parse import urlparse, urlunparse
 
-import yaml
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.utils import cli as cli_utils
+from airflow.secrets.local_filesystem import load_connections_dict
+from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
@@ -234,3 +234,26 @@ def connections_delete(args):
         else:
             session.delete(to_delete)
             print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
+
+
+@cli_utils.action_logging
+def connections_import(args):
+    """Imports connections from a file"""
+    if os.path.exists(args.file):
+        _import_helper(args.file)
+    else:
+        raise SystemExit("Missing connections file.")
+
+
+def _import_helper(file_path):
+    """Load connections from a file and save them to the DB. On collision, skip."""
+    connections_dict = load_connections_dict(file_path)
+    with create_session() as session:
+        for conn_id, conn in connections_dict.items():
+            if session.query(Connection).filter(Connection.conn_id == conn_id).first():
+                print(f'Could not import connection {conn_id}: connection already exists.')
+                continue
+
+            session.add(conn)
+            session.commit()
+            print(f'Imported connection {conn_id}')

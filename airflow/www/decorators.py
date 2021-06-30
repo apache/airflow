@@ -27,7 +27,7 @@ from flask import after_this_request, g, request
 from airflow.models import Log
 from airflow.utils.session import create_session
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def action_logging(f: T) -> T:
@@ -68,7 +68,7 @@ def gzipped(f: T) -> T:
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
-        def zipper(response):  # pylint: disable=unused-variable
+        def zipper(response):
             accept_encoding = request.headers.get('Accept-Encoding', '')
 
             if 'gzip' not in accept_encoding.lower():

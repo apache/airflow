@@ -53,7 +53,7 @@ class Pool(Base):
     DEFAULT_POOL_NAME = 'default_pool'
 
     def __repr__(self):
-        return str(self.pool)  # pylint: disable=E0012
+        return str(self.pool)
 
     @staticmethod
     @provide_session
@@ -106,17 +106,21 @@ class Pool(Base):
 
         pool_rows: Iterable[Tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
+            if total_slots == -1:
+                total_slots = float('inf')  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
         state_count_by_pool = (
-            session.query(TaskInstance.pool, TaskInstance.state, func.count())
+            session.query(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
             .group_by(TaskInstance.pool, TaskInstance.state)
         ).all()
 
         # calculate queued and running metrics
-        count: int
         for (pool_name, state, count) in state_count_by_pool:
+            # Some databases return decimal.Decimal here.
+            count = int(count)
+
             stats_dict: Optional[PoolStats] = pools.get(pool_name)
             if not stats_dict:
                 continue
@@ -161,12 +165,13 @@ class Pool(Base):
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
-        return (
+        return int(
             session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
             .scalar()
-        ) or 0
+            or 0
+        )
 
     @provide_session
     def running_slots(self, session: Session):
@@ -178,12 +183,13 @@ class Pool(Base):
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
-        return (
+        return int(
             session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
-        ) or 0
+            or 0
+        )
 
     @provide_session
     def queued_slots(self, session: Session):
@@ -195,12 +201,13 @@ class Pool(Base):
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
-        return (
+        return int(
             session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()
-        ) or 0
+            or 0
+        )
 
     @provide_session
     def open_slots(self, session: Session) -> float:

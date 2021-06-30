@@ -36,18 +36,13 @@ class AzureContainerInstanceHook(AzureBaseHook):
     client_id (Application ID) as login, the generated password as password,
     and tenantId and subscriptionId in the extra's field as a json.
 
-    :param conn_id: connection id of a service principal which will be used
-        to start the container instance
-    :type conn_id: str
+    :param conn_id: :ref:`Azure connection id<howto/connection:azure>` of
+        a service principal which will be used to start the container instance.
+    :type azure_conn_id: str
     """
 
-    conn_name_attr = 'conn_id'
-    default_conn_name = 'azure_default'
-    conn_type = 'azure_container_instances'
-    hook_name = 'Azure Container Instance'
-
-    def __init__(self, conn_id: str = default_conn_name) -> None:
-        super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=conn_id)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(sdk_client=ContainerInstanceManagementClient, *args, **kwargs)
         self.connection = self.get_conn()
 
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:

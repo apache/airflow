@@ -37,7 +37,19 @@ def create_session():
         session.close()
 
 
-RT = TypeVar("RT")  # pylint: disable=invalid-name
+RT = TypeVar("RT")
+
+
+def find_session_idx(func: Callable[..., RT]) -> int:
+    """Find session index in function call parameter."""
+    func_params = signature(func).parameters
+    try:
+        # func_params is an ordered dict -- this is the "recommended" way of getting the position
+        session_args_idx = tuple(func_params).index("session")
+    except ValueError:
+        raise ValueError(f"Function {func.__qualname__} has no `session` argument") from None
+
+    return session_args_idx
 
 
 def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
@@ -47,14 +59,7 @@ def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
     database transaction, you pass it to the function, if not this wrapper
     will create one and close it for you.
     """
-    func_params = signature(func).parameters
-    try:
-        # func_params is an ordered dict -- this is the "recommended" way of getting the position
-        session_args_idx = tuple(func_params).index("session")
-    except ValueError:
-        raise ValueError(f"Function {func.__qualname__} has no `session` argument") from None
-    # We don't need this anymore -- ensure we don't keep a reference to it by mistake
-    del func_params
+    session_args_idx = find_session_idx(func)
 
     @wraps(func)
     def wrapper(*args, **kwargs) -> RT:

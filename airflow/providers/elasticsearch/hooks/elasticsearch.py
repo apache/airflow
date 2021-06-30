@@ -25,7 +25,15 @@ from airflow.models.connection import Connection as AirflowConnection
 
 
 class ElasticsearchHook(DbApiHook):
-    """Interact with Elasticsearch through the elasticsearch-dbapi."""
+    """
+    Interact with Elasticsearch through the elasticsearch-dbapi.
+
+    This hook uses the Elasticsearch conn_id.
+
+    :param elasticsearch_conn_id: The :ref:`ElasticSearch connection id <howto/connection:elasticsearch>`
+        used for Elasticsearch credentials.
+    :type elasticsearch_conn_id: str
+    """
 
     conn_name_attr = 'elasticsearch_conn_id'
     default_conn_name = 'elasticsearch_default'

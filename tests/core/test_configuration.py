@@ -19,6 +19,7 @@ import io
 import os
 import re
 import tempfile
+import textwrap
 import unittest
 import warnings
 from collections import OrderedDict
@@ -28,7 +29,6 @@ import pytest
 
 from airflow import configuration
 from airflow.configuration import (
-    DEFAULT_CONFIG,
     AirflowConfigException,
     AirflowConfigParser,
     conf,
@@ -79,6 +79,15 @@ class TestConf(unittest.TestCase):
         assert conf.get("core", "percent") == "with%inside"
         assert conf.get("core", "PERCENT") == "with%inside"
         assert conf.get("CORE", "PERCENT") == "with%inside"
+
+    def test_config_as_dict(self):
+        """Test that getting config as dict works even if
+        environment has non-legal env vars"""
+        with unittest.mock.patch.dict('os.environ'):
+            os.environ['AIRFLOW__VAR__broken'] = "not_ok"
+            asdict = conf.as_dict(raw=True, display_sensitive=True)
+        assert asdict.get('VAR') is None
+        assert asdict['testsection']['testkey'] == 'testvalue'
 
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
@@ -561,8 +570,17 @@ notacommand = OK
             assert test_cmdenv_conf.get('testcmdenv', 'notacommand') == 'OK'
 
     def test_parameterized_config_gen(self):
+        config = textwrap.dedent(
+            """
+            [core]
+            dags_folder = {AIRFLOW_HOME}/dags
+            sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/airflow.db
+            parallelism = 32
+            fernet_key = {FERNET_KEY}
+        """
+        )
 
-        cfg = parameterized_config(DEFAULT_CONFIG)
+        cfg = parameterized_config(config)
 
         # making sure some basic building blocks are present:
         assert "[core]" in cfg
@@ -636,18 +654,20 @@ notacommand = OK
     def test_confirm_unittest_mod(self):
         assert conf.get('core', 'unit_test_mode')
 
-    @conf_vars({("core", "store_serialized_dags"): "True"})
+    @conf_vars({})
     def test_store_dag_code_default_config(self):
-        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
-        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
-        assert not conf.has_option("core", "store_dag_code")
-        assert store_serialized_dags
+        store_dag_code = conf.getboolean("core", "store_dag_code")
+        assert conf.has_option("core", "store_dag_code")
         assert store_dag_code
 
-    @conf_vars({("core", "store_serialized_dags"): "True", ("core", "store_dag_code"): "False"})
-    def test_store_dag_code_config_when_set(self):
-        store_serialized_dags = conf.getboolean('core', 'store_serialized_dags', fallback=False)
-        store_dag_code = conf.getboolean("core", "store_dag_code", fallback=store_serialized_dags)
+    @conf_vars({("core", "store_dag_code"): "True"})
+    def test_store_dag_code_config_when_set_to_true(self):
+        store_dag_code = conf.getboolean("core", "store_dag_code")
         assert conf.has_option("core", "store_dag_code")
-        assert store_serialized_dags
+        assert store_dag_code
+
+    @conf_vars({("core", "store_dag_code"): "False"})
+    def test_store_dag_code_config_when_set(self):
+        store_dag_code = conf.getboolean("core", "store_dag_code")
+        assert conf.has_option("core", "store_dag_code")
         assert not store_dag_code

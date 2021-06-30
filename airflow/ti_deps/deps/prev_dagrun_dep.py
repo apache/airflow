@@ -34,37 +34,37 @@ class PrevDagrunDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         if dep_context.ignore_depends_on_past:
-            yield self._passing_status(
-                reason="The context specified that the state of past DAGs could be ignored."
-            )
+            reason = "The context specified that the state of past DAGs could be ignored."
+            yield self._passing_status(reason=reason)
             return
 
         if not ti.task.depends_on_past:
             yield self._passing_status(reason="The task did not have depends_on_past set.")
             return
 
-        # Don't depend on the previous task instance if we are the first task
-        dag = ti.task.dag
-        if dag.catchup:
-            if dag.previous_schedule(ti.execution_date) is None:
-                yield self._passing_status(reason="This task does not have a schedule or is @once")
-                return
-            if dag.previous_schedule(ti.execution_date) < ti.task.start_date:
-                yield self._passing_status(
-                    reason="This task instance was the first task instance for its task."
-                )
-                return
+        dr = ti.get_dagrun(session=session)
+        if not dr:
+            yield self._passing_status(reason="This task instance does not belong to a DAG.")
+            return
+
+        # Don't depend on the previous task instance if we are the first task.
+        catchup = ti.task.dag.catchup
+        if catchup:
+            last_dagrun = dr.get_previous_scheduled_dagrun(session)
         else:
-            dr = ti.get_dagrun(session=session)
-            last_dagrun = dr.get_previous_dagrun(session=session) if dr else None
+            last_dagrun = dr.get_previous_dagrun(session=session)
 
-            if not last_dagrun:
-                yield self._passing_status(
-                    reason="This task instance was the first task instance for its task."
-                )
-                return
+        # First ever run for this DAG.
+        if not last_dagrun:
+            yield self._passing_status(reason="This task instance was the first task instance for its task.")
+            return
 
-        previous_ti = ti.get_previous_ti(session=session)
+        # There was a DAG run, but the task wasn't active back then.
+        if catchup and last_dagrun.execution_date < ti.task.start_date:
+            yield self._passing_status(reason="This task instance was the first task instance for its task.")
+            return
+
+        previous_ti = last_dagrun.get_task_instance(ti.task_id, session=session)
         if not previous_ti:
             yield self._failing_status(
                 reason="depends_on_past is true for this task's DAG, but the previous "

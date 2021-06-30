@@ -24,19 +24,17 @@ FROM centos:7
 WORKDIR /root/
 
 # Dev stuff
-RUN yum -y install curl wget
-
-# python
-RUN curl "https://bootstrap.pypa.io/get-pip.py" -o /tmp/get-pip.py && \
-    python /tmp/get-pip.py && \
-    rm /tmp/get-pip.py
-
-# supervisord
-RUN pip install supervisor==3.3.3 && \
+# hadolint ignore=DL3033
+RUN yum -y install curl wget python36 && yum clean all && \
+    curl "https://bootstrap.pypa.io/get-pip.py" -o /tmp/get-pip.py && \
+    python3 /tmp/get-pip.py && \
+    rm /tmp/get-pip.py && \
+    pip install --no-cache-dir supervisor && \
     mkdir -p /var/log/supervisord/
 
 # kerberos server
-RUN yum -y install ntp krb5-server krb5-libs
+# hadolint ignore=DL3033
+RUN yum -y install ntp krb5-server krb5-libs && yum clean all
 
 # kerberos server configuration
 ENV KRB5_CONFIG=/etc/krb5.conf
@@ -61,11 +59,11 @@ COPY supervisord.conf /etc/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
-LABEL org.apache.airflow.component="krb5-kdc-server"
-LABEL org.apache.airflow.krb5-kdc-server.core.version="krb5"
-LABEL org.apache.airflow.airflow_bats.version="${AIRFLOW_KRB5KDCSERVER_VERSION}"
-LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
-LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
+LABEL org.apache.airflow.component="krb5-kdc-server" \
+    org.apache.airflow.krb5-kdc-server.core.version="krb5" \
+    org.apache.airflow.airflow-krb5-kdc-server.version="${AIRFLOW_KRB5KDCSERVER_VERSION}" \
+    org.apache.airflow.commit-sha="${COMMIT_SHA}" \
+    maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
 # when container is starting
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisord.conf"]
+CMD ["/usr/local/bin/supervisord", "-n", "-c", "/etc/supervisord.conf"]

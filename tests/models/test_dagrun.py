@@ -611,7 +611,7 @@ class TestDagRun(unittest.TestCase):
             assert State.NONE == first_ti.state
 
     @parameterized.expand([(state,) for state in State.task_states])
-    @mock.patch('airflow.models.dagrun.task_instance_mutation_hook')
+    @mock.patch('airflow.settings.task_instance_mutation_hook')
     def test_task_instance_mutation_hook(self, state, mock_hook):
         def mutate_task_instance(task_instance):
             if task_instance.queue == 'queue1':
@@ -651,8 +651,8 @@ class TestDagRun(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         task = dag.tasks[0]
 
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0), is_backfill=True)
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0), is_backfill=True)
 
         prev_ti = TI(task, timezone.datetime(2016, 1, 1, 0, 0, 0))
         ti = TI(task, timezone.datetime(2016, 1, 2, 0, 0, 0))
@@ -678,8 +678,8 @@ class TestDagRun(unittest.TestCase):
 
         # For ti.set_state() to work, the DagRun has to exist,
         # Otherwise ti.previous_ti returns an unpersisted TI
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
-        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0), is_backfill=True)
+        self.create_dag_run(dag, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0), is_backfill=True)
 
         prev_ti_downstream = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
         ti = TI(task=upstream, execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0))

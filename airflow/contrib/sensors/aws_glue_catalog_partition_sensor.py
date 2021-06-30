@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.glue_catalog_partition`."""
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`.
+"""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import AwsGlueCatalogPartitionSensor  # noqa
 
 warnings.warn(

@@ -1,4 +1,7 @@
 {
+  "airbyte": [
+    "http"
+  ],
   "amazon": [
     "apache.hive",
     "exasol",
@@ -48,7 +51,8 @@
     "presto",
     "salesforce",
     "sftp",
-    "ssh"
+    "ssh",
+    "trino"
   ],
   "hashicorp": [
     "google"
@@ -57,12 +61,10 @@
     "google",
     "oracle"
   ],
-  "microsoft.mssql": [
-    "odbc"
-  ],
   "mysql": [
     "amazon",
     "presto",
+    "trino",
     "vertica"
   ],
   "opsgenie": [
@@ -70,6 +72,9 @@
   ],
   "postgres": [
     "amazon"
+  ],
+  "salesforce": [
+    "tableau"
   ],
   "sftp": [
     "ssh"

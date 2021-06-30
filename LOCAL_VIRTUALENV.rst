@@ -21,8 +21,8 @@
 Local Virtual Environment (virtualenv)
 ======================================
 
-Use the local virtualenv development option in the combination with the `Breeze
-<BREEZE.rst#aout-airflow-breeze>`_ development environment. This option helps
+Use the local virtualenv development option in combination with the `Breeze
+<BREEZE.rst#using-local-virtualenv-environment-in-your-host-ide>`_ development environment. This option helps
 you benefit from the infrastructure provided
 by your IDE (for example, IntelliJ PyCharm/IntelliJ Idea) and work in the
 environment where all necessary dependencies and tests are available and set up
@@ -51,8 +51,8 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.6, 3.7, 3.8)
-* MySQL
+* Python (One of: 3.6, 3.7, 3.8, 3.9)
+* MySQL 5.7+
 * libxml
 
 Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
@@ -63,15 +63,7 @@ Extra Packages
 
 .. note::
 
-   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-   depend on your choice of extras. In order to install Airflow you might need to either downgrade
-   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
-   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
-
-   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
-   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
-   Due to those constraints, only ``pip`` installation is currently officially supported.
+   Only ``pip`` installation is currently officially supported.
 
    While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -110,7 +102,7 @@ Creating a Local virtualenv
 
 To use your IDE for Airflow development and testing, you need to configure a virtual
 environment. Ideally you should set up virtualenv for all Python versions that Airflow
-supports (3.6, 3.7, 3.8).
+supports (3.6, 3.7, 3.8, 3.9).
 
 To create and initialize the local virtualenv:
 
@@ -137,15 +129,7 @@ To create and initialize the local virtualenv:
 
 .. note::
 
-   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-   depend on your choice of extras. In order to install Airflow you might need to either downgrade
-   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
-   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
-
-   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
-   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
-   Due to those constraints, only ``pip`` installation is currently officially supported.
+   Only ``pip`` installation is currently officially supported.
 
    While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -167,7 +151,7 @@ for different python versions:
    .. code-block:: bash
 
     pip install -e ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
@@ -180,7 +164,7 @@ You can also install Airflow in non-editable mode:
    .. code-block:: bash
 
     pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 This will copy the sources to directory where usually python packages are installed. You can see the list
 of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
@@ -189,7 +173,7 @@ sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable 
    .. code-block:: bash
 
     INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 
 Note: when you first initialize database (the next step), you may encounter some problems.
@@ -247,7 +231,7 @@ before running ``pip install`` command:
 .. code-block:: bash
 
   INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-3.6.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
 
 This way no providers packages will be installed and they will always be imported from the "airflow/providers"
 folder.

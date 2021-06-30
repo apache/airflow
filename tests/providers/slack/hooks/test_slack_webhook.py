@@ -60,26 +60,28 @@ class TestSlackWebhookHook(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id='slack-webhook-default',
-                conn_type='http',
+                conn_type='slackwebhook',
                 extra='{"webhook_token": "your_token_here"}',
             )
         )
         db.merge_conn(
             Connection(
                 conn_id='slack-webhook-url',
-                conn_type='http',
+                conn_type='slackwebhook',
                 host='https://hooks.slack.com/services/T000/B000/XXX',
             )
         )
         db.merge_conn(
             Connection(
-                conn_id='slack-webhook-host', conn_type='http', host='https://hooks.slack.com/services/T000/'
+                conn_id='slack-webhook-host',
+                conn_type='slackwebhook',
+                host='https://hooks.slack.com/services/T000/',
             )
         )
         db.merge_conn(
             Connection(
                 conn_id='slack-webhook-with-password',
-                conn_type='http',
+                conn_type='slackwebhook',
                 password='your_token_here',
             )
         )

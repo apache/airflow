@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
 )
-from airflow.utils.decorators import apply_defaults
 from airflow.version import version
 
 
@@ -150,7 +149,6 @@ class CloudFunctionDeployFunctionOperator(BaseOperator):
     )
     # [END gcf_function_deploy_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -360,7 +358,6 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
     )
     # [END gcf_function_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -442,7 +439,6 @@ class CloudFunctionInvokeFunctionOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

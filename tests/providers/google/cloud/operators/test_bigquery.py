@@ -46,6 +46,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
+    BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
     BigQueryValueCheckOperator,
 )
@@ -284,6 +285,36 @@ class TestBigQueryUpdateTableOperator(unittest.TestCase):
         mock_hook.return_value.update_table.assert_called_once_with(
             table_resource=table_resource,
             fields=None,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+
+class TestBigQueryUpdateTableSchemaOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute(self, mock_hook):
+
+        schema_field_updates = [
+            {
+                'name': 'emp_name',
+                'description': 'Name of employee',
+            }
+        ]
+
+        operator = BigQueryUpdateTableSchemaOperator(
+            schema_fields_updates=schema_field_updates,
+            include_policy_tags=False,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        operator.execute(None)
+
+        mock_hook.return_value.update_table_schema.assert_called_once_with(
+            schema_fields_updates=schema_field_updates,
+            include_policy_tags=False,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
             project_id=TEST_GCP_PROJECT_ID,
@@ -723,23 +754,38 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
         )
 
 
+@pytest.mark.parametrize(
+    "operator_class, kwargs",
+    [
+        (BigQueryCheckOperator, dict(sql='Select * from test_table')),
+        (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
+        (BigQueryIntervalCheckOperator, dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5})),
+    ],
+)
+class TestBigQueryCheckOperators:
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryDbHookMixin.get_db_hook")
+    def test_get_db_hook(
+        self,
+        mock_get_db_hook,
+        operator_class,
+        kwargs,
+    ):
+        operator = operator_class(task_id=TASK_ID, gcp_conn_id='google_cloud_default', **kwargs)
+        operator.get_db_hook()
+        mock_get_db_hook.assert_called_once()
+
+
 class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
     @parameterized.expand(
         [
-            (BigQueryCheckOperator, dict(sql='Select * from test_table', task_id=TASK_ID)),
-            (
-                BigQueryValueCheckOperator,
-                dict(sql='Select * from test_table', pass_value=95, task_id=TASK_ID),
-            ),
-            (
-                BigQueryIntervalCheckOperator,
-                dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5}, task_id=TASK_ID),
-            ),
-            (BigQueryGetDataOperator, dict(dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID, task_id=TASK_ID)),
-            (BigQueryExecuteQueryOperator, dict(sql='Select * from test_table', task_id=TASK_ID)),
-            (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET, task_id=TASK_ID)),
-            (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET, task_id=TASK_ID)),
-            (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET, task_id=TASK_ID)),
+            (BigQueryCheckOperator, dict(sql='Select * from test_table')),
+            (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
+            (BigQueryIntervalCheckOperator, dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5})),
+            (BigQueryGetDataOperator, dict(dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID)),
+            (BigQueryExecuteQueryOperator, dict(sql='Select * from test_table')),
+            (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET)),
+            (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET)),
+            (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET)),
         ]
     )
     def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
@@ -751,7 +797,7 @@ class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
                 "You should pass the gcp_conn_id parameter."
             ),
         ):
-            operator = operator_class(bigquery_conn_id=bigquery_conn_id, **kwargs)
+            operator = operator_class(task_id=TASK_ID, bigquery_conn_id=bigquery_conn_id, **kwargs)
             assert bigquery_conn_id == operator.gcp_conn_id
 
 

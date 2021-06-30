@@ -26,14 +26,14 @@ Airflow including labels, milestones, and priorities as well as the process
 of resolving issues.
 
 An unusual element of the Apache Airflow project is that you can open a PR
-to fix an issue or make an enhancement, without needing to open a PR first.
+to fix an issue or make an enhancement, without needing to open an issue first.
 This is intended to make it as easy as possible to contribute to
 the project.
 
 Labels
 ''''''
 
-Since Apache Airflow uses Github Issues as the issue tracking system, the
+Since Apache Airflow uses GitHub Issues as the issue tracking system, the
 use of labels is extensive. Though issue labels tend to change over time
 based on components within the project, the majority of the ones listed
 below should stand the test of time.

@@ -31,10 +31,13 @@ Authentication may be performed using any of the `boto3 options <https://boto3.a
 To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified, or
 ``aws://``).
 
+
 Default Connection IDs
 -----------------------
 
-The default connection ID is ``aws_default``.
+The default connection ID is ``aws_default``. If the environment/machine where you are running Airflow has the
+file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
+automatically the credentials from there.
 
 .. note:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
     on install. This means that by default the ``aws_default`` connection used the ``us-east-1`` region.
@@ -73,6 +76,8 @@ Extra (optional)
 
     * ``config_kwargs``: Additional ``kwargs`` used to construct a ``botocore.config.Config`` passed to *boto3.client* and *boto3.resource*.
     * ``session_kwargs``: Additional ``kwargs`` passed to *boto3.session.Session*.
+
+    * ``profile``: If you are getting your credentials from the credentials file, you can specify the profile with this.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
@@ -154,6 +159,12 @@ This assumes all other Connection fields eg **Login** are empty.
           "headers":{"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
           "verify":false
         },
+        "idp_request_retry_kwargs": {
+          "total": 10,
+          "backoff_factor":1,
+          "status":10,
+          "status_forcelist": [400, 429, 500, 502, 503, 504]
+        },
         "log_idp_response":false,
         "saml_response_xpath":"////INPUT[@NAME='SAMLResponse']/@VALUE",
       },
@@ -168,6 +179,7 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     * ``idp_auth_method``: Specify "http_spegno_auth" to use the Python ``requests_gssapi`` library. This library is more up to date than ``requests_kerberos`` and is backward compatible. See ``requests_gssapi`` documentation on PyPI.
     * ``mutual_authentication``: Can be "REQUIRED", "OPTIONAL" or "DISABLED". See ``requests_gssapi`` documentation on PyPI.
     * ``idp_request_kwargs``: Additional ``kwargs`` passed to ``requests`` when requesting from the IDP (over HTTP/S).
+    * ``idp_request_retry_kwargs``: Additional ``kwargs`` to construct a ``urllib3.util.Retry`` used as a retry strategy when requesting from the IDP. See the ``urllib3`` documentation for more details.
     * ``log_idp_response``: Useful for debugging - if specified, print the IDP response content to the log. Note that a successful response will contain sensitive information!
     * ``saml_response_xpath``: How to query the IDP response using XML / HTML xpath.
     * ``assume_role_kwargs``: Additional ``kwargs`` passed to ``sts_client.assume_role_with_saml``.

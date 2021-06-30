@@ -42,17 +42,15 @@ else
     FULL_TESTS_NEEDED_LABEL="false"
 fi
 
-function check_upgrade_to_newer_dependencies() {
+function check_upgrade_to_newer_dependencies_needed() {
     # shellcheck disable=SC2153
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
-            ${EVENT_NAME} == 'push' || ${EVENT_NAME} == "scheduled" ]]; then
+            ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
         # Trigger upgrading to latest constraints where label is set or when
         # SHA of the merge commit triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
         # Cached in the image this way
         upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
-    else
-        upgrade_to_newer_dependencies="false"
     fi
 }
 
@@ -63,14 +61,16 @@ function output_all_basic_variables() {
         initialization::ga_output all-python-versions \
             "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
         initialization::ga_output python-versions-list-as-string "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
+        initialization::ga_output kubernetes-versions-list-as-string "${CURRENT_KUBERNETES_VERSIONS[*]}"
     else
         initialization::ga_output python-versions \
             "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
-        # this will work as long as DEFAULT_PYTHON_MAJOR_VERSION is the same master/v1-10
+        # this will work as long as DEFAULT_PYTHON_MAJOR_VERSION is the same on HEAD
         # all-python-versions are used in BuildImage Workflow
         initialization::ga_output all-python-versions \
             "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
         initialization::ga_output python-versions-list-as-string "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+        initialization::ga_output kubernetes-versions-list-as-string "${DEFAULT_KUBERNETES_VERSION}"
     fi
     initialization::ga_output default-python-version "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
 
@@ -103,8 +103,18 @@ function output_all_basic_variables() {
         initialization::ga_output mysql-versions \
             "$(initialization::parameters_to_json "${MYSQL_VERSION}")"
     fi
-
     initialization::ga_output default-mysql-version "${MYSQL_VERSION}"
+
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
+        initialization::ga_output mssql-versions \
+            "$(initialization::parameters_to_json "${CURRENT_MSSQL_VERSIONS[@]}")"
+    else
+        initialization::ga_output mssql-versions \
+            "$(initialization::parameters_to_json "${MSSQL_VERSION}")"
+    fi
+    initialization::ga_output default-mssql-version "${MSSQL_VERSION}"
+
+
 
     initialization::ga_output kind-versions \
         "$(initialization::parameters_to_json "${CURRENT_KIND_VERSIONS[@]}")"
@@ -116,15 +126,22 @@ function output_all_basic_variables() {
 
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
-        initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }]'
-        initialization::ga_output sqlite-exclude '[{ "python-version": "3.8" }]'
+        initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }, { "python-version": "3.9" }]'
+        initialization::ga_output mssql-exclude '[{ "python-version": "3.6" }, { "python-version": "3.8" }]'
+        initialization::ga_output sqlite-exclude '[{ "python-version": "3.7" }, { "python-version": "3.8" }]'
     else
         initialization::ga_output postgres-exclude '[]'
         initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output mssql-exclude '[]'
         initialization::ga_output sqlite-exclude '[]'
     fi
 
+
+    initialization::ga_output default-helm-version "${HELM_VERSION}"
     initialization::ga_output kubernetes-exclude '[]'
+
+    initialization::ga_output default-branch "${DEFAULT_BRANCH}"
+
 }
 
 function get_changed_files() {
@@ -200,8 +217,16 @@ function set_upgrade_to_newer_dependencies() {
     initialization::ga_output upgrade-to-newer-dependencies "${@}"
 }
 
+function needs_ui_tests() {
+    initialization::ga_output run-ui-tests "${@}"
+}
 
-ALL_TESTS="Always Core Other API CLI Providers WWW Integration Heisentests"
+if [[ ${DEFAULT_BRANCH} == "main" ]]; then
+    ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
+else
+    # Skips Provider tests in case current default branch is not main
+    ALL_TESTS="Always API Core Other CLI WWW Integration"
+fi
 readonly ALL_TESTS
 
 function set_outputs_run_everything_and_exit() {
@@ -216,11 +241,12 @@ function set_outputs_run_everything_and_exit() {
     set_basic_checks_only "false"
     set_docs_build "true"
     set_image_build "true"
-    set_upgrade_to_newer_dependencies "${INCOMING_COMMIT_SHA}"
+    set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
+    needs_ui_tests "true"
     exit
 }
 
-function set_outputs_run_all_tests() {
+function set_outputs_run_all_python_tests() {
     run_tests "true"
     run_kubernetes_tests "true"
     set_test_types "${ALL_TESTS}"
@@ -242,6 +268,7 @@ function set_output_skip_all_tests_and_docs_and_exit() {
     set_docs_build "false"
     set_image_build "false"
     set_upgrade_to_newer_dependencies "false"
+    needs_ui_tests "false"
     exit
 }
 
@@ -258,6 +285,7 @@ function set_output_skip_tests_but_build_images_and_exit() {
     set_docs_build "true"
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
+    needs_ui_tests "false"
     exit
 }
 
@@ -314,7 +342,7 @@ function check_if_python_security_scans_should_be_run() {
 }
 
 function check_if_setup_files_changed() {
-    start_end::group_start "Check Python security scans"
+    start_end::group_start "Check setup.py/cfg changed"
     local pattern_array=(
         "^setup.cfg"
         "^setup.py"
@@ -329,9 +357,9 @@ function check_if_setup_files_changed() {
 
 
 function check_if_javascript_security_scans_should_be_run() {
-    start_end::group_start "Check Javascript security scans"
+    start_end::group_start "Check JavaScript security scans"
     local pattern_array=(
-        "^airflow/.*\.js"
+        "^airflow/.*\.[jt]sx?"
         "^airflow/.*\.lock"
     )
     show_changed_files
@@ -405,6 +433,24 @@ function check_if_docs_should_be_generated() {
     else
         image_build_needed="true"
         docs_build_needed="true"
+    fi
+    start_end::group_end
+}
+
+function check_if_ui_tests_should_be_run() {
+    start_end::group_start "Check UI"
+    local pattern_array=(
+        "^airflow/ui/.*\.[tj]sx?$"
+        # tsconfig.json, package.json, etc.
+        "^airflow/ui/[^/]+\.json$"
+        "^airflow/ui/.*\.lock$"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_ui_tests "false"
+    else
+        needs_ui_tests "true"
     fi
     start_end::group_end
 }
@@ -541,6 +587,18 @@ function get_count_www_files() {
     start_end::group_end
 }
 
+function get_count_ui_files() {
+    start_end::group_start "Count ui files"
+    local pattern_array=(
+        "^airflow/ui/"
+    )
+    show_changed_files
+    COUNT_UI_CHANGED_FILES=$(count_changed_files)
+    echo "Files count: ${COUNT_UI_CHANGED_FILES}"
+    readonly COUNT_UI_CHANGED_FILES
+    start_end::group_end
+}
+
 function get_count_kubernetes_files() {
     start_end::group_start "Count kubernetes files"
     local pattern_array=(
@@ -558,7 +616,7 @@ function get_count_kubernetes_files() {
 
 function calculate_test_types_to_run() {
     start_end::group_start "Count core/other files"
-    COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - COUNT_KUBERNETES_CHANGED_FILES))
+    COUNT_CORE_OTHER_CHANGED_FILES=$((COUNT_ALL_CHANGED_FILES - COUNT_WWW_CHANGED_FILES - COUNT_UI_CHANGED_FILES - COUNT_PROVIDERS_CHANGED_FILES - COUNT_CLI_CHANGED_FILES - COUNT_API_CHANGED_FILES - COUNT_KUBERNETES_CHANGED_FILES))
 
     readonly COUNT_CORE_OTHER_CHANGED_FILES
     echo
@@ -568,9 +626,9 @@ function calculate_test_types_to_run() {
         # Running all tests because some core or other files changed
         echo
         echo "Looks like ${COUNT_CORE_OTHER_CHANGED_FILES} files changed in the core/other area and"
-        echo "We have to run all tests. This will take longer than usual"
+        echo "We have to run all python tests. This will take longer than usual"
         echo
-        set_outputs_run_all_tests
+        set_outputs_run_all_python_tests
     else
         if [[ ${COUNT_KUBERNETES_CHANGED_FILES} != "0" ]]; then
             kubernetes_tests_needed="true"
@@ -590,11 +648,18 @@ function calculate_test_types_to_run() {
             SELECTED_TESTS="${SELECTED_TESTS} CLI"
             kubernetes_tests_needed="true"
         fi
-        if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
+
+        if [[ ${DEFAULT_BRANCH} == "main" ]]; then
+            if [[ ${COUNT_PROVIDERS_CHANGED_FILES} != "0" ]]; then
+                echo
+                echo "Adding Providers to selected files as ${COUNT_PROVIDERS_CHANGED_FILES} Provider files changed"
+                echo
+                SELECTED_TESTS="${SELECTED_TESTS} Providers"
+            fi
+        else
             echo
-            echo "Adding Providers to selected files as ${COUNT_PROVIDERS_CHANGED_FILES} Provider files changed"
+            echo "Providers tests are not added because they are only run in case of main branch."
             echo
-            SELECTED_TESTS="${SELECTED_TESTS} Providers"
         fi
         if [[ ${COUNT_WWW_CHANGED_FILES} != "0" ]]; then
             echo
@@ -602,20 +667,22 @@ function calculate_test_types_to_run() {
             echo
             SELECTED_TESTS="${SELECTED_TESTS} WWW"
         fi
-        initialization::ga_output test-types "Always Integration Heisentests ${SELECTED_TESTS}"
+        initialization::ga_output test-types "Always Integration ${SELECTED_TESTS}"
     fi
     start_end::group_end
 }
 
-start_end::group_start "Check if COMMIT_SHA passed"
+
+
+upgrade_to_newer_dependencies="false"
 
 if (($# < 1)); then
     echo
-    echo "No Commit SHA - running all tests (likely direct master merge, or scheduled run)!"
+    echo "No Commit SHA - running all tests (likely direct merge, or scheduled run)!"
     echo
     INCOMING_COMMIT_SHA=""
     readonly INCOMING_COMMIT_SHA
-    # override FULL_TESTS_NEEDED_LABEL in master/scheduled run
+    # override FULL_TESTS_NEEDED_LABEL in main/scheduled run
     FULL_TESTS_NEEDED_LABEL="true"
     readonly FULL_TESTS_NEEDED_LABEL
     output_all_basic_variables
@@ -623,11 +690,14 @@ if (($# < 1)); then
 else
     INCOMING_COMMIT_SHA="${1}"
     readonly INCOMING_COMMIT_SHA
+    echo
+    echo "Commit SHA passed: ${INCOMING_COMMIT_SHA}!"
+    echo
+    readonly FULL_TESTS_NEEDED_LABEL
 fi
-start_end::group_end
 
-check_upgrade_to_newer_dependencies
-readonly FULL_TESTS_NEEDED_LABEL
+check_upgrade_to_newer_dependencies_needed
+
 output_all_basic_variables
 
 image_build_needed="false"
@@ -636,8 +706,8 @@ tests_needed="false"
 kubernetes_tests_needed="false"
 
 get_changed_files
-run_all_tests_if_environment_files_changed
 check_if_setup_files_changed
+run_all_tests_if_environment_files_changed
 check_if_any_py_files_changed
 check_if_docs_should_be_generated
 check_if_helm_tests_should_be_run
@@ -645,12 +715,14 @@ check_if_api_tests_should_be_run
 check_if_api_codegen_should_be_run
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
+check_if_ui_tests_should_be_run
 check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_api_files
 get_count_cli_files
 get_count_providers_files
 get_count_www_files
+get_count_ui_files
 get_count_kubernetes_files
 calculate_test_types_to_run
 

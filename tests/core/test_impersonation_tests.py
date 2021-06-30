@@ -114,17 +114,19 @@ def create_user():
 
 @pytest.mark.quarantined
 class TestImpersonation(unittest.TestCase):
-    def setUp(self):
-        check_original_docker_image()
-        grant_permissions()
-        add_default_pool_if_not_exists()
-        self.dagbag = models.DagBag(
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
         logger.info('Loaded DAGS:')
-        logger.info(self.dagbag.dagbag_report())
+        logger.info(cls.dagbag.dagbag_report())
 
+    def setUp(self):
+        check_original_docker_image()
+        grant_permissions()
+        add_default_pool_if_not_exists()
         create_user()
 
     def tearDown(self):

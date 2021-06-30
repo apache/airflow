@@ -22,7 +22,6 @@ from docker import types
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.strings import get_random_string
 
 
@@ -85,7 +84,7 @@ class DockerSwarmOperator(DockerOperator):
     :type tmp_dir: str
     :param user: Default user inside the docker container.
     :type user: int or str
-    :param docker_conn_id: ID of the Airflow connection to use
+    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :type docker_conn_id: str
     :param tty: Allocate pseudo-TTY to the container of this service
         This needs to be set see logs of the Docker container / service.
@@ -96,7 +95,6 @@ class DockerSwarmOperator(DockerOperator):
     :type enable_logging: bool
     """
 
-    @apply_defaults
     def __init__(self, *, image: str, enable_logging: bool = True, **kwargs) -> None:
         super().__init__(image=image, **kwargs)
 
@@ -118,7 +116,8 @@ class DockerSwarmOperator(DockerOperator):
             types.TaskTemplate(
                 container_spec=types.ContainerSpec(
                     image=self.image,
-                    command=self.get_command(),
+                    command=self.format_command(self.command),
+                    mounts=self.mounts,
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,
@@ -144,10 +143,10 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info('Service status before exiting: %s', self._service_status())
                 break
 
-        if self.service and self._service_status() == 'failed':
+        if self.service and self._service_status() != 'complete':
             if self.auto_remove:
                 self.cli.remove_service(self.service['ID'])
-            raise AirflowException('Service failed: ' + repr(self.service))
+            raise AirflowException('Service did not complete: ' + repr(self.service))
         elif self.auto_remove:
             if not self.service:
                 raise Exception("The 'service' should be initialized before!")
@@ -160,7 +159,7 @@ class DockerSwarmOperator(DockerOperator):
 
     def _has_service_terminated(self) -> bool:
         status = self._service_status()
-        return status in ['failed', 'complete']
+        return status in ['complete', 'failed', 'shutdown', 'rejected', 'orphaned', 'remove']
 
     def _stream_logs_to_output(self) -> None:
         if not self.cli:

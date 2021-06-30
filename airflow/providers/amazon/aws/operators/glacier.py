@@ -17,7 +17,6 @@
 # under the License.
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GlacierCreateJobOperator(BaseOperator):
@@ -36,7 +35,6 @@ class GlacierCreateJobOperator(BaseOperator):
 
     template_fields = ("vault_name",)
 
-    @apply_defaults
     def __init__(
         self,
         *,

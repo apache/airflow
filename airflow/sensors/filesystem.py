@@ -17,12 +17,12 @@
 # under the License.
 #
 
+import datetime
 import os
 from glob import glob
 
 from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class FileSensor(BaseSensorOperator):
@@ -43,7 +43,6 @@ class FileSensor(BaseSensorOperator):
     template_fields = ('filepath',)
     ui_color = '#91818a'
 
-    @apply_defaults
     def __init__(self, *, filepath, fs_conn_id='fs_default', **kwargs):
         super().__init__(**kwargs)
         self.filepath = filepath
@@ -57,6 +56,9 @@ class FileSensor(BaseSensorOperator):
 
         for path in glob(full_path):
             if os.path.isfile(path):
+                mod_time = os.path.getmtime(path)
+                mod_time = datetime.datetime.fromtimestamp(mod_time).strftime('%Y%m%d%H%M%S')
+                self.log.info('Found File %s last modified: %s', str(path), str(mod_time))
                 return True
 
             for _, _, files in os.walk(full_path):

@@ -63,8 +63,9 @@
     - name: sql_alchemy_conn
       description: |
         The SqlAlchemy connection string to the metadata database.
-        SqlAlchemy supports many different database engine, more information
-        their website
+        SqlAlchemy supports many different database engines.
+        More information here:
+        http://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri
       version_added: ~
       type: string
       sensitive: true
@@ -157,18 +158,23 @@
       default: ~
     - name: parallelism
       description: |
-        The amount of parallelism as a setting to the executor. This defines
-        the max number of task instances that should run simultaneously
-        on this airflow installation
+        This defines the maximum number of task instances that can run concurrently in Airflow
+        regardless of scheduler count and worker count. Generally, this value is reflective of
+        the number of task instances with the running state in the metadata database.
       version_added: ~
       type: string
       example: ~
       default: "32"
-    - name: dag_concurrency
+    - name: max_active_tasks_per_dag
       description: |
-        The number of task instances allowed to run concurrently by the scheduler
-        in one DAG. Can be overridden by ``concurrency`` on DAG level.
-      version_added: ~
+        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
+        the number of tasks that is running concurrently for a DAG, add up the number of running
+        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        which is defaulted as ``max_active_tasks_per_dag``.
+
+        An example scenario when this would be useful is when you want to stop a new dag with an early
+        start date from stealing all the executor slots in a cluster.
+      version_added: 2.2.0
       type: string
       example: ~
       default: "16"
@@ -181,7 +187,9 @@
       default: "True"
     - name: max_active_runs_per_dag
       description: |
-        The maximum number of active DAG runs per DAG
+        The maximum number of active DAG runs per DAG. The scheduler will not create more DAG runs
+        if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
+        which is defaulted as ``max_active_runs_per_dag``.
       version_added: ~
       type: string
       example: ~
@@ -357,10 +365,11 @@
         Whether to persist DAG files code in DB.
         If set to True, Webserver reads file contents from DB instead of
         trying to access files in a DAG folder.
+        (Default is ``True``)
       version_added: 1.10.10
       type: string
-      example: "False"
-      default: ~
+      example: "True"
+      default: "True"
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -412,6 +421,32 @@
       type: integer
       example: ~
       default: "3"
+    - name: hide_sensitive_var_conn_fields
+      description: |
+        Hide sensitive Variables or Connection extra json keys from UI and task logs when set to True
+
+        (Connection passwords are always hidden in logs)
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: sensitive_var_conn_names
+      description: |
+        A comma-separated list of extra sensitive keywords to look for in variables names or connection's
+        extra JSON.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: default_pool_task_slot_count
+      description: |
+        Task Slot counts for ``default_pool``. This setting would not have any effect in an existing
+        deployment where the ``default_pool`` is already created. For existing deployments, users can
+        change the number of slots using Webserver, API or the CLI
+      version_added: 2.2.0
+      type: string
+      example: ~
+      default: "128"
 
 - name: logging
   description: ~
@@ -471,14 +506,18 @@
       default: "False"
     - name: logging_level
       description: |
-        Logging level
+        Logging level.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: ~
       type: string
       example: ~
       default: "INFO"
     - name: fab_logging_level
       description: |
-        Logging level for Flask-appbuilder UI
+        Logging level for Flask-appbuilder UI.
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: ~
       type: string
       example: ~
@@ -710,7 +749,7 @@
           deprecated since version 2.0. Please consider using
           `the Stable REST API <https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html>`__.
           For more information on migration, see
-          `UPDATING.md <https://github.com/apache/airflow/blob/master/UPDATING.md>`_
+          `UPDATING.md <https://github.com/apache/airflow/blob/main/UPDATING.md>`_
       version_added: 2.0.0
       type: boolean
       example: ~
@@ -718,7 +757,7 @@
     - name: auth_backend
       description: |
         How to authenticate users of the API. See
-        https://airflow.apache.org/docs/stable/security.html for possible values.
+        https://airflow.apache.org/docs/apache-airflow/stable/security.html for possible values.
         ("airflow.api.auth.backend.default" allows all requests for historic reasons)
       version_added: ~
       type: string
@@ -862,6 +901,13 @@
       type: string
       example: ~
       default: "0"
+    - name: default_queue
+      description: |
+        Default queue that tasks get assigned to and that worker listen on.
+      version_added: ~
+      type: string
+      example: ~
+      default: "default"
     - name: allow_illegal_arguments
       description: |
         Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
@@ -969,7 +1015,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "30"
+      default: "6000"
     - name: reload_on_plugin_change
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
@@ -980,8 +1026,9 @@
       default: "False"
     - name: secret_key
       description: |
-        Secret key used to run your flask app
-        It should be as random as possible
+        Secret key used to run your flask app. It should be as random as possible. However, when running
+        more than 1 instances of webserver, make sure all of them use the same ``secret_key`` otherwise
+        one of them will error with "CSRF session token is missing".
       version_added: ~
       type: string
       sensitive: true
@@ -1061,14 +1108,6 @@
       type: string
       example: ~
       default: "LR"
-    - name: demo_mode
-      description: |
-        Puts the webserver in demonstration mode; blurs the names of Operators for
-        privacy.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
     - name: log_fetch_timeout_sec
       description: |
         The amount of time (in secs) webserver will wait for initial handshake
@@ -1510,13 +1549,6 @@
       sensitive: true
       example: "user1:password1,user2:password2"
       default: ""
-    - name: default_queue
-      description: |
-        Default queue that tasks get assigned to and that worker listen on.
-      version_added: ~
-      type: string
-      example: ~
-      default: "default"
     - name: sync_parallelism
       description: |
         How many processes CeleryExecutor uses to sync task state.
@@ -1837,6 +1869,22 @@
       type: string
       example: ~
       default: "2"
+    - name: file_parsing_sort_mode
+      description: |
+        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
+        The scheduler will list and sort the dag files to decide the parsing order.
+
+        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
+          recently modified DAGs first.
+        * ``random_seeded_by_host``: Sort randomly across multiple Schedulers but with same order on the
+          same host. This is useful when running with Scheduler in HA mode where each scheduler can
+          parse different DAG files.
+        * ``alphabetical``: Sort by filename
+
+      version_added: 2.1.0
+      type: string
+      example: ~
+      default: "modified_time"
     - name: use_job_schedule
       description: |
         Turn off scheduler use of cron intervals by setting this to False.
@@ -1853,6 +1901,12 @@
       type: string
       example: ~
       default: "False"
+    - name: dependency_detector
+      description: DAG dependency detector class to use
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.serialization.serialized_objects.DependencyDetector"
 - name: kerberos
   description: ~
   options:
@@ -1896,23 +1950,6 @@
       type: string
       example: ~
       default: "v3"
-- name: admin
-  description: ~
-  options:
-    - name: hide_sensitive_variable_fields
-      description: |
-        UI to hide sensitive variable fields when set to True
-      version_added: ~
-      type: string
-      example: ~
-      default: "True"
-    - name: sensitive_variable_fields
-      description: |
-        A comma-separated list of sensitive keywords to look for in variables names.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
 - name: elasticsearch
   description: ~
   options:
@@ -1941,10 +1978,11 @@
       description: |
         Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
         Code will construct log_id using the log_id template from the argument above.
-        NOTE: The code will prefix the https:// automatically, don't include that here.
+        NOTE: scheme will default to https if one is not provided
       version_added: 1.10.4
       type: string
-      example: ~
+      example: "http://localhost:5601/app/kibana#/discover\
+        ?_a=(columns:!(message),query:(language:kuery,query:'log_id: \"{log_id}\"'),sort:!(log.offset,asc))"
       default: ""
     - name: write_stdout
       description: |
@@ -1967,6 +2005,20 @@
       type: string
       example: ~
       default: "asctime, filename, lineno, levelname, message"
+    - name: host_field
+      description: |
+        The field where host name is stored (normally either `host` or `host.name`)
+      version_added: 2.1.1
+      type: string
+      example: ~
+      default: "host"
+    - name: offset_field
+      description: |
+        The field where offset is stored (normally either `offset` or `log.offset`)
+      version_added: 2.1.1
+      type: string
+      example: ~
+      default: "offset"
 - name: elasticsearch_configs
   description: ~
   options:
@@ -2024,6 +2076,8 @@
       description: |
         If False (and delete_worker_pods is True),
         failed worker pods will not be deleted so users can investigate them.
+        This only prevents removal of worker pods where the worker itself failed,
+        not when the task it ran failed.
       version_added: 1.10.11
       type: string
       example: ~
@@ -2100,7 +2154,7 @@
       version_added: ~
       type: boolean
       example: ~
-      default: "False"
+      default: "True"
     - name: tcp_keep_idle
       description: |
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
@@ -2133,6 +2187,28 @@
       type: boolean
       example: ~
       default: "True"
+    - name: worker_pods_pending_timeout
+      description: |
+        How long in seconds a worker can be in Pending before it is considered a failure
+      version_added: 2.1.0
+      type: integer
+      example: ~
+      default: "300"
+    - name: worker_pods_pending_timeout_check_interval
+      description: |
+        How often in seconds to check if Pending workers have exceeded their timeouts
+      version_added: 2.1.0
+      type: integer
+      example: ~
+      default: "120"
+    - name: worker_pods_pending_timeout_batch_size
+      description: |
+        How many pending pods to check for timeout violations in each check interval.
+        You may want this higher if you have a very large cluster and/or use ``multi_namespace_mode``.
+      version_added: 2.1.0
+      type: integer
+      example: ~
+      default: "100"
 - name: smart_sensor
   description: ~
   options:

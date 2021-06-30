@@ -32,6 +32,7 @@ def get_template_field(env, fullname):
     """
     Gets template fields for specific operator class.
 
+    :param env: env config
     :param fullname: Full path to operator class.
         For example: ``airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator``
     :return: List of template field
@@ -59,14 +60,14 @@ def get_template_field(env, fullname):
 
 def template_field_role(
     app,
-    typ,  # pylint: disable=unused-argument
+    typ,
     rawtext,
     text,
     lineno,
     inliner,
-    options=None,  # pylint: disable=unused-argument
+    options=None,
     content=None,
-):  # pylint: disable=unused-argument
+):
     """
     A role that allows you to include a list of template fields in the middle of the text. This is especially
     useful when writing guides describing how to use the operator.
@@ -108,7 +109,7 @@ def template_field_role(
 
 def setup(app):
     """Sets the extension up"""
-    from docutils.parsers.rst import roles  # pylint: disable=wrong-import-order
+    from docutils.parsers.rst import roles
 
     roles.register_local_role("template-fields", partial(template_field_role, app))
 

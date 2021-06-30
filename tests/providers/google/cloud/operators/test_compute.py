@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=too-many-lines
 
 import ast
 import unittest
@@ -67,13 +66,13 @@ class TestGceInstanceStart(unittest.TestCase):
         )
         assert result
 
-    # Setting all of the operator's input parameters as template dag_ids
+    # Setting all the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_instance_start_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = ComputeEngineStartInstanceOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -146,13 +145,13 @@ class TestGceInstanceStop(unittest.TestCase):
             zone=GCE_ZONE, resource_id=RESOURCE_ID, project_id=GCP_PROJECT_ID
         )
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_instance_stop_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = ComputeEngineStopInstanceOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -238,13 +237,13 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
             zone=GCE_ZONE, resource_id=RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=GCP_PROJECT_ID
         )
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_set_machine_type_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = ComputeEngineSetMachineTypeOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',

@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.google.cloud.secrets.secret_manager`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.secrets.secret_manager`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
 warnings.warn(

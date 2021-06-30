@@ -21,7 +21,6 @@ from typing import Iterable
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SqlSensor(BaseSensorOperator):
@@ -43,12 +42,12 @@ class SqlSensor(BaseSensorOperator):
     :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
-    :type: success: Optional<Callable[[Any], bool]>
+    :type success: Optional<Callable[[Any], bool]>
     :param failure: Failure criteria for the sensor is a Callable that takes first_cell
         as the only argument and return a boolean (optional).
-    :type: failure: Optional<Callable[[Any], bool]>
+    :type failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned.
-    :type: fail_on_empty: bool
+    :type fail_on_empty: bool
     """
 
     template_fields: Iterable[str] = ('sql',)
@@ -58,7 +57,6 @@ class SqlSensor(BaseSensorOperator):
     )
     ui_color = '#7c7287'
 
-    @apply_defaults
     def __init__(
         self, *, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False, **kwargs
     ):
@@ -84,11 +82,12 @@ class SqlSensor(BaseSensorOperator):
             'presto',
             'snowflake',
             'sqlite',
+            'trino',
             'vertica',
         }
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException(
-                "The connection type is not supported by SqlSensor. "
+                f"Connection type ({conn.conn_type}) is not supported by SqlSensor. "
                 + f"Supported connection types: {list(allowed_conn_type)}"
             )
         return conn.get_hook()

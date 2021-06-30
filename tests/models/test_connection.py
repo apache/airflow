@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import os
 import re
 import unittest
 from collections import namedtuple
@@ -61,6 +62,10 @@ class UriTestCaseConfig:
 class TestConnection(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
+        patcher = mock.patch('airflow.models.connection.mask_secret', autospec=True)
+        self.mask_secret = patcher.start()
+
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         crypto._fernet = None
@@ -136,6 +141,61 @@ class TestConnection(unittest.TestCase):
                 extra_dejson={'extra1': 'a value', 'extra2': '/path/'},
             ),
             description='with extras',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?' '__extra__=single+value',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra='single value',
+            ),
+            description='with extras single value',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=arbitrary+string+%2A%29%2A%24',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra='arbitrary string *)*$',
+            ),
+            description='with extra non-json',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=%5B%22list%22%2C+%22of%22%2C+%22values%22%5D',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson=['list', 'of', 'values'],
+            ),
+            description='with extras list',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+            '__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D',  # noqa: E501
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson={'my_val': ['list', 'of', 'values'], 'extra': {'nested': {'json': 'val'}}},
+            ),
+            description='with nested json',
         ),
         UriTestCaseConfig(
             test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?extra1=a%20value&extra2=',
@@ -290,7 +350,6 @@ class TestConnection(unittest.TestCase):
         ),
     ]
 
-    # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
 
@@ -304,7 +363,15 @@ class TestConnection(unittest.TestCase):
             else:
                 assert expected_val == actual_val
 
-    # pylint: disable=undefined-variable
+        expected_calls = []
+        if test_config.test_conn_attributes.get('password'):
+            expected_calls.append(mock.call(test_config.test_conn_attributes['password']))
+
+        if test_config.test_conn_attributes.get('extra_dejson'):
+            expected_calls.append(mock.call(test_config.test_conn_attributes['extra_dejson']))
+
+        self.mask_secret.assert_has_calls(expected_calls)
+
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
         """
@@ -326,7 +393,6 @@ class TestConnection(unittest.TestCase):
         assert connection.schema == new_conn.schema
         assert connection.extra_dejson == new_conn.extra_dejson
 
-    # pylint: disable=undefined-variable
     @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
     def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
         """
@@ -351,11 +417,9 @@ class TestConnection(unittest.TestCase):
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(new_conn, conn_attr)
             if expected_val is None:
-                assert expected_val is None
-            if isinstance(expected_val, dict):
-                assert expected_val == actual_val
+                assert actual_val is None
             else:
-                assert expected_val == actual_val
+                assert actual_val == expected_val
 
     @parameterized.expand(
         [
@@ -447,6 +511,8 @@ class TestConnection(unittest.TestCase):
         assert 'username' == conn.login
         assert 'password' == conn.password
         assert 5432 == conn.port
+
+        self.mask_secret.assert_called_once_with('password')
 
     @mock.patch.dict(
         'os.environ',
@@ -548,3 +614,71 @@ class TestConnection(unittest.TestCase):
             ),
         ):
             Connection(conn_id="TEST_ID", uri="mysql://", schema="AAA")
+
+    def test_masking_from_db(self):
+        """Test secrets are masked when loaded directly from the DB"""
+        from airflow.settings import Session
+
+        session = Session()
+
+        try:
+            conn = Connection(
+                conn_id=f"test-{os.getpid()}",
+                conn_type="http",
+                password="s3cr3t",
+                extra='{"apikey":"masked too"}',
+            )
+            session.add(conn)
+            session.flush()
+
+            # Make sure we re-load it, not just get the cached object back
+            session.expunge(conn)
+
+            self.mask_secret.reset_mock()
+
+            from_db = session.query(Connection).get(conn.id)
+            from_db.extra_dejson
+
+            assert self.mask_secret.mock_calls == [
+                # We should have called it _again_ when loading from the DB
+                mock.call("s3cr3t"),
+                mock.call({"apikey": "masked too"}),
+            ]
+        finally:
+            session.rollback()
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI': 'sqlite://',
+        },
+    )
+    def test_connection_test_success(self):
+        conn = Connection(conn_id='test_uri', conn_type='sqlite')
+        res = conn.test_connection()
+        assert res[0] is True
+        assert res[1] == 'Connection successfully tested'
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI_NO_HOOK': 'fs://',
+        },
+    )
+    def test_connection_test_no_hook(self):
+        conn = Connection(conn_id='test_uri_no_hook', conn_type='fs')
+        res = conn.test_connection()
+        assert res[0] is False
+        assert res[1] == 'Unknown hook type "fs"'
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI_HOOK_METHOD_MISSING': 'ftp://',
+        },
+    )
+    def test_connection_test_hook_method_missing(self):
+        conn = Connection(conn_id='test_uri_hook_method_mising', conn_type='ftp')
+        res = conn.test_connection()
+        assert res[0] is False
+        assert res[1] == "Hook FTPHook doesn't implement or inherit test_connection method"

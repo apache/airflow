@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import multiprocessing
 import os
 import signal
 import unittest
 from datetime import timedelta
 from time import sleep
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -187,23 +189,17 @@ class TestCore(unittest.TestCase):
             self.fail("BashOperator's subprocess still running after stopping on timeout!")
 
     def test_on_failure_callback(self):
-        # Annoying workaround for nonlocal not existing in python 2
-        data = {'called': False}
-
-        def check_failure(context, test_case=self):  # pylint: disable=unused-argument
-            data['called'] = True
-            error = context.get("exception")
-            test_case.assertIsInstance(error, AirflowException)
+        mock_failure_callback = MagicMock()
 
         op = BashOperator(
             task_id='check_on_failure_callback',
             bash_command="exit 1",
             dag=self.dag,
-            on_failure_callback=check_failure,
+            on_failure_callback=mock_failure_callback,
         )
         with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert data['called']
+        mock_failure_callback.assert_called_once()
 
     def test_dryrun(self):
         op = BashOperator(task_id='test_dryrun', bash_command="echo success", dag=self.dag)
@@ -258,10 +254,10 @@ class TestCore(unittest.TestCase):
         """
 
         class NonBoolObject:
-            def __len__(self):  # pylint: disable=invalid-length-returned
+            def __len__(self):
                 return NotImplemented
 
-            def __bool__(self):  # pylint: disable=invalid-bool-returned, bad-option-value
+            def __bool__(self):
                 return NotImplemented
 
         op = OperatorSubclass(
@@ -371,11 +367,11 @@ class TestCore(unittest.TestCase):
         session = settings.Session()
         try:
             op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         try:
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         op1_fails = (
             session.query(TaskFail)
@@ -390,7 +386,7 @@ class TestCore(unittest.TestCase):
 
         assert 0 == len(op1_fails)
         assert 1 == len(op2_fails)
-        assert sum([f.duration for f in op2_fails]) >= 3
+        assert sum(f.duration for f in op2_fails) >= 3
 
     def test_externally_triggered_dagrun(self):
         TI = TaskInstance
@@ -421,3 +417,85 @@ class TestCore(unittest.TestCase):
 
         assert context['prev_ds'] == execution_ds
         assert context['prev_ds_nodash'] == execution_ds_nodash
+
+    def test_dag_params_and_task_params(self):
+        # This test case guards how params of DAG and Operator work together.
+        # - If any key exists in either DAG's or Operator's params,
+        #   it is guaranteed to be available eventually.
+        # - If any key exists in both DAG's params and Operator's params,
+        #   the latter has precedence.
+        TI = TaskInstance
+
+        dag = DAG(
+            TEST_DAG_ID,
+            default_args=self.args,
+            schedule_interval=timedelta(weeks=1),
+            start_date=DEFAULT_DATE,
+            params={'key_1': 'value_1', 'key_2': 'value_2_old'},
+        )
+        task1 = DummyOperator(
+            task_id='task1',
+            dag=dag,
+            params={'key_2': 'value_2_new', 'key_3': 'value_3'},
+        )
+        task2 = DummyOperator(task_id='task2', dag=dag)
+        dag.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+        task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=task2, execution_date=DEFAULT_DATE)
+        context1 = ti1.get_template_context()
+        context2 = ti2.get_template_context()
+
+        assert context1['params'] == {'key_1': 'value_1', 'key_2': 'value_2_new', 'key_3': 'value_3'}
+        assert context2['params'] == {'key_1': 'value_1', 'key_2': 'value_2_old'}
+
+
+@pytest.fixture()
+def dag():
+    return DAG(TEST_DAG_ID, default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
+
+
+def test_operator_retries_invalid(dag):
+    with pytest.raises(AirflowException) as ctx:
+        BashOperator(
+            task_id='test_illegal_args',
+            bash_command='echo success',
+            dag=dag,
+            retries='foo',
+        )
+    assert str(ctx.value) == "'retries' type must be int, not str"
+
+
+def test_operator_retries_coerce(caplog, dag):
+    with caplog.at_level(logging.WARNING):
+        BashOperator(
+            task_id='test_illegal_args',
+            bash_command='echo success',
+            dag=dag,
+            retries='1',
+        )
+    assert caplog.record_tuples == [
+        (
+            "airflow.operators.bash.BashOperator",
+            logging.WARNING,
+            "Implicitly converting 'retries' for <Task(BashOperator): test_illegal_args> from '1' to int",
+        ),
+    ]
+
+
+@pytest.mark.parametrize("retries", [None, 5])
+def test_operator_retries(caplog, dag, retries):
+    with caplog.at_level(logging.WARNING):
+        BashOperator(
+            task_id='test_illegal_args',
+            bash_command='echo success',
+            dag=dag,
+            retries=retries,
+        )
+    assert caplog.records == []

@@ -131,7 +131,7 @@ def secondary_training_status_message(
     return '\n'.join(status_strs)
 
 
-class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
+class SageMakerHook(AwsBaseHook):
     """
     Interact with Amazon SageMaker.
 
@@ -229,7 +229,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         """
         if "InputDataConfig" in training_config:
             for channel in training_config['InputDataConfig']:
-                self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
+                if "S3DataSource" in channel['DataSource']:
+                    self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def check_tuning_config(self, tuning_config: dict) -> None:
         """
@@ -240,7 +241,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :return: None
         """
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
-            self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
+            if "S3DataSource" in channel['DataSource']:
+                self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def get_log_conn(self):
         """
@@ -421,7 +423,8 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         :type max_ingestion_time: int
         :return: A response to transform job creation
         """
-        self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
+        if "S3DataSource" in config['TransformInput']['DataSource']:
+            self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
 
         response = self.get_conn().create_transform_job(**config)
         if wait_for_completion:
@@ -850,9 +853,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
 
     def list_training_jobs(
         self, name_contains: Optional[str] = None, max_results: Optional[int] = None, **kwargs
-    ) -> List[Dict]:  # noqa: D402
+    ) -> List[Dict]:
         """
-        This method wraps boto3's list_training_jobs(). The training job name and max results are configurable
+        This method wraps boto3's `list_training_jobs`. The training job name and max results are configurable
         via arguments. Other arguments are not, and should be provided via kwargs. Note boto3 expects these in
         CamelCase format, for example:
 
@@ -889,9 +892,9 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
         )
         return results
 
-    def list_processing_jobs(self, **kwargs) -> List[Dict]:  # noqa: D402
+    def list_processing_jobs(self, **kwargs) -> List[Dict]:
         """
-        This method wraps boto3's list_processing_jobs(). All arguments should be provided via kwargs.
+        This method wraps boto3's `list_processing_jobs`. All arguments should be provided via kwargs.
         Note boto3 expects these in CamelCase format, for example:
 
         .. code-block:: python

@@ -65,6 +65,9 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
+      securityContext:
+        runAsUser: {{ .Values.pgbouncer.uid }}
       restartPolicy: Always
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -123,6 +126,8 @@ spec:
                 # Allow existing queries clients to complete within 120 seconds
                 command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
         - name: metrics-exporter
+          resources:
+{{ toYaml .Values.pgbouncer.metricsExporterSidecar.resources | indent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncerExporter.pullPolicy }}
           env:

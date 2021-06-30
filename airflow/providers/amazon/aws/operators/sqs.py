@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SQSPublishOperator(BaseOperator):
@@ -43,7 +42,6 @@ class SQSPublishOperator(BaseOperator):
     template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
     ui_color = '#6ad3fa'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -19,7 +19,6 @@ from typing import Dict, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySqlOperator(BaseOperator):
@@ -35,7 +34,7 @@ class MySqlOperator(BaseOperator):
         Template reference are recognized by str ending in '.sql'
         (templated)
     :type sql: str or list[str]
-    :param mysql_conn_id: reference to a specific mysql database
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
     :type parameters: dict or iterable
@@ -50,7 +49,6 @@ class MySqlOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

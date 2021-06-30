@@ -161,7 +161,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = io.BytesIO(b'')
-        mock_popen.return_value = mock_proc
+        mock_popen.return_value.__enter__.return_value = mock_proc
 
         params = ["foo", "bar", "baz"]
         self.db_hook.run_cli(params)
@@ -176,8 +176,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
         mock_proc.stdout = io.BytesIO(msg)
-        mock_popen.return_value = mock_proc
-
+        mock_popen.return_value.__enter__.return_value = mock_proc
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
             self.db_hook.run_cli(params)
@@ -191,7 +190,7 @@ class TestPinotAdminHook(unittest.TestCase):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 1
         mock_proc.stdout = io.BytesIO(b'')
-        mock_popen.return_value = mock_proc
+        mock_popen.return_value.__enter__.return_value = mock_proc
 
         self.db_hook.pinot_admin_system_exit = True
         params = ["foo", "bar", "baz"]
@@ -213,7 +212,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.conn.port = '1000'
         self.conn.conn_type = 'http'
         self.conn.extra_dejson = {'endpoint': 'query/sql'}
-        self.cur = mock.MagicMock()
+        self.cur = mock.MagicMock(rowcount=0)
         self.conn.cursor.return_value = self.cur
         self.conn.__enter__.return_value = self.cur
         self.conn.__exit__.return_value = None
@@ -264,7 +263,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook().get_pandas_df(statement)
         assert column == df.columns[0]
-        for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
+        for i in range(len(result_sets)):
             assert result_sets[i][0] == df.values.tolist()[i][0]
 
 

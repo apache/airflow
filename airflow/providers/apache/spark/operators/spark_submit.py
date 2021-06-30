@@ -21,10 +21,8 @@ from typing import Any, Dict, List, Optional
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.settings import WEB_COLORS
-from airflow.utils.decorators import apply_defaults
 
 
-# pylint: disable=too-many-instance-attributes
 class SparkSubmitOperator(BaseOperator):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -39,9 +37,9 @@ class SparkSubmitOperator(BaseOperator):
     :type application: str
     :param conf: Arbitrary Spark configuration properties (templated)
     :type conf: dict
-    :param conn_id: The connection id as configured in Airflow administration. When an
-                    invalid connection_id is supplied, it will default to yarn.
-    :type conn_id: str
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+        in Airflow administration. When an invalid connection_id is supplied, it will default to yarn.
+    :type spark_conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
                   comma. Files will be placed in the working directory of each executor.
                   For example, serialized objects. (templated)
@@ -114,8 +112,6 @@ class SparkSubmitOperator(BaseOperator):
     )
     ui_color = WEB_COLORS['LIGHTORANGE']
 
-    # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,

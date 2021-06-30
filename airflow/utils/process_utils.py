@@ -132,15 +132,17 @@ def execute_in_subprocess(cmd: List[str]):
     :param cmd: command and arguments to run
     :type cmd: List[str]
     """
-    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True)
-    log.info("Output:")
-    if proc.stdout:
-        with proc.stdout:
-            for line in iter(proc.stdout.readline, b''):
-                log.info("%s", line.decode().rstrip())
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
+    with subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True
+    ) as proc:
+        log.info("Output:")
+        if proc.stdout:
+            with proc.stdout:
+                for line in iter(proc.stdout.readline, b''):
+                    log.info("%s", line.decode().rstrip())
 
-    exit_code = proc.wait()
+        exit_code = proc.wait()
     if exit_code != 0:
         raise subprocess.CalledProcessError(exit_code, cmd)
 
@@ -151,28 +153,27 @@ def execute_interactive(cmd: List[str], **kwargs):
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
     the process is completed.
     """
-    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
 
     old_tty = termios.tcgetattr(sys.stdin)
     tty.setraw(sys.stdin.fileno())
 
     # open pseudo-terminal to interact with subprocess
     master_fd, slave_fd = pty.openpty()
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
-        proc = subprocess.Popen(
+        with subprocess.Popen(
             cmd, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, universal_newlines=True, **kwargs
-        )
-
-        while proc.poll() is None:
-            readable_fbs, _, _ = select.select([sys.stdin, master_fd], [], [])
-            if sys.stdin in readable_fbs:
-                input_data = os.read(sys.stdin.fileno(), 10240)
-                os.write(master_fd, input_data)
-            if master_fd in readable_fbs:
-                output_data = os.read(master_fd, 10240)
-                if output_data:
-                    os.write(sys.stdout.fileno(), output_data)
+        ) as proc:
+            while proc.poll() is None:
+                readable_fbs, _, _ = select.select([sys.stdin, master_fd], [], [])
+                if sys.stdin in readable_fbs:
+                    input_data = os.read(sys.stdin.fileno(), 10240)
+                    os.write(master_fd, input_data)
+                if master_fd in readable_fbs:
+                    output_data = os.read(master_fd, 10240)
+                    if output_data:
+                        os.write(sys.stdout.fileno(), output_data)
     finally:
         # restore tty settings back
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
@@ -232,7 +233,7 @@ def patch_environ(new_env_variables: Dict[str, str]):
     """
     current_env_state = {key: os.environ.get(key) for key in new_env_variables.keys()}
     os.environ.update(new_env_variables)
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         yield
     finally:
         for key, old_value in current_env_state.items():

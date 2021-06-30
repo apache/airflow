@@ -40,7 +40,7 @@ from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
-GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://example-bucket/file")
+GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", "gs://INVALID BUCKET NAME/file")
 GCP_SOURCE_REPOSITORY_NAME = os.environ.get("GCP_CLOUD_BUILD_REPOSITORY_NAME", "repository-name")
 
 GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
@@ -63,7 +63,7 @@ create_build_from_storage_body = {
 
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body = {
-    "source": {"repoSource": {"repoName": GCP_SOURCE_REPOSITORY_NAME, "branchName": "master"}},
+    "source": {"repoSource": {"repoName": GCP_SOURCE_REPOSITORY_NAME, "branchName": "main"}},
     "steps": [
         {
             "name": "gcr.io/cloud-builders/docker",
@@ -110,6 +110,6 @@ with models.DAG(
         params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
-    create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
+    create_build_from_storage >> create_build_from_storage_result
 
-    create_build_from_repo >> create_build_from_repo_result  # pylint: disable=pointless-statement
+    create_build_from_repo >> create_build_from_repo_result

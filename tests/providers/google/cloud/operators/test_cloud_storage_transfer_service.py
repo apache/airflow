@@ -319,7 +319,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
         result = op.execute(None)
         assert result == VALID_TRANSFER_JOB_AWS_RAW
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -327,7 +327,7 @@ class TestGcpStorageTransferJobCreateOperator(unittest.TestCase):
     )
     def test_templates(self, _):
         dag_id = 'test_dag_id'
-        # pylint: disable=attribute-defined-outside-init
+
         self.dag = DAG(dag_id, default_args={'start_date': DEFAULT_DATE})
         op = CloudDataTransferServiceCreateJobOperator(
             body={"description": "{{ dag.dag_id }}"},
@@ -367,7 +367,7 @@ class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
         mock_hook.return_value.update_transfer_job.assert_called_once_with(job_name=JOB_NAME, body=body)
         assert result == VALID_TRANSFER_JOB_GCS
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -376,7 +376,7 @@ class TestGcpStorageTransferJobUpdateOperator(unittest.TestCase):
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceUpdateJobOperator(
             job_name='{{ dag.dag_id }}',
             body={'transferJob': {"name": "{{ dag.dag_id }}"}},
@@ -410,7 +410,7 @@ class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
             job_name=JOB_NAME, project_id=GCP_PROJECT_ID
         )
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -419,7 +419,7 @@ class TestGcpStorageTransferJobDeleteOperator(unittest.TestCase):
     def test_job_delete_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceDeleteJobOperator(
             job_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
@@ -465,7 +465,7 @@ class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
         mock_hook.return_value.get_transfer_operation.assert_called_once_with(operation_name=OPERATION_NAME)
         assert result == VALID_OPERATION
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -474,7 +474,7 @@ class TestGpcStorageTransferOperationsGetOperator(unittest.TestCase):
     def test_operation_get_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceGetOperationOperator(
             operation_name='{{ dag.dag_id }}', task_id='task-id', dag=self.dag
         )
@@ -514,7 +514,7 @@ class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
         mock_hook.return_value.list_transfer_operations.assert_called_once_with(request_filter=TEST_FILTER)
         assert result == [VALID_TRANSFER_JOB_GCS]
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -523,7 +523,7 @@ class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceListOperationsOperator(
             request_filter={"job_names": ['{{ dag.dag_id }}']},
             gcp_conn_id='{{ dag.dag_id }}',
@@ -533,9 +533,7 @@ class TestGcpStorageTransferOperationListOperator(unittest.TestCase):
         ti = TaskInstance(op, DEFAULT_DATE)
         ti.render_templates()
 
-        # pylint: disable=unsubscriptable-object
         assert dag_id == getattr(op, 'filter')['job_names'][0]
-        # pylint: enable=unsubscriptable-object
 
         assert dag_id == getattr(op, 'gcp_conn_id')
 
@@ -558,7 +556,7 @@ class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
         )
         mock_hook.return_value.pause_transfer_operation.assert_called_once_with(operation_name=OPERATION_NAME)
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -567,7 +565,7 @@ class TestGcpStorageTransferOperationsPauseOperator(unittest.TestCase):
     def test_operation_pause_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServicePauseOperationOperator(
             operation_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
@@ -603,7 +601,7 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
             task_id=TASK_ID,
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -614,7 +612,7 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
         )
         assert result is None
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -623,7 +621,7 @@ class TestGcpStorageTransferOperationsResumeOperator(unittest.TestCase):
     def test_operation_resume_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceResumeOperationOperator(
             operation_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
@@ -659,7 +657,7 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
             task_id=TASK_ID,
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -670,7 +668,7 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
         )
         assert result is None
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -679,7 +677,7 @@ class TestGcpStorageTransferOperationsCancelOperator(unittest.TestCase):
     def test_operation_cancel_with_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceCancelOperationOperator(
             operation_name='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
@@ -723,7 +721,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
         assert operator.description == DESCRIPTION
         assert operator.schedule == SCHEDULE_DICT
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -732,7 +730,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceS3ToGCSOperator(
             s3_bucket='{{ dag.dag_id }}',
             gcs_bucket='{{ dag.dag_id }}',
@@ -748,9 +746,7 @@ class TestS3ToGoogleCloudStorageTransferOperator(unittest.TestCase):
         assert dag_id == getattr(op, 'gcs_bucket')
         assert dag_id == getattr(op, 'description')
 
-        # pylint: disable=unsubscriptable-object
         assert dag_id == getattr(op, 'object_conditions')['exclude_prefixes'][0]
-        # pylint: enable=unsubscriptable-object
 
         assert dag_id == getattr(op, 'gcp_conn_id')
 
@@ -882,7 +878,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
         assert operator.description == DESCRIPTION
         assert operator.schedule == SCHEDULE_DICT
 
-    # Setting all of the operator's input parameters as templated dag_ids
+    # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
     @mock.patch(
@@ -891,7 +887,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
     def test_templates(self, _):
         dag_id = 'test_dag_id'
         args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)
         op = CloudDataTransferServiceGCSToGCSOperator(
             source_bucket='{{ dag.dag_id }}',
             destination_bucket='{{ dag.dag_id }}',
@@ -907,9 +903,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator(unittest.TestCa
         assert dag_id == getattr(op, 'destination_bucket')
         assert dag_id == getattr(op, 'description')
 
-        # pylint: disable=unsubscriptable-object
         assert dag_id == getattr(op, 'object_conditions')['exclude_prefixes'][0]
-        # pylint: enable=unsubscriptable-object
 
         assert dag_id == getattr(op, 'gcp_conn_id')
 

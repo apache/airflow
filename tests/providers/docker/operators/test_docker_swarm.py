@@ -22,6 +22,8 @@ from unittest import mock
 import pytest
 import requests
 from docker import APIClient
+from docker.types import Mount
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
@@ -64,6 +66,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             mem_limit='128m',
             user='unittest',
             task_id='unittest',
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             auto_remove=True,
             tty=True,
         )
@@ -76,6 +79,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             image='ubuntu:latest',
             command='env',
             user='unittest',
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
         )
@@ -146,9 +150,10 @@ class TestDockerSwarmOperator(unittest.TestCase):
             client_mock.remove_service.call_count == 0
         ), 'Docker service being removed even when `auto_remove` set to `False`'
 
+    @parameterized.expand([('failed',), ('shutdown',), ('rejected',), ('orphaned',), ('remove',)])
     @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     @mock.patch('airflow.providers.docker.operators.docker_swarm.types')
-    def test_failed_service_raises_error(self, types_mock, client_class_mock):
+    def test_non_complete_service_raises_error(self, status, types_mock, client_class_mock):
 
         mock_obj = mock.Mock()
 
@@ -156,7 +161,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_mock.create_service.return_value = {'ID': 'some_id'}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{'Status': {'State': 'failed'}}]
+        client_mock.tasks.return_value = [{'Status': {'State': status}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -165,7 +170,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest', enable_logging=False)
-        msg = "Service failed: {'ID': 'some_id'}"
+        msg = "Service did not complete: {'ID': 'some_id'}"
         with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
         assert str(ctx.value) == msg

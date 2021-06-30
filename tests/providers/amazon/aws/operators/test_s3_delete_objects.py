@@ -61,7 +61,7 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # The objects should be detected before the DELETE action is taken
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_pattern)
         assert len(objects_in_dest_bucket['Contents']) == n_keys
-        assert sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]) == sorted(keys)
+        assert sorted(x['Key'] for x in objects_in_dest_bucket['Contents']) == sorted(keys)
 
         op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_multiple_objects", bucket=bucket, keys=keys)
         op.execute(None)
@@ -84,7 +84,7 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         # The objects should be detected before the DELETE action is taken
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_pattern)
         assert len(objects_in_dest_bucket['Contents']) == n_keys
-        assert sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]) == sorted(keys)
+        assert sorted(x['Key'] for x in objects_in_dest_bucket['Contents']) == sorted(keys)
 
         op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_prefix", bucket=bucket, prefix=key_pattern)
         op.execute(None)

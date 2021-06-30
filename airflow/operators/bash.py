@@ -18,12 +18,10 @@
 import os
 from typing import Dict, Optional
 
-from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.hooks.subprocess import EXIT_CODE_SKIP, SubprocessHook
+from airflow.hooks.subprocess import SubprocessHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -48,20 +46,25 @@ class BashOperator(BaseOperator):
     :type env: dict
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
+    :param skip_exit_code: If task exits with this exit code, leave the task
+        in ``skipped`` state (default: 99). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
+    :type skip_exit_code: int
 
-    Airflow will evaluate the exit code of the bash command.  In general, a non-zero exit code will result in
-    task failure and zero will result in task success.  Exit code ``127`` will throw an
-    :class:`airflow.exceptions.AirflowSkipException`, which will leave the task in ``skipped`` state.
+    Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
+    task failure and zero will result in task success. Exit code ``99`` (or another set in ``skip_exit_code``)
+    will throw an :class:`airflow.exceptions.AirflowSkipException`, which will leave the task in ``skipped``
+    state. You can have all non-zero exit codes be treated as a failure by setting ``skip_exit_code=None``.
 
     .. list-table::
        :widths: 25 25
        :header-rows: 1
 
-       * - Exit code range
+       * - Exit code
          - Behavior
        * - 0
          - success
-       * - 127
+       * - `skip_exit_code` (default: 99)
          - raise :class:`airflow.exceptions.AirflowSkipException`
        * - otherwise
          - raise :class:`airflow.exceptions.AirflowException`
@@ -110,8 +113,8 @@ class BashOperator(BaseOperator):
 
         bash_task = BashOperator(
             task_id="bash_task",
-            bash_command='echo "here is the message: \'$message\'"',
-            env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+            bash_command="echo \"here is the message: '$message'\"",
+            env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
         )
 
     """
@@ -124,22 +127,22 @@ class BashOperator(BaseOperator):
     )
     ui_color = '#f0ede4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
         bash_command: str,
         env: Optional[Dict[str, str]] = None,
         output_encoding: str = 'utf-8',
+        skip_exit_code: int = 99,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
+        self.skip_exit_code = skip_exit_code
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
-        self.sub_process = None
 
     @cached_property
     def subprocess_hook(self):
@@ -155,7 +158,7 @@ class BashOperator(BaseOperator):
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(
             'Exporting the following env vars:\n%s',
-            '\n'.join([f"{k}={v}" for k, v in airflow_context_vars.items()]),
+            '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
         )
         env.update(airflow_context_vars)
         return env
@@ -167,8 +170,8 @@ class BashOperator(BaseOperator):
             env=env,
             output_encoding=self.output_encoding,
         )
-        if result.exit_code == EXIT_CODE_SKIP:
-            raise AirflowSkipException(f"Bash command returned exit code {EXIT_CODE_SKIP}. Skipping.")
+        if self.skip_exit_code is not None and result.exit_code == self.skip_exit_code:
+            raise AirflowSkipException(f"Bash command returned exit code {self.skip_exit_code}. Skipping.")
         elif result.exit_code != 0:
             raise AirflowException('Bash command failed. The command returned a non-zero exit code.')
         return result.output

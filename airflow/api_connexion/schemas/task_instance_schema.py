@@ -97,7 +97,7 @@ class TaskInstanceBatchFormSchema(Schema):
 class ClearTaskInstanceFormSchema(Schema):
     """Schema for handling the request of clearing task instance of a Dag"""
 
-    dry_run = fields.Boolean(default=True)
+    dry_run = fields.Boolean(missing=True)
     start_date = fields.DateTime(missing=None, validate=validate_istimezone)
     end_date = fields.DateTime(missing=None, validate=validate_istimezone)
     only_failed = fields.Boolean(missing=True)
@@ -105,6 +105,7 @@ class ClearTaskInstanceFormSchema(Schema):
     include_subdags = fields.Boolean(missing=False)
     include_parentdag = fields.Boolean(missing=False)
     reset_dag_runs = fields.Boolean(missing=False)
+    task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
 
     @validates_schema
     def validate_form(self, data, **kwargs):

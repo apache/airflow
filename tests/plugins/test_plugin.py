@@ -89,7 +89,7 @@ appbuilder_mitem_toplevel = {
     "label": "The Apache Software Foundation",
 }
 
-# Creating a flask blueprint to intergrate the templates and static folder
+# Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
     "test_plugin",
     __name__,
@@ -127,3 +127,10 @@ class MockPluginB(AirflowPlugin):
 
 class MockPluginC(AirflowPlugin):
     name = 'plugin-c'
+
+
+class AirflowTestOnLoadPlugin(AirflowPlugin):
+    name = 'preload'
+
+    def on_load(self, *args, **kwargs):
+        self.name = 'postload'

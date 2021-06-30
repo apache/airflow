@@ -28,6 +28,7 @@ from airflow.hooks.base import BaseHook
 
 class MongoHook(BaseHook):
     """
+    Interact with Mongo. This hook uses the Mongo conn_id.
     PyMongo Wrapper to Interact With Mongo Database
     Mongo Connection Documentation
     https://docs.mongodb.com/manual/reference/connection-string/index.html
@@ -38,6 +39,10 @@ class MongoHook(BaseHook):
 
     ex.
         {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
+
+    :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
+        when connecting to MongoDB.
+    :type mongo: str
     """
 
     conn_name_attr = 'conn_id'

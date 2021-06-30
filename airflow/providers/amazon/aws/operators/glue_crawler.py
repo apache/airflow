@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_crawler import AwsGlueCrawlerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsGlueCrawlerOperator(BaseOperator):
@@ -39,7 +41,6 @@ class AwsGlueCrawlerOperator(BaseOperator):
 
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         config,

@@ -181,17 +181,17 @@ with DAG(
             "links": [
                 {
                     "title": "Airflow DAG feed card",
-                    "messageURL": "https://airflow.apache.org/docs/stable/ui.html",
+                    "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
                     "picURL": "https://airflow.apache.org/_images/dags.png",
                 },
                 {
                     "title": "Airflow tree feed card",
-                    "messageURL": "https://airflow.apache.org/docs/stable/ui.html",
+                    "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
                     "picURL": "https://airflow.apache.org/_images/tree.png",
                 },
                 {
                     "title": "Airflow graph feed card",
-                    "messageURL": "https://airflow.apache.org/docs/stable/ui.html",
+                    "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
                     "picURL": "https://airflow.apache.org/_images/graph.png",
                 },
             ]
@@ -205,12 +205,19 @@ with DAG(
         message="",
     )
 
-    [
-        text_msg_remind_none,
-        text_msg_remind_specific,
-        text_msg_remind_include_invalid,
-        text_msg_remind_all,
-    ] >> link_msg >> markdown_msg >> [
-        single_action_card_msg,
-        multi_action_card_msg,
-    ] >> feed_card_msg >> msg_failure_callback
+    (
+        [
+            text_msg_remind_none,
+            text_msg_remind_specific,
+            text_msg_remind_include_invalid,
+            text_msg_remind_all,
+        ]
+        >> link_msg
+        >> markdown_msg
+        >> [
+            single_action_card_msg,
+            multi_action_card_msg,
+        ]
+        >> feed_card_msg
+        >> msg_failure_callback
+    )

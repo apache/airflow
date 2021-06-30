@@ -27,7 +27,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
-# pylint: disable=c-extension-no-member
 try:
     import cx_Oracle
 except ImportError:
@@ -39,7 +38,9 @@ class TestOracleHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(login='login', password='password', host='host', port=1521)
+        self.connection = Connection(
+            login='login', password='password', host='host', schema='schema', port=1521
+        )
 
         self.db_hook = OracleHook()
         self.db_hook.get_connection = mock.Mock()
@@ -53,28 +54,39 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['user'] == 'login'
         assert kwargs['password'] == 'password'
-        assert kwargs['dsn'] == 'host'
+        assert kwargs['dsn'] == 'host:1521/schema'
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    def test_get_conn_host_alternative_port(self, mock_connect):
+        self.connection.port = 1522
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs['user'] == 'login'
+        assert kwargs['password'] == 'password'
+        assert kwargs['dsn'] == 'host:1522/schema'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_sid(self, mock_connect):
-        dsn_sid = {'dsn': 'dsn', 'sid': 'sid'}
+        dsn_sid = {'dsn': 'ignored', 'sid': 'sid'}
         self.connection.extra = json.dumps(dsn_sid)
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs['dsn'] == cx_Oracle.makedsn(dsn_sid['dsn'], self.connection.port, dsn_sid['sid'])
+        assert kwargs['dsn'] == cx_Oracle.makedsn("host", self.connection.port, dsn_sid['sid'])
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_service_name(self, mock_connect):
-        dsn_service_name = {'dsn': 'dsn', 'service_name': 'service_name'}
+        dsn_service_name = {'dsn': 'ignored', 'service_name': 'service_name'}
         self.connection.extra = json.dumps(dsn_service_name)
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         assert args == ()
         assert kwargs['dsn'] == cx_Oracle.makedsn(
-            dsn_service_name['dsn'], self.connection.port, service_name=dsn_service_name['service_name']
+            "host", self.connection.port, service_name=dsn_service_name['service_name']
         )
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
@@ -170,7 +182,7 @@ class TestOracleHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock()
+        self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn

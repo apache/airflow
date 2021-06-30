@@ -133,7 +133,7 @@ class GunicornMonitor(LoggingMixin):
         def ready_prefix_on_cmdline(proc):
             try:
                 cmdline = proc.cmdline()
-                if len(cmdline) > 0:  # pylint: disable=len-as-condition
+                if len(cmdline) > 0:
                     return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
             except psutil.NoSuchProcess:
                 pass
@@ -188,7 +188,7 @@ class GunicornMonitor(LoggingMixin):
 
     def _reload_gunicorn(self) -> None:
         """
-        Send signal to reload the gunciron configuration. When gunciorn receive signals, it reload the
+        Send signal to reload the gunicorn configuration. When gunicorn receive signals, it reload the
         configuration, start the new worker processes with a new configuration and gracefully
         shutdown older workers.
         """
@@ -201,7 +201,7 @@ class GunicornMonitor(LoggingMixin):
 
     def start(self) -> NoReturn:
         """Starts monitoring the webserver."""
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             self._wait_until_true(
                 lambda: self.num_workers_expected == self._get_num_workers_running(),
                 timeout=self.master_timeout,
@@ -427,7 +427,7 @@ def webserver(args):
 
         gunicorn_master_proc = None
 
-        def kill_proc(signum, _):  # pylint: disable=unused-argument
+        def kill_proc(signum, _):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
@@ -480,5 +480,5 @@ def webserver(args):
                     monitor_gunicorn(gunicorn_master_proc.pid)
 
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
-            monitor_gunicorn(gunicorn_master_proc.pid)
+            with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
+                monitor_gunicorn(gunicorn_master_proc.pid)

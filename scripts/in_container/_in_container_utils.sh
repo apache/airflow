@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Can be used to add extra parameters when generating providers
-# We will be able to remove it after we drop backport providers
-OPTIONAL_BACKPORT_FLAG=()
+OPTIONAL_VERBOSE_FLAG=()
 PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
 
 #######################################################################################################
@@ -49,23 +47,13 @@ function assert_in_container() {
         echo
         echo "You should only run this script in the Airflow docker container as it may override your files."
         echo "Learn more about how we develop and test airflow in:"
-        echo "https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst"
+        echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
         echo
         exit 1
     fi
 }
 
 function in_container_script_start() {
-    OUTPUT_PRINTED_ONLY_ON_ERROR=$(mktemp)
-    export OUTPUT_PRINTED_ONLY_ON_ERROR
-    readonly OUTPUT_PRINTED_ONLY_ON_ERROR
-
-    if [[ ${VERBOSE=} == "true" && ${GITHUB_ACTIONS=} != "true" ]]; then
-        echo
-        echo "Output is redirected to ${OUTPUT_PRINTED_ONLY_ON_ERROR} and will be printed on error only"
-        echo
-    fi
-
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
     fi
@@ -76,23 +64,9 @@ function in_container_script_end() {
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         if [[ "${PRINT_INFO_FROM_SCRIPTS="true"}" == "true" ]]; then
-            if [[ -f "${OUTPUT_PRINTED_ONLY_ON_ERROR}" ]]; then
-                echo "###########################################################################################"
-                echo
-                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container (See above for error message). Below is the output of the last action! ${COLOR_RESET}"
-                echo
-                echo "${COLOR_BLUE}***  BEGINNING OF THE LAST COMMAND OUTPUT *** ${COLOR_RESET}"
-                cat "${OUTPUT_PRINTED_ONLY_ON_ERROR}"
-                echo "${COLOR_BLUE}***  END OF THE LAST COMMAND OUTPUT ***  ${COLOR_RESET}"
-                echo
-                echo "${COLOR_BLUE} EXIT CODE: ${EXIT_CODE} in container. The actual error might be above the output!  ${COLOR_RESET}"
-                echo
-                echo "###########################################################################################"
-            else
-                echo "########################################################################################################################"
-                echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
-                echo "########################################################################################################################"
-            fi
+            echo "########################################################################################################################"
+            echo "${COLOR_BLUE} [IN CONTAINER]   EXITING ${0} WITH EXIT CODE ${EXIT_CODE}  ${COLOR_RESET}"
+            echo "########################################################################################################################"
         fi
     fi
 
@@ -108,7 +82,7 @@ function in_container_cleanup_pyc() {
     set +o pipefail
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/www_rbac/node_modules" -prune -o \
+        -path "./airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -123,7 +97,7 @@ function in_container_cleanup_pycache() {
     set +o pipefail
     find . \
         -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/www_rbac/node_modules" -prune -o \
+        -path "./airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
@@ -139,17 +113,16 @@ function in_container_cleanup_pycache() {
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
         DIRECTORIES_TO_FIX=(
-            "/tmp"
             "/files"
             "/root/.aws"
             "/root/.azure"
             "/root/.config/gcloud"
             "/root/.docker"
-            "${AIRFLOW_SOURCES}"
+            "/opt/airflow/logs"
+            "/opt/airflow/docs"
         )
-        sudo find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
-            sudo xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference ||
-            true >/dev/null 2>&1
+        find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
+            xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
     fi
 }
 
@@ -166,63 +139,6 @@ function in_container_basic_sanity_check() {
     in_container_go_to_airflow_sources
     in_container_cleanup_pyc
     in_container_cleanup_pycache
-}
-
-function in_container_refresh_pylint_todo() {
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "Refreshing list of all  non-pylint compliant files. This can take some time."
-        echo
-
-        echo
-        echo "Finding list  all non-pylint compliant files everywhere except 'tests' folder"
-        echo
-    fi
-    # Using path -prune is much better in the local environment on OSX because we have host
-    # Files mounted and node_modules is a huge directory which takes many seconds to even scan
-    # -prune works better than -not path because it skips traversing the whole directory. -not path traverses
-    # the directory and only excludes it after all of it is scanned
-    find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/www_rbac/node_modules" -prune -o \
-        -path "./airflow/migrations/versions" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -path "./tests" -prune -o \
-        -name "*.py" \
-        -not -name 'webserver_config.py' |
-        grep ".*.py$" |
-        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
-
-    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" |
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
-
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "So far found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt") files"
-        echo
-
-        echo
-        echo "Finding list of all non-pylint compliant files in 'tests' folder"
-        echo
-    fi
-    find "./tests" -name "*.py" -print0 |
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
-
-    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" |
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >>"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
-
-    rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
-    mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
-
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "Found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt") files"
-        echo
-    fi
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
@@ -295,12 +211,6 @@ function install_airflow_from_sdist() {
     pip install "${airflow_package}${extras}"
 }
 
-function install_remaining_dependencies() {
-    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    pip install apache-beam[gcp]
-    group_end
-}
-
 function uninstall_airflow() {
     pip uninstall -y apache-airflow || true
     find /root/airflow/ -type f -print0 | xargs -0 rm -f --
@@ -345,6 +255,7 @@ function install_local_airflow_with_eager_upgrade() {
 
 
 function install_all_providers_from_pypi_with_eager_upgrade() {
+    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS))')
     ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
     local packages_to_install=()
     local provider_package
@@ -367,7 +278,7 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install -e . "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 
 }
@@ -389,117 +300,19 @@ function install_all_provider_packages_from_sdist() {
 }
 
 function setup_provider_packages() {
-    if [[ ${BACKPORT_PACKAGES:=} == "true" ]]; then
-        export PACKAGE_TYPE="backport"
-        export PACKAGE_PREFIX_UPPERCASE="BACKPORT_"
-        export PACKAGE_PREFIX_LOWERCASE="backport_"
-        export PACKAGE_PREFIX_HYPHEN="backport-"
-        OPTIONAL_BACKPORT_FLAG+=("--backports")
-    else
-        export PACKAGE_TYPE="regular"
-        export PACKAGE_PREFIX_UPPERCASE=""
-        export PACKAGE_PREFIX_LOWERCASE=""
-        export PACKAGE_PREFIX_HYPHEN=""
+    export PACKAGE_TYPE="regular"
+    export PACKAGE_PREFIX_UPPERCASE=""
+    export PACKAGE_PREFIX_LOWERCASE=""
+    export PACKAGE_PREFIX_HYPHEN=""
+    if [[ ${VERBOSE} == "true" ]]; then
+        OPTIONAL_VERBOSE_FLAG+=("--verbose")
     fi
     readonly PACKAGE_TYPE
     readonly PACKAGE_PREFIX_UPPERCASE
     readonly PACKAGE_PREFIX_LOWERCASE
     readonly PACKAGE_PREFIX_HYPHEN
-
-    readonly BACKPORT_PACKAGES
-    export BACKPORT_PACKAGES
 }
 
-function verify_suffix_versions_for_package_preparation() {
-    group_start "Verify suffixes"
-    TARGET_VERSION_SUFFIX=""
-    FILE_VERSION_SUFFIX=""
-
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
-    readonly VERSION_SUFFIX_FOR_PYPI
-
-    VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
-
-    if [[ -n "${VERSION_SUFFIX_FOR_PYPI}" ]]; then
-        echo
-        echo "Version suffix for PyPI = ${VERSION_SUFFIX_FOR_PYPI}"
-        echo
-    fi
-    if [[ -n "${VERSION_SUFFIX_FOR_SVN}" ]]; then
-        echo
-        echo "Version suffix for SVN  = ${VERSION_SUFFIX_FOR_SVN}"
-        echo
-    fi
-
-    if [[ ${VERSION_SUFFIX_FOR_SVN} =~ ^rc ]]; then
-        echo """
-${COLOR_YELLOW}WARNING: The version suffix for SVN is used only for file names.
-         The version inside the packages has no version suffix.
-         This way we can just rename files when they graduate to final release.
-${COLOR_RESET}
-"""
-        echo
-        echo "This suffix is added '${VERSION_SUFFIX_FOR_SVN}' "
-        echo
-        FILE_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_SVN}
-        VERSION_SUFFIX_FOR_SVN=""
-    fi
-    readonly FILE_VERSION_SUFFIX
-    readonly VERSION_SUFFIX_FOR_SVN
-
-    export FILE_VERSION_SUFFIX
-    export VERSION_SUFFIX_FOR_SVN
-    export VERSION_SUFFIX_FOR_PYPI
-
-    if [[ ${VERSION_SUFFIX_FOR_PYPI} != '' && ${VERSION_SUFFIX_FOR_SVN} != '' ]]; then
-        if [[ ${VERSION_SUFFIX_FOR_PYPI} != "${VERSION_SUFFIX_FOR_SVN}" ]]; then
-            echo
-            echo "${COLOR_RED}ERROR: If you specify both PyPI and SVN version suffixes they must match  ${COLOR_RESET}"
-            echo
-            echo "However they are different: PyPI:'${VERSION_SUFFIX_FOR_PYPI}' vs. SVN:'${VERSION_SUFFIX_FOR_SVN}'"
-            echo
-            exit 1
-        else
-            if [[ ${VERSION_SUFFIX_FOR_PYPI} =~ ^rc ]]; then
-                echo
-                echo "${COLOR_RED}ERROR: If you prepare an RC candidate, you need to specify only PyPI suffix  ${COLOR_RESET}"
-                echo
-                echo "However you specified both: PyPI'${VERSION_SUFFIX_FOR_PYPI}' and SVN '${VERSION_SUFFIX_FOR_SVN}'"
-                echo
-                exit 2
-            fi
-            # Just use one of them - they are both the same:
-            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}
-        fi
-    else
-        if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' && ${VERSION_SUFFIX_FOR_SVN} == '' ]]; then
-            # Preparing "official version"
-            TARGET_VERSION_SUFFIX=""
-        else
-
-            if [[ ${VERSION_SUFFIX_FOR_PYPI} == '' ]]; then
-                echo
-                echo "${COLOR_RED}ERROR: You should never specify version for PyPI only.  ${COLOR_RESET}"
-                echo
-                echo "You specified PyPI suffix: '${VERSION_SUFFIX_FOR_PYPI}'"
-                echo
-                exit 3
-            fi
-            TARGET_VERSION_SUFFIX=${VERSION_SUFFIX_FOR_PYPI}${VERSION_SUFFIX_FOR_SVN}
-            if [[ ! ${TARGET_VERSION_SUFFIX} =~ rc.* ]]; then
-                echo
-                echo "${COLOR_RED}ERROR: If you prepare an alpha/beta release, you need to specify both PyPI/SVN suffixes and they have to match.  ${COLOR_RESET}"
-                echo
-                echo "And they have to match. You specified only one suffix:  ${TARGET_VERSION_SUFFIX}."
-                echo
-                exit 4
-            fi
-        fi
-    fi
-    readonly TARGET_VERSION_SUFFIX
-    export TARGET_VERSION_SUFFIX
-    group_end
-}
 
 function install_supported_pip_version() {
     group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
@@ -606,14 +419,8 @@ function get_providers_to_act_on() {
     if [[ -z "$*" ]]; then
         while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
             python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                "${OPTIONAL_BACKPORT_FLAG[@]}" \
                 list-providers-packages
         )
-        if [[ "$BACKPORT_PACKAGES" != "true" ]]; then
-            # Don't check for missing packages when we are building backports -- we have filtered some out,
-            # and the non-backport build will check for any missing.
-            check_missing_providers
-        fi
     else
         if [[ "${1}" == "--help" ]]; then
             echo
@@ -622,8 +429,8 @@ function get_providers_to_act_on() {
             echo "You can provide list of packages to build out of:"
             echo
             python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                "${OPTIONAL_BACKPORT_FLAG[@]}" \
-                list-providers-packages | tr '\n ' ' ' | fold -w 100 -s
+                list-providers-packages \
+                | tr '\n ' ' ' | fold -w 100 -s
             echo
             echo
             exit
@@ -632,7 +439,7 @@ function get_providers_to_act_on() {
     group_end
 }
 
-# Starts group for Github Actions - makes logs much more readable
+# Starts group for GitHub Actions - makes logs much more readable
 function group_start {
     if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
         echo "::group::${1}"
@@ -643,7 +450,7 @@ function group_start {
     fi
 }
 
-# Ends group for Github Actions
+# Ends group for GitHub Actions
 function group_end {
     if [[ ${GITHUB_ACTIONS=} == "true" ]]; then
         echo -e "\033[0m"  # Disable any colors set in the group

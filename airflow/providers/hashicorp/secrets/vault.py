@@ -18,12 +18,11 @@
 """Objects relating to sourcing connections & variables from Hashicorp Vault"""
 from typing import Optional
 
-from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
+from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-# pylint: disable=too-many-instance-attributes,too-many-locals
 class VaultBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connections and Variables from Hashicorp Vault.
@@ -109,7 +108,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :type radius_port: str
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         connections_path: str = 'connections',
         variables_path: str = 'variables',

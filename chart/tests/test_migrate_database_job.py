@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
 import unittest
 
 import jmespath
@@ -25,10 +24,63 @@ from tests.helm_template_generator import render_chart
 
 class MigrateDatabaseJobTest(unittest.TestCase):
     def test_should_run_by_default(self):
+        docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
+        assert "Job" == docs[0]["kind"]
+        assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert 50000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+
+    def test_should_support_annotations(self):
         docs = render_chart(
-            values={},
-            show_only=["templates/migrate-database-job.yaml"],
+            values={"migrateDatabaseJob": {"annotations": {"foo": "bar"}, "jobAnnotations": {"fiz": "fuz"}}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
+        assert "foo" in annotations
+        assert "bar" == annotations["foo"]
+        job_annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "fiz" in job_annotations
+        assert "fuz" == job_annotations["fiz"]
+
+    def test_should_create_valid_affinity_tolerations_and_node_selector(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"diskType": "ssd"},
+                }
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
         )
 
-        assert re.search("Job", docs[0]["kind"])
-        assert "run-airflow-migrations" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "Job" == jmespath.search("kind", docs[0])
+        assert "foo" == jmespath.search(
+            "spec.template.spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "ssd" == jmespath.search(
+            "spec.template.spec.nodeSelector.diskType",
+            docs[0],
+        )
+        assert "dynamic-pods" == jmespath.search(
+            "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )

@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.dingding.operators.dingding`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.dingding.operators.dingding`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.dingding.operators.dingding import DingdingOperator  # noqa
 
 warnings.warn(

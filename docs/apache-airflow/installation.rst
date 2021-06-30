@@ -27,7 +27,31 @@ installation with other tools as well.
 
 .. note::
 
-    Airflow is also distributed as a Docker image (OCI Image). For more information, see: :ref:`docker_image`
+    Airflow is also distributed as a Docker image (OCI Image). Consider using it to guarantee that software will always run the same no matter where it is deployed. For more information, see: :doc:`docker-stack:index`.
+
+Version Life Cycle
+''''''''''''''''''
+
+Apache Airflow version life cycle:
+
++---------+-----------------+---------------+-----------------+----------------+
+| Version | State           | First Release | Limited Support | EOL/Terminated |
++---------+-----------------+---------------+-----------------+----------------+
+| 2       | Supported       | Dec 17, 2020  | Dec 2021        | TBD            |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.10    | Limited Support | Aug 27, 2018  | Dec 17, 2020    | June 2021      |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.9     | EOL             | Jan 03, 2018  | Aug 27, 2018    | Aug 2018       |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.8     | EOL             | Mar 19, 2017  | Jan 03, 2018    | Jan 2018       |
++---------+-----------------+---------------+-----------------+----------------+
+| 1.7     | EOL             | Mar 28, 2016  | Mar 19, 2017    | Mar 2017       |
++---------+-----------------+---------------+-----------------+----------------+
+
+Limited support versions will be supported with security and critical bug fix only.
+EOL versions will not get any fixes nor support.
+We **highly** recommend installing the latest Airflow release which has richer features.
+
 
 Prerequisites
 '''''''''''''
@@ -41,11 +65,12 @@ Airflow is tested with:
   * PostgreSQL:  9.6, 10, 11, 12, 13
   * MySQL: 5.7, 8
   * SQLite: 3.15.0+
+  * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.16.9, 1.17.5, 1.18.6
+* Kubernetes: 1.18.15 1.19.7 1.20.2
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
-running multiple schedulers -- please see: :doc:`/scheduler`. MariaDB is not tested/recommended.
+running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.
 
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
@@ -56,14 +81,9 @@ tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
 Installation tools
 ''''''''''''''''''
 
-The official way of installing Airflow is with the ``pip`` tool.
-There was a recent (November 2020) change in resolver, so currently only 20.2.4 version is officially
-supported, although you might have a success with 20.3.3+ version (to be confirmed if all initial
-issues from ``pip`` 20.3.0 release have been fixed in 20.3.3). In order to install Airflow you need to
-either downgrade pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-``--use-deprecated legacy-resolver`` to your pip install command.
+Only ``pip`` installation is currently officially supported.
 
-While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
 `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
 ``pip`` - especially when it comes to constraint vs. requirements management.
 Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
@@ -81,8 +101,8 @@ environment. For instance, if you don't need connectivity with Postgres,
 you won't have to go through the trouble of installing the ``postgres-devel``
 yum package, or whatever equivalent applies on the distribution you are using.
 
-Most of the extra dependencies are linked to a corresponding providers package. For example "amazon" extra
-has a corresponding ``apache-airflow-providers-amazon`` providers package to be installed. When you install
+Most of the extra dependencies are linked to a corresponding provider package. For example "amazon" extra
+has a corresponding ``apache-airflow-providers-amazon`` provider package to be installed. When you install
 Airflow with such extras, the necessary provider packages are installed automatically (latest versions from
 PyPI for those packages). However you can freely upgrade and install provider packages independently from
 the main Airflow installation.
@@ -96,7 +116,7 @@ Provider packages
 
 Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, but connected packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
-60 providers packages which can be installed separately as so called ``Airflow Provider packages``.
+60 provider packages which can be installed separately as so called ``Airflow Provider packages``.
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
 
 You can even develop and install your own providers for Airflow. For more information,
@@ -130,6 +150,7 @@ You need certain system level requirements in order to install Airflow. Those ar
 to be needed for Linux system (Tested on Ubuntu Buster LTS) :
 
 .. code-block:: bash
+   :substitutions:
 
    sudo apt-get install -y --no-install-recommends \
            freetds-bin \
@@ -161,12 +182,12 @@ not work or will produce unusable Airflow installation.
 
 In order to have repeatable installation, starting from **Airflow 1.10.10** and updated in
 **Airflow 1.10.13** we also keep a set of "known-to-be-working" constraint files in the
-``constraints-master``, ``constraints-2-0`` and ``constraints-1-10`` orphan branches and then we create tag
-for each released version e.g. ``constraints-2.0.1``. This way, when we keep a tested and working set of dependencies.
+``constraints-main``, ``constraints-2-0`` orphan branches and then we create tag
+for each released version e.g. :subst-code:`constraints-|version|`. This way, when we keep a tested and working set of dependencies.
 
-Those "known-to-be-working" constraints are per major/minor python version. You can use them as constraint
+Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
 files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
-and python versions in the URL.
+and Python versions in the URL.
 
 You can create the URL to the file substituting the variables in the template below.
 
@@ -176,7 +197,7 @@ You can create the URL to the file substituting the variables in the template be
 
 where:
 
-- ``AIRFLOW_VERSION`` - Airflow version (e.g. ``2.0.1``) or ``master``, ``2-0``, ``1-10`` for latest development version
+- ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
 There is also a no-providers constraint file, which contains just constraints required to install Airflow core. This allows
@@ -192,7 +213,7 @@ Installation script
 '''''''''''''''''''
 
 In order to simplify the installation, we have prepared examples that will select
-`the constraints file <installation:constraints>`__ compatible with your Python version.
+:ref:`the constraints file <installation:constraints>` compatible with your Python version.
 
 **Installing Airflow with extras and providers**
 
@@ -201,8 +222,9 @@ you can use the script below to make an installation a one-liner (the example be
 postgres and google provider, as well as ``async`` extra.
 
 .. code-block:: bash
+    :substitutions:
 
-    AIRFLOW_VERSION=2.0.1
+    AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[async,postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
@@ -219,8 +241,9 @@ being installed.
 
 
 .. code-block:: bash
+    :substitutions:
 
-    AIRFLOW_VERSION=2.0.1
+    AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install --upgrade "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
@@ -229,7 +252,7 @@ being installed.
 
 You can manually install all the providers you need. You can continue using the "providers" constraint files
 but the 'versioned' airflow constraints installs only the versions of providers that were available in PyPI at
-the time of preparing of the airflow version. However, usually you can use "master" version of the providers
+the time of preparing of the airflow version. However, usually you can use "main" version of the providers
 to install latest version of providers. Usually the providers work with most versions of Airflow, if there
 will be any incompatibilities, it will be captured as package dependencies.
 
@@ -237,16 +260,16 @@ will be any incompatibilities, it will be captured as package dependencies.
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-${PYTHON_VERSION}.txt"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --constraint "${CONSTRAINT_URL}"
 
-You can also upgrade the providers to latest versions (you need to use master version of constraints for that):
+You can also upgrade the providers to latest versions (you need to use main version of constraints for that):
 
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
-    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-master/constraints-${PYTHON_VERSION}.txt"
+    CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --upgrade --constraint "${CONSTRAINT_URL}"
 
 
@@ -255,31 +278,56 @@ You can also upgrade the providers to latest versions (you need to use master ve
 If you don't want to install any extra providers, initially you can use the command set below.
 
 .. code-block:: bash
+    :substitutions:
 
-    AIRFLOW_VERSION=2.0.1
+    AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     # For example: 3.6
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-no-providers-2.0.1/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-no-providers-|version|/constraints-3.6.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 
-Python versions support
-'''''''''''''''''''''''
+Support for Python and Kubernetes versions
+''''''''''''''''''''''''''''''''''''''''''
 
-As of Airflow 2.0 we agreed to certain rules we follow for Python support. They are based on the official
-release schedule of Python, nicely summarized in the
-`Python Developer's Guide <https://devguide.python.org/#status-of-python-branches>`_
+As of Airflow 2.0 we agreed to certain rules we follow for Python and Kubernetes support.
+They are based on the official release schedule of Python and Kubernetes, nicely summarized in the
+`Python Developer's Guide <https://devguide.python.org/#status-of-python-branches>`_ and
+`Kubernetes version skew policy <https://kubernetes.io/docs/setup/release/version-skew-policy>`_.
 
-1. We end support for Python versions when they reach EOL (For Python 3.6 it means that we will stop supporting it
-   on 23.12.2021).
+1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
+   EOL versions in main right after EOL date, and it is effectively removed when we release the
+   first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
+   For example for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
+   MAJOR or MINOR version of Airflow released after will not have it.
 
-2. The "oldest" supported version of Python is the default one. "Default" is only meaningful in terms of
-   "smoke tests" in CI PRs which are run using this default version.
+2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
+   in terms of "smoke tests" in CI PRs which are run using this default version and default reference
+   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.0.2`` images
+   are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
+   become Python 3.7 images.
 
-3. We support a new version of Python after it is officially released, as soon as we manage to make
-   it works in our CI pipeline (which might not be immediate) and release a new version of Airflow
-   (non-Patch version) based on this CI set-up.
+3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
+   make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
+   new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
+
+Installing Airflow From Released Sources and packages
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+You can also install Airflow using the official sources and packages. Those sources and packages
+released are the "official" sources of installation that you can use if you want to verify the
+origin of the packages and want to verify checksums and signatures of the packages.
+
+The packages are available at the
+`Official Apache Software Foundations Downloads page <https://downloads.apache.org/airflow/>`_
+
+The |version| downloads are available at:
+
+* `Apache Airflow |version| sdist package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.sha512>`__)
+* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.sha512>`__)
+* `Apache Airflow |version| sources <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.sha512>`__)
+
 
 Set up a database
 '''''''''''''''''

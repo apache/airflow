@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=missing-function-docstring
+
 """
 This sample "listen to directory". move the new file and print it,
 using docker-containers.
@@ -26,6 +26,8 @@ TODO: Review the workflow, change it accordingly to
 """
 
 from datetime import timedelta
+
+from docker.types import Mount
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -80,9 +82,9 @@ t_move = DockerOperator(
     docker_url="tcp://localhost:2375",  # replace it with swarm/docker endpoint
     image="centos:latest",
     network_mode="bridge",
-    volumes=[
-        "/your/host/input_dir/path:/your/input_dir/path",
-        "/your/host/output_dir/path:/your/output_dir/path",
+    mounts=[
+        Mount(source="/your/host/input_dir/path", target="/your/input_dir/path", type="bind"),
+        Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind"),
     ],
     command=[
         "/bin/bash",
@@ -105,7 +107,7 @@ t_print = DockerOperator(
     api_version="1.19",
     docker_url="tcp://localhost:2375",
     image="centos:latest",
-    volumes=["/your/host/output_dir/path:/your/output_dir/path"],
+    mounts=[Mount(source="/your/host/output_dir/path", target="/your/output_dir/path", type="bind")],
     command=print_templated_cmd,
     task_id="print",
     dag=dag,

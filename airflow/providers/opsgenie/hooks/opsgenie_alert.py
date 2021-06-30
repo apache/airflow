@@ -41,6 +41,11 @@ class OpsgenieAlertHook(HttpHook):
 
     """
 
+    conn_name_attr = 'opsgenie_conn_id'
+    default_conn_name = 'opsgenie_default'
+    conn_type = 'opsgenie'
+    hook_name = 'Opsgenie'
+
     def __init__(self, opsgenie_conn_id: str = 'opsgenie_default', *args, **kwargs) -> None:
         super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)  # type: ignore[misc]
 

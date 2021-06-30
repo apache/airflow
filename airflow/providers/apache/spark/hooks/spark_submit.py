@@ -34,7 +34,6 @@ except (ImportError, NameError):
     pass
 
 
-# pylint: disable=too-many-instance-attributes
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -43,9 +42,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
-    :param conn_id: The connection id as configured in Airflow administration. When an
-        invalid connection_id is supplied, it will default to yarn.
-    :type conn_id: str
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+        in Airflow administration. When an invalid connection_id is supplied, it will default
+        to yarn.
+    :type spark_conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
         comma. Files will be placed in the working directory of each executor.
         For example, serialized objects.
@@ -117,7 +117,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "relabeling": {},
         }
 
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
         self,
         conf: Optional[Dict[str, Any]] = None,
@@ -644,11 +643,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self.log.info('Killing driver %s on cluster', self._driver_id)
 
                 kill_cmd = self._build_spark_driver_kill_command()
-                driver_kill = subprocess.Popen(kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-                self.log.info(
-                    "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
-                )
+                with subprocess.Popen(
+                    kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                ) as driver_kill:
+                    self.log.info(
+                        "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
+                    )
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
@@ -656,7 +656,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             if self._yarn_application_id:
                 kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
-                env = None
+                env = {**os.environ, **(self._env or {})}
                 if self._keytab is not None and self._principal is not None:
                     # we are ignoring renewal failures from renew_from_kt
                     # here as the failure could just be due to a non-renewable ticket,
@@ -665,11 +665,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     env = os.environ.copy()
                     env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
 
-                yarn_kill = subprocess.Popen(
+                with subprocess.Popen(
                     kill_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                )
-
-                self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
+                ) as yarn_kill:
+                    self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
 
             if self._kubernetes_driver_pod:
                 self.log.info('Killing pod %s on Kubernetes', self._kubernetes_driver_pod)
@@ -688,6 +687,5 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                     self.log.info("Spark on K8s killed with response: %s", api_response)
 
-                except kube_client.ApiException as e:
-                    self.log.error("Exception when attempting to kill Spark on K8s:")
-                    self.log.exception(e)
+                except kube_client.ApiException:
+                    self.log.exception("Exception when attempting to kill Spark on K8s")

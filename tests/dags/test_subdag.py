@@ -78,4 +78,4 @@ with DAG(
         task_id='some-other-task',
     )
 
-    start >> section_1 >> some_other_task  # pylint: disable=W0104
+    start >> section_1 >> some_other_task

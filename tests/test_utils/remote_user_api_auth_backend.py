@@ -33,7 +33,7 @@ def init_app(_):
     """Initializes authentication backend"""
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def _lookup_user(user_email_or_username: str):

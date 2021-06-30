@@ -17,9 +17,16 @@
 import tempfile
 from typing import Any, Dict, Generator, Optional, Tuple, Union
 
-import yaml
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from kubernetes import client, config, watch
+
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -50,7 +57,8 @@ class KubernetesHook(BaseHook):
         For more information about Kubernetes connection:
         :doc:`/connections/kubernetes`
 
-    :param conn_id: the connection to Kubernetes cluster
+    :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
+        to Kubernetes cluster.
     :type conn_id: str
     """
 

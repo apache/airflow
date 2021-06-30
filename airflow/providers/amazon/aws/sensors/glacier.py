@@ -21,7 +21,6 @@ from typing import Any
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class JobStatus(Enum):
@@ -65,7 +64,6 @@ class GlacierJobOperationSensor(BaseSensorOperator):
 
     template_fields = ["vault_name", "job_id"]
 
-    @apply_defaults
     def __init__(
         self,
         *,

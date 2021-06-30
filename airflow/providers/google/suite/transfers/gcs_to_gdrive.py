@@ -23,14 +23,13 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 
 
 class GCSToGoogleDriveOperator(BaseOperator):
     """
-    Copies objects from a Google Cloud Storage service service to Google Drive service, with renaming
+    Copies objects from a Google Cloud Storage service to a Google Drive service, with renaming
     if requested.
 
     Using this operator requires the following OAuth 2.0 scope:
@@ -89,7 +88,6 @@ class GCSToGoogleDriveOperator(BaseOperator):
     )
     ui_color = "#f0eee4"
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.apache.cassandra.sensors.table`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.apache.cassandra.sensors.table`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor  # noqa
 
 warnings.warn(

@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.microsoft.winrm.hooks.winrm`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.winrm.hooks.winrm`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook  # noqa
 
 warnings.warn(

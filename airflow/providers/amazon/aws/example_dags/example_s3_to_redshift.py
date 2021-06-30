@@ -75,7 +75,11 @@ with DAG(
     teardown__task_remove_sample_data_from_s3 = PythonOperator(
         python_callable=_remove_sample_data_from_s3, task_id='teardown__remove_sample_data_from_s3'
     )
-    [setup__task_add_sample_data_to_s3, setup__task_create_table] >> task_transfer_s3_to_redshift >> [
-        teardown__task_drop_table,
-        teardown__task_remove_sample_data_from_s3,
-    ]
+    (
+        [setup__task_add_sample_data_to_s3, setup__task_create_table]
+        >> task_transfer_s3_to_redshift
+        >> [
+            teardown__task_drop_table,
+            teardown__task_remove_sample_data_from_s3,
+        ]
+    )

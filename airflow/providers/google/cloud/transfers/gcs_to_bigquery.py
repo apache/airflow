@@ -24,10 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
-# pylint: disable=too-many-instance-attributes
 class GCSToBigQueryOperator(BaseOperator):
     """
     Loads files from Google Cloud Storage into BigQuery.
@@ -43,9 +41,9 @@ class GCSToBigQueryOperator(BaseOperator):
 
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
-    :param source_objects: List of Google Cloud Storage URIs to load from. (templated)
+    :param source_objects: String or List of Google Cloud Storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type source_objects: list[str]
+    :type source_objects: str, list[str]
     :param destination_project_dataset_table: The dotted
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to load data into.
         If ``<project>`` is not included, project will be the project defined in
@@ -135,7 +133,7 @@ class GCSToBigQueryOperator(BaseOperator):
     :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
         options and schema for CSV and JSON sources. (Default: ``True``).
-        Parameter must be setted to True if 'schema_fields' and 'schema_object' are undefined.
+        Parameter must be set to True if 'schema_fields' and 'schema_object' are undefined.
         It is suggested to set to True if table are create outside of Airflow.
     :type autodetect: bool
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
@@ -157,6 +155,10 @@ class GCSToBigQueryOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param labels: [Optional] Labels for the BiqQuery table.
+    :type labels: dict
+    :param description: [Optional] Description for the BigQuery table.
+    :type description: str
     """
 
     template_fields = (
@@ -169,8 +171,6 @@ class GCSToBigQueryOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
-    # pylint: disable=too-many-locals,too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -204,6 +204,8 @@ class GCSToBigQueryOperator(BaseOperator):
         encryption_configuration=None,
         location=None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        labels=None,
+        description=None,
         **kwargs,
     ):
 
@@ -215,7 +217,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if time_partitioning is None:
             time_partitioning = {}
         self.bucket = bucket
-        self.source_objects = source_objects
+        self.source_objects = source_objects if isinstance(source_objects, list) else [source_objects]
         self.schema_object = schema_object
 
         # BQ config
@@ -248,6 +250,9 @@ class GCSToBigQueryOperator(BaseOperator):
         self.encryption_configuration = encryption_configuration
         self.location = location
         self.impersonation_chain = impersonation_chain
+
+        self.labels = labels
+        self.description = description
 
     def execute(self, context):
         bq_hook = BigQueryHook(
@@ -300,6 +305,8 @@ class GCSToBigQueryOperator(BaseOperator):
                 encoding=self.encoding,
                 src_fmt_configs=self.src_fmt_configs,
                 encryption_configuration=self.encryption_configuration,
+                labels=self.labels,
+                description=self.description,
             )
         else:
             cursor.run_load(
@@ -323,6 +330,8 @@ class GCSToBigQueryOperator(BaseOperator):
                 time_partitioning=self.time_partitioning,
                 cluster_fields=self.cluster_fields,
                 encryption_configuration=self.encryption_configuration,
+                labels=self.labels,
+                description=self.description,
             )
 
         if cursor.use_legacy_sql:

@@ -22,7 +22,6 @@ from qds_sdk.sensors import FileSensor, PartitionSensor
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class QuboleSensor(BaseSensorOperator):
@@ -32,7 +31,6 @@ class QuboleSensor(BaseSensorOperator):
 
     template_ext = ('.txt',)
 
-    @apply_defaults
     def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
         self.qubole_conn_id = qubole_conn_id
@@ -54,10 +52,8 @@ class QuboleSensor(BaseSensorOperator):
 
         status = False
         try:
-            status = self.sensor_class.check(  # type: ignore[attr-defined]  # pylint: disable=no-member
-                self.data
-            )
-        except Exception as e:  # pylint: disable=broad-except
+            status = self.sensor_class.check(self.data)  # type: ignore[attr-defined]
+        except Exception as e:
             self.log.exception(e)
             status = False
 
@@ -74,7 +70,7 @@ class QuboleFileSensor(QuboleSensor):
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked
-        Check this `example <https://github.com/apache/airflow/blob/master\
+        Check this `example <https://github.com/apache/airflow/blob/main\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
     :type data: dict
@@ -83,7 +79,6 @@ class QuboleFileSensor(QuboleSensor):
         also use ``.txt`` files for template-driven use cases.
     """
 
-    @apply_defaults
     def __init__(self, **kwargs) -> None:
         self.sensor_class = FileSensor
         super().__init__(**kwargs)
@@ -97,7 +92,7 @@ class QubolePartitionSensor(QuboleSensor):
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked.
-        Check this `example <https://github.com/apache/airflow/blob/master\
+        Check this `example <https://github.com/apache/airflow/blob/main\
         /airflow/providers/qubole/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
     :type data: dict
@@ -106,7 +101,6 @@ class QubolePartitionSensor(QuboleSensor):
         also use ``.txt`` files for template-driven use cases.
     """
 
-    @apply_defaults
     def __init__(self, **kwargs) -> None:
         self.sensor_class = PartitionSensor
         super().__init__(**kwargs)

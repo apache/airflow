@@ -20,7 +20,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -28,11 +28,12 @@ import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BaseSQLToGCSOperator(BaseOperator):
     """
+    Copy data from SQL to Google Cloud Storage in JSON or CSV format.
+
     :param sql: The SQL to execute.
     :type sql: str
     :param bucket: The bucket to upload to.
@@ -99,10 +100,9 @@ class BaseSQLToGCSOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         sql: str,
         bucket: str,
         filename: str,
@@ -184,6 +184,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         col_type_dict = self._get_col_type_dict()
         file_no = 0
+
         tmp_file_handle = NamedTemporaryFile(delete=True)
         if self.export_format == 'csv':
             file_mime_type = 'text/csv'
@@ -234,6 +235,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             # Stop if the file exceeds the file size limit.
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
+
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 files_to_upload.append(
                     {
@@ -263,7 +265,7 @@ class BaseSQLToGCSOperator(BaseOperator):
 
     def _convert_parquet_schema(self, cursor):
         type_map = {
-            'INTERGER': pa.int64(),
+            'INTEGER': pa.int64(),
             'FLOAT': pa.float64(),
             'NUMERIC': pa.float64(),
             'BIGNUMERIC': pa.float64(),
@@ -276,7 +278,8 @@ class BaseSQLToGCSOperator(BaseOperator):
         }
 
         columns = [field[0] for field in cursor.description]
-        bq_types = [self.field_to_bigquery(field) for field in cursor.description]
+        bq_fields = [self.field_to_bigquery(field) for field in cursor.description]
+        bq_types = [bq_field.get('type') if bq_field is not None else None for bq_field in bq_fields]
         pq_types = [type_map.get(bq_type, pa.string()) for bq_type in bq_types]
         parquet_schema = pa.schema(zip(columns, pq_types))
         return parquet_schema
@@ -286,7 +289,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Execute DBAPI query."""
 
     @abc.abstractmethod
-    def field_to_bigquery(self, field):
+    def field_to_bigquery(self, field) -> Dict[str, str]:
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod

@@ -36,7 +36,7 @@ Prerequisite Tasks
 Manage GKE cluster
 ^^^^^^^^^^^^^^^^^^
 
-A cluster is the foundation of GKE - all workloads run on on top of the cluster. It is made up on a cluster master
+A cluster is the foundation of GKE - all workloads run on top of the cluster. It is made up on a cluster master
 and worker nodes. The lifecycle of the master is managed by GKE when creating or deleting a cluster.
 The worker nodes are represented as Compute Engine VM instances that GKE creates on your behalf when creating a cluster.
 
@@ -110,7 +110,7 @@ output of ``gcloud container clusters describe`` in the endpoint field.
 Private clusters have two unique endpoint values: ``privateEndpoint``, which is an internal IP address, and
 ``publicEndpoint``, which is an external one. Running ``GKEStartPodOperator`` against a private cluster
 sets the external IP address as the endpoint by default. If you prefer to use the internal IP as the
-endpoint, you need to set ``use_private`` parameter to ``True``.
+endpoint, you need to set ``use_internal_ip`` parameter to ``True``.
 
 Use of XCom
 '''''''''''

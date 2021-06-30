@@ -15,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated.
-
-Please use `airflow.providers.oracle.transfers.oracle_to_oracle`.
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.oracle.transfers.oracle_to_oracle`.
 """
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.oracle.transfers.oracle_to_oracle import OracleToOracleOperator
 
 warnings.warn(
@@ -45,6 +44,6 @@ class OracleToOracleTransfer(OracleToOracleOperator):
             Please use
             `airflow.providers.oracle.transfers.oracle_to_oracle.OracleToOracleOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

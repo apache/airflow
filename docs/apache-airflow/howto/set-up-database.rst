@@ -103,6 +103,48 @@ An example URI for the sqlite database:
 
     sqlite:////home/airflow/airflow.db
 
+**Upgrading SQLite on AmazonLinux AMI or Container Image**
+
+AmazonLinux SQLite can only be upgraded to v3.7 using the source repos. Airflow requires v3.15 or higher. Use the
+following instructions to setup the base image (or AMI) with latest SQLite3
+
+Pre-requisite: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``expect`` to get the upgrade process working.
+
+.. code-block:: bash
+
+  yum -y install wget tar gzip gcc make expect
+
+Download source from https://sqlite.org/, make and install locally.
+
+.. code-block:: bash
+
+    wget https://www.sqlite.org/src/tarball/sqlite.tar.gz
+    tar xzf sqlite.tar.gz
+    cd sqlite/
+    export CFLAGS="-DSQLITE_ENABLE_FTS3 \
+        -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+        -DSQLITE_ENABLE_FTS4 \
+        -DSQLITE_ENABLE_FTS5 \
+        -DSQLITE_ENABLE_JSON1 \
+        -DSQLITE_ENABLE_LOAD_EXTENSION \
+        -DSQLITE_ENABLE_RTREE \
+        -DSQLITE_ENABLE_STAT4 \
+        -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT \
+        -DSQLITE_SOUNDEX \
+        -DSQLITE_TEMP_STORE=3 \
+        -DSQLITE_USE_URI \
+        -O2 \
+        -fPIC"
+    export PREFIX="/usr/local"
+    LIBS="-lm" ./configure --disable-tcl --enable-shared --enable-tempstore=always --prefix="$PREFIX"
+    make
+    make install
+
+Post install add ``/usr/local/lib`` to library path
+
+.. code-block:: bash
+
+  export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 Setting up a MySQL Database
 ---------------------------
@@ -115,6 +157,11 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE DATABASE airflow_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
    GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
+
+
+.. note::
+
+   The database must use a UTF-8 character set
 
 We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
 Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
@@ -149,6 +196,10 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE DATABASE airflow_db;
    CREATE USER airflow_user WITH PASSWORD 'airflow_pass';
    GRANT ALL PRIVILEGES ON DATABASE airflow_db TO airflow_user;
+
+.. note::
+
+   The database must use a UTF-8 character set
 
 You may need to update your Postgres ``pg_hba.conf`` to add the
 ``airflow`` user to the database access control list; and to reload

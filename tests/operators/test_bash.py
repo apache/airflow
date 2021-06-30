@@ -117,7 +117,23 @@ class TestBashOperator(unittest.TestCase):
 
         assert bash_operator.retries == 0
 
-    def test_skip(self):
-        op = BashOperator(task_id='abc', bash_command='set -e; echo "hello world"; exit 127;')
-        with pytest.raises(AirflowSkipException):
-            op.execute({})
+    def test_command_not_found(self):
+        with pytest.raises(
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+        ):
+            BashOperator(task_id='abc', bash_command='set -e; something-that-isnt-on-path').execute({})
+
+    @parameterized.expand(
+        [
+            (None, 99, AirflowSkipException),
+            ({'skip_exit_code': 100}, 100, AirflowSkipException),
+            ({'skip_exit_code': 100}, 101, AirflowException),
+            ({'skip_exit_code': None}, 99, AirflowException),
+        ]
+    )
+    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+        kwargs = dict(task_id='abc', bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
+        if extra_kwargs:
+            kwargs.update(**extra_kwargs)
+        with pytest.raises(expected_exc):
+            BashOperator(**kwargs).execute({})

@@ -21,7 +21,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleDriveToGCSOperator(BaseOperator):
@@ -76,7 +75,6 @@ class GoogleDriveToGCSOperator(BaseOperator):
         "impersonation_chain",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -95,10 +93,18 @@ class GoogleDriveToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.bucket_name = destination_bucket or bucket_name
         if destination_bucket:
-            warnings.warn("`destination_bucket` is deprecated please use `bucket_name`", DeprecationWarning)
+            warnings.warn(
+                "`destination_bucket` is deprecated please use `bucket_name`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.object_name = destination_object or object_name
         if destination_object:
-            warnings.warn("`destination_object` is deprecated please use `object_name`", DeprecationWarning)
+            warnings.warn(
+                "`destination_object` is deprecated please use `object_name`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name

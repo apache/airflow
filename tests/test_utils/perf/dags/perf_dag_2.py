@@ -21,7 +21,7 @@ This dag tests performance of simple bash commands executed with Airflow.
 from datetime import timedelta
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 args = {

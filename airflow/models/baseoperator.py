@@ -24,6 +24,7 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
+from inspect import signature
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,15 +39,18 @@ from typing import (
     Set,
     Tuple,
     Type,
+    TypeVar,
     Union,
+    cast,
 )
 
 import attr
 import jinja2
-from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
+import airflow.templates
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -61,7 +65,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
+from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
@@ -70,32 +74,128 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
-    from airflow.utils.task_group import TaskGroup  # pylint: disable=cyclic-import
+    from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskStateChangeCallback = Callable[[Context], None]
 
+T = TypeVar('T', bound=Callable)
+
 
 class BaseOperatorMeta(abc.ABCMeta):
-    """Base metaclass of BaseOperator."""
+    """Metaclass of BaseOperator."""
 
-    def __call__(cls, *args, **kwargs):
+    @classmethod
+    def _apply_defaults(cls, func: T) -> T:
         """
-        Called when you call BaseOperator(). In this way we are able to perform an action
-        after initializing an operator no matter where  the ``super().__init__`` is called
-        (before or after assign of new attributes in a custom operator).
+        Function decorator that Looks for an argument named "default_args", and
+        fills the unspecified arguments from it.
+
+        Since python2.* isn't clear about which arguments are missing when
+        calling a function, and that this can be quite confusing with multi-level
+        inheritance and argument defaults, this decorator also alerts with
+        specific information about the missing arguments.
         """
-        obj: BaseOperator = type.__call__(cls, *args, **kwargs)
-        # Here we set upstream task defined by XComArgs passed to template fields of the operator
-        obj.set_xcomargs_dependencies()
+        # Cache inspect.signature for the wrapper closure to avoid calling it
+        # at every decorated invocation. This is separate sig_cache created
+        # per decoration, i.e. each function decorated using apply_defaults will
+        # have a different sig_cache.
+        sig_cache = signature(func)
+        non_optional_args = {
+            name
+            for (name, param) in sig_cache.parameters.items()
+            if param.default == param.empty
+            and param.name != 'self'
+            and param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)
+        }
 
-        # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
-        obj._BaseOperator__instantiated = True
-        return obj
+        class autostacklevel_warn:
+            def __init__(self):
+                self.warnings = __import__('warnings')
+
+            def __getattr__(self, name):
+                return getattr(self.warnings, name)
+
+            def __dir__(self):
+                return dir(self.warnings)
+
+            def warn(self, message, category=None, stacklevel=1, source=None):
+                self.warnings.warn(message, category, stacklevel + 2, source)
+
+        if func.__globals__.get('warnings') is sys.modules['warnings']:
+            # Yes, this is slightly hacky, but it _automatically_ sets the right
+            # stacklevel parameter to `warnings.warn` to ignore the decorator. Now
+            # that the decorator is applied automatically, this makes the needed
+            # stacklevel parameter less confusing.
+            func.__globals__['warnings'] = autostacklevel_warn()
+
+        @functools.wraps(func)
+        def apply_defaults(self, *args: Any, **kwargs: Any) -> Any:
+            from airflow.models.dag import DagContext
+            from airflow.utils.task_group import TaskGroupContext
+
+            if len(args) > 0:
+                raise AirflowException("Use keyword arguments when initializing operators")
+            dag_args: Dict[str, Any] = {}
+            dag_params: Dict[str, Any] = {}
+
+            dag = kwargs.get('dag') or DagContext.get_current_dag()
+            if dag:
+                dag_args = copy.copy(dag.default_args) or {}
+                dag_params = copy.copy(dag.params) or {}
+                task_group = TaskGroupContext.get_current_task_group(dag)
+                if task_group:
+                    dag_args.update(task_group.default_args)
+
+            params = kwargs.get('params', {}) or {}
+            dag_params.update(params)
+
+            default_args = {}
+            if 'default_args' in kwargs:
+                default_args = kwargs['default_args']
+                if 'params' in default_args:
+                    dag_params.update(default_args['params'])
+                    del default_args['params']
+
+            dag_args.update(default_args)
+            default_args = dag_args
+
+            for arg in sig_cache.parameters:
+                if arg not in kwargs and arg in default_args:
+                    kwargs[arg] = default_args[arg]
+
+            missing_args = list(non_optional_args - set(kwargs))
+            if missing_args:
+                msg = f"Argument {missing_args} is required"
+                raise AirflowException(msg)
+
+            if dag_params:
+                kwargs['params'] = dag_params
+
+            if default_args:
+                kwargs['default_args'] = default_args
+
+            if hasattr(self, '_hook_apply_defaults'):
+                args, kwargs = self._hook_apply_defaults(*args, **kwargs)
+
+            result = func(self, *args, **kwargs)
+
+            # Here we set upstream task defined by XComArgs passed to template fields of the operator
+            self.set_xcomargs_dependencies()
+
+            # Mark instance as instantiated https://docs.python.org/3/tutorial/classes.html#private-variables
+            self._BaseOperator__instantiated = True
+            return result
+
+        return cast(T, apply_defaults)
+
+    def __new__(cls, name, bases, namespace):
+        new_cls = super().__new__(cls, name, bases, namespace)
+        new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+        return new_cls
 
 
-# pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
 class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta):
     """
@@ -221,7 +321,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         has not succeeded yet.
         The scheduler pays special attention for jobs with an SLA and
         sends alert
-        emails for sla misses. SLA misses are also recorded in the database
+        emails for SLA misses. SLA misses are also recorded in the database
         for future reference. All tasks that share the same SLA time
         get bundled in a single email, sent soon after that time. SLA
         notification are sent once and only once for each task instance.
@@ -278,6 +378,21 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param doc: Add documentation or notes to your Task objects that is visible in
+        Task Instance details View in the Webserver
+    :type doc: str
+    :param doc_md: Add documentation (in Markdown format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_md: str
+    :param doc_rst: Add documentation (in RST format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_rst: str
+    :param doc_json: Add documentation (in JSON format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_json: str
+    :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
+        that is visible in Task Instance details View in the Webserver
+    :type doc_yaml: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -341,8 +456,6 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     # Set to True before calling execute method
     _lock_for_execution = False
 
-    # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
-    @apply_defaults
     def __init__(
         self,
         task_id: str,
@@ -353,17 +466,17 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
-        max_retry_delay: Optional[datetime] = None,
+        max_retry_delay: Optional[timedelta] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
         dag=None,
         params: Optional[Dict] = None,
-        default_args: Optional[Dict] = None,  # pylint: disable=unused-argument
+        default_args: Optional[Dict] = None,
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
-        queue: str = conf.get('celery', 'default_queue'),
+        queue: str = conf.get('operators', 'default_queue'),
         pool: Optional[str] = None,
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,
@@ -381,6 +494,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
         task_group: Optional["TaskGroup"] = None,
+        doc: Optional[str] = None,
+        doc_md: Optional[str] = None,
+        doc_json: Optional[str] = None,
+        doc_yaml: Optional[str] = None,
+        doc_rst: Optional[str] = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -440,6 +558,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if wait_for_downstream:
             self.depends_on_past = True
 
+        if retries is not None and not isinstance(retries, int):
+            try:
+                parsed_retries = int(retries)
+            except (TypeError, ValueError):
+                raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+            self.log.warning("Implicitly converting 'retries' for %s from %r to int", self, retries)
+            retries = parsed_retries
+
         self.retries = retries
         self.queue = queue
         self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
@@ -457,9 +583,16 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self.retry_delay = retry_delay
         else:
             self.log.debug("Retry_delay isn't timedelta object, assuming secs")
-            self.retry_delay = timedelta(seconds=retry_delay)  # noqa
+            self.retry_delay = timedelta(seconds=retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
+        if max_retry_delay:
+            if isinstance(max_retry_delay, timedelta):
+                self.max_retry_delay = max_retry_delay
+            else:
+                self.log.debug("Max_retry_delay isn't timedelta object, assuming secs")
+                self.max_retry_delay = timedelta(seconds=max_retry_delay)
+
         self.params = params or {}  # Available in templates!
         self.priority_weight = priority_weight
         if not WeightRule.is_valid(weight_rule):
@@ -478,6 +611,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
+
+        self.doc_md = doc_md
+        self.doc_json = doc_json
+        self.doc_yaml = doc_yaml
+        self.doc_rst = doc_rst
+        self.doc = doc
 
         # Private attributes
         self._upstream_task_ids: Set[str] = set()
@@ -679,7 +818,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         returns a copy of the task
         """
         other = copy.copy(self)
-        other._lock_for_execution = True  # pylint: disable=protected-access
+        other._lock_for_execution = True
         return other
 
     def set_xcomargs_dependencies(self) -> None:
@@ -705,7 +844,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """
         from airflow.models.xcom_arg import XComArg
 
-        def apply_set_upstream(arg: Any):  # noqa
+        def apply_set_upstream(arg: Any):
             if isinstance(arg, XComArg):
                 self.set_upstream(arg.operator)
             elif isinstance(arg, (tuple, set, list)):
@@ -823,13 +962,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        shallow_copy = (
-            cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
-        )  # pylint: disable=protected-access
+        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
 
         for k, v in self.__dict__.items():
             if k not in shallow_copy:
-                setattr(result, k, copy.deepcopy(v, memo))  # noqa
+                setattr(result, k, copy.deepcopy(v, memo))
             else:
                 setattr(result, k, copy.copy(v))
         return result
@@ -841,7 +978,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return state
 
     def __setstate__(self, state):
-        self.__dict__ = state  # pylint: disable=attribute-defined-outside-init
+        self.__dict__ = state
         self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
@@ -872,7 +1009,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 rendered_content = self.render_template(content, context, jinja_env, seen_oids)
                 setattr(parent, attr_name, rendered_content)
 
-    def render_template(  # pylint: disable=too-many-return-statements
+    def render_template(
         self,
         content: Any,
         context: Dict,
@@ -911,10 +1048,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             return content.resolve(context)
 
         if isinstance(content, tuple):
-            if type(content) is not tuple:  # pylint: disable=unidiomatic-typecheck
+            if type(content) is not tuple:
                 # Special case for named tuples
                 return content.__class__(
-                    *(self.render_template(element, context, jinja_env) for element in content)  # noqa
+                    *(self.render_template(element, context, jinja_env) for element in content)
                 )
             else:
                 return tuple(self.render_template(element, context, jinja_env) for element in content)
@@ -949,7 +1086,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
-        return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)  # noqa
+        return (
+            self.dag.get_template_env()
+            if self.has_dag()
+            else airflow.templates.SandboxedEnvironment(cache_size=0)
+        )
 
     def prepare_template(self) -> None:
         """
@@ -961,26 +1102,26 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     def resolve_template_files(self) -> None:
         """Getting the content of files for template_field / template_ext"""
-        if self.template_ext:  # pylint: disable=too-many-nested-blocks
+        if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:  # pylint: disable=no-else-continue
+                if content is None:
                     continue
                 elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])
-                    except Exception as e:  # pylint: disable=broad-except
+                    except Exception as e:
                         self.log.exception(e)
                 elif isinstance(content, list):
                     env = self.dag.get_template_env()
-                    for i in range(len(content)):  # pylint: disable=consider-using-enumerate
+                    for i in range(len(content)):
                         if isinstance(content[i], str) and any(
                             content[i].endswith(ext) for ext in self.template_ext
                         ):
                             try:
                                 content[i] = env.loader.get_source(env, content[i])[0]
-                            except Exception as e:  # pylint: disable=broad-except
+                            except Exception as e:
                                 self.log.exception(e)
         self.prepare_template()
 
@@ -1103,7 +1244,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
-        for execution_date in self.dag.date_range(start_date, end_date=end_date):
+        for execution_date in self.dag.get_run_dates(start_date, end_date, align=False):
             TaskInstance(self, execution_date).run(
                 mark_success=mark_success,
                 ignore_depends_on_past=(execution_date == start_date and ignore_first_depends_on_past),
@@ -1147,10 +1288,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """@property: type of the task"""
         return self.__class__.__name__
 
-    def add_only_new(self, item_set: Set[str], item: str) -> None:
+    def add_only_new(self, item_set: Set[str], item: str, dag_id: str) -> None:
         """Adds only new items to item set"""
         if item in item_set:
-            self.log.warning('Dependency %s, %s already registered', self, item)
+            self.log.warning('Dependency %s, %s already registered for DAG: %s', self, item, dag_id)
         else:
             item_set.add(item)
 
@@ -1168,6 +1309,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self,
         task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
         upstream: bool = False,
+        edge_modifier: Optional[EdgeModifier] = None,
     ) -> None:
         """Sets relatives for the task or task list."""
         if not isinstance(task_or_task_list, Sequence):
@@ -1189,9 +1331,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
         dags = {
-            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access,no-member
-            for task in self.roots + task_list
-            if task.has_dag()  # pylint: disable=no-member
+            task._dag.dag_id: task._dag for task in self.roots + task_list if task.has_dag()  # type: ignore
         }
 
         if len(dags) > 1:
@@ -1220,25 +1360,37 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 task.dag = dag
                 task.dag.task_group.add(task)
             if upstream:
-                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id)
-                self.add_only_new(self._upstream_task_ids, task.task_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=False), self.task_id, self.dag.dag_id)
+                self.add_only_new(self._upstream_task_ids, task.task_id, task.dag.dag_id)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, task.task_id, self.task_id)
             else:
-                self.add_only_new(self._downstream_task_ids, task.task_id)
-                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
+                self.add_only_new(self._downstream_task_ids, task.task_id, task.dag.dag_id)
+                task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id, self.dag.dag_id)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.task_id, task.task_id)
 
-    def set_downstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_downstream(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        edge_modifier: Optional[EdgeModifier] = None,
+    ) -> None:
         """
         Set a task or a task list to be directly downstream from the current
         task. Required by TaskMixin.
         """
-        self._set_relatives(task_or_task_list, upstream=False)
+        self._set_relatives(task_or_task_list, upstream=False, edge_modifier=edge_modifier)
 
-    def set_upstream(self, task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]]) -> None:
+    def set_upstream(
+        self,
+        task_or_task_list: Union[TaskMixin, Sequence[TaskMixin]],
+        edge_modifier: Optional[EdgeModifier] = None,
+    ) -> None:
         """
         Set a task or a task list to be directly upstream from the current
         task. Required by TaskMixin.
         """
-        self._set_relatives(task_or_task_list, upstream=True)
+        self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property
     def output(self):

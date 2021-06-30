@@ -25,7 +25,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):
@@ -40,7 +39,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :type azure_data_lake_conn_id: str
     :param azure_data_lake_path: destination path in azure data lake to put the file.
     :type azure_data_lake_path: str
-    :param oracle_conn_id: source Oracle connection.
+    :param oracle_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
     :type oracle_conn_id: str
     :param sql: SQL query to execute against the Oracle database. (templated)
     :type sql: str
@@ -57,10 +56,9 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     """
 
     template_fields = ('filename', 'sql', 'sql_params')
+    template_fields_renderers = {"sql_params": "py"}
     ui_color = '#e08c8c'
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

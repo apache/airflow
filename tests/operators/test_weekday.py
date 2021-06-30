@@ -128,7 +128,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
     @freeze_time("2021-01-25")  # Monday
     def test_branch_follow_true_with_execution_date(self):
-        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_execution_day """
+        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_execution_day"""
 
         branch_op = BranchDayOfWeekOperator(
             task_id="make_choice",
@@ -198,7 +198,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
     def test_branch_with_no_weekday(self):
         """Check if BranchDayOfWeekOperator raises exception on missing weekday"""
         with self.assertRaises(AirflowException):
-            BranchDayOfWeekOperator(  # pylint: disable=missing-kwoa
+            BranchDayOfWeekOperator(
                 task_id="make_choice",
                 follow_task_ids_if_true="branch_1",
                 follow_task_ids_if_false="branch_2",

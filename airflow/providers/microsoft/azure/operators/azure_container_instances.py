@@ -38,7 +38,6 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.azure_container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
-from airflow.utils.decorators import apply_defaults
 
 Volume = namedtuple(
     'Volume',
@@ -53,7 +52,6 @@ DEFAULT_MEMORY_IN_GB = 2.0
 DEFAULT_CPU = 1.0
 
 
-# pylint: disable=too-many-instance-attributes
 class AzureContainerInstancesOperator(BaseOperator):
     """
     Start a container on Azure Container Instances
@@ -62,7 +60,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         to start the container instance
     :type ci_conn_id: str
     :param registry_conn_id: connection id of a user which can login to a
-        private docker registry. If None, we assume a public registry
+        private docker registry. For Azure use :ref:`Azure connection id<howto/connection:azure>`
+    :type azure_conn_id: str If None, we assume a public registry
     :type registry_conn_id: Optional[str]
     :param resource_group: name of the resource group wherein this container
         instance should be started
@@ -119,7 +118,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                      "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
                      "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
                     secured_variables = ['POSTGRES_PASSWORD'],
-                    volumes = [("azure_wasb_conn_id",
+                    volumes = [("azure_container_instance_conn_id",
                             "my_storage_container",
                             "my_fileshare",
                             "/input-data",
@@ -133,9 +132,8 @@ class AzureContainerInstancesOperator(BaseOperator):
     """
 
     template_fields = ('name', 'image', 'command', 'environment_variables')
+    template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -294,7 +292,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             self.log.info("Deleting container group")
             try:
                 self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Could not delete container group")
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
@@ -302,7 +300,6 @@ class AzureContainerInstancesOperator(BaseOperator):
         last_message_logged = None
         last_line_logged = None
 
-        # pylint: disable=too-many-nested-blocks
         while True:
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
@@ -316,19 +313,20 @@ class AzureContainerInstancesOperator(BaseOperator):
                         c_state.exit_code,
                         c_state.detail_status,
                     )
-
-                    messages = [event.message for event in instance_view.events]
-                    last_message_logged = self._log_last(messages, last_message_logged)
                 else:
                     state = cg_state.provisioning_state
                     exit_code = 0
                     detail_status = "Provisioning"
 
+                if instance_view is not None and instance_view.events is not None:
+                    messages = [event.message for event in instance_view.events]
+                    last_message_logged = self._log_last(messages, last_message_logged)
+
                 if state != last_state:
                     self.log.info("Container group state changed to %s", state)
                     last_state = state
 
-                if state in ["Running", "Terminated"]:
+                if state in ["Running", "Terminated", "Succeeded"]:
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
                         last_line_logged = self._log_last(logs, last_line_logged)
@@ -338,7 +336,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                         )
 
                 if state == "Terminated":
-                    self.log.error("Container exited with detail_status %s", detail_status)
+                    self.log.info("Container exited with detail_status %s", detail_status)
                     return exit_code
 
                 if state == "Failed":
@@ -357,10 +355,10 @@ class AzureContainerInstancesOperator(BaseOperator):
                     return 1
                 else:
                     self.log.exception("Exception while getting container groups")
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Exception while getting container groups")
 
-        sleep(1)
+            sleep(1)
 
     def _log_last(self, logs: Optional[list], last_line_logged: Any) -> Optional[Any]:
         if logs:

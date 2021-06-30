@@ -25,7 +25,6 @@ from typing import Callable, List, Optional, Sequence, Set, Union
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
@@ -62,12 +61,11 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
         bucket: str,
-        object: str,  # pylint: disable=redefined-builtin
+        object: str,
         google_cloud_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -138,11 +136,10 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
-        object: str,  # pylint: disable=redefined-builtin
+        object: str,
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -206,7 +203,6 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
@@ -317,7 +313,6 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,

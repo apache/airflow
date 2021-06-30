@@ -19,16 +19,17 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_docker_lint() {
+    IMAGE_NAME="hadolint/hadolint:2.3.0-alpine"
     if [[ "${#@}" == "0" ]]; then
         echo
         echo "Running docker lint for all Dockerfiles"
         echo
         # shellcheck disable=SC2046
-        docker run \
+        docker_v run \
             -v "$(pwd):/root" \
             -w "/root" \
             --rm \
-           "hadolint/hadolint:v1.18.0-6-ga0d655d-debian" "/bin/hadolint" $(git ls-files| grep 'Dockerfile')
+           "${IMAGE_NAME}" "/bin/hadolint" $(git ls-files| grep 'Dockerfile')
         echo
         echo "Hadolint completed with no errors"
         echo
@@ -36,11 +37,11 @@ function run_docker_lint() {
         echo
         echo "Running docker lint for $*"
         echo
-        docker run \
+        docker_v run \
             -v "$(pwd):/root" \
             -w "/root" \
             --rm \
-             "hadolint/hadolint:v1.18.0-6-ga0d655d-debian" "/bin/hadolint" "${@}"
+            "${IMAGE_NAME}" "/bin/hadolint" "${@}"
         echo
         echo "Hadolint completed with no errors"
         echo

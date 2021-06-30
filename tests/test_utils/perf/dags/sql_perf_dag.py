@@ -18,7 +18,7 @@
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 
 default_args = {
     "owner": "Airflow",

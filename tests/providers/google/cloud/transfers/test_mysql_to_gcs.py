@@ -22,7 +22,7 @@ import unittest
 from unittest import mock
 
 import pytest
-from _mysql_exceptions import ProgrammingError
+from MySQLdb import ProgrammingError
 from parameterized import parameterized
 
 from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
@@ -88,9 +88,14 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @parameterized.expand(
         [
             ("string", None, "string"),
-            (datetime.date(1970, 1, 2), None, 86400),
+            (datetime.date(1970, 1, 2), None, "1970-01-02 00:00:00"),
+            (datetime.date(1000, 1, 2), None, "1000-01-02 00:00:00"),
             (datetime.date(1970, 1, 2), "DATE", "1970-01-02"),
-            (datetime.datetime(1970, 1, 1, 1, 0), None, 3600),
+            (datetime.date(1000, 1, 2), "DATE", "1000-01-02"),
+            (datetime.datetime(1970, 1, 1, 1, 0), None, "1970-01-01 01:00:00"),
+            (datetime.datetime(1000, 1, 1, 1, 0), None, "1000-01-01 01:00:00"),
+            (datetime.timedelta(), None, "00:00:00"),
+            (datetime.timedelta(hours=23, minutes=59, seconds=59), None, "23:59:59"),
             (decimal.Decimal(5), None, 5),
             (b"bytes", "BYTES", "Ynl0ZXM="),
             (b"\x00\x01", "INTEGER", 1),
@@ -278,7 +283,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 assert not gzip
                 with open(tmp_filename, 'rb') as file:
@@ -304,7 +309,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):  # pylint: disable=unused-argument
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
             if obj == SCHEMA_FILENAME:
                 assert not gzip
                 with open(tmp_filename, 'rb') as file:

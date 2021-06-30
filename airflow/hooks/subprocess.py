@@ -24,8 +24,6 @@ from typing import Dict, List, Optional
 
 from airflow.hooks.base import BaseHook
 
-EXIT_CODE_SKIP = 127
-
 SubprocessResult = namedtuple('SubprocessResult', ['exit_code', 'output'])
 
 
@@ -64,7 +62,7 @@ class SubprocessHook(BaseHook):
 
             self.log.info('Running command: %s', command)
 
-            self.sub_process = Popen(  # pylint: disable=subprocess-popen-preexec-fn
+            self.sub_process = Popen(
                 command,
                 stdout=PIPE,
                 stderr=STDOUT,
