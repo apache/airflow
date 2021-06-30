@@ -86,7 +86,6 @@ class SnowflakeToS3Operator(BaseOperator):
     )
     template_ext = ('.sql',)
     template_fields_renderers = {"sql": "sql"}
-    ui_color = '#ffebb2'
 
     @apply_defaults
     def __init__(
