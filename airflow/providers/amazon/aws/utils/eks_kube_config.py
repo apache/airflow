@@ -14,12 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import base64
 import os
+import re
 from shutil import which
 from typing import Optional
 
 import boto3
 import yaml
+from botocore.signers import RequestSigner
 
 HOME = os.environ.get('HOME', '/tmp')
 DEFAULT_KUBE_CONFIG_FILENAME = 'config'
@@ -29,6 +32,33 @@ DEFAULT_NAMESPACE_NAME = 'default'
 DEFAULT_POD_USERNAME = 'aws'
 
 
+STS_TOKEN_EXPIRES_IN = 60
+
+
+def get_bearer_token(session, cluster_id, region):
+    client = session.client('sts', region_name=region)
+    service_id = client.meta.service_model.service_id
+
+    signer = RequestSigner(service_id, region, 'sts', 'v4', session.get_credentials(), session.events)
+
+    params = {
+        'method': 'GET',
+        'url': f'https://sts.{region}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15',
+        'body': {},
+        'headers': {'x-k8s-aws-id': cluster_id},
+        'context': {},
+    }
+
+    signed_url = signer.generate_presigned_url(
+        params, region_name=region, expires_in=STS_TOKEN_EXPIRES_IN, operation_name=''
+    )
+
+    base64_url = base64.urlsafe_b64encode(signed_url.encode('utf-8')).decode('utf-8')
+
+    # remove any base64 encoding padding:
+    return 'k8s-aws-v1.' + re.sub(r'=*', '', base64_url)
+
+
 def generate_config_file(
     eks_cluster_name: str,
     eks_namespace_name: str,
@@ -36,7 +66,6 @@ def generate_config_file(
     kube_config_file_location: Optional[str] = DEFAULT_KUBE_CONFIG_PATH,
     pod_username: Optional[str] = DEFAULT_POD_USERNAME,
     pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
-    role_arn: Optional[str] = None,
     aws_region: Optional[str] = None,
 ) -> None:
     """
@@ -76,17 +105,7 @@ def generate_config_file(
     cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
     cluster_ep = cluster["cluster"]["endpoint"]
 
-    # build the cluster config hash
-    cli_args = [
-        "--region",
-        aws_region,
-        "eks",
-        "get-token",
-        "--cluster-name",
-        eks_cluster_name,
-    ]
-    if role_arn:
-        cli_args.extend(["--role-arn", role_arn])
+    token = get_bearer_token(session, eks_cluster_name, aws_region)
 
     cluster_config = {
         "apiVersion": "v1",
@@ -113,11 +132,7 @@ def generate_config_file(
             {
                 "name": pod_username,
                 "user": {
-                    "exec": {
-                        "apiVersion": "client.authentication.k8s.io/v1alpha1",
-                        "args": cli_args,
-                        "command": "aws",
-                    }
+                    "token": token,
                 },
             }
         ],
