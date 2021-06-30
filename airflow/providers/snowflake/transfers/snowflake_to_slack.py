@@ -72,7 +72,7 @@ class SnowflakeToSlackOperator(BaseOperator):
     template_fields_renderers = {"slack_message": "jinja"}
     times_rendered = 0
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,

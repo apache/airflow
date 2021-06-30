@@ -61,9 +61,7 @@ def sync_appbuilder_roles(flask_app):
     # will add the new Views and Menus names to the backend, but will not
     # delete the old ones.
     if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
-        security_manager = flask_app.appbuilder.sm
-        security_manager.sync_roles()
-        security_manager.sync_resource_permissions()
+        flask_app.appbuilder.sm.sync_roles()
 
 
 def create_app(config=None, testing=False):
@@ -141,7 +139,7 @@ def create_app(config=None, testing=False):
 
 def cached_app(config=None, testing=False):
     """Return cached instance of Airflow WWW app"""
-    global app  # pylint: disable=global-statement
+    global app
     if not app:
         app = create_app(config=config, testing=testing)
     return app
@@ -149,5 +147,5 @@ def cached_app(config=None, testing=False):
 
 def purge_cached_app():
     """Removes the cached version of the app in global state."""
-    global app  # pylint: disable=global-statement
+    global app
     app = None

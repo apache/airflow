@@ -19,6 +19,46 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Auto-apply apply_default decorator (#15667)``
+
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
+* ``Fixes AzureFileShare connection extras (#16388)``
+
+``Azure Container Volume`` and ``Azure File Share`` have now dedicated connection types with editable
+UI fields. You should not use ``Wasb`` connection type any more for those connections. Names of
+connection ids for those hooks/operators were changed to reflect that.
+
+Features
+~~~~~~~~
+
+* ``add oracle  connection link (#15632)``
+* ``Add delimiter argument to WasbHook delete_file method (#15637)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix colon spacing in ``AzureDataExplorerHook`` docstring (#15841)``
+* ``fix wasb remote logging when blob already exists (#16280)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+   * ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
+   * ``Docs: Replace 'airflow' to 'apache-airflow' to install extra (#15628)``
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
+
 2.0.0
 .....
 

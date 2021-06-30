@@ -23,6 +23,6 @@ cd "${AIRFLOW_SOURCES}"
 
 # [START build]
 docker build . \
-    --tag "$(basename "$0")"
+    --tag "my-stable-airflow:0.0.1"
 # [END build]
-docker rmi --force "$(basename "$0")"
+docker rmi --force "my-stable-airflow:0.0.1"

@@ -17,7 +17,6 @@
 """This module is deprecated. Please use :mod:`airflow.utils.weekday`."""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.utils.weekday import WeekDay  # noqa
 
 warnings.warn(

@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from connexion import NoContent
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
 
+from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
@@ -96,7 +96,7 @@ def get_dag_runs(
     offset=None,
     limit=None,
     order_by='id',
-):  # pylint: disable=too-many-arguments
+):
     """Get all DAG Runs."""
     query = session.query(DagRun)
 
@@ -134,7 +134,7 @@ def _fetch_dag_runs(
     limit,
     offset,
     order_by,
-):  # pylint: disable=too-many-arguments
+):
     query = _apply_date_filters_to_query(
         query,
         end_date_gte,

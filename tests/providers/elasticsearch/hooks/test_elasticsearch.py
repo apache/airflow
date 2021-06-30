@@ -39,7 +39,7 @@ class TestElasticsearchHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.elasticsearch.hooks.elasticsearch.connect')
     def test_get_conn(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_with(host='localhost', port=9200, scheme='http', user=None, password=None)
 
@@ -48,7 +48,7 @@ class TestElasticsearchHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock()
+        self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn

@@ -20,35 +20,28 @@ import logging
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
 
-try:
-    # 3.8+
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
-try:
-    # 3.9+
-    from functools import cache
-except ImportError:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
-
+from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
-    RedactableItem = TypeVar('RedctableItem')
+    RedactableItem = TypeVar('RedactableItem')
+
+
+log = logging.getLogger(__name__)
+
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
-        'password',
-        'secret',
-        'passwd',
-        'authorization',
+        'access_token',
         'api_key',
         'apikey',
-        'access_token',
+        'authorization',
+        'passphrase',
+        'passwd',
+        'password',
+        'private_key',
+        'secret',
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
@@ -70,7 +63,7 @@ def should_hide_value_for_key(name):
     """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden"""
     from airflow import settings
 
-    if name and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
+    if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
         name = name.strip().lower()
         return any(s in name for s in get_sensitive_variables_fields())
     return False
@@ -118,6 +111,7 @@ class SecretsMasker(logging.Filter):
     patterns: Set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
+    MAX_RECURSION_DEPTH = 5
 
     def __init__(self):
         super().__init__()
@@ -155,7 +149,7 @@ class SecretsMasker(logging.Filter):
                 if k in self._record_attrs_to_ignore:
                     continue
                 record.__dict__[k] = self.redact(v)
-            if record.exc_info:
+            if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
                 # I'm not sure if this is a good idea!
                 exc.args = (self.redact(v) for v in exc.args)
@@ -163,50 +157,66 @@ class SecretsMasker(logging.Filter):
 
         return True
 
-    def _redact_all(self, item: "RedactableItem") -> "RedactableItem":
-        if isinstance(item, dict):
-            return {dict_key: self._redact_all(subval) for dict_key, subval in item.items()}
-        elif isinstance(item, str):
+    def _redact_all(self, item: "RedactableItem", depth: int) -> "RedactableItem":
+        if depth > self.MAX_RECURSION_DEPTH or isinstance(item, str):
             return '***'
+        if isinstance(item, dict):
+            return {dict_key: self._redact_all(subval, depth + 1) for dict_key, subval in item.items()}
         elif isinstance(item, (tuple, set)):
             # Turn set in to tuple!
-            return tuple(self._redact_all(subval) for subval in item)
-        elif isinstance(item, Iterable):
-            return list(self._redact_all(subval) for subval in item)
+            return tuple(self._redact_all(subval, depth + 1) for subval in item)
+        elif isinstance(item, list):
+            return list(self._redact_all(subval, depth + 1) for subval in item)
         else:
             return item
 
-    # pylint: disable=too-many-return-statements
-    def redact(self, item: "RedactableItem", name: str = None) -> "RedactableItem":
-        """
-        Redact an any secrets found in ``item``, if it is a string.
+    def _redact(self, item: "RedactableItem", name: Optional[str], depth: int) -> "RedactableItem":
+        # Avoid spending too much effort on redacting on deeply nested
+        # structures. This also avoid infinite recursion if a structure has
+        # reference to self.
+        if depth > self.MAX_RECURSION_DEPTH:
+            return item
+        try:
+            if name and should_hide_value_for_key(name):
+                return self._redact_all(item, depth)
+            if isinstance(item, dict):
+                return {
+                    dict_key: self._redact(subval, name=dict_key, depth=(depth + 1))
+                    for dict_key, subval in item.items()
+                }
+            elif isinstance(item, str):
+                if self.replacer:
+                    # We can't replace specific values, but the key-based redacting
+                    # can still happen, so we can't short-circuit, we need to walk
+                    # the structure.
+                    return self.replacer.sub('***', item)
+                return item
+            elif isinstance(item, (tuple, set)):
+                # Turn set in to tuple!
+                return tuple(self._redact(subval, name=None, depth=(depth + 1)) for subval in item)
+            elif isinstance(item, list):
+                return [self._redact(subval, name=None, depth=(depth + 1)) for subval in item]
+            else:
+                return item
+        # I think this should never happen, but it does not hurt to leave it just in case
+        except Exception as e:
+            log.warning(
+                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
+                "Error was: %s: %s",
+                item,
+                type(e).__name__,
+                str(e),
+            )
+            return item
 
-        If ``name`` is given, and it's a "sensitve" name (see
+    def redact(self, item: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
+        """Redact an any secrets found in ``item``, if it is a string.
+
+        If ``name`` is given, and it's a "sensitive" name (see
         :func:`should_hide_value_for_key`) then all string values in the item
         is redacted.
-
         """
-        if name and should_hide_value_for_key(name):
-            return self._redact_all(item)
-
-        if isinstance(item, dict):
-            return {dict_key: self.redact(subval, dict_key) for dict_key, subval in item.items()}
-        elif isinstance(item, str):
-            if self.replacer:
-                # We can't replace specific values, but the key-based redacting
-                # can still happen, so we can't short-circuit, we need to walk
-                # the strucutre.
-                return self.replacer.sub('***', item)
-            return item
-        elif isinstance(item, (tuple, set)):
-            # Turn set in to tuple!
-            return tuple(self.redact(subval) for subval in item)
-        elif isinstance(item, Iterable):
-            return list(self.redact(subval) for subval in item)
-        else:
-            return item
-
-    # pylint: enable=too-many-return-statements
+        return self._redact(item, name, depth=0)
 
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
@@ -214,6 +224,8 @@ class SecretsMasker(logging.Filter):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
+            if not secret:
+                return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                 self.patterns.add(pattern)

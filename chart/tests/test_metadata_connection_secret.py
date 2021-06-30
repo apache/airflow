@@ -106,3 +106,21 @@ class MetadataConnectionSecretTest(unittest.TestCase):
 
         # sslmode is only added for postgresql
         assert "mysql://someuser:somepass@somehost:7777/somedb" == connection
+
+    def test_should_correctly_handle_password_with_special_characters(self):
+        values = {
+            "data": {
+                "metadataConnection": {
+                    **self.non_chart_database_values,
+                    "user": "username@123123",
+                    "pass": "password@!@#$^&*()",
+                }
+            }
+        }
+        connection = self._get_connection(values)
+
+        # sslmode is only added for postgresql
+        assert (
+            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
+            "somedb?sslmode=disable" == connection
+        )

@@ -132,7 +132,7 @@ def execute_in_subprocess(cmd: List[str]):
     :param cmd: command and arguments to run
     :type cmd: List[str]
     """
-    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True
     ) as proc:
@@ -153,14 +153,14 @@ def execute_interactive(cmd: List[str], **kwargs):
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after
     the process is completed.
     """
-    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
 
     old_tty = termios.tcgetattr(sys.stdin)
     tty.setraw(sys.stdin.fileno())
 
     # open pseudo-terminal to interact with subprocess
     master_fd, slave_fd = pty.openpty()
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
             cmd, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, universal_newlines=True, **kwargs
@@ -233,7 +233,7 @@ def patch_environ(new_env_variables: Dict[str, str]):
     """
     current_env_state = {key: os.environ.get(key) for key in new_env_variables.keys()}
     os.environ.update(new_env_variables)
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         yield
     finally:
         for key, old_value in current_env_state.items():

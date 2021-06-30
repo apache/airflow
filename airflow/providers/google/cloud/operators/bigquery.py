@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=too-many-lines
+
 """This module contains Google BigQuery operators."""
 import enum
 import hashlib
@@ -484,7 +484,6 @@ class BigQueryGetDataOperator(BaseOperator):
         return table_data
 
 
-# pylint: disable=too-many-instance-attributes
 class BigQueryExecuteQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
@@ -604,7 +603,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
 
-    # pylint: disable=too-many-arguments, too-many-locals
     def __init__(
         self,
         *,
@@ -640,12 +638,14 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
                 "the gcp_conn_id parameter.",
                 DeprecationWarning,
+                stacklevel=2,
             )
             gcp_conn_id = bigquery_conn_id
 
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
             DeprecationWarning,
+            stacklevel=2,
         )
 
         self.sql = sql
@@ -882,7 +882,6 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     template_fields_renderers = {"table_resource": "json", "materialized_view": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -969,7 +968,6 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
             self.log.info('Table %s.%s already exists.', self.dataset_id, self.table_id)
 
 
-# pylint: disable=too-many-instance-attributes
 class BigQueryCreateExternalTableOperator(BaseOperator):
     """
     Creates a new external table in the dataset with the data from Google Cloud
@@ -1081,7 +1079,6 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         *,
@@ -1638,7 +1635,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         warnings.warn(
             "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         self.dataset_id = dataset_id
         self.project_id = project_id
@@ -2133,7 +2130,6 @@ class BigQueryUpdateTableSchemaOperator(BaseOperator):
         )
 
 
-# pylint: disable=too-many-arguments
 class BigQueryInsertJobOperator(BaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.

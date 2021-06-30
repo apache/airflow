@@ -22,8 +22,10 @@
 
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
+  - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
-  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image)
+  - [Prepare production Docker Image](#prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -36,7 +38,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
-  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image-1)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image-1)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
@@ -49,14 +51,16 @@ You can find the prerequisites to release Apache Airflow in [README.md](README.m
 
 ## Build RC artifacts
 
-The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
+The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
 - Set environment variables
 
     ```shell script
     # Set Version
-    export VERSION=2.0.2rc3
-
+    export VERSION=2.1.2rc3
+    export VERSION_SUFFIX=rc3
+    export VERSION_CONSTRAINT_BRANCH=2-1
+    export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
     export AIRFLOW_REPO_ROOT=$(pwd)
@@ -80,73 +84,91 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Clean the checkout: the sdist step below will
 
     ```shell script
+    rm -rf dist/*
     git clean -fxd
     ```
 
 - Tarball the repo
 
     ```shell script
-    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz
+    git archive --format=tar.gz ${VERSION} \
+        --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
+        -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
-
-- Generate sdist
-
-    NOTE: Make sure your checkout is clean at this stage - any untracked or changed files will otherwise be included
-     in the file produced.
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    ```
-
-- Rename the sdist
-
-    **Airflow 2+**:
-
-    ```shell script
-    mv dist/apache-airflow-${VERSION%rc?}.tar.gz apache-airflow-${VERSION}-bin.tar.gz
-    mv dist/apache_airflow-${VERSION%rc?}-py3-none-any.whl apache_airflow-${VERSION}-py3-none-any.whl
-    ```
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
-    **Airflow 2+**:
-
     ```shell script
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-source.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-${VERSION}-bin.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow-${VERSION}-py3-none-any.whl
+    ./breeze prepare-airflow-packages --package-format both
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
     ```
 
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout constraints-2-0
+    git checkout constraints-${VERSION_CONSTRAINT_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
 
 - Push the artifacts to ASF dev dist repo
 
-```
-# First clone the repo
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+    ```shell script
+    # First clone the repo
+    svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
 
-# Create new folder for the release
-cd airflow-dev
-svn mkdir ${VERSION}
+    # Create new folder for the release
+    cd airflow-dev
+    svn mkdir ${VERSION}
 
-# Move the artifacts to svn folder & commit
-mv ${AIRFLOW_REPO_ROOT}/apache{-,_}airflow-${VERSION}* ${VERSION}/
-cd ${VERSION}
-svn add *
-svn commit -m "Add artifacts for Airflow ${VERSION}"
+    # Move the artifacts to svn folder & commit
+    mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
+    cd ${VERSION}
+    svn add *
+    svn commit -m "Add artifacts for Airflow ${VERSION}"
+    ```
+
+
+## Manually prepare production Docker Image
+
+
+```shell script
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before pushing the images.
+
+
+## [\Optional\] Create new release branch
+
+When you just released the `X.Y.0` version (first release of new minor version) you need to create release
+branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
+`v2-1-stable` branches):
+
+
+   ```shell script
+   # First clone the repo
+   BRANCH_PREFIX=v2-1
+   git branch ${BRANCH_PREFIX}-test
+   git branch ${BRANCH_PREFIX}-stable
+   git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
+   ```
+
+Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
+
+Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
+
+   ```shell script
+   ./dev/retag_docker_images.py --source-branch main --target-branch ${BRANCH_PREFIX}-test
+   ```
+
 
 ## Prepare PyPI convenience "snapshot" packages
 
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to pypi for installing via pip. Also those packages
+publish "snapshots" of the RC builds to PyPI for installing via pip. Also those packages
 are used to build the production docker image in DockerHub, so we need to upload the packages
 before we push the tag to GitHub. Pushing the tag to GitHub automatically triggers image building in
 DockerHub.
@@ -156,7 +178,7 @@ To do this we need to
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets egg_info --tag-build "$(sed -e "s/^[0-9.]*//" <<<"$VERSION")" sdist bdist_wheel
+    ./breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}"
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -165,7 +187,7 @@ To do this we need to
     twine check dist/*
     ```
 
-- Upload the package to PyPi's test environment:
+- Upload the package to PyPI's test environment:
 
     ```shell script
     twine upload -r pypitest dist/*
@@ -174,7 +196,7 @@ To do this we need to
 - Verify that the test package looks good by downloading it and installing it into a virtual environment. The package download link is available at:
 https://test.pypi.org/project/apache-airflow/#files
 
-- Upload the package to PyPi's production environment:
+- Upload the package to PyPI's production environment:
 `twine upload -r pypi dist/*`
 
 - Again, confirm that the package is available here:
@@ -193,35 +215,16 @@ is not supposed to be used by and advertised to the end-users who do not read th
     git push origin ${VERSION}
     ```
 
-## \[Optional\] - Manually prepare production Docker Image
+## Prepare production Docker Image
 
-Production Docker images should be automatically built in 2-3 hours after the release tag has been
-pushed. If this did not happen - please login to DockerHub and check the status of builds:
-[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
-
-In case you need, you can also build and push the images manually:
-
-### Airflow 2+:
+Production Docker images should be manually prepared and pushed by the release manager.
 
 ```shell script
-export VERSION_RC=<VERSION_HERE>
-export DOCKER_REPO=docker.io/apache/airflow
-for python_version in "3.6" "3.7" "3.8"
-(
-  export DOCKER_TAG=${VERSION_RC}-python${python_version}
-  ./scripts/ci/images/ci_build_dockerhub.sh
-)
-```
-
-Once this succeeds you should push the "${VERSION_RC}" image:
-
-```shell script
-docker tag apache/airflow:${VERSION_RC}-python3.6 apache/airflow:${VERSION_RC}
-docker push apache/airflow:${VERSION_RC}
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before the images are pushed.
+also performs image verification before pushing the images.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -257,7 +260,7 @@ Only votes from PMC members are binding, but the release manager should encourag
 to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/master/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
 
 Please note that the version number excludes the `rcX` string, so it's now
 simply 2.0.2. This will allow us to rename the artifact without modifying
@@ -331,7 +334,7 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check.files.py` script to verify that all expected files are
+Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
@@ -498,18 +501,18 @@ Hello,
 Apache Airflow 2.0.2 (based on RC3) has been accepted.
 
 4 “+1” binding votes received:
-- Kaxil Naik  (binding)
-- Bolke de Bruin (binding)
-- Ash Berlin-Taylor (binding)
-- Tao Feng (binding)
+- Kaxil Naik
+- Bolke de Bruin
+- Ash Berlin-Taylor
+- Tao Feng
 
 
 4 "+1" non-binding votes received:
 
-- Deng Xiaodong (non-binding)
-- Stefan Seelmann (non-binding)
-- Joshua Patchus (non-binding)
-- Felix Uellendall (non-binding)
+- Deng Xiaodong
+- Stefan Seelmann
+- Joshua Patchus
+- Felix Uellendall
 
 Vote thread:
 https://lists.apache.org/thread.html/736404ca3d2b2143b296d0910630b9bd0f8b56a0c54e3a05f4c8b5fe@%3Cdev.airflow.apache.org%3E
@@ -530,25 +533,42 @@ https://dist.apache.org/repos/dist/release/airflow/
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
-# First clone the repo
+# GO to Airflow Sources first
+cd <YOUR_AIRFLOW_SOURCES>
+export AIRFLOW_SOURCES=$(pwd)
+
+# GO to Checked out DEV repo. Should be checked out before via:
+# svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+cd <YOUR_AIFLOW_DEV_SVN>
+svn update
+export AIRFLOW_DEV_SVN=$(pwd)
+
+# GO to Checked out RELEASE repo. Should be checked out before via:
+# svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
+cd <YOUR_AIFLOW_RELEASE_SVN>
+svn update
+
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
 # Create new folder for the release
 cd airflow-release
-svn mkdir ${VERSION}
-cd ${VERSION}
+svn mkdir "${VERSION}"
+cd "${VERSION}"
 
 # Move the artifacts to svn folder & commit
-for f in ../../airflow-dev/$RC/*; do svn cp $f ${$(basename $f)/rc?/}; done
+for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
+    svn cp "$f" "${$(basename $f)/rc?/}"
+    # Those will be used to upload to PyPI
+    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/rc?/}"
+done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
 # Remove old release
-# http://www.apache.org/legal/release-policy.html#when-to-archive
+# See http://www.apache.org/legal/release-policy.html#when-to-archive
 cd ..
 export PREVIOUS_VERSION=2.0.2
-svn rm ${PREVIOUS_VERSION}
+svn rm "${PREVIOUS_VERSION}"
 svn commit -m "Remove old release: ${PREVIOUS_VERSION}"
 ```
 
@@ -556,21 +576,17 @@ Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/
 
 ## Prepare PyPI "release" packages
 
-At this point we release an official package:
-
-- Build the package:
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    ```
+At this point we release an official package (they should be copied and renamed from the
+previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
+    cd "${AIRFLOW_SOURCES}"
     twine check dist/*
     ```
 
-- Upload the package to PyPi's test environment:
+- Upload the package to PyPI's test environment:
 
     ```shell script
     twine upload -r pypitest dist/*
@@ -579,7 +595,7 @@ At this point we release an official package:
 - Verify that the test package looks good by downloading it and installing it into a virtual environment.
     The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
 
-- Upload the package to PyPi's production environment:
+- Upload the package to PyPI's production environment:
 
     ```shell script
     twine upload -r pypi dist/*
@@ -615,28 +631,22 @@ At this point we release an official package:
     git push origin ${VERSION}
     ```
 
-## \[Optional\] - Manually prepare production Docker Image
+## Manually prepare production Docker Image
 
-Production Docker images should be automatically built in 2-3 hours after the release tag has been
-pushed. If this did not happen - please login to DockerHub and check the status of builds:
-[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
-
-In case you need, you can also build and push the images manually:
-
-### Airflow 2+:
 
 ```shell script
-export VERSION=<VERSION_HERE>
-export DOCKER_REPO=docker.io/apache/airflow
-for python_version in "3.6" "3.7" "3.8"
-(
-  export DOCKER_TAG=${VERSION}-python${python_version}
-  ./scripts/ci/images/ci_build_dockerhub.sh
-)
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before the images are pushed.
+also performs image verification before pushing the images.
+
+If this is the newest image released, push the latest image as well.
+
+```shell script
+docker tag "apache/airflow:${VERSION}" "apache/airflow:latest"
+docker push "apache/airflow:latest"
+```
 
 ## Publish documentation
 
@@ -701,7 +711,7 @@ here:
 
 https://dist.apache.org/repos/dist/release/airflow/${VERSION}/
 
-We also made this version available on PyPi for convenience (`pip install apache-airflow`):
+We also made this version available on PyPI for convenience (`pip install apache-airflow`):
 
 https://pypi.python.org/pypi/apache-airflow
 

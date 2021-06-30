@@ -98,7 +98,7 @@ class TestMarkTasks(unittest.TestCase):
 
         assert len(tis) > 0
 
-        for ti in tis:  # pylint: disable=too-many-nested-blocks
+        for ti in tis:
             assert ti.operator == dag.get_task(ti.task_id).task_type
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 assert ti.state == state

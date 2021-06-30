@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=C0111
+
 """
 This module contains various unit tests for
 example_gcp_dlp DAG

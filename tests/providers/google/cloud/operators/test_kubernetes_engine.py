@@ -81,13 +81,11 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
                 project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
             )
 
-    # pylint: disable=missing-kwoa
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_create_execute_error_project_id(self, mock_hook):
         with pytest.raises(AirflowException):
             GKECreateClusterOperator(location=PROJECT_LOCATION, body=PROJECT_BODY, task_id=PROJECT_TASK_ID)
 
-    # pylint: disable=no-value-for-parameter
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_create_execute_error_location(self, mock_hook):
         with pytest.raises(AirflowException):
@@ -109,13 +107,11 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
             name=CLUSTER_NAME, project_id=TEST_GCP_PROJECT_ID
         )
 
-    # pylint: disable=no-value-for-parameter
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_delete_execute_error_project_id(self, mock_hook):
         with pytest.raises(AirflowException):
             GKEDeleteClusterOperator(location=PROJECT_LOCATION, name=CLUSTER_NAME, task_id=PROJECT_TASK_ID)
 
-    # pylint: disable=missing-kwoa
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_delete_execute_error_cluster_name(self, mock_hook):
         with pytest.raises(AirflowException):
@@ -123,7 +119,6 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
                 project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, task_id=PROJECT_TASK_ID
             )
 
-    # pylint: disable=missing-kwoa
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
     def test_delete_execute_error_location(self, mock_hook):
         with pytest.raises(AirflowException):
@@ -147,7 +142,6 @@ class TestGKEPodOperator(unittest.TestCase):
     def test_template_fields(self):
         assert set(KubernetesPodOperator.template_fields).issubset(GKEStartPodOperator.template_fields)
 
-    # pylint: disable=unused-argument
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",
@@ -188,7 +182,6 @@ class TestGKEPodOperator(unittest.TestCase):
 
         assert self.gke_op.config_file == FILE_NAME
 
-    # pylint: disable=unused-argument
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",

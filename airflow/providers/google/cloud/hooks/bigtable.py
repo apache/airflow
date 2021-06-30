@@ -38,7 +38,6 @@ class BigtableHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",

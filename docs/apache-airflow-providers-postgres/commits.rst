@@ -28,19 +28,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-16
+
+================================================================================================  ===========  ===============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`d99afc3c2 <https://github.com/apache/airflow/commit/d99afc3c21020e78fa3c5d2c80efce818ad2870c>`_  2021-06-13   ``postgres_hook_aws_conn_id (#16100)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`9c8391a13 <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`fc845caf7 <https://github.com/apache/airflow/commit/fc845caf785d2fe3f943a1120c743c983130ec27>`_  2021-05-02   ``PostgresHook: deepcopy connection to avoid mutating connection obj (#15412)``
+================================================================================================  ===========  ===============================================================================
+
 1.0.2
 .....
 
-Latest change: 2021-04-27
+Latest change: 2021-05-01
 
-================================================================================================  ===========  ===============================================================
+================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ===============================================================
+================================================================================================  ===========  =================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 `5b2fe0e74 <https://github.com/apache/airflow/commit/5b2fe0e74013cd08d1f76f5c115f2c8f990ff9bc>`_  2021-04-27   ``Add Connection Documentation for Popular Providers (#15393)``
 `70c74c1f6 <https://github.com/apache/airflow/commit/70c74c1f6867a2f6cdd2f892a40f43aea858572b>`_  2021-04-13   ``Do not forward cluster-identifier to psycopg2 (#15360)``
 `68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
 `6e6526a0f <https://github.com/apache/airflow/commit/6e6526a0f650119cb1ad7c2e2a1b87f0fa45c60e>`_  2021-03-13   ``Update documentation for broken package releases (#14734)``
-================================================================================================  ===========  ===============================================================
+================================================================================================  ===========  =================================================================
 
 1.0.1
 .....

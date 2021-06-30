@@ -277,6 +277,7 @@ class SnowflakeHook(DbApiHook):
 
             self.log.debug("Executing %d statements against Snowflake DB", len(sql))
             with closing(conn.cursor(DictCursor)) as cur:
+
                 for sql_statement in sql:
 
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)

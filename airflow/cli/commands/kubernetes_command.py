@@ -22,14 +22,13 @@ from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
-import airflow.utils.yaml as yaml
 from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import TaskInstance
 from airflow.settings import pod_mutation_hook
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
 
@@ -107,7 +106,7 @@ def cleanup_pods(args):
             ]
         ),
     }
-    while True:  # pylint: disable=too-many-nested-blocks
+    while True:
         pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
@@ -131,7 +130,7 @@ def cleanup_pods(args):
                     print(f"Can't remove POD: {e}", file=sys.stderr)
                 continue
             print(f'No action taken on pod {pod_name}')
-        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        continue_token = pod_list.metadata._continue
         if not continue_token:
             break
         list_kwargs["_continue"] = continue_token

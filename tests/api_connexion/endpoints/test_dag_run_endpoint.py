@@ -62,7 +62,7 @@ def configured_app(minimal_app_for_api):
         role_name="TestGranularDag",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN)],
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_ID",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )
@@ -938,6 +938,26 @@ class TestPostDagRun(TestDagRunEndpoint):
         ]
     )
     def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 400
+        assert response.json['detail'] == expected
+
+    @parameterized.expand(
+        [
+            (
+                {
+                    "dag_run_id": "TEST_DAG_RUN",
+                    "execution_date": "2020-06-11T18:00:00+00:00",
+                    "conf": "some string",
+                },
+                "'some string' is not of type 'object' - 'conf'",
+            )
+        ]
+    )
+    def test_should_response_400_for_non_dict_dagrun_conf(self, data, expected):
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns", json=data, environ_overrides={'REMOTE_USER': "test"}

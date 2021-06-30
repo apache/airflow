@@ -20,5 +20,5 @@ This module is deprecated.
 Please use :mod:`kubernetes.client.models` for V1ResourceRequirements and Port.
 """
 # flake8: noqa
-# pylint: disable=unused-import
-from airflow.kubernetes.pod_launcher_deprecated import PodLauncher, PodStatus  # pylint: disable=unused-import
+
+from airflow.kubernetes.pod_launcher_deprecated import PodLauncher, PodStatus

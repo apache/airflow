@@ -49,6 +49,10 @@ class LivyHook(HttpHook, LoggingMixin):
 
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :type livy_conn_id: str
+    :param extra_options: A dictionary of options passed to Livy.
+    :type extra_options: Dict[str, Any]
+    :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+    :type extra_headers: Dict[str, Any]
 
     .. seealso::
         For more details refer to the Apache Livy API reference:
@@ -70,9 +74,13 @@ class LivyHook(HttpHook, LoggingMixin):
     hook_name = 'Apache Livy'
 
     def __init__(
-        self, livy_conn_id: str = default_conn_name, extra_options: Optional[Dict[str, Any]] = None
+        self,
+        livy_conn_id: str = default_conn_name,
+        extra_options: Optional[Dict[str, Any]] = None,
+        extra_headers: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
+        self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 
     def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
@@ -137,7 +145,9 @@ class LivyHook(HttpHook, LoggingMixin):
             self.get_conn()
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
-        response = self.run_method(method='POST', endpoint='/batches', data=batch_submit_body)
+        response = self.run_method(
+            method='POST', endpoint='/batches', data=batch_submit_body, headers=self.extra_headers
+        )
         self.log.debug("Got response: %s", response.text)
 
         try:
@@ -281,7 +291,6 @@ class LivyHook(HttpHook, LoggingMixin):
         Build the post batch request body.
         For more information about the format refer to
         .. seealso:: https://livy.apache.org/docs/latest/rest-api.html
-
         :param file: Path of the file containing the application to execute (required).
         :type file: str
         :param proxy_user: User to impersonate when running the job.
@@ -317,8 +326,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: request body
         :rtype: dict
         """
-        # pylint: disable-msg=too-many-arguments
-
         body: Dict[str, Any] = {'file': file}
 
         if proxy_user:

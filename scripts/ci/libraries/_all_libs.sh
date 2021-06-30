@@ -36,8 +36,6 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_repeats.sh
 # shellcheck source=scripts/ci/libraries/_sanity_checks.sh
 . "${LIBRARIES_DIR}"/_sanity_checks.sh
-# shellcheck source=scripts/ci/libraries/_build_airflow_packages.sh
-. "${LIBRARIES_DIR}"/_build_airflow_packages.sh
 # shellcheck source=scripts/ci/libraries/_build_images.sh
 . "${LIBRARIES_DIR}"/_build_images.sh
 # shellcheck source=scripts/ci/libraries/_kind.sh
@@ -52,8 +50,6 @@ readonly SCRIPTS_CI_DIR
 . "${LIBRARIES_DIR}"/_permissions.sh
 # shellcheck source=scripts/ci/libraries/_push_pull_remove_images.sh
 . "${LIBRARIES_DIR}"/_push_pull_remove_images.sh
-# shellcheck source=scripts/ci/libraries/_pylint.sh
-. "${LIBRARIES_DIR}"/_pylint.sh
 # shellcheck source=scripts/ci/libraries/_runs.sh
 . "${LIBRARIES_DIR}"/_runs.sh
 # shellcheck source=scripts/ci/libraries/_spinner.sh

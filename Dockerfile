@@ -33,7 +33,7 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
-ARG AIRFLOW_VERSION="2.0.2"
+ARG AIRFLOW_VERSION="2.2.0.dev0"
 ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -44,7 +44,7 @@ ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.1.1
+ARG AIRFLOW_PIP_VERSION=21.1.2
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
@@ -133,7 +133,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG AIRFLOW_REPO=apache/airflow
-ARG AIRFLOW_BRANCH=master
+ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
@@ -141,7 +141,7 @@ ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
 ARG AIRFLOW_CONSTRAINTS="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
-ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-master"
+ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_PIP_VERSION
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
@@ -189,8 +189,7 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     AIRFLOW_INSTALL_EDITABLE_FLAG="" \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
-# Only copy install_mysql.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+COPY scripts/docker/*.sh /scripts/docker/
 RUN bash ./scripts/docker/install_mysql.sh dev
 
 COPY docker-context-files /docker-context-files
@@ -198,9 +197,6 @@ COPY docker-context-files /docker-context-files
 RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
-
-# Upgrade to specific PIP version
-RUN pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" && mkdir -p /root/.local/bin
 
 ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
@@ -210,19 +206,15 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM} \
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
 
-# Only copy common.sh to not invalidate cache on other script changes
-COPY scripts/docker/common.sh /scripts/docker/common.sh
-
-# Only copy install_airflow_from_branch_tip.sh to not invalidate cache on other script changes
-COPY scripts/docker/install_airflow_from_branch_tip.sh /scripts/docker/install_airflow_from_branch_tip.sh
-
-# In case of Production build image segment we want to pre-install master version of airflow
+# In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
 # are uninstalled, only dependencies remain
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
-RUN if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
+# Upgrade to specific PIP version
+RUN bash /scripts/docker/install_pip_version.sh; \
+    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_from_branch_tip.sh; \
     fi
@@ -240,11 +232,10 @@ ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ARG INSTALL_FROM_PYPI="true"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * chardet<4 - required to keep snowflake happy
-# * urllib3 - required to keep boto3 happy
+# * certifi<2021.0.0 required to keep snowflake happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 
@@ -256,28 +247,31 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 
 WORKDIR /opt/airflow
 
-# Copy all install scripts here
-COPY scripts/docker/install*.sh /scripts/docker/
-
 # hadolint ignore=SC2086, SC2010
 RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
+    else \
+        # only compile assets if the prod image is build from sources
+        # otherwise they are already compiled-in
+        bash /scripts/docker/compile_www_assets.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
-    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true
-
-# Copy compile_www_assets.sh install scripts here
-COPY scripts/docker/compile_www_assets.sh /scripts/docker/compile_www_assets.sh
-
-RUN bash /scripts/docker/compile_www_assets.sh && \
-# make sure that all directories and files in .local are also group accessible
-    find /root/.local -executable -print0 | xargs --null chmod g+x && \
+    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
+    # make sure that all directories and files in .local are also group accessible
+    find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw
+
+# In case there is a requirements.txt file in "docker-context-files" it will be installed
+# during the build additionally to whatever has been installed so far. It is recommended that
+# the requirements.txt contains only dependencies with == version specification
+RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
+        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+    fi
 
 ARG BUILD_ID
 ARG COMMIT_SHA
@@ -421,8 +415,9 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Only copy install_mysql script. We do not need any other
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mysql.sh
+# Only copy install_mysql and install_pip_version.sh. We do not need any other scripts in the final image.
+COPY scripts/docker/install_mysql.sh scripts/docker/install_pip_version.sh /scripts/docker/
+
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
@@ -448,7 +443,7 @@ COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 
 RUN chmod a+x /entrypoint /clean-logs && \
     chmod g=u /etc/passwd && \
-    pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+    bash /scripts/docker/install_pip_version.sh
 
 WORKDIR ${AIRFLOW_HOME}
 
@@ -484,4 +479,4 @@ LABEL org.apache.airflow.distro="debian" \
 
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
-CMD ["--help"]
+CMD []

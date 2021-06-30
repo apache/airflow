@@ -30,7 +30,8 @@ import subprocess
 import time
 import traceback
 from collections import OrderedDict
-from multiprocessing import Pool, cpu_count
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import cpu_count
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
@@ -38,7 +39,7 @@ from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 
 import airflow.settings as settings
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
@@ -115,21 +116,21 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
 
         args.func(args)
         ret = 0
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         log.exception("Failed to execute task %s.", str(e))
         ret = 1
     finally:
         Sentry.flush()
         logging.shutdown()
-        os._exit(ret)  # pylint: disable=protected-access
+        os._exit(ret)
 
 
 def _execute_in_subprocess(command_to_exec: CommandType) -> None:
     env = os.environ.copy()
     try:
-        # pylint: disable=unexpected-keyword-arg
+
         subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
-        # pylint: disable=unexpected-keyword-arg
+
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
@@ -165,14 +166,13 @@ def send_task_to_executor(
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
 
 
-# pylint: disable=unused-import
 @celery_import_modules.connect
 def on_celery_import_modules(*args, **kwargs):
     """
@@ -195,9 +195,6 @@ def on_celery_import_modules(*args, **kwargs):
         import kubernetes.client  # noqa: F401
     except ImportError:
         pass
-
-
-# pylint: enable=unused-import
 
 
 class CeleryExecutor(BaseExecutor):
@@ -291,9 +288,7 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error(  # pylint: disable=logging-not-lazy
-                    CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback
-                )
+                self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
                 self.event_buffer[key] = (State.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
@@ -318,18 +313,9 @@ class CeleryExecutor(BaseExecutor):
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
-        def reset_signals():
-            # Since we are run from inside the SchedulerJob, we don't to
-            # inherit the signal handlers that we registered there.
-            import signal
-
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
-            signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            signal.signal(signal.SIGUSR2, signal.SIG_DFL)
-
-        with Pool(processes=num_processes, initializer=reset_signals) as send_pool:
-            key_and_async_results = send_pool.map(
-                send_task_to_executor, task_tuples_to_send, chunksize=chunksize
+        with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
+            key_and_async_results = list(
+                send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
             )
         return key_and_async_results
 
@@ -374,12 +360,10 @@ class CeleryExecutor(BaseExecutor):
                 "Adopted tasks were still pending after %s, assuming they never made it to celery and "
                 "clearing:\n\t%s",
                 self.task_adoption_timeout,
-                "\n\t".join([repr(x) for x in timedout_keys]),
+                "\n\t".join(repr(x) for x in timedout_keys),
             )
             for key in timedout_keys:
-                self.event_buffer[key] = (State.FAILED, None)
-                del self.tasks[key]
-                del self.adopted_task_timeouts[key]
+                self.change_state(key, State.FAILED)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
@@ -423,7 +407,7 @@ class CeleryExecutor(BaseExecutor):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             self.log.exception("Error syncing the Celery executor, ignoring it.")
 
     def end(self, synchronous: bool = False) -> None:
@@ -521,7 +505,7 @@ def fetch_celery_task_state(async_result: AsyncResult) -> Tuple[str, Union[str, 
             # to get the current state of the task
             info = async_result.info if hasattr(async_result, 'info') else None
             return async_result.task_id, async_result.state, info
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
 
@@ -592,17 +576,17 @@ class BulkStateFetcher(LoggingMixin):
     def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
-        with Pool(processes=num_process) as sync_pool:
+        with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
             chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
 
-            task_id_to_states_and_info = sync_pool.map(
-                fetch_celery_task_state, async_results, chunksize=chunksize
+            task_id_to_states_and_info = list(
+                sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)
             )
 
             states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}
             for task_id, state_or_exception, info in task_id_to_states_and_info:
                 if isinstance(state_or_exception, ExceptionWithTraceback):
-                    self.log.error(  # pylint: disable=logging-not-lazy
+                    self.log.error(
                         CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
                         state_or_exception.exception,
                         state_or_exception.traceback,

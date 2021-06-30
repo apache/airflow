@@ -117,6 +117,7 @@ class DockerSwarmOperator(DockerOperator):
                 container_spec=types.ContainerSpec(
                     image=self.image,
                     command=self.format_command(self.command),
+                    mounts=self.mounts,
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,

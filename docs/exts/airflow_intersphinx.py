@@ -19,7 +19,7 @@ import os
 import time
 from typing import Any, Dict
 
-from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
+from provider_yaml_utils import load_package_data
 from sphinx.application import Sphinx
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -62,13 +62,15 @@ def _generate_provider_intersphinx_mapping():
             provider_base_url,
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
-    if os.environ.get('AIRFLOW_PACKAGE_NAME') != 'apache-airflow':
-        doc_inventory = f'{DOCS_DIR}/_build/docs/apache-airflow/{current_version}/objects.inv'
-        cache_inventory = f'{DOCS_DIR}/_inventory_cache/apache-airflow/objects.inv'
+    for pkg_name in ["apache-airflow", 'helm-chart']:
+        if os.environ.get('AIRFLOW_PACKAGE_NAME') == pkg_name:
+            continue
+        doc_inventory = f'{DOCS_DIR}/_build/docs/{pkg_name}/{current_version}/objects.inv'
+        cache_inventory = f'{DOCS_DIR}/_inventory_cache/{pkg_name}/objects.inv'
 
-        airflow_mapping['apache-airflow'] = (
+        airflow_mapping[pkg_name] = (
             # base URI
-            f'/docs/apache-airflow/{current_version}/',
+            f'/docs/{pkg_name}/latest/',
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
     for pkg_name in ['apache-airflow-providers', 'docker-stack']:
@@ -154,7 +156,7 @@ if __name__ == "__main__":
                         print(f":{role_name}:`{name}:{entry}`")
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 print(f'Unknown error: {exc!r}')
 
         provider_mapping = _generate_provider_intersphinx_mapping()

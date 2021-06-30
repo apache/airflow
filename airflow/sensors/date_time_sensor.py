@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.date_time import DateTimeSensor  # noqa
 
 warnings.warn(

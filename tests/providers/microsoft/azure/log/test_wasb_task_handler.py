@@ -134,7 +134,7 @@ class TestWasbTaskHandler(unittest.TestCase):
         mock_wasb_read.return_value = ""
         self.wasb_task_handler.wasb_write('text', self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "text", self.container_name, self.remote_log_location
+            "text", self.container_name, self.remote_log_location, overwrite=True
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
@@ -145,14 +145,14 @@ class TestWasbTaskHandler(unittest.TestCase):
         mock_wasb_read.return_value = "old log"
         self.wasb_task_handler.wasb_write('text', self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "old log\ntext", self.container_name, self.remote_log_location
+            "old log\ntext", self.container_name, self.remote_log_location, overwrite=True
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_write_when_append_is_false(self, mock_hook):
         self.wasb_task_handler.wasb_write('text', self.remote_log_location, False)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "text", self.container_name, self.remote_log_location
+            "text", self.container_name, self.remote_log_location, overwrite=True
         )
 
     def test_write_raises(self):

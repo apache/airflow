@@ -38,7 +38,7 @@ function build_ci_image_on_ci() {
         if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
             python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         fi
-        # first we pull base python image. We will need it to re-push it after master build
+        # first we pull base python image. We will need it to re-push it after main build
         # Becoming the new "latest" image for other builds
         build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
             "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"

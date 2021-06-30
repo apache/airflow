@@ -85,6 +85,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingEr
     Parses warnings from Sphinx.
 
     :param warning_text: warning to parse
+    :param docs_dir: documentation directory
     :return: list of SpellingError.
     """
     sphinx_spelling_errors = []
@@ -107,7 +108,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> List[SpellingEr
                         message=sphinx_warning,
                     )
                 )
-            except Exception:  # noqa pylint: disable=broad-except
+            except Exception:
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_spelling_errors.append(
                     SpellingError(

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=invalid-name
+
 """Interact with AWS S3, using the boto3 library."""
 import fnmatch
 import gzip as gz
@@ -38,7 +38,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def provide_bucket_name(func: T) -> T:
@@ -143,7 +143,7 @@ class S3Hook(AwsBaseHook):
             raise AirflowException(f'Please provide a bucket_name instead of "{s3url}"')
 
         bucket_name = parsed_url.netloc
-        key = parsed_url.path.strip('/')
+        key = parsed_url.path.lstrip('/')
 
         return bucket_name, key
 
@@ -411,9 +411,9 @@ class S3Hook(AwsBaseHook):
             OutputSerialization=output_serialization,
         )
 
-        return ''.join(
-            event['Records']['Payload'].decode('utf-8') for event in response['Payload'] if 'Records' in event
-        )
+        return b''.join(
+            event['Records']['Payload'] for event in response['Payload'] if 'Records' in event
+        ).decode('utf-8')
 
     @provide_bucket_name
     @unify_bucket_name_and_key

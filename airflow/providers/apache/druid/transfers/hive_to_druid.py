@@ -79,7 +79,7 @@ class HiveToDruidOperator(BaseOperator):
     template_fields = ('sql', 'intervals')
     template_ext = ('.sql',)
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,
@@ -121,7 +121,7 @@ class HiveToDruidOperator(BaseOperator):
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
-        tblproperties = ''.join([f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items()])
+        tblproperties = ''.join(f", '{k}' = '{v}'" for k, v in self.hive_tblproperties.items())
         hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;

@@ -1,4 +1,3 @@
-# pylint: disable=unused-argument
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,7 +18,6 @@ import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
-import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
@@ -28,6 +26,8 @@ from airflow.models import DAG, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 
 
 class TestKubernetesPodOperator(unittest.TestCase):
@@ -49,18 +49,17 @@ class TestKubernetesPodOperator(unittest.TestCase):
     @staticmethod
     def create_context(task):
         dag = DAG(dag_id="dag")
-        tzinfo = pendulum.timezone("Europe/Amsterdam")
-        execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-        task_instance = TaskInstance(task=task, execution_date=execution_date)
+        task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         return {
             "dag": dag,
-            "ts": execution_date.isoformat(),
+            "ts": DEFAULT_DATE.isoformat(),
             "task": task,
             "ti": task_instance,
+            "task_instance": task_instance,
         }
 
     def run_pod(self, operator) -> k8s.V1Pod:
-        self.monitor_mock.return_value = (State.SUCCESS, None)
+        self.monitor_mock.return_value = (State.SUCCESS, None, None)
         context = self.create_context(operator)
         operator.execute(context=context)
         return self.start_mock.call_args[0][0]
@@ -83,7 +82,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             config_file=file_path,
             cluster_context="default",
         )
-        self.monitor_mock.return_value = (State.SUCCESS, None)
+        self.monitor_mock.return_value = (State.SUCCESS, None, None)
         self.client_mock.list_namespaced_pod.return_value = []
         context = self.create_context(k)
         k.execute(context=context)
@@ -170,22 +169,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
         )
         pod = k.create_pod_request_obj()
         assert pod.spec.image_pull_secrets == [k8s.V1LocalObjectReference(name=fake_pull_secrets)]
-
-    def test_image_pull_policy_not_set(self):
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            in_cluster=False,
-            do_xcom_push=False,
-            cluster_context="default",
-        )
-        pod = k.create_pod_request_obj()
-        assert pod.spec.containers[0].image_pull_policy == "IfNotPresent"
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
@@ -334,9 +317,30 @@ class TestKubernetesPodOperator(unittest.TestCase):
               labels:
                 foo: bar
             spec:
+              serviceAccountName: foo
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: kubernetes.io/role
+                        operator: In
+                        values:
+                        - foo
+                        - bar
+                  preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 1
+                    preference:
+                      matchExpressions:
+                      - key: kubernetes.io/role
+                        operator: In
+                        values:
+                        - foo
+                        - bar
               containers:
                 - name: base
                   image: ubuntu:16.04
+                  imagePullPolicy: Always
                   command:
                     - something
         """
@@ -365,7 +369,38 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
             assert pod.metadata.namespace == "mynamespace"
             assert pod.spec.containers[0].image == "ubuntu:16.04"
+            assert pod.spec.containers[0].image_pull_policy == "Always"
             assert pod.spec.containers[0].command == ["something"]
+            assert pod.spec.service_account_name == "foo"
+            affinity = {
+                'node_affinity': {
+                    'preferred_during_scheduling_ignored_during_execution': [
+                        {
+                            'preference': {
+                                'match_expressions': [
+                                    {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
+                                ],
+                                'match_fields': None,
+                            },
+                            'weight': 1,
+                        }
+                    ],
+                    'required_during_scheduling_ignored_during_execution': {
+                        'node_selector_terms': [
+                            {
+                                'match_expressions': [
+                                    {'key': 'kubernetes.io/role', 'operator': 'In', 'values': ['foo', 'bar']}
+                                ],
+                                'match_fields': None,
+                            }
+                        ]
+                    },
+                },
+                'pod_affinity': None,
+                'pod_anti_affinity': None,
+            }
+
+            assert pod.spec.affinity.to_dict() == affinity
 
             # kwargs take precedence, however
             image = "some.custom.image:andtag"
@@ -411,8 +446,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             do_xcom_push=False,
             cluster_context="default",
         )
-        self.monitor_mock.return_value = (State.FAILED, None)
         failed_pod_status = "read_pod_namespaced_result"
+        self.monitor_mock.return_value = (State.FAILED, failed_pod_status, None)
         read_namespaced_pod_mock = self.client_mock.return_value.read_namespaced_pod
         read_namespaced_pod_mock.return_value = failed_pod_status
 
@@ -424,8 +459,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             str(ctx.value)
             == f"Pod Launching failed: Pod {k.pod.metadata.name} returned a failure: {failed_pod_status}"
         )
-        assert self.client_mock.return_value.read_namespaced_pod.called
-        assert read_namespaced_pod_mock.call_args[0][0] == k.pod.metadata.name
+        assert not self.client_mock.return_value.read_namespaced_pod.called
 
     def test_no_need_to_describe_pod_on_success(self):
         name_base = "test"
@@ -442,7 +476,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             do_xcom_push=False,
             cluster_context="default",
         )
-        self.monitor_mock.return_value = (State.SUCCESS, None)
+        self.monitor_mock.return_value = (State.SUCCESS, None, None)
 
         context = self.create_context(k)
         k.execute(context=context)
@@ -605,3 +639,20 @@ class TestKubernetesPodOperator(unittest.TestCase):
         sanitized_pod = self.sanitize_for_serialization(pod)
         assert isinstance(pod.spec.node_selector, dict)
         assert sanitized_pod["spec"]["nodeSelector"] == node_selector
+
+    def test_push_xcom_pod_info(self):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        pod = self.run_pod(k)
+        ti = TaskInstance(task=k, execution_date=DEFAULT_DATE)
+        pod_name = ti.xcom_pull(task_ids=k.task_id, key='pod_name')
+        pod_namespace = ti.xcom_pull(task_ids=k.task_id, key='pod_namespace')
+        assert pod_name and pod_name == pod.metadata.name
+        assert pod_namespace and pod_namespace == pod.metadata.namespace

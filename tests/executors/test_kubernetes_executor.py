@@ -28,6 +28,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
+from airflow import AirflowException
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -47,7 +48,6 @@ except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
 
-# pylint: disable=unused-argument
 class TestAirflowKubernetesScheduler(unittest.TestCase):
     @staticmethod
     def _gen_random_string(seed, str_len):
@@ -123,9 +123,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     @mock.patch('airflow.executors.kubernetes_executor.client')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
-    def test_delete_pod_successfully(
-        self, mock_watcher, mock_client, mock_kube_client
-    ):  # pylint: disable=unused-argument
+    def test_delete_pod_successfully(self, mock_watcher, mock_client, mock_kube_client):
         pod_id = "my-pod-1"
         namespace = "my-namespace-1"
 
@@ -143,9 +141,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     @mock.patch('airflow.executors.kubernetes_executor.client')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
-    def test_delete_pod_raises_404(
-        self, mock_watcher, mock_client, mock_kube_client
-    ):  # pylint: disable=unused-argument
+    def test_delete_pod_raises_404(self, mock_watcher, mock_client, mock_kube_client):
         pod_id = "my-pod-1"
         namespace = "my-namespace-2"
 
@@ -166,9 +162,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     @mock.patch('airflow.executors.kubernetes_executor.client')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
-    def test_delete_pod_404_not_raised(
-        self, mock_watcher, mock_client, mock_kube_client
-    ):  # pylint: disable=unused-argument
+    def test_delete_pod_404_not_raised(self, mock_watcher, mock_client, mock_kube_client):
         pod_id = "my-pod-1"
         namespace = "my-namespace-3"
 
@@ -404,8 +398,6 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor._change_state(key, State.FAILED, 'pod_id', 'default')
         assert executor.event_buffer[key][0] == State.FAILED
         mock_delete_pod.assert_not_called()
-
-    # pylint: enable=unused-argument
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
@@ -760,3 +752,27 @@ class TestKubernetesJobWatcher(unittest.TestCase):
 
         self._run()
         self.watcher.watcher_queue.put.assert_not_called()
+
+    @mock.patch.object(KubernetesJobWatcher, 'process_error')
+    def test_process_error_event_for_410(self, mock_process_error):
+        message = "too old resource version: 27272 (43334)"
+        self.pod.status.phase = 'Pending'
+        self.pod.metadata.resource_version = '0'
+        mock_process_error.return_value = '0'
+        raw_object = {"code": 410, "message": message}
+        self.events.append({"type": "ERROR", "object": self.pod, "raw_object": raw_object})
+        self._run()
+        mock_process_error.assert_called_once_with(self.events[0])
+
+    def test_process_error_event_for_raise_if_not_410(self):
+        message = "Failure message"
+        self.pod.status.phase = 'Pending'
+        raw_object = {"code": 422, "message": message, "reason": "Test"}
+        self.events.append({"type": "ERROR", "object": self.pod, "raw_object": raw_object})
+        with self.assertRaises(AirflowException) as e:
+            self._run()
+        assert str(e.exception) == 'Kubernetes failure for {} with code {} and message: {}'.format(
+            raw_object['reason'],
+            raw_object['code'],
+            raw_object['message'],
+        )

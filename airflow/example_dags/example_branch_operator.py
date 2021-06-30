@@ -65,4 +65,4 @@ with DAG(
         )
 
         # Label is optional here, but it can help identify more complex branches
-        branching >> Label(option) >> t >> dummy_follow >> join  # pylint: disable=expression-not-assigned
+        branching >> Label(option) >> t >> dummy_follow >> join

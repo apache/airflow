@@ -109,7 +109,6 @@ class GCSToSFTPOperator(BaseOperator):
     )
     ui_color = "#f0eee4"
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

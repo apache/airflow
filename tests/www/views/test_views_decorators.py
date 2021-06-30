@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from urllib.parse import quote_plus
+import urllib.parse
 
 import pytest
 
@@ -51,7 +51,7 @@ def xcom_dag(dagbag):
 
 
 @pytest.fixture(autouse=True)
-def reset_runs(bash_dag, sub_dag, xcom_dag):
+def dagruns(bash_dag, sub_dag, xcom_dag):
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
@@ -103,7 +103,7 @@ def _check_last_log(session, dag_id, event, execution_date):
 
 def test_action_logging_get(session, admin_client):
     url = 'graph?dag_id=example_bash_operator&execution_date={}'.format(
-        quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))
+        urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))
     )
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response('runme_1', resp)
@@ -139,3 +139,14 @@ def test_action_logging_post(session, admin_client):
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+
+
+def test_calendar(admin_client, dagruns):
+    url = 'calendar?dag_id=example_bash_operator'
+    resp = admin_client.get(url, follow_redirects=True)
+
+    bash_dagrun, _, _ = dagruns
+
+    datestr = bash_dagrun.execution_date.date().isoformat()
+    expected = rf'{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}'
+    check_content_in_response(expected, resp)

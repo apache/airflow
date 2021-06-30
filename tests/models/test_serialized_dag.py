@@ -20,6 +20,8 @@
 
 import unittest
 
+from parameterized import parameterized
+
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
 from airflow.models.dagcode import DagCode
@@ -149,3 +151,19 @@ class SerializedDagModelTest(unittest.TestCase):
         ]
         with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)
+
+    @parameterized.expand([({"dag_dependencies": None},), ({},)])
+    def test_get_dag_dependencies_default_to_empty(self, dag_dependencies_fields):
+        """Test a pre-2.1.0 serialized DAG can deserialize DAG dependencies."""
+        example_dags = make_example_dags(example_dags_module)
+
+        with create_session() as session:
+            sdms = [SDM(dag) for dag in example_dags.values()]
+            # Simulate pre-2.1.0 format.
+            for sdm in sdms:
+                del sdm.data["dag"]["dag_dependencies"]
+                sdm.data["dag"].update(dag_dependencies_fields)
+            session.bulk_save_objects(sdms)
+
+        expected_dependencies = {dag_id: [] for dag_id in example_dags}
+        assert SDM.get_dag_dependencies() == expected_dependencies

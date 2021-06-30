@@ -143,23 +143,28 @@ class FTPHook(BaseHook):
 
         .. code-block:: python
 
-            hook = FTPHook(ftp_conn_id='my_conn')
+            hook = FTPHook(ftp_conn_id="my_conn")
 
-            remote_path = '/path/to/remote/file'
-            local_path = '/path/to/local/file'
+            remote_path = "/path/to/remote/file"
+            local_path = "/path/to/local/file"
 
             # with a custom callback (in this case displaying progress on each read)
             def print_progress(percent_progress):
-                self.log.info('Percent Downloaded: %s%%' % percent_progress)
+                self.log.info("Percent Downloaded: %s%%" % percent_progress)
+
 
             total_downloaded = 0
             total_file_size = hook.get_size(remote_path)
-            output_handle = open(local_path, 'wb')
+            output_handle = open(local_path, "wb")
+
+
             def write_to_file_with_progress(data):
                 total_downloaded += len(data)
                 output_handle.write(data)
                 percent_progress = (total_downloaded / total_file_size) * 100
                 print_progress(percent_progress)
+
+
             hook.retrieve_file(remote_path, None, callback=write_to_file_with_progress)
 
             # without a custom callback data is written to the local_path
@@ -174,7 +179,7 @@ class FTPHook(BaseHook):
         # file-like buffer
         if not callback:
             if is_path:
-                # pylint: disable=consider-using-with
+
                 output_handle = open(local_full_path_or_buffer, 'wb')
             else:
                 output_handle = local_full_path_or_buffer
@@ -210,7 +215,7 @@ class FTPHook(BaseHook):
         is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
-            # pylint: disable=consider-using-with
+
             input_handle = open(local_full_path_or_buffer, 'rb')
         else:
             input_handle = local_full_path_or_buffer

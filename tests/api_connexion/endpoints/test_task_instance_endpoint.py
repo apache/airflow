@@ -135,6 +135,13 @@ class TestTaskInstanceEndpoint:
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, session):
         self.create_task_instances(session)
+        # Update ti and set operator to None to
+        # test that operator field is nullable.
+        # This prevents issue when users upgrade to 2.0+
+        # from 1.10.x
+        # https://github.com/apache/airflow/issues/14421
+        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session='fetch')
+        session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
@@ -148,7 +155,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor_config": "{}",
             "hostname": "",
             "max_tries": 0,
-            "operator": "PythonOperator",
+            "operator": None,
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -840,6 +847,26 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 },
                 4,
             ),
+            (
+                "dry_run default",
+                "example_python_operator",
+                [
+                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.RUNNING,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "only_failed": True,
+                },
+                2,
+            ),
         ]
     )
     @provide_session
@@ -853,7 +880,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             single_dag_run=False,
         )
-        self.app.dag_bag.sync_to_db()  # pylint: disable=no-member
+        self.app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -905,9 +932,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
 
-        failed_dag_runs = (
-            session.query(DagRun).filter(DagRun.state == "failed").count()  # pylint: disable=W0143
-        )
+        failed_dag_runs = session.query(DagRun).filter(DagRun.state == "failed").count()
         assert 200 == response.status_code
         expected_response = [
             {
@@ -997,7 +1022,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             single_dag_run=False,
         )
-        self.app.dag_bag.sync_to_db()  # pylint: disable=no-member
+        self.app.dag_bag.sync_to_db()
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1040,7 +1065,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             ]
         }
 
-        dag = self.app.dag_bag.dags['example_python_operator']  # pylint: disable=no-member
+        dag = self.app.dag_bag.dags['example_python_operator']
         task = dag.task_dict['print_the_context']
         mock_set_state.assert_called_once_with(
             commit=False,

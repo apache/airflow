@@ -50,7 +50,7 @@ Package apache-airflow-providers-exasol
 `Exasol <https://docs.exasol.com/home.htm>`__
 
 
-Release: 1.1.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -61,58 +61,17 @@ are in ``airflow.providers.exasol`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-exasol``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``pyexasol``   ``>=0.5.1,<1.0.0``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pyexasol``        ``>=0.5.1,<1.0.0``
+==================  ==================
 
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
- ..   http://www.apache.org/licenses/LICENSE-2.0
-
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
-
-Changelog
----------
-
-1.1.1
-.....
-
-Bug fixes
-~~~~~~~~~
-
-* ``Corrections in docs and tools after releasing provider RCs (#14082)``
-
-1.1.0
-.....
-
-Updated documentation and readme files.
-
-Features
-~~~~~~~~
-
-* ``Add ExasolToS3Operator (#13847)``
-
-1.0.0
-.....
-
-Initial version of the provider.
+.. include:: ../../airflow/providers/exasol/CHANGELOG.rst

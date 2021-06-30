@@ -49,7 +49,7 @@ function run_test_types_in_parallel() {
         # shellcheck disable=SC2086
         parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
             --jobs "${MAX_PARALLEL_TEST_JOBS}" --timeout 1500 \
-            "$( dirname "${BASH_SOURCE[0]}" )/ci_run_single_airflow_test_in_docker.sh" "${@}" >${JOB_LOG} 2>&1
+            "$( dirname "${BASH_SOURCE[0]}" )/ci_run_single_airflow_test_in_docker.sh" "${@}" >"${JOB_LOG}" 2>&1
     done
     parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
     parallel::kill_monitor
@@ -96,6 +96,12 @@ function run_all_test_types_in_parallel() {
             # Remove Integration from list of tests to run in parallel
             test_types_to_run="${test_types_to_run//Integration/}"
             run_integration_tests_separately="true"
+            if [[ ${BACKEND} == "mssql" ]]; then
+              # Skip running "Integration" tests for low memory condition for mssql
+              run_integration_tests_separately="false"
+            else
+              run_integration_tests_separately="true"
+            fi
         fi
     fi
     set +e

@@ -87,7 +87,7 @@ class BigQueryToGCSOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         source_project_dataset_table: str,
         destination_cloud_storage_uris: List[str],
         compression: str = 'NONE',

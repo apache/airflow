@@ -24,8 +24,8 @@ from rich.syntax import Syntax
 from rich.table import Table
 from tabulate import tabulate
 
-import airflow.utils.yaml as yaml
 from airflow.plugins_manager import PluginsDirectorySource
+from airflow.utils import yaml
 from airflow.utils.platform import is_tty
 
 
@@ -61,7 +61,7 @@ class AirflowConsole(Console):
             table.add_column(col)
 
         for row in data:
-            table.add_row(*[str(d) for d in row.values()])
+            table.add_row(*(str(d) for d in row.values()))
         self.print(table)
 
     def print_as_plain_table(self, data: List[Dict]):
@@ -73,7 +73,6 @@ class AirflowConsole(Console):
         output = tabulate(rows, tablefmt="plain", headers=data[0].keys())
         print(output)
 
-    # pylint: disable=too-many-return-statements
     def _normalize_data(self, value: Any, output: str) -> Optional[Union[list, str, dict]]:
         if isinstance(value, (tuple, list)):
             if output == "table":
@@ -125,7 +124,7 @@ class SimpleTable(Table):
         self.title_justify = kwargs.get("title_justify", "left")
         self.caption = kwargs.get("caption", " ")
 
-    def add_column(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
+    def add_column(self, *args, **kwargs) -> None:
         """Add a column to the table. We use different default"""
         kwargs["overflow"] = kwargs.get("overflow")  # to avoid truncating
         super().add_column(*args, **kwargs)

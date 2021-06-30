@@ -97,6 +97,21 @@ class TestSecretsMasker:
             """
         )
 
+    def test_exception_not_raised(self, logger, caplog):
+        """
+        Test that when ``logger.exception`` is called when there is no current exception we still log.
+
+        (This is a "bug" in user code, but we shouldn't die because of it!)
+        """
+        logger.exception("Err")
+
+        assert caplog.text == textwrap.dedent(
+            """\
+            ERROR Err
+            NoneType: None
+            """
+        )
+
     @pytest.mark.xfail(reason="Cannot filter secrets in traceback source")
     def test_exc_tb(self, logger, caplog):
         """
@@ -110,7 +125,7 @@ class TestSecretsMasker:
         (It would likely need to construct a custom traceback that changed the
         source. I have no idead if that is even possible)
 
-        This test illustrates that, but ix marked xfail incase someone wants to
+        This test illustrates that, but ix marked xfail in case someone wants to
         fix this later.
         """
         try:
@@ -141,6 +156,8 @@ class TestSecretsMasker:
             # When the "sensitive value" is a dict, don't mask anything
             # (Or should this be mask _everything_ under it ?
             ("api_key", {"other": "innoent"}, set()),
+            (None, {"password": ""}, set()),
+            (None, "", set()),
         ],
     )
     def test_mask_secret(self, name, value, expected_mask):
@@ -162,8 +179,10 @@ class TestSecretsMasker:
             ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
             # We don't mask dict _keys_.
             ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            # Non string dict keys
+            ({"secret", "other"}, None, {1: {"secret": "secret"}}, {1: {"secret": "***"}}),
             (
-                # Since this is a sensitve name, all the values should be redacted!
+                # Since this is a sensitive name, all the values should be redacted!
                 {"secret"},
                 "api_key",
                 {"other": "innoent", "nested": ["x", "y"]},
@@ -185,6 +204,14 @@ class TestSecretsMasker:
 
         assert filt.redact(value, name) == expected
 
+    def test_redact_filehandles(self, caplog):
+        filt = SecretsMasker()
+        with open("/dev/null", "w") as handle:
+            assert filt.redact(handle, None) == handle
+
+        # We shouldn't have logged a warning here
+        assert caplog.messages == []
+
 
 class TestShouldHideValueForKey:
     @pytest.mark.parametrize(
@@ -196,6 +223,7 @@ class TestShouldHideValueForKey:
             ("google_api_key", True),
             ("GOOGLE_API_KEY", True),
             ("GOOGLE_APIKEY", True),
+            (1, False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):

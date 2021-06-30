@@ -247,7 +247,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -457,7 +456,6 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

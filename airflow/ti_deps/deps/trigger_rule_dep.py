@@ -81,7 +81,7 @@ class TriggerRuleDep(BaseTIDep):
         )
 
     @provide_session
-    def _evaluate_trigger_rule(  # pylint: disable=too-many-branches
+    def _evaluate_trigger_rule(
         self, ti, successes, skipped, failed, upstream_failed, done, flag_upstream_failed, session
     ):
         """

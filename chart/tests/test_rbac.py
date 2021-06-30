@@ -295,3 +295,29 @@ class RBACTest(unittest.TestCase):
             list_of_sa_names_in_objects,
             CUSTOM_SERVICE_ACCOUNT_NAMES,
         )
+
+    def test_service_account_without_resource(self):
+        k8s_objects = render_chart(
+            "TEST-RBAC",
+            values={
+                "fullnameOverride": "TEST-RBAC",
+                "executor": "LocalExecutor",
+                "cleanup": {"enabled": False},
+                "pgbouncer": {"enabled": False},
+                "redis": {"enabled": False},
+                "flower": {"enabled": False},
+                "statsd": {"enabled": False},
+                "webserver": {"defaultUser": {"enabled": False}},
+            },
+        )
+        list_of_sa_names = [
+            k8s_object['metadata']['name']
+            for k8s_object in k8s_objects
+            if k8s_object['kind'] == "ServiceAccount"
+        ]
+        service_account_names = [
+            'TEST-RBAC-scheduler',
+            'TEST-RBAC-webserver',
+            'TEST-RBAC-migrate-database-job',
+        ]
+        self.assertCountEqual(list_of_sa_names, service_account_names)

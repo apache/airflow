@@ -26,7 +26,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 
 
-# pylint: disable=too-many-instance-attributes
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
@@ -108,7 +107,6 @@ class SqoopOperator(BaseOperator):
     )
     ui_color = '#7D8CA4'
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         *,

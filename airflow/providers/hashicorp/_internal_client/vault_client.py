@@ -46,7 +46,7 @@ VALID_AUTH_TYPES: List[str] = [
 ]
 
 
-class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attributes
+class _VaultClient(LoggingMixin):
     """
     Retrieves Authenticated client from Hashicorp Vault. This is purely internal class promoting
     authentication code reuse between the Hook and the SecretBackend, it should not be used directly in
@@ -109,7 +109,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     :type radius_port: int
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         url: Optional[str] = None,
         auth_type: str = 'token',
@@ -262,7 +262,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
         if not self.kubernetes_jwt_path:
             raise VaultError("The kubernetes_jwt_path should be set here. This should not happen.")
         with open(self.kubernetes_jwt_path) as f:
-            jwt = f.read()
+            jwt = f.read().strip()
             if self.auth_mount_point:
                 _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt, mount_point=self.auth_mount_point)
             else:
@@ -275,7 +275,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
             _client.auth.github.login(token=self.token)
 
     def _auth_gcp(self, _client: hvac.Client) -> None:
-        from airflow.providers.google.cloud.utils.credentials_provider import (  # noqa
+        from airflow.providers.google.cloud.utils.credentials_provider import (
             _get_scopes,
             get_credentials_and_project_id,
         )
@@ -328,7 +328,7 @@ class _VaultClient(LoggingMixin):  # pylint: disable=too-many-instance-attribute
     def _set_token(self, _client: hvac.Client) -> None:
         if self.token_path:
             with open(self.token_path) as f:
-                _client.token = f.read()
+                _client.token = f.read().strip()
         else:
             _client.token = self.token
 

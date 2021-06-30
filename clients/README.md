@@ -28,3 +28,11 @@ Supported languages:
 
 All client generation scripts use [pre-commit](https://pre-commit.com/#install)
 to prepend license header to generated code.
+
+## Usage
+
+To generate Go client, run:
+
+```
+bash ./gen/go.sh ../airflow/api_connexion/openapi/v1.yaml AIRFLOW_CLIENT_GO_REPO_PATH/airflow
+```

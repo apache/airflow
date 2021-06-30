@@ -68,16 +68,16 @@ def do_setup():
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
-            'Programming Language :: Python :: 3.8',
+{%- for python_version in SUPPORTED_PYTHON_VERSIONS %}
+            'Programming Language :: Python :: {{ python_version }}',
+{%- endfor %}
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
         author_email='dev@airflow.apache.org',
         url='https://airflow.apache.org/',
         download_url='https://archive.apache.org/dist/airflow/{{ PROVIDERS_FOLDER }}',
-        python_requires='~=3.6',
+        python_requires='{{ PYTHON_REQUIRES }}',
         project_urls={
             'Documentation': 'https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/',
             'Bug Tracker': 'https://github.com/apache/airflow/issues',

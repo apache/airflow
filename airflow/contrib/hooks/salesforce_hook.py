@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook, pd  # noqa
 
 warnings.warn(

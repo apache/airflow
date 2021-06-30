@@ -128,16 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('height', fullHeight)
       .call(dayTip);
 
-    // Add the title
-    svg
-      .append('g')
-      .append('text')
-      .attr('x', fullWidth / 2)
-      .attr('y', 20)
-      .attr('text-anchor', 'middle')
-      .attr('class', 'title')
-      .text('DAG states');
-
     // Add the legend
     const legend = svg
       .append('g')
@@ -294,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .on('click', (data) => {
         window.location.href = getTreeViewURL(
-          // add 1 day and substract 1 ms to not show any run from the next day.
+          // add 1 day and subtract 1 ms to not show any run from the next day.
           toMoment(data.year, data.month, data.day).add(1, 'day').subtract(1, 'ms'),
         );
       })

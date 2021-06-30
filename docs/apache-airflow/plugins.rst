@@ -122,8 +122,8 @@ looks like:
         #   to protect against extra parameters injected into the on_load(...)
         #   function in future changes
         def on_load(*args, **kwargs):
-           # ... perform Plugin boot actions
-           pass
+            # ... perform Plugin boot actions
+            pass
 
         # A list of global operator extra links that can redirect users to
         # external systems. These extra links will be available on the
@@ -132,7 +132,6 @@ looks like:
         # Note: the global operator extra link can be overridden at each
         # operator level.
         global_operator_extra_links = []
-
 
         # A list of operator extra links to override or add operator links
         # to existing Airflow Operators.
@@ -172,17 +171,21 @@ definitions in Airflow.
     class PluginHook(BaseHook):
         pass
 
+
     # Will show up under airflow.macros.test_plugin.plugin_macro
     # and in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
 
+
     # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
-        "test_plugin", __name__,
-        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
-        static_folder='static',
-        static_url_path='/static/test_plugin')
+        "test_plugin",
+        __name__,
+        template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
+        static_folder="static",
+        static_url_path="/static/test_plugin",
+    )
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):
@@ -192,6 +195,7 @@ definitions in Airflow.
         def test(self):
             return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
+
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseNoMenuView(AppBuilderBaseView):
         default_view = "test"
@@ -200,15 +204,16 @@ definitions in Airflow.
         def test(self):
             return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
+
     v_appbuilder_view = TestAppBuilderBaseView()
-    v_appbuilder_package = {"name": "Test View",
-                            "category": "Test Plugin",
-                            "view": v_appbuilder_view}
+    v_appbuilder_package = {
+        "name": "Test View",
+        "category": "Test Plugin",
+        "view": v_appbuilder_view,
+    }
 
     v_appbuilder_nomenu_view = TestAppBuilderBaseNoMenuView()
-    v_appbuilder_nomenu_package = {
-        "view": v_appbuilder_nomenu_view
-    }
+    v_appbuilder_nomenu_package = {"view": v_appbuilder_nomenu_view}
 
     # Creating flask appbuilder Menu Items
     appbuilder_mitem = {
@@ -229,16 +234,17 @@ definitions in Airflow.
         def get_link(self, operator, dttm):
             return "https://www.google.com"
 
+
     # A list of operator extra links to override or add operator links
     # to existing Airflow Operators.
     # These extra links will be available on the task page in form of
     # buttons.
     class S3LogLink(BaseOperatorLink):
-        name = 'S3'
+        name = "S3"
         operators = [GCSToS3Operator]
 
         def get_link(self, operator, dttm):
-            return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
+            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
                 dag_id=operator.dag_id,
                 task_id=operator.task_id,
                 execution_date=dttm,
@@ -253,8 +259,12 @@ definitions in Airflow.
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
-        global_operator_extra_links = [GoogleLink(),]
-        operator_extra_links = [S3LogLink(), ]
+        global_operator_extra_links = [
+            GoogleLink(),
+        ]
+        operator_extra_links = [
+            S3LogLink(),
+        ]
 
 
 Note on role based views
@@ -277,10 +287,11 @@ some views using a decorator.
 
     from airflow.www.app import csrf
 
+
     @csrf.exempt
     def my_handler():
         # ...
-        return 'ok'
+        return "ok"
 
 Plugins as Python packages
 --------------------------
@@ -302,14 +313,17 @@ will automatically load the registered plugins from the entrypoint list.
 
     # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
-        "test_plugin", __name__,
-        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
-        static_folder='static',
-        static_url_path='/static/test_plugin')
+        "test_plugin",
+        __name__,
+        template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
+        static_folder="static",
+        static_url_path="/static/test_plugin",
+    )
+
 
     class MyAirflowPlugin(AirflowPlugin):
-      name = 'my_namespace'
-      flask_blueprints = [bp]
+        name = "my_namespace"
+        flask_blueprints = [bp]
 
 .. code-block:: python
 
@@ -317,12 +331,10 @@ will automatically load the registered plugins from the entrypoint list.
 
     setup(
         name="my-package",
-        ...
-        entry_points = {
-            'airflow.plugins': [
-                'my_plugin = my_package.my_plugin:MyAirflowPlugin'
-            ]
-        }
+        # ...
+        entry_points={
+            "airflow.plugins": ["my_plugin = my_package.my_plugin:MyAirflowPlugin"]
+        },
     )
 
 Automatic reloading webserver

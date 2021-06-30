@@ -53,9 +53,20 @@ def configure_logging():
         log.debug('Unable to load custom logging, using default config instead')
 
     try:
+        # Ensure that the password masking filter is applied to the 'task' handler
+        # no matter what the user did.
+        if 'filters' in logging_config and 'mask_secrets' in logging_config['filters']:
+            # But if they replace the logging config _entirely_, don't try to set this, it won't work
+            task_handler_config = logging_config['handlers']['task']
+
+            task_handler_config.setdefault('filters', [])
+
+            if 'mask_secrets' not in task_handler_config['filters']:
+                task_handler_config['filters'].append('mask_secrets')
+
         # Try to init logging
         dictConfig(logging_config)
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         log.error('Unable to load the config, contains a configuration error.')
         # When there is an error in the config, escalate the exception
         # otherwise Airflow would silently fall back on the default config
@@ -66,7 +77,7 @@ def configure_logging():
     return logging_class_path
 
 
-def validate_logging_config(logging_config):  # pylint: disable=unused-argument
+def validate_logging_config(logging_config):
     """Validate the provided Logging Config"""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get('logging', 'task_log_reader')

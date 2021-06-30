@@ -75,7 +75,7 @@ class TestS3TaskHandler(unittest.TestCase):
         if self.s3_task_handler.handler:
             try:
                 os.remove(self.s3_task_handler.handler.baseFilename)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 pass
 
     def test_hook(self):
@@ -179,24 +179,14 @@ class TestS3TaskHandler(unittest.TestCase):
             self.s3_task_handler.s3_write('text', self.remote_log_location)
             # We shouldn't expect any error logs in the default working case.
             mock_error.assert_not_called()
-        body = (
-            boto3.resource('s3')
-            .Object('bucket', self.remote_log_key)  # pylint: disable=no-member
-            .get()['Body']
-            .read()
-        )
+        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
 
         assert body == b'text'
 
     def test_write_existing(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
         self.s3_task_handler.s3_write('text', self.remote_log_location)
-        body = (
-            boto3.resource('s3')
-            .Object('bucket', self.remote_log_key)  # pylint: disable=no-member
-            .get()['Body']
-            .read()
-        )
+        body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
 
         assert body == b'previous \ntext'
 
@@ -213,7 +203,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
         self.s3_task_handler.close()
         # Should not raise
-        boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member
+        boto3.resource('s3').Object('bucket', self.remote_log_key).get()
 
     def test_close_no_upload(self):
         self.ti.raw = True
@@ -222,4 +212,4 @@ class TestS3TaskHandler(unittest.TestCase):
         self.s3_task_handler.close()
 
         with pytest.raises(ClientError):
-            boto3.resource('s3').Object('bucket', self.remote_log_key).get()  # pylint: disable=no-member
+            boto3.resource('s3').Object('bucket', self.remote_log_key).get()

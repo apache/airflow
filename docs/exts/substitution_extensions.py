@@ -30,7 +30,7 @@ from sphinx.transforms.post_transforms.code import HighlightLanguageTransform
 
 LOGGER = logging.getLogger(__name__)
 
-OriginalCodeBlock: Directive = directives._directives['code-block']  # pylint: disable=protected-access
+OriginalCodeBlock: Directive = directives._directives['code-block']
 
 _SUBSTITUTION_OPTION_NAME = 'substitutions'
 
@@ -51,7 +51,7 @@ class SubstitutionCodeBlock(OriginalCodeBlock):  # type: ignore
 
 
 class SubstitutionCodeBlockTransform(SphinxTransform):
-    """Substitue ``|variables|`` in code and code-block nodes"""
+    """Substitute ``|variables|`` in code and code-block nodes"""
 
     # Run before we highlight the code!
     default_priority = HighlightLanguageTransform.default_priority - 1

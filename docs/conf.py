@@ -1,4 +1,3 @@
-# flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -32,6 +31,7 @@
 # serve to show the default.
 """Configuration of Airflow Docs"""
 import glob
+import json
 import os
 import sys
 from collections import defaultdict
@@ -46,9 +46,7 @@ except ImportError:
 
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
-from docs.exts.docs_build.third_party_inventories import (  # pylint: disable=no-name-in-module,wrong-import-order
-    THIRD_PARTY_INDEXES,
-)
+from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
 
@@ -64,7 +62,7 @@ if PACKAGE_NAME == 'apache-airflow':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
-    from provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
+    from provider_yaml_utils import load_package_data
 
     ALL_PROVIDER_YAMLS = load_package_data()
     try:
@@ -76,7 +74,15 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     except StopIteration:
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
-    PACKAGE_VERSION = 'devel'
+    PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
+elif PACKAGE_NAME == 'helm-chart':
+    PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
+    CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
+
+    with open(CHART_YAML_FILE) as chart_file:
+        chart_yaml_contents = yaml.load(chart_file, SafeLoader)
+
+    PACKAGE_VERSION = chart_yaml_contents['version']
 else:
     PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
@@ -85,7 +91,6 @@ os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
 if PACKAGE_DIR:
     os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
 os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
-
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
@@ -144,6 +149,7 @@ if PACKAGE_NAME == 'apache-airflow':
             "sphinx_script_update",
         ]
     )
+
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
@@ -151,7 +157,9 @@ if PACKAGE_NAME == "apache-airflow-providers":
             'providers_packages_ref',
         ]
     )
-elif PACKAGE_NAME in ("helm-chart", "docker-stack"):
+elif PACKAGE_NAME == "helm-chart":
+    extensions.append("sphinxcontrib.jinja")
+elif PACKAGE_NAME == "docker-stack":
     # No extra extensions
     pass
 else:
@@ -248,9 +256,17 @@ if PACKAGE_NAME == 'apache-airflow':
     html_extra_path = [
         f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
     ]
-    html_extra_with_substituions = [
+    html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
     ]
+    # Replace "|version|" in links
+    manual_substitutions_in_generated_html = [
+        "installation.html",
+    ]
+
+if PACKAGE_NAME == 'docker-stack':
+    # Replace "|version|" inside ```` quotes
+    manual_substitutions_in_generated_html = ["build.html"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -311,8 +327,8 @@ html_context = {
     'conf_py_path': f'/docs/{PACKAGE_NAME}/',
     'github_user': 'apache',
     'github_repo': 'airflow',
-    'github_version': 'devel',
-    'display_github': 'devel',
+    'github_version': 'main',
+    'display_github': 'main',
     'suffix': '.rst',
 }
 
@@ -329,8 +345,20 @@ if PACKAGE_NAME == 'apache-airflow':
     ) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
+    configs = default_config_yaml()
+
+    # We want the default/example we show in the docs to reflect the value _after_
+    # the config has been templated, not before
+    # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
+    keys_to_format = ["default", "example"]
+    for conf_section in configs:
+        for option in conf_section["options"]:
+            for key in keys_to_format:
+                if option[key] and "{{" in option[key]:
+                    option[key] = option[key].replace("{{", "{").replace("}}", "}")
+
     jinja_contexts = {
-        'config_ctx': {"configs": default_config_yaml(), "deprecated_options": deprecated_options},
+        'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
         'quick_start_ctx': {
             'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
             if FOR_PRODUCTION
@@ -347,13 +375,94 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         if not os.path.exists(file_path):
             return {}
 
-        with open(file_path) as config_file:
-            return yaml.load(config_file, SafeLoader)
+        with open(file_path) as f:
+            return yaml.load(f, SafeLoader)
 
     config = _load_config()
     if config:
         jinja_contexts = {'config_ctx': {"configs": config}}
         extensions.append('sphinxcontrib.jinja')
+elif PACKAGE_NAME == 'helm-chart':
+
+    def _str_representer(dumper, data):
+        style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style)
+
+    yaml.add_representer(str, _str_representer)
+
+    def _format_default(value: Any) -> str:
+        if value == "":
+            return '""'
+        if value is None:
+            return '~'
+        return str(value)
+
+    def _format_examples(param_name: str, schema: dict) -> Optional[str]:
+        if not schema.get("examples"):
+            return None
+
+        # Nicer to have the parameter name shown as well
+        out = ""
+        for ex in schema["examples"]:
+            if schema["type"] == "array":
+                ex = [ex]
+            out += yaml.dump({param_name: ex})
+        return out
+
+    def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") -> List[dict]:
+        """
+        Given an jsonschema objects properties dict, return a flattened list of all parameters
+        from that object and any nested objects
+        """
+        # TODO: handle arrays? probably missing more cases too
+        out = []
+        for param_name, schema in root_schema.items():
+            prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
+            section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
+            if section_name and schema["description"] and "default" in schema:
+                out.append(
+                    {
+                        "section": section_name,
+                        "name": prefixed_name,
+                        "description": schema["description"],
+                        "default": _format_default(schema["default"]),
+                        "examples": _format_examples(param_name, schema),
+                    }
+                )
+            if schema.get("properties"):
+                out += _get_params(schema["properties"], prefixed_name, section_name)
+        return out
+
+    schema_file = os.path.join(PACKAGE_DIR, "values.schema.json")  # type: ignore
+    with open(schema_file) as config_file:
+        chart_schema = json.load(config_file)
+
+    params = _get_params(chart_schema["properties"])
+
+    # Now, split into sections
+    sections: Dict[str, List[Dict[str, str]]] = {}
+    for param in params:
+        if param["section"] not in sections:
+            sections[param["section"]] = []
+
+        sections[param["section"]].append(param)
+
+    # and order each section
+    for section in sections.values():  # type: ignore
+        section.sort(key=lambda i: i["name"])  # type: ignore
+
+    # and finally order the sections!
+    ordered_sections = []
+    for name in chart_schema["x-docsSectionOrder"]:
+        if name not in sections:
+            raise ValueError(f"Unable to find any parameters for section: {name}")
+        ordered_sections.append({"name": name, "params": sections.pop(name)})
+
+    if sections:
+        raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
+
+    jinja_contexts = {"params_ctx": {"sections": ordered_sections}}
+
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
@@ -430,6 +539,7 @@ intersphinx_mapping = {
     for pkg_name in [
         'boto3',
         'celery',
+        'docker',
         'hdfs',
         'jinja2',
         'mongodb',
@@ -497,7 +607,7 @@ if PACKAGE_NAME == 'apache-airflow':
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    'airflow/configuration/',
+    '*/airflow/_vendor/*',
     '*/example_dags/*',
     '*/_internal*',
     '*/node_modules/*',
@@ -519,6 +629,15 @@ autoapi_root = '_api'
 # TOC tree entry yourself.
 autoapi_add_toctree_entry = False
 
+# By default autoapi will include private members -- we don't want that!
+autoapi_options = [
+    'members',
+    'undoc-members',
+    'show-inheritance',
+    'show-module-summary',
+    'special-members',
+]
+
 # -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
 
@@ -527,6 +646,9 @@ redirects_file = 'redirects.txt'
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
 spelling_word_list_filename = [os.path.join(CONF_DIR, 'spelling_wordlist.txt')]
+if PACKAGE_NAME == 'apache-airflow':
+    spelling_exclude_patterns = ['project.rst', 'changelog.rst']
+spelling_ignore_contributor_names = False
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/

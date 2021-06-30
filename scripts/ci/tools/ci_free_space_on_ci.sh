@@ -23,7 +23,7 @@ sudo swapoff -a
 sudo rm -f /swapfile
 
 echo "${COLOR_BLUE}Cleaning apt${COLOR_RESET}"
-sudo apt clean
+sudo apt clean || true
 
 echo "${COLOR_BLUE}Pruning docker${COLOR_RESET}"
 docker_v system prune --all --force --volumes

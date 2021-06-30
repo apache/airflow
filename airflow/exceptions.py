@@ -115,6 +115,10 @@ class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in Dag definition"""
 
 
+class AirflowTimetableInvalid(AirflowException):
+    """Raise when a DAG has an invalid timetable."""
+
+
 class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system"""
 
@@ -164,11 +168,11 @@ class NoAvailablePoolSlot(AirflowException):
 
 
 class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG concurrency limit is reached"""
+    """Raise when DAG max_active_tasks limit is reached"""
 
 
 class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task concurrency limit is reached"""
+    """Raise when task max_active_tasks limit is reached"""
 
 
 class BackfillUnfinished(AirflowException):

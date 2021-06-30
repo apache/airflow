@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Box,
   Button,
@@ -26,20 +26,15 @@ import {
   MenuList,
   Tooltip,
 } from '@chakra-ui/react';
-import dayjs from 'dayjs';
-import tz from 'dayjs/plugin/timezone';
 import { getTimeZones } from '@vvo/tzdb';
 
 import Select from 'components/MultiSelect';
-import { useTimezoneContext } from 'providers/TimezoneProvider';
-
-dayjs.extend(tz);
+import { useDateContext } from 'providers/DateProvider';
 
 interface Option { value: string, label: string }
 
 const TimezoneDropdown: React.FC = () => {
-  const { timezone, setTimezone } = useTimezoneContext();
-  const [now, setNow] = useState(dayjs().tz(timezone));
+  const { timezone, setTimezone, formatDate } = useDateContext();
   const menuRef = useRef<HTMLButtonElement>(null);
 
   const timezones = getTimeZones();
@@ -54,7 +49,6 @@ const TimezoneDropdown: React.FC = () => {
   const onChangeTimezone = (newTimezone: Option | null) => {
     if (newTimezone) {
       setTimezone(newTimezone.value);
-      setNow(dayjs().tz(newTimezone.value));
       // Close the dropdown on a successful change
       menuRef?.current?.click();
     }
@@ -66,10 +60,10 @@ const TimezoneDropdown: React.FC = () => {
         <MenuButton as={Button} variant="ghost" mr="4" ref={menuRef}>
           <Box
             as="time"
-            dateTime={now.toString()}
+            dateTime={formatDate()}
             fontSize="md"
           >
-            {now.format('HH:mm Z')}
+            {formatDate()}
           </Box>
         </MenuButton>
       </Tooltip>

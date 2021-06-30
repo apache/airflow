@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.google.cloud.utils.mlengine_operator_utils`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops  # noqa
 
 warnings.warn(

@@ -35,13 +35,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship, synonym
 from sqlalchemy.orm.session import Session
+from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -212,8 +212,8 @@ class DagRun(Base, LoggingMixin):
                 DagModel.dag_id == cls.dag_id,
             )
             .filter(
-                DagModel.is_paused.is_(False),
-                DagModel.is_active.is_(True),
+                DagModel.is_paused == expression.false(),
+                DagModel.is_active == expression.true(),
             )
             .order_by(
                 nulls_first(cls.last_scheduling_decision, session=session),
@@ -369,14 +369,14 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = None) -> Optional['DagRun']:
         """The previous, SCHEDULED DagRun, if there is one"""
-        dag = self.get_dag()
-
         return (
             session.query(DagRun)
             .filter(
                 DagRun.dag_id == self.dag_id,
-                DagRun.execution_date == dag.previous_schedule(self.execution_date),
+                DagRun.execution_date < self.execution_date,
+                DagRun.run_type != DagRunType.MANUAL,
             )
+            .order_by(DagRun.execution_date.desc())
             .first()
         )
 
@@ -633,6 +633,8 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         :type session: Session
         """
+        from airflow.settings import task_instance_mutation_hook
+
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
@@ -700,7 +702,7 @@ class DagRun(Base, LoggingMixin):
             session.query(DagRun)
             .filter(
                 DagRun.dag_id == dag_id,
-                DagRun.external_trigger == False,  # noqa pylint: disable=singleton-comparison
+                DagRun.external_trigger == False,  # noqa
                 DagRun.execution_date == execution_date,
             )
             .first()

@@ -75,9 +75,9 @@ class SlackAPIOperator(BaseOperator):
             "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
         )
 
-    def execute(self, **kwargs):  # noqa: D403
+    def execute(self, **kwargs):
         """
-        SlackAPIOperator calls will not fail even if the call is not unsuccessful.
+        The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
         """
         if not self.api_params:
@@ -129,7 +129,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         'Here is a cat video instead\n'
         'https://www.youtube.com/watch?v=J---aiyznGQ',
         icon_url: str = 'https://raw.githubusercontent.com/apache/'
-        'airflow/master/airflow/www/static/pin_100.png',
+        'airflow/main/airflow/www/static/pin_100.png',
         attachments: Optional[List] = None,
         blocks: Optional[List] = None,
         **kwargs,

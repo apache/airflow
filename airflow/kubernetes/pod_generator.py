@@ -34,9 +34,9 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-import airflow.utils.yaml as yaml
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
+from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63
@@ -101,7 +101,7 @@ class PodGenerator:
     :type extract_xcom: bool
     """
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(
         self,
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
@@ -325,7 +325,7 @@ class PodGenerator:
         )
 
     @staticmethod
-    def construct_pod(  # pylint: disable=too-many-arguments
+    def construct_pod(
         dag_id: str,
         task_id: str,
         pod_id: str,
@@ -348,7 +348,7 @@ class PodGenerator:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
                 image = kube_image
-        except Exception:  # pylint: disable=W0703
+        except Exception:
             image = kube_image
 
         dynamic_pod = k8s.V1Pod(
@@ -417,7 +417,6 @@ class PodGenerator:
         else:
             pod = yaml.safe_load(path)
 
-        # pylint: disable=protected-access
         return PodGenerator.deserialize_model_dict(pod)
 
     @staticmethod
@@ -429,7 +428,7 @@ class PodGenerator:
         :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient()
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)  # pylint: disable=W0212
+        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
     def make_unique_pod_id(pod_id: str) -> str:
@@ -451,7 +450,7 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-        # Strip trailing '-' and '.' as they cant be followed by '.'
+        # Strip trailing '-' and '.' as they can't be followed by '.'
         trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
         safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"

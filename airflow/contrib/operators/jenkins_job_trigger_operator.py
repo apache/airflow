@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator  # noqa
 
 warnings.warn(

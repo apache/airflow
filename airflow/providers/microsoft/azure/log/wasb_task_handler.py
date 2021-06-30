@@ -141,7 +141,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.check_for_blob(self.wasb_container, remote_log_location)
-        # pylint: disable=broad-except
+
         except Exception as e:
             self.log.debug('Exception when trying to check remote location: "%s"', e)
         return False
@@ -185,10 +185,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             log = '\n'.join([old_log, log]) if old_log else log
 
         try:
-            self.hook.load_string(
-                log,
-                self.wasb_container,
-                remote_log_location,
-            )
+            self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
         except AzureHttpError:
             self.log.exception('Could not write logs to %s', remote_log_location)

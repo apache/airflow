@@ -68,7 +68,6 @@ class PostgresHook(DbApiHook):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.schema: Optional[str] = kwargs.pop("schema", None)
         self.connection: Optional[Connection] = kwargs.pop("connection", None)
         self.conn: connection = None
 
@@ -108,6 +107,7 @@ class PostgresHook(DbApiHook):
                 'redshift',
                 'cursor',
                 'cluster-identifier',
+                'aws_conn_id',
             ]:
                 conn_args[arg_name] = arg_val
 
@@ -144,7 +144,6 @@ class PostgresHook(DbApiHook):
         """Dumps a database table into a tab-delimited file"""
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
-    # pylint: disable=signature-differs
     @staticmethod
     def _serialize_cell(cell: object, conn: Optional[connection] = None) -> object:
         """

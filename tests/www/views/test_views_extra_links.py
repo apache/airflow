@@ -44,7 +44,7 @@ class RaiseErrorLink(BaseOperatorLink):
 class NoResponseLink(BaseOperatorLink):
     name = 'no_response'
 
-    def get_link(self, operator, dttm):  # pylint: disable=unused-argument
+    def get_link(self, operator, dttm):
         return None
 
 
@@ -58,7 +58,7 @@ class FooBarLink(BaseOperatorLink):
 class AirflowLink(BaseOperatorLink):
     name = 'airflow'
 
-    def get_link(self, operator, dttm):  # pylint: disable=unused-argument
+    def get_link(self, operator, dttm):
         return 'https://airflow.apache.org'
 
 

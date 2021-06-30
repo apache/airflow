@@ -26,7 +26,10 @@ from tests.helm_template_generator import render_chart
 class GitSyncWebserverTest(unittest.TestCase):
     def test_should_add_dags_volume_to_the_webserver_if_git_sync_and_persistence_is_enabled(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -34,7 +37,10 @@ class GitSyncWebserverTest(unittest.TestCase):
 
     def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}}},
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": False}},
+            },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
@@ -43,15 +49,16 @@ class GitSyncWebserverTest(unittest.TestCase):
     def test_should_add_git_sync_container_to_webserver_if_persistence_is_not_enabled_but_git_sync_is(self):
         docs = render_chart(
             values={
+                "airflowVersion": "1.10.14",
                 "dags": {
                     "gitSync": {"enabled": True, "containerName": "git-sync"},
                     "persistence": {"enabled": False},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "git-sync" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert "git-sync" == jmespath.search("spec.template.spec.containers[1].name", docs[0])
 
     def test_should_have_service_account_defined(self):
         docs = render_chart(
@@ -63,18 +70,44 @@ class GitSyncWebserverTest(unittest.TestCase):
             "spec.template.spec.serviceAccountName", docs[0]
         )
 
-    @parameterized.expand([(True,), (False,)])
-    def test_git_sync_with_exclude_webserver(self, exclude_webserver):
+    @parameterized.expand(
+        [
+            (
+                "2.0.0",
+                True,
+            ),
+            (
+                "2.0.2",
+                True,
+            ),
+            (
+                "1.10.14",
+                False,
+            ),
+            (
+                "1.9.0",
+                False,
+            ),
+            (
+                "2.1.0",
+                True,
+            ),
+        ],
+    )
+    def test_git_sync_with_different_airflow_versions(self, airflow_version, exclude_webserver):
         """
-        If that dags.gitSync.excludeWebserver=True - git sync related containers, volume mounts & volumes
+        If Airflow >= 2.0.0 - git sync related containers, volume mounts & volumes
         are not created.
         """
         docs = render_chart(
             values={
+                "airflowVersion": airflow_version,
                 "dags": {
-                    "gitSync": {"enabled": True, "excludeWebserver": exclude_webserver},
+                    "gitSync": {
+                        "enabled": True,
+                    },
                     "persistence": {"enabled": False},
-                }
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
@@ -97,3 +130,43 @@ class GitSyncWebserverTest(unittest.TestCase):
             assert "git-sync" in containers_names
             assert "dags" in volume_mount_names
             assert "dags" in volume_names
+
+    def test_should_add_env(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+
+    def test_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "1.10.14",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "resources": {
+                            "limits": {"cpu": "200m", 'memory': "128Mi"},
+                            "requests": {"cpu": "300m", 'memory': "169Mi"},
+                        },
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[1].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
