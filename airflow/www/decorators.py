@@ -31,6 +31,8 @@ from airflow.utils.session import create_session
 
 T = TypeVar("T", bound=Callable)
 
+logger = logging.getLogger(__name__)
+
 
 def action_logging(f: T) -> T:
     """Decorator to log user actions"""
@@ -59,7 +61,9 @@ def action_logging(f: T) -> T:
                 try:
                     log.execution_date = pendulum.parse(execution_date_value, strict=False)
                 except ParserError:
-                    logging.error(f"Failed to parse execution_date from the request: {execution_date_value}")
+                    logger.exception(
+                        "Failed to parse execution_date from the request: %s", execution_date_value
+                    )
                     pass
 
             session.add(log)
