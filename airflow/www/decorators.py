@@ -18,6 +18,7 @@
 
 import functools
 import gzip
+import logging
 from io import BytesIO as IO
 from typing import Callable, TypeVar, cast
 
@@ -54,9 +55,11 @@ def action_logging(f: T) -> T:
             )
 
             if 'execution_date' in request.values:
+                execution_date_value = request.values.get('execution_date')
                 try:
-                    log.execution_date = pendulum.parse(request.values.get('execution_date'), strict=False)
+                    log.execution_date = pendulum.parse(execution_date_value, strict=False)
                 except ParserError:
+                    logging.error(f"Failed to parse execution_date from the request: {execution_date_value}")
                     pass
 
             session.add(log)
