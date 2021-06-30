@@ -74,6 +74,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
@@ -1540,12 +1541,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return getattr(self, '_is_dummy', False)
 
 
-def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
+def chain(
+    *tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequence["XComArg"]]
+):
     r"""
     Given a number of tasks, builds a dependency chain.
-    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
-    If you want to chain between two List[airflow.models.BaseOperator], have to
-    make sure they have same length.
+    Support mix airflow.models.BaseOperator, List[airflow.models.BaseOperator], XComArg, and
+    List[airflow.models.XComArg]. If you want to chain between two List[airflow.models.BaseOperator]
+    or List[airflow.models.XComArg], you have to make sure they have same length.
 
     .. code-block:: python
 
@@ -1566,20 +1569,25 @@ def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
         t4.set_downstream(t6)
         t5.set_downstream(t6)
 
-    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
-    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
+    :param tasks: List of tasks, List[airflow.models.BaseOperator], XComArg, or List[airflow.models.XComArg]
+        to set dependencies
+    :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator, List[airflow.models.XComArg],
+        or XComArg
     """
+    from airflow.models.xcom_arg import XComArg
+
+
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, BaseOperator):
+        if isinstance(up_task, (BaseOperator, XComArg)):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, BaseOperator):
+        if isinstance(down_task, (BaseOperator, XComArg)):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
             raise TypeError(
-                'Chain not supported between instances of {up_type} and {down_type}'.format(
+                "Chain not supported between instances of {up_type} and {down_type}".format(
                     up_type=type(up_task), down_type=type(down_task)
                 )
             )
@@ -1587,15 +1595,16 @@ def chain(*tasks: Union[BaseOperator, Sequence[BaseOperator]]):
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):
             raise AirflowException(
-                f'Chain not supported different length Iterable '
-                f'but get {len(up_task_list)} and {len(down_task_list)}'
+                f"Chain not supported different length Iterable "
+                f"but get {len(up_task_list)} and {len(down_task_list)}"
             )
         for up_t, down_t in zip(up_task_list, down_task_list):
             up_t.set_downstream(down_t)
 
 
 def cross_downstream(
-    from_tasks: Sequence[BaseOperator], to_tasks: Union[BaseOperator, Sequence[BaseOperator]]
+    from_tasks: Union[Sequence[BaseOperator], Sequence["XComArg"]],
+    to_tasks: Union[Sequence[BaseOperator], Sequence["XComArg"]],
 ):
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
@@ -1625,10 +1634,10 @@ def cross_downstream(
         t3.set_downstream(t5)
         t3.set_downstream(t6)
 
-    :param from_tasks: List of tasks to start from.
-    :type from_tasks: List[airflow.models.BaseOperator]
-    :param to_tasks: List of tasks to set as downstream dependencies.
-    :type to_tasks: List[airflow.models.BaseOperator]
+    :param from_tasks: List of tasks or XComArgs to start from.
+    :type from_tasks: List[airflow.models.BaseOperator] or List[airflow.models.XComArg]
+    :param to_tasks: List of tasks or XComArgs to set as downstream dependencies.
+    :type to_tasks: List[airflow.models.BaseOperator] or List[airflow.models.XComArg]
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)
