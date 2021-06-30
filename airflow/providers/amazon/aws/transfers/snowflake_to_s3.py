@@ -110,7 +110,7 @@ class SnowflakeToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.s3_path = s3_key
+        self.s3_path = s3_path
         self.snowflake_conn_id = snowflake_conn_id
         self.schema = schema
         self.table = table
