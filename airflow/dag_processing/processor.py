@@ -403,7 +403,7 @@ class DagFileProcessor(LoggingMixin):
             task = dag.get_task(ti.task_id)
             if not task.sla:
                 continue
-  
+
             if not isinstance(task.sla, timedelta):
                 raise TypeError(
                     f"SLA is expected to be timedelta object, got "
