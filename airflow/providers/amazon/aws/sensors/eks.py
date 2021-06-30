@@ -19,8 +19,6 @@
 
 from typing import Optional
 
-from boto3 import Session
-
 from airflow.providers.amazon.aws.hooks.eks import EKSHook
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults

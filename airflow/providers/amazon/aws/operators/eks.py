@@ -23,13 +23,9 @@ from datetime import datetime
 from time import sleep
 from typing import Dict, List, Optional
 
-from boto3 import Session
-
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import (
     DEFAULT_CONTEXT_NAME,
-    DEFAULT_KUBE_CONFIG_PATH,
-    DEFAULT_NAMESPACE_NAME,
     DEFAULT_POD_USERNAME,
     EKSHook,
     generate_config_file,
@@ -40,9 +36,9 @@ CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
 CONN_ID = "eks"
 DEFAULT_COMPUTE_TYPE = 'nodegroup'
+DEFAULT_NAMESPACE_NAME = 'default'
 DEFAULT_NODEGROUP_NAME_SUFFIX = '-nodegroup'
 DEFAULT_POD_NAME = 'pod'
-KUBE_CONFIG_ENV_VAR = 'KUBECONFIG'
 
 
 class EKSCreateClusterOperator(BaseOperator):
@@ -73,6 +69,9 @@ class EKSCreateClusterOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
 
     If compute is assigned the value of ``nodegroup``, the following are required:
 
@@ -92,7 +91,7 @@ class EKSCreateClusterOperator(BaseOperator):
         nodegroup_name: Optional[str] = None,
         nodegroup_role_arn: Optional[str] = None,
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -101,7 +100,7 @@ class EKSCreateClusterOperator(BaseOperator):
         self.clusterRoleArn = cluster_role_arn
         self.resourcesVpcConfig = resources_vpc_config
         self.compute = compute
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
         if self.compute == 'nodegroup':
@@ -179,6 +178,9 @@ class EKSCreateNodegroupOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+        :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
 
     """
 
@@ -188,7 +190,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         nodegroup_subnets: List[str],
         nodegroup_role_arn: str,
         nodegroup_name: Optional[str],
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -197,7 +199,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         self.nodegroupSubnets = nodegroup_subnets
         self.nodegroupRoleArn = nodegroup_role_arn
         self.nodegroupName = nodegroup_name or cluster_name + datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -230,15 +232,18 @@ class EKSDeleteClusterOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+        :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
 
     """
 
     def __init__(
-        self, cluster_name: str, conn_id: Optional[str] = CONN_ID, region: Optional[str] = None, **kwargs
+        self, cluster_name: str, aws_conn_id: Optional[str] = CONN_ID, region: Optional[str] = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -291,11 +296,14 @@ class EKSDeleteNodegroupOperator(BaseOperator):
     :param nodegroup_name: The name of the nodegroup to delete.
     :type nodegroup_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
+         If this is None or empty then the default boto3 behaviour is used.  If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
 
     """
 
@@ -303,14 +311,14 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         self,
         cluster_name: str,
         nodegroup_name: str,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
         self.nodegroupName = nodegroup_name
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -332,6 +340,9 @@ class EKSDescribeAllClustersOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     :param verbose: Provides additional logging if set to True.  Defaults to False.
     :type verbose: bool
 
@@ -340,13 +351,13 @@ class EKSDescribeAllClustersOperator(BaseOperator):
     def __init__(
         self,
         verbose: Optional[bool] = False,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.verbose = verbose
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -383,6 +394,9 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     :param verbose: Provides additional logging if set to True.  Defaults to False.
     :type verbose: bool
 
@@ -392,14 +406,14 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
         self,
         cluster_name: str,
         verbose: Optional[bool] = False,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
         self.verbose = verbose
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -442,6 +456,9 @@ class EKSDescribeClusterOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     :param verbose: Provides additional logging if set to True.  Defaults to False.
     :type verbose: bool
 
@@ -451,14 +468,14 @@ class EKSDescribeClusterOperator(BaseOperator):
         self,
         cluster_name: str,
         verbose: Optional[bool] = False,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
         self.verbose = verbose
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -492,6 +509,9 @@ class EKSDescribeNodegroupOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     :param verbose: Provides additional logging if set to True.  Defaults to False.
     :type verbose: bool
 
@@ -502,7 +522,7 @@ class EKSDescribeNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_name: str,
         verbose: Optional[bool] = False,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -510,7 +530,7 @@ class EKSDescribeNodegroupOperator(BaseOperator):
         self.clusterName = cluster_name
         self.nodegroupName = nodegroup_name
         self.verbose = verbose
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -530,7 +550,7 @@ class EKSDescribeNodegroupOperator(BaseOperator):
 
 class EKSListClustersOperator(BaseOperator):
     """
-    Lists the Amazon EKS Clusters in your AWS account with optional pagination.
+    Lists all Amazon EKS Clusters in your AWS account.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -550,13 +570,13 @@ class EKSListClustersOperator(BaseOperator):
     def __init__(
         self,
         verbose: Optional[bool] = False,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.verbose = verbose
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -570,7 +590,7 @@ class EKSListClustersOperator(BaseOperator):
 
 class EKSListNodegroupsOperator(BaseOperator):
     """
-    Lists the Amazon EKS Nodegroups associated with the specified EKS Cluster with optional pagination.
+    Lists all Amazon EKS Nodegroups associated with the specified EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -584,6 +604,9 @@ class EKSListNodegroupsOperator(BaseOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     :param verbose: Provides additional logging if set to True.  Defaults to False.
     :type verbose: bool
 
@@ -593,14 +616,14 @@ class EKSListNodegroupsOperator(BaseOperator):
         self,
         cluster_name: str,
         verbose: Optional[bool] = False,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
         self.verbose = verbose
-        self.conn_id = conn_id
+        self.conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
@@ -625,8 +648,6 @@ class EKSPodOperator(KubernetesPodOperator):
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
        for the Kubernetes control plane to make calls to AWS API operations on your behalf.
     :type cluster_role_arn: str
-    :param kube_config_file_path: Path to save the generated kube_config file to.
-    :type kube_config_file_path: str
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
     :type in_cluster: bool
     :param namespace: The namespace in which to execute the pod.
@@ -639,12 +660,9 @@ class EKSPodOperator(KubernetesPodOperator):
     :type pod_username: str
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
     :param aws_profile: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
+    :param region: Which AWS region the connection should use.
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
 
     """
 
@@ -652,8 +670,6 @@ class EKSPodOperator(KubernetesPodOperator):
         self,
         cluster_name: str,
         cluster_role_arn: Optional[str] = None,
-        # A default path will be used if none is provided.
-        kube_config_file_path: Optional[str] = os.environ.get(KUBE_CONFIG_ENV_VAR, DEFAULT_KUBE_CONFIG_PATH),
         # Setting in_cluster to False tells the pod that the config
         # file is stored locally in the worker and not in the cluster.
         in_cluster: Optional[bool] = False,
@@ -668,23 +684,22 @@ class EKSPodOperator(KubernetesPodOperator):
         super().__init__(
             in_cluster=in_cluster,
             namespace=namespace,
-            config_file=kube_config_file_path,
             name=pod_name,
             **kwargs,
         )
         self.aws_profile = os.getenv('AWS_PROFILE', None) if aws_profile is None else aws_profile
         self.roleArn = cluster_role_arn
         self.clusterName = cluster_name
-        self.config_file = kube_config_file_path
+        self.pod_name = pod_name
         self.pod_username = pod_username
         self.pod_context = pod_context
         self.region = region
 
     def execute(self, context):
-        generate_config_file(
-            kube_config_file_location=self.config_file,
+        self.config_file = generate_config_file(
             eks_cluster_name=self.clusterName,
             eks_namespace_name=self.namespace,
+            pod_name=self.pod_name,
             pod_username=self.pod_username,
             pod_context=self.pod_context,
             aws_region=self.region,
