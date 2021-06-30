@@ -1541,9 +1541,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return getattr(self, '_is_dummy', False)
 
 
-def chain(
-    *tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequence["XComArg"]]
-):
+def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequence["XComArg"]]):
     r"""
     Given a number of tasks, builds a dependency chain.
     Support mix airflow.models.BaseOperator, List[airflow.models.BaseOperator], XComArg, and

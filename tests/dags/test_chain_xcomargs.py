@@ -17,13 +17,13 @@
 # under the License.
 
 """DAG testing the use of chaining XComArgs."""
-from airflow.models import DAG
+from datetime import datetime
+
 from airflow.decorators import task
+from airflow.models import DAG
 from airflow.models.baseoperator import chain
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
-
-from datetime import datetime
 
 
 @task

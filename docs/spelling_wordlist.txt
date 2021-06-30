@@ -1379,6 +1379,8 @@ wtforms
 www
 xcom
 xcomarg
+XComArg
+XComArgs
 xcomresult
 xml
 xpath
