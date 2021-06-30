@@ -35,17 +35,19 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSListNodegroupsOperator,
 )
 from tests.providers.amazon.aws.utils.eks_test_constants import (
-    NODEROLE_ARN_VALUE,
-    RESOURCES_VPC_CONFIG_VALUE,
-    ROLE_ARN_VALUE,
-    STATUS_VALUE,
-    SUBNETS_VALUE,
+    NODEROLE_ARN,
+    RESOURCES_VPC_CONFIG,
+    ROLE_ARN,
+    STATUS,
+    SUBNET_IDS,
     TASK_ID,
 )
-from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys, random_names
+from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
 
-DESCRIBE_CLUSTER_RESULT = f'{{"cluster": "{random_names()}"}}'
-DESCRIBE_NODEGROUP_RESULT = f'{{"nodegroup": "{random_names()}"}}'
+CLUSTER_NAME = "cluster1"
+NODEGROUP_NAME = "nodegroup1"
+DESCRIBE_CLUSTER_RESULT = f'{{"cluster": "{CLUSTER_NAME}"}}'
+DESCRIBE_NODEGROUP_RESULT = f'{{"nodegroup": "{NODEGROUP_NAME}"}}'
 EMPTY_CLUSTER = '{"cluster": {}}'
 EMPTY_NODEGROUP = '{"nodegroup": {}}'
 NAME_LIST = ["foo", "bar", "baz", "qux"]
@@ -53,25 +55,28 @@ NAME_LIST = ["foo", "bar", "baz", "qux"]
 
 class TestEKSCreateClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
-        self.nodegroup_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
+        self.nodegroup_name: str = NODEGROUP_NAME
+        _, self.nodegroup_arn = NODEROLE_ARN
+        _, self.resources_vpc_config = RESOURCES_VPC_CONFIG
+        _, self.role_arn = ROLE_ARN
 
         self.create_cluster_params = dict(
             cluster_name=self.cluster_name,
-            cluster_role_arn=ROLE_ARN_VALUE,
-            resources_vpc_config=RESOURCES_VPC_CONFIG_VALUE,
+            cluster_role_arn=self.role_arn,
+            resources_vpc_config=self.resources_vpc_config,
         )
         # These two are added when creating both the cluster and nodegroup together.
         self.base_nodegroup_params = dict(
             nodegroup_name=self.nodegroup_name,
-            nodegroup_role_arn=NODEROLE_ARN_VALUE,
+            nodegroup_role_arn=self.nodegroup_arn,
         )
 
         # This one is used in the tests to validate method calls.
         self.create_nodegroup_params = dict(
             **self.base_nodegroup_params,
             cluster_name=self.cluster_name,
-            subnets=SUBNETS_VALUE,
+            subnets=SUBNET_IDS,
         )
 
         self.create_cluster_operator = EKSCreateClusterOperator(
@@ -98,7 +103,8 @@ class TestEKSCreateClusterOperator(unittest.TestCase):
     def test_execute_when_called_with_nodegroup_creates_both(
         self, mock_create_nodegroup, mock_create_cluster, mock_cluster_state
     ):
-        mock_cluster_state.return_value = STATUS_VALUE
+        _, status = STATUS
+        mock_cluster_state.return_value = status
 
         self.create_cluster_operator_with_nodegroup.execute({})
 
@@ -108,14 +114,15 @@ class TestEKSCreateClusterOperator(unittest.TestCase):
 
 class TestEKSCreateNodegroupOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
-        self.nodegroup_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
+        self.nodegroup_name: str = NODEGROUP_NAME
+        _, self.nodegroup_arn = NODEROLE_ARN
 
         self.create_nodegroup_params = dict(
             cluster_name=self.cluster_name,
             nodegroup_name=self.nodegroup_name,
-            nodegroup_subnets=SUBNETS_VALUE,
-            nodegroup_role_arn=NODEROLE_ARN_VALUE,
+            nodegroup_subnets=SUBNET_IDS,
+            nodegroup_role_arn=self.nodegroup_arn,
         )
 
         self.create_nodegroup_operator = EKSCreateNodegroupOperator(
@@ -131,7 +138,7 @@ class TestEKSCreateNodegroupOperator(unittest.TestCase):
 
 class TestEKSDeleteClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
 
         self.delete_cluster_operator = EKSDeleteClusterOperator(
             task_id=TASK_ID, cluster_name=self.cluster_name
@@ -150,8 +157,8 @@ class TestEKSDeleteClusterOperator(unittest.TestCase):
 
 class TestEKSDeleteNodegroupOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
-        self.nodegroup_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
+        self.nodegroup_name: str = NODEGROUP_NAME
 
         self.delete_nodegroup_operator = EKSDeleteNodegroupOperator(
             task_id=TASK_ID, cluster_name=self.cluster_name, nodegroup_name=self.nodegroup_name
@@ -196,7 +203,7 @@ class TestEKSDescribeAllClustersOperator(unittest.TestCase):
 
 class TestEKSDescribeAllNodegroupsOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
 
         self.describe_all_nodegroups_operator = EKSDescribeAllNodegroupsOperator(
             task_id=TASK_ID, cluster_name=self.cluster_name
@@ -208,7 +215,7 @@ class TestEKSDescribeAllNodegroupsOperator(unittest.TestCase):
         self, mock_describe_nodegroup, mock_list_nodegroups
     ):
         nodegroup_names: List[str] = NAME_LIST
-        cluster_name: str = random_names()
+        cluster_name: str = CLUSTER_NAME
         response = dict(cluster=cluster_name, nodegroups=nodegroup_names, nextToken=DEFAULT_NEXT_TOKEN)
         mock_describe_nodegroup.return_value = EMPTY_NODEGROUP
         mock_list_nodegroups.return_value = response
@@ -231,7 +238,7 @@ class TestEKSDescribeAllNodegroupsOperator(unittest.TestCase):
 
 class TestEKSDescribeClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
 
         self.describe_cluster_operator = EKSDescribeClusterOperator(
             task_id=TASK_ID, cluster_name=self.cluster_name
@@ -248,8 +255,8 @@ class TestEKSDescribeClusterOperator(unittest.TestCase):
 
 class TestEKSDescribeNodegroupOperator(unittest.TestCase):
     def setUp(self):
-        self.cluster_name = random_names()
-        self.nodegroup_name = random_names()
+        self.cluster_name = CLUSTER_NAME
+        self.nodegroup_name = NODEGROUP_NAME
 
         self.describe_nodegroup_operator = EKSDescribeNodegroupOperator(
             task_id=TASK_ID, cluster_name=self.cluster_name, nodegroup_name=self.nodegroup_name
@@ -283,7 +290,7 @@ class TestEKSListClustersOperator(unittest.TestCase):
 
 class TestEKSListNodegroupsOperator(unittest.TestCase):
     def setUp(self) -> None:
-        self.cluster_name: str = random_names()
+        self.cluster_name: str = CLUSTER_NAME
         self.nodegroup_names: List[str] = NAME_LIST
 
         self.list_nodegroups_operator = EKSListNodegroupsOperator(

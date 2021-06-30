@@ -20,105 +20,55 @@
 """
 This file should only contain constants used for the EKS tests.
 """
-import os
 import re
 from enum import Enum
 from typing import Dict, List, Pattern, Tuple
 
-from boto3 import Session
-
-CONN_ID = "eks"
-DEFAULT_MAX_RESULTS = 100
-FROZEN_TIME = "2013-11-27T01:42:00Z"
-PACKAGE_NOT_PRESENT_MSG = "mock_eks package not present"
-PARTITIONS: List[str] = Session().get_available_partitions()
-REGION: str = Session().region_name
+CONN_ID: str = "eks"
+FROZEN_TIME: str = "2013-11-27T01:42:00Z"
+PACKAGE_NOT_PRESENT_MSG: str = "mock_eks package not present"
+PARTITION: str = "aws"
+NON_EXISTING_CLUSTER_NAME: str = "non_existing_cluster"
+NON_EXISTING_NODEGROUP_NAME: str = "non_existing_nodegroup"
+REGION: str = "us-east-1"
 SUBNET_IDS: List[str] = ["subnet-12345ab", "subnet-67890cd"]
-TASK_ID = os.environ.get("TASK_ID", "test-eks-operator")
+TASK_ID: str = "test-eks-operator"
 
 
-AMI_TYPE_KEY: str = "amiType"
-AMI_TYPE_VALUE: str = "AL2_x86_64"
-
-CLIENT_REQUEST_TOKEN_KEY: str = "clientRequestToken"
-CLIENT_REQUEST_TOKEN_VALUE: str = "test_request_token"
-
-DISK_SIZE_KEY: str = "diskSize"
-DISK_SIZE_VALUE: int = 30
-
-ENCRYPTION_CONFIG_KEY: str = "encryptionConfig"
-ENCRYPTION_CONFIG_VALUE: List[Dict] = [{"resources": ["secrets"], "provider": {"keyArn": "arn:of:the:key"}}]
-
-INSTANCE_TYPES_KEY: str = "instanceTypes"
-INSTANCE_TYPES_VALUE: List[str] = ["t3.medium"]
-
-KUBERNETES_NETWORK_CONFIG_KEY: str = "kubernetesNetworkConfig"
-KUBERNETES_NETWORK_CONFIG_VALUE: Dict = {"serviceIpv4Cidr": "172.20.0.0/16"}
-
-LABELS_KEY: str = "labels"
-LABELS_VALUE: Dict = {"purpose": "example"}
-
-LAUNCH_TEMPLATE_KEY: str = "launchTemplate"
-LAUNCH_TEMPLATE_VALUE: Dict = {"name": "myTemplate", "version": "2", "id": "123456"}
-
-LOGGING_KEY: str = "logging"
-LOGGING_VALUE: Dict = {"clusterLogging": [{"types": ["api"], "enabled": True}]}
-
-NODEROLE_ARN_KEY: str = "nodeRole"
-NODEROLE_ARN_VALUE: str = "arn:aws:iam::123456789012:role/role_name"
-
-REMOTE_ACCESS_KEY: str = "remoteAccess"
-REMOTE_ACCESS_VALUE: Dict = {"ec2SshKey": "eksKeypair"}
-
-RESOURCES_VPC_CONFIG_KEY: str = "resourcesVpcConfig"
-RESOURCES_VPC_CONFIG_VALUE: Dict = {
-    "subnetIds": SUBNET_IDS,
-    "endpointPublicAccess": True,
-    "endpointPrivateAccess": False,
-}
-
-ROLE_ARN_KEY: str = "roleArn"
-ROLE_ARN_VALUE: str = "arn:aws:iam::123456789012:role/role_name"
-
-SCALING_CONFIG_KEY: str = "scalingConfig"
-SCALING_CONFIG_VALUE: Dict = {"minSize": 2, "maxSize": 3, "desiredSize": 2}
-
-STATUS_KEY: str = "status"
-STATUS_VALUE: str = "ACTIVE"
-
-SUBNETS_KEY: str = "subnets"
-SUBNETS_VALUE: List[str] = SUBNET_IDS
-
-TAGS_KEY: str = "tags"
-TAGS_VALUE: Dict = {"hello": "world"}
-
-VERSION_KEY: str = "version"
-VERSION_VALUE: str = "1"
-
-AMI_TYPE: Tuple = (AMI_TYPE_KEY, AMI_TYPE_VALUE)
-CLIENT_REQUEST_TOKEN: Tuple = (CLIENT_REQUEST_TOKEN_KEY, CLIENT_REQUEST_TOKEN_VALUE)
-DISK_SIZE: Tuple = (DISK_SIZE_KEY, DISK_SIZE_VALUE)
-ENCRYPTION_CONFIG: Tuple = (ENCRYPTION_CONFIG_KEY, ENCRYPTION_CONFIG_VALUE)
-INSTANCE_TYPES: Tuple = (INSTANCE_TYPES_KEY, INSTANCE_TYPES_VALUE)
-KUBERNETES_NETWORK_CONFIG: Tuple = (
-    KUBERNETES_NETWORK_CONFIG_KEY,
-    KUBERNETES_NETWORK_CONFIG_VALUE,
+AMI_TYPE: Tuple[str, str] = ("amiType", "AL2_x86_64")
+CLIENT_REQUEST_TOKEN: Tuple[str, str] = ("clientRequestToken", "test_request_token")
+DISK_SIZE: Tuple[str, int] = ("diskSize", 30)
+ENCRYPTION_CONFIG: Tuple[str, List] = (
+    "encryptionConfig",
+    [{"resources": ["secrets"], "provider": {"keyArn": "arn:of:the:key"}}],
 )
-LABELS: Tuple = (LABELS_KEY, LABELS_VALUE)
-LAUNCH_TEMPLATE: Tuple = (LAUNCH_TEMPLATE_KEY, LAUNCH_TEMPLATE_VALUE)
-LOGGING: Tuple = (LOGGING_KEY, LOGGING_VALUE)
-NODEROLE_ARN: Tuple = (NODEROLE_ARN_KEY, NODEROLE_ARN_VALUE)
-REMOTE_ACCESS: Tuple = (REMOTE_ACCESS_KEY, REMOTE_ACCESS_VALUE)
-RESOURCES_VPC_CONFIG: Tuple = (RESOURCES_VPC_CONFIG_KEY, RESOURCES_VPC_CONFIG_VALUE)
-ROLE_ARN: Tuple = (ROLE_ARN_KEY, ROLE_ARN_VALUE)
-SCALING_CONFIG: Tuple = (SCALING_CONFIG_KEY, SCALING_CONFIG_VALUE)
-STATUS: Tuple = (STATUS_KEY, STATUS_VALUE)
-SUBNETS: Tuple = (SUBNETS_KEY, SUBNETS_VALUE)
-TAGS: Tuple = (TAGS_KEY, TAGS_VALUE)
-VERSION: Tuple = (VERSION_KEY, VERSION_VALUE)
+INSTANCE_TYPES: Tuple[str, List] = ("instanceTypes", ["t3.medium"])
+KUBERNETES_NETWORK_CONFIG: Tuple[str, Dict] = (
+    "kubernetesNetworkConfig",
+    {"serviceIpv4Cidr": "172.20.0.0/16"},
+)
+LABELS: Tuple[str, Dict] = ("labels", {"purpose": "example"})
+LAUNCH_TEMPLATE: Tuple[str, Dict] = ("launchTemplate", {"name": "myTemplate", "version": "2", "id": "123456"})
+LOGGING: Tuple[str, Dict] = ("logging", {"clusterLogging": [{"types": ["api"], "enabled": True}]})
+NODEROLE_ARN: Tuple[str, str] = ("nodeRole", "arn:aws:iam::123456789012:role/role_name")
+REMOTE_ACCESS: Tuple[str, Dict] = ("remoteAccess", {"ec2SshKey": "eksKeypair"})
+RESOURCES_VPC_CONFIG: Tuple[str, Dict] = (
+    "resourcesVpcConfig",
+    {
+        "subnetIds": SUBNET_IDS,
+        "endpointPublicAccess": True,
+        "endpointPrivateAccess": False,
+    },
+)
+ROLE_ARN: Tuple[str, str] = ("roleArn", "arn:aws:iam::123456789012:role/role_name")
+SCALING_CONFIG: Tuple[str, Dict] = ("scalingConfig", {"minSize": 2, "maxSize": 3, "desiredSize": 2})
+STATUS: Tuple[str, str] = ("status", "ACTIVE")
+SUBNETS: Tuple[str, List] = ("subnets", SUBNET_IDS)
+TAGS: Tuple[str, Dict] = ("tags", {"hello": "world"})
+VERSION: Tuple[str, str] = ("version", "1")
 
 
-class ResponseAttribute:
+class ResponseAttributes:
     """Key names for the dictionaries returned by API calls."""
 
     CLUSTER: slice = "cluster"
@@ -129,9 +79,11 @@ class ResponseAttribute:
 
 
 class ErrorAttributes:
-    CODE = "Code"
-    ERROR = "Error"
-    MESSAGE = "Message"
+    """Key names for the dictionaries representing error messages."""
+
+    CODE: slice = "Code"
+    ERROR: slice = "Error"
+    MESSAGE: slice = "Message"
 
 
 class ClusterInputs:

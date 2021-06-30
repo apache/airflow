@@ -18,10 +18,7 @@
 #
 import re
 from copy import deepcopy
-from random import randint
 from typing import Dict, List, Optional, Pattern, Tuple, Type, Union
-
-from moto.utilities.utils import random_string as generate_random_name
 
 from airflow.providers.amazon.aws.hooks.eks import EKSHook
 
@@ -31,7 +28,7 @@ from ..utils.eks_test_constants import (
     ClusterInputs,
     NodegroupAttributes,
     NodegroupInputs,
-    ResponseAttribute,
+    ResponseAttributes,
 )
 
 
@@ -91,11 +88,12 @@ def generate_clusters(eks_hook: EKSHook, num_clusters: int, minimal: bool) -> Li
     :return: Returns a list of the names of the generated clusters.
     :rtype: List[str]
     """
+    # Generates N clusters named cluster0, cluster1, .., clusterN
     return [
-        eks_hook.create_cluster(name=generate_random_name(), **_input_builder(ClusterInputs, minimal))[
-            ResponseAttribute.CLUSTER
+        eks_hook.create_cluster(name="cluster" + str(count), **_input_builder(ClusterInputs, minimal))[
+            ResponseAttributes.CLUSTER
         ][ClusterAttributes.NAME]
-        for _ in range(num_clusters)
+        for count in range(num_clusters)
     ]
 
 
@@ -116,13 +114,14 @@ def generate_nodegroups(
     :return: Returns a list of the names of the generated nodegroups.
     :rtype: List[str]
     """
+    # Generates N nodegroups named nodegroup0, nodegroup1, .., nodegroupN
     return [
         eks_hook.create_nodegroup(
-            nodegroupName=generate_random_name(),
+            nodegroupName="nodegroup" + str(count),
             clusterName=cluster_name,
             **_input_builder(NodegroupInputs, minimal),
-        )[ResponseAttribute.NODEGROUP][NodegroupAttributes.NODEGROUP_NAME]
-        for _ in range(num_nodegroups)
+        )[ResponseAttributes.NODEGROUP][NodegroupAttributes.NODEGROUP_NAME]
+        for count in range(num_nodegroups)
     ]
 
 
@@ -166,26 +165,6 @@ def _input_builder(options: Union[Type[ClusterInputs], Type[NodegroupInputs]], m
     if not minimal:
         values.extend(deepcopy(options.OPTIONAL))
     return dict(values)
-
-
-def random_names(name_list: Optional[List[str]] = None) -> Union[str, Tuple[str, str]]:
-    """
-    Returns one value picked at random a list, and one value guaranteed not to be on the list.
-
-    :param name_list: List of existing object names.
-    :type name_list: List[str]
-    :return: Returns one value picked at random a list, and one value guaranteed not to be on the list.
-    :rtype: Tuple[str, str]
-    """
-    if not name_list:
-        return generate_random_name()
-    name_on_list: str = name_list[randint(0, len(name_list) - 1)]
-
-    name_not_on_list: str = generate_random_name()
-    while name_not_on_list in name_list:
-        name_not_on_list = generate_random_name()
-
-    return name_on_list, name_not_on_list
 
 
 def string_to_regex(value: str) -> Pattern[str]:

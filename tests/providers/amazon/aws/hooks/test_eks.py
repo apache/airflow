@@ -52,8 +52,10 @@ from ..utils.eks_test_constants import (
     FROZEN_TIME,
     INSTANCE_TYPES,
     LAUNCH_TEMPLATE,
+    NON_EXISTING_CLUSTER_NAME,
+    NON_EXISTING_NODEGROUP_NAME,
     PACKAGE_NOT_PRESENT_MSG,
-    PARTITIONS,
+    PARTITION,
     REGION,
     REMOTE_ACCESS,
     BatchCountSize,
@@ -64,14 +66,13 @@ from ..utils.eks_test_constants import (
     NodegroupInputs,
     PossibleTestResults,
     RegExTemplates,
-    ResponseAttribute,
+    ResponseAttributes,
 )
 from ..utils.eks_test_utils import (
     attributes_to_test,
     generate_clusters,
     generate_nodegroups,
     iso_date,
-    random_names,
     region_matches_partition,
 )
 
@@ -94,18 +95,13 @@ def cluster_builder():
                 eks_hook=eks_hook, num_clusters=count, minimal=minimal
             )
 
-            # Get the name of the first generated Cluster.
-            first_name: str = self.cluster_names[0]
+            self.existing_cluster_name: str = self.cluster_names[0]
+            self.nonexistent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
 
             # Collect the output of describe_cluster() for the first Cluster.
-            self.cluster_describe_output: Dict = eks_hook.describe_cluster(name=first_name)[
-                ResponseAttribute.CLUSTER
+            self.cluster_describe_output: Dict = eks_hook.describe_cluster(name=self.existing_cluster_name)[
+                ResponseAttributes.CLUSTER
             ]
-
-            # Pick a random Cluster name from the list and a name guaranteed not to be on the list.
-            self.existing_cluster_name, self.nonexistent_cluster_name = random_names(
-                name_list=self.cluster_names
-            )
 
             # Generate a list of the Cluster attributes to be tested when validating results.
             self.attributes_to_test: List[Tuple] = attributes_to_test(
@@ -142,18 +138,14 @@ def nodegroup_builder(cluster_builder):
             )
 
             # Get the name of the first generated Nodegroup.
-            self.first_name: str = self.nodegroup_names[0]
+            self.existing_nodegroup_name: str = self.nodegroup_names[0]
+            self.nonexistent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
+            self.nonexistent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
 
             # Collect the output of describe_nodegroup() for the first Nodegroup.
             self.nodegroup_describe_output: Dict = eks_hook.describe_nodegroup(
-                clusterName=self.cluster_name, nodegroupName=self.first_name
-            )[ResponseAttribute.NODEGROUP]
-
-            # Pick a random Nodegroup name from the list and a name guaranteed not to be on the list.
-            self.existing_nodegroup_name, self.nonexistent_nodegroup_name = random_names(
-                name_list=self.nodegroup_names
-            )
-            _, self.nonexistent_cluster_name = random_names(name_list=[self.cluster_name])
+                clusterName=self.cluster_name, nodegroupName=self.existing_nodegroup_name
+            )[ResponseAttributes.NODEGROUP]
 
             # Generate a list of the Nodegroup attributes to be tested when validating results.
             self.attributes_to_test: List[Tuple] = attributes_to_test(
@@ -240,7 +232,7 @@ class TestEKSHooks:
     def test_create_cluster_generates_valid_cluster_arn(self, cluster_builder) -> None:
         _, generated_test_data = cluster_builder()
         expected_arn_values: List = [
-            PARTITIONS,
+            PARTITION,
             REGION,
             ACCOUNT_ID,
             generated_test_data.cluster_names,
@@ -306,7 +298,7 @@ class TestEKSHooks:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size, minimal=False)
 
         result: Dict = eks_hook.delete_cluster(name=generated_test_data.existing_cluster_name)[
-            ResponseAttribute.CLUSTER
+            ResponseAttributes.CLUSTER
         ]
 
         for key, expected_value in generated_test_data.attributes_to_test:
@@ -375,8 +367,8 @@ class TestEKSHooks:
     @mock_eks
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
         eks_hook: EKSHook = EKSHook(aws_conn_id=CONN_ID, region_name=REGION)
-        non_existent_cluster_name: str = random_names()
-        non_existent_nodegroup_name: str = random_names()
+        non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
+        non_existent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
         expected_exception: Type[AWSError] = ResourceNotFoundException
         expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(
             clusterName=non_existent_cluster_name,
@@ -427,7 +419,7 @@ class TestEKSHooks:
         self, nodegroup_builder, initial_batch_size: int = BatchCountSize.SMALL
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
-        non_existent_nodegroup_name: str = random_names()
+        non_existent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
         expected_exception: Type[AWSError] = InvalidRequestException
         expected_msg: str = CLUSTER_NOT_READY_MSG.format(
             clusterName=generated_test_data.cluster_name,
@@ -455,7 +447,7 @@ class TestEKSHooks:
     def test_create_nodegroup_generates_valid_nodegroup_arn(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
         expected_arn_values: List = [
-            PARTITIONS,
+            PARTITION,
             REGION,
             ACCOUNT_ID,
             generated_test_data.cluster_name,
@@ -586,7 +578,7 @@ class TestEKSHooks:
         result: Dict = eks_hook.delete_nodegroup(
             clusterName=generated_test_data.cluster_name,
             nodegroupName=generated_test_data.existing_nodegroup_name,
-        )[ResponseAttribute.NODEGROUP]
+        )[ResponseAttributes.NODEGROUP]
 
         for key, expected_value in generated_test_data.attributes_to_test:
             assert result[key] == expected_value
@@ -672,7 +664,7 @@ class TestEKSHooks:
         expected_result,
     ):
         eks_hook, generated_test_data = cluster_builder()
-        nodegroup_name: str = random_names()
+        nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
         expected_exception: Type[AWSError] = InvalidParameterException
         expected_message: str = ""
 
@@ -694,7 +686,7 @@ class TestEKSHooks:
         )
 
         if expected_result == PossibleTestResults.SUCCESS:
-            result: Dict = eks_hook.create_nodegroup(**test_inputs)[ResponseAttribute.NODEGROUP]
+            result: Dict = eks_hook.create_nodegroup(**test_inputs)[ResponseAttributes.NODEGROUP]
 
             for key, expected_value in test_inputs.items():
                 assert result[key] == expected_value
