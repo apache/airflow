@@ -26,12 +26,14 @@ from typing import Dict, List, Optional
 from boto3 import Session
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import DEFAULT_PAGINATION_TOKEN, DEFAULT_RESULTS_PER_PAGE, EKSHook
-from airflow.providers.amazon.aws.utils.eks_kube_config import (
+from airflow.providers.amazon.aws.hooks.eks import (
     DEFAULT_CONTEXT_NAME,
     DEFAULT_KUBE_CONFIG_PATH,
     DEFAULT_NAMESPACE_NAME,
+    DEFAULT_PAGINATION_TOKEN,
     DEFAULT_POD_USERNAME,
+    DEFAULT_RESULTS_PER_PAGE,
+    EKSHook,
     generate_config_file,
 )
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
@@ -729,7 +731,6 @@ class EKSPodOperator(KubernetesPodOperator):
             kube_config_file_location=self.config_file,
             eks_cluster_name=self.clusterName,
             eks_namespace_name=self.namespace,
-            role_arn=self.roleArn,
             pod_username=self.pod_username,
             pod_context=self.pod_context,
             aws_region=self.region,
