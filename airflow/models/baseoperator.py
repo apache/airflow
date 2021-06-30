@@ -1574,7 +1574,6 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
     """
     from airflow.models.xcom_arg import XComArg
 
-
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
         if isinstance(up_task, (BaseOperator, XComArg)):
