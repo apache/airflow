@@ -22,8 +22,15 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 2.0.0
+  - 1.4.0
+  - 1.3.0
+  - 1.2.0
   - 1.1.0
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Amazon Athena
@@ -104,6 +111,8 @@ integrations:
   - integration-name: Amazon Simple Storage Service (S3)
     external-doc-url: https://aws.amazon.com/s3/
     logo: /integration-logos/aws/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/s3.rst
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
@@ -129,6 +138,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/step-functions/
     logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
     tags: [aws]
+  - integration-name: AWS Database Migration Service
+    external-doc-url: https://aws.amazon.com/dms/
+    logo: /integration-logos/aws/AWS-Database-Migration-Service_64@5x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/dms.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -143,6 +158,13 @@ operators:
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.operators.datasync
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.operators.dms_create_task
+      - airflow.providers.amazon.aws.operators.dms_delete_task
+      - airflow.providers.amazon.aws.operators.dms_describe_tasks
+      - airflow.providers.amazon.aws.operators.dms_start_task
+      - airflow.providers.amazon.aws.operators.dms_stop_task
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2_start_instance
@@ -166,6 +188,7 @@ operators:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket
+      - airflow.providers.amazon.aws.operators.s3_bucket_tagging
       - airflow.providers.amazon.aws.operators.s3_copy_object
       - airflow.providers.amazon.aws.operators.s3_delete_objects
       - airflow.providers.amazon.aws.operators.s3_file_transform
@@ -198,6 +221,9 @@ sensors:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.dms_task
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
@@ -257,6 +283,9 @@ hooks:
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.hooks.datasync
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.dms
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
@@ -355,9 +384,13 @@ transfers:
   - source-integration-name: Exasol
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.exasol_to_s3
+  - source-integration-name: File Transfer Protocol (FTP)
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.ftp_to_s3
   - source-integration-name: Snowflake
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.snowflake_to_s3
+
 
 hook-class-names:
   - airflow.providers.amazon.aws.hooks.s3.S3Hook

@@ -27,7 +27,7 @@ code or CLI.
 
 .. image:: ../img/variable_hidden.png
 
-See the :ref:`Variables Concepts <concepts:variables>` documentation for
+See the :doc:`Variables Concepts </concepts/variables>` documentation for
 more information.
 
 Storing Variables in Environment Variables
@@ -53,6 +53,7 @@ You can use them in your DAGs as:
 .. code-block:: python
 
     from airflow.models import Variable
+
     foo = Variable.get("foo")
     foo_json = Variable.get("foo_baz", deserialize_json=True)
 

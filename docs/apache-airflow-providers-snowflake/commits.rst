@@ -28,14 +28,75 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-16
+
+================================================================================================  ===========  =========================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`608dd0ddf <https://github.com/apache/airflow/commit/608dd0ddf65dac7f7eee2cb54628a93805b7ad66>`_  2021-06-15   ``Fix formatting and missing import (#16455)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`643e46ca7 <https://github.com/apache/airflow/commit/643e46ca7ad0b86ddcdae37ffe5b77d31c46b52f>`_  2021-06-15   ``Added ability for Snowflake to attribute usage to Airflow by adding an application parameter (#16420)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`aeb93f8e5 <https://github.com/apache/airflow/commit/aeb93f8e5bb4a9175e8834d476a6b679beff4a7e>`_  2021-05-27   ``fix: restore parameters support when sql passed to SnowflakeHook as str (#16102)``
+`20f363940 <https://github.com/apache/airflow/commit/20f363940316126e706923ee9caf7172dd4caeb6>`_  2021-05-19   ``Add 'template_fields' to 'S3ToSnowflake' operator (#15926)``
+`6f956dc99 <https://github.com/apache/airflow/commit/6f956dc99b6c6393f7b50e9da9f778b5cf0bef88>`_  2021-05-13   ``Allow S3ToSnowflakeOperator to omit schema (#15817)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+================================================================================================  ===========  =========================================================================================================
+
+1.3.0
+.....
+
+Latest change: 2021-05-01
+
+================================================================================================  ===========  ================================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ================================================================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`c6be8b113 <https://github.com/apache/airflow/commit/c6be8b113db4c8da65d526e50a249ce5311f5341>`_  2021-04-30   ``Expose snowflake query_id in snowflake hook and operator, support multiple statements in sql string (#15533)``
+`814e471d1 <https://github.com/apache/airflow/commit/814e471d137aad68bd64a21d20736e7b88403f97>`_  2021-04-29   ``Update pre-commit checks (#15583)``
+`7a0d41224 <https://github.com/apache/airflow/commit/7a0d4122459289e0f2db78ad2849d5ba42df4468>`_  2021-04-25   ``Add Connection Documentation to more Providers (#15408)``
+================================================================================================  ===========  ================================================================================================================
+
+1.2.0
+.....
+
+Latest change: 2021-04-06
+
+================================================================================================  ===========  =============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================================
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
+`9b76b94c9 <https://github.com/apache/airflow/commit/9b76b94c940d472290861930a1d5860b43b3b2b2>`_  2021-04-02   ``A bunch of template_fields_renderers additions (#15130)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+`e4bf8f349 <https://github.com/apache/airflow/commit/e4bf8f34911940937f1e80007adeb47e9a5d4c9c>`_  2021-03-16   ``Add dynamic fields to snowflake connection (#14724)``
+================================================================================================  ===========  =============================================================================
+
+1.1.1
+.....
+
+Latest change: 2021-03-08
+
+================================================================================================  ===========  =============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================================
+`b753c7fa6 <https://github.com/apache/airflow/commit/b753c7fa60e8d92bbaab68b557a1fbbdc1ec5dd0>`_  2021-03-08   ``Prepare ad-hoc release of the four previously excluded providers (#14655)``
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
+`10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
+================================================================================================  ===========  =============================================================================
+
 1.1.0
 .....
 
-Latest change: 2021-02-01
+Latest change: 2021-02-04
 
 ================================================================================================  ===========  ============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================================
+`88bdcfa0d <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98 <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `a9ac2b040 <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``
 `3fd5ef355 <https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e>`_  2021-01-21   ``Add missing logos for integrations (#13717)``

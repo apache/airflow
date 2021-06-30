@@ -30,37 +30,16 @@ import warnings
 from functools import reduce
 from typing import List, Optional, Union
 
-import yaml
 from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException
-from airflow.kubernetes.pod_generator_deprecated import PodGenerator as PodGeneratorDeprecated
+from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
+from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63
-
-
-class PodDefaults:
-    """Static defaults for Pods"""
-
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
-    SIDECAR_CONTAINER = k8s.V1Container(
-        name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
-        volume_mounts=[VOLUME_MOUNT],
-        resources=k8s.V1ResourceRequirements(
-            requests={
-                "cpu": "1m",
-            }
-        ),
-    )
 
 
 def make_safe_label_value(string):
@@ -122,7 +101,7 @@ class PodGenerator:
     :type extract_xcom: bool
     """
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(
         self,
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
@@ -157,6 +136,10 @@ class PodGenerator:
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
         """Adds sidecar"""
+        warnings.warn(
+            "This function is deprecated. "
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+        )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -342,7 +325,7 @@ class PodGenerator:
         )
 
     @staticmethod
-    def construct_pod(  # pylint: disable=too-many-arguments
+    def construct_pod(
         dag_id: str,
         task_id: str,
         pod_id: str,
@@ -365,12 +348,8 @@ class PodGenerator:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
                 image = kube_image
-        except Exception:  # pylint: disable=W0703
+        except Exception:
             image = kube_image
-
-        task_id = make_safe_label_value(task_id)
-        dag_id = make_safe_label_value(dag_id)
-        scheduler_job_id = make_safe_label_value(str(scheduler_job_id))
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -383,9 +362,9 @@ class PodGenerator:
                 },
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels={
-                    'airflow-worker': scheduler_job_id,
-                    'dag_id': dag_id,
-                    'task_id': task_id,
+                    'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+                    'dag_id': make_safe_label_value(dag_id),
+                    'task_id': make_safe_label_value(task_id),
                     'execution_date': datetime_to_label_safe_datestring(date),
                     'try_number': str(try_number),
                     'airflow_version': airflow_version.replace('+', '-'),
@@ -411,13 +390,13 @@ class PodGenerator:
         return reduce(PodGenerator.reconcile_pods, pod_list)
 
     @staticmethod
-    def serialize_pod(pod: k8s.V1Pod):
+    def serialize_pod(pod: k8s.V1Pod) -> dict:
         """
 
         Converts a k8s.V1Pod into a jsonified object
 
-        @param pod:
-        @return:
+        :param pod: k8s.V1Pod object
+        :return: Serialized version of the pod returned as dict
         """
         api_client = ApiClient()
         return api_client.sanitize_for_serialization(pod)
@@ -438,18 +417,18 @@ class PodGenerator:
         else:
             pod = yaml.safe_load(path)
 
-        # pylint: disable=protected-access
         return PodGenerator.deserialize_model_dict(pod)
 
     @staticmethod
     def deserialize_model_dict(pod_dict: dict) -> k8s.V1Pod:
         """
         Deserializes python dictionary to k8s.V1Pod
-        @param pod_dict:
-        @return:
+
+        :param pod_dict: Serialized dict of k8s.V1Pod object
+        :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient()
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)  # pylint: disable=W0212
+        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
     def make_unique_pod_id(pod_id: str) -> str:
@@ -471,9 +450,10 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-        trimmed_pod_id = pod_id[:MAX_LABEL_LEN]
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
+        # Strip trailing '-' and '.' as they can't be followed by '.'
+        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
+        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
         return safe_pod_id
 
 

@@ -22,7 +22,7 @@ import unittest.mock
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
-from typing import Dict, List, Tuple
+from typing import List
 
 import pytest
 
@@ -30,7 +30,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
-from airflow.models.xcom_arg import XComArg
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
@@ -38,13 +37,11 @@ from airflow.operators.python import (
     PythonVirtualenvOperator,
     ShortCircuitOperator,
     get_current_context,
-    task as task_decorator,
 )
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
@@ -316,401 +313,6 @@ class TestPythonOperator(TestPythonBase):
             task_id='python_operator', op_kwargs={'custom': 1}, python_callable=func, dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-
-class TestAirflowTaskDecorator(TestPythonBase):
-    def test_python_operator_python_callable_is_callable(self):
-        """Tests that @task will only instantiate if
-        the python_callable argument is callable."""
-        not_callable = {}
-        with pytest.raises(AirflowException):
-            task_decorator(not_callable, dag=self.dag)
-
-    def test_infer_multiple_outputs_using_typing(self):
-        @task_decorator
-        def identity_dict(x: int, y: int) -> Dict[str, int]:
-            return {"x": x, "y": y}
-
-        assert identity_dict(5, 5).operator.multiple_outputs is True  # pylint: disable=maybe-no-member
-
-        @task_decorator
-        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
-            return x, y
-
-        assert identity_tuple(5, 5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
-
-        @task_decorator
-        def identity_int(x: int) -> int:
-            return x
-
-        assert identity_int(5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
-
-        @task_decorator
-        def identity_notyping(x: int):
-            return x
-
-        assert identity_notyping(5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
-
-    def test_manual_multiple_outputs_false_with_typings(self):
-        @task_decorator(multiple_outputs=False)
-        def identity2(x: int, y: int) -> Dict[int, int]:
-            return (x, y)
-
-        with self.dag:
-            res = identity2(8, 4)
-
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
-        res.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
-
-        ti = dr.get_task_instances()[0]
-
-        assert res.operator.multiple_outputs is False  # pylint: disable=maybe-no-member
-        assert ti.xcom_pull() == [8, 4]  # pylint: disable=maybe-no-member
-        assert ti.xcom_pull(key="return_value_0") is None
-        assert ti.xcom_pull(key="return_value_1") is None
-
-    def test_multiple_outputs_ignore_typing(self):
-        @task_decorator
-        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
-            return x, y
-
-        with self.dag:
-            ident = identity_tuple(35, 36)
-
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL.value,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
-        ident.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
-
-        ti = dr.get_task_instances()[0]
-
-        assert not ident.operator.multiple_outputs  # pylint: disable=maybe-no-member
-        assert ti.xcom_pull() == [35, 36]
-        assert ti.xcom_pull(key="return_value_0") is None
-        assert ti.xcom_pull(key="return_value_1") is None
-
-    def test_fails_bad_signature(self):
-        """Tests that @task will fail if signature is not binding."""
-
-        @task_decorator
-        def add_number(num: int) -> int:
-            return num + 2
-
-        with pytest.raises(TypeError):
-            add_number(2, 3)  # pylint: disable=too-many-function-args
-        with pytest.raises(TypeError):
-            add_number()  # pylint: disable=no-value-for-parameter
-        add_number('test')  # pylint: disable=no-value-for-parameter
-
-    def test_fail_method(self):
-        """Tests that @task will fail if signature is not binding."""
-
-        with pytest.raises(AirflowException):
-
-            class Test:
-                num = 2
-
-                @task_decorator
-                def add_number(self, num: int) -> int:
-                    return self.num + num
-
-            Test().add_number(2)
-
-    def test_fail_multiple_outputs_key_type(self):
-        @task_decorator(multiple_outputs=True)
-        def add_number(num: int):
-            return {2: num}
-
-        with self.dag:
-            ret = add_number(2)
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
-        with pytest.raises(AirflowException):
-            # pylint: disable=maybe-no-member
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-    def test_fail_multiple_outputs_no_dict(self):
-        @task_decorator(multiple_outputs=True)
-        def add_number(num: int):
-            return num
-
-        with self.dag:
-            ret = add_number(2)
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
-        with pytest.raises(AirflowException):
-            # pylint: disable=maybe-no-member
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-    def test_python_callable_arguments_are_templatized(self):
-        """Test @task op_args are templatized"""
-        recorded_calls = []
-
-        # Create a named tuple and ensure it is still preserved
-        # after the rendering is done
-        Named = namedtuple('Named', ['var1', 'var2'])
-        named_tuple = Named('{{ ds }}', 'unchanged')
-
-        task = task_decorator(
-            # a Mock instance cannot be used as a callable function or test fails with a
-            # TypeError: Object of type Mock is not JSON serializable
-            build_recording_function(recorded_calls),
-            dag=self.dag,
-        )
-        ret = task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
-
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
-
-        ds_templated = DEFAULT_DATE.date().isoformat()
-        assert len(recorded_calls) == 1
-        self._assert_calls_equal(
-            recorded_calls[0],
-            Call(
-                4,
-                date(2019, 1, 1),
-                f"dag {self.dag.dag_id} ran on {ds_templated}.",
-                Named(ds_templated, 'unchanged'),
-            ),
-        )
-
-    def test_python_callable_keyword_arguments_are_templatized(self):
-        """Test PythonOperator op_kwargs are templatized"""
-        recorded_calls = []
-
-        task = task_decorator(
-            # a Mock instance cannot be used as a callable function or test fails with a
-            # TypeError: Object of type Mock is not JSON serializable
-            build_recording_function(recorded_calls),
-            dag=self.dag,
-        )
-        ret = task(an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}.")
-        self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
-
-        assert len(recorded_calls) == 1
-        self._assert_calls_equal(
-            recorded_calls[0],
-            Call(
-                an_int=4,
-                a_date=date(2019, 1, 1),
-                a_templated_string="dag {} ran on {}.".format(
-                    self.dag.dag_id, DEFAULT_DATE.date().isoformat()
-                ),
-            ),
-        )
-
-    def test_manual_task_id(self):
-        """Test manually seting task_id"""
-
-        @task_decorator(task_id='some_name')
-        def do_run():
-            return 4
-
-        with self.dag:
-            do_run()
-            assert ['some_name'] == self.dag.task_ids
-
-    def test_multiple_calls(self):
-        """Test calling task multiple times in a DAG"""
-
-        @task_decorator
-        def do_run():
-            return 4
-
-        with self.dag:
-            do_run()
-            assert ['do_run'] == self.dag.task_ids
-            do_run_1 = do_run()
-            do_run_2 = do_run()
-            assert ['do_run', 'do_run__1', 'do_run__2'] == self.dag.task_ids
-
-        assert do_run_1.operator.task_id == 'do_run__1'  # pylint: disable=maybe-no-member
-        assert do_run_2.operator.task_id == 'do_run__2'  # pylint: disable=maybe-no-member
-
-    def test_multiple_calls_in_task_group(self):
-        """Test calling task multiple times in a TaskGroup"""
-
-        @task_decorator
-        def do_run():
-            return 4
-
-        group_id = "KnightsOfNii"
-        with self.dag:
-            with TaskGroup(group_id=group_id):
-                do_run()
-                assert [f"{group_id}.do_run"] == self.dag.task_ids
-                do_run()
-                assert [f"{group_id}.do_run", f"{group_id}.do_run__1"] == self.dag.task_ids
-
-        assert len(self.dag.task_ids) == 2
-
-    def test_call_20(self):
-        """Test calling decorated function 21 times in a DAG"""
-
-        @task_decorator
-        def __do_run():
-            return 4
-
-        with self.dag:
-            __do_run()
-            for _ in range(20):
-                __do_run()
-
-        assert self.dag.task_ids[-1] == '__do_run__20'
-
-    def test_multiple_outputs(self):
-        """Tests pushing multiple outputs as a dictionary"""
-
-        @task_decorator(multiple_outputs=True)
-        def return_dict(number: int):
-            return {'number': number + 1, '43': 43}
-
-        test_number = 10
-        with self.dag:
-            ret = return_dict(test_number)
-
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
-
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull(key='number') == test_number + 1
-        assert ti.xcom_pull(key='43') == 43
-        assert ti.xcom_pull() == {'number': test_number + 1, '43': 43}
-
-    def test_default_args(self):
-        """Test that default_args are captured when calling the function correctly"""
-
-        @task_decorator
-        def do_run():
-            return 4
-
-        with self.dag:
-            ret = do_run()
-        assert ret.operator.owner == 'airflow'  # pylint: disable=maybe-no-member
-
-    def test_xcom_arg(self):
-        """Tests that returned key in XComArg is returned correctly"""
-
-        @task_decorator
-        def add_2(number: int):
-            return number + 2
-
-        @task_decorator
-        def add_num(number: int, num2: int = 2):
-            return number + num2
-
-        test_number = 10
-
-        with self.dag:
-            bigger_number = add_2(test_number)
-            ret = add_num(bigger_number, XComArg(bigger_number.operator))  # pylint: disable=maybe-no-member
-
-        dr = self.dag.create_dagrun(
-            run_id=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-
-        bigger_number.operator.run(  # pylint: disable=maybe-no-member
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
-        )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
-        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
-        assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2  # pylint: disable=maybe-no-member
-
-    def test_dag_task(self):
-        """Tests dag.task property to generate task"""
-
-        @self.dag.task
-        def add_2(number: int):
-            return number + 2
-
-        test_number = 10
-        res = add_2(test_number)
-        add_2(res)
-
-        assert 'add_2' in self.dag.task_ids
-
-    def test_dag_task_multiple_outputs(self):
-        """Tests dag.task property to generate task with multiple outputs"""
-
-        @self.dag.task(multiple_outputs=True)
-        def add_2(number: int):
-            return {'1': number + 2, '2': 42}
-
-        test_number = 10
-        add_2(test_number)
-        add_2(test_number)
-
-        assert 'add_2' in self.dag.task_ids
-
-    def test_airflow_task(self):
-        """Tests airflow.task decorator to generate task"""
-        from airflow.decorators import task
-
-        @task
-        def add_2(number: int):
-            return number + 2
-
-        test_number = 10
-        with self.dag:
-            add_2(test_number)
-
-        assert 'add_2' in self.dag.task_ids
-
-    def test_task_documentation(self):
-        """Tests that task_decorator loads doc_md from function doc"""
-
-        @task_decorator
-        def add_2(number: int):
-            """
-            Adds 2 to number.
-            """
-            return number + 2
-
-        test_number = 10
-        with self.dag:
-            ret = add_2(test_number)
-
-        assert ret.operator.doc_md.strip(), "Adds 2 to number."  # pylint: disable=maybe-no-member
 
 
 class TestBranchOperator(unittest.TestCase):
@@ -1187,7 +789,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_no_system_site_packages(self):
         def f():
             try:
-                import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+                import funcsigs  # noqa: F401
             except ImportError:
                 return True
             raise Exception
@@ -1196,13 +798,13 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_system_site_packages(self):
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            import funcsigs  # noqa: F401
 
         self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
 
     def test_with_requirements_pinned(self):
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
+            import funcsigs
 
             if funcsigs.__version__ != '0.4':
                 raise Exception
@@ -1211,13 +813,13 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_unpinned_requirements(self):
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            import funcsigs  # noqa: F401
 
         self._run_as_operator(f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
     def test_range_requirements(self):
         def f():
-            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            import funcsigs  # noqa: F401
 
         self._run_as_operator(f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
@@ -1230,24 +832,24 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_python_2(self):
         def f():
-            {}.iteritems()  # pylint: disable=no-member
+            {}.iteritems()
 
         self._run_as_operator(f, python_version=2, requirements=['dill'])
 
     def test_python_2_7(self):
         def f():
-            {}.iteritems()  # pylint: disable=no-member
+            {}.iteritems()
             return True
 
         self._run_as_operator(f, python_version='2.7', requirements=['dill'])
 
     def test_python_3(self):
         def f():
-            import sys  # pylint: disable=reimported,unused-import,redefined-outer-name
+            import sys
 
             print(sys.version)
             try:
-                {}.iteritems()  # pylint: disable=no-member
+                {}.iteritems()
             except AttributeError:
                 return
             raise Exception
@@ -1261,17 +863,17 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         else:
             return 2
 
-    def test_wrong_python_op_args(self):
-        if sys.version_info[0] == 2:
-            version = 3
-        else:
-            version = 2
-
+    def test_wrong_python_version_with_op_args(self):
         def f():
             pass
 
+        version = self._invert_python_major_version()
+
         with pytest.raises(AirflowException):
             self._run_as_operator(f, python_version=version, op_args=[1])
+
+        with pytest.raises(AirflowException):
+            self._run_as_operator(f, python_version=version, op_kwargs={"arg": 1})
 
     def test_without_dill(self):
         def f(a):
@@ -1281,7 +883,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_string_args(self):
         def f():
-            global virtualenv_string_args  # pylint: disable=global-statement
+            global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
@@ -1301,7 +903,15 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f():
             return None
 
-        self._run_as_operator(f)
+        task = self._run_as_operator(f)
+        assert task.execute_callable() is None
+
+    def test_return_false(self):
+        def f():
+            return False
+
+        task = self._run_as_operator(f)
+        assert task.execute_callable() is False
 
     def test_lambda(self):
         with pytest.raises(AirflowException):
@@ -1354,7 +964,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             task,
             # other
             **context,
-        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+        ):
             pass
 
         self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
@@ -1388,7 +998,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             prev_start_date_success,
             # other
             **context,
-        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+        ):
             pass
 
         self._run_as_operator(
@@ -1418,10 +1028,23 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             yesterday_ds_nodash,
             # other
             **context,
-        ):  # pylint: disable=unused-argument,too-many-arguments,too-many-locals
+        ):
             pass
 
         self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=None)
+
+    def test_deepcopy(self):
+        """Test that PythonVirtualenvOperator are deep-copyable."""
+
+        def f():
+            return 1
+
+        task = PythonVirtualenvOperator(
+            python_callable=f,
+            task_id='task',
+            dag=self.dag,
+        )
+        copy.deepcopy(task)
 
 
 DEFAULT_ARGS = {
@@ -1469,7 +1092,7 @@ class TestCurrentContext:
             new_context = {"ContextId": i}
             # Like 15 nested with statements
             ctx_obj = set_current_context(new_context)
-            ctx_obj.__enter__()  # pylint: disable=E1101
+            ctx_obj.__enter__()
             ctx_list.append(ctx_obj)
         for i in reversed(range(max_stack_depth)):
             # Iterate over contexts in reverse order - stack is LIFO

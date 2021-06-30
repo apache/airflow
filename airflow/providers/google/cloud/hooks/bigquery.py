@@ -63,9 +63,28 @@ log = logging.getLogger(__name__)
 BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 
 
-# pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
-    """Interact with BigQuery. This hook uses the Google Cloud connection."""
+    """
+    Interact with BigQuery. This hook uses the Google Cloud connection.
+
+    :param gcp_conn_id: The Airflow connection used for GCP credentials.
+    :type gcp_conn_id: Optional[str]
+    :param delegate_to: This performs a task on one host with reference to other hosts.
+    :type delegate_to: Optional[str]
+    :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
+    :type use_legacy_sql: bool
+    :param location: The location of the BigQuery resource.
+    :type location: Optional[str]
+    :param bigquery_conn_id: The Airflow connection used for BigQuery credentials.
+    :type bigquery_conn_id: Optional[str]
+    :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
+    :type api_resource_configs: Optional[Dict]
+    :param impersonation_chain: This is the optional service account to impersonate using short term
+        credentials.
+    :type impersonation_chain: Optional[Union[str, Sequence[str]]]
+    :param labels: The BigQuery resource label.
+    :type labels: Optional[Dict]
+    """
 
     conn_name_attr = 'gcp_conn_id'
     default_conn_name = 'google_cloud_default'
@@ -81,6 +100,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         bigquery_conn_id: Optional[str] = None,
         api_resource_configs: Optional[Dict] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        labels: Optional[Dict] = None,
     ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
@@ -101,6 +121,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.location = location
         self.running_job_id = None  # type: Optional[str]
         self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
+        self.labels = labels
 
     def get_conn(self) -> "BigQueryConnection":
         """Returns a BigQuery PEP 249 connection object."""
@@ -263,7 +284,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             return False
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_empty_table(  # pylint: disable=too-many-arguments
+    def create_empty_table(
         self,
         project_id: Optional[str] = None,
         dataset_id: Optional[str] = None,
@@ -511,7 +532,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_external_table(  # pylint: disable=too-many-locals,too-many-arguments
+    def create_external_table(
         self,
         external_project_dataset_table: str,
         schema_fields: List,
@@ -529,6 +550,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         encoding: str = "UTF-8",
         src_fmt_configs: Optional[Dict] = None,
         labels: Optional[Dict] = None,
+        description: Optional[str] = None,
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         project_id: Optional[str] = None,
@@ -597,8 +619,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encoding: str
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
-        :param labels: a dictionary containing labels for the table, passed to BigQuery
+        :param labels: A dictionary containing labels for the BiqQuery table.
         :type labels: dict
+        :param description: A string containing the description for the BigQuery table.
+        :type descriptin: str
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
             **Example**: ::
 
@@ -667,6 +691,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if labels:
             table.labels = labels
 
+        if description:
+            table.description = description
+
         if encryption_configuration:
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
@@ -725,7 +752,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return table_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def patch_table(  # pylint: disable=too-many-arguments
+    def patch_table(
         self,
         dataset_id: str,
         table_id: str,
@@ -984,7 +1011,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         self.log.info('Start patching dataset: %s:%s', dataset_project_id, dataset_id)
         dataset = (
-            service.datasets()  # pylint: disable=no-member
+            service.datasets()
             .patch(
                 datasetId=dataset_id,
                 projectId=dataset_project_id,
@@ -1346,6 +1373,101 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return {"fields": [s.to_api_repr() for s in table.schema]}
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def update_table_schema(
+        self,
+        schema_fields_updates: List[Dict[str, Any]],
+        include_policy_tags: bool,
+        dataset_id: str,
+        table_id: str,
+        project_id: Optional[str] = None,
+    ) -> None:
+        """
+        Update fields within a schema for a given dataset and table. Note that
+        some fields in schemas are immutable and trying to change them will cause
+        an exception.
+        If a new field is included it will be inserted which requires all required fields to be set.
+        See https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
+
+        :param include_policy_tags: If set to True policy tags will be included in
+            the update request which requires special permissions even if unchanged
+            see https://cloud.google.com/bigquery/docs/column-level-security#roles
+        :type include_policy_tags: bool
+        :param dataset_id: the dataset ID of the requested table to be updated
+        :type dataset_id: str
+        :param table_id: the table ID of the table to be updated
+        :type table_id: str
+        :param schema_fields_updates: a partial schema resource. see
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
+
+        **Example**: ::
+
+            schema_fields_updates=[
+                {"name": "emp_name", "description": "Some New Description"},
+                {"name": "salary", "description": "Some New Description"},
+                {"name": "departments", "fields": [
+                    {"name": "name", "description": "Some New Description"},
+                    {"name": "type", "description": "Some New Description"}
+                ]},
+            ]
+
+        :type schema_fields_updates: List[dict]
+        :param project_id: The name of the project where we want to update the table.
+        :type project_id: str
+        """
+
+        def _build_new_schema(
+            current_schema: List[Dict[str, Any]], schema_fields_updates: List[Dict[str, Any]]
+        ) -> List[Dict[str, Any]]:
+
+            # Turn schema_field_updates into a dict keyed on field names
+            schema_fields_updates = {field["name"]: field for field in deepcopy(schema_fields_updates)}
+
+            # Create a new dict for storing the new schema, initated based on the current_schema
+            # as of Python 3.6, dicts retain order.
+            new_schema = {field["name"]: field for field in deepcopy(current_schema)}
+
+            # Each item in schema_fields_updates contains a potential patch
+            # to a schema field, iterate over them
+            for field_name, patched_value in schema_fields_updates.items():
+                # If this field already exists, update it
+                if field_name in new_schema:
+                    # If this field is of type RECORD and has a fields key we need to patch it recursively
+                    if "fields" in patched_value:
+                        patched_value["fields"] = _build_new_schema(
+                            new_schema[field_name]["fields"], patched_value["fields"]
+                        )
+                    # Update the new_schema with the patched value
+                    new_schema[field_name].update(patched_value)
+                # This is a new field, just include the whole configuration for it
+                else:
+                    new_schema[field_name] = patched_value
+
+            return list(new_schema.values())
+
+        def _remove_policy_tags(schema: List[Dict[str, Any]]):
+            for field in schema:
+                if "policyTags" in field:
+                    del field["policyTags"]
+                if "fields" in field:
+                    _remove_policy_tags(field["fields"])
+
+        current_table_schema = self.get_schema(
+            dataset_id=dataset_id, table_id=table_id, project_id=project_id
+        )["fields"]
+        new_schema = _build_new_schema(current_table_schema, schema_fields_updates)
+
+        if not include_policy_tags:
+            _remove_policy_tags(new_schema)
+
+        self.update_table(
+            table_resource={"schema": {"fields": new_schema}},
+            fields=["schema"],
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
         self,
         job_id: str,
@@ -1496,14 +1618,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "configuration": configuration,
             "jobReference": {"jobId": job_id, "projectId": project_id, "location": location},
         }
-        # pylint: disable=protected-access
+
         supported_jobs = {
             LoadJob._JOB_TYPE: LoadJob,
             CopyJob._JOB_TYPE: CopyJob,
             ExtractJob._JOB_TYPE: ExtractJob,
             QueryJob._JOB_TYPE: QueryJob,
         }
-        # pylint: enable=protected-access
+
         job = None
         for job_type, job_object in supported_jobs.items():
             if job_type in configuration:
@@ -1536,7 +1658,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def run_load(  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
+    def run_load(
         self,
         destination_project_dataset_table: str,
         source_uris: List,
@@ -1558,6 +1680,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         cluster_fields: Optional[List] = None,
         autodetect: bool = False,
         encryption_configuration: Optional[Dict] = None,
+        labels: Optional[Dict] = None,
+        description: Optional[str] = None,
     ) -> str:
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
@@ -1640,6 +1764,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :type encryption_configuration: dict
+        :param labels: A dictionary containing labels for the BiqQuery table.
+        :type labels: dict
+        :param description: A string containing the description for the BigQuery table.
+        :type descriptin: str
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
@@ -1655,7 +1783,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # we check to make sure the passed source format is valid
         # if it's not, we raise a ValueError
         # Refer to this link for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat # noqa # pylint: disable=line-too-long
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat # noqa
 
         if schema_fields is None and not autodetect:
             raise ValueError('You must either pass a schema or autodetect=True.')
@@ -1740,6 +1868,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             configuration["load"]["destinationEncryptionConfiguration"] = encryption_configuration
 
+        if labels or description:
+            configuration['load'].update({'destinationTableProperties': {}})
+
+            if labels:
+                configuration['load']['destinationTableProperties']['labels'] = labels
+
+            if description:
+                configuration['load']['destinationTableProperties']['description'] = description
+
         src_fmt_to_configs_mapping = {
             'CSV': [
                 'allowJaggedRows',
@@ -1784,7 +1921,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def run_copy(  # pylint: disable=invalid-name
+    def run_copy(
         self,
         source_project_dataset_tables: Union[List, str],
         destination_project_dataset_table: str,
@@ -1952,7 +2089,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(
         self,
         sql: str,
@@ -2060,6 +2196,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
+        labels = labels or self.labels
         schema_update_options = list(schema_update_options or [])
 
         if time_partitioning is None:
@@ -2085,7 +2222,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # BigQuery also allows you to define how you want a table's schema to change
         # as a side effect of a query job
         # for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions  # noqa # pylint: disable=line-too-long
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions  # noqa
 
         allowed_schema_update_options = ['ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"]
 
@@ -2227,18 +2364,18 @@ class BigQueryConnection:
         self._args = args
         self._kwargs = kwargs
 
-    def close(self) -> None:  # noqa: D403
-        """BigQueryConnection does not have anything to close"""
+    def close(self) -> None:
+        """The BigQueryConnection does not have anything to close"""
 
-    def commit(self) -> None:  # noqa: D403
-        """BigQueryConnection does not support transactions"""
+    def commit(self) -> None:
+        """The BigQueryConnection does not support transactions"""
 
-    def cursor(self) -> "BigQueryCursor":  # noqa: D403
+    def cursor(self) -> "BigQueryCursor":
         """Return a new :py:class:`Cursor` object using the connection"""
         return BigQueryCursor(*self._args, **self._kwargs)
 
-    def rollback(self) -> NoReturn:  # noqa: D403
-        """BigQueryConnection does not have transactions"""
+    def rollback(self) -> NoReturn:
+        """The BigQueryConnection does not have transactions"""
         raise NotImplementedError("BigQueryConnection does not have transactions")
 
 
@@ -2258,6 +2395,7 @@ class BigQueryBaseCursor(LoggingMixin):
         api_resource_configs: Optional[Dict] = None,
         location: Optional[str] = None,
         num_retries: int = 5,
+        labels: Optional[Dict] = None,
     ) -> None:
 
         super().__init__()
@@ -2270,6 +2408,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.running_job_id = None  # type: Optional[str]
         self.location = location
         self.num_retries = num_retries
+        self.labels = labels
         self.hook = hook
 
     def create_empty_table(self, *args, **kwargs) -> None:
@@ -2518,7 +2657,7 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning,
             stacklevel=3,
         )
-        return self.hook.cancel_query(*args, **kwargs)  # type: ignore  # noqa
+        return self.hook.cancel_query(*args, **kwargs)  # type: ignore
 
     def run_with_configuration(self, *args, **kwargs) -> str:
         """
@@ -2666,7 +2805,6 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def fetchone(self) -> Union[List, None]:
         """Fetch the next row of a query result set"""
-        # pylint: disable=not-callable
         return self.next()
 
     def next(self) -> Union[List, None]:

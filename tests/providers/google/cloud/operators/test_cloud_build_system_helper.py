@@ -79,7 +79,7 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
                 GCP_PROJECT_ID, GCP_REPOSITORY_NAME
             )
             self.execute_cmd(["git", "remote", "add", "origin", repo_url], cwd=tmp_dir)
-            self.execute_cmd(["git", "push", "--force", "origin", "master"], cwd=tmp_dir)
+            self.execute_cmd(["git", "push", "--force", "origin", "main"], cwd=tmp_dir)
 
     def delete_repo(self):
         """Delete repository in Google Cloud Source Repository service"""

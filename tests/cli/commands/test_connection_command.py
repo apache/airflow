@@ -27,6 +27,7 @@ from parameterized import parameterized
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import connection_command
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
@@ -99,6 +100,10 @@ class TestCliListConnections(unittest.TestCase):
         (
             'sqlite_default',
             'sqlite',
+        ),
+        (
+            'trino_default',
+            'trino',
         ),
         (
             'vertica_default',
@@ -716,3 +721,177 @@ class TestCliDeleteConnections(unittest.TestCase):
         # Attempt to delete a non-existing connection
         with pytest.raises(SystemExit, match=r"Did not find a connection with `conn_id`=fake"):
             connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "fake"]))
+
+
+class TestCliImportConnections(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+        clear_db_connections(add_default_connections_back=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_connections()
+
+    @mock.patch('os.path.exists')
+    def test_cli_connections_import_should_return_error_if_file_does_not_exist(self, mock_exists):
+        mock_exists.return_value = False
+        filepath = '/does/not/exist.json'
+        with pytest.raises(SystemExit, match=r"Missing connections file."):
+            connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
+
+    @parameterized.expand(
+        [
+            ("sample.jso",),
+            ("sample.yml",),
+            ("sample.environ",),
+        ]
+    )
+    @mock.patch('os.path.exists')
+    def test_cli_connections_import_should_return_error_if_file_format_is_invalid(
+        self, filepath, mock_exists
+    ):
+        mock_exists.return_value = True
+        with pytest.raises(
+            AirflowException,
+            match=r"Unsupported file format. The file must have the extension .env or .json or .yaml",
+        ):
+            connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
+
+    @mock.patch('airflow.secrets.local_filesystem._parse_secret_file')
+    @mock.patch('os.path.exists')
+    def test_cli_connections_import_should_load_connections(self, mock_exists, mock_parse_secret_file):
+        mock_exists.return_value = True
+
+        # Sample connections to import
+        expected_connections = {
+            "new0": {
+                "conn_type": "postgres",
+                "description": "new0 description",
+                "host": "host",
+                "login": "airflow",
+                "password": "password",
+                "port": 5432,
+                "schema": "airflow",
+                "extra": "test",
+            },
+            "new1": {
+                "conn_type": "mysql",
+                "description": "new1 description",
+                "host": "host",
+                "login": "airflow",
+                "password": "password",
+                "port": 3306,
+                "schema": "airflow",
+                "extra": "test",
+            },
+        }
+
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = expected_connections
+
+        connection_command.connections_import(
+            self.parser.parse_args(["connections", "import", 'sample.json'])
+        )
+
+        # Verify that the imported connections match the expected, sample connections
+        with create_session() as session:
+            current_conns = session.query(Connection).all()
+
+            comparable_attrs = [
+                "conn_id",
+                "conn_type",
+                "description",
+                "host",
+                "login",
+                "password",
+                "port",
+                "schema",
+                "extra",
+            ]
+
+            current_conns_as_dicts = {
+                current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+                for current_conn in current_conns
+            }
+            assert expected_connections == current_conns_as_dicts
+
+    @provide_session
+    @mock.patch('airflow.secrets.local_filesystem._parse_secret_file')
+    @mock.patch('os.path.exists')
+    def test_cli_connections_import_should_not_overwrite_existing_connections(
+        self, mock_exists, mock_parse_secret_file, session=None
+    ):
+        mock_exists.return_value = True
+
+        # Add a pre-existing connection "new3"
+        merge_conn(
+            Connection(
+                conn_id="new3",
+                conn_type="mysql",
+                description="original description",
+                host="mysql",
+                login="root",
+                password="password",
+                schema="airflow",
+            ),
+            session=session,
+        )
+
+        # Sample connections to import, including a collision with "new3"
+        expected_connections = {
+            "new2": {
+                "conn_type": "postgres",
+                "description": "new2 description",
+                "host": "host",
+                "login": "airflow",
+                "password": "password",
+                "port": 5432,
+                "schema": "airflow",
+                "extra": "test",
+            },
+            "new3": {
+                "conn_type": "mysql",
+                "description": "updated description",
+                "host": "host",
+                "login": "airflow",
+                "password": "new password",
+                "port": 3306,
+                "schema": "airflow",
+                "extra": "test",
+            },
+        }
+
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = expected_connections
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", 'sample.json'])
+            )
+
+            assert 'Could not import connection new3: connection already exists.' in stdout.getvalue()
+
+        # Verify that the imported connections match the expected, sample connections
+        current_conns = session.query(Connection).all()
+
+        comparable_attrs = [
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "login",
+            "password",
+            "port",
+            "schema",
+            "extra",
+        ]
+
+        current_conns_as_dicts = {
+            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+            for current_conn in current_conns
+        }
+        assert current_conns_as_dicts['new2'] == expected_connections['new2']
+
+        # The existing connection's description should not have changed
+        assert current_conns_as_dicts['new3']['description'] == 'original description'

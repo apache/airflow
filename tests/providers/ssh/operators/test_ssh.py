@@ -152,7 +152,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task_1.execute(None)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         assert task_1.ssh_hook.ssh_conn_id == TEST_CONN_ID
 
@@ -165,7 +165,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task_2.execute(None)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         assert task_2.ssh_hook.ssh_conn_id == TEST_CONN_ID
 
@@ -180,7 +180,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task_3.execute(None)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
 
@@ -204,6 +204,6 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task.execute(None)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             pass
         assert task.get_pty == get_pty_out

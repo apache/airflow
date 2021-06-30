@@ -26,7 +26,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-from airflow.utils.decorators import apply_defaults
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -40,7 +39,7 @@ class VerticaToMySqlOperator(BaseOperator):
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
     :type mysql_table: str
-    :param mysql_conn_id: source mysql connection
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param mysql_preoperator: sql statement to run against MySQL prior to
         import, typically use to truncate of delete in place of the data
@@ -60,9 +59,12 @@ class VerticaToMySqlOperator(BaseOperator):
 
     template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext = ('.sql',)
+    template_fields_renderers = {
+        "mysql_preoperator": "sql",
+        "mysql_postoperator": "sql",
+    }
     ui_color = '#a0e08c'
 
-    @apply_defaults
     def __init__(
         self,
         sql: str,
@@ -100,17 +102,16 @@ class VerticaToMySqlOperator(BaseOperator):
                 selected_columns = [d.name for d in cursor.description]
 
                 if self.bulk_load:
-                    tmpfile = NamedTemporaryFile("w")
+                    with NamedTemporaryFile("w") as tmpfile:
+                        self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
+                        self.log.info(self.sql)
 
-                    self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
-                    self.log.info(self.sql)
+                        csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
+                        for row in cursor.iterate():
+                            csv_writer.writerow(row)
+                            count += 1
 
-                    csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
-                    for row in cursor.iterate():
-                        csv_writer.writerow(row)
-                        count += 1
-
-                    tmpfile.flush()
+                        tmpfile.flush()
                 else:
                     self.log.info("Selecting rows from Vertica...")
                     self.log.info(self.sql)
@@ -140,7 +141,7 @@ class VerticaToMySqlOperator(BaseOperator):
                 self.log.info("Inserting rows into MySQL...")
                 mysql.insert_rows(table=self.mysql_table, rows=result, target_fields=selected_columns)
             self.log.info("Inserted rows into MySQL %s", count)
-        except (MySQLdb.Error, MySQLdb.Warning):  # pylint: disable=no-member
+        except (MySQLdb.Error, MySQLdb.Warning):
             self.log.info("Inserted rows into MySQL 0")
             raise
 

@@ -29,7 +29,6 @@ VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
-    # pylint: disable=missing-docstring
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         return environment_uri

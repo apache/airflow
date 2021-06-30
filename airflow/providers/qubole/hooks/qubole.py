@@ -126,7 +126,7 @@ class QuboleHook(BaseHook):
             "placeholders": {'host': 'https://<env>.qubole.com/api'},
         }
 
-    def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__()
         conn = self.get_connection(kwargs.get('qubole_conn_id', self.default_conn_name))
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -202,7 +202,15 @@ class QuboleHook(BaseHook):
             self.log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
-    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
+    def get_results(
+        self,
+        ti=None,
+        fp=None,
+        inline: bool = True,
+        delim=None,
+        fetch: bool = True,
+        include_headers: bool = False,
+    ) -> str:
         """
         Get results (or just s3 locations) of a command from Qubole and save into a file
 
@@ -224,7 +232,10 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
             self.cmd = self.cls.find(cmd_id)
 
-        self.cmd.get_results(fp, inline, delim, fetch)  # type: ignore[attr-defined]
+        include_headers_str = 'true' if include_headers else 'false'
+        self.cmd.get_results(
+            fp, inline, delim, fetch, arguments=[include_headers_str]
+        )  # type: ignore[attr-defined]
         fp.flush()
         fp.close()
         return fp.name
@@ -259,7 +270,7 @@ class QuboleHook(BaseHook):
         tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
-        for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
+        for key, value in self.kwargs.items():
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
                     args.append(f"--{key.replace('_', '-')}={value}")

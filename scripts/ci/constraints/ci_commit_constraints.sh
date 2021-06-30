@@ -18,11 +18,11 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-cp -v ./artifacts/constraints-*/constraints*.txt repo/
+cp -v ./files/constraints-*/constraints*.txt repo/
 cd repo || exit 1
 git config --local user.email "dev@airflow.apache.org"
 git config --local user.name "Automated GitHub Actions commit"
-git diff --exit-code || git commit --all --message "Updating constraints. Build id:${CI_BUILD_ID}
+git diff --color --exit-code || git commit --all --message "Updating constraints. Build id:${CI_BUILD_ID}
 
 This update in constraints is automatically committed by the CI 'constraints-push' step based on
 HEAD of '${CI_REF}' in '${CI_TARGET_REPO}'
@@ -30,5 +30,5 @@ with commit sha ${COMMIT_SHA}.
 
 All tests passed in this build so we determined we can push the updated constraints.
 
-See https://github.com/apache/airflow/blob/master/README.md#installing-from-pypi for details.
+See https://github.com/apache/airflow/blob/main/README.md#installing-from-pypi for details.
 "

@@ -23,8 +23,8 @@ from sqlalchemy import Table, exc, func
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
-from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
+from airflow.jobs.base_job import BaseJob  # noqa: F401
+from airflow.models import (  # noqa: F401
     DAG,
     XCOM_RETURN_KEY,
     BaseOperator,
@@ -47,13 +47,10 @@ from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
 )
 
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
-    create_session,
-    provide_session,
-)
+from airflow.utils.session import create_session, provide_session  # noqa: F401
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +69,7 @@ def add_default_pool_if_not_exists(session=None):
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
-            slots=conf.getint(section='core', key='non_pooled_task_slot_count', fallback=128),
+            slots=conf.getint(section='core', key='default_pool_task_slot_count'),
             description="Default pool",
         )
         session.add(default_pool)
@@ -111,14 +108,6 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
-            conn_id="azure_container_instances_default",
-            conn_type="azure_container_instances",
-            extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }',
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
             conn_id="azure_cosmos_default",
             conn_type="azure_cosmos",
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
@@ -141,6 +130,13 @@ def create_default_connections(session=None):
             conn_id="azure_data_lake_default",
             conn_type="azure_data_lake",
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_default",
+            conn_type="azure",
         ),
         session,
     )
@@ -256,7 +252,7 @@ def create_default_connections(session=None):
             conn_id="facebook_default",
             conn_type="facebook_social",
             extra="""
-                {   "account_id": "<AD_ACCOUNNT_ID>",
+                {   "account_id": "<AD_ACCOUNT_ID>",
                     "app_id": "<FACEBOOK_APP_ID>",
                     "app_secret": "<FACEBOOK_APP_SECRET>",
                     "access_token": "<FACEBOOK_AD_ACCESS_TOKEN>"
@@ -325,6 +321,14 @@ def create_default_connections(session=None):
             port=7070,
             login="ADMIN",
             password="KYLIN",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="leveldb_default",
+            conn_type="leveldb",
+            host="localhost",
         ),
         session,
     )
@@ -510,6 +514,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="trino_default",
+            conn_type="trino",
+            host="localhost",
+            schema="hive",
+            port=3400,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="vertica_default",
             conn_type="vertica",
             host="localhost",
@@ -560,7 +574,7 @@ def initdb():
 
     from flask_appbuilder.models.sqla import Base
 
-    Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
+    Base.metadata.create_all(settings.engine)
 
 
 def _get_alembic_config():
@@ -578,8 +592,9 @@ def _get_alembic_config():
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
-    @param timeout:
-    @return:
+
+    :param timeout: Timeout for the migration in seconds
+    :return: None
     """
     from alembic.runtime.migration import MigrationContext
     from alembic.script import ScriptDirectory
@@ -595,7 +610,10 @@ def check_migrations(timeout):
             if source_heads == db_heads:
                 break
             if ticker >= timeout:
-                raise TimeoutError(f"There are still unapplied migrations after {ticker} seconds.")
+                raise TimeoutError(
+                    f"There are still unapplied migrations after {ticker} seconds. "
+                    f"Migration Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+                )
             ticker += 1
             time.sleep(1)
             log.info('Waiting for migrations... %s second(s)', ticker)
@@ -700,8 +718,9 @@ def resetdb():
 def drop_airflow_models(connection):
     """
     Drops all airflow models.
-    @param connection:
-    @return: None
+
+    :param connection: SQLAlchemy Connection
+    :return: None
     """
     from airflow.models.base import Base
 
@@ -723,10 +742,10 @@ def drop_airflow_models(connection):
     Base.metadata.remove(user)
     Base.metadata.remove(chart)
     # alembic adds significant import time, so we import it lazily
-    from alembic.migration import MigrationContext  # noqa
+    from alembic.migration import MigrationContext
 
     migration_ctx = MigrationContext.configure(connection)
-    version = migration_ctx._version  # noqa pylint: disable=protected-access
+    version = migration_ctx._version
     if version.exists(connection):
         version.drop(connection)
 
@@ -734,18 +753,20 @@ def drop_airflow_models(connection):
 def drop_flask_models(connection):
     """
     Drops all Flask models.
-    @param connection:
-    @return:
+
+    :param connection: SQLAlchemy Connection
+    :return: None
     """
     from flask_appbuilder.models.sqla import Base
 
-    Base.metadata.drop_all(connection)  # pylint: disable=no-member
+    Base.metadata.drop_all(connection)
 
 
 @provide_session
 def check(session=None):
     """
     Checks if the database works.
+
     :param session: session of the sqlalchemy
     """
     session.execute('select 1 as is_alive;')

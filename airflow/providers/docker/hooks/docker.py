@@ -29,8 +29,8 @@ class DockerHook(BaseHook, LoggingMixin):
     """
     Interact with a Docker Daemon or Registry.
 
-    :param docker_conn_id: ID of the Airflow connection where
-        credentials and extra configuration are stored
+    :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
+        where credentials and extra configuration are stored
     :type docker_conn_id: str
     """
 

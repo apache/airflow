@@ -22,8 +22,13 @@ description: |
     `Opsgenie <https://www.opsgenie.com/>`__
 
 versions:
+  - 2.0.0
+  - 1.0.2
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Opsgenie
@@ -40,3 +45,6 @@ hooks:
   - integration-name: Opsgenie
     python-modules:
       - airflow.providers.opsgenie.hooks.opsgenie_alert
+
+hook-class-names:
+  - airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook

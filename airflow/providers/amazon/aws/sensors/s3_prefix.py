@@ -19,14 +19,13 @@ from typing import Optional, Union
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class S3PrefixSensor(BaseSensorOperator):
     """
     Waits for a prefix to exist. A prefix is the first part of a key,
-    thus enabling checking of constructs similar to glob airfl* or
-    SQL LIKE 'airfl%'. There is the possibility to precise a delimiter to
+    thus enabling checking of constructs similar to glob ``airfl*`` or
+    SQL LIKE ``'airfl%'``. There is the possibility to precise a delimiter to
     indicate the hierarchy or keys, meaning that the match will stop at that
     delimiter. Current code accepts sane delimiters, i.e. characters that
     are NOT special characters in the Python regex engine.
@@ -55,7 +54,6 @@ class S3PrefixSensor(BaseSensorOperator):
 
     template_fields = ('prefix', 'bucket_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -17,7 +17,6 @@
 # under the License.
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class MongoSensor(BaseSensorOperator):
@@ -34,14 +33,13 @@ class MongoSensor(BaseSensorOperator):
     :type collection: str
     :param query: The query to find the target document.
     :type query: dict
-    :param mongo_conn_id: The connection ID to use
+    :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
         when connecting to MongoDB.
     :type mongo_conn_id: str
     """
 
     template_fields = ('collection', 'query')
 
-    @apply_defaults
     def __init__(
         self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", **kwargs
     ) -> None:

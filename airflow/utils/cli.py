@@ -18,7 +18,6 @@
 #
 """Utilities module for cli"""
 import functools
-import getpass
 import json
 import logging
 import os
@@ -35,10 +34,10 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
-from airflow.utils.platform import is_terminal_support_colors
+from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
     from airflow.models import DAG
@@ -113,23 +112,25 @@ def _build_metrics(func_name, namespace):
     """
     from airflow.models import Log
 
+    sub_commands_to_check = {'users', 'connections'}
     sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
-    for idx, command in enumerate(full_command):  # pylint: disable=too-many-nested-blocks
-        if command in sensitive_fields:
-            # For cases when password is passed as "--password xyz" (with space between key and value)
-            full_command[idx + 1] = "*" * 8
-        else:
-            # For cases when password is passed as "--password=xyz" (with '=' between key and value)
-            for sensitive_field in sensitive_fields:
-                if command.startswith(f'{sensitive_field}='):
-                    full_command[idx] = f'{sensitive_field}={"*" * 8}'
+    if full_command[1] in sub_commands_to_check:
+        for idx, command in enumerate(full_command):
+            if command in sensitive_fields:
+                # For cases when password is passed as "--password xyz" (with space between key and value)
+                full_command[idx + 1] = "*" * 8
+            else:
+                # For cases when password is passed as "--password=xyz" (with '=' between key and value)
+                for sensitive_field in sensitive_fields:
+                    if command.startswith(f'{sensitive_field}='):
+                        full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
     metrics = {
         'sub_command': func_name,
         'start_datetime': datetime.utcnow(),
         'full_command': f'{full_command}',
-        'user': getpass.getuser(),
+        'user': getuser(),
     }
 
     if not isinstance(namespace, Namespace):
@@ -251,7 +252,7 @@ def setup_logging(filename):
     return handler.stream
 
 
-def sigint_handler(sig, frame):  # pylint: disable=unused-argument
+def sigint_handler(sig, frame):
     """
     Returns without error on SIGINT or SIGTERM signals in interactive command mode
     e.g. CTRL+C or kill <PID>
@@ -259,7 +260,7 @@ def sigint_handler(sig, frame):  # pylint: disable=unused-argument
     sys.exit(0)
 
 
-def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
+def sigquit_handler(sig, frame):
     """
     Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
     e.g. kill -s QUIT <PID> or CTRL+\
@@ -267,7 +268,7 @@ def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
     print(f"Dumping stack traces for all threads in PID {os.getpid()}")
     id_to_name = {th.ident: th.name for th in threading.enumerate()}
     code = []
-    for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
+    for thread_id, stack in sys._current_frames().items():
         code.append(f"\n# Thread: {id_to_name.get(thread_id, '')}({thread_id})")
         for filename, line_number, name, line in traceback.extract_stack(stack):
             code.append(f'File: "{filename}", line {line_number}, in {name}')

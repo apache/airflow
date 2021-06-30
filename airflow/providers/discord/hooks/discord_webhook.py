@@ -54,6 +54,11 @@ class DiscordWebhookHook(HttpHook):
     :type proxy: str
     """
 
+    conn_name_attr = 'http_conn_id'
+    default_conn_name = 'discord_default'
+    conn_type = 'discord'
+    hook_name = 'Discord'
+
     def __init__(
         self,
         http_conn_id: Optional[str] = None,

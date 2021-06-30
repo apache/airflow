@@ -53,7 +53,6 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
-from airflow.utils.decorators import apply_defaults
 
 
 class TransferJobPreprocessor:
@@ -219,7 +218,6 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -299,7 +297,6 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_update_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -377,7 +374,6 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -445,7 +441,6 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_get_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -585,7 +580,6 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_pause_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -649,7 +643,6 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_resume_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -714,7 +707,6 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_cancel_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -759,11 +751,12 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     .. code-block:: python
 
        s3_to_gcs_transfer_op = S3ToGoogleCloudStorageTransferOperator(
-            task_id='s3_to_gcs_transfer_example',
-            s3_bucket='my-s3-bucket',
-            project_id='my-gcp-project',
-            gcs_bucket='my-gcs-bucket',
-            dag=my_dag)
+           task_id="s3_to_gcs_transfer_example",
+           s3_bucket="my-s3-bucket",
+           project_id="my-gcp-project",
+           gcs_bucket="my-gcs-bucket",
+           dag=my_dag,
+       )
 
     :param s3_bucket: The S3 bucket where to find the objects. (templated)
     :type s3_bucket: str
@@ -828,8 +821,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     )
     ui_color = '#e09411'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         s3_bucket: str,
@@ -930,11 +922,12 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     .. code-block:: python
 
        gcs_to_gcs_transfer_op = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
-            task_id='gcs_to_gcs_transfer_example',
-            source_bucket='my-source-bucket',
-            destination_bucket='my-destination-bucket',
-            project_id='my-gcp-project',
-            dag=my_dag)
+           task_id="gcs_to_gcs_transfer_example",
+           source_bucket="my-source-bucket",
+           destination_bucket="my-destination-bucket",
+           project_id="my-gcp-project",
+           dag=my_dag,
+       )
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
@@ -998,8 +991,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     )
     ui_color = '#e09411'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         source_bucket: str,

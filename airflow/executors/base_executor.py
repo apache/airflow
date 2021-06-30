@@ -168,7 +168,7 @@ class BaseExecutor(LoggingMixin):
         :return: List of tuples from the queued_tasks according to the priority.
         """
         return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
+            self.queued_tasks.items(),
             key=lambda x: x[1][1],
             reverse=True,
         )
@@ -182,10 +182,10 @@ class BaseExecutor(LoggingMixin):
         sorted_queue = self.order_queued_tasks_by_priority()
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, _, ti) = sorted_queue.pop(0)
+            key, (command, _, queue, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
-            self.execute_async(key=key, command=command, queue=None, executor_config=ti.executor_config)
+            self.execute_async(key=key, command=command, queue=queue, executor_config=ti.executor_config)
 
     def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """

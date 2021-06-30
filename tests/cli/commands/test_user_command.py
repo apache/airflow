@@ -19,11 +19,10 @@ import io
 import json
 import os
 import tempfile
-import unittest
 from contextlib import redirect_stdout
 
-from airflow import models
-from airflow.cli import cli_parser
+import pytest
+
 from airflow.cli.commands import user_command
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
@@ -39,20 +38,15 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
     return False
 
 
-class TestCliUsers(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli_parser.get_parser()
-
-    def setUp(self):
-        from airflow.www import app as application
-
-        self.app = application.create_app(testing=True)
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+class TestCliUsers:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, app, dagbag, parser):
+        self.app = app
+        self.dagbag = dagbag
+        self.parser = parser
+        self.appbuilder = self.app.appbuilder
         self.clear_roles_and_roles()
-
-    def tearDown(self):
+        yield
         self.clear_roles_and_roles()
 
     def clear_roles_and_roles(self):
@@ -133,6 +127,84 @@ class TestCliUsers(unittest.TestCase):
             ]
         )
         user_command.users_delete(args)
+
+    def test_cli_delete_user_by_email(self):
+        args = self.parser.parse_args(
+            [
+                'users',
+                'create',
+                '--username',
+                'test4',
+                '--lastname',
+                'doe',
+                '--firstname',
+                'jon',
+                '--email',
+                'jdoe2@example.com',
+                '--role',
+                'Viewer',
+                '--use-random-password',
+            ]
+        )
+        user_command.users_create(args)
+        args = self.parser.parse_args(
+            [
+                'users',
+                'delete',
+                '--email',
+                'jdoe2@example.com',
+            ]
+        )
+        user_command.users_delete(args)
+
+    @pytest.mark.parametrize(
+        'args,raise_match',
+        [
+            (
+                [
+                    'users',
+                    'delete',
+                ],
+                'Missing args: must supply one of --username or --email',
+            ),
+            (
+                [
+                    'users',
+                    'delete',
+                    '--username',
+                    'test',
+                    '--email',
+                    'jdoe2@example.com',
+                ],
+                'Conflicting args: must supply either --username or --email, but not both',
+            ),
+            (
+                [
+                    'users',
+                    'delete',
+                    '--username',
+                    'test',
+                ],
+                'User "test" does not exist',
+            ),
+            (
+                [
+                    'users',
+                    'delete',
+                    '--email',
+                    'jode2@example.com',
+                ],
+                'User "jode2@example.com" does not exist',
+            ),
+        ],
+    )
+    def test_find_user(self, args, raise_match):
+        args = self.parser.parse_args(args)
+        with pytest.raises(
+            SystemExit,
+            match=raise_match,
+        ):
+            user_command._find_user(args)
 
     def test_cli_list_users(self):
         for i in range(0, 3):
@@ -236,7 +308,7 @@ class TestCliUsers(unittest.TestCase):
         self._import_users_from_file([user1, user2])
 
         users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as file:
+        with open(users_filename) as file:
             retrieved_users = json.loads(file.read())
         os.remove(users_filename)
 
@@ -245,8 +317,7 @@ class TestCliUsers(unittest.TestCase):
 
         def find_by_username(username):
             matches = [u for u in retrieved_users if u['username'] == username]
-            if not matches:
-                self.fail(f"Couldn't find user with username {username}")
+            assert matches, f"Couldn't find user with username {username}"
             matches[0].pop('id')  # this key not required for import
             return matches[0]
 
@@ -255,21 +326,21 @@ class TestCliUsers(unittest.TestCase):
 
     def _import_users_from_file(self, user_list):
         json_file_content = json.dumps(user_list)
-        f = tempfile.NamedTemporaryFile(delete=False)
-        try:
-            f.write(json_file_content.encode())
-            f.flush()
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            try:
+                f.write(json_file_content.encode())
+                f.flush()
 
-            args = self.parser.parse_args(['users', 'import', f.name])
-            user_command.users_import(args)
-        finally:
-            os.remove(f.name)
+                args = self.parser.parse_args(['users', 'import', f.name])
+                user_command.users_import(args)
+            finally:
+                os.remove(f.name)
 
     def _export_users_to_file(self):
-        f = tempfile.NamedTemporaryFile(delete=False)
-        args = self.parser.parse_args(['users', 'export', f.name])
-        user_command.users_export(args)
-        return f.name
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            args = self.parser.parse_args(['users', 'export', f.name])
+            user_command.users_export(args)
+            return f.name
 
     def test_cli_add_user_role(self):
         args = self.parser.parse_args(

@@ -172,6 +172,8 @@ class TestWorkerStart(unittest.TestCase):
                 celery_hostname,
                 '--queues',
                 queues,
+                '--without-mingle',
+                '--without-gossip',
             ]
         )
 
@@ -182,11 +184,13 @@ class TestWorkerStart(unittest.TestCase):
         mock_worker.worker.return_value.run.assert_called_once_with(
             pool='prefork',
             optimization='fair',
-            O='fair',  # noqa
+            O='fair',
             queues=queues,
             pidfile=pid_file,
             concurrency=int(concurrency),
             autoscale=autoscale,
             hostname=celery_hostname,
             loglevel=conf.get('logging', 'LOGGING_LEVEL'),
+            without_mingle=True,
+            without_gossip=True,
         )

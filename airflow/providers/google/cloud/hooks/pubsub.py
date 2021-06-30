@@ -21,7 +21,10 @@ from base64 import b64decode
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 from uuid import uuid4
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
@@ -155,7 +158,6 @@ class PubSubHook(GoogleBaseHook):
                     "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary."
                 )
 
-    # pylint: disable=too-many-arguments
     @GoogleBaseHook.fallback_to_default_project_id
     def create_topic(
         self,
@@ -214,7 +216,7 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
-            # pylint: disable=no-member
+
             publisher.create_topic(
                 request={
                     "name": topic_path,
@@ -272,7 +274,7 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting topic (path) %s", topic_path)
         try:
-            # pylint: disable=no-member
+
             publisher.delete_topic(
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
@@ -284,7 +286,6 @@ class PubSubHook(GoogleBaseHook):
             raise PubSubException(f'Error deleting topic {topic}', e)
         self.log.info("Deleted topic (path) %s", topic_path)
 
-    # pylint: disable=too-many-arguments
     @GoogleBaseHook.fallback_to_default_project_id
     def create_subscription(
         self,
@@ -399,7 +400,6 @@ class PubSubHook(GoogleBaseHook):
         labels = labels or {}
         labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
 
-        # pylint: disable=no-member
         subscription_path = f"projects/{subscription_project_id}/subscriptions/{subscription}"
         topic_path = f"projects/{project_id}/topics/{topic}"
 
@@ -466,12 +466,12 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         subscriber = self.subscriber_client
-        # noqa E501 # pylint: disable=no-member
+        # E501
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
-            # pylint: disable=no-member
+
             subscriber.delete_subscription(
                 request={"subscription": subscription_path},
                 retry=retry,
@@ -530,12 +530,12 @@ class PubSubHook(GoogleBaseHook):
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         subscriber = self.subscriber_client
-        # noqa E501 # pylint: disable=no-member,line-too-long
+        # E501
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
-            # pylint: disable=no-member
+
             response = subscriber.pull(
                 request={
                     "subscription": subscription_path,
@@ -596,12 +596,12 @@ class PubSubHook(GoogleBaseHook):
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
         subscriber = self.subscriber_client
-        # noqa E501 # pylint: disable=no-member
+        # E501
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
-            # pylint: disable=no-member
+
             subscriber.acknowledge(
                 request={"subscription": subscription_path, "ack_ids": ack_ids},
                 retry=retry,

@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.jdbc.operators.jdbc`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator  # noqa
 
 warnings.warn(

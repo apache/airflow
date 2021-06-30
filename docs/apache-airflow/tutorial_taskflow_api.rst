@@ -160,6 +160,26 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
+Using the Taskflow API with Virtual Environments
+----------------------------------------------------------
+
+As of Airflow 2.0.3, you will have the ability to use the Taskflow API with a
+virtual environment. This added functionality will allow a much more
+comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
+packages and system libraries of the Airflow worker.
+
+To run your Airflow task in a virtual environment, switch your ``@task`` decorator to a ``@task.virtualenv``
+decorator. The ``@task.virtualenv`` decorator will allow you to create a new virtualenv with custom libraries
+and even a different python version to run your function.
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_virtualenv.py
+    :language: python
+    :dedent: 4
+    :start-after: [START extract_virtualenv]
+    :end-before: [END extract_virtualenv]
+
+This option should allow for far greater flexibility for users who wish to keep their workflows more simple
+and pythonic.
 
 Multiple outputs inference
 --------------------------
@@ -194,11 +214,11 @@ Building this dependency is shown in the code below:
         A simple Extract task to get data ready for the rest of the data
         pipeline, by reading the data from a file into a pandas dataframe
         """
-        order_data_file = '/tmp/order_data.csv'
+        order_data_file = "/tmp/order_data.csv"
         order_data_df = pd.read_csv(order_data_file)
 
 
-    file_task = FileSensor(task_id='check_file', filepath='/tmp/order_data.csv')
+    file_task = FileSensor(task_id="check_file", filepath="/tmp/order_data.csv")
     order_data = extract_from_file()
 
     file_task >> order_data
@@ -215,9 +235,5 @@ What's Next?
 ------------
 
 You have seen how simple it is to write DAGs using the Taskflow API paradigm within Airflow 2.0. Please do
-read the :ref:`Concepts page<concepts>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
-Operators, etc, and the :ref:`concepts:task_decorator` in particular.
-
-More details about the Taskflow API, can be found as part of the Airflow Improvement Proposal
-`AIP-31: "Taskflow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`__
-and specifically within the Concepts guide at :ref:`Concepts - Taskflow API<concepts:task_flow_api>`.
+read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
+Operators, and more. There's also a whole section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.

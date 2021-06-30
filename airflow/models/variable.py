@@ -24,12 +24,13 @@ from typing import Any, Optional
 from cryptography.fernet import InvalidToken as InvalidFernetToken
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import Session, synonym
+from sqlalchemy.orm import Session, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
 log = logging.getLogger()
@@ -47,12 +48,19 @@ class Variable(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
     _val = Column('val', Text)
+    description = Column(Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
-    def __init__(self, key=None, val=None):
+    def __init__(self, key=None, val=None, description=None):
         super().__init__()
         self.key = key
         self.val = val
+        self.description = description
+
+    @reconstructor
+    def on_db_load(self):
+        if self._val:
+            mask_secret(self.val, self.key)
 
     def __repr__(self):
         # Hiding the value
@@ -67,7 +75,7 @@ class Variable(Base, LoggingMixin):
             except InvalidFernetToken:
                 self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
@@ -81,7 +89,7 @@ class Variable(Base, LoggingMixin):
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def val(cls):  # pylint: disable=no-self-argument
+    def val(cls):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
         return synonym('_val', descriptor=property(cls.get_val, cls.set_val))
 
@@ -132,8 +140,11 @@ class Variable(Base, LoggingMixin):
                 raise KeyError(f'Variable {key} does not exist')
         else:
             if deserialize_json:
-                return json.loads(var_val)
+                obj = json.loads(var_val)
+                mask_secret(var_val, key)
+                return obj
             else:
+                mask_secret(var_val, key)
                 return var_val
 
     @classmethod

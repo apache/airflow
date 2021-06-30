@@ -80,7 +80,7 @@ def import_all_classes(
                 attribute = getattr(_module, attribute_name)
                 if isclass(attribute):
                     imported_classes.append(class_name)
-        except Exception:  # noqa
+        except Exception:
             exception_str = traceback.format_exc()
             tracebacks.append(exception_str)
     if tracebacks:

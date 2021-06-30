@@ -23,18 +23,33 @@ from typing import Any, Dict, List, Optional, Pattern, Type
 from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 log = logging.getLogger(__name__)
 
 
 class HdfsSensor(BaseSensorOperator):
-    """Waits for a file or folder to land in HDFS"""
+    """
+    Waits for a file or folder to land in HDFS
+
+    :param filepath: The route to a stored file.
+    :type filepath: str
+    :param hdfs_conn_id: The Airflow connection used for HDFS credentials.
+    :type hdfs_conn_id: str
+    :param ignored_ext: This is the list of ignored extensions.
+    :type ignored_ext: Optional[List[str]]
+    :param ignore_copying: Shall we ignore?
+    :type ignore_copying: Optional[bool]
+    :param file_size: This is the size of the file.
+    :type file_size: Optional[int]
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:HdfsSensor`
+    """
 
     template_fields = ('filepath',)
     ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -115,14 +130,20 @@ class HdfsSensor(BaseSensorOperator):
             result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
             result = self.filter_for_filesize(result, self.file_size)
             return bool(result)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             e = sys.exc_info()
             self.log.debug("Caught an exception !: %s", str(e))
             return False
 
 
 class HdfsRegexSensor(HdfsSensor):
-    """Waits for matching files by matching on regex"""
+    """
+    Waits for matching files by matching on regex
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:HdfsRegexSensor`
+    """
 
     def __init__(self, regex: Pattern[str], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -149,7 +170,13 @@ class HdfsRegexSensor(HdfsSensor):
 
 
 class HdfsFolderSensor(HdfsSensor):
-    """Waits for a non-empty directory"""
+    """
+    Waits for a non-empty directory
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:HdfsFolderSensor`
+    """
 
     def __init__(self, be_empty: bool = False, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)

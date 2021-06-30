@@ -17,7 +17,6 @@
 # under the License.
 #
 
-import getpass
 from time import sleep
 from typing import Optional
 
@@ -26,6 +25,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -37,6 +37,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.platform import getuser
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
@@ -94,15 +95,22 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor or ExecutorLoader.get_default_executor()
-        self.executor_class = self.executor.__class__.__name__
+        if executor:
+            self.executor = executor
+            self.executor_class = executor.__class__.__name__
+        else:
+            self.executor_class = conf.get('core', 'EXECUTOR')
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
             self.heartrate = heartrate
-        self.unixname = getpass.getuser()
+        self.unixname = getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         super().__init__(*args, **kwargs)
+
+    @cached_property
+    def executor(self):
+        return ExecutorLoader.get_default_executor()
 
     @classmethod
     @provide_session
@@ -144,7 +152,7 @@ class BaseJob(Base, LoggingMixin):
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
         session.commit()

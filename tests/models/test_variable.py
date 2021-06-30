@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import unittest
 from unittest import mock
 
@@ -33,9 +34,16 @@ class TestVariable(unittest.TestCase):
     def setUp(self):
         crypto._fernet = None
         db.clear_db_variables()
+        patcher = mock.patch('airflow.models.variable.mask_secret', autospec=True)
+        self.mask_secret = patcher.start()
+
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         crypto._fernet = None
+
+    @classmethod
+    def tearDownClass(cls):
         db.clear_db_variables()
 
     @conf_vars({('core', 'fernet_key'): ''})
@@ -48,6 +56,9 @@ class TestVariable(unittest.TestCase):
         test_var = session.query(Variable).filter(Variable.key == 'key').one()
         assert not test_var.is_encrypted
         assert test_var.val == 'value'
+        # We always call mask_secret for variables, and let the SecretsMasker decide based on the name if it
+        # should mask anything. That logic is tested in test_secrets_masker.py
+        self.mask_secret.assert_called_once_with('value', 'key')
 
     @conf_vars({('core', 'fernet_key'): Fernet.generate_key().decode()})
     def test_variable_with_encryption(self):
@@ -172,3 +183,32 @@ class TestVariable(unittest.TestCase):
         Variable.delete(key)
         with pytest.raises(KeyError):
             Variable.get(key)
+
+    def test_masking_from_db(self):
+        """Test secrets are masked when loaded directly from the DB"""
+
+        # Normally people will use `Variable.get`, but just in case, catch direct DB access too
+
+        session = settings.Session()
+
+        try:
+            var = Variable(
+                key=f"password-{os.getpid()}",
+                val="s3cr3t",
+            )
+            session.add(var)
+            session.flush()
+
+            # Make sure we re-load it, not just get the cached object back
+            session.expunge(var)
+
+            self.mask_secret.reset_mock()
+
+            session.query(Variable).get(var.id)
+
+            assert self.mask_secret.mock_calls == [
+                # We should have called it _again_ when loading from the DB
+                mock.call("s3cr3t", var.key),
+            ]
+        finally:
+            session.rollback()

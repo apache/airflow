@@ -22,12 +22,14 @@ from copy import deepcopy
 from typing import Any, Dict, Optional, Sequence, Union
 from urllib.parse import unquote, urlparse
 
-import yaml
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
-from airflow.utils.decorators import apply_defaults
 
 REGEX_REPO_PATH = re.compile(r"^/p/(?P<project_id>[^/]+)/r/(?P<repo_name>[^/]+)")
 
@@ -197,7 +199,6 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     )
     template_ext = ['.yml', '.yaml', '.json']
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -132,7 +132,6 @@ class TestGCPTransferServiceHookWithPassedName(unittest.TestCase):
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
         '.CloudDataTransferServiceHook.get_conn'
     )
-    # pylint: disable=unused-argument
     def test_pass_name_on_create_job(
         self,
         get_conn: MagicMock,
@@ -450,9 +449,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
         '.CloudDataTransferServiceHook.get_conn'
     )
-    def test_wait_for_transfer_job_expect_failed(
-        self, get_conn, mock_sleep, mock_project_id
-    ):  # pylint: disable=unused-argument
+    def test_wait_for_transfer_job_expect_failed(self, get_conn, mock_sleep, mock_project_id):
         list_method = get_conn.return_value.transferOperations.return_value.list
         list_execute_method = list_method.return_value.execute
         list_execute_method.return_value = {
@@ -598,9 +595,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         get_method = get_conn.return_value.transferJobs.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
-        res = self.gct_hook.get_transfer_job(  # pylint: disable=no-value-for-parameter
-            job_name=TEST_TRANSFER_JOB_NAME
-        )
+        res = self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
         assert res is not None
         assert TEST_TRANSFER_JOB_NAME == res[NAME]
         get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId='example-project')
@@ -806,9 +801,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         execute_method = get_method.return_value.execute
         execute_method.return_value = TEST_TRANSFER_JOB
         with pytest.raises(AirflowException) as ctx:
-            self.gct_hook.get_transfer_job(  # pylint: disable=no-value-for-parameter
-                job_name=TEST_TRANSFER_JOB_NAME
-            )
+            self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
         assert (
             'The project id must be passed either as keyword project_id '
             'parameter or as project_id extra in Google Cloud connection definition. '
@@ -896,11 +889,9 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         'airflow.providers.google.cloud.hooks.cloud_storage_transfer_service'
         '.CloudDataTransferServiceHook.get_conn'
     )
-    def test_delete_transfer_job(self, get_conn, mock_project_id):  # pylint: disable=unused-argument
+    def test_delete_transfer_job(self, get_conn, mock_project_id):
         with pytest.raises(AirflowException) as ctx:
-            self.gct_hook.delete_transfer_job(  # pylint: disable=no-value-for-parameter
-                job_name=TEST_TRANSFER_JOB_NAME
-            )
+            self.gct_hook.delete_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
 
         assert (
             'The project id must be passed either as keyword project_id parameter or as project_id extra in '

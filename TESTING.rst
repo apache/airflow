@@ -49,7 +49,7 @@ Follow the guidelines when writing unit tests:
 * For standard unit tests that do not require integrations with external systems, make sure to simulate all communications.
 * All Airflow tests are run with ``pytest``. Make sure to set your IDE/runners (see below) to use ``pytest`` by default.
 * For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
-  rather than ``unittest`` ones. See `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
+  rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
 * Use a parameterized framework for tests that have variations in parameters.
 
 **NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
@@ -91,20 +91,20 @@ in the official documentation, but here are a few basic examples:
 
 .. code-block:: bash
 
-    pytest -k "TestCore and not check"
+    pytest tests/core -k "TestCore and not check"
 
 This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
 For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "TestCore and not bash".
+    pytest tests/core/test_core.py -k "TestCore and not bash"
 
 This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
-    pytest tests/tests_core.py -k "test_check_operators"
+    pytest tests/core/test_core.py -k "test_check_operators"
 
 This can also be done by specifying a full path to the test:
 
@@ -123,7 +123,7 @@ for debugging purposes, enter:
 
 .. code-block:: bash
 
-    pytest --log-level=DEBUG tests/core/test_core.py::TestCore
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
 Running Tests for a Specified Target Using Breeze from the Host
@@ -136,7 +136,7 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze tests tests/hooks/test_druid_hook.py tests/tests_core.py --db-reset -- --logging-level=DEBUG
+     ./breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
@@ -177,7 +177,7 @@ kinds of test types:
 
        ./breeze --test-type Providers --db-reset tests
 
-* Special kinds of tests - Integration, Heisentests, Quarantined, Postgres, MySQL, which are marked with pytest
+* Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
   marks and for those you need to select the type using test-type switch. If you want to run such tests
   using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
   Similarly to the per-directory tests if you do not specify the test or tests to run,
@@ -198,13 +198,14 @@ kinds of test types:
 Helm Unit Tests
 ===============
 
-On the Airflow Project, we have decided to stick with Pythonic testing for our Helm chart. This makes our chart
+On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
 go to the ``chart/tests`` directory and add your unit test by creating a class that extends ``unittest.TestCase``
 
 .. code-block:: python
 
     class TestBaseChartTest(unittest.TestCase):
+        ...
 
 To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
 use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
@@ -226,11 +227,13 @@ Example test here:
 
 
     class TestGitSyncScheduler(unittest.TestCase):
-
         def test_basic(self):
             helm_settings = yaml.safe_load(git_sync_basic)
-            res = render_chart('GIT-SYNC', helm_settings,
-                               show_only=["templates/scheduler/scheduler-deployment.yaml"])
+            res = render_chart(
+                "GIT-SYNC",
+                helm_settings,
+                show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            )
             dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
             assert "dags" == dep.spec.template.spec.volumes[1].name
 
@@ -251,7 +254,7 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in the CI. See `<CI.yml>`_ for details about Airflow CI.
+environment with enabled integrations and in the CI. See `<.github/workflows/ci.yml>`_ for details about Airflow CI.
 
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
@@ -281,12 +284,12 @@ The following integrations are available:
      - Integration required for OpenLDAP hooks
    * - pinot
      - Integration required for Apache Pinot hooks
-   * - presto
-     - Integration required for Presto hooks
    * - rabbitmq
      - Integration required for Celery executor tests
    * - redis
      - Integration required for Celery executor tests
+   * - trino
+     - Integration required for Trino hooks
 
 To start the ``mongo`` integration only, enter:
 
@@ -327,10 +330,10 @@ Example of the ``redis`` integration test:
 
     @pytest.mark.integration("redis")
     def test_real_ping(self):
-        hook = RedisHook(redis_conn_id='redis_default')
+        hook = RedisHook(redis_conn_id="redis_default")
         redis = hook.get_conn()
 
-        assert redis.ping(), 'Connection to Redis with PING works.'
+        assert redis.ping(), "Connection to Redis with PING works."
 
 The markers can be specified at the test level or the class level (then all tests in this class
 require an integration). You can add multiple markers with different integrations for tests that
@@ -418,16 +421,85 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
-Heisen tests
-------------
 
-Some of our tests are Heisentests. This means that they run fine in isolation but when they run together with
-others they might fail the tests (this is likely due to resource consumptions). Therefore we run those tests
-in isolation.
+Airflow test types
+==================
 
-Those tests are marked with ``@pytest.mark.heisentests`` annotation.
-Those tests are skipped by default. You can enable them with ``--include-heisentests`` flag. You
-can also decide to only run tests with ``-m heisentests`` flag to run only those tests.
+Airflow tests in the CI environment are split into several test types:
+
+* Always - those are tests that should be always executed (always folder)
+* Core - for the core Airflow functionality (core folder)
+* API - Tests for the Airflow API (api and api_connexion folders)
+* CLI - Tests for the Airflow CLI (cli folder)
+* WWW - Tests for the Airflow webserver (www folder)
+* Providers - Tests for all Providers of Airflow (providers folder)
+* Other - all other tests (all other folders that are not part of any of the above)
+
+This is done for three reasons:
+
+1. in order to selectively run only subset of the test types for some PRs
+2. in order to allow parallel execution of the tests on Self-Hosted runners
+
+For case 1. see `Pull Request Workflow <PULL_REQUEST_WORKFLOW.rst#selective-ci-checks>`_  for details.
+
+For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
+test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
+60 minutes to ~15 minutes.
+
+.. note::
+
+  We need to split tests manually into separate suites rather than utilise
+  ``pytest-xdist`` or ``pytest-parallel`` which could be a simpler and much more "native" parallelization
+  mechanism. Unfortunately, we cannot utilise those tools because our tests are not truly ``unit`` tests that
+  can run in parallel. A lot of our tests rely on shared databases - and they update/reset/cleanup the
+  databases while they are executing. They are also exercising features of the Database such as locking which
+  further increases cross-dependency between tests. Until we make all our tests truly unit tests (and not
+  touching the database or until we isolate all such tests to a separate test type, we cannot really rely on
+  frameworks that run tests in parallel. In our solution each of the test types is run in parallel with its
+  own database (!) so when we have 8 test types running in parallel, there are in fact 8 databases run
+  behind the scenes to support them and each of the test types executes its own tests sequentially.
+
+
+Running full Airflow test suite in parallel
+===========================================
+
+If you run ``./scripts/ci/testing/ci_run_airflow_testing.sh`` tests run in parallel
+on your development machine - maxing out the number of parallel runs at the number of cores you
+have available in your Docker engine.
+
+In case you do not have enough memory available to your Docker (~32 GB), the ``Integration`` test type
+is always run sequentially - after all tests are completed (docker cleanup is performed in-between).
+
+This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
+and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes
+more than 30 minutes on the same machine when tests are run sequentially.
+
+.. note::
+
+  On MacOS you might have less CPUs and less memory available to run the tests than you have in the host,
+  simply because your Docker engine runs in a Linux Virtual Machine under-the-hood. If you want to make
+  use of the paralllelism and memory usage for the CI tests you might want to increase the resources available
+  to your docker engine. See the `Resources <https://docs.docker.com/docker-for-mac/#resources>`_ chapter
+  in the ``Docker for Mac`` documentation on how to do it.
+
+You can also limit the parallelism by specifying the maximum number of parallel jobs via
+MAX_PARALLEL_TEST_JOBS variable. If you set it to "1", all the test types will be run sequentially.
+
+.. code-block:: bash
+
+    MAX_PARALLEL_TEST_JOBS="1" ./scripts/ci/testing/ci_run_airflow_testing.sh
+
+.. note::
+
+  In case you would like to cleanup after execution of such tests you might have to cleanup
+  some of the docker containers running in case you use ctrl-c to stop execution. You can easily do it by
+  running this command (it will kill all docker containers running so do not use it if you want to keep some
+  docker containers running):
+
+  .. code-block:: bash
+
+      docker kill $(docker ps -q)
+
 
 Running Tests with provider packages
 ====================================
@@ -476,7 +548,7 @@ This installs airflow and enters
 
 .. code-block:: bash
 
-     ./breeze --install-airflow-version wheel --install-packages-from-dist --skip-mounting-local-sources
+     ./breeze --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
 
 
 
@@ -523,7 +595,7 @@ Deploying Airflow to the Kubernetes cluster created is also done via ``kind-clus
 
 The deploy command performs those steps:
 
-1. It rebuilds the latest ``apache/airflow:master-pythonX.Y`` production images using the
+1. It rebuilds the latest ``apache/airflow:main-pythonX.Y`` production images using the
    latest sources using local caching. It also adds example DAGs to the image, so that they do not
    have to be mounted inside.
 2. Loads the image to the Kind Cluster using the ``kind load`` command.
@@ -531,6 +603,17 @@ The deploy command performs those steps:
 4. Forwards Local 8080 port to the webserver running in the cluster
 5. Applies the volumes.yaml to get the volumes deployed to ``default`` namespace - this is where
    KubernetesExecutor starts its pods.
+
+You can also specify a different executor by providing the ``--executor`` optional argument:
+
+.. code-block:: bash
+
+    ./breeze kind-cluster deploy --executor CeleryExecutor
+
+Note that when you specify the ``--executor`` option, it becomes the default. Therefore, every other operations
+on ``./breeze kind-cluster`` will default to using this executor. To change that, use the ``--executor`` option on the
+subsequent commands too.
+
 
 Running tests with Kubernetes Cluster
 -------------------------------------
@@ -541,6 +624,8 @@ to run the tests manually one by one.
 Running Kubernetes tests via shell:
 
 .. code-block:: bash
+
+      export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
 
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
@@ -553,6 +638,12 @@ Running Kubernetes tests via breeze:
       ./breeze kind-cluster test
       ./breeze kind-cluster test -- TEST TEST [TEST ...]
 
+Optionally add ``--executor``:
+
+.. code-block:: bash
+
+      ./breeze kind-cluster test --executor CeleryExecutor
+      ./breeze kind-cluster test -- TEST TEST [TEST ...] --executor CeleryExecutor
 
 Entering shell with Kubernetes Cluster
 --------------------------------------
@@ -560,7 +651,17 @@ Entering shell with Kubernetes Cluster
 This shell is prepared to run Kubernetes tests interactively. It has ``kubectl`` and ``kind`` cli tools
 available in the path, it has also activated virtualenv environment that allows you to run tests via pytest.
 
+The binaries are available in ./.build/kubernetes-bin/``KUBERNETES_VERSION`` path.
+The virtualenv is available in ./.build/.kubernetes_venv/``KIND_CLUSTER_NAME``_host_python_``HOST_PYTHON_VERSION``
+
+Where ``KIND_CLUSTER_NAME`` is the name of the cluster and ``HOST_PYTHON_VERSION`` is the version of python
+in the host.
+
 You can enter the shell via those scripts
+
+.. code-block:: bash
+
+      export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
 
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
@@ -569,6 +670,12 @@ You can enter the shell via those scripts
 .. code-block:: bash
 
       ./breeze kind-cluster shell
+
+Optionally add ``--executor``:
+
+.. code-block:: bash
+
+      ./breeze kind-cluster shell --executor CeleryExecutor
 
 
 K9s CLI - debug Kubernetes in style!
@@ -614,8 +721,8 @@ The typical session for tests with Kubernetes looks like follows:
 
        Use CI image.
 
-       Branch name:             master
-       Docker image:            apache/airflow:master-python3.7-ci
+       Branch name:             main
+       Docker image:            apache/airflow:main-python3.7-ci
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
@@ -656,8 +763,8 @@ The typical session for tests with Kubernetes looks like follows:
 
        Use CI image.
 
-       Branch name:             master
-       Docker image:            apache/airflow:master-python3.7-ci
+       Branch name:             main
+       Docker image:            apache/airflow:main-python3.7-ci
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
@@ -881,10 +988,6 @@ run Google Cloud system tests.
 
   RANDOM_POSTFIX=$(cat "${RANDOM_FILE}")
 
-  # install any packages from dist folder if they are available
-  if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
-  fi
 
 To execute system tests, specify the ``--system SYSTEM``
 flag where ``SYSTEM`` is a system to run the system tests for. It can be repeated.
@@ -950,7 +1053,7 @@ Preparing provider packages for System Tests for Airflow 1.10.* series
 
 To run system tests with the older Airflow version, you need to prepare provider packages. This
 can be done by running ``./breeze prepare-provider-packages <PACKAGES TO BUILD>``. For
-example, the below command will build google postgres and mysql wheel packages:
+example, the below command will build google, postgres and mysql wheel packages:
 
 .. code-block:: bash
 
@@ -959,75 +1062,19 @@ example, the below command will build google postgres and mysql wheel packages:
 Those packages will be prepared in ./dist folder. This folder is mapped to /dist folder
 when you enter Breeze, so it is easy to automate installing those packages for testing.
 
-
-Installing backported for Airflow 1.10.* series
------------------------------------------------
-
-The tests can be executed against the master version of Airflow, but they also work
-with older versions. This is especially useful to test back-ported operators
-from Airflow 2.0 to 1.10.* versions.
-
-To run the tests for Airflow 1.10.* series, you need to run Breeze with
-``--install-airflow-version=<VERSION>`` to install a different version of Airflow.
-If ``current`` is specified (default), then the current version of Airflow is used.
-Otherwise, the released version of Airflow is installed.
-
-The ``-install-airflow-version=<VERSION>`` command make sure that the current (from sources) version of
-Airflow is removed and the released version of Airflow from ``PyPI`` is installed. Note that tests sources
-are not removed and they can be used to run tests (unit tests and system tests) against the
-freshly installed version.
-
-You should automate installing of the provider packages in your own
-``./files/airflow-breeze-config/variables.env`` file. You should make it depend on
-``RUN_AIRFLOW_1_10`` variable value equals to "true" so that
-the installation of provider packages is only performed when you install airflow 1.10.*.
-The provider packages are available in ``/dist`` directory if they were prepared as described
-in the previous chapter.
-
-Typically the command in you variables.env file will be similar to:
-
-.. code-block:: bash
-
-  # install any packages from dist folder if they are available
-  if [[ ${RUN_AIRFLOW_1_10:=} == "true" ]]; then
-      pip install /dist/apache_airflow_backport_providers_{google,postgres,mysql}*.whl || true
-  fi
-
-The command above will automatically install backported google, postgres, and mysql packages if they
-were prepared before entering the breeze.
-
-
-Running system tests for backported packages in Airflow 1.10.* series
----------------------------------------------------------------------
-
-Once you installed 1.10.* Airflow version with ``--install-airflow-version`` and prepared and
-installed the required packages via ``variables.env`` it should be as easy as running
-``pytest --system=<SYSTEM_NAME> TEST_NAME``. Note that we have default timeout for running
-system tests set to 8 minutes and some system tests might take much longer to run and you might
-want to add ``-o faulthandler_timeout=2400`` (2400s = 40 minutes for example) to your
-pytest command.
-
 The typical system test session
 -------------------------------
 
 Here is the typical session that you need to do to run system tests:
 
-1. Prepare provider packages
+1. Enter breeze
 
 .. code-block:: bash
 
-  ./breeze prepare-provider-packages -- google postgres mysql
-
-2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
-   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
-
-.. code-block:: bash
-
-   ./breeze --install-airflow-version 1.10.9 --python 3.6 --db-reset --forward-credentials restart
+   ./breeze --python 3.6 --db-reset --forward-credentials restart
 
 This will:
 
-* install Airflow 1.10.9
 * restarts the whole environment (i.e. recreates metadata database from the scratch)
 * run Breeze with python 3.6 version
 * reset the Airflow database
@@ -1075,61 +1122,26 @@ Breeze session. They are usually expensive to run.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Important !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Note that in case you have to update your backported operators or system tests (they are part of
-the provider packageS) you need to rebuild the packages outside of breeze and
-``pip remove/pip install`` those packages to get them installed. This is not needed
-if you run system tests with ``current`` Airflow version, so it is better to iterate with the
-system tests with the ``current`` version and fix all problems there and only afterwards run
-the tests with Airflow 1.10.*
-
-The typical session then looks as follows:
-
-1. Prepare provider packages
+1. Enter breeze
 
 .. code-block:: bash
 
-  ./breeze prepare-provider-packages -- google postgres mysql
+   ./breeze --python 3.6 --db-reset --forward-credentials restart
 
-2. Enter breeze with installing Airflow 1.10.*, forwarding credentials and installing
-   backported packages (you need an appropriate line in ``./files/airflow-breeze-config/variables.env``)
-
-.. code-block:: bash
-
-   ./breeze --install-airflow-version 1.10.9 --python 3.6 --db-reset --forward-credentials restart
-
-3. Run create action in helper (to create slowly created resources):
+2. Run create action in helper (to create slowly created resources):
 
 .. code-block:: bash
 
     python tests/providers/google/cloud/operators/test_cloud_sql_system_helper.py --action create
 
-4. Run the tests:
+3. Run the tests:
 
 .. code-block:: bash
 
    pytest -o faulthandler_timeout=2400 \
       --system=google tests/providers/google/cloud/operators/test_compute_system.py
 
-5. In case you are running provider packages tests you need to rebuild and reinstall a package
-   every time you change the operators/hooks or example_dags. The example below shows reinstallation
-   of the google package:
-
-In the host:
-
-.. code-block:: bash
-
-  ./breeze prepare-provider-packages -- google
-
-In the container:
-
-.. code-block:: bash
-
-  pip uninstall apache-airflow-backport-providers-google
-  pip install /dist/apache_airflow_backport_providers_google-*.whl
-
-The points 4. and 5. can be repeated multiple times without leaving the container
-
-6. Run delete action in helper:
+4. Run delete action in helper:
 
 .. code-block:: bash
 
@@ -1267,10 +1279,11 @@ It will run a backfill job:
 
 .. code-block:: python
 
-  if __name__ == '__main__':
-    from airflow.utils.state import State
-    dag.clear(dag_run_state=State.NONE)
-    dag.run()
+  if __name__ == "__main__":
+      from airflow.utils.state import State
+
+      dag.clear(dag_run_state=State.NONE)
+      dag.run()
 
 
 2. Set up ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in the run configuration of your IDE.
@@ -1293,17 +1306,15 @@ By default ``/files/dags`` folder is mounted from your local ``<AIRFLOW_SOURCES>
 the directory used by airflow scheduler and webserver to scan dags for. You can place your dags there
 to test them.
 
-The DAGs can be run in the master version of Airflow but they also work
+The DAGs can be run in the main version of Airflow but they also work
 with older versions.
 
 To run the tests for Airflow 1.10.* series, you need to run Breeze with
-``--install-airflow-version==<VERSION>`` to install a different version of Airflow.
-If ``current`` is specified (default), then the current version of Airflow is used.
-Otherwise, the released version of Airflow is installed.
+``--use-airflow-pypi-version=<VERSION>`` to re-install a different version of Airflow.
 
 You should also consider running it with ``restart`` command when you change the installed version.
 This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
-So typically you'd run it like ``breeze --install-airflow-version=1.10.9 restart``.
+So typically you'd run it like ``breeze --use-airflow-pypi-version=1.10.9 restart``.
 
 Tracking SQL statements
 =======================

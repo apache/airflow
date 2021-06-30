@@ -78,6 +78,10 @@ def dag_backfill(args, dag=None):
         dag = dag.partial_subset(
             task_ids_or_regex=args.task_regex, include_upstream=not args.ignore_dependencies
         )
+        if not dag.task_dict:
+            raise AirflowException(
+                f"There are no tasks that match '{args.task_regex}' regex. Nothing to run, exiting..."
+            )
 
     run_conf = None
     if args.conf:
@@ -195,7 +199,12 @@ def dag_show(args):
 def _display_dot_via_imgcat(dot: Dot):
     data = dot.pipe(format='png')
     try:
-        proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        with subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
+            out, err = proc.communicate(data)
+            if out:
+                print(out.decode('utf-8'))
+            if err:
+                print(err.decode('utf-8'))
     except OSError as e:
         if e.errno == errno.ENOENT:
             raise SystemExit(
@@ -203,11 +212,6 @@ def _display_dot_via_imgcat(dot: Dot):
             )
         else:
             raise
-    out, err = proc.communicate(data)
-    if out:
-        print(out.decode('utf-8'))
-    if err:
-        print(err.decode('utf-8'))
 
 
 def _save_dot_to_file(dot: Dot, filename: str):
@@ -261,11 +265,11 @@ def dag_next_execution(args):
             )
             print(None)
         else:
-            print(next_execution_dttm)
+            print(next_execution_dttm.isoformat())
 
             for _ in range(1, args.num_executions):
                 next_execution_dttm = dag.following_schedule(next_execution_dttm)
-                print(next_execution_dttm)
+                print(next_execution_dttm.isoformat())
     else:
         print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
         print(None)

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.compute`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.operators.compute`."""
 
 import warnings
 
@@ -46,7 +46,7 @@ class GceBaseOperator(ComputeEngineBaseOperator):
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -64,7 +64,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(ComputeEngineInstanceGroupUp
             `airflow.providers.google.cloud.operators.compute
             .ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -82,7 +82,7 @@ class GceInstanceStartOperator(ComputeEngineStartInstanceOperator):
             Please use `airflow.providers.google.cloud.operators.compute
             .ComputeEngineStartInstanceOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -99,7 +99,7 @@ class GceInstanceStopOperator(ComputeEngineStopInstanceOperator):
             Please use `airflow.providers.google.cloud.operators.compute
             .ComputeEngineStopInstanceOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -116,7 +116,7 @@ class GceInstanceTemplateCopyOperator(ComputeEngineCopyInstanceTemplateOperator)
             Please use `airflow.providers.google.cloud.operators.compute
             .ComputeEngineCopyInstanceTemplateOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -133,6 +133,6 @@ class GceSetMachineTypeOperator(ComputeEngineSetMachineTypeOperator):
             Please use `airflow.providers.google.cloud.operators.compute
             .ComputeEngineSetMachineTypeOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

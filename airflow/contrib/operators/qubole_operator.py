@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.qubole.operators.qubole`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.qubole.operators.qubole`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.qubole.operators.qubole import QuboleOperator  # noqa
 
 warnings.warn(

@@ -16,14 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Dataproc Job sensor."""
-# pylint: disable=C0302
+
 
 from google.cloud.dataproc_v1beta2.types import JobStatus
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class DataprocJobSensor(BaseSensorOperator):
@@ -44,7 +43,6 @@ class DataprocJobSensor(BaseSensorOperator):
     template_fields = ('project_id', 'location', 'dataproc_job_id')
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,

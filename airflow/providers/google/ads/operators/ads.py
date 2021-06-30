@@ -23,7 +23,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleAdsListAccountsOperator(BaseOperator):
@@ -35,7 +34,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     not necessarily include all accounts within the account hierarchy; rather, it will only include
     accounts where your authenticated user has been added with admin or other rights in the account.
 
-    ..seealso::
+    .. seealso::
         https://developers.google.com/google-ads/api/reference/rpc
 
 
@@ -51,8 +50,6 @@ class GoogleAdsListAccountsOperator(BaseOperator):
     :type gcp_conn_id: str
     :param google_ads_conn_id: Airflow Google Ads connection ID
     :type google_ads_conn_id: str
-    :param page_size: The number of results per API page request. Max 10,000
-    :type page_size: int
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -64,6 +61,8 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param api_version: Optional Google Ads API version to use.
+    :type api_version: Optional[str]
     """
 
     template_fields = (
@@ -72,7 +71,6 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -82,6 +80,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         google_ads_conn_id: str = "google_ads_default",
         gzip: bool = False,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        api_version: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,11 +90,16 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         self.google_ads_conn_id = google_ads_conn_id
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
+        self.api_version = api_version
 
     def execute(self, context: dict) -> str:
         uri = f"gs://{self.bucket}/{self.object_name}"
 
-        ads_hook = GoogleAdsHook(gcp_conn_id=self.gcp_conn_id, google_ads_conn_id=self.google_ads_conn_id)
+        ads_hook = GoogleAdsHook(
+            gcp_conn_id=self.gcp_conn_id,
+            google_ads_conn_id=self.google_ads_conn_id,
+            api_version=self.api_version,
+        )
 
         gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         with NamedTemporaryFile("w+") as temp_file:

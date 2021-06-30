@@ -86,7 +86,7 @@ Create a instance is performed with the
     :start-after: [START howto_operator_create_instance]
     :end-before: [END howto_operator_create_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -112,7 +112,7 @@ Delete a instance is performed with the
     :start-after: [START howto_operator_delete_instance]
     :end-before: [END howto_operator_delete_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator`
 parameters which allows you to dynamically determine values.
 
@@ -130,7 +130,7 @@ Delete a instance is performed with the
     :start-after: [START howto_operator_export_instance]
     :end-before: [END howto_operator_export_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreExportInstanceOperator`
 parameters which allows you to dynamically determine values.
 
@@ -148,7 +148,7 @@ Delete a instance is performed with the
     :start-after: [START howto_operator_failover_instance]
     :end-before: [END howto_operator_failover_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreFailoverInstanceOperator`
 parameters which allows you to dynamically determine values.
 
@@ -166,7 +166,7 @@ Delete a instance is performed with the
     :start-after: [START howto_operator_get_instance]
     :end-before: [END howto_operator_get_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreGetInstanceOperator`
 parameters which allows you to dynamically determine values.
 
@@ -184,7 +184,7 @@ Delete a instance is performed with the
     :start-after: [START howto_operator_import_instance]
     :end-before: [END howto_operator_import_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreImportOperator`
 parameters which allows you to dynamically determine values.
 
@@ -202,7 +202,7 @@ List a instances is performed with the
     :start-after: [START howto_operator_list_instances]
     :end-before: [END howto_operator_list_instances]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreListInstancesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -227,7 +227,7 @@ Update a instance is performed with the
     :start-after: [START howto_operator_update_instance]
     :end-before: [END howto_operator_update_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreUpdateInstanceOperator`
 parameters which allows you to dynamically determine values.
 
@@ -246,7 +246,7 @@ Scale a instance is performed with the
     :start-after: [START howto_operator_scale_instance]
     :end-before: [END howto_operator_scale_instance]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator`
 parameters which allows you to dynamically determine values.
 
@@ -266,7 +266,7 @@ Export and delete instance
 If you want to export data and immediately delete instances then you can use
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreExportAndDeleteInstanceOperator` operator.
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator`
 parameters which allows you to dynamically determine values.
 

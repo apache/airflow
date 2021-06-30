@@ -21,7 +21,7 @@ import os
 from typing import Optional
 
 import psutil
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -46,7 +46,7 @@ class StandardTaskRunner(BaseTaskRunner):
         subprocess = self.run_command()
         return psutil.Process(subprocess.pid)
 
-    def _start_by_fork(self):  # pylint: disable=inconsistent-return-statements
+    def _start_by_fork(self):
         pid = os.fork()
         if pid:
             self.log.info("Started process %d to run task", pid)
@@ -76,7 +76,7 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info('Running: %s', self._command)
             self.log.info('Job %s: Subtask %s', self._task_instance.job_id, self._task_instance.task_id)
 
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date}"
+            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
             if hasattr(args, "job_id"):
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
@@ -84,13 +84,13 @@ class StandardTaskRunner(BaseTaskRunner):
             try:
                 args.func(args, dag=self.dag)
                 return_code = 0
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 return_code = 1
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
                 logging.shutdown()
-                os._exit(return_code)  # pylint: disable=protected-access
+                os._exit(return_code)
 
     def return_code(self, timeout: int = 0) -> Optional[int]:
         # We call this multiple times, but we can only wait on the process once
@@ -121,3 +121,11 @@ class StandardTaskRunner(BaseTaskRunner):
         if self._rc is None:
             # Something else reaped it before we had a chance, so let's just "guess" at an error code.
             self._rc = -9
+
+        if self._rc == -9:
+            # If either we or psutil gives out a -9 return code, it likely means
+            # an OOM happened
+            self.log.error(
+                'Job %s was killed before it finished (likely due to running out of memory)',
+                self._task_instance.job_id,
+            )

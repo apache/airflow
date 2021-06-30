@@ -19,12 +19,12 @@
 import json
 import warnings
 from json import JSONDecodeError
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import synonym
+from sqlalchemy.orm import reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -32,6 +32,7 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 
@@ -56,7 +57,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attributes
+class Connection(Base, LoggingMixin):
     """
     Placeholder to store information about different database instances
     connection information. The idea here is that scripts use references to
@@ -89,6 +90,8 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     :type uri: str
     """
 
+    EXTRA_KEY = '__extra__'
+
     __tablename__ = "connection"
 
     id = Column(Integer(), primary_key=True)
@@ -104,7 +107,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', Text())
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         conn_id: Optional[str] = None,
         conn_type: Optional[str] = None,
@@ -114,15 +117,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         password: Optional[str] = None,
         schema: Optional[str] = None,
         port: Optional[int] = None,
-        extra: Optional[str] = None,
+        extra: Optional[Union[str, dict]] = None,
         uri: Optional[str] = None,
     ):
         super().__init__()
         self.conn_id = conn_id
         self.description = description
-        if uri and (  # pylint: disable=too-many-boolean-expressions
-            conn_type or host or login or password or schema or port or extra
-        ):
+        if extra and not isinstance(extra, str):
+            extra = json.dumps(extra)
+        if uri and (conn_type or host or login or password or schema or port or extra):
             raise AirflowException(
                 "You must create an object using the URI or individual values "
                 "(conn_type, host, login, password, schema, port or extra)."
@@ -138,6 +141,14 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.schema = schema
             self.port = port
             self.extra = extra
+
+        if self.password:
+            mask_secret(self.password)
+
+    @reconstructor
+    def on_db_load(self):
+        if self.password:
+            mask_secret(self.password)
 
     def parse_from_uri(self, **uri):
         """This method is deprecated. Please use uri parameter in constructor."""
@@ -161,7 +172,11 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
         self.port = uri_parts.port
         if uri_parts.query:
-            self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+            query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
+            if self.EXTRA_KEY in query:
+                self.extra = query[self.EXTRA_KEY]
+            else:
+                self.extra = json.dumps(query)
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
@@ -194,8 +209,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
 
         uri += host_block
 
-        if self.extra_dejson:
-            uri += f'?{urlencode(self.extra_dejson)}'
+        if self.extra:
+            try:
+                query = urlencode(self.extra_dejson)
+            except TypeError:
+                query = None
+            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += '?' + query
+            else:
+                uri += '?' + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
 
@@ -222,7 +244,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def password(cls):  # pylint: disable=no-self-argument
+    def password(cls):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_password', descriptor=property(cls.get_password, cls.set_password))
 
@@ -252,7 +274,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.is_extra_encrypted = False
 
     @declared_attr
-    def extra(cls):  # pylint: disable=no-self-argument
+    def extra(cls):
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
 
@@ -326,6 +348,22 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.extra_dejson,
         )
 
+    def test_connection(self):
+        """Calls out get_hook method and executes test_connection method on that."""
+        status, message = False, ''
+        try:
+            hook = self.get_hook()
+            if getattr(hook, 'test_connection', False):
+                status, message = hook.test_connection()
+            else:
+                message = (
+                    f"Hook {hook.__class__.__name__} doesn't implement or inherit test_connection method"
+                )
+        except Exception as e:
+            message = str(e)
+
+        return status, message
+
     @property
     def extra_dejson(self) -> Dict:
         """Returns the extra property by deserializing json."""
@@ -333,9 +371,12 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         if self.extra:
             try:
                 obj = json.loads(self.extra)
-            except JSONDecodeError as e:
-                self.log.exception(e)
-                self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
+
+            except JSONDecodeError:
+                self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
+
+            # Mask sensitive keys from this list
+            mask_secret(obj)
 
         return obj
 

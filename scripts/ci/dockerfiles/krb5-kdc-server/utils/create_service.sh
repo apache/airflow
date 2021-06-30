@@ -29,7 +29,7 @@ Usage: ${CMDNAME} <service_name> <service_type> <keytab_file>
 Creates an account for the service.
 
 The service name is combined with the domain to create an principal name. If your service is named
-\"presto\" a principal \"presto.example.com\" will be created.
+\"trino\" a principal \"trino.example.com\" will be created.
 
 The protocol can have any value, but it must be identical in the server and client configuration.
 For example: HTTP.

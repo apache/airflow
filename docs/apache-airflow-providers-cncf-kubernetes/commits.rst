@@ -28,14 +28,85 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-17
+
+================================================================================================  ===========  ===============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================================
+`4c9735ff9 <https://github.com/apache/airflow/commit/4c9735ff9b0201758564fcd64166abde318ec8a7>`_  2021-06-17   ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`4752fb3eb <https://github.com/apache/airflow/commit/4752fb3eb8ac8827e6af6022fbcf751829ecb17a>`_  2021-06-14   ``Fix issue with parsing error logs in the KPO (#15638)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`2f16757e1 <https://github.com/apache/airflow/commit/2f16757e1a11ef42ac2b1a62622a5d34f8a1e996>`_  2021-06-03   ``Bug Pod Template File Values Ignored (#16095)``
+`476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
+`85b2ccb0c <https://github.com/apache/airflow/commit/85b2ccb0c5e03495c58e7c4fb0513ceb4419a103>`_  2021-05-20   ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
+`733bec9a0 <https://github.com/apache/airflow/commit/733bec9a04ab718a0f6289d93f4e2e4ea3e03d54>`_  2021-05-20   ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
+`37d549bde <https://github.com/apache/airflow/commit/37d549bde79cd560d24748ebe7f94730115c0e88>`_  2021-05-14   ``Save pod name to xcom for KubernetesPodOperator (#15755)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+================================================================================================  ===========  ===============================================================================================
+
+1.2.0
+.....
+
+Latest change: 2021-05-01
+
+================================================================================================  ===========  ===========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`5b2fe0e74 <https://github.com/apache/airflow/commit/5b2fe0e74013cd08d1f76f5c115f2c8f990ff9bc>`_  2021-04-27   ``Add Connection Documentation for Popular Providers (#15393)``
+`53fc1a967 <https://github.com/apache/airflow/commit/53fc1a96797fde66cd68345a29a111ae86c1a35a>`_  2021-04-26   ``Change KPO node_selectors warning to proper deprecationwarning (#15507)``
+`d3cc67aa7 <https://github.com/apache/airflow/commit/d3cc67aa7a7213db4325e77ca0246548bf1c0184>`_  2021-04-24   ``Fix timeout when using XCom with KubernetesPodOperator (#15388)``
+`be421a6b0 <https://github.com/apache/airflow/commit/be421a6b07c2ae9167150b77dc1185a94812b358>`_  2021-04-23   ``Fix labels on the pod created by ''KubernetsPodOperator'' (#15492)``
+`44480d367 <https://github.com/apache/airflow/commit/44480d3673e8349fe784c10d38e4915f08b82b94>`_  2021-04-14   ``Require 'name' with KubernetesPodOperator (#15373)``
+`b4770725a <https://github.com/apache/airflow/commit/b4770725a3aa03bd50a0a8c8e01db667bff93862>`_  2021-04-12   ``Add links to new modules for deprecated modules (#15316)``
+================================================================================================  ===========  ===========================================================================
+
+1.1.0
+.....
+
+Latest change: 2021-04-07
+
+================================================================================================  ===========  =============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================================
+`180667038 <https://github.com/apache/airflow/commit/18066703832319968ee3d6122907746fdfda5d4c>`_  2021-04-07   ``Retry pod launching on 409 ApiExceptions (#15137)``
+`042be2e4e <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
+`6d7a70b88 <https://github.com/apache/airflow/commit/6d7a70b88e8b1d1edc04c6c50bde02c4d407e15a>`_  2021-04-05   ``Separate Kubernetes pod_launcher from core airflow (#15165)``
+`00453dc4a <https://github.com/apache/airflow/commit/00453dc4a2d41da6c46e73cd66cac88e7556de71>`_  2021-03-20   ``Add ability to specify api group and version for Spark operators (#14898)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+`e7bb17aeb <https://github.com/apache/airflow/commit/e7bb17aeb83b2218620c5320241b0c9f902d74ff>`_  2021-03-06   ``Use built-in 'cached_property' on Python 3.8 where possible (#14606)``
+`7daebefd1 <https://github.com/apache/airflow/commit/7daebefd15355b3f1331c6c58f66f3f88d38a10a>`_  2021-03-05   ``Use libyaml C library when available. (#14577)``
+================================================================================================  ===========  =============================================================================
+
+1.0.2
+.....
+
+Latest change: 2021-02-27
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
+`809b4f9b1 <https://github.com/apache/airflow/commit/809b4f9b18c7040682e17879248d714f2664273d>`_  2021-02-23   ``Unique pod name (#14186)``
+`649335c04 <https://github.com/apache/airflow/commit/649335c043a9312ef272fa77f2bb830d52cde056>`_  2021-02-07   ``Template k8s.V1EnvVar without adding custom attributes to dict. (#14123)``
+`d4c4db8a1 <https://github.com/apache/airflow/commit/d4c4db8a1833d07b1c03e4c062acea49c79bf5d6>`_  2021-02-05   ``Allow users of the KPO to template environment variables (#14083)``
+`10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
+================================================================================================  ===========  ============================================================================
+
 1.0.1
 .....
 
-Latest change: 2021-02-01
+Latest change: 2021-02-04
 
 ================================================================================================  ===========  ==========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==========================================================================================
+`88bdcfa0d <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98 <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `a9ac2b040 <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``
 `1b9e3d1c2 <https://github.com/apache/airflow/commit/1b9e3d1c285cb381f2f964c0c923711cd5e1e3d0>`_  2021-01-22   ``Revert "Fix error with quick-failing tasks in KubernetesPodOperator (#13621)" (#13835)``

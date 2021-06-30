@@ -15,20 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for kubernetes communication"""
+import logging
 from typing import Optional
 
 from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 try:
     from kubernetes import client, config
     from kubernetes.client import Configuration
     from kubernetes.client.api_client import ApiClient
-    from kubernetes.client.rest import ApiException  # pylint: disable=unused-import
+    from kubernetes.client.rest import ApiException
 
-    from airflow.kubernetes.refresh_config import (  # pylint: disable=ungrouped-imports
-        RefreshConfiguration,
-        load_kube_config,
-    )
+    from airflow.kubernetes.refresh_config import RefreshConfiguration, load_kube_config
 
     has_kubernetes = True
 
@@ -85,16 +85,27 @@ def _enable_tcp_keepalive() -> None:
 
     from urllib3.connection import HTTPConnection, HTTPSConnection
 
-    tcp_keep_idle = conf.getint('kubernetes', 'tcp_keep_idle', fallback=120)
-    tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl', fallback=30)
-    tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt', fallback=6)
+    tcp_keep_idle = conf.getint('kubernetes', 'tcp_keep_idle')
+    tcp_keep_intvl = conf.getint('kubernetes', 'tcp_keep_intvl')
+    tcp_keep_cnt = conf.getint('kubernetes', 'tcp_keep_cnt')
 
-    socket_options = [
-        (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
-        (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle),
-        (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl),
-        (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt),
-    ]
+    socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+
+    if hasattr(socket, "TCP_KEEPIDLE"):
+        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
+    else:
+        log.warning("Unable to set TCP_KEEPIDLE on this platform")
+
+    if hasattr(socket, "TCP_KEEPINTVL"):
+        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
+    else:
+        log.warning("Unable to set TCP_KEEPINTVL on this platform")
+
+    if hasattr(socket, "TCP_KEEPCNT"):
+        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
+    else:
+        log.warning("Unable to set TCP_KEEPCNT on this platform")
+
     HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options
     HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
 
@@ -125,10 +136,10 @@ def get_kube_client(
         if config_file is None:
             config_file = conf.get('kubernetes', 'config_file', fallback=None)
 
-    if conf.getboolean('kubernetes', 'enable_tcp_keepalive', fallback=False):
+    if conf.getboolean('kubernetes', 'enable_tcp_keepalive'):
         _enable_tcp_keepalive()
 
-    if not conf.getboolean('kubernetes', 'verify_ssl', fallback=True):
+    if not conf.getboolean('kubernetes', 'verify_ssl'):
         _disable_verify_ssl()
 
     client_conf = _get_kube_config(in_cluster, cluster_context, config_file)

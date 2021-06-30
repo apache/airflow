@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
-from airflow.utils.decorators import apply_defaults
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +62,6 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
-# pylint: disable=too-many-instance-attributes
 class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
@@ -177,9 +175,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
-        self,  # pylint: disable=too-many-arguments
+        self,
         *,
         job_id: str,
         region: str,
@@ -341,7 +338,6 @@ class MLEngineManageModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -422,7 +418,6 @@ class MLEngineCreateModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -488,7 +483,6 @@ class MLEngineGetModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -558,7 +552,6 @@ class MLEngineDeleteModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -662,7 +655,6 @@ class MLEngineManageVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -766,7 +758,6 @@ class MLEngineCreateVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -850,7 +841,6 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -931,7 +921,6 @@ class MLEngineListVersionsOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1011,7 +1000,6 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1068,7 +1056,6 @@ class AIPlatformConsoleLink(BaseOperatorLink):
         return console_link
 
 
-# pylint: disable=too-many-instance-attributes
 class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
@@ -1104,7 +1091,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         provided, master_type must be set as well. If a custom image is
         specified, this is mutually exclusive with package_uris and
         training_python_module. (templated)
-    :type master_type: dict
+    :type master_config: dict
     :param runtime_version: The Google Cloud ML runtime version to use for
         training. (templated)
     :type runtime_version: str
@@ -1167,9 +1154,8 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
     operator_extra_links = (AIPlatformConsoleLink(),)
 
-    @apply_defaults
     def __init__(
-        self,  # pylint: disable=too-many-arguments
+        self,
         *,
         job_id: str,
         region: str,
@@ -1352,7 +1338,6 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

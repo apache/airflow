@@ -118,10 +118,15 @@ class TestBaseJob:
 
             assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
 
-    @conf_vars({('scheduler', 'max_tis_per_query'): '100'})
+    @conf_vars(
+        {
+            ('scheduler', 'max_tis_per_query'): '100',
+            ('core', 'executor'): 'SequentialExecutor',
+        }
+    )
     @patch('airflow.jobs.base_job.ExecutorLoader.get_default_executor')
     @patch('airflow.jobs.base_job.get_hostname')
-    @patch('airflow.jobs.base_job.getpass.getuser')
+    @patch('airflow.jobs.base_job.getuser')
     def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"

@@ -24,12 +24,20 @@ description: |
       - `Google Ads <https://ads.google.com/>`__
       - `Google Cloud (GCP) <https://cloud.google.com/>`__
       - `Google Firebase <https://firebase.google.com/>`__
+      - `Google LevelDB <https://github.com/google/leveldb/>`__
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 4.0.0
+  - 3.0.0
+  - 2.2.0
+  - 2.1.0
   - 2.0.0
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Google Analytics360
@@ -307,6 +315,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/workflows.rst
     tags: [gcp]
+  - integration-name: Google LevelDB
+    external-doc-url: https://github.com/google/leveldb/blob/master/doc/index.md
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
+    tags: [google]
 
 operators:
   - integration-name: Google Ads
@@ -428,6 +441,9 @@ operators:
   - integration-name: Google Spreadsheet
     python-modules:
       - airflow.providers.google.suite.operators.sheets
+  - integration-name: Google LevelDB
+    python-modules:
+      - airflow.providers.google.leveldb.operators.leveldb
 
 sensors:
   - integration-name: Google BigQuery
@@ -610,12 +626,19 @@ hooks:
   - integration-name: Google Spreadsheet
     python-modules:
       - airflow.providers.google.suite.hooks.sheets
+  - integration-name: Google LevelDB
+    python-modules:
+      - airflow.providers.google.leveldb.hooks.leveldb
 
 transfers:
   - source-integration-name: Presto
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/presto_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.presto_to_gcs
+  - source-integration-name: Trino
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/trino_to_gcs.rst
+    python-module: airflow.providers.google.cloud.transfers.trino_to_gcs
   - source-integration-name: SQL
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.sql_to_gcs
@@ -655,6 +678,9 @@ transfers:
   - source-integration-name: Google BigQuery
     target-integration-name: MySQL
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_mysql
+  - source-integration-name: Google BigQuery
+    target-integration-name: Microsoft SQL Server (MSSQL)
+    python-module: airflow.providers.google.cloud.transfers.bigquery_to_mssql
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google BigQuery
     python-module: airflow.providers.google.cloud.transfers.gcs_to_bigquery
@@ -712,14 +738,21 @@ transfers:
     python-module: airflow.providers.google.ads.transfers.ads_to_gcs
 
 hook-class-names:
+  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
   - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
   - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
   - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
-  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
+  - airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
 
 extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
+  - airflow.providers.google.cloud.operators.dataproc.DataprocJobLink
+  - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
+
+additional-extras:
+  apache.beam: apache-beam[gcp]
+  leveldb: plyvel

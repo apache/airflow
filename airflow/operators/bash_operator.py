@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.operators.bash`."""
+"""This module is deprecated. Please use :mod:`airflow.operators.bash`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.operators.bash import BashOperator  # noqa
 
 warnings.warn(

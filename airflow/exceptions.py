@@ -98,8 +98,25 @@ class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition"""
 
 
+class AirflowDagDuplicatedIdException(AirflowException):
+    """Raise when a Dag's ID is already used by another Dag"""
+
+    def __init__(self, dag_id: str, incoming: str, existing: str) -> None:
+        super().__init__(dag_id, incoming, existing)
+        self.dag_id = dag_id
+        self.incoming = incoming
+        self.existing = existing
+
+    def __str__(self) -> str:
+        return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
+
+
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in Dag definition"""
+
+
+class AirflowTimetableInvalid(AirflowException):
+    """Raise when a DAG has an invalid timetable."""
 
 
 class DagNotFound(AirflowNotFoundException):
@@ -151,11 +168,11 @@ class NoAvailablePoolSlot(AirflowException):
 
 
 class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG concurrency limit is reached"""
+    """Raise when DAG max_active_tasks limit is reached"""
 
 
 class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task concurrency limit is reached"""
+    """Raise when task max_active_tasks limit is reached"""
 
 
 class BackfillUnfinished(AirflowException):

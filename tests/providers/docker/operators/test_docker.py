@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 
 try:
     from docker import APIClient
+    from docker.types import Mount
 
     from airflow.providers.docker.hooks.docker import DockerHook
     from airflow.providers.docker.operators.docker import DockerOperator
@@ -66,7 +67,8 @@ class TestDockerOperator(unittest.TestCase):
             network_mode='bridge',
             owner='unittest',
             task_id='unittest',
-            volumes=['/host/path:/container/path'],
+            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            entrypoint='["sh", "-c"]',
             working_dir='/container/path',
             shm_size=1000,
             host_tmp_dir='/host/airflow',
@@ -86,11 +88,15 @@ class TestDockerOperator(unittest.TestCase):
             host_config=self.client_mock.create_host_config.return_value,
             image='ubuntu:latest',
             user=None,
+            entrypoint=['sh', '-c'],
             working_dir='/container/path',
             tty=True,
         )
         self.client_mock.create_host_config.assert_called_once_with(
-            binds=['/host/path:/container/path', '/mkdtemp:/tmp/airflow'],
+            mounts=[
+                Mount(source='/host/path', target='/container/path', type='bind'),
+                Mount(source='/mkdtemp', target='/tmp/airflow', type='bind'),
+            ],
             network_mode='bridge',
             shm_size=1000,
             cpu_shares=1024,
@@ -100,6 +106,7 @@ class TestDockerOperator(unittest.TestCase):
             dns_search=None,
             cap_add=None,
             extra_hosts=None,
+            privileged=False,
         )
         self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
@@ -151,7 +158,7 @@ class TestDockerOperator(unittest.TestCase):
     def test_execute_unicode_logs(self):
         self.client_mock.attach.return_value = ['unicode container log 😁']
 
-        originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
+        originalRaiseExceptions = logging.raiseExceptions
         logging.raiseExceptions = True
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
@@ -235,7 +242,7 @@ class TestDockerOperator(unittest.TestCase):
             'network_mode': 'bridge',
             'owner': 'unittest',
             'task_id': 'unittest',
-            'volumes': ['/host/path:/container/path'],
+            'mounts': [Mount(source='/host/path', target='/container/path', type='bind')],
             'working_dir': '/container/path',
             'shm_size': 1000,
             'host_tmp_dir': '/host/airflow',
@@ -260,3 +267,12 @@ class TestDockerOperator(unittest.TestCase):
         assert 'host_config' in self.client_mock.create_container.call_args[1]
         assert 'extra_hosts' in self.client_mock.create_host_config.call_args[1]
         assert hosts_obj is self.client_mock.create_host_config.call_args[1]['extra_hosts']
+
+    def test_privileged(self):
+        privileged = mock.Mock()
+        operator = DockerOperator(task_id='test', image='test', privileged=privileged)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert 'host_config' in self.client_mock.create_container.call_args[1]
+        assert 'privileged' in self.client_mock.create_host_config.call_args[1]
+        assert privileged is self.client_mock.create_host_config.call_args[1]['privileged']

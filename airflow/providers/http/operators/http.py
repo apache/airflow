@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Type
+
+from requests.auth import AuthBase, HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SimpleHttpOperator(BaseOperator):
@@ -31,7 +32,8 @@ class SimpleHttpOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SimpleHttpOperator`
 
-    :param http_conn_id: The connection to run the operator against
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
+        the operator against
     :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)
     :type endpoint: str
@@ -59,6 +61,8 @@ class SimpleHttpOperator(BaseOperator):
         depends on the option that's being modified.
     :param log_response: Log the response (default: False)
     :type log_response: bool
+    :param auth_type: The auth type for the service
+    :type auth_type: AuthBase of python requests lib
     """
 
     template_fields = [
@@ -70,7 +74,6 @@ class SimpleHttpOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f4a460'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -83,6 +86,7 @@ class SimpleHttpOperator(BaseOperator):
         extra_options: Optional[Dict[str, Any]] = None,
         http_conn_id: str = 'http_default',
         log_response: bool = False,
+        auth_type: Type[AuthBase] = HTTPBasicAuth,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -95,13 +99,14 @@ class SimpleHttpOperator(BaseOperator):
         self.response_filter = response_filter
         self.extra_options = extra_options or {}
         self.log_response = log_response
+        self.auth_type = auth_type
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: Dict[str, Any]) -> Any:
         from airflow.utils.operator_helpers import make_kwargs_callable
 
-        http = HttpHook(self.method, http_conn_id=self.http_conn_id)
+        http = HttpHook(self.method, http_conn_id=self.http_conn_id, auth_type=self.auth_type)
 
         self.log.info("Calling HTTP method")
 

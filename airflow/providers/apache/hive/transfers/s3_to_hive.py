@@ -30,10 +30,9 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
-from airflow.utils.decorators import apply_defaults
 
 
-class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class S3ToHiveOperator(BaseOperator):
     """
     Moves data from S3 to Hive. The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.
@@ -88,7 +87,8 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param hive_cli_conn_id: destination hive connection
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
     :type hive_cli_conn_id: str
     :param input_compressed: Boolean to determine if file decompression is
         required to process headers
@@ -103,8 +103,7 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
     template_ext = ()
     ui_color = '#a0e08c'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         s3_key: str,

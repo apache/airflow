@@ -35,13 +35,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship, synonym
 from sqlalchemy.orm.session import Session
+from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -212,8 +212,8 @@ class DagRun(Base, LoggingMixin):
                 DagModel.dag_id == cls.dag_id,
             )
             .filter(
-                DagModel.is_paused.is_(False),
-                DagModel.is_active.is_(True),
+                DagModel.is_paused == expression.false(),
+                DagModel.is_active == expression.true(),
             )
             .order_by(
                 nulls_first(cls.last_scheduling_decision, session=session),
@@ -369,14 +369,14 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = None) -> Optional['DagRun']:
         """The previous, SCHEDULED DagRun, if there is one"""
-        dag = self.get_dag()
-
         return (
             session.query(DagRun)
             .filter(
                 DagRun.dag_id == self.dag_id,
-                DagRun.execution_date == dag.previous_schedule(self.execution_date),
+                DagRun.execution_date < self.execution_date,
+                DagRun.run_type != DagRunType.MANUAL,
             )
+            .order_by(DagRun.execution_date.desc())
             .first()
         )
 
@@ -440,7 +440,7 @@ class DagRun(Base, LoggingMixin):
                     msg='task_failure',
                 )
 
-        # if all leafs succeeded and no unfinished tasks, the run succeeded
+        # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
@@ -576,7 +576,7 @@ class DagRun(Base, LoggingMixin):
         started task within the DAG and calculate the expected DagRun start time (based on
         dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
-        the second task's start_date will be used), but we can get rid of the the outliers
+        the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
         Note, the stat will only be emitted if the DagRun is a scheduler triggered one
         (i.e. external_trigger is False).
@@ -592,7 +592,7 @@ class DagRun(Base, LoggingMixin):
             dag = self.get_dag()
 
             if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
-                # We can't emit this metric if there is no following schedule to cacluate from!
+                # We can't emit this metric if there is no following schedule to calculate from!
                 return
 
             ordered_tis_by_start_date = [ti for ti in finished_tis if ti.start_date]
@@ -611,9 +611,15 @@ class DagRun(Base, LoggingMixin):
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
             return
+        if self.start_date is None:
+            self.log.warning('Failed to record duration of %s: start_date is not set.', self)
+            return
+        if self.end_date is None:
+            self.log.warning('Failed to record duration of %s: end_date is not set.', self)
+            return
 
         duration = self.end_date - self.start_date
-        if self.state is State.SUCCESS:
+        if self.state == State.SUCCESS:
             Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
         elif self.state == State.FAILED:
             Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
@@ -627,6 +633,8 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         :type session: Session
         """
+        from airflow.settings import task_instance_mutation_hook
+
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
@@ -641,7 +649,7 @@ class DagRun(Base, LoggingMixin):
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
-                elif self.state is not State.RUNNING and not dag.partial:
+                elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
                     ti.state = State.REMOVED
@@ -694,7 +702,7 @@ class DagRun(Base, LoggingMixin):
             session.query(DagRun)
             .filter(
                 DagRun.dag_id == dag_id,
-                DagRun.external_trigger == False,  # noqa pylint: disable=singleton-comparison
+                DagRun.external_trigger == False,  # noqa
                 DagRun.execution_date == execution_date,
             )
             .first()

@@ -18,16 +18,17 @@
 import contextlib
 import json
 import os
+import signal
 import sys
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
+import celery.contrib.testing.tasks  # noqa: F401
 import pytest
 from celery import Celery
-from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend  # noqa
+from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from celery.result import AsyncResult
@@ -140,7 +141,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, simple_ti, command, queue, task) in task_tuples_to_send:  # pylint: disable=W0612
+                for (key, simple_ti, command, queue, task) in task_tuples_to_send:
                     executor.queued_tasks[key] = (command, 1, queue, simple_ti)
                     executor.task_publish_retries[key] = 1
 
@@ -370,10 +371,12 @@ class TestCeleryExecutor(unittest.TestCase):
             key_1: queued_dttm + executor.task_adoption_timeout,
             key_2: queued_dttm + executor.task_adoption_timeout,
         }
+        executor.running = {key_1, key_2}
         executor.tasks = {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         executor.sync()
         assert executor.event_buffer == {key_1: (State.FAILED, None), key_2: (State.FAILED, None)}
         assert executor.tasks == {}
+        assert executor.running == set()
         assert executor.adopted_task_timeouts == {}
 
 
@@ -412,7 +415,9 @@ class TestBulkStateFetcher(unittest.TestCase):
     def test_should_support_kv_backend(self, mock_mget):
         with _prepare_app():
             mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend):
+            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
+                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
+            ) as cm:
                 fetcher = BulkStateFetcher()
                 result = fetcher.get_many(
                     [
@@ -427,6 +432,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         mock_mget.assert_called_once_with(mock.ANY)
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
+        assert [
+            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
+        ] == cm.output
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
     @pytest.mark.integration("redis")
@@ -436,21 +444,26 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend):
-                mock_session = mock_backend.ResultSession.return_value  # pylint: disable=no-member
+            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
+                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
+            ) as cm:
+                mock_session = mock_backend.ResultSession.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
 
-        fetcher = BulkStateFetcher()
-        result = fetcher.get_many(
-            [
-                mock.MagicMock(task_id="123"),
-                mock.MagicMock(task_id="456"),
-            ]
-        )
+                fetcher = BulkStateFetcher()
+                result = fetcher.get_many(
+                    [
+                        mock.MagicMock(task_id="123"),
+                        mock.MagicMock(task_id="456"),
+                    ]
+                )
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
+        assert [
+            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
+        ] == cm.output
 
     @pytest.mark.integration("redis")
     @pytest.mark.integration("rabbitmq")
@@ -459,7 +472,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend):
+            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
+                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
+            ) as cm:
                 fetcher = BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
@@ -469,3 +484,58 @@ class TestBulkStateFetcher(unittest.TestCase):
                 )
 
         assert result == {'123': ('SUCCESS', None), '456': ("PENDING", None)}
+        assert [
+            'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
+        ] == cm.output
+
+
+class MockTask:
+    """
+    A picklable object used to mock tasks sent to Celery. Can't use the mock library
+    here because it's not picklable.
+    """
+
+    def apply_async(self, *args, **kwargs):
+        return 1
+
+
+def _exit_gracefully(signum, _):
+    print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
+    sys.exit(signum)
+
+
+@pytest.fixture
+def register_signals():
+    """
+    Register the same signals as scheduler does to test celery_executor to make sure it does not
+    hang.
+    """
+    orig_sigint = orig_sigterm = orig_sigusr2 = signal.SIG_DFL
+
+    orig_sigint = signal.signal(signal.SIGINT, _exit_gracefully)
+    orig_sigterm = signal.signal(signal.SIGTERM, _exit_gracefully)
+    orig_sigusr2 = signal.signal(signal.SIGUSR2, _exit_gracefully)
+
+    yield
+
+    # Restore original signal handlers after test
+    signal.signal(signal.SIGINT, orig_sigint)
+    signal.signal(signal.SIGTERM, orig_sigterm)
+    signal.signal(signal.SIGUSR2, orig_sigusr2)
+
+
+@pytest.mark.quarantined
+def test_send_tasks_to_celery_hang(register_signals):
+    """
+    Test that celery_executor does not hang after many runs.
+    """
+    executor = celery_executor.CeleryExecutor()
+
+    task = MockTask()
+    task_tuples_to_send = [(None, None, None, None, task) for _ in range(26)]
+
+    for _ in range(500):
+        # This loop can hang on Linux if celery_executor does something wrong with
+        # multiprocessing.
+        results = executor._send_tasks_to_celery(task_tuples_to_send)
+        assert results == [(None, None, 1) for _ in task_tuples_to_send]

@@ -19,11 +19,13 @@
 import json
 from typing import Iterable
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerBaseOperator(BaseOperator):
@@ -38,11 +40,11 @@ class SageMakerBaseOperator(BaseOperator):
 
     template_fields = ['config']
     template_ext = ()
+    template_fields_renderers = {"config": "py"}
     ui_color = '#ededed'
 
     integer_fields = []  # type: Iterable[Iterable[str]]
 
-    @apply_defaults
     def __init__(self, *, config: dict, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
 
@@ -79,8 +81,8 @@ class SageMakerBaseOperator(BaseOperator):
         for field in self.integer_fields:
             self.parse_integer(self.config, field)
 
-    def expand_role(self):  # noqa: D402
-        """Placeholder for calling boto3's expand_role(), which expands an IAM role name into an ARN."""
+    def expand_role(self):
+        """Placeholder for calling boto3's `expand_role`, which expands an IAM role name into an ARN."""
 
     def preprocess_config(self):
         """Process the config into a usable form."""

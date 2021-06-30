@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTran
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_URI = os.environ.get("GCP_DTS_BUCKET_URI", "gs://cloud-ml-tables-data/bank-marketing.csv")
+BUCKET_URI = os.environ.get("GCP_DTS_BUCKET_URI", "gs://INVALID BUCKET NAME/bank-marketing.csv")
 GCP_DTS_BQ_DATASET = os.environ.get("GCP_DTS_BQ_DATASET", "test_dts")
 GCP_DTS_BQ_TABLE = os.environ.get("GCP_DTS_BQ_TABLE", "GCS_Test")
 
@@ -105,8 +105,8 @@ with models.DAG(
     # [END howto_bigquery_delete_data_transfer]
 
     (
-        gcp_bigquery_create_transfer  # noqa
-        >> gcp_bigquery_start_transfer  # noqa
-        >> gcp_run_sensor  # noqa
-        >> gcp_bigquery_delete_transfer  # noqa
+        gcp_bigquery_create_transfer
+        >> gcp_bigquery_start_transfer
+        >> gcp_run_sensor
+        >> gcp_bigquery_delete_transfer
     )

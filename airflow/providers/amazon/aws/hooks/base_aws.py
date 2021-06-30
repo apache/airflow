@@ -27,14 +27,22 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
-from typing import Any, Dict, Optional, Tuple, Union
+from functools import wraps
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import boto3
 import botocore
 import botocore.session
+import requests
+import tenacity
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
+
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
@@ -109,7 +117,7 @@ class _SessionFactory(LoggingMixin):
             botocore_session = self._assume_role_with_web_identity(
                 role_arn=role_arn,
                 assume_role_kwargs=assume_role_kwargs,
-                base_session=session._session,  # pylint: disable=protected-access
+                base_session=session._session,
             )
             return boto3.session.Session(
                 region_name=session.region_name,
@@ -208,18 +216,42 @@ class _SessionFactory(LoggingMixin):
             RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
         )
 
-    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]) -> str:
-        import requests
+    def _get_idp_response(
+        self, saml_config: Dict[str, Any], auth: requests.auth.AuthBase
+    ) -> requests.models.Response:
+        idp_url = saml_config["idp_url"]
+        self.log.info("idp_url= %s", idp_url)
 
+        session = requests.Session()
+
+        # Configurable Retry when querying the IDP endpoint
+        if "idp_request_retry_kwargs" in saml_config:
+            idp_request_retry_kwargs = saml_config["idp_request_retry_kwargs"]
+            self.log.info("idp_request_retry_kwargs= %s", idp_request_retry_kwargs)
+            from requests.adapters import HTTPAdapter
+            from requests.packages.urllib3.util.retry import Retry
+
+            retry_strategy = Retry(**idp_request_retry_kwargs)
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("https://", adapter)
+            session.mount("http://", adapter)
+
+        idp_request_kwargs = {}
+        if "idp_request_kwargs" in saml_config:
+            idp_request_kwargs = saml_config["idp_request_kwargs"]
+
+        idp_response = session.get(idp_url, auth=auth, **idp_request_kwargs)
+        idp_response.raise_for_status()
+
+        return idp_response
+
+    def _fetch_saml_assertion_using_http_spegno_auth(self, saml_config: Dict[str, Any]) -> str:
         # requests_gssapi will need paramiko > 2.6 since you'll need
         # 'gssapi' not 'python-gssapi' from PyPi.
         # https://github.com/paramiko/paramiko/pull/1311
         import requests_gssapi
         from lxml import etree
 
-        idp_url = saml_config["idp_url"]
-        self.log.info("idp_url= %s", idp_url)
-        idp_request_kwargs = saml_config["idp_request_kwargs"]
         auth = requests_gssapi.HTTPSPNEGOAuth()
         if 'mutual_authentication' in saml_config:
             mutual_auth = saml_config['mutual_authentication']
@@ -236,8 +268,7 @@ class _SessionFactory(LoggingMixin):
                     '(Exclude this setting will default to HTTPSPNEGOAuth() ).'
                 )
         # Query the IDP
-        idp_response = requests.get(idp_url, auth=auth, **idp_request_kwargs)
-        idp_response.raise_for_status()
+        idp_response = self._get_idp_response(saml_config, auth=auth)
         # Assist with debugging. Note: contains sensitive info!
         xpath = saml_config['saml_response_xpath']
         log_idp_response = 'log_idp_response' in saml_config and saml_config['log_idp_response']
@@ -280,7 +311,7 @@ class _SessionFactory(LoggingMixin):
             time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
         )
         botocore_session = botocore.session.Session()
-        botocore_session._credentials = aws_creds  # pylint: disable=protected-access
+        botocore_session._credentials = aws_creds
         return botocore_session
 
     def _get_google_identity_token_loader(self):
@@ -483,6 +514,37 @@ class AwsBaseHook(BaseHook):
             return role
         else:
             return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
+
+    @staticmethod
+    def retry(should_retry: Callable[[Exception], bool]):
+        """
+        A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
+        limit.
+        """
+
+        def retry_decorator(fun: Callable):
+            @wraps(fun)
+            def decorator_f(self, *args, **kwargs):
+                retry_args = getattr(self, 'retry_args', None)
+                if retry_args is None:
+                    return fun(self)
+                multiplier = retry_args.get('multiplier', 1)
+                min_limit = retry_args.get('min', 1)
+                max_limit = retry_args.get('max', 1)
+                stop_after_delay = retry_args.get('stop_after_delay', 10)
+                tenacity_logger = tenacity.before_log(self.log, logging.DEBUG) if self.log else None
+                default_kwargs = {
+                    'wait': tenacity.wait_exponential(multiplier=multiplier, max=max_limit, min=min_limit),
+                    'retry': tenacity.retry_if_exception(should_retry),
+                    'stop': tenacity.stop_after_delay(stop_after_delay),
+                    'before': tenacity_logger,
+                    'after': tenacity_logger,
+                }
+                return tenacity.retry(**default_kwargs)(fun)(self)
+
+            return decorator_f
+
+        return retry_decorator
 
 
 def _parse_s3_config(

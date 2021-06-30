@@ -25,7 +25,7 @@ from tempfile import TemporaryDirectory
 from typing import Callable, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.python_virtualenv import prepare_virtualenv
 
@@ -94,6 +94,7 @@ class BeamCommandRunner(LoggingMixin):
         self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
         self.process_line_callback = process_line_callback
         self.job_id: Optional[str] = None
+
         self._proc = subprocess.Popen(
             cmd,
             shell=False,
@@ -184,7 +185,7 @@ class BeamHook(BaseHook):
         )
         cmd_runner.wait_for_done()
 
-    def start_python_pipeline(  # pylint: disable=too-many-arguments
+    def start_python_pipeline(
         self,
         variables: dict,
         py_file: str,

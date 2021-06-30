@@ -54,6 +54,10 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
+      {{- if .Values.airflowPodAnnotations }}
+      annotations:
+      {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+      {{- end }}
     spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
@@ -61,6 +65,7 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      serviceAccountName: {{ include "flower.serviceAccountName" . }}
       restartPolicy: Always
       securityContext:
         runAsUser: {{ .Values.uid }}
@@ -72,7 +77,12 @@ spec:
         - name: flower
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
-          args: ["bash", "-c", "airflow celery flower || airflow flower"]
+          {{- if .Values.flower.command }}
+          command: {{ tpl (toYaml .Values.flower.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.flower.args }}
+          args: {{ tpl (toYaml .Values.flower.args) . | nindent 12 }}
+          {{- end }}
           resources:
 {{ toYaml .Values.flower.resources | indent 12 }}
           volumeMounts:
@@ -117,9 +127,15 @@ spec:
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "custom_airflow_environment" . | indent 10 }}
+{{- if .Values.flower.extraContainers }}
+{{- toYaml .Values.flower.extraContainers | nindent 8 }}
+{{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.flower.extraVolumes }}
+{{ toYaml .Values.flower.extraVolumes | indent 8 }}
+{{- end }}
 {{- end }}
 {{- end }}

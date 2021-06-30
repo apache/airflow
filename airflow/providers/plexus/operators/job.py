@@ -24,7 +24,6 @@ import requests
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.plexus.hooks.plexus import PlexusHook
-from airflow.utils.decorators import apply_defaults
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,6 @@ class PlexusJobOperator(BaseOperator):
 
     """
 
-    @apply_defaults
     def __init__(self, job_params: Dict, **kwargs) -> None:
         super().__init__(**kwargs)
 

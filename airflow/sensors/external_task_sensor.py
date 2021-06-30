@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.sensors.external_task`."""
+"""This module is deprecated. Please use :mod:`airflow.sensors.external_task`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.external_task import (  # noqa
     ExternalTaskMarker,
     ExternalTaskSensor,

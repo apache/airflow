@@ -38,7 +38,7 @@ deny all requests:
     In Airflow <1.10.11, the default setting was to allow all API requests without authentication, but this
     posed security risks for if the Webserver is publicly accessible.
 
-If you want to check which executor is currently set, you can use ``airflow config get-value api auth_backend``
+If you want to check which authentication backend is currently set, you can use ``airflow config get-value api auth_backend``
 command as in the example below.
 
 .. code-block:: console

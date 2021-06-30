@@ -24,6 +24,7 @@ from itertools import filterfalse, tee
 from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, TypeVar
 from urllib import parse
 
+from flask import url_for
 from jinja2 import Template
 
 from airflow.configuration import conf
@@ -64,7 +65,7 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
 def ask_yesno(question):
     """Helper to get yes / no answer from user."""
     yes = {'yes', 'y'}
-    no = {'no', 'n'}  # pylint: disable=invalid-name
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -94,8 +95,8 @@ def as_tuple(obj):
         return tuple([obj])
 
 
-T = TypeVar('T')  # pylint: disable=invalid-name
-S = TypeVar('S')  # pylint: disable=invalid-name
+T = TypeVar('T')
+S = TypeVar('S')
 
 
 def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
@@ -213,4 +214,5 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     view = conf.get('webserver', 'dag_default_view').lower()
-    return f"/{view}?{parse.urlencode(query)}"
+    url = url_for(f"Airflow.{view}")
+    return f"{url}?{parse.urlencode(query)}"

@@ -183,8 +183,9 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, "get_conn")
     def test_action_if_job_exists_validation(self, mock_client):
-        sagemaker = SageMakerProcessingOperator(
-            **self.processing_config_kwargs, config=create_processing_params
-        )
         with pytest.raises(AirflowException):
-            sagemaker.__init__(action_if_job_exists="not_fail_or_increment")
+            SageMakerProcessingOperator(
+                **self.processing_config_kwargs,
+                config=create_processing_params,
+                action_if_job_exists="not_fail_or_increment",
+            )

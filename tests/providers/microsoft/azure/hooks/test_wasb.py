@@ -23,6 +23,7 @@ import unittest
 from unittest import mock
 
 import pytest
+from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobServiceClient
 
 from airflow.exceptions import AirflowException
@@ -47,6 +48,7 @@ class TestWasbHook(unittest.TestCase):
         self.ad_conn_id = 'azure_AD_test'
         self.sas_conn_id = 'sas_token_id'
         self.public_read_conn_id = 'pub_read_id'
+        self.managed_identity_conn_id = 'managed_identity'
 
         db.merge_conn(
             Connection(
@@ -82,6 +84,12 @@ class TestWasbHook(unittest.TestCase):
         )
         db.merge_conn(
             Connection(
+                conn_id=self.managed_identity_conn_id,
+                conn_type=self.connection_type,
+            )
+        )
+        db.merge_conn(
+            Connection(
                 conn_id=self.sas_conn_id,
                 conn_type=self.connection_type,
                 extra=json.dumps({'sas_token': 'token'}),
@@ -105,6 +113,11 @@ class TestWasbHook(unittest.TestCase):
     def test_shared_key_connection(self):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         assert isinstance(hook.get_conn(), BlobServiceClient)
+
+    def test_managed_identity(self):
+        hook = WasbHook(wasb_conn_id=self.managed_identity_conn_id)
+        self.assertIsInstance(hook.get_conn(), BlobServiceClient)
+        self.assertIsInstance(hook.get_conn().credential, ManagedIdentityCredential)
 
     def test_sas_token_connection(self):
         hook = WasbHook(wasb_conn_id=self.sas_conn_id)
@@ -237,7 +250,7 @@ class TestWasbHook(unittest.TestCase):
         mock_get_blobslist.return_value = ['blob_prefix/blob1', 'blob_prefix/blob2']
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.delete_file('container', 'blob_prefix', is_prefix=True)
-        mock_get_blobslist.assert_called_once_with('container', prefix='blob_prefix')
+        mock_get_blobslist.assert_called_once_with('container', prefix='blob_prefix', delimiter='')
         mock_delete_blobs.assert_any_call(
             'container',
             'blob_prefix/blob1',

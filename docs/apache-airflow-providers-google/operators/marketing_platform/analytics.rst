@@ -46,7 +46,7 @@ To list accounts from Analytics you can use the
     :start-after: [START howto_marketing_platform_list_accounts_operator]
     :end-before: [END howto_marketing_platform_list_accounts_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator`
 
 .. _howto/operator:GoogleAnalyticsGetAdsLinkOperator:
@@ -64,7 +64,7 @@ To list web property-Google Ads link you can use the
     :start-after: [START howto_marketing_platform_get_ads_link_operator]
     :end-before: [END howto_marketing_platform_get_ads_link_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator`
 
 .. _howto/operator:GoogleAnalyticsRetrieveAdsLinksListOperator:
@@ -82,5 +82,5 @@ To list Google Ads links you can use the
     :start-after: [START howto_marketing_platform_retrieve_ads_links_list_operator]
     :end-before: [END howto_marketing_platform_retrieve_ads_links_list_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator`

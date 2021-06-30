@@ -34,7 +34,7 @@ commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell.
 Templating
 ----------
 
-You can use :ref:`Jinja templates <jinja-templating>` to parameterize the
+You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize the
 ``bash_command`` argument.
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
@@ -70,15 +70,16 @@ inside the bash_command, as below:
 
     bash_task = BashOperator(
         task_id="bash_task",
-        bash_command='echo "here is the message: \'$message\'"',
-        env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
+        bash_command="echo \"here is the message: '$message'\"",
+        env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
     )
 
 Skipping
 --------
 
 In general a non-zero exit code produces an AirflowException and thus a task failure.  In cases where it is desirable
-to instead have the task end in a ``skipped`` state, you can exit with code ``127``.
+to instead have the task end in a ``skipped`` state, you can exit with code ``99`` (or with another exit code if you
+pass ``skip_exit_code``).
 
 .. exampleinclude:: /../../airflow/example_dags/example_bash_operator.py
     :language: python
@@ -99,14 +100,13 @@ template to it, which will fail.
 .. code-block:: python
 
     t2 = BashOperator(
-        task_id='bash_example',
-
+        task_id="bash_example",
         # This fails with 'Jinja template not found' error
         # bash_command="/home/batcher/test.sh",
-
         # This works (has a space after)
         bash_command="/home/batcher/test.sh ",
-        dag=dag)
+        dag=dag,
+    )
 
 However, if you want to use templating in your bash script, do not add the space
 and instead put your bash script in a location relative to the directory containing
@@ -118,10 +118,11 @@ as shown below:
 .. code-block:: python
 
     t2 = BashOperator(
-        task_id='bash_example',
+        task_id="bash_example",
         # "scripts" folder is under "/usr/local/airflow/dags"
         bash_command="scripts/test.sh",
-        dag=dag)
+        dag=dag,
+    )
 
 Creating separate folder for bash scripts may be desirable for many reasons, like
 separating your script's logic and pipeline code, allowing for proper code highlighting
@@ -137,7 +138,8 @@ Example:
 
     dag = DAG("example_bash_dag", template_searchpath="/opt/scripts")
     t2 = BashOperator(
-        task_id='bash_example',
+        task_id="bash_example",
         # "test.sh" is a file under "/opt/scripts"
         bash_command="test.sh ",
-        dag=dag)
+        dag=dag,
+    )

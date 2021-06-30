@@ -21,6 +21,22 @@ Contributor's Quick Guide
 
 .. contents:: :local:
 
+Note to Starters
+################
+
+There are two ways you can run the Airflow dev env on your machine:
+  1. With a Docker Container
+  2. With a local virtual environment
+Before deciding which method to choose, there are a couple factors to consider:
+Running Airflow in a container is the most reliable way: it provides a more consistent environment and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.). However it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
+If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
+
+- |Virtual Env Guide|
+
+.. |Virtual Env Guide| raw:: html
+
+   For a comprehensive venv tutorial - visit <a href="https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst"
+   target="_blank">Virtual Env Guide</a>
 
 Prerequisites
 #############
@@ -119,7 +135,7 @@ Pyenv and setting up virtual-env
       libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
       xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
 
-  $ sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python-dev openssl \
+  $ sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python3.9-dev python-dev openssl \
        sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql
 
 2. Install pyenv
@@ -167,15 +183,7 @@ Setup Airflow with Breeze and PyCharm
 
 .. note::
 
-   On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-   might work with Apache Airflow as of 20.3.3, but it might lead to errors in installation. It might
-   depend on your choice of extras. In order to install Airflow you might need to either downgrade
-   pip to version 20.2.4 ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3,
-   you need to add option ``--use-deprecated legacy-resolver`` to your pip install command.
-
-   While ``pip 20.3.3`` solved most of the ``teething`` problems of 20.3, this note will remain here until we
-   set ``pip 20.3`` as official version in our CI pipeline where we are testing the installation as well.
-   Due to those constraints, only ``pip`` installation is currently officially supported.
+   Only ``pip`` installation is currently officially supported.
 
    While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -277,9 +285,10 @@ Setting up Breeze
 
   $ ./breeze stop
 
-6. Installing airflow in the local virtual environment ``airflow-env`` with breeze.
+Installing airflow in the local virtual environment ``airflow-env`` with breeze.
+--------------------------------------------------------------------------------
 
-   It may requires some packages to be installed, watch the output of the command to see which ones are missing.
+1. It may require some packages to be installed; watch the output of the command to see which ones are missing.
 
 .. code-block:: bash
 
@@ -287,7 +296,7 @@ Setting up Breeze
   $ ./breeze initialize-local-virtualenv --python 3.8
 
 
-7. Add following line to ~/.bashrc in order to call breeze command from anywhere.
+2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
 .. code-block:: bash
 
@@ -308,8 +317,8 @@ Using Breeze
 
       Use CI image.
 
-   Branch name:            master
-   Docker image:           apache/airflow:master-python3.8-ci
+   Branch name:            main
+   Docker image:           apache/airflow:main-python3.8-ci
    Airflow source version: 2.0.0b2
    Python version:         3.8
    DockerHub user:         apache
@@ -386,7 +395,8 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup mysql database in mysql workbench   with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
+3. Setup mysql database in
+MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
    blank(leave empty), default schema ``airflow``.
 
    .. raw:: html
@@ -415,7 +425,7 @@ For more information visit : |Breeze documentation|
 
 .. |Breeze documentation| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst" target="_blank">Breeze documentation</a>
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst" target="_blank">Breeze documentation</a>
 
 Following are some of important topics of Breeze documentation:
 
@@ -424,7 +434,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Choosing different Breeze environment configuration| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#choosing-different-breeze-environment-configuration
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#choosing-different-breeze-environment-configuration
    " target="_blank">Choosing different Breeze environment configuration</a>
 
 
@@ -432,7 +442,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Troubleshooting Breeze environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#troubleshooting" target="_blank">Troubleshooting
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#troubleshooting" target="_blank">Troubleshooting
    Breeze environment</a>
 
 
@@ -440,7 +450,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Installing Additional tools to the Docker Image| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#additional-tools" target="_blank">Installing
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#additional-tools" target="_blank">Installing
    Additional tools to the Docker Image</a>
 
 
@@ -448,7 +458,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Internal details of Breeze| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#internal-details-of-breeze" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#internal-details-of-breeze" target="_blank">
    Internal details of Breeze</a>
 
 
@@ -456,7 +466,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Breeze Command-Line Interface Reference| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#breeze-command-line-interface-reference"
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#breeze-command-line-interface-reference"
    target="_blank">Breeze Command-Line Interface Reference</a>
 
 
@@ -464,7 +474,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Cleaning the environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#cleaning-the-environment" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#cleaning-the-environment" target="_blank">
    Cleaning the environment</a>
 
 
@@ -472,7 +482,7 @@ Following are some of important topics of Breeze documentation:
 
 .. |Other uses of the Airflow Breeze environment| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/BREEZE.rst#other-uses-of-the-airflow-breeze-environment"
+   <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#other-uses-of-the-airflow-breeze-environment"
    target="_blank">Other uses of the Airflow Breeze environment</a>
 
 
@@ -482,10 +492,10 @@ Setting up Debug
 
 1. Configuring Airflow database connection
 
-- Airflow is by default configured to use sqlite database. Configuration can be seen on local machine
+- Airflow is by default configured to use SQLite database. Configuration can be seen on local machine
   ``~/airflow/airflow.cfg`` under ``sql_alchemy_conn``.
 
-- Installing required dependency for MySql connection in ``airflow-env`` on local machine.
+- Installing required dependency for MySQL connection in ``airflow-env`` on local machine.
 
   .. code-block:: bash
 
@@ -518,10 +528,11 @@ Setting up Debug
 
   .. code-block:: python
 
-    if __name__ == '__main__':
-      from airflow.utils.state import State
-      dag.clear(dag_run_state=State.NONE)
-      dag.run()
+    if __name__ == "__main__":
+        from airflow.utils.state import State
+
+        dag.clear(dag_run_state=State.NONE)
+        dag.run()
 
 - Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
 
@@ -621,8 +632,7 @@ All Tests are inside ./tests directory.
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
-      run_ci_tests.sh*                            run_pylint.sh*
+      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
       run_extract_tests.sh*                       stop_tmux_airflow.sh*
@@ -634,14 +644,7 @@ All Tests are inside ./tests directory.
 
   - Types of tests
 
-  .. code-block:: bash
-
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type
-      All          CLI          Heisentests  Integration  Other        Providers
-      API          Core         Helm         MySQL        Postgres     WWW
-
-
-  - Running specific type of Test
+  - Running specific type of test
 
   .. code-block:: bash
 
@@ -649,16 +652,6 @@ All Tests are inside ./tests directory.
 
 
 - Running Integration test for specific test type
-
-
-  - Types of Integration Tests
-
-  .. code-block:: bash
-
-     $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core --integration
-
-       all        kerberos   openldap   presto     redis
-       cassandra  mongo      pinot      rabbitmq
 
   - Running an Integration Test
 
@@ -671,7 +664,7 @@ All Tests are inside ./tests directory.
 
 .. |TESTING.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst" target="_blank">TESTING.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst" target="_blank">TESTING.rst</a>
 
 - Following are the some of important topics of TESTING.rst
 
@@ -679,7 +672,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Test Infrastructure| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-test-infrastructure" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-test-infrastructure" target="_blank">
    Airflow Test Infrastructure</a>
 
 
@@ -687,7 +680,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Unit Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-unit-tests" target="_blank">Airflow Unit
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-unit-tests" target="_blank">Airflow Unit
    Tests</a>
 
 
@@ -695,7 +688,7 @@ All Tests are inside ./tests directory.
 
   .. |Helm Unit Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#helm-unit-tests" target="_blank">Helm Unit Tests
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#helm-unit-tests" target="_blank">Helm Unit Tests
    </a>
 
 
@@ -703,7 +696,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow Integration Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-integration-tests" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests" target="_blank">
    Airflow Integration Tests</a>
 
 
@@ -711,7 +704,7 @@ All Tests are inside ./tests directory.
 
   .. |Running Tests with Kubernetes| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#running-tests-with-kubernetes" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#running-tests-with-kubernetes" target="_blank">
    Running Tests with Kubernetes</a>
 
 
@@ -719,7 +712,7 @@ All Tests are inside ./tests directory.
 
   .. |Airflow System Tests| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-system-tests" target="_blank">Airflow
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-system-tests" target="_blank">Airflow
    System Tests</a>
 
 
@@ -727,7 +720,7 @@ All Tests are inside ./tests directory.
 
   .. |Local and Remote Debugging in IDE| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#local-and-remote-debugging-in-ide"
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#local-and-remote-debugging-in-ide"
    target="_blank">Local and Remote Debugging in IDE</a>
 
 
@@ -735,7 +728,7 @@ All Tests are inside ./tests directory.
 
   .. |BASH Unit Testing (BATS)| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/TESTING.rst#bash-unit-testing-bats" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/TESTING.rst#bash-unit-testing-bats" target="_blank">
    BASH Unit Testing (BATS)</a>
 
 
@@ -750,7 +743,7 @@ tests are applied when you commit your code.
 
   <div align="center" style="padding-bottom:20px">
     <img src="images/quick_start/ci_tests.png"
-         alt="CI tests Github">
+         alt="CI tests GitHub">
   </div>
 
 
@@ -836,8 +829,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
-      run_ci_tests.sh*                            run_pylint.sh*
+      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
       run_extract_tests.sh*                       stop_tmux_airflow.sh*
@@ -869,7 +861,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. |STATIC_CODE_CHECKS.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst" target="_blank">
    STATIC_CODE_CHECKS.rst</a>
 
 - Following are some of the important links of STATIC_CODE_CHECKS.rst
@@ -878,22 +870,14 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   .. |Pre-commit Hooks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
    Pre-commit Hooks</a>
-
-  - |Pylint Static Code Checks|
-
-  .. |Pylint Static Code Checks| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#pylint-static-code-checks"
-   target="_blank">Pylint Static Code Checks</a>
-
 
   - |Running Static Code Checks via Breeze|
 
   .. |Running Static Code Checks via Breeze| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
+   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#running-static-code-checks-via-breeze"
    target="_blank">Running Static Code Checks via Breeze</a>
 
 
@@ -907,7 +891,7 @@ Contribution guide
 
 .. |CONTRIBUTING.rst| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst" target="_blank">CONTRIBUTING.rst</a>
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst" target="_blank">CONTRIBUTING.rst</a>
 
 - Following are some of important links of CONTRIBUTING.rst
 
@@ -915,7 +899,7 @@ Contribution guide
 
   .. |Types of contributions| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contributions" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contributions" target="_blank">
    Types of contributions</a>
 
 
@@ -923,7 +907,7 @@ Contribution guide
 
   .. |Roles of contributor| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#roles" target="_blank">Roles of
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#roles" target="_blank">Roles of
    contributor</a>
 
 
@@ -931,7 +915,7 @@ Contribution guide
 
   .. |Workflow for a contribution| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#contribution-workflow" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#contribution-workflow" target="_blank">
    Workflow for a contribution</a>
 
 
@@ -939,7 +923,7 @@ Contribution guide
 Raising Pull Request
 --------------------
 
-1. Go to your Github account and open your fork project and click on Branches
+1. Go to your GitHub account and open your fork project and click on Branches
 
    .. raw:: html
 
@@ -972,7 +956,7 @@ Syncing Fork and rebasing Pull request
 
 Often it takes several days or weeks to discuss and iterate with the PR until it is ready to merge.
 In the meantime new commits are merged, and you might run into conflicts, therefore you should periodically
-synchronize master in your fork with the ``apache/airflow`` master and rebase your PR on top of it. Following
+synchronize main in your fork with the ``apache/airflow`` main and rebase your PR on top of it. Following
 describes how to do it.
 
 
@@ -980,7 +964,7 @@ describes how to do it.
 
 .. |Syncing fork| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#how-to-sync-your-fork" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-sync-your-fork" target="_blank">
    Update new changes made to apache:airflow project to your fork</a>
 
 
@@ -988,5 +972,5 @@ describes how to do it.
 
 .. |Rebasing pull request| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst#how-to-rebase-pr" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#how-to-rebase-pr" target="_blank">
    Rebasing pull request</a>

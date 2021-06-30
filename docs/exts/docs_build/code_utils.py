@@ -17,6 +17,21 @@
 import os
 from contextlib import suppress
 
+from docs.exts.provider_yaml_utils import load_package_data
+
+ROOT_PROJECT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
+)
+PROVIDER_INIT_FILE = os.path.join(ROOT_PROJECT_DIR, "airflow", "providers", "__init__.py")
+DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
+AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
+
+ALL_PROVIDER_YAMLS = load_package_data()
+AIRFLOW_SITE_DIR: str = os.environ.get('AIRFLOW_SITE_DIRECTORY') or ''
+PROCESS_TIMEOUT = 8 * 60  # 400 seconds
+
+CONSOLE_WIDTH = 180
+
 
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
     """
@@ -63,11 +78,8 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
 
 
 def pretty_format_path(path: str, start: str) -> str:
-    """Formats the path by marking the important part in bold."""
-    end = '\033[0m'
-    bold = '\033[1m'
-
+    """Formats path nicely."""
     relpath = os.path.relpath(path, start)
     if relpath == path:
-        return f"{bold}path{end}"
-    return f"{start}/{bold}{relpath}{end}"
+        return path
+    return f"{start}/{relpath}"

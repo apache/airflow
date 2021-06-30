@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=too-many-lines
+
 import copy
 import io
 import os
@@ -284,7 +284,7 @@ class TestGCSHook(unittest.TestCase):
         copy_method.return_value = destination_blob
 
         # When
-        response = self.gcs_hook.copy(  # pylint: disable=assignment-from-no-return
+        response = self.gcs_hook.copy(
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -369,7 +369,7 @@ class TestGCSHook(unittest.TestCase):
         rewrite_method.side_effect = [(None, mock.ANY, mock.ANY), (mock.ANY, mock.ANY, mock.ANY)]
 
         # When
-        response = self.gcs_hook.rewrite(  # pylint: disable=assignment-from-no-return
+        response = self.gcs_hook.rewrite(
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -424,9 +424,7 @@ class TestGCSHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(  # pylint: disable=assignment-from-no-return
-            bucket_name=test_bucket, object_name=test_object
-        )
+        response = self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
         assert response is None
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -598,7 +596,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_compose_with_empty_source_objects(self, mock_service):  # pylint: disable=unused-argument
+    def test_compose_with_empty_source_objects(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = []
         test_destination_object = 'test_object_composed'
@@ -613,7 +611,7 @@ class TestGCSHook(unittest.TestCase):
         assert str(ctx.value) == 'source_objects cannot be empty.'
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_compose_without_bucket(self, mock_service):  # pylint: disable=unused-argument
+    def test_compose_without_bucket(self, mock_service):
         test_bucket = None
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = 'test_object_composed'
@@ -628,7 +626,7 @@ class TestGCSHook(unittest.TestCase):
         assert str(ctx.value) == 'bucket_name and destination_object cannot be empty.'
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_compose_without_destination_object(self, mock_service):  # pylint: disable=unused-argument
+    def test_compose_without_destination_object(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = None
@@ -741,6 +739,39 @@ class TestGCSHook(unittest.TestCase):
             ]
         )
 
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_list_by_timespans(self, mock_service):
+        test_bucket = 'test_bucket'
+
+        # Given
+        blob1 = mock.Mock()
+        blob1.name = "in-interval-1"
+        blob1.updated = datetime(2019, 8, 28, 14, 7, 20, 0, dateutil.tz.tzutc())
+        blob2 = mock.Mock()
+        blob2.name = "in-interval-2"
+        blob2.updated = datetime(2019, 8, 28, 14, 37, 20, 0, dateutil.tz.tzutc())
+        blob3 = mock.Mock()
+        blob3.name = "outside-interval"
+        blob3.updated = datetime(2019, 8, 29, 14, 7, 20, 0, dateutil.tz.tzutc())
+
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.__iter__.return_value = [
+            blob1,
+            blob2,
+            blob3,
+        ]
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.prefixes = None
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+
+        # When
+        response = self.gcs_hook.list_by_timespan(
+            bucket_name=test_bucket,
+            timespan_start=datetime(2019, 8, 28, 14, 0, 0, 0, dateutil.tz.tzutc()),
+            timespan_end=datetime(2019, 8, 28, 15, 0, 0, 0, dateutil.tz.tzutc()),
+        )
+
+        # Then
+        assert len(response) == 2 and all('in-interval' in b for b in response)
+
 
 class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
@@ -748,6 +779,7 @@ class TestGCSHookUpload(unittest.TestCase):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 
         # generate a 384KiB test file (larger than the minimum 256KiB multipart chunk size)
+
         self.testfile = tempfile.NamedTemporaryFile(delete=False)
         self.testfile.write(b"x" * 393216)
         self.testfile.flush()
@@ -840,22 +872,22 @@ class TestGCSHookUpload(unittest.TestCase):
     def test_upload_exceptions(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
-        both_params_excep = (
+        both_params_except = (
             "'filename' and 'data' parameter provided. Please "
             "specify a single parameter, either 'filename' for "
             "local file uploads or 'data' for file content uploads."
         )
-        no_params_excep = "'filename' and 'data' parameter missing. One is required to upload to gcs."
+        no_params_except = "'filename' and 'data' parameter missing. One is required to upload to gcs."
 
         with pytest.raises(ValueError) as ctx:
             self.gcs_hook.upload(test_bucket, test_object)
-        assert no_params_excep == str(ctx.value)
+        assert no_params_except == str(ctx.value)
 
         with pytest.raises(ValueError) as ctx:
             self.gcs_hook.upload(
                 test_bucket, test_object, filename=self.testfile.name, data=self.testdata_str
             )
-        assert both_params_excep == str(ctx.value)
+        assert both_params_except == str(ctx.value)
 
 
 class TestSyncGcsHook(unittest.TestCase):

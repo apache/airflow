@@ -25,10 +25,21 @@ from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
-from airflow.utils.decorators import apply_defaults
+
+
+def should_retry(exception: Exception):
+    """Check if exception is related to ECS resource quota (CPU, MEM)."""
+    if isinstance(exception, ECSOperatorError):
+        return any(
+            quota_reason in failure['reason']
+            for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
+            for failure in exception.failures
+        )
+    return False
 
 
 @runtime_checkable
@@ -43,7 +54,6 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    # pylint: disable=C0103, line-too-long
     def run_task(self, **kwargs) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
@@ -68,10 +78,8 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
 
-    # pylint: enable=C0103, line-too-long
 
-
-class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
@@ -95,6 +103,11 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
     :type launch_type: str
+    :param capacity_provider_strategy: the capacity provider strategy to use for the task.
+        When capacity_provider_strategy is specified, the launch_type parameter is omitted.
+        If no capacity_provider_strategy or launch_type is specified,
+        the default capacity provider strategy for the cluster is used.
+    :type capacity_provider_strategy: list
     :param group: the name of the task group associated with the task
     :type group: str
     :param placement_constraints: an array of placement constraint objects to use for
@@ -125,21 +138,24 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :param reattach: If set to True, will check if a task from the same family is already running.
         If so, the operator will attach to it instead of starting a new task.
     :type reattach: bool
+    :param quota_retry: Config if and how to retry _start_task() for transient errors.
+    :type quota_retry: dict
     """
 
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
+    template_fields_renderers = {"overrides": "py"}
 
-    @apply_defaults
     def __init__(
         self,
         *,
         task_definition: str,
         cluster: str,
-        overrides: dict,  # pylint: disable=too-many-arguments
+        overrides: dict,
         aws_conn_id: Optional[str] = None,
         region_name: Optional[str] = None,
         launch_type: str = 'EC2',
+        capacity_provider_strategy: Optional[list] = None,
         group: Optional[str] = None,
         placement_constraints: Optional[list] = None,
         placement_strategy: Optional[list] = None,
@@ -150,6 +166,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         awslogs_region: Optional[str] = None,
         awslogs_stream_prefix: Optional[str] = None,
         propagate_tags: Optional[str] = None,
+        quota_retry: Optional[dict] = None,
         reattach: bool = False,
         **kwargs,
     ):
@@ -161,6 +178,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.cluster = cluster
         self.overrides = overrides
         self.launch_type = launch_type
+        self.capacity_provider_strategy = capacity_provider_strategy
         self.group = group
         self.placement_constraints = placement_constraints
         self.placement_strategy = placement_strategy
@@ -180,6 +198,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.hook: Optional[AwsBaseHook] = None
         self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
+        self.retry_args = quota_retry
 
     def execute(self, context):
         self.log.info(
@@ -214,7 +233,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             'startedBy': self.owner,
         }
 
-        if self.launch_type:
+        if self.capacity_provider_strategy:
+            run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
+            run_opts['platformVersion'] = self.platform_version
+        elif self.launch_type:
             run_opts['launchType'] = self.launch_type
             if self.launch_type == 'FARGATE':
                 run_opts['platformVersion'] = self.platform_version
@@ -235,17 +257,17 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         failures = response['failures']
         if len(failures) > 0:
-            raise AirflowException(response)
+            raise ECSOperatorError(failures, response)
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
 
     def _try_reattach_task(self):
-        task_def_resp = self.client.describe_task_definition(self.task_definition)
+        task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, launchType=self.launch_type, desiredStatus='RUNNING', family=ecs_task_family
+            cluster=self.cluster, desiredStatus='RUNNING', family=ecs_task_family
         )
         running_tasks = list_tasks_resp['taskArns']
 

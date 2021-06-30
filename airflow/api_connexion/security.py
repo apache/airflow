@@ -22,7 +22,7 @@ from flask import Response, current_app
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def check_authentication() -> None:

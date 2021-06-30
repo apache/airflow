@@ -147,7 +147,7 @@ class TestPrestoHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock()
+        self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
@@ -206,28 +206,3 @@ class TestPrestoHook(unittest.TestCase):
         assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement, None)
-
-
-class TestPrestoHookIntegration(unittest.TestCase):
-    @pytest.mark.integration("presto")
-    @mock.patch.dict('os.environ', AIRFLOW_CONN_PRESTO_DEFAULT="presto://airflow@presto:8080/")
-    def test_should_record_records(self):
-        hook = PrestoHook()
-        sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
-        records = hook.get_records(sql)
-        assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records
-
-    @pytest.mark.integration("presto")
-    @pytest.mark.integration("kerberos")
-    def test_should_record_records_with_kerberos_auth(self):
-        conn_url = (
-            'presto://airflow@presto:7778/?'
-            'auth=kerberos&kerberos__service_name=HTTP&'
-            'verify=False&'
-            'protocol=https'
-        )
-        with mock.patch.dict('os.environ', AIRFLOW_CONN_PRESTO_DEFAULT=conn_url):
-            hook = PrestoHook()
-            sql = "SELECT name FROM tpch.sf1.customer ORDER BY custkey ASC LIMIT 3"
-            records = hook.get_records(sql)
-            assert [['Customer#000000001'], ['Customer#000000002'], ['Customer#000000003']] == records

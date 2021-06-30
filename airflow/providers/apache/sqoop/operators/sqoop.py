@@ -24,10 +24,8 @@ from typing import Any, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
-from airflow.utils.decorators import apply_defaults
 
 
-# pylint: disable=too-many-instance-attributes
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
@@ -109,8 +107,6 @@ class SqoopOperator(BaseOperator):
     )
     ui_color = '#7D8CA4'
 
-    # pylint: disable=too-many-arguments,too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,

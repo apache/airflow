@@ -26,7 +26,8 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.operators.ecs import ECSOperator
+from airflow.providers.amazon.aws.exceptions import ECSOperatorError
+from airflow.providers.amazon.aws.operators.ecs import ECSOperator, should_retry
 
 # fmt: off
 RESPONSE_WITHOUT_FAILURES = {
@@ -78,7 +79,7 @@ class TestECSOperator(unittest.TestCase):
         self.ecs.get_hook()
 
     def setUp(self):
-        self.set_up_operator()  # pylint: disable=no-value-for-parameter
+        self.set_up_operator()
 
     def test_init(self):
         assert self.ecs.region_name == 'eu-west-1'
@@ -95,30 +96,68 @@ class TestECSOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ['EC2', None],
-            ['FARGATE', None],
-            ['EC2', {'testTagKey': 'testTagValue'}],
-            ['', {'testTagKey': 'testTagValue'}],
+            ['EC2', None, None, {'launchType': 'EC2'}],
+            ['FARGATE', None, None, {'launchType': 'FARGATE', 'platformVersion': 'LATEST'}],
+            [
+                'EC2',
+                None,
+                {'testTagKey': 'testTagValue'},
+                {'launchType': 'EC2', 'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
+            ],
+            [
+                '',
+                None,
+                {'testTagKey': 'testTagValue'},
+                {'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
+            ],
+            [
+                None,
+                {'capacityProvider': 'FARGATE_SPOT'},
+                None,
+                {
+                    'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
+                    'platformVersion': 'LATEST',
+                },
+            ],
+            [
+                'FARGATE',
+                {'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123},
+                None,
+                {
+                    'capacityProviderStrategy': {
+                        'capacityProvider': 'FARGATE_SPOT',
+                        'weight': 123,
+                        'base': 123,
+                    },
+                    'platformVersion': 'LATEST',
+                },
+            ],
+            [
+                'EC2',
+                {'capacityProvider': 'FARGATE_SPOT'},
+                None,
+                {
+                    'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
+                    'platformVersion': 'LATEST',
+                },
+            ],
         ]
     )
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
-    def test_execute_without_failures(self, launch_type, tags, check_mock, wait_mock):
+    def test_execute_without_failures(
+        self, launch_type, capacity_provider_strategy, tags, expected_args, check_mock, wait_mock
+    ):
 
-        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(
+            launch_type=launch_type, capacity_provider_strategy=capacity_provider_strategy, tags=tags
+        )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.execute(None)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
-        extend_args = {}
-        if launch_type:
-            extend_args['launchType'] = launch_type
-        if launch_type == 'FARGATE':
-            extend_args['platformVersion'] = 'LATEST'
-        if tags:
-            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
         client_mock.run_task.assert_called_once_with(
             cluster='c',
@@ -132,7 +171,7 @@ class TestECSOperator(unittest.TestCase):
                 'awsvpcConfiguration': {'securityGroups': ['sg-123abc'], 'subnets': ['subnet-123456ab']}
             },
             propagateTags='TASK_DEFINITION',
-            **extend_args,
+            **expected_args,
         )
 
         wait_mock.assert_called_once_with()
@@ -145,7 +184,7 @@ class TestECSOperator(unittest.TestCase):
         resp_failures['failures'].append('dummy error')
         client_mock.run_task.return_value = resp_failures
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ECSOperatorError):
             self.ecs.execute(None)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
@@ -237,16 +276,16 @@ class TestECSOperator(unittest.TestCase):
                     'stoppedReason': 'Host EC2 (instance i-1234567890abcdef) terminated.',
                     "containers": [
                         {
-                            "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501 # pylint: disable=line-too-long
+                            "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501
                             "lastStatus": "RUNNING",
                             "name": "wordpress",
-                            "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
+                            "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
                         }
                     ],
                     "desiredStatus": "STOPPED",
                     "lastStatus": "STOPPED",
-                    "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
-                    "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11",  # noqa: E501 # pylint: disable=line-too-long
+                    "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
+                    "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11",  # noqa: E501
                 }
             ]
         }
@@ -282,7 +321,7 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_start_task')
     def test_reattach_successful(self, launch_type, tags, start_mock, check_mock, wait_mock):
 
-        self.set_up_operator(launch_type=launch_type, tags=tags)  # pylint: disable=no-value-for-parameter
+        self.set_up_operator(launch_type=launch_type, tags=tags)
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.describe_task_definition.return_value = {'taskDefinition': {'family': 'f'}}
         client_mock.list_tasks.return_value = {
@@ -301,11 +340,9 @@ class TestECSOperator(unittest.TestCase):
         if tags:
             extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
 
-        client_mock.describe_task_definition.assert_called_once_with('t')
+        client_mock.describe_task_definition.assert_called_once_with(taskDefinition='t')
 
-        client_mock.list_tasks.assert_called_once_with(
-            cluster='c', launchType=launch_type, desiredStatus='RUNNING', family='f'
-        )
+        client_mock.list_tasks.assert_called_once_with(cluster='c', desiredStatus='RUNNING', family='f')
 
         start_mock.assert_not_called()
         wait_mock.assert_called_once_with()
@@ -326,3 +363,11 @@ class TestECSOperator(unittest.TestCase):
     def test_execute_xcom_disabled(self, mock_cloudwatch_log_message):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
+
+
+class TestShouldRetry(unittest.TestCase):
+    def test_return_true_on_valid_reason(self):
+        self.assertTrue(should_retry(ECSOperatorError([{'reason': 'RESOURCE:MEMORY'}], 'Foo')))
+
+    def test_return_false_on_invalid_reason(self):
+        self.assertFalse(should_retry(ECSOperatorError([{'reason': 'CLUSTER_NOT_FOUND'}], 'Foo')))

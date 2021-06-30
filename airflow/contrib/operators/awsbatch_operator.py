@@ -17,11 +17,12 @@
 # under the License.
 #
 
-"""This module is deprecated. Please use:
+"""
+This module is deprecated. Please use:
 
-- `airflow.providers.amazon.aws.operators.batch`
-- `airflow.providers.amazon.aws.hooks.batch_client`
-- `airflow.providers.amazon.aws.hooks.batch_waiters``
+- :mod:`airflow.providers.amazon.aws.operators.batch`
+- :mod:`airflow.providers.amazon.aws.hooks.batch_client`
+- :mod:`airflow.providers.amazon.aws.hooks.batch_waiters``
 """
 
 import warnings
@@ -40,7 +41,6 @@ warnings.warn(
 )
 
 
-# pylint: disable=too-many-ancestors
 class AWSBatchOperator(AwsBatchOperator):
     """
     This class is deprecated. Please use
@@ -52,7 +52,7 @@ class AWSBatchOperator(AwsBatchOperator):
             """This class is deprecated.
             Please use `airflow.providers.amazon.aws.operators.batch.AwsBatchOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 

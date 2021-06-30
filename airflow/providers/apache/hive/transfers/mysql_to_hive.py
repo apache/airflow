@@ -28,7 +28,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySqlToHiveOperator(BaseOperator):
@@ -71,8 +70,9 @@ class MySqlToHiveOperator(BaseOperator):
     :type escapechar: str
     :param mysql_conn_id: source mysql connection
     :type mysql_conn_id: str
-    :param hive_conn_id: destination hive connection
-    :type hive_conn_id: str
+    :param hive_cli_conn_id: Reference to the
+        :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :type hive_cli_conn_id: str
     :param tblproperties: TBLPROPERTIES of the hive table being created
     :type tblproperties: dict
     """
@@ -81,8 +81,7 @@ class MySqlToHiveOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,

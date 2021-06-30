@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.utils.decorators import apply_defaults
 
 
 class OracleToOracleOperator(BaseOperator):
@@ -31,7 +30,7 @@ class OracleToOracleOperator(BaseOperator):
     :type oracle_destination_conn_id: str
     :param destination_table: destination table to insert rows.
     :type destination_table: str
-    :param oracle_source_conn_id: source Oracle connection.
+    :param oracle_source_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
     :type oracle_source_conn_id: str
     :param source_sql: SQL query to execute against the source Oracle
         database. (templated)
@@ -43,9 +42,9 @@ class OracleToOracleOperator(BaseOperator):
     """
 
     template_fields = ('source_sql', 'source_sql_params')
+    template_fields_renderers = {"source_sql": "sql", "source_sql_params": "py"}
     ui_color = '#e08c8c'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -67,7 +66,6 @@ class OracleToOracleOperator(BaseOperator):
         self.source_sql_params = source_sql_params
         self.rows_chunk = rows_chunk
 
-    # pylint: disable=unused-argument
     def _execute(self, src_hook, dest_hook, context) -> None:
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()

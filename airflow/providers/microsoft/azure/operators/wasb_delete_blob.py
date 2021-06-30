@@ -20,7 +20,6 @@ from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.utils.decorators import apply_defaults
 
 
 class WasbDeleteBlobOperator(BaseOperator):
@@ -31,7 +30,7 @@ class WasbDeleteBlobOperator(BaseOperator):
     :type container_name: str
     :param blob_name: Name of the blob. (templated)
     :type blob_name: str
-    :param wasb_conn_id: Reference to the wasb connection.
+    :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
     :type wasb_conn_id: str
     :param check_options: Optional keyword arguments that
         `WasbHook.check_for_blob()` takes.
@@ -44,7 +43,6 @@ class WasbDeleteBlobOperator(BaseOperator):
 
     template_fields = ('container_name', 'blob_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,

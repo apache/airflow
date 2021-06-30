@@ -69,7 +69,7 @@ The ``CloudDataCatalogGetEntryOperator`` use Project ID, Entry Group ID, Entry I
     :start-after: [START howto_operator_gcp_datacatalog_get_entry]
     :end-before: [END howto_operator_gcp_datacatalog_get_entry]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryOperator`
 parameters which allows you to dynamically determine values.
 
@@ -89,7 +89,7 @@ The ``CloudDataCatalogLookupEntryOperator`` use the resource name to get the ent
     :start-after: [START howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
     :end-before: [END howto_operator_gcp_datacatalog_lookup_entry_linked_resource]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogLookupEntryOperator`
 parameters which allows you to dynamically determine values.
 
@@ -115,7 +115,7 @@ operator create the entry.
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_gcs]
     :end-before: [END howto_operator_gcp_datacatalog_create_entry_gcs]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator`
 parameters which allows you to dynamically determine values.
 
@@ -149,7 +149,7 @@ operator update the entry.
     :start-after: [START howto_operator_gcp_datacatalog_update_entry]
     :end-before: [END howto_operator_gcp_datacatalog_update_entry]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateEntryOperator`
 parameters which allows you to dynamically determine values.
 
@@ -167,7 +167,7 @@ operator delete the entry.
     :start-after: [START howto_operator_gcp_datacatalog_delete_entry]
     :end-before: [END howto_operator_gcp_datacatalog_delete_entry]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator`
 parameters which allows you to dynamically determine values.
 
@@ -196,7 +196,7 @@ operator create the entry group.
     :start-after: [START howto_operator_gcp_datacatalog_create_entry_group]
     :end-before: [END howto_operator_gcp_datacatalog_create_entry_group]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryGroupOperator`
 parameters which allows you to dynamically determine values.
 
@@ -230,7 +230,7 @@ operator get the entry group.
     :start-after: [START howto_operator_gcp_datacatalog_get_entry_group]
     :end-before: [END howto_operator_gcp_datacatalog_get_entry_group]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryGroupOperator`
 parameters which allows you to dynamically determine values.
 
@@ -256,7 +256,7 @@ operator delete the entry group.
     :start-after: [START howto_operator_gcp_datacatalog_delete_entry_group]
     :end-before: [END howto_operator_gcp_datacatalog_delete_entry_group]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator`
 parameters which allows you to dynamically determine values.
 
@@ -285,7 +285,7 @@ operator get the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template]
     :end-before: [END howto_operator_gcp_datacatalog_create_tag_template]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateOperator`
 parameters which allows you to dynamically determine values.
 
@@ -319,7 +319,7 @@ operator delete the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template]
     :end-before: [END howto_operator_gcp_datacatalog_delete_tag_template]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator`
 parameters which allows you to dynamically determine values.
 
@@ -338,7 +338,7 @@ operator get the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_get_tag_template]
     :end-before: [END howto_operator_gcp_datacatalog_get_tag_template]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetTagTemplateOperator`
 parameters which allows you to dynamically determine values.
 
@@ -364,7 +364,7 @@ operator update the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_update_tag_template]
     :end-before: [END howto_operator_gcp_datacatalog_update_tag_template]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator`
 parameters which allows you to dynamically determine values.
 
@@ -393,7 +393,7 @@ operator get the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_create_tag]
     :end-before: [END howto_operator_gcp_datacatalog_create_tag]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagOperator`
 parameters which allows you to dynamically determine values.
 
@@ -427,7 +427,7 @@ operator update the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_update_tag_template]
     :end-before: [END howto_operator_gcp_datacatalog_update_tag_template]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagOperator`
 parameters which allows you to dynamically determine values.
 
@@ -445,7 +445,7 @@ operator delete the tag template.
     :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template]
     :end-before: [END howto_operator_gcp_datacatalog_delete_tag_template]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator`
 parameters which allows you to dynamically determine values.
 
@@ -463,7 +463,7 @@ operator get list of the tags on the entry.
     :start-after: [START howto_operator_gcp_datacatalog_list_tags]
     :end-before: [END howto_operator_gcp_datacatalog_list_tags]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogListTagsOperator`
 parameters which allows you to dynamically determine values.
 
@@ -501,7 +501,7 @@ operator get the tag template field.
     :start-after: [START howto_operator_gcp_datacatalog_create_tag_template_field]
     :end-before: [END howto_operator_gcp_datacatalog_create_tag_template_field]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateFieldOperator`
 parameters which allows you to dynamically determine values.
 
@@ -535,7 +535,7 @@ operator rename the tag template field.
     :start-after: [START howto_operator_gcp_datacatalog_rename_tag_template_field]
     :end-before: [END howto_operator_gcp_datacatalog_rename_tag_template_field]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogRenameTagTemplateFieldOperator`
 parameters which allows you to dynamically determine values.
 
@@ -553,7 +553,7 @@ operator get the tag template field.
     :start-after: [START howto_operator_gcp_datacatalog_update_tag_template_field]
     :end-before: [END howto_operator_gcp_datacatalog_update_tag_template_field]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator`
 parameters which allows you to dynamically determine values.
 
@@ -572,7 +572,7 @@ operator delete the tag template field.
     :start-after: [START howto_operator_gcp_datacatalog_delete_tag_template_field]
     :end-before: [END howto_operator_gcp_datacatalog_delete_tag_template_field]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator`
 parameters which allows you to dynamically determine values.
 
@@ -593,7 +593,7 @@ The ``query`` parameters should defined using `search syntax <https://cloud.goog
     :start-after: [START howto_operator_gcp_datacatalog_search_catalog]
     :end-before: [END howto_operator_gcp_datacatalog_search_catalog]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogSearchCatalogOperator`
 parameters which allows you to dynamically determine values.
 

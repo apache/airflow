@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated.
-
-Please use `airflow.providers.apache.hive.transfers.vertica_to_hive`.
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.apache.hive.transfers.vertica_to_hive`.
 """
 
 import warnings
@@ -44,6 +44,6 @@ class VerticaToHiveTransfer(VerticaToHiveOperator):
             Please use
             `airflow.providers.apache.hive.transfers.vertica_to_hive.VerticaToHiveOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

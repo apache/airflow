@@ -52,8 +52,8 @@ INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql')
 INSTANCE_NAME2 = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME2', 'test-mysql2')
 DB_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'testdb')
 
-EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://bucketName/fileName')
-IMPORT_URI = os.environ.get('GCSQL_MYSQL_IMPORT_URI', 'gs://bucketName/fileName')
+EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
+IMPORT_URI = os.environ.get('GCSQL_MYSQL_IMPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
 
 # Bodies below represent Cloud SQL instance resources:
 # https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances
@@ -309,26 +309,26 @@ with models.DAG(
     )
 
     (
-        sql_instance_create_task  # noqa
-        >> sql_instance_create_2_task  # noqa
-        >> sql_instance_read_replica_create  # noqa
-        >> sql_instance_patch_task  # noqa
-        >> sql_instance_patch_task2  # noqa
-        >> sql_db_create_task  # noqa
-        >> sql_db_create_task2  # noqa
-        >> sql_db_patch_task  # noqa
-        >> sql_db_patch_task2  # noqa
-        >> sql_gcp_add_bucket_permission_task  # noqa
-        >> sql_export_task  # noqa
-        >> sql_export_task2  # noqa
-        >> sql_gcp_add_object_permission_task  # noqa
-        >> sql_gcp_add_bucket_permission_2_task  # noqa
-        >> sql_import_task  # noqa
-        >> sql_import_task2  # noqa
-        >> sql_db_delete_task  # noqa
-        >> sql_db_delete_task2  # noqa
-        >> sql_instance_failover_replica_delete_task  # noqa
-        >> sql_instance_read_replica_delete_task  # noqa
-        >> sql_instance_delete_task  # noqa
-        >> sql_instance_delete_2_task  # noqa
+        sql_instance_create_task
+        >> sql_instance_create_2_task
+        >> sql_instance_read_replica_create
+        >> sql_instance_patch_task
+        >> sql_instance_patch_task2
+        >> sql_db_create_task
+        >> sql_db_create_task2
+        >> sql_db_patch_task
+        >> sql_db_patch_task2
+        >> sql_gcp_add_bucket_permission_task
+        >> sql_export_task
+        >> sql_export_task2
+        >> sql_gcp_add_object_permission_task
+        >> sql_gcp_add_bucket_permission_2_task
+        >> sql_import_task
+        >> sql_import_task2
+        >> sql_db_delete_task
+        >> sql_db_delete_task2
+        >> sql_instance_failover_replica_delete_task
+        >> sql_instance_read_replica_delete_task
+        >> sql_instance_delete_task
+        >> sql_instance_delete_2_task
     )

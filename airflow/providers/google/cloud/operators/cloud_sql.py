@@ -27,7 +27,6 @@ from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook,
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils.decorators import apply_defaults
 
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
@@ -211,7 +210,6 @@ class CloudSQLBaseOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -309,7 +307,6 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -411,7 +408,6 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_patch_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -491,26 +487,6 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_delete_template_fields]
 
-    @apply_defaults
-    def __init__(
-        self,
-        *,
-        instance: str,
-        project_id: Optional[str] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            project_id=project_id,
-            instance=instance,
-            gcp_conn_id=gcp_conn_id,
-            api_version=api_version,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
-
     def execute(self, context) -> Optional[bool]:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -568,7 +544,6 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_db_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -677,7 +652,6 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_db_patch_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -778,7 +752,6 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_db_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -871,7 +844,6 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_export_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -976,7 +948,6 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
     )
     # [END gcp_sql_import_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1056,7 +1027,6 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
     template_ext = ('.sql',)
     # [END gcp_sql_query_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

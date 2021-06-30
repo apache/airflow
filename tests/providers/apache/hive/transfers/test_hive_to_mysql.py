@@ -18,8 +18,11 @@
 import os
 import re
 import unittest
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow import PY39
 from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -29,6 +32,12 @@ from tests.test_utils.mock_hooks import MockHiveServer2Hook, MockMySqlHook
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
+@pytest.mark.skipif(
+    PY39,
+    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
+    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
+    " is solved",
+)
 class TestHiveToMySqlTransfer(TestHiveEnvironment):
     def setUp(self):
         self.kwargs = dict(
@@ -73,26 +82,28 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
     @patch('airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook')
     @patch('airflow.providers.apache.hive.transfers.hive_to_mysql.NamedTemporaryFile')
     @patch('airflow.providers.apache.hive.transfers.hive_to_mysql.HiveServer2Hook')
-    def test_execute_bulk_load(self, mock_hive_hook, mock_tmp_file, mock_mysql_hook):
-        type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
+    def test_execute_bulk_load(self, mock_hive_hook, mock_tmp_file_context, mock_mysql_hook):
+        mock_tmp_file = MagicMock()
+        mock_tmp_file.name = 'tmp_file'
+        mock_tmp_file_context.return_value.__enter__.return_value = mock_tmp_file
         context = {}
         self.kwargs.update(dict(bulk_load=True))
 
         HiveToMySqlOperator(**self.kwargs).execute(context=context)
 
-        mock_tmp_file.assert_called_once_with()
+        mock_tmp_file_context.assert_called_once_with()
         mock_hive_hook.return_value.to_csv.assert_called_once_with(
             self.kwargs['sql'],
-            mock_tmp_file.return_value.name,
+            'tmp_file',
             delimiter='\t',
             lineterminator='\n',
             output_header=False,
             hive_conf=context_to_airflow_vars(context),
         )
         mock_mysql_hook.return_value.bulk_load.assert_called_once_with(
-            table=self.kwargs['mysql_table'], tmp_file=mock_tmp_file.return_value.name
+            table=self.kwargs['mysql_table'], tmp_file='tmp_file'
         )
-        mock_tmp_file.return_value.close.assert_called_once_with()
+        mock_tmp_file_context.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch('airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook')
     def test_execute_with_hive_conf(self, mock_mysql_hook):

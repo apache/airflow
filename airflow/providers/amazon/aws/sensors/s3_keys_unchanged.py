@@ -19,12 +19,14 @@ import os
 from datetime import datetime
 from typing import Optional, Set, Union
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-from airflow.utils.decorators import apply_defaults
 
 
 @poke_mode_only
@@ -71,7 +73,6 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     template_fields = ('bucket_name', 'prefix')
 
-    @apply_defaults
     def __init__(
         self,
         *,

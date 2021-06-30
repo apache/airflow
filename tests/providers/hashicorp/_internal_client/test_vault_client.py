@@ -1,4 +1,3 @@
-# pylint: disable=no-member
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -23,7 +22,7 @@ from unittest.mock import mock_open, patch
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
 
-from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient  # noqa
+from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 
 
 class TestVaultClient(TestCase):
@@ -58,7 +57,7 @@ class TestVaultClient(TestCase):
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        client.auth_approle.assert_called_with(role_id="role", secret_id="pass")
+        client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
 
@@ -75,7 +74,7 @@ class TestVaultClient(TestCase):
         )
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url='http://localhost:8180')
-        client.auth_approle.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
+        client.auth.approle.login.assert_called_with(role_id="role", secret_id="pass", mount_point="other")
         client.is_authenticated.assert_called_with()
         assert 2 == vault_client.kv_engine_version
 
@@ -501,6 +500,22 @@ class TestVaultClient(TestCase):
         mock_hvac.Client.return_value = mock_client
         with open('/tmp/test_token.txt', 'w+') as the_file:
             the_file.write('s.7AU0I51yv1Q1lxOIg1F3ZRAS')
+        vault_client = _VaultClient(
+            auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
+        )
+        client = vault_client.client
+        mock_hvac.Client.assert_called_with(url='http://localhost:8180')
+        client.is_authenticated.assert_called_with()
+        assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
+        assert 2 == vault_client.kv_engine_version
+        assert "secret" == vault_client.mount_point
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_token_path_strip(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        with open('/tmp/test_token.txt', 'w+') as the_file:
+            the_file.write('  s.7AU0I51yv1Q1lxOIg1F3ZRAS\n')
         vault_client = _VaultClient(
             auth_type="token", token_path="/tmp/test_token.txt", url="http://localhost:8180"
         )
