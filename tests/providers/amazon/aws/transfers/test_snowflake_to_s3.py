@@ -52,7 +52,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
             dag=None,
         ).execute(None)
 
-        unload_options = '\n\t'.join(unload_options)
+        unload_options = '\n\t\t\t'.join(unload_options)
         unload_query = f"""
         COPY INTO 's3://{s3_bucket}/{s3_path}'
         FROM {schema}.{table}

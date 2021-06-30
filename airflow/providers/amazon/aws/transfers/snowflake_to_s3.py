@@ -162,6 +162,6 @@ class SnowflakeToS3Operator(BaseOperator):
         if self.include_header:
             unload_query += f'HEADER = {self.include_header};'
 
-        self.log.info('Executing UNLOAD command...')
+        self.log.info('Executing UNLOAD command... %s', unload_query)
         snowflake_hook.run(unload_query)
         self.log.info("UNLOAD command complete...")
