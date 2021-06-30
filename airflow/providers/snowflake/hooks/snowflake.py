@@ -15,15 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from contextlib import closing
+from io import StringIO
 from typing import Any, Dict, Optional, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-
-# pylint: disable=no-name-in-module
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection
+from snowflake.connector.util_text import split_statements
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -148,9 +149,7 @@ class SnowflakeHook(DbApiHook):
         One method to fetch connection params as a dict
         used in get_uri() and get_connection()
         """
-        conn = self.get_connection(
-            self.snowflake_conn_id  # type: ignore[attr-defined] # pylint: disable=no-member
-        )
+        conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
         account = conn.extra_dejson.get('extra__snowflake__account', '') or conn.extra_dejson.get(
             'account', ''
         )
@@ -177,6 +176,8 @@ class SnowflakeHook(DbApiHook):
             "role": self.role or role,
             "authenticator": self.authenticator or authenticator,
             "session_parameters": self.session_parameters or session_parameters,
+            # application is used to track origin of the requests
+            "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
         }
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
@@ -228,10 +229,8 @@ class SnowflakeHook(DbApiHook):
 
         intended to be used by external import and export statements
         """
-        if self.snowflake_conn_id:  # type: ignore[attr-defined]  # pylint: disable=no-member
-            connection_object = self.get_connection(
-                self.snowflake_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-            )
+        if self.snowflake_conn_id:  # type: ignore[attr-defined]
+            connection_object = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
             if 'aws_secret_access_key' in connection_object.extra_dejson:
                 aws_access_key_id = connection_object.extra_dejson.get(
                     'aws_access_key_id'
@@ -252,7 +251,7 @@ class SnowflakeHook(DbApiHook):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
-        sequentially. The variable info_rows is returned so that
+        sequentially. The variable execution_info is returned so that
         it can be used in the Operators to modify the behavior
         depending on the result of the query (i.e fail the operator
         if the copy has processed 0 files)
@@ -273,45 +272,31 @@ class SnowflakeHook(DbApiHook):
             self.set_autocommit(conn, autocommit)
 
             if isinstance(sql, str):
-                cursors = conn.execute_string(sql, return_cursors=True, cursor_class=DictCursor)
-                for cur in cursors:
-                    self.query_ids.append(cur.sfqid)
+                split_statements_tuple = split_statements(StringIO(sql))
+                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
 
-                    info_rows = []
+            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+            with closing(conn.cursor(DictCursor)) as cur:
+                for sql_statement in sql:
+
+                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+                    if parameters:
+                        cur.execute(sql_statement, parameters)
+                    else:
+                        cur.execute(sql_statement)
+
+                    execution_info = []
                     for row in cur:
                         self.log.info("Statement execution info - %s", row)
-                        info_rows.append(row)
+                        execution_info.append(row)
 
                     self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", cur.sfqid)
-
-                    cur.close()
-
-                return info_rows
-
-            elif isinstance(sql, list):
-                self.log.debug("Executing %d statements against Snowflake DB", len(sql))
-                with closing(conn.cursor(DictCursor)) as cur:
-                    for sql_statement in sql:
-
-                        self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                        if parameters:
-                            cur.execute(sql_statement, parameters)
-                        else:
-                            cur.execute(sql_statement)
-
-                        info_rows = []
-                        for row in cur:
-                            self.log.info("Statement execution info - %s", row)
-                            info_rows.append(row)
-
-                        self.log.info("Rows affected: %s", cur.rowcount)
-                        self.log.info("Snowflake query id: %s", cur.sfqid)
-                        self.query_ids.append(cur.sfqid)
-
-                return info_rows
+                    self.query_ids.append(cur.sfqid)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+
+        return execution_info
