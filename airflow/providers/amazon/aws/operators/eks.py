@@ -18,18 +18,12 @@
 # pylint: disable=invalid-name
 """This module contains Amazon EKS operators."""
 import json
-import os
 from datetime import datetime
 from time import sleep
 from typing import Dict, List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import (
-    DEFAULT_CONTEXT_NAME,
-    DEFAULT_POD_USERNAME,
-    EKSHook,
-    generate_config_file,
-)
+from airflow.providers.amazon.aws.hooks.eks import DEFAULT_CONTEXT_NAME, DEFAULT_POD_USERNAME, EKSHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 CHECK_INTERVAL_SECONDS = 15
@@ -663,7 +657,12 @@ class EKSPodOperator(KubernetesPodOperator):
     :param region: Which AWS region the connection should use.
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
-
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :type aws_conn_id: str
     """
 
     def __init__(  # pylint: disable=too-many-arguments,too-many-locals
@@ -677,8 +676,8 @@ class EKSPodOperator(KubernetesPodOperator):
         pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
         pod_name: Optional[str] = DEFAULT_POD_NAME,
         pod_username: Optional[str] = DEFAULT_POD_USERNAME,
-        aws_profile: Optional[str] = None,
         region: Optional[str] = None,
+        aws_conn_id: Optional[str] = CONN_ID,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -687,23 +686,24 @@ class EKSPodOperator(KubernetesPodOperator):
             name=pod_name,
             **kwargs,
         )
-        self.aws_profile = os.getenv('AWS_PROFILE', None) if aws_profile is None else aws_profile
         self.roleArn = cluster_role_arn
         self.clusterName = cluster_name
         self.pod_name = pod_name
         self.pod_username = pod_username
         self.pod_context = pod_context
         self.region = region
+        self.conn_id = aws_conn_id
 
     def execute(self, context):
-        self.config_file = generate_config_file(
-            eks_cluster_name=self.clusterName,
-            eks_namespace_name=self.namespace,
-            pod_name=self.pod_name,
-            pod_username=self.pod_username,
-            pod_context=self.pod_context,
-            aws_region=self.region,
-            aws_profile=self.aws_profile,
+        eks_hook = EKSHook(
+            aws_conn_id=self.conn_id,
+            region_name=self.region,
         )
 
-        return super().execute(context)
+        with eks_hook.generate_config_file(
+            eks_cluster_name=self.clusterName,
+            pod_namespace=self.namespace,
+            pod_username=self.pod_username,
+            pod_context=self.pod_context,
+        ) as self.config_file:
+            return super().execute(context)

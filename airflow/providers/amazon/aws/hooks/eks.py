@@ -21,10 +21,10 @@ import base64
 import json
 import re
 import tempfile
+from contextlib import contextmanager
 from functools import partial
 from typing import Callable, Dict, List, Optional
 
-import boto3
 import yaml
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
@@ -35,7 +35,6 @@ from airflow.utils.json import AirflowJsonEncoder
 DEFAULT_CONTEXT_NAME = 'aws'
 DEFAULT_PAGINATION_TOKEN = ''
 DEFAULT_POD_USERNAME = 'aws'
-KUBE_CONFIG_FILE_PREFIX = 'kube_config_'
 STS_TOKEN_EXPIRES_IN = 60
 
 
@@ -347,115 +346,107 @@ class EKSHook(AwsBaseHook):
             raise e
         return name_collection
 
+    @contextmanager
+    def generate_config_file(
+        self,
+        eks_cluster_name: str,
+        pod_namespace: str,
+        pod_username: Optional[str] = DEFAULT_POD_USERNAME,
+        pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
+    ) -> str:
+        """
+        Writes the kubeconfig file given an EKS Cluster.
 
-def generate_config_file(
-    eks_cluster_name: str,
-    eks_namespace_name: str,
-    pod_name: str,
-    aws_profile: Optional[str],
-    pod_username: Optional[str] = DEFAULT_POD_USERNAME,
-    pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
-    aws_region: Optional[str] = None,
-) -> str:
-    """
-    Writes the kubeconfig file given an EKS Cluster.
+        :param eks_cluster_name: The name of the cluster to create the EKS Managed Nodegroup in.
+        :type eks_cluster_name: str
+        :param pod_namespace: The namespace to run within kubernetes.
+        :type pod_namespace: str
+        :param pod_username: The username under which to execute the pod.
+        :type pod_username: str
+        :param pod_context: The name of the context access parameters to use.
+        :type pod_context: str
+        """
+        # Set up the client
+        eks_client = self.conn
 
-    :param eks_cluster_name: The name of the cluster to create the EKS Managed Nodegroup in.
-    :type eks_cluster_name: str
-    :param eks_namespace_name: The namespace to run within kubernetes.
-    :type eks_namespace_name: str
-    :param pod_name: The unique name to give the pod.  Used as an identifier in the config filename.
-    :type pod_name: str
-    :param aws_profile: The named profile containing the credentials to use.
-    :type aws_profile: str
-    :param pod_username: The username under which to execute the pod.
-    :type pod_username: str
-    :param pod_context: The name of the context access parameters to use.
-    :type pod_context: str
-    :param aws_region: The name of the AWS Region the EKS Cluster resides in.
-    :type aws_region: str
-    """
-    # Set up the client
-    session = boto3.Session(region_name=aws_region, profile_name=aws_profile)
-    eks_client = session.client("eks")
+        # Get cluster details
+        cluster = eks_client.describe_cluster(name=eks_cluster_name)
+        cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
+        cluster_ep = cluster["cluster"]["endpoint"]
 
-    # Get cluster details
-    cluster = eks_client.describe_cluster(name=eks_cluster_name)
-    cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
-    cluster_ep = cluster["cluster"]["endpoint"]
+        token = self._fetch_sts_token(cluster_id=eks_cluster_name)
 
-    token = _get_bearer_token(session=session, cluster_id=eks_cluster_name, aws_region=aws_region)
+        cluster_config = {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [
+                {
+                    "cluster": {"server": cluster_ep, "certificate-authority-data": cluster_cert},
+                    "name": eks_cluster_name,
+                }
+            ],
+            "contexts": [
+                {
+                    "context": {
+                        "cluster": eks_cluster_name,
+                        "namespace": pod_namespace,
+                        "user": pod_username,
+                    },
+                    "name": pod_context,
+                }
+            ],
+            "current-context": pod_context,
+            "preferences": {},
+            "users": [
+                {
+                    "name": pod_username,
+                    "user": {
+                        "token": token,
+                    },
+                }
+            ],
+        }
 
-    cluster_config = {
-        "apiVersion": "v1",
-        "kind": "Config",
-        "clusters": [
-            {
-                "cluster": {"server": cluster_ep, "certificate-authority-data": cluster_cert},
-                "name": eks_cluster_name,
-            }
-        ],
-        "contexts": [
-            {
-                "context": {
-                    "cluster": eks_cluster_name,
-                    "namespace": eks_namespace_name,
-                    "user": pod_username,
-                },
-                "name": pod_context,
-            }
-        ],
-        "current-context": pod_context,
-        "preferences": {},
-        "users": [
-            {
-                "name": pod_username,
-                "user": {
-                    "token": token,
-                },
-            }
-        ],
-    }
+        config_text = yaml.dump(cluster_config, default_flow_style=False)
 
-    config_text = yaml.dump(cluster_config, default_flow_style=False)
+        # Set the filename to something which can be found later if needed.
+        with tempfile.NamedTemporaryFile(mode='w') as config_file:
+            config_file.write(config_text)
+            config_file.flush()
+            yield config_file.name
 
-    # Set the filename to something which can be found later if needed.
-    filename_prefix = KUBE_CONFIG_FILE_PREFIX + pod_name
-    with tempfile.NamedTemporaryFile(prefix=filename_prefix, mode='w', delete=False) as config_file:
-        config_file.write(config_text)
+    def _fetch_sts_token(self, cluster_id: str) -> str:
+        session = self.get_session()
+        service_id = self.conn.meta.service_model.service_id
+        sts_url = (
+            f'https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15'
+        )
 
-    return config_file.name
+        signer = RequestSigner(
+            service_id=service_id,
+            region_name=session.region_name,
+            signing_name='sts',
+            signature_version='v4',
+            credentials=session.get_credentials(),
+            event_emitter=session.events,
+        )
 
+        request_params = {
+            'method': 'GET',
+            'url': sts_url,
+            'body': {},
+            'headers': {'x-k8s-aws-id': cluster_id},
+            'context': {},
+        }
 
-def _get_bearer_token(session: boto3.Session, cluster_id: str, aws_region: str) -> str:
-    client = session.client('sts', region_name=aws_region)
-    service_id = client.meta.service_model.service_id
+        signed_url = signer.generate_presigned_url(
+            request_dict=request_params,
+            region_name=session.region_name,
+            expires_in=STS_TOKEN_EXPIRES_IN,
+            operation_name='',
+        )
 
-    signer = RequestSigner(
-        service_id=service_id,
-        region_name=aws_region,
-        signing_name='sts',
-        signature_version='v4',
-        credentials=session.get_credentials(),
-        event_emitter=session.events,
-    )
+        base64_url = base64.urlsafe_b64encode(signed_url.encode('utf-8')).decode('utf-8')
 
-    request_params = {
-        'method': 'GET',
-        'url': f'https://sts.{aws_region}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15',
-        'body': {},
-        'headers': {'x-k8s-aws-id': cluster_id},
-        'context': {},
-    }
-
-    signed_url = signer.generate_presigned_url(
-        request_dict=request_params,
-        region_name=aws_region,
-        expires_in=STS_TOKEN_EXPIRES_IN,
-        operation_name='',
-    )
-
-    base64_url = base64.urlsafe_b64encode(signed_url.encode('utf-8')).decode('utf-8')
-
-    # remove any base64 encoding padding:
-    return 'k8s-aws-v1.' + re.sub(r'=*', '', base64_url)
+        # remove any base64 encoding padding:
+        return 'k8s-aws-v1.' + re.sub(r'=*', '', base64_url)
