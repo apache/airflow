@@ -376,3 +376,29 @@ def set_dag_run_state_to_running(dag, execution_date, commit=False, session=None
 
     # To keep the return type consistent with the other similar functions.
     return res
+
+def mark_task_instance_state(dag, task_id, execution_date, upstream, downstream, future, past, state, dry_run):
+    """
+    Mark task as given state.
+    """
+    task = dag.get_task(task_id)
+    task.dag = dag
+
+    if not task:
+        error_message = f"Task ID {task_id} not found"
+        raise ValueError(error_message)
+
+    execution_date = timezone.parse(execution_date)
+
+    tis = set_state(tasks=[task],
+                    execution_date=execution_date,
+                    upstream=upstream,
+                    downstream=downstream,
+                    future=future,
+                    past=past,
+                    state=state,
+                    commit=not dry_run
+                    )
+    ti = tis.pop()
+    return {"dag_id": ti.dag_id, "task_id": ti.task_id,
+            "execution_date": ti.execution_date.strftime('%Y%m%d%H%M%S'), "state": ti.state}

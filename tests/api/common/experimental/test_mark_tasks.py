@@ -26,7 +26,7 @@ import pytest
 from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
     set_state, _create_dagruns, set_dag_run_state_to_success, set_dag_run_state_to_failed,
-    set_dag_run_state_to_running)
+    set_dag_run_state_to_running, mark_task_instance_state)
 from airflow.utils import timezone
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.dates import days_ago
@@ -583,6 +583,19 @@ class TestMarkDAGRun(unittest.TestCase):
             dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
 
         set_dag_run_state_to_failed(self.dag1, date)
+
+    def test_mark_task_instance_state(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        for task in self.dag1.tasks:
+            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+        dag = self.dag1
+        task_id = 'runme_0'
+        print(date.isoformat())
+        result = mark_task_instance_state(dag=dag, task_id=task_id, execution_date=date.isoformat(), upstream=False,
+                                          downstream=False, future=False, past=False, state=State.FAILED, dry_run=False)
+        print(result)
+        assert result.get('state') == State.FAILED
 
     def tearDown(self):
         self.dag1.clear()
