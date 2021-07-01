@@ -115,7 +115,8 @@ def _build_metrics(func_name, namespace):
     sub_commands_to_check = {'users', 'connections'}
     sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
-    if full_command[1] in sub_commands_to_check:
+    sub_command = full_command[1] if len(full_command) > 1 else None
+    if sub_command in sub_commands_to_check:
         for idx, command in enumerate(full_command):
             if command in sensitive_fields:
                 # For cases when password is passed as "--password xyz" (with space between key and value)
