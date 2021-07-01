@@ -120,6 +120,17 @@ class ExternalTaskSensor(BaseSensorOperator):
         DM = DagModel
         TI = TaskInstance
         DR = DagRun
+
+        # if upstream dag paused, fail it immediately
+        dag_paused = session.query(DM).filter(
+            DM.dag_id == self.external_dag_id,
+            DM.is_paused == True
+        ).first()
+
+        if dag_paused:
+            raise AirflowException('The external DAG '
+                                   '{} paused.'.format(self.external_dag_id))
+
         if self.check_existence:
             dag_to_wait = session.query(DM).filter(
                 DM.dag_id == self.external_dag_id
