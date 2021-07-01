@@ -154,12 +154,12 @@ class SnowflakeToS3Operator(BaseOperator):
             """
 
         if self.file_format:
-            unload_query += f'FILE_FORMAT = ({self.file_format})'
+            unload_query += f' FILE_FORMAT = ({self.file_format})'
 
-        unload_query += unload_options
+        unload_query += f' {unload_options}'
 
         if self.include_header:
-            unload_query += f'HEADER = {self.include_header};'
+            unload_query += f' HEADER = {self.include_header};'
 
         self.log.info('Executing UNLOAD command... %s', unload_query)
         snowflake_hook.run(unload_query)
