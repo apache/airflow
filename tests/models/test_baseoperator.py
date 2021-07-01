@@ -379,20 +379,6 @@ class TestBaseOperatorMethods(unittest.TestCase):
         for start_task in start_tasks:
             assert set(start_task.get_direct_relatives(upstream=False)) == set(end_tasks)
 
-        # Begin test for `XComArgs`
-        xstart_tasks = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)().operator
-            for i in range(1, 4)
-        ]
-        xend_tasks = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)().operator
-            for i in range(4, 7)
-        ]
-        cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
-
-        for xstart_task in xstart_tasks:
-            assert set(xstart_task.get_direct_relatives(upstream=False)) == set(xend_tasks)
-
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
@@ -405,15 +391,15 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
         # Begin test for `XComArgs`
         [xop1, xop2, xop3, xop4, xop5, xop6] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)().operator
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
             for i in range(1, 7)
         ]
         chain(xop1, [xop2, xop3], [xop4, xop5], xop6)
 
-        assert {xop2, xop3} == set(xop1.get_direct_relatives(upstream=False))
-        assert [xop4] == xop2.get_direct_relatives(upstream=False)
-        assert [xop5] == xop3.get_direct_relatives(upstream=False)
-        assert {xop4, xop5} == set(xop6.get_direct_relatives(upstream=True))
+        assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
+        assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
+        assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
+        assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
