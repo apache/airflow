@@ -137,9 +137,9 @@ class ECSOperator(BaseOperator):
         finished.
     :type awslogs_stream_prefix: str
     :param reattach: If set to True, will check if the task previously launched by the task_instance
-    is already running. If so, the operator will attach to it instead of starting a new task.
-    This is to avoid relaunching a new task when the connection drops between Airflow and ECS while the task
-    is running (when the Airflow worker is restarted for example).
+        is already running. If so, the operator will attach to it instead of starting a new task.
+        This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
+        the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
     :param quota_retry: Config if and how to retry _start_task() for transient errors.
     :type quota_retry: dict
