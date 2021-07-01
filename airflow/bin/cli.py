@@ -872,6 +872,7 @@ def clear(args):
         confirm_prompt=not args.no_confirm,
         include_subdags=not args.exclude_subdags,
         include_parentdag=not args.exclude_parentdag,
+        donot_allow_retry=args.donot_allow_retry,
     )
 
 
@@ -3500,6 +3501,11 @@ class CLIFactory(object):
             ('-u', '--username',),
             help='Username of the user',
             type=str),
+        'donot_allow_retry': Arg(
+            ("--donot_allow_retry",),
+            (
+                "if set, clear task failed without retry"),
+            "store_true"),
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -4028,7 +4034,7 @@ class CLIFactory(object):
             'help': "Clear a set of task instance, as if they never ran",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                'upstream', 'downstream', 'no_confirm', 'only_failed', 'yes',
+                'upstream', 'downstream', 'no_confirm', 'only_failed', 'yes', 'donot_allow_retry',
                 'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
         }, {
             'func': pause,

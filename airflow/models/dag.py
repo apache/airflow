@@ -954,6 +954,7 @@ class DAG(BaseDag, LoggingMixin):
             only_failed=False,
             only_running=False,
             confirm_prompt=False,
+            donot_allow_retry=False,
             include_subdags=True,
             include_parentdag=True,
             reset_dag_runs=True,
@@ -978,6 +979,8 @@ class DAG(BaseDag, LoggingMixin):
         :type only_running: bool
         :param confirm_prompt: Ask for confirmation
         :type confirm_prompt: bool
+        :param donot_allow_retry: task failed without retry.
+        :type donot_allow_retry: bool
         :param include_subdags: Clear tasks in subdags and clear external tasks
             indicated by ExternalTaskMarker
         :type include_subdags: bool
@@ -1026,6 +1029,7 @@ class DAG(BaseDag, LoggingMixin):
                 start_date=start_date, end_date=end_date,
                 only_failed=only_failed,
                 only_running=only_running,
+                donot_allow_retry=donot_allow_retry,
                 confirm_prompt=confirm_prompt,
                 include_subdags=include_subdags,
                 include_parentdag=False,
@@ -1090,6 +1094,7 @@ class DAG(BaseDag, LoggingMixin):
                                                          end_date=tii.execution_date,
                                                          only_failed=only_failed,
                                                          only_running=only_running,
+                                                         donot_allow_retry=donot_allow_retry,
                                                          confirm_prompt=confirm_prompt,
                                                          include_subdags=include_subdags,
                                                          include_parentdag=False,
@@ -1127,6 +1132,7 @@ class DAG(BaseDag, LoggingMixin):
             clear_task_instances(tis,
                                  session,
                                  dag=self,
+                                 donot_allow_retry=donot_allow_retry,
                                  )
             if reset_dag_runs:
                 self.set_dag_runs_state(session=session,
@@ -1150,6 +1156,7 @@ class DAG(BaseDag, LoggingMixin):
             confirm_prompt=False,
             include_subdags=True,
             include_parentdag=False,
+            donot_allow_retry=False,
             reset_dag_runs=True,
             dry_run=False,
     ):
@@ -1163,6 +1170,7 @@ class DAG(BaseDag, LoggingMixin):
                 confirm_prompt=False,
                 include_subdags=include_subdags,
                 include_parentdag=include_parentdag,
+                donot_allow_retry=donot_allow_retry,
                 reset_dag_runs=reset_dag_runs,
                 dry_run=True)
             all_tis.extend(tis)
@@ -1192,6 +1200,7 @@ class DAG(BaseDag, LoggingMixin):
                           confirm_prompt=False,
                           include_subdags=include_subdags,
                           reset_dag_runs=reset_dag_runs,
+                          donot_allow_retry=donot_allow_retry,
                           dry_run=False,
                           )
         else:

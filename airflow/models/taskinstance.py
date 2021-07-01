@@ -72,6 +72,7 @@ def clear_task_instances(tis,
                          session,
                          activate_dag_runs=True,
                          dag=None,
+                         donot_allow_retry=False,
                          ):
     """
     Clears a set of task instances, but makes sure the running ones
@@ -81,6 +82,7 @@ def clear_task_instances(tis,
     :param session: current session
     :param activate_dag_runs: flag to check for active dag run
     :param dag: DAG object
+    :param donot_allow_retry: task do not allow retry
     """
     job_ids = []
     for ti in tis:
@@ -102,6 +104,8 @@ def clear_task_instances(tis,
                 # original max_tries or the last attempted try number.
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = State.NONE
+            if donot_allow_retry:
+                ti.max_tries = 0
             session.merge(ti)
         # Clear all reschedules related to the ti to clear
         TR = TaskReschedule
