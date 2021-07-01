@@ -25,13 +25,13 @@ from typing import Any, List, Optional
 from airflow.hooks.base import BaseHook
 
 
-class FTPIgnoreHost(ftplib.FTP):
+class _FTPIgnoreHost(ftplib.FTP):
     def makepasv(self):
         _, port = super().makepasv()
         return self.host, port
 
 
-class FTPSIgnoreHost(ftplib.FTP_TLS):
+class _FTPSIgnoreHost(ftplib.FTP_TLS):
     def makepasv(self):
         _, port = super().makepasv()
         return self.host, port
@@ -79,7 +79,7 @@ class FTPHook(BaseHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            ftp_cls = FTPIgnoreHost if self.ignore_pasv_host else ftplib.FTP
+            ftp_cls = _FTPIgnoreHost if self.ignore_pasv_host else ftplib.FTP
             self.conn = ftp_cls(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
 
@@ -302,7 +302,7 @@ class FTPSHook(FTPHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            ftp_cls = FTPSIgnoreHost if self.ignore_pasv_host else ftplib.FTP_TLS
+            ftp_cls = _FTPSIgnoreHost if self.ignore_pasv_host else ftplib.FTP_TLS
 
             if params.port:
                 ftp_cls.port = params.port
