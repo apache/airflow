@@ -225,7 +225,8 @@ class ECSOperator(BaseOperator):
         self.log.info('ECS Task has been successfully executed')
 
         if self.reattach:
-            # Clear the XCom value storing the ECS task ARN if the task has completed (we can't reattach it anymore)
+            # Clear the XCom value storing the ECS task ARN if the task has completed
+            # as we can't reattach it anymore
             self._xcom_del(session, f"{self.task_id}_task_arn")
 
         if self.do_xcom_push:
