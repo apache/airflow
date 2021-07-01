@@ -1567,8 +1567,7 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
         t4.set_downstream(t6)
         t5.set_downstream(t6)
 
-    :param tasks: List of tasks, List[airflow.models.BaseOperator], XComArg, or List[airflow.models.XComArg]
-        to set dependencies
+    :param tasks: List of tasks or XComArgs to set dependencies
     :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator, List[airflow.models.XComArg],
         or XComArg
     """
@@ -1584,7 +1583,7 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
             raise TypeError(
-                "Chain not supported between instances of {up_type} and {down_type}".format(
+                'Chain not supported between instances of {up_type} and {down_type}'.format(
                     up_type=type(up_task), down_type=type(down_task)
                 )
             )
@@ -1592,8 +1591,8 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):
             raise AirflowException(
-                f"Chain not supported different length Iterable "
-                f"but get {len(up_task_list)} and {len(down_task_list)}"
+                f'Chain not supported different length Iterable '
+                f'but get {len(up_task_list)} and {len(down_task_list)}'
             )
         for up_t, down_t in zip(up_task_list, down_task_list):
             up_t.set_downstream(down_t)

@@ -24,6 +24,7 @@ import jinja2
 import pytest
 from parameterized import parameterized
 
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
@@ -388,17 +389,47 @@ class TestBaseOperatorMethods(unittest.TestCase):
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
+        # Begin test for `XComArgs`
+        [xop1, xop2, xop3, xop4, xop5, xop6] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 7)
+        ]
+        chain(xop1, [xop2, xop3], [xop4, xop5], xop6)
+
+        assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
+        assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
+        assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
+        assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
+
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 3)]
         with pytest.raises(TypeError):
             chain([op1, op2], 1)
 
+        # Begin test for `XComArgs`
+        [xop1, xop2] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 3)
+        ]
+
+        with pytest.raises(TypeError):
+            chain([xop1, xop2], 1)
+
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2, op3, op4, op5] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 6)]
         with pytest.raises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
+
+        # Begin test for `XComArgs`
+        [xop1, xop2, xop3, xop4, xop5] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 6)
+        ]
+
+        with pytest.raises(AirflowException):
+            chain([xop1, xop2], [xop3, xop4, xop5])
 
     def test_lineage_composition(self):
         """
