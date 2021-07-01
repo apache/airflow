@@ -2445,9 +2445,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v0.10.0
+                 v0.11.1
 
-          Default: v0.10.0
+          Default: v0.11.1
 
   --helm-version HELM_VERSION
           Helm version - only used in case one of kind-cluster commands is used.
