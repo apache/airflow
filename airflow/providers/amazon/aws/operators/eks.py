@@ -39,7 +39,6 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
 CONN_ID = "eks"
-REGION = Session().region_name
 DEFAULT_COMPUTE_TYPE = 'nodegroup'
 DEFAULT_NODEGROUP_NAME_SUFFIX = '-nodegroup'
 DEFAULT_POD_NAME = 'pod'
@@ -94,7 +93,7 @@ class EKSCreateClusterOperator(BaseOperator):
         nodegroup_role_arn: Optional[str] = None,
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -188,7 +187,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         nodegroup_role_arn: str,
         nodegroup_name: Optional[str],
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -233,7 +232,7 @@ class EKSDeleteClusterOperator(BaseOperator):
     """
 
     def __init__(
-        self, cluster_name: str, conn_id: Optional[str] = CONN_ID, region: Optional[str] = REGION, **kwargs
+        self, cluster_name: str, conn_id: Optional[str] = CONN_ID, region: Optional[str] = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
@@ -303,7 +302,7 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_name: str,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -346,7 +345,7 @@ class EKSDescribeAllClustersOperator(BaseOperator):
         next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -408,7 +407,7 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
         next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -474,7 +473,7 @@ class EKSDescribeClusterOperator(BaseOperator):
         cluster_name: str,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -525,7 +524,7 @@ class EKSDescribeNodegroupOperator(BaseOperator):
         nodegroup_name: str,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -579,7 +578,7 @@ class EKSListClustersOperator(BaseOperator):
         next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -632,7 +631,7 @@ class EKSListNodegroupsOperator(BaseOperator):
         next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -707,7 +706,7 @@ class EKSPodOperator(KubernetesPodOperator):
         pod_name: Optional[str] = DEFAULT_POD_NAME,
         pod_username: Optional[str] = DEFAULT_POD_USERNAME,
         aws_profile: Optional[str] = None,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(

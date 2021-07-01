@@ -41,10 +41,7 @@ class EKSHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    conn_type = 'eks'
-    conn_name = 'eks'
     client_type = 'eks'
-    hook_name = 'EKS'
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = self.client_type

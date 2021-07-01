@@ -24,7 +24,6 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 CONN_ID = "eks"
-REGION = Session().region_name
 TARGET_STATE = 'ACTIVE'
 
 
@@ -50,7 +49,7 @@ class EKSClusterStateSensor(BaseSensorOperator):
         cluster_name: str,
         target_state: Optional[str] = TARGET_STATE,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ):
         if target_state not in self.valid_states:
@@ -105,7 +104,7 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         nodegroup_name: str,
         target_state: Optional[str] = TARGET_STATE,
         conn_id: Optional[str] = CONN_ID,
-        region: Optional[str] = REGION,
+        region: Optional[str] = None,
         **kwargs,
     ):
         if target_state.upper() not in self.valid_states:
