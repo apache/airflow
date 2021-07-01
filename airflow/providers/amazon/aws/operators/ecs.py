@@ -136,15 +136,11 @@ class ECSOperator(BaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
-    :param reattach: If set to True, will check if a task from the same family is already running.
-        If so, the operator will attach to it instead of starting a new task.
-    :type reattach: bool
-    :param reattach_prev_task: If set to True, will check if the task previously launched by the task_instance
+    :param reattach: If set to True, will check if the task previously launched by the task_instance
     is already running. If so, the operator will attach to it instead of starting a new task.
     This is to avoid relaunching a new task when the connection drops between Airflow and ECS while the task
-    is running.
-    reattach and reattach_prev_task cannot be both True.
-    :type reattach_prev_task: bool
+    is running (when the Airflow worker is restarted for example).
+    :type reattach: bool
     :param quota_retry: Config if and how to retry _start_task() for transient errors.
     :type quota_retry: dict
     """
@@ -175,7 +171,6 @@ class ECSOperator(BaseOperator):
         propagate_tags: Optional[str] = None,
         quota_retry: Optional[dict] = None,
         reattach: bool = False,
-        reattach_prev_task: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -199,10 +194,6 @@ class ECSOperator(BaseOperator):
         self.awslogs_region = awslogs_region
         self.propagate_tags = propagate_tags
         self.reattach = reattach
-        self.reattach_prev_task = reattach_prev_task
-
-        if self.reattach_prev_task and self.reattach:
-            raise AirflowException("reattach_prev_task and reattach cannot be both True")
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -221,7 +212,7 @@ class ECSOperator(BaseOperator):
 
         self.client = self.get_hook().get_conn()
 
-        if self.reattach or self.reattach_prev_task:
+        if self.reattach:
             self._try_reattach_task()
 
         if not self.arn:
@@ -233,7 +224,7 @@ class ECSOperator(BaseOperator):
 
         self.log.info('ECS Task has been successfully executed')
 
-        if self.reattach_prev_task:
+        if self.reattach:
             # Clear the XCom value storing the ECS task ARN if the task has completed (we can't reattach it anymore)
             self._xcom_del(session, f"{self.task_id}_task_arn")
 
@@ -284,7 +275,7 @@ class ECSOperator(BaseOperator):
         ecs_task_id = self.arn.split("/")[-1]
         self.log.info(f"ECS task ID is: {ecs_task_id}")
 
-        if self.reattach_prev_task:
+        if self.reattach:
             # Save the task ARN in XCom to be able to reattach it if needed
             self._xcom_set(context, key="ecs_task_arn", value=self.arn, task_id=f"{self.task_id}_task_arn")
 
@@ -307,25 +298,13 @@ class ECSOperator(BaseOperator):
         running_tasks = list_tasks_resp['taskArns']
 
         # Check if the ECS task previously launched is already running
-        if self.reattach_prev_task:
-            previous_task_arn = self.xcom_pull(task_ids=f"{self.task_id}_task_arn", key="ecs_task_arn")
-            self.log.info(f"Previously launched task = {previous_task_arn}")
-            if previous_task_arn in running_tasks:
-                self.arn = previous_task_arn
-                self.log.info("Reattaching previously launched task: %s", self.arn)
-            else:
-                self.log.info("No active previously launched task found to reattach")
-        # Check if an ECS task of the same family is already running
-        elif self.reattach:
-            running_tasks_count = len(running_tasks)
-            if running_tasks_count > 1:
-                self.arn = running_tasks[0]
-                self.log.warning("More than 1 ECS Task found. Reattaching to %s", self.arn)
-            elif running_tasks_count == 1:
-                self.arn = running_tasks[0]
-                self.log.info("Reattaching task from same family: %s", self.arn)
-            else:
-                self.log.info("No active tasks found to reattach")
+        previous_task_arn = self.xcom_pull(task_ids=f"{self.task_id}_task_arn", key="ecs_task_arn")
+        self.log.info(f"Previously launched task = {previous_task_arn}")
+        if previous_task_arn in running_tasks:
+            self.arn = previous_task_arn
+            self.log.info("Reattaching previously launched task: %s", self.arn)
+        else:
+            self.log.info("No active previously launched task found to reattach")
 
     def _wait_for_task_ended(self) -> None:
         if not self.client or not self.arn:
