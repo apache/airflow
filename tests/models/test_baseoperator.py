@@ -391,9 +391,9 @@ class TestBaseOperatorMethods(unittest.TestCase):
         cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
 
         for xstart_task in xstart_tasks:
-            assert set(xstart_task.operator.get_direct_relatives(upstream=False)) == set(
+            assert set(xstart_task.operator.get_direct_relatives(upstream=False)) == {
                 xend_task.operator for xend_task in xend_tasks
-            )
+            }
 
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
