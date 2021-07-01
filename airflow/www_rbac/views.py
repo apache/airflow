@@ -2417,14 +2417,13 @@ class CurvesView(BaseCRUDView):
     def do_download_contents(self, entities: List[str]) -> List[str]:
         files = []
         base_path = self.download_static_folder
+        result_table = pd.DataFrame()
         for entity_id in entities:
             try:
                 result = get_result(entity_id)
-                f = f'{entity_id}.json'.replace('/', '@')
-                f = os.path.join(base_path, f)
-                with open(f, 'w') as ff:
-                    ff.write(json.dumps(result, indent=4))
-                files.append(f)
+                result["step_results"] = json.dumps(result['step_results'])
+                tb = pd.DataFrame(result, index=[0])
+                result_table = pd.concat([result_table, tb], ignore_index=True)
             except Exception as e:
                 _logger.error(e)
             try:
@@ -2436,6 +2435,12 @@ class CurvesView(BaseCRUDView):
                 files.append(f)
             except Exception as e:
                 _logger.error(e)
+        try:
+            rf = os.path.join(base_path, "results.csv")
+            result_table.to_csv(rf, index=False, header=True)
+            files.append(rf)
+        except Exception as e:
+            _logger.error(e)
         return files
 
     def generate_download_zip_file(self, files: List[str]):
