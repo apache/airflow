@@ -328,7 +328,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         location: str,
@@ -1857,7 +1857,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         entry: Union[Dict, Entry],
@@ -1968,7 +1968,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         tag: Union[Dict, Tag],
@@ -2200,7 +2200,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         tag_template_field: Union[Dict, TagTemplateField],

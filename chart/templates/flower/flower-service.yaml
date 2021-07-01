@@ -44,9 +44,12 @@ spec:
     component: flower
     release: {{ .Release.Name }}
   ports:
-    - name: flower-ui
-      protocol: TCP
-      port: {{ .Values.ports.flowerUI }}
+  {{ range .Values.flower.service.ports }}
+    -
+      {{- range $key, $val := . }}
+      {{ $key }}: {{ tpl (toString $val) $ }}
+      {{- end }}
+  {{- end }}
   {{- if .Values.flower.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.flower.service.loadBalancerIP }}
   {{- end }}

@@ -358,6 +358,188 @@ which are used to populate the run schedule with task instances from this dag.
         --start-date 2015-06-01 \
         --end-date 2015-06-07
 
+
+Pipeline Example
+''''''''''''''''''''
+
+Lets look at another example; we need to get some data from a file which is hosted online and need to insert into our local database. We also need to look at removing duplicate rows while inserting.
+
+Initial setup
+''''''''''''''''''''
+We need to have docker and postgres installed.
+We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
+Follow the instructions properly to set up Airflow.
+
+Create a Employee table in postgres using this
+
+.. code-block:: sql
+
+  create table "Employees"
+  (
+      "Serial Number" numeric not null
+   constraint employees_pk
+              primary key,
+      "Company Name" text,
+      "Employee Markme" text,
+      "Description" text,
+      "Leave" integer
+  );
+
+  create table "Employees_temp"
+  (
+      "Serial Number" numeric not null
+   constraint employees_pk
+              primary key,
+      "Company Name" text,
+      "Employee Markme" text,
+      "Description" text,
+      "Leave" integer
+  );
+
+
+Let's break this down into 2 steps: get data & merge data:
+
+.. code-block:: python
+
+  @task
+  def get_data():
+      url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
+
+      response = requests.request("GET", url)
+
+      with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+          for row in response.text.split("\n"):
+              file.write(row)
+
+      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      conn = postgres_hook.get_conn()
+      cur = conn.cursor()
+      with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
+          cur.copy_from(
+              f,
+              "Employees_temp",
+              columns=[
+                  "Serial Number",
+                  "Company Name",
+                  "Employee Markme",
+                  "Description",
+                  "Leave",
+              ],
+              sep=",",
+          )
+      conn.commit()
+
+Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table
+
+.. code-block:: python
+
+  @task
+  def merge_data():
+      query = """
+          delete
+          from "Employees" e using "Employees_temp" et
+          where e."Serial Number" = et."Serial Number";
+
+          insert into "Employees"
+          select *
+          from "Employees_temp";
+      """
+      try:
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          cur.execute(query)
+          conn.commit()
+          return 0
+      except Exception as e:
+          return 1
+
+Here we are first looking for duplicate values and removing them before we insert new values in our final table
+
+
+Lets look at our DAG:
+
+.. code-block:: python
+
+  @dag(
+      schedule_interval="0 0 * * *",
+      start_date=datetime.today() - timedelta(days=2),
+      dagrun_timeout=timedelta(minutes=60),
+  )
+  def Etl():
+      @task
+      def get_data():
+          url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
+
+          response = requests.request("GET", url)
+
+          with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+              for row in response.text.split("\n"):
+                  file.write(row)
+
+          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          conn = postgres_hook.get_conn()
+          cur = conn.cursor()
+          with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
+              cur.copy_from(
+                  f,
+                  "Employees_temp",
+                  columns=[
+                      "Serial Number",
+                      "Company Name",
+                      "Employee Markme",
+                      "Description",
+                      "Leave",
+                  ],
+                  sep=",",
+              )
+          conn.commit()
+
+      @task
+      def merge_data():
+          query = """
+                  delete
+                  from "Employees" e using "Employees_temp" et
+                  where e."Serial Number" = et."Serial Number";
+
+                  insert into "Employees"
+                  select *
+                  from "Employees_temp";
+                  """
+          try:
+              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              conn = postgres_hook.get_conn()
+              cur = conn.cursor()
+              cur.execute(query)
+              conn.commit()
+              return 0
+          except Exception as e:
+              return 1
+
+      get_data() >> merge_data()
+
+
+  dag = Etl()
+
+This dag runs daily at 00:00.
+Add this python file to airflow/dags folder and go back to the main folder and run
+
+.. code-block:: bash
+
+  docker-compose up airflow-init
+  docker-compose up
+
+Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example
+
+.. image:: img/new_tutorial-1.png
+
+
+.. image:: img/new_tutorial-2.png
+
+The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
+Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows
+
+
 What's Next?
 -------------
 That's it, you have written, tested and backfilled your very first Airflow

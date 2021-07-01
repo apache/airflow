@@ -62,17 +62,18 @@ are in ``airflow.providers.slack`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-slack``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``slack_sdk``  ``>=3.0.0,<4.0.0``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``slack_sdk``       ``>=3.0.0,<4.0.0``
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------

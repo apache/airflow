@@ -57,7 +57,7 @@ Package apache-airflow-providers-elasticsearch
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 
-Release: 2.0.0
+Release: 2.0.2
 
 Provider package
 ----------------
@@ -68,7 +68,7 @@ are in ``airflow.providers.elasticsearch`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-elasticsearch``
 
 PIP requirements
@@ -77,9 +77,10 @@ PIP requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``elasticsearch-dbapi``  ``==0.1.0``
+``apache-airflow``       ``>=2.1.0``
+``elasticsearch-dbapi``
 ``elasticsearch-dsl``    ``>=5.0.0``
-``elasticsearch``        ``>7, <7.6.0``
+``elasticsearch``        ``>7``
 =======================  ==================
 
 .. include:: ../../airflow/providers/elasticsearch/CHANGELOG.rst

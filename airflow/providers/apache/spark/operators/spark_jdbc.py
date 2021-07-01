@@ -22,7 +22,6 @@ from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 
-# pylint: disable=too-many-instance-attributes
 class SparkJDBCOperator(SparkSubmitOperator):
     """
     This operator extends the SparkSubmitOperator specifically for performing data
@@ -118,7 +117,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
                                       types.
     """
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         *,

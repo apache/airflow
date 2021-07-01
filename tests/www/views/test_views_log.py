@@ -52,7 +52,7 @@ def backup_modules():
 
 
 @pytest.fixture(scope="module")
-def log_app(backup_modules):  # pylint: disable=unused-argument
+def log_app(backup_modules):
     @dont_initialize_flask_app_submodules(
         skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
     )
@@ -61,7 +61,7 @@ def log_app(backup_modules):  # pylint: disable=unused-argument
         app = create_app(testing=True)
         app.config["WTF_CSRF_ENABLED"] = False
         settings.configure_orm()
-        security_manager = app.appbuilder.sm  # pylint: disable=no-member
+        security_manager = app.appbuilder.sm
         if not security_manager.find_user(username='test'):
             security_manager.add_user(
                 username='test',

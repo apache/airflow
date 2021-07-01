@@ -45,6 +45,8 @@ Bug Fixes
    * ``Update Docstrings of Modules with Missing Params (#15391)``
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add Connection Documentation for Providers (#15499)``
+   * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.1.0
 .....

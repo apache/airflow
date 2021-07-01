@@ -22,7 +22,7 @@ from glob import glob
 
 import jinja2
 
-from docs.exts.provider_yaml_utils import load_package_data  # pylint: disable=no-name-in-module
+from docs.exts.provider_yaml_utils import load_package_data
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))

@@ -110,6 +110,6 @@ with models.DAG(
         params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
-    create_build_from_storage >> create_build_from_storage_result  # pylint: disable=pointless-statement
+    create_build_from_storage >> create_build_from_storage_result
 
-    create_build_from_repo >> create_build_from_repo_result  # pylint: disable=pointless-statement
+    create_build_from_repo >> create_build_from_repo_result

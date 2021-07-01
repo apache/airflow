@@ -23,12 +23,12 @@
 # by the BATS tests automatically during pre-commit and CI
 # Those cannot be made read-only as the breeze-complete must be re-sourceable
 
-_breeze_allowed_python_major_minor_versions="3.6 3.7 3.8"
+_breeze_allowed_python_major_minor_versions="3.6 3.7 3.8 3.9"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
 # registrys is good here even if it is not correct english. We are adding s automatically to all variables
-_breeze_allowed_github_registrys="docker.pkg.github.com ghcr.io"
+_breeze_allowed_github_registrys="ghcr.io docker.pkg.github.com"
 _breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.20.2 v1.19.7 v1.18.15"
 _breeze_allowed_helm_versions="v3.2.4"
@@ -77,7 +77,6 @@ EOF
 
 _breeze_allowed_static_checks=$(cat <<-EOF
 all
-all-but-pylint
 airflow-config-yaml
 airflow-providers-available
 airflow-provider-yaml-files-ok
@@ -96,7 +95,6 @@ check-hooks-apply
 check-integrations
 check-merge-conflict
 check-xml
-consistent-pylint
 daysago-import-check
 debug-statements
 detect-private-key
@@ -132,8 +130,6 @@ providers-init-file
 provider-yamls
 pydevd
 pydocstyle
-pylint
-pylint-tests
 python-no-log-warn
 pyupgrade
 restrict-start_date
@@ -154,6 +150,7 @@ verify-db-migrations-documented
 version-sync
 www-lint
 yamllint
+yesqa
 EOF
 )
 
@@ -189,7 +186,7 @@ additional-extras: additional-python-deps: disable-pypi-when-building skip-insta
 dev-apt-deps: additional-dev-apt-deps: dev-apt-command: additional-dev-apt-command: additional-dev-apt-env:
 runtime-apt-deps: additional-runtime-apt-deps: runtime-apt-command: additional-runtime-apt-command: additional-runtime-apt-env:
 load-default-connections load-example-dags
-use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive
+use-packages-from-dist no-rbac-ui package-format: upgrade-to-newer-dependencies installation-method: continue-on-pip-check-failure non-interactive generate-providers-issue
 use-airflow-version:
 cleanup-docker-context-files
 test-type: preserve-volumes dry-run-docker

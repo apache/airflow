@@ -92,7 +92,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         source_project_dataset_table: str,
         mssql_table: str,
         selected_fields: Optional[str] = None,

@@ -74,5 +74,5 @@ class TestJiraSensor(unittest.TestCase):
         assert jira_mock.return_value.issue.called
 
     @staticmethod
-    def field_checker_func(context, issue):  # pylint: disable=unused-argument
+    def field_checker_func(context, issue):
         return "test-label-1" in issue['fields']['labels']

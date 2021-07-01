@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 
+from airflow import PY39
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.transfers.mysql_to_hive import MySqlToHiveOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -58,6 +59,12 @@ class HiveopTempDir:
         return tail.startswith("airflow_hiveop_")
 
 
+@pytest.mark.skipif(
+    PY39,
+    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
+    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
+    " is solved",
+)
 @pytest.mark.backend("mysql")
 class TestTransfer(unittest.TestCase):
     def setUp(self):

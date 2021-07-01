@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator  # noqa
 
 warnings.warn(

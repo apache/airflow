@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.amazon.aws.operators.emr_terminate_job_flow`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator  # noqa
 
 warnings.warn(

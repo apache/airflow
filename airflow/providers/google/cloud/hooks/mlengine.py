@@ -127,7 +127,7 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(job)
         self.log.info("Creating job.")
-        # pylint: disable=no-member
+
         request = hook.projects().jobs().create(parent=f'projects/{project_id}', body=job)
         job_id = job['jobId']
 
@@ -173,7 +173,7 @@ class MLEngineHook(GoogleBaseHook):
         :raises: googleapiclient.errors.HttpError
         """
         hook = self.get_conn()
-        # pylint: disable=no-member
+
         request = hook.projects().jobs().cancel(name=f'projects/{project_id}/jobs/{job_id}')
 
         try:
@@ -204,7 +204,7 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         job_name = f'projects/{project_id}/jobs/{job_id}'
-        request = hook.projects().jobs().get(name=job_name)  # pylint: disable=no-member
+        request = hook.projects().jobs().get(name=job_name)
         while True:
             try:
                 return request.execute(num_retries=self.num_retries)
@@ -270,10 +270,9 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(version_spec)
 
-        # pylint: disable=no-member
         create_request = hook.projects().models().versions().create(parent=parent_name, body=version_spec)
         response = create_request.execute(num_retries=self.num_retries)
-        get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
+        get_request = hook.projects().operations().get(name=response['name'])
 
         return _poll_with_exponential_delay(
             request=get_request,
@@ -308,7 +307,7 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         full_version_name = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
-        # pylint: disable=no-member
+
         request = hook.projects().models().versions().setDefault(name=full_version_name, body={})
 
         try:
@@ -341,13 +340,13 @@ class MLEngineHook(GoogleBaseHook):
         hook = self.get_conn()
         result = []  # type: List[Dict]
         full_parent_name = f'projects/{project_id}/models/{model_name}'
-        # pylint: disable=no-member
+
         request = hook.projects().models().versions().list(parent=full_parent_name, pageSize=100)
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             result.extend(response.get('versions', []))
-            # pylint: disable=no-member
+
             request = (
                 hook.projects()
                 .models()
@@ -379,11 +378,9 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         full_name = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
-        delete_request = (
-            hook.projects().models().versions().delete(name=full_name)  # pylint: disable=no-member
-        )
+        delete_request = hook.projects().models().versions().delete(name=full_name)
         response = delete_request.execute(num_retries=self.num_retries)
-        get_request = hook.projects().operations().get(name=response['name'])  # pylint: disable=no-member
+        get_request = hook.projects().operations().get(name=response['name'])
 
         return _poll_with_exponential_delay(
             request=get_request,
@@ -419,7 +416,7 @@ class MLEngineHook(GoogleBaseHook):
 
         self._append_label(model)
         try:
-            request = hook.projects().models().create(parent=project, body=model)  # pylint: disable=no-member
+            request = hook.projects().models().create(parent=project, body=model)
             response = request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status != 409:
@@ -468,7 +465,7 @@ class MLEngineHook(GoogleBaseHook):
         if not model_name:
             raise ValueError("Model name must be provided and " "it could not be an empty string")
         full_model_name = f'projects/{project_id}/models/{model_name}'
-        request = hook.projects().models().get(name=full_model_name)  # pylint: disable=no-member
+        request = hook.projects().models().get(name=full_model_name)
         try:
             return request.execute(num_retries=self.num_retries)
         except HttpError as e:
@@ -505,7 +502,7 @@ class MLEngineHook(GoogleBaseHook):
         model_path = f'projects/{project_id}/models/{model_name}'
         if delete_contents:
             self._delete_all_versions(model_name, project_id)
-        request = hook.projects().models().delete(name=model_path)  # pylint: disable=no-member
+        request = hook.projects().models().delete(name=model_path)
         try:
             request.execute(num_retries=self.num_retries)
         except HttpError as e:

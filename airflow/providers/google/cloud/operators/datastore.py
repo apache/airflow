@@ -79,7 +79,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
     ]
 
     def __init__(
-        self,  # pylint: disable=too-many-arguments
+        self,
         *,
         bucket: str,
         namespace: Optional[str] = None,

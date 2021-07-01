@@ -19,6 +19,8 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
+import pytest
+
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
@@ -32,8 +34,10 @@ try:
     from distributed.utils_test import cluster as dask_testing_cluster, get_cert, tls_security
 
     from airflow.executors.dask_executor import DaskExecutor
+
+    skip_tls_tests = False
 except ImportError:
-    pass
+    skip_tls_tests = True
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -98,6 +102,9 @@ class TestDaskExecutor(TestBaseDask):
         self.cluster.close(timeout=5)
 
 
+@pytest.mark.skipif(
+    skip_tls_tests, reason="The tests are skipped because distributed framework could not be imported"
+)
 class TestDaskExecutorTLS(TestBaseDask):
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)

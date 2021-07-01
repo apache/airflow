@@ -158,7 +158,7 @@ class TestDockerOperator(unittest.TestCase):
     def test_execute_unicode_logs(self):
         self.client_mock.attach.return_value = ['unicode container log 😁']
 
-        originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
+        originalRaiseExceptions = logging.raiseExceptions
         logging.raiseExceptions = True
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')

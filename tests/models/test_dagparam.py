@@ -60,7 +60,6 @@ class TestDagParamRuntime(unittest.TestCase):
             state=State.RUNNING,
         )
 
-        # pylint: disable=maybe-no-member
         xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
@@ -87,7 +86,6 @@ class TestDagParamRuntime(unittest.TestCase):
             conf={'value': new_value},
         )
 
-        # pylint: disable=maybe-no-member
         xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
@@ -113,7 +111,6 @@ class TestDagParamRuntime(unittest.TestCase):
             state=State.RUNNING,
         )
 
-        # pylint: disable=maybe-no-member
         xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]

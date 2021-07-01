@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.secrets.azure_key_vault import AzureKeyVaultBackend  # noqa
 
 warnings.warn(

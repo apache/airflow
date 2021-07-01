@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.operators.bash import BashOperator  # noqa
 
 warnings.warn(

@@ -36,7 +36,6 @@ TEST_BUCKET = "test-bucket"
 DESTINATION_SFTP = "destination_path"
 
 
-# pylint: disable=unused-argument
 class TestGoogleCloudStorageToSFTPOperator(unittest.TestCase):
     @parameterized.expand(
         [

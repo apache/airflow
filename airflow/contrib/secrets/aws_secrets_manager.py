@@ -20,7 +20,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerBackend  # noqa
 
 warnings.warn(

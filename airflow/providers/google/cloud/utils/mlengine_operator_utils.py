@@ -34,10 +34,10 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
-def create_evaluate_ops(  # pylint: disable=too-many-arguments
+def create_evaluate_ops(
     task_prefix: str,
     data_format: str,
     input_paths: List[str],

@@ -88,7 +88,7 @@ class ShortCircuitExecutorMixin:
 
             if not self.dags_to_watch:
                 self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                self.scheduler_job.processor_agent._done = True  # pylint: disable=protected-access
+                self.scheduler_job.processor_agent._done = True
                 return
         self.log.warning(
             "WAITING ON %d RUNS", sum(map(attrgetter('waiting_for'), self.dags_to_watch.values()))
@@ -161,20 +161,20 @@ def create_dag_runs(dag, num_runs, session):
     except ImportError:
         from airflow.models.dagrun import DagRun
 
-        id_prefix = DagRun.ID_PREFIX  # pylint: disable=no-member
+        id_prefix = DagRun.ID_PREFIX
 
-    next_run_date = dag.normalize_schedule(dag.start_date or min(t.start_date for t in dag.tasks))
-
+    last_dagrun_at = None
     for _ in range(num_runs):
+        next_info = dag.next_dagrun_info(last_dagrun_at)
+        last_dagrun_at = next_info.data_interval.start
         dag.create_dagrun(
-            run_id=id_prefix + next_run_date.isoformat(),
-            execution_date=next_run_date,
+            run_id=f"{id_prefix}{last_dagrun_at.isoformat()}",
+            execution_date=last_dagrun_at,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
             session=session,
         )
-        next_run_date = dag.following_schedule(next_run_date)
 
 
 @click.command()
@@ -197,7 +197,7 @@ def create_dag_runs(dag, num_runs, session):
           Dotted path Executor class to test, for example
           'airflow.executors.local_executor.LocalExecutor'. Defaults to MockExecutor which doesn't run tasks.
       '''
-    ),  # pylint: disable=too-many-locals
+    ),
 )
 @click.argument('dag_ids', required=True, nargs=-1)
 def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
@@ -215,7 +215,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     The dags you run with need to have an early enough start_date to create the
     desired number of runs.
 
-    Care should be taken that other limits (DAG concurrency, pool size etc) are
+    Care should be taken that other limits (DAG max_active_tasks, pool size etc) are
     not the bottleneck. This script doesn't help you in that regard.
 
     It is recommended to repeat the test at least 3 times (`--repeat=3`, the
@@ -228,7 +228,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     # releases too!
     os.environ['AIRFLOW__CORE__UNIT_TEST_MODE'] = 'True'
 
-    os.environ['AIRFLOW__CORE__DAG_CONCURRENCY'] = '500'
+    os.environ['AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG'] = '500'
 
     # Set this so that dags can dynamically configure their end_date
     os.environ['AIRFLOW_BENCHMARK_MAX_DAG_RUNS'] = str(num_runs)
@@ -287,7 +287,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     # Need a lambda to refer to the _latest_ value for scheduler_job, not just
     # the initial one
-    code_to_test = lambda: scheduler_job.run()  # pylint: disable=unnecessary-lambda
+    code_to_test = lambda: scheduler_job.run()
 
     for count in range(repeat):
         gc.disable()
@@ -324,4 +324,4 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
 
 if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
+    main()

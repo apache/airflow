@@ -54,7 +54,6 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    # pylint: disable=C0103, line-too-long
     def run_task(self, **kwargs) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
@@ -79,10 +78,8 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
 
-    # pylint: enable=C0103, line-too-long
 
-
-class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
@@ -154,7 +151,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         *,
         task_definition: str,
         cluster: str,
-        overrides: dict,  # pylint: disable=too-many-arguments
+        overrides: dict,
         aws_conn_id: Optional[str] = None,
         region_name: Optional[str] = None,
         launch_type: str = 'EC2',
@@ -266,11 +263,11 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.arn = response['tasks'][0]['taskArn']
 
     def _try_reattach_task(self):
-        task_def_resp = self.client.describe_task_definition(self.task_definition)
+        task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, launchType=self.launch_type, desiredStatus='RUNNING', family=ecs_task_family
+            cluster=self.cluster, desiredStatus='RUNNING', family=ecs_task_family
         )
         running_tasks = list_tasks_resp['taskArns']
 

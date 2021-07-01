@@ -57,7 +57,7 @@ def _get_timestamp(conn):
 
 def upgrade():
     """Apply Add scheduling_decision to DagRun and DAG"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
     is_mssql = bool(conn.dialect.name == "mssql")
     timestamp = _get_timestamp(conn)
@@ -105,7 +105,7 @@ def upgrade():
 
 def downgrade():
     """Unapply Add scheduling_decision to DagRun and DAG"""
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
     is_sqlite = bool(conn.dialect.name == "sqlite")
 
     if is_sqlite:

@@ -141,63 +141,6 @@ function in_container_basic_sanity_check() {
     in_container_cleanup_pycache
 }
 
-function in_container_refresh_pylint_todo() {
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "Refreshing list of all  non-pylint compliant files. This can take some time."
-        echo
-
-        echo
-        echo "Finding list  all non-pylint compliant files everywhere except 'tests' folder"
-        echo
-    fi
-    # Using path -prune is much better in the local environment on OSX because we have host
-    # Files mounted and node_modules is a huge directory which takes many seconds to even scan
-    # -prune works better than -not path because it skips traversing the whole directory. -not path traverses
-    # the directory and only excludes it after all of it is scanned
-    find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./airflow/ui/node_modules" -prune -o \
-        -path "./airflow/migrations/versions" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -path "./tests" -prune -o \
-        -name "*.py" \
-        -not -name 'webserver_config.py' |
-        grep ".*.py$" |
-        xargs pylint | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt"
-
-    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" |
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
-
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "So far found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt") files"
-        echo
-
-        echo
-        echo "Finding list of all non-pylint compliant files in 'tests' folder"
-        echo
-    fi
-    find "./tests" -name "*.py" -print0 |
-        xargs -0 pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" | tee "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
-
-    grep -v "\*\*" <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt" |
-        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" |
-        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >>"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt"
-
-    rm -fv "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_main.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_tests.txt"
-    mv -v "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo_new.txt" "${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt"
-
-    if [[ ${VERBOSE} == "true" ]]; then
-        echo
-        echo "Found $(wc -l <"${AIRFLOW_SOURCES}/scripts/ci/pylint_todo.txt") files"
-        echo
-    fi
-}
-
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
 
 function start_output_heartbeat() {

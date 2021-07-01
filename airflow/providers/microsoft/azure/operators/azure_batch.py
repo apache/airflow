@@ -25,7 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
 
 
-# pylint: disable=too-many-instance-attributes
 class AzureBatchOperator(BaseOperator):
     """
     Executes a job on Azure Batch Service
@@ -133,7 +132,7 @@ class AzureBatchOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments,too-many-locals
+        *,
         batch_pool_id: str,
         batch_pool_vm_size: str,
         batch_job_id: str,

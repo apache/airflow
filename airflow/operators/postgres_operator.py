@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.postgres.operators.postgres import Mapping, PostgresOperator  # noqa
 
 warnings.warn(

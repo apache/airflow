@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 def setup_event_handlers(engine):
     """Setups event handlers."""
-    # pylint: disable=unused-argument, unused-variable
+
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):
         connection_record.info['pid'] = os.getpid()
@@ -86,5 +86,3 @@ def setup_event_handlers(engine):
                 stack_info,
                 statement.replace("\n", " "),
             )
-
-    # pylint: enable=unused-argument, unused-variable

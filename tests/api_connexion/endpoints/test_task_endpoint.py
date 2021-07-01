@@ -75,7 +75,7 @@ class TestTaskEndpoint:
         clear_db_serialized_dags()
 
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app, setup_dag) -> None:  # pylint: disable=unused-argument
+    def setup_attrs(self, configured_app, setup_dag) -> None:
         self.clean_db()
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore

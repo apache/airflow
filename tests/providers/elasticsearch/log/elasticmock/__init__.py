@@ -49,7 +49,7 @@ from .fake_elasticsearch import FakeElasticsearch
 ELASTIC_INSTANCES = {}  # type: Dict[str, FakeElasticsearch]
 
 
-def _get_elasticmock(hosts=None, *args, **kwargs):  # pylint: disable=unused-argument
+def _get_elasticmock(hosts=None, *args, **kwargs):
     host = _normalize_hosts(hosts)[0]
     elastic_key = f"{host.get('host', 'localhost')}:{host.get('port', 9200)}"
 

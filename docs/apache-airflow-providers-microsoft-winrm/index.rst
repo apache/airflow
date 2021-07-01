@@ -62,16 +62,17 @@ are in ``airflow.providers.microsoft.winrm`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-microsoft-winrm``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``pywinrm``    ``~=0.4``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pywinrm``         ``~=0.4``
+==================  ==================
 
 .. include:: ../../airflow/providers/microsoft/winrm/CHANGELOG.rst

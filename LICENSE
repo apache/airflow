@@ -229,17 +229,16 @@ MIT licenses
 The following components are provided under the MIT License. See project link for details.
 The text of each license is also included at licenses/LICENSE-[project].txt.
 
-    (MIT License) jquery v3.4.1 (https://jquery.org/license/)
+    (MIT License) jquery v3.5.1 (https://jquery.org/license/)
     (MIT License) dagre-d3 v0.6.4 (https://github.com/cpettitt/dagre-d3)
-    (MIT License) bootstrap v3.2 (https://github.com/twbs/bootstrap/)
+    (MIT License) bootstrap v3.4.1 (https://github.com/twbs/bootstrap/)
     (MIT License) d3-tip v0.9.1 (https://github.com/Caged/d3-tip)
-    (MIT License) dataTables v1.10.20 (https://datatables.net)
-    (MIT License) Bootstrap Toggle v2.2.2 (http://www.bootstraptoggle.com)
+    (MIT License) dataTables v1.10.25 (https://datatables.net)
     (MIT License) normalize.css v3.0.2 (http://necolas.github.io/normalize.css/)
     (MIT License) ElasticMock v1.3.2 (https://github.com/vrcmarcos/elasticmock)
     (MIT License) MomentJS v2.24.0 (http://momentjs.com/)
     (MIT License) moment-strftime v0.5.0 (https://github.com/benjaminoakes/moment-strftime)
-    (MIT License) eonasdan-bootstrap-datetimepicker v4.17.37 (https://github.com/eonasdan/bootstrap-datetimepicker/)
+    (MIT License) eonasdan-bootstrap-datetimepicker v4.17.49 (https://github.com/eonasdan/bootstrap-datetimepicker/)
 
 ========================================================================
 BSD 3-Clause licenses
@@ -247,5 +246,5 @@ BSD 3-Clause licenses
 The following components are provided under the BSD 3-Clause license. See project links for details.
 The text of each license is also included at licenses/LICENSE-[project].txt.
 
-    (BSD 3 License) d3 v5.15.0 (https://d3js.org)
+    (BSD 3 License) d3 v5.16.0 (https://d3js.org)
     (BSD 3 License) d3-shape v2.1.0 (https://github.com/d3/d3-shape)

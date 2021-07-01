@@ -75,7 +75,7 @@ class GKEHook(GoogleBaseHook):
 
     # To preserve backward compatibility
     # TODO: remove one day
-    def get_client(self) -> container_v1.ClusterManagerClient:  # pylint: disable=missing-docstring
+    def get_client(self) -> container_v1.ClusterManagerClient:
         warnings.warn(
             "The get_client method has been deprecated. " "You should use the get_conn method.",
             DeprecationWarning,

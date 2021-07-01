@@ -95,7 +95,7 @@ class BackfillJob(BaseJob):
         """
 
         # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
-        def __init__(  # pylint: disable=too-many-arguments
+        def __init__(
             self,
             to_run=None,
             running=None,
@@ -121,7 +121,7 @@ class BackfillJob(BaseJob):
             self.finished_runs = finished_runs
             self.total_runs = total_runs
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         dag,
         start_date=None,
@@ -396,7 +396,7 @@ class BackfillJob(BaseJob):
         self.log.debug("Finished dag run loop iteration. Remaining tasks %s", ti_status.to_run.values())
 
     @provide_session
-    def _process_backfill_task_instances(  # pylint: disable=too-many-statements
+    def _process_backfill_task_instances(
         self,
         ti_status,
         executor,
@@ -433,7 +433,7 @@ class BackfillJob(BaseJob):
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
             @provide_session
-            def _per_task_process(key, ti, session=None):  # pylint: disable=too-many-return-statements
+            def _per_task_process(key, ti, session=None):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
@@ -567,7 +567,7 @@ class BackfillJob(BaseJob):
                 self.log.debug('Adding %s to not_ready', ti)
                 ti_status.not_ready.add(key)
 
-            try:  # pylint: disable=too-many-nested-blocks
+            try:
                 for task in self.dag.topological_sort(include_subdag_tasks=True):
                     for key, ti in list(ti_status.to_run.items()):
                         if task.task_id != ti.task_id:
@@ -589,9 +589,9 @@ class BackfillJob(BaseJob):
                             states=self.STATES_COUNT_AS_RUNNING,
                         )
 
-                        if num_running_task_instances_in_dag >= self.dag.concurrency:
+                        if num_running_task_instances_in_dag >= self.dag.max_active_tasks:
                             raise DagConcurrencyLimitReached(
-                                "Not scheduling since DAG concurrency limit " "is reached."
+                                "Not scheduling since DAG max_active_tasks limit is reached."
                             )
 
                         if task.task_concurrency:
@@ -603,7 +603,7 @@ class BackfillJob(BaseJob):
 
                             if num_running_task_instances_in_task >= task.task_concurrency:
                                 raise TaskConcurrencyLimitReached(
-                                    "Not scheduling since Task concurrency limit " "is reached."
+                                    "Not scheduling since Task concurrency limit is reached."
                                 )
 
                         _per_task_process(key, ti)
@@ -769,7 +769,7 @@ class BackfillJob(BaseJob):
         start_date = self.bf_start_date
 
         # Get intervals between the start/end dates, which will turn into dag runs
-        run_dates = self.dag.get_run_dates(start_date=start_date, end_date=self.bf_end_date)
+        run_dates = self.dag.get_run_dates(start_date=start_date, end_date=self.bf_end_date, align=True)
         if self.run_backwards:
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
             if tasks_that_depend_on_past:
@@ -803,7 +803,7 @@ class BackfillJob(BaseJob):
 
         ti_status.total_runs = len(run_dates)  # total dag runs in backfill
 
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             remaining_dates = ti_status.total_runs
             while remaining_dates > 0:
                 dates_to_process = [
@@ -873,7 +873,6 @@ class BackfillJob(BaseJob):
                     ),
                 )
                 .filter(
-                    # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                     TaskInstance.state.in_(resettable_states),

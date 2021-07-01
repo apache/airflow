@@ -20,9 +20,9 @@ import copy
 import functools
 from typing import List
 
-from mypy.nodes import ARG_NAMED_OPT  # pylint: disable=no-name-in-module
-from mypy.plugin import FunctionContext, Plugin  # pylint: disable=no-name-in-module
-from mypy.types import CallableType, NoneType, UnionType  # pylint: disable=no-name-in-module
+from mypy.nodes import ARG_NAMED_OPT
+from mypy.plugin import FunctionContext, Plugin
+from mypy.types import CallableType, NoneType, UnionType
 
 TYPED_DECORATORS = {
     "fallback_to_default_project_id of GoogleBaseHook": ["project_id"],
@@ -75,6 +75,6 @@ def _change_decorator_function_type(
     return decorator
 
 
-def plugin(version: str):  # pylint: disable=unused-argument
+def plugin(version: str):
     """Mypy plugin entrypoint."""
     return TypedDecoratorPlugin

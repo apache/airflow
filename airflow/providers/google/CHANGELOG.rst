@@ -67,6 +67,8 @@ Bug Fixes
    * ``Fix spelling (#15699)``
    * ``Add short description to BaseSQLToGCSOperator docstring (#15728)``
    * ``More documentation update for June providers release (#16405)``
+   * ``Remove class references in changelogs (#16454)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 3.0.0
 .....

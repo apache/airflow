@@ -87,7 +87,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         source_project_dataset_tables: Union[List[str], str],
         destination_project_dataset_table: str,
         write_disposition: str = 'WRITE_EMPTY',

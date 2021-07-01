@@ -55,17 +55,18 @@ are in ``airflow.providers.apache.druid`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-druid``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``pydruid``    ``>=0.4.1``
-=============  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pydruid``         ``>=0.4.1``
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------

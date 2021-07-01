@@ -131,15 +131,15 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, Optional[str]]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
         """
-        Monitors a pod and returns the final state
+        Monitors a pod and returns the final state, pod and xcom result
 
         :param pod: pod spec that will be monitored
         :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
-        if get_logs:  # pylint: disable=too-many-nested-blocks
+        if get_logs:
             read_logs_since_sec = None
             last_log_time = None
             while True:
@@ -170,7 +170,8 @@ class PodLauncher(LoggingMixin):
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.metadata.name, State.RUNNING)
             time.sleep(2)
-        return self._task_status(self.read_pod(pod)), result
+        remote_pod = self.read_pod(pod)
+        return self._task_status(remote_pod), remote_pod, result
 
     def parse_log_line(self, line: str) -> Tuple[Optional[Union[Date, Time, DateTime, Duration]], str]:
         """

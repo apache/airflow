@@ -77,6 +77,7 @@ class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
     CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = 'ssh_with_extra_false_look_for_keys'
     CONN_SSH_WITH_HOST_KEY_EXTRA = 'ssh_with_host_key_extra'
+    CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE = 'ssh_with_host_key_extra_with_type'
     CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE = 'ssh_with_host_key_and_no_host_key_check_false'
     CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE = 'ssh_with_host_key_and_no_host_key_check_true'
     CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE = 'ssh_with_no_host_key_and_no_host_key_check_false'
@@ -90,6 +91,7 @@ class TestSSHHook(unittest.TestCase):
                 cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
                 cls.CONN_SSH_WITH_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
+                cls.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE,
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
@@ -153,6 +155,14 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "host_key": "ssh-rsa " + TEST_HOST_KEY}),
             )
         )
         db.merge_conn(
@@ -352,16 +362,14 @@ class TestSSHHook(unittest.TestCase):
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
         with hook.get_conn() as client:
-            # Note - Pylint will fail with no-member here due to https://github.com/PyCQA/pylint/issues/1437
-            (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
+            (_, stdout, _) = client.exec_command('ls')
             assert stdout.read() is not None
 
     def test_ssh_connection_no_connection_id(self):
         hook = SSHHook(remote_host='localhost')
         assert hook.ssh_conn_id is None
         with hook.get_conn() as client:
-            # Note - Pylint will fail with no-member here due to https://github.com/PyCQA/pylint/issues/1437
-            (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
+            (_, stdout, _) = client.exec_command('ls')
             assert stdout.read() is not None
 
     def test_ssh_connection_old_cm(self):
@@ -438,26 +446,21 @@ class TestSSHHook(unittest.TestCase):
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_host_key_extra(self, ssh_client):
         hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_EXTRA)
-        assert hook.host_key is None  # Since default no_host_key_check = True unless explicit override
+        assert hook.host_key is not None
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
-            assert ssh_client.return_value.get_host_keys.return_value.add.called is False
+            assert ssh_client.return_value.get_host_keys.return_value.add.called
+            assert ssh_client.return_value.get_host_keys.return_value.add.call_args == mock.call(
+                hook.remote_host, 'ssh-rsa', hook.host_key
+            )
 
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_host_key_where_no_host_key_check_is_true(self, ssh_client):
-        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
-        assert hook.host_key is None
+    def test_ssh_connection_with_host_key_extra_with_type(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE)
+        assert hook.host_key is not None
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
-            assert ssh_client.return_value.get_host_keys.return_value.add.called is False
-
-    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
-    def test_ssh_connection_with_host_key_where_no_host_key_check_is_false(self, ssh_client):
-        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
-        assert hook.host_key.get_base64() == TEST_HOST_KEY
-        with hook.get_conn():
-            assert ssh_client.return_value.connect.called is True
-            assert ssh_client.return_value.get_host_keys.return_value.add.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.called
             assert ssh_client.return_value.get_host_keys.return_value.add.call_args == mock.call(
                 hook.remote_host, 'ssh-rsa', hook.host_key
             )

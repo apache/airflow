@@ -93,7 +93,7 @@ class TestLivyHook(unittest.TestCase):
                 driver_cores=2,
                 driver_memory='1M',
                 executor_memory='1m',
-                executor_cores='1',  # noqa
+                executor_cores='1',
                 num_executors='10',
             )
 
@@ -154,10 +154,10 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('numeric'):
             with pytest.raises(ValueError):
-                LivyHook._validate_size_format(1)  # noqa
+                LivyHook._validate_size_format(1)
 
         with self.subTest('None'):
-            assert LivyHook._validate_size_format(None)  # noqa
+            assert LivyHook._validate_size_format(None)
 
     def test_validate_list_of_stringables(self):
         with self.subTest('valid list'):
@@ -192,11 +192,11 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('None'):
             with pytest.raises(ValueError):
-                LivyHook._validate_list_of_stringables(None)  # noqa
+                LivyHook._validate_list_of_stringables(None)
 
         with self.subTest('int'):
             with pytest.raises(ValueError):
-                LivyHook._validate_list_of_stringables(1)  # noqa
+                LivyHook._validate_list_of_stringables(1)
 
         with self.subTest('string'):
             with pytest.raises(ValueError):
@@ -217,17 +217,17 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('none'):
             try:
-                LivyHook._validate_extra_conf(None)  # noqa
+                LivyHook._validate_extra_conf(None)
             except ValueError:
                 self.fail("Exception raised")
 
         with self.subTest('not a dict 1'):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf('k1=v1')  # noqa
+                LivyHook._validate_extra_conf('k1=v1')
 
         with self.subTest('not a dict 2'):
             with pytest.raises(ValueError):
-                LivyHook._validate_extra_conf([('k1', 'v1'), ('k2', 0)])  # noqa
+                LivyHook._validate_extra_conf([('k1', 'v1'), ('k2', 0)])
 
         with self.subTest('nested dict'):
             with pytest.raises(ValueError):
@@ -255,7 +255,7 @@ class TestLivyHook(unittest.TestCase):
         resp = hook.post_batch(file='sparkapp')
 
         mock_request.assert_called_once_with(
-            method='POST', endpoint='/batches', data=json.dumps({'file': 'sparkapp'})
+            method='POST', endpoint='/batches', data=json.dumps({'file': 'sparkapp'}), headers={}
         )
 
         request_args = mock_request.call_args[1]
@@ -441,8 +441,21 @@ class TestLivyHook(unittest.TestCase):
 
         with self.subTest('None'):
             with pytest.raises(TypeError):
-                LivyHook._validate_session_id(None)  # noqa
+                LivyHook._validate_session_id(None)
 
         with self.subTest('random string'):
             with pytest.raises(TypeError):
                 LivyHook._validate_session_id('asd')
+
+    @requests_mock.mock()
+    def test_extra_headers(self, mock):
+        mock.register_uri(
+            'POST',
+            '//livy:8998/batches',
+            json={'id': BATCH_ID, 'state': BatchState.STARTING.value, 'log': []},
+            status_code=201,
+            request_headers={'X-Requested-By': 'user'},
+        )
+
+        hook = LivyHook(extra_headers={'X-Requested-By': 'user'})
+        hook.post_batch(file='sparkapp')

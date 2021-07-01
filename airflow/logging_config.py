@@ -77,7 +77,7 @@ def configure_logging():
     return logging_class_path
 
 
-def validate_logging_config(logging_config):  # pylint: disable=unused-argument
+def validate_logging_config(logging_config):
     """Validate the provided Logging Config"""
     # Now lets validate the other logging-related settings
     task_log_reader = conf.get('logging', 'task_log_reader')

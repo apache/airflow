@@ -18,7 +18,7 @@
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator  # pylint: disable=R0401
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmixin import TaskMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.edgemodifier import EdgeModifier

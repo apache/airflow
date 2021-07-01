@@ -352,3 +352,31 @@ function kind::deploy_test_kubernetes_resources() {
     kubectl apply -f "scripts/ci/kubernetes/volumes.yaml" --namespace default
     kubectl apply -f "scripts/ci/kubernetes/nodeport.yaml" --namespace airflow
 }
+
+function kind::upgrade_airflow_with_helm() {
+    local mode=$1
+    echo
+    echo "Upgrading airflow with ${mode}"
+    echo
+    local chartdir
+    chartdir=$(mktemp -d)
+    traps::add_trap "rm -rf ${chartdir}" EXIT INT HUP TERM
+    # Copy chart to temporary directory to allow chart deployment in parallel
+    # Otherwise helm deployment will fail on renaming charts to tmpcharts
+    cp -r "${AIRFLOW_SOURCES}/chart" "${chartdir}"
+
+    pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
+    helm repo add stable https://charts.helm.sh/stable/
+    helm dep update
+    helm upgrade airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
+        --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
+        --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
+        --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+        --set "defaultAirflowTag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \
+        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.logging.logging_level=DEBUG" \
+        --set "executor=${mode}"
+
+    echo
+    popd > /dev/null 2>&1|| exit 1
+}

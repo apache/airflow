@@ -710,7 +710,7 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         # ### Begin tests:
 
         # Kill the task when doing wait_for_task_execution
-        def kill_task(*args):
+        def kill_task(*args, **kwargs):
             self.datasync.on_kill()
             return True
 

@@ -1,4 +1,3 @@
-# flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
 # Licensed to the Apache Software Foundation (ASF) under one

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.imap.hooks.imap import ImapHook, Mail, MailPart  # noqa
 
 warnings.warn(

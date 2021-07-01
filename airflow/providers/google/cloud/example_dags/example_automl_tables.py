@@ -176,14 +176,14 @@ with models.DAG(
     )
 
     (
-        create_dataset_task  # noqa
-        >> import_dataset_task  # noqa
-        >> list_tables_spec_task  # noqa
-        >> list_columns_spec_task  # noqa
-        >> update_dataset_task  # noqa
-        >> create_model_task  # noqa
-        >> delete_model_task  # noqa
-        >> delete_datasets_task  # noqa
+        create_dataset_task
+        >> import_dataset_task
+        >> list_tables_spec_task
+        >> list_columns_spec_task
+        >> update_dataset_task
+        >> create_model_task
+        >> delete_model_task
+        >> delete_datasets_task
     )
 
 
@@ -243,12 +243,12 @@ with models.DAG(
     # [END howto_operator_delete_dataset]
 
     (
-        create_dataset_task  # noqa
-        >> import_dataset_task  # noqa
-        >> list_tables_spec_task  # noqa
-        >> list_columns_spec_task  # noqa
-        >> list_datasets_task  # noqa
-        >> delete_datasets_task  # noqa
+        create_dataset_task
+        >> import_dataset_task
+        >> list_tables_spec_task
+        >> list_columns_spec_task
+        >> list_datasets_task
+        >> delete_datasets_task
     )
 
 with models.DAG(

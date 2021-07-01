@@ -447,6 +447,13 @@ workers:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 
 # Airflow scheduler settings
 scheduler:
@@ -533,7 +540,13 @@ scheduler:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
-
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
@@ -615,8 +628,15 @@ webserver:
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 
-  # Additional network policies as needed
+  # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for webserver NetworkPolicy ingress
+      from: []
+      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      ports:
+        - port: airflow-ui
 
   resources: {}
   #   limits:
@@ -641,6 +661,7 @@ webserver:
   # Add additional init containers into webserver.
   extraInitContainers: []
 
+
   # Mount additional volumes into webserver.
   extraVolumes: []
   extraVolumeMounts: []
@@ -661,6 +682,19 @@ webserver:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    ports:
+      - name: airflow-ui
+        port: "{{ .Values.ports.airflowUI }}"
+    # To change the port used to access the webserver:
+    # ports:
+    #   - name: airflow-ui
+    #     port: 80
+    #     targetPort: airflow-ui
+    # To only expose a sidecar, not the webserver directly:
+    # ports:
+    #   - name: only_sidecar
+    #     port: 80
+    #     targetPort: 8888
     loadBalancerIP: ~
 
   # Select certain nodes for airflow webserver pods.
@@ -693,8 +727,16 @@ flower:
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
 
-  # Additional network policies as needed
+  # Additional network policies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for flower NetworkPolicy ingress
+      from: []
+      # Ports for flower NetworkPolicy ingress (if ingressPeers is set)
+      ports:
+        - port: flower-ui
+
   resources: {}
   #   limits:
   #     cpu: 100m
@@ -725,7 +767,20 @@ flower:
     type: ClusterIP
     ## service annotations
     annotations: {}
+    ports:
+      - name: flower-ui
+        port: "{{ .Values.ports.flowerUI }}"
+    # To change the port used to access flower:
+    # ports:
+    #   - name: flower-ui
+    #     port: 8080
+    #     targetPort: flower-ui
     loadBalancerIP: ~
+
+  # Launch additional containers into the flower pods.
+  extraContainers: []
+  # Mount additional volumes into the flower pods.
+  extraVolumes: []
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
@@ -864,6 +919,16 @@ pgbouncer:
   tolerations: []
 
   uid: 65534
+
+  metricsExporterSidecar:
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 
 # Configuration for the redis provisioned by the chart
 redis:
@@ -1055,6 +1120,8 @@ config:
 
 multiNamespaceMode: false
 
+# The full text value to mount as the "pod_template_file.yaml" file used for KubernetesExecutor workers.
+# If not set, a default one is created using "files/pod-template-file.kubernetes-helm-yaml"
 podTemplate: ~
 
 # Git sync

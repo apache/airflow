@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.0
 .....
 
-Latest change: 2021-06-15
+Latest change: 2021-06-16
 
 ================================================================================================  ===========  =========================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`608dd0ddf <https://github.com/apache/airflow/commit/608dd0ddf65dac7f7eee2cb54628a93805b7ad66>`_  2021-06-15   ``Fix formatting and missing import (#16455)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `643e46ca7 <https://github.com/apache/airflow/commit/643e46ca7ad0b86ddcdae37ffe5b77d31c46b52f>`_  2021-06-15   ``Added ability for Snowflake to attribute usage to Airflow by adding an application parameter (#16420)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `aeb93f8e5 <https://github.com/apache/airflow/commit/aeb93f8e5bb4a9175e8834d476a6b679beff4a7e>`_  2021-05-27   ``fix: restore parameters support when sql passed to SnowflakeHook as str (#16102)``

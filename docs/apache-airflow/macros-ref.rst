@@ -69,6 +69,8 @@ Variable                                Description
 ``{{ var.json.my_var.path }}``          global defined variables represented as a dictionary
                                         with deserialized JSON object, append the path to the
                                         key within the JSON object
+``{{ conn.my_conn_id }}``               connection represented as a dictionary
+
 ``{{ task_instance_key_str }}``         a unique, human-readable key to the task instance
                                         formatted ``{dag_id}__{task_id}__{ds_nodash}``
 ``{{ conf }}``                          the full configuration object located at
@@ -96,6 +98,12 @@ It is also possible to fetch a variable by string if needed with
 ``{{ var.value.get('my.var', 'fallback') }}`` or
 ``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
 supplied in case the variable does not exist.
+
+Similarly, Airflow Connections data can be accessed via the ``conn`` template variable.
+For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
+``{{ conn.my_conn_id.password }}``, etc.
+Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{ conn.get('my_conn_id_'+index).host }}``
+) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``)
 
 Macros
 ------

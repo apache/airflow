@@ -72,22 +72,6 @@ class TestSecretsMasker:
 
         assert caplog.text == "INFO Cannot connect to user:***\n"
 
-    def test_non_redactable(self, logger, caplog):
-        class NonReactable:
-            def __iter__(self):
-                raise RuntimeError("force fail")
-
-            def __repr__(self):
-                return "<NonRedactable>"
-
-        logger.info("Logging %s", NonReactable())
-
-        assert caplog.messages == [
-            "Unable to redact <NonRedactable>, please report this via "
-            + "<https://github.com/apache/airflow/issues>. Error was: RuntimeError: force fail",
-            "Logging <NonRedactable>",
-        ]
-
     def test_extra(self, logger, caplog):
         logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
         logger.info("Cannot connect", extra={'conn': "user:password"})
@@ -195,6 +179,8 @@ class TestSecretsMasker:
             ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
             # We don't mask dict _keys_.
             ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            # Non string dict keys
+            ({"secret", "other"}, None, {1: {"secret": "secret"}}, {1: {"secret": "***"}}),
             (
                 # Since this is a sensitive name, all the values should be redacted!
                 {"secret"},
@@ -237,6 +223,7 @@ class TestShouldHideValueForKey:
             ("google_api_key", True),
             ("GOOGLE_API_KEY", True),
             ("GOOGLE_APIKEY", True),
+            (1, False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):

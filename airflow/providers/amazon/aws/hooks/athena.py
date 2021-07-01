@@ -100,12 +100,12 @@ class AWSAthenaHook(AwsBaseHook):
         state = None
         try:
             state = response['QueryExecution']['Status']['State']
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             self.log.error('Exception while getting query state %s', ex)
         finally:
             # The error is being absorbed here and is being handled by the caller.
             # The error is being absorbed to implement retries.
-            return state  # pylint: disable=lost-exception
+            return state
 
     def get_state_change_reason(self, query_execution_id: str) -> Optional[str]:
         """
@@ -119,12 +119,12 @@ class AWSAthenaHook(AwsBaseHook):
         reason = None
         try:
             reason = response['QueryExecution']['Status']['StateChangeReason']
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             self.log.error('Exception while getting query state change reason: %s', ex)
         finally:
             # The error is being absorbed here and is being handled by the caller.
             # The error is being absorbed to implement retries.
-            return reason  # pylint: disable=lost-exception
+            return reason
 
     def get_query_results(
         self, query_execution_id: str, next_token_id: Optional[str] = None, max_results: int = 1000

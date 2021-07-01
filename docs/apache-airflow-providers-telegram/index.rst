@@ -68,7 +68,7 @@ are in ``airflow.providers.telegram`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-telegram``
 
 PIP requirements
@@ -77,6 +77,7 @@ PIP requirements
 =======================  ==================
 PIP package              Version required
 =======================  ==================
+``apache-airflow``       ``>=2.1.0``
 ``python-telegram-bot``  ``~=13.0``
 =======================  ==================
 

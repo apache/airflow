@@ -32,6 +32,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
+      - "${SSH_PORT}:22"
       - "${WEBSERVER_HOST_PORT}:8080"
       - "${FLOWER_HOST_PORT}:5555"
     cap_add:

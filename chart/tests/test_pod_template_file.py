@@ -453,3 +453,82 @@ class PodTemplateFileTest(unittest.TestCase):
             "component": "worker",
             "tier": "airflow",
         } == jmespath.search("metadata.labels", docs[0])
+
+    def test_should_add_resources(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "resources": {
+                        "requests": {"memory": "2Gi", "cpu": "1"},
+                        "limits": {"memory": "3Gi", "cpu": "2"},
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "limits": {
+                "cpu": "2",
+                "memory": "3Gi",
+            },
+            "requests": {
+                "cpu": "1",
+                "memory": "2Gi",
+            },
+        } == jmespath.search("spec.containers[0].resources", docs[0])
+
+    def test_empty_resources(self):
+        docs = render_chart(
+            values={},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        assert {} == jmespath.search("spec.containers[0].resources", docs[0])
+
+    def test_should_create_valid_affinity_tolerations_and_node_selector(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"diskType": "ssd"},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "Pod" == jmespath.search("kind", docs[0])
+        assert "foo" == jmespath.search(
+            "spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "ssd" == jmespath.search(
+            "spec.nodeSelector.diskType",
+            docs[0],
+        )
+        assert "dynamic-pods" == jmespath.search(
+            "spec.tolerations[0].key",
+            docs[0],
+        )

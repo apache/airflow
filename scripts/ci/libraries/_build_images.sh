@@ -131,7 +131,7 @@ function build_images::confirm_image_rebuild() {
     fi
     if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
         # set variable from last answered response given in the same pre-commit run - so that it can be
-        # answered in the first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # answered in the first pre-commit check (build) and then used in another (mypy/flake8 etc).
         # shellcheck disable=SC1090
         source "${LAST_FORCE_ANSWER_FILE}"
     fi
@@ -422,30 +422,11 @@ function build_images::get_docker_image_names() {
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
-# either GITHUB_TOKEN or CONTAINER_REGISTRY_TOKEN depending on the registry.
-# In case Personal Access token is not set, skip logging in
+# GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
     if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        local token=""
-        if [[ "${GITHUB_REGISTRY}" == "ghcr.io" ]]; then
-            # For now ghcr.io can only authenticate using Personal Access Token with package access scope.
-            # There are plans to implement GITHUB_TOKEN authentication but this is not implemented yet
-            token="${CONTAINER_REGISTRY_TOKEN=}"
-            verbosity::print_info
-            verbosity::print_info "Using CONTAINER_REGISTRY_TOKEN!"
-            verbosity::print_info
-        elif [[ "${GITHUB_REGISTRY}" == "docker.pkg.github.com" ]]; then
-            token="${GITHUB_TOKEN}"
-            verbosity::print_info
-            verbosity::print_info "Using GITHUB_TOKEN!"
-            verbosity::print_info
-        else
-            echo
-            echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
-            echo
-            exit 1
-        fi
+        local token="${GITHUB_TOKEN}"
         if [[ -z "${token}" ]] ; then
             verbosity::print_info
             verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
@@ -514,7 +495,6 @@ function build_images::rebuild_ci_image_if_needed() {
         push_pull_remove_images::pull_ci_images_if_needed
         return
     fi
-
     local needs_docker_build="false"
     md5sum::check_if_docker_build_is_needed
     build_images::get_local_build_cache_hash
@@ -545,7 +525,7 @@ function build_images::rebuild_ci_image_if_needed() {
                 local root_files_count
                 root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${root_files_count} != "0" ]]; then
-                    ./scripts/ci/tools/ci_fix_ownership.sh
+                    ./scripts/ci/tools/ci_fix_ownership.sh || true
                 fi
             fi
             verbosity::print_info
@@ -763,8 +743,8 @@ function build_images::prepare_prod_build() {
         build_images::add_build_args_for_remote_install
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build using released PIP package
-        # For PROD image only numeric versions are allowed
-        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+        # For PROD image only numeric versions are allowed and RC candidates
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+(rc[0-9]+)?$ ]]; then
             echo
             echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
             echo

@@ -127,9 +127,15 @@ spec:
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "custom_airflow_environment" . | indent 10 }}
+{{- if .Values.flower.extraContainers }}
+{{- toYaml .Values.flower.extraContainers | nindent 8 }}
+{{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+{{- if .Values.flower.extraVolumes }}
+{{ toYaml .Values.flower.extraVolumes | indent 8 }}
+{{- end }}
 {{- end }}
 {{- end }}

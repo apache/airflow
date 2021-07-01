@@ -130,7 +130,7 @@ class HdfsSensor(BaseSensorOperator):
             result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
             result = self.filter_for_filesize(result, self.file_size)
             return bool(result)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             e = sys.exc_info()
             self.log.debug("Caught an exception !: %s", str(e))
             return False

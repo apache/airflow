@@ -167,7 +167,7 @@ class StandaloneCommand:
         # server. Thus, we make a random password and store it in AIRFLOW_HOME,
         # with the reasoning that if you can read that directory, you can see
         # the database credentials anyway.
-        appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+        appbuilder = cached_app().appbuilder
         user_exists = appbuilder.sm.find_user("admin")
         password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
         we_know_password = os.path.isfile(password_path)
@@ -257,7 +257,7 @@ class SubCommand(threading.Thread):
 
     def run(self):
         """Runs the actual process and captures it output to a queue"""
-        self.process = subprocess.Popen(  # pylint: disable=consider-using-with,attribute-defined-outside-init
+        self.process = subprocess.Popen(
             ["airflow"] + self.command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

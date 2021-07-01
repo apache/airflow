@@ -19,6 +19,13 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``AWS DataSync default polling adjusted from 5s to 30s (#11011)``
+
 2.0.0
 .....
 
@@ -40,6 +47,8 @@ Features
 * ``Remove the 'not-allow-trailing-slash' rule on S3_hook (#15609)``
 * ``Add support of capacity provider strategy for ECSOperator (#15848)``
 * ``Update copy command for s3 to redshift (#16241)``
+* ``Make job name check optional in SageMakerTrainingOperator (#16327)``
+* ``Add AWS DMS replication task operators (#15850)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -48,6 +57,7 @@ Bug Fixes
 * ``Fix spacing in 'AwsBatchWaitersHook' docstring (#15839)``
 * ``MongoToS3Operator failed when running with a single query (not aggregate pipeline) (#15680)``
 * ``fix: AwsGlueJobOperator change order of args for load_file (#16216)``
+* ``Fix S3ToFTPOperator (#13796)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -60,8 +70,8 @@ Bug Fixes
    * ``Update Docstrings of Modules with Missing Params (#15391)``
    * ``Fix spelling (#15699)``
    * ``Add Connection Documentation for Providers (#15499)``
-
-.. Review and move the new changes to one of the sections above:
+   * ``More documentation update for June providers release (#16405)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.4.0
 .....

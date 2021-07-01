@@ -328,7 +328,7 @@ without cleanup, might include artifacts from previous package to be included in
 rm -rf -- *.egg-info build/
 ```
 
-2) Generate setup.py/setup.cfg/MANIFEST.in/provider_info.py/README files  files for:
+2) Generate setup.py/setup.cfg/MANIFEST.in/provider_info.py/README files files for:
 
 * alpha/beta packages (specify a1,a2,.../b1,b2... suffix)
 * release candidates (specify r1,r2,... suffix) - those are release candidate

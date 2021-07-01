@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.segment.operators.segment_track_event import SegmentTrackEventOperator  # noqa
 
 warnings.warn(

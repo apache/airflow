@@ -28,7 +28,6 @@ from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
 
-# pylint: disable=too-many-instance-attributes
 class DockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
@@ -135,7 +134,6 @@ class DockerOperator(BaseOperator):
         '.bash',
     )
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         *,
@@ -296,7 +294,7 @@ class DockerOperator(BaseOperator):
             raise Exception("The 'cli' should be initialized before!")
 
         # Pull the docker image if `force_pull` is set or image does not exist locally
-        # pylint: disable=too-many-nested-blocks
+
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info('Pulling docker image %s', self.image)
             latest_status = {}
@@ -354,7 +352,7 @@ class DockerOperator(BaseOperator):
                 ca_cert=self.tls_ca_cert,
                 client_cert=(self.tls_client_cert, self.tls_client_key),
                 verify=True,
-                ssl_version=self.tls_ssl_version,  # noqa
+                ssl_version=self.tls_ssl_version,
                 assert_hostname=self.tls_hostname,
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')

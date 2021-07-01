@@ -52,7 +52,6 @@ DESTINATION_PATH_DIR = "destination_dir"
 DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 
 
-# pylint: disable=unused-argument
 class TestSFTPToGCSOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")

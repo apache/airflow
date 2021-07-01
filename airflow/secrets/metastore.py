@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
-    # pylint: disable=missing-docstring
     @provide_session
     def get_connection(self, conn_id, session=None) -> Optional['Connection']:
         from airflow.models.connection import Connection
@@ -38,7 +37,6 @@ class MetastoreBackend(BaseSecretsBackend):
         session.expunge_all()
         return conn
 
-    # pylint: disable=missing-docstring
     @provide_session
     def get_connections(self, conn_id, session=None) -> List['Connection']:
         warnings.warn(

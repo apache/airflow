@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pylint: disable=wrong-import-order
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -42,18 +42,21 @@ from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type
 
 import click
-import jsonpath_ng
 import jsonschema
 import yaml
+from github import Github, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich import print
 from rich.console import Console
+from rich.progress import Progress
 from rich.syntax import Syntax
+
+ALL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9"]
 
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
-    from yaml import SafeLoader  # noqa
+    from yaml import SafeLoader
 
 INITIAL_CHANGELOG_CONTENT = """
 
@@ -97,10 +100,6 @@ TARGET_PROVIDER_PACKAGES_PATH = os.path.join(SOURCE_DIR_PATH, "provider_packages
 GENERATED_AIRFLOW_PATH = os.path.join(TARGET_PROVIDER_PACKAGES_PATH, "airflow")
 GENERATED_PROVIDERS_PATH = os.path.join(GENERATED_AIRFLOW_PATH, "providers")
 
-PROVIDER_2_0_0_DATA_SCHEMA_PATH = os.path.join(
-    SOURCE_DIR_PATH, "airflow", "deprecated_schemas", "provider-2.0.0.yaml.schema.json"
-)
-
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = os.path.join(SOURCE_DIR_PATH, "airflow", "provider_info.schema.json")
 
 sys.path.insert(0, SOURCE_DIR_PATH)
@@ -115,7 +114,7 @@ from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
 
-logger = logging.getLogger(__name__)  # noqa
+logger = logging.getLogger(__name__)
 
 PY3 = sys.version_info[0] == 3
 
@@ -160,6 +159,7 @@ option_force = click.option(
 )
 argument_package_id = click.argument('package_id')
 argument_changelog_files = click.argument('changelog_files', nargs=-1)
+argument_package_ids = click.argument('package_ids', nargs=-1)
 
 
 @contextmanager
@@ -205,10 +205,12 @@ class VerifiedEntities(NamedTuple):
 class ProviderPackageDetails(NamedTuple):
     provider_package_id: str
     full_package_name: str
+    pypi_package_name: str
     source_provider_package_path: str
     documentation_provider_package_path: str
     provider_description: str
     versions: List[str]
+    excluded_python_versions: List[str]
 
 
 ENTITY_NAMES = {
@@ -364,9 +366,10 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     :return: install requirements of the package
     """
     dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-    airflow_dependency = 'apache-airflow>=2.1.0'
-    # Avoid circular dependency for the preinstalled packages
-    install_requires = [airflow_dependency] if provider_package_id not in PREINSTALLED_PROVIDERS else []
+    provider_yaml = get_provider_yaml(provider_package_id)
+    install_requires = []
+    if "additional-dependencies" in provider_yaml:
+        install_requires = provider_yaml['additional-dependencies']
     install_requires.extend(dependencies)
     return install_requires
 
@@ -756,7 +759,7 @@ def get_package_class_summary(
     for entity in EntityType:
         print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
 
-    entities_summary: Dict[EntityType, EntityTypeSummary] = {}  # noqa
+    entities_summary: Dict[EntityType, EntityTypeSummary] = {}
 
     for entity_type in EntityType:
         entities_summary[entity_type] = get_details_about_classes(
@@ -1264,27 +1267,6 @@ def get_package_pip_name(provider_package_id: str):
     return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
 
-def validate_provider_info_with_2_0_0_schema(provider_info: Dict[str, Any]) -> None:
-    """
-    Validates provider info against 2.0.0 schema. We need to run this validation until we make Airflow
-    2.0.0 yank and add apache-airflow>=2.0.1 (possibly) to provider dependencies.
-
-    :param provider_info: provider info to validate
-    """
-
-    with open(PROVIDER_2_0_0_DATA_SCHEMA_PATH) as schema_file:
-        schema = json.load(schema_file)
-    try:
-        jsonschema.validate(provider_info, schema=schema)
-    except jsonschema.ValidationError as ex:
-        print("[red]Provider info validated not against 2.0.0 schema[/]")
-        raise Exception(
-            "Error when validating schema. The schema must be Airflow 2.0.0 compatible. "
-            "If you added any fields please remove them via 'convert_to_provider_info' method.",
-            ex,
-        )
-
-
 def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) -> None:
     """
     Validates provider info against the runtime schema. This way we check if the provider info in the
@@ -1302,34 +1284,9 @@ def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) ->
         print("[red]Provider info not validated against runtime schema[/]")
         raise Exception(
             "Error when validating schema. The schema must be compatible with "
-            + "airflow/provider_info.schema.json. "
-            + "If you added any fields please remove them via 'convert_to_provider_info' method.",
+            + "airflow/provider_info.schema.json.",
             ex,
         )
-
-
-def convert_to_provider_info(provider_info: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    In Airflow 2.0.0 we set 'additionalProperties" to 'false' in provider's schema, which makes the schema
-    non future-compatible.
-
-    While we changed tho additionalProperties to 'true' in 2.0.1, we have to
-    make sure that the returned provider_info when preparing package is compatible with the older version
-    of the schema and remove all the newly added fields until we deprecate (possibly even yank) 2.0.0
-    and make provider packages depend on Airflow >=2.0.1.
-
-    Currently we have two provider schemas:
-    * provider.yaml.schema.json that is used to verify the schema while it is developed (it has, for example
-      additionalProperties set to false, to avoid typos in field names). This is the full set of
-      fields that are used for both: runtime information and documentation building.
-    * provider_info.schema.json that is used to verify the schema at runtime - it only contains
-      fields from provider.yaml that are necessary for runtime provider discovery.
-
-      This method converts the full provider.yaml schema into the limited version needed at runtime.
-    """
-    updated_provider_info = deepcopy(provider_info)
-    expression = jsonpath_ng.parse("[hooks,operators,integrations,sensors,transfers,additional-extras]")
-    return expression.filter(lambda x: True, updated_provider_info)
 
 
 def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
@@ -1344,23 +1301,19 @@ def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        provider_yaml_dict = yaml.load(provider_file, SafeLoader)  # noqa
+        provider_yaml_dict = yaml.load(provider_file, SafeLoader)
     return provider_yaml_dict
 
 
 def get_provider_info_from_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     """
-    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
-    than provider_info that is used at runtime. This method converts the full provider yaml file into
-    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    Retrieves provider info from the provider yaml file.
     :param provider_package_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
     provider_yaml_dict = get_provider_yaml(provider_package_id=provider_package_id)
-    provider_info = convert_to_provider_info(provider_yaml_dict)
-    validate_provider_info_with_2_0_0_schema(provider_info)
-    validate_provider_info_with_runtime_schema(provider_info)
-    return provider_info
+    validate_provider_info_with_runtime_schema(provider_yaml_dict)
+    return provider_yaml_dict
 
 
 def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ''):
@@ -1490,11 +1443,22 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
     return ProviderPackageDetails(
         provider_package_id=provider_package_id,
         full_package_name=f"airflow.providers.{provider_package_id}",
+        pypi_package_name=f"apache-airflow-providers-{provider_package_id.replace('.', '-')}",
         source_provider_package_path=get_source_package_path(provider_package_id),
         documentation_provider_package_path=get_documentation_package_path(provider_package_id),
         provider_description=provider_info['description'],
         versions=provider_info['versions'],
+        excluded_python_versions=provider_info.get("excluded-python-versions") or [],
     )
+
+
+def get_provider_requirements(provider_package_id: str) -> List[str]:
+    provider_yaml = get_provider_yaml(provider_package_id)
+    requirements = (
+        provider_yaml['additional-dependencies'].copy() if 'additional-dependencies' in provider_yaml else []
+    )
+    requirements.extend(PROVIDERS_REQUIREMENTS[provider_package_id])
+    return requirements
 
 
 def get_provider_jinja_context(
@@ -1510,10 +1474,10 @@ def get_provider_jinja_context(
     )
     release_version_no_leading_zeros = strip_leading_zeros(current_release_version)
     pip_requirements_table = convert_pip_requirements_to_table(
-        PROVIDERS_REQUIREMENTS[provider_details.provider_package_id]
+        get_provider_requirements(provider_details.provider_package_id)
     )
     pip_requirements_table_rst = convert_pip_requirements_to_table(
-        PROVIDERS_REQUIREMENTS[provider_details.provider_package_id], markdown=False
+        get_provider_requirements(provider_details.provider_package_id), markdown=False
     )
     cross_providers_dependencies_table = convert_cross_package_dependencies_to_table(
         cross_providers_dependencies
@@ -1523,6 +1487,12 @@ def get_provider_jinja_context(
     )
     with open(changelog_path) as changelog_file:
         changelog = changelog_file.read()
+    supported_python_versions = [
+        p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
+    ]
+    python_requires = "~=3.6"
+    for p in provider_details.excluded_python_versions:
+        python_requires += f", !={p}"
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1557,6 +1527,8 @@ def get_provider_jinja_context(
             provider_details.documentation_provider_package_path,
         ),
         "CHANGELOG": changelog,
+        "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
+        "PYTHON_REQUIRES": python_requires,
     }
     return context
 
@@ -1758,7 +1730,7 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),  # noqa
+        target_version_option_callback(None, None, config.get('target_version', [])),
     )
 
     return Mode(
@@ -1842,7 +1814,7 @@ def get_all_providers() -> List[str]:
     return list(PROVIDERS_REQUIREMENTS.keys())
 
 
-def verify_provider_package(provider_package_id: str) -> None:
+def verify_provider_package(provider_package_id: str) -> str:
     """
     Verifies if the provider package is good.
     :param provider_package_id: package id to verify
@@ -2288,11 +2260,134 @@ def get_package_from_changelog(changelog_path: str):
 
 @cli.command()
 @argument_changelog_files
+@option_git_update
 @option_verbose
-def update_changelogs(changelog_files: List[str], verbose: bool):
+def update_changelogs(changelog_files: List[str], git_update: bool, verbose: bool):
+    """Updates changelogs for multiple packages."""
+    if git_update:
+        make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
         _update_changelog(package_id=package_id, verbose=verbose)
+
+
+def get_prs_for_package(package_id: str) -> List[int]:
+    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
+    verify_provider_package(package_id)
+    changelog_path = verify_changelog_exists(package_id)
+    provider_details = get_provider_details(package_id)
+    current_release_version = provider_details.versions[0]
+    prs = []
+    with open(changelog_path) as changelog_file:
+        changelog_lines = changelog_file.readlines()
+        extract_prs = False
+        skip_line = False
+        for line in changelog_lines:
+            if skip_line:
+                # Skip first "....." header
+                skip_line = False
+                continue
+            if line.strip() == current_release_version:
+                extract_prs = True
+                skip_line = True
+                continue
+            if extract_prs:
+                if all(c == '.' for c in line):
+                    # Header for next version reached
+                    break
+                if line.startswith('.. Below changes are excluded from the changelog'):
+                    # The reminder of PRs is not important skipping it
+                    break
+                match_result = pr_matcher.match(line.strip())
+                if match_result:
+                    prs.append(int(match_result.group(1)))
+    return prs
+
+
+class ProviderPRInfo(NamedTuple):
+    provider_details: ProviderPackageDetails
+    pr_list: List[PullRequest.PullRequest]
+
+
+@cli.command()
+@click.option('--github-token', envvar='GITHUB_TOKEN')
+@click.option('--suffix', default='rc1')
+@click.option('--excluded-pr-list', type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@argument_package_ids
+def generate_issue_content(package_ids: List[str], github_token: str, suffix: str, excluded_pr_list: str):
+    if not package_ids:
+        package_ids = get_all_providers()
+    """Generates content for issue to test the release."""
+    with with_group("Generates GitHub issue content with people who can test it"):
+        if excluded_pr_list:
+            excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
+        else:
+            excluded_prs = []
+        console = Console(width=200, color_system="standard")
+        all_prs: Set[int] = set()
+        provider_prs: Dict[str, List[int]] = {}
+        for package_id in package_ids:
+            console.print(f"Extracting PRs for provider {package_id}")
+            prs = get_prs_for_package(package_id)
+            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
+            all_prs.update(provider_prs[package_id])
+        g = Github(github_token)
+        repo = g.get_repo("apache/airflow")
+        pull_requests: Dict[int, PullRequest.PullRequest] = {}
+        with Progress(console=console) as progress:
+            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
+            pr_list = list(all_prs)
+            for i in range(len(pr_list)):
+                pr_number = pr_list[i]
+                progress.console.print(
+                    f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+                )
+                try:
+                    pull_requests[pr_number] = repo.get_pull(pr_number)
+                except UnknownObjectException:
+                    # Fallback to issue if PR not found
+                    try:
+                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
+                    except UnknownObjectException:
+                        console.print(f"[red]The PR #{pr_number} could not be found[/]")
+                progress.advance(task)
+        interesting_providers: Dict[str, ProviderPRInfo] = {}
+        non_interesting_providers: Dict[str, ProviderPRInfo] = {}
+        for package_id in package_ids:
+            pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
+            provider_details = get_provider_details(package_id)
+            if pull_request_list:
+                interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
+            else:
+                non_interesting_providers[package_id] = ProviderPRInfo(provider_details, pull_request_list)
+        context = {
+            'interesting_providers': interesting_providers,
+            'date': datetime.now(),
+            'suffix': suffix,
+            'non_interesting_providers': non_interesting_providers,
+        }
+        issue_content = render_template(template_name="PROVIDER_ISSUE", context=context, extension=".md")
+        console.print()
+        console.print(
+            "[green]Below you can find the issue content that you can use "
+            "to ask contributor to test providers![/]"
+        )
+        console.print()
+        console.print()
+        console.print(
+            "Issue title: [yellow]Status of testing Providers that were "
+            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
+        )
+        console.print()
+        syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
+        console.print(syntax)
+        console.print()
+        users: Set[str] = set()
+        for provider_info in interesting_providers.values():
+            for pr in provider_info.pr_list:
+                users.add("@" + pr.user.login)
+        console.print("All users involved in the PRs:")
+        console.print(" ".join(users))
 
 
 if __name__ == "__main__":

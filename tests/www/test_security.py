@@ -84,7 +84,7 @@ class TestSecurity(unittest.TestCase):
         settings.configure_orm()
         cls.session = settings.Session
         cls.app = application.create_app(testing=True)
-        cls.appbuilder = cls.app.appbuilder  # pylint: disable=no-member
+        cls.appbuilder = cls.app.appbuilder
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.security_manager = cls.appbuilder.sm
         cls.delete_roles()
@@ -363,7 +363,7 @@ class TestSecurity(unittest.TestCase):
         self.session.add(dag_model)
         self.session.commit()
 
-        self.security_manager.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+        self.security_manager.sync_perm_for_dag(  # type: ignore
             dag_id, access_control={role_name: permission_action}
         )
 
@@ -390,7 +390,7 @@ class TestSecurity(unittest.TestCase):
         self.session.add(dag_model)
         self.session.commit()
 
-        self.security_manager.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+        self.security_manager.sync_perm_for_dag(  # type: ignore
             dag_id, access_control={role_name: permission_action}
         )
 

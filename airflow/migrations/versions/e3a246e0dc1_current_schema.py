@@ -38,7 +38,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
@@ -221,7 +221,7 @@ def upgrade():  # noqa: D103
         )
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_table('chart')
     op.drop_table('variable')
     op.drop_table('user')

@@ -33,7 +33,6 @@ from elasticsearch_dsl import Search
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -63,7 +62,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     MAX_LINE_PER_PAGE = 1000
     LOG_NAME = 'Elasticsearch'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         base_log_folder: str,
         filename_template: str,
@@ -87,10 +86,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.log_id_template, self.log_id_jinja_template = parse_template_string(log_id_template)
-
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
+        self.log_id_template = log_id_template
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
@@ -103,15 +101,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.context_set = False
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        if self.log_id_jinja_template:
-            jinja_context = ti.get_template_context()
-            jinja_context['try_number'] = try_number
-            return self.log_id_jinja_template.render(**jinja_context)
-
         if self.json_format:
             execution_date = self._clean_execution_date(ti.execution_date)
         else:
             execution_date = ti.execution_date.isoformat()
+
         return self.log_id_template.format(
             dag_id=ti.dag_id, task_id=ti.task_id, execution_date=execution_date, try_number=try_number
         )
@@ -210,9 +204,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
             try:
-                # pylint: disable=protected-access
+
                 return self.formatter._style.format(_ESJsonLogFmt(self.json_fields, **log_line.to_dict()))
-            except Exception:  # noqa pylint: disable=broad-except
+            except Exception:
                 pass
 
         # Just a safe-guard to preserve backwards-compatibility
@@ -243,7 +237,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     )
                 else:
                     metadata['max_offset'] = 0
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception('Could not get current log size with log_id: %s', log_id)
 
         logs = []
@@ -251,7 +245,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             try:
 
                 logs = search[self.MAX_LINE_PER_PAGE * self.PAGE : self.MAX_LINE_PER_PAGE].execute()
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception('Could not read log with log_id: %s', log_id)
 
         return logs
@@ -266,7 +260,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         if self.json_format:
             self.formatter = JSONFormatter(
-                fmt=self.formatter._fmt,  # pylint: disable=protected-access
+                fmt=self.formatter._fmt,
                 json_fields=self.json_fields,
                 extras={
                     'dag_id': str(ti.dag_id),
@@ -311,7 +305,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
         if self.handler.stream is None or self.handler.stream.closed:
-            self.handler.stream = self.handler._open()  # pylint: disable=protected-access
+            self.handler.stream = self.handler._open()
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
@@ -341,14 +335,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: URL to the external log collection service
         :rtype: str
         """
-        log_id = self.log_id_template.format(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            execution_date=task_instance.execution_date,
-            try_number=try_number,
-        )
-        url = 'https://' + self.frontend.format(log_id=quote(log_id))
-        return url
+        log_id = self._render_log_id(task_instance, try_number)
+        scheme = '' if '://' in self.frontend else 'https://'
+        return scheme + self.frontend.format(log_id=quote(log_id))
 
     @property
     def supports_external_link(self) -> bool:
