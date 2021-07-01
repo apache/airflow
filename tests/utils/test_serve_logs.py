@@ -45,49 +45,46 @@ def sample_log(tmpdir):
     return f
 
 
+@pytest.fixture
+def signer():
+    return TimedJSONWebSignatureSerializer(
+        secret_key=conf.get('webserver', 'secret_key'),
+        algorithm_name='HS512',
+        expires_in=30,
+        # This isn't really a "salt", more of a signing context
+        salt='task-instance-logs',
+    )
+
+
 @pytest.mark.usefixtures('sample_log')
 class TestServeLogs:
     def test_forbidden_no_auth(self, client: "FlaskClient"):
         assert 403 == client.get('/log/sample.log').status_code
 
-    def test_should_serve_file(self, client: "FlaskClient"):
-        signer = TimedJSONWebSignatureSerializer(
-            secret_key=conf.get('webserver', 'secret_key'),
-            algorithm_name='HS512',
-            expires_in=30,
-        )
+    def test_should_serve_file(self, client: "FlaskClient", signer):
         assert (
             LOG_DATA
             == client.get(
                 '/log/sample.log',
                 headers={
-                    'Authorization': signer.dumps({}),
+                    'Authorization': signer.dumps('sample.log'),
                 },
             ).data.decode()
         )
 
-    def test_forbidden_too_long_validity(self, client: "FlaskClient"):
-        signer = TimedJSONWebSignatureSerializer(
-            secret_key=conf.get('webserver', 'secret_key'),
-            algorithm_name='HS512',
-            expires_in=3600,
-        )
+    def test_forbidden_too_long_validity(self, client: "FlaskClient", signer):
+        signer.expires_in = 3600
         assert (
             403
             == client.get(
                 '/log/sample.log',
                 headers={
-                    'Authorization': signer.dumps({}),
+                    'Authorization': signer.dumps('sample.log'),
                 },
             ).status_code
         )
 
-    def test_forbidden_expired(self, client: "FlaskClient"):
-        signer = TimedJSONWebSignatureSerializer(
-            secret_key=conf.get('webserver', 'secret_key'),
-            algorithm_name='HS512',
-            expires_in=30,
-        )
+    def test_forbidden_expired(self, client: "FlaskClient", signer):
         # Fake the time we think we are
         signer.now = lambda: 0
         assert (
@@ -95,7 +92,19 @@ class TestServeLogs:
             == client.get(
                 '/log/sample.log',
                 headers={
-                    'Authorization': signer.dumps({}),
+                    'Authorization': signer.dumps('sample.log'),
+                },
+            ).status_code
+        )
+
+    def test_wrong_context(self, client: "FlaskClient", signer):
+        signer.salt = None
+        assert (
+            403
+            == client.get(
+                '/log/sample.log',
+                headers={
+                    'Authorization': signer.dumps('sample.log'),
                 },
             ).status_code
         )

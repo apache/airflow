@@ -35,6 +35,8 @@ def flask_app():
         secret_key=conf.get('webserver', 'secret_key'),
         algorithm_name='HS512',
         expires_in=max_request_age,
+        # This isn't really a "salt", more of a signing context
+        salt='task-instance-logs',
     )
 
     # Prevent direct access to the logs port
@@ -45,13 +47,16 @@ def flask_app():
 
             # We don't actually care about the payload, just that the signature
             # was valid and the `exp` claim is correct
-            _, headers = signer.loads(auth, return_header=True)
+            filename, headers = signer.loads(auth, return_header=True)
 
             issued_at = int(headers['iat'])
             expires_at = int(headers['exp'])
-        except Exception as e:
-            print(e)
+        except Exception:
             abort(403)
+
+        if filename != request.view_args['filename']:
+            abort(403)
+
         # Validate the `iat` and `exp` are within `max_request_age` of now.
         now = int(time.time())
         if abs(now - issued_at) > max_request_age:

@@ -177,9 +177,13 @@ class FileTaskHandler(logging.Handler):
                     secret_key=conf.get('webserver', 'secret_key'),
                     algorithm_name='HS512',
                     expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
+                    # This isn't really a "salt", more of a signing context
+                    salt='task-instance-logs',
                 )
 
-                response = httpx.get(url, timeout=timeout, headers={'Authorization': signer.dumps({})})
+                response = httpx.get(
+                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                )
                 response.encoding = "utf-8"
 
                 # Check if the resource was properly fetched
