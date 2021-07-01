@@ -46,5 +46,5 @@ class TestSnowflakeOperator(unittest.TestCase):
         );
         """
         operator = SnowflakeOperator(task_id='basic_snowflake', sql=sql, dag=self.dag, do_xcom_push=False)
-        # do_xcom_push=False because otherwise the XCom test will fail because of the mocking (it actually works)
+        # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
