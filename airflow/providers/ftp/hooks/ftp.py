@@ -25,6 +25,18 @@ from typing import Any, List, Optional
 from airflow.hooks.base import BaseHook
 
 
+class FTPIgnoreHost(ftplib.FTP):
+    def makepasv(self):
+        _, port = super().makepasv()
+        return self.host, port
+
+
+class FTPSIgnoreHost(ftplib.FTP_TLS):
+    def makepasv(self):
+        _, port = super().makepasv()
+        return self.host, port
+
+
 class FTPHook(BaseHook):
     """
     Interact with FTP.
@@ -36,6 +48,12 @@ class FTPHook(BaseHook):
     :param ftp_conn_id: The :ref:`ftp connection id <howto/connection:ftp>`
         reference.
     :type ftp_conn_id: str
+
+    :param ignore_pasv_host: Ignore the host that is returned by the server and
+        use the one from the connection. This is in case the FTP server is
+        misconfigured and is replying to the PASV command with the internal
+        IP address that was not accessible from the public internet.
+    :type ignore_pasv_host: bool
     """
 
     conn_name_attr = 'ftp_conn_id'
@@ -43,9 +61,10 @@ class FTPHook(BaseHook):
     conn_type = 'ftp'
     hook_name = 'FTP'
 
-    def __init__(self, ftp_conn_id: str = default_conn_name) -> None:
+    def __init__(self, ftp_conn_id: str = default_conn_name, ignore_pasv_host: bool = False) -> None:
         super().__init__()
         self.ftp_conn_id = ftp_conn_id
+        self.ignore_pasv_host = ignore_pasv_host
         self.conn: Optional[ftplib.FTP] = None
 
     def __enter__(self):
@@ -60,7 +79,8 @@ class FTPHook(BaseHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            self.conn = ftplib.FTP(params.host, params.login, params.password)
+            ftp_cls = FTPIgnoreHost if self.ignore_pasv_host else ftplib.FTP
+            self.conn = ftp_cls(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
 
         return self.conn
@@ -282,11 +302,12 @@ class FTPSHook(FTPHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
+            ftp_cls = FTPSIgnoreHost if self.ignore_pasv_host else ftplib.FTP_TLS
 
             if params.port:
-                ftplib.FTP_TLS.port = params.port
+                ftp_cls.port = params.port
 
-            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)
+            self.conn = ftp_cls(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
 
         return self.conn
