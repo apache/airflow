@@ -63,13 +63,13 @@ class SSHHook(BaseHook):
     :type keepalive_interval: int
     """
 
-    # key type name to paramiko PKey class
-    _default_pkey_mappings = {
-        'dsa': paramiko.DSSKey,
-        'ecdsa': paramiko.ECDSAKey,
-        'ed25519': paramiko.Ed25519Key,
-        'rsa': paramiko.RSAKey,
-    }
+    # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    _pkey_loaders = (
+        paramiko.RSAKey,
+        paramiko.ECDSAKey,
+        paramiko.Ed25519Key,
+        paramiko.DSSKey,
+    )
 
     _host_key_mappings = {
         'rsa': paramiko.RSAKey,
@@ -357,15 +357,17 @@ class SSHHook(BaseHook):
         Creates appropriate paramiko key for given private key
 
         :param private_key: string containing private key
-        :return: `paramiko.PKey` appropriate for given key
+        :return: ``paramiko.PKey`` appropriate for given key
         :raises AirflowException: if key cannot be read
         """
-        allowed_pkey_types = self._default_pkey_mappings.values()
-        for pkey_type in allowed_pkey_types:
+        for pkey_class in self._pkey_loaders:
             try:
-                key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
+                key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
+                # Test it acutally works. If Paramiko loads an openssh generated key, sometimes it will
+                # happily load it as the wrong type, only to fail when actually used.
+                key.sign_ssh_data(b'')
                 return key
-            except paramiko.ssh_exception.SSHException:
+            except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
             'Private key provided cannot be read by paramiko.'
