@@ -379,6 +379,22 @@ class TestBaseOperatorMethods(unittest.TestCase):
         for start_task in start_tasks:
             assert set(start_task.get_direct_relatives(upstream=False)) == set(end_tasks)
 
+        # Begin test for `XComArgs`
+        xstart_tasks = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 4)
+        ]
+        xend_tasks = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(4, 7)
+        ]
+        cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
+
+        for xstart_task in xstart_tasks:
+            assert set(xstart_task.operator.get_direct_relatives(upstream=False)) == set(
+                xend_task.operator for xend_task in xend_tasks
+            )
+
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
