@@ -36,7 +36,6 @@ except ImportError:
     mock_sts = None
     mock_iam = None
 
-# pylint: disable=line-too-long
 SAML_ASSERTION = """
 <?xml version="1.0"?>
 <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ID="_00000000-0000-0000-0000-000000000000" Version="2.0" IssueInstant="2012-01-01T12:00:00.000Z" Destination="https://signin.aws.amazon.com/saml" Consent="urn:oasis:names:tc:SAML:2.0:consent:unspecified">
@@ -102,7 +101,6 @@ SAML_ASSERTION = """
 ).replace(
     "\n", ""
 )
-# pylint: enable=line-too-long
 
 
 class TestAwsBaseHook(unittest.TestCase):

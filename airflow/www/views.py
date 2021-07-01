@@ -567,7 +567,6 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
             dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-            # pylint: enable=no-member
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
@@ -749,10 +748,8 @@ class Airflow(AirflowBaseView):
             .join(DagModel, DagModel.dag_id == DagRun.dag_id)
             .filter(DagRun.state == State.RUNNING, DagModel.is_active)
         )
-        # pylint: enable=comparison-with-callable
 
         running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
-        # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
 
@@ -766,7 +763,6 @@ class Airflow(AirflowBaseView):
                 running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
             ),
         )
-        # pylint: enable=no-member
 
         if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
 
@@ -776,11 +772,9 @@ class Airflow(AirflowBaseView):
                 .filter(DagRun.state != State.RUNNING, DagModel.is_active)
                 .group_by(DagRun.dag_id)
             )
-            # pylint: enable=comparison-with-callable
 
             last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery('last_dag_run')
-            # pylint: enable=no-member
 
             # Select all task_instances from active dag_runs.
             # If no dag_run is active, return task instances from most recent dag_run.
@@ -850,7 +844,7 @@ class Airflow(AirflowBaseView):
         ).group_by(DagRun.dag_id)
 
         # Filter to only ask for accessible and selected dags
-        query = query.filter(DagRun.dag_id.in_(filter_dag_ids))  # pylint: enable=no-member
+        query = query.filter(DagRun.dag_id.in_(filter_dag_ids))
 
         resp = {
             r.dag_id.replace('.', '__dot__'): {
@@ -1262,7 +1256,6 @@ class Airflow(AirflowBaseView):
 
                 if type(attr) != type(self.task) and attr_name not in wwwutils.get_attr_renderer():  # noqa
                     task_attrs.append((attr_name, str(attr)))
-                # pylint: enable=unidiomatic-typecheck
 
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
@@ -1676,7 +1669,6 @@ class Airflow(AirflowBaseView):
             .filter(DagRun.dag_id.in_(filter_dag_ids))
             .group_by(DagRun.dag_id)
         )
-        # pylint: enable=comparison-with-callable
 
         payload = []
         for dag_id, active_dag_runs in dags:
@@ -4085,7 +4077,6 @@ class DagModelView(AirflowModelView):
 
         dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-        # pylint: enable=no-member
 
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
