@@ -1451,7 +1451,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if error:
             if isinstance(error, Exception):
-                self.log.exception("Task failed with exception")
+                self.log.error("Task failed with exception", exc_info=error)
             else:
                 self.log.error("%s", error)
             # external monitoring process provides pickle file so _run_raw_task
