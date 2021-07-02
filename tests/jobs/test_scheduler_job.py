@@ -2124,9 +2124,9 @@ class TestSchedulerJob(unittest.TestCase):
             session=session,
         )
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti.state = State.SCHEDULED
+        ti.state = State.QUEUED
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        ti2.state = State.SCHEDULED
+        ti2.state = State.QUEUED
         session.commit()
 
         processor = mock.MagicMock()
@@ -2140,7 +2140,7 @@ class TestSchedulerJob(unittest.TestCase):
         assert ti.state == State.NONE
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        assert ti2.state == State.SCHEDULED, "Tasks run by Backfill Jobs should not be reset"
+        assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
 
     @parameterized.expand(
         [
@@ -3654,7 +3654,7 @@ class TestSchedulerJob(unittest.TestCase):
             session=session,
         )
         ti = dr1.get_task_instances(session=session)[0]
-        ti.state = State.SCHEDULED
+        ti.state = State.QUEUED
         session.merge(ti)
         session.merge(dr1)
         session.commit()
@@ -3799,12 +3799,12 @@ class TestSchedulerJob(unittest.TestCase):
 
         ti1, ti2 = dr1.get_task_instances(session=session)
         dr1.state = State.RUNNING
-        ti1.state = State.SCHEDULED
+        ti1.state = State.QUEUED
         ti1.queued_by_job_id = old_job.id
         session.merge(dr1)
         session.merge(ti1)
 
-        ti2.state = State.SCHEDULED
+        ti2.state = State.QUEUED
         ti2.queued_by_job_id = self.scheduler_job.id
         session.merge(ti2)
         session.flush()
@@ -3816,7 +3816,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.refresh(ti1)
         assert ti1.state is None
         session.refresh(ti2)
-        assert State.SCHEDULED == ti2.state
+        assert ti2.state == State.QUEUED
         session.rollback()
         if old_job.processor_agent:
             old_job.processor_agent.end()
