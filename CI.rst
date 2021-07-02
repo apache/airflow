@@ -400,9 +400,6 @@ the model of permission management is not the same for Container Registry as it 
 +--------------------------------+---------------------------+----------------------------------------------+
 | Variable                       | Default                   | Comment                                      |
 +================================+===========================+==============================================+
-| USE_GITHUB_REGISTRY            | true                      | If set to "true", we interact with GitHub    |
-|                                |                           | Registry registry not the DockerHub one.     |
-+--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY                | ``ghcr.io``               | Name of the GitHub registry to use. Can be   |
 |                                |                           | ``docker.pkg.github.com`` or ``ghcr.io``     |
 +--------------------------------+---------------------------+----------------------------------------------+
@@ -437,21 +434,6 @@ Container Registry. In case of GitHub Packages, authentication uses GITHUB_TOKEN
 is needed for both pushing the images (WRITE) and pulling them (READ) - which means that GitHub token
 is used in "main" build (WRITE) and in fork builds (READ). For container registry, our images are
 Publicly Visible and we do not need any authentication to pull them.
-
-Dockerhub Variables
-===================
-
-If ``USE_GITHUB_REGISTRY`` is set to "false" you can interact directly with DockerHub. By default
-you pull from/push to "apache/airflow" DockerHub repository, but you can change
-that to your own repository by setting those environment variables:
-
-+----------------+----------------+-----------------------------------+
-| Variable       | Default        | Comment                           |
-+================+================+===================================+
-| DOCKERHUB_USER | ``apache``     | Name of the DockerHub user to use |
-+----------------+----------------+-----------------------------------+
-| DOCKERHUB_REPO | ``airflow-ci`` | Name of the DockerHub repo to use |
-+----------------+----------------+-----------------------------------+
 
 CI Architecture
 ===============

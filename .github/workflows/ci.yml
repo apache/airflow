@@ -36,7 +36,6 @@ env:
   DB_RESET: "true"
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
-  USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -246,7 +245,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
       - name: "Setup python"
@@ -279,7 +278,7 @@ jobs:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
       - name: >
@@ -318,7 +317,7 @@ jobs:
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Get Python version"
@@ -419,7 +418,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           persist-credentials: false
           submodules: recursive
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Fetch inventory versions"
@@ -473,7 +472,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare provider documentation"
@@ -521,7 +520,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare provider packages: sdist"
@@ -563,7 +562,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: Helm"
@@ -620,7 +619,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
@@ -676,7 +675,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
@@ -731,7 +730,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
@@ -784,7 +783,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
@@ -847,7 +846,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: |
           echo "ISSUE_ID=10128" >> $GITHUB_ENV
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: Quarantined"
@@ -935,7 +934,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         if: needs.build-info.outputs.waitForImage == 'true'
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
       - name: >
@@ -986,7 +985,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Get all PROD images"
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
       - name: "Cache virtualenv for kubernetes testing"
@@ -1056,7 +1055,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Get all PROD images"
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
       - name: "Cache virtualenv for kubernetes testing"
@@ -1133,7 +1132,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: Set push-python-image
         id: push-python-image
         run: |
@@ -1194,7 +1193,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI image ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
@@ -1235,7 +1234,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: >
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
@@ -1296,7 +1295,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           persist-credentials: false
           submodules: recursive
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Tag commit"
         run: |
           BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
@@ -1326,7 +1325,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           node-version: 14
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Cache eslint"

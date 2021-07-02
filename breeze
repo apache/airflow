@@ -483,7 +483,6 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
-                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -493,7 +492,6 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
-                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -518,7 +516,6 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
-   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 EOF
         else
             cat <<EOF
@@ -527,7 +524,6 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
-   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 
 EOF
         fi
@@ -600,7 +596,6 @@ function breeze::prepare_command_file() {
     local file="${1}"
     local command="${2}"
     local compose_file="${3}"
-    local airflow_image="${4}"
     cat <<EOF >"${file}"
 #!/usr/bin/env bash
 if [[ \${VERBOSE} == "true" ]]; then
@@ -634,7 +629,6 @@ export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 export AIRFLOW_PROD_BASE_TAG="${AIRFLOW_PROD_BASE_TAG}"
-export AIRFLOW_IMAGE="${airflow_image}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
@@ -646,32 +640,23 @@ EOF
 
 #######################################################################################################
 #
-# Prepare all command files that we are using. Depending on the command to execute we use two
-# convenience scripts:
-#
-#    dc_ci - to run docker compose command for CI image
-#    dc_prod - to run docker compose command for PROD image
+# Prepare all command files that we are using. We use dc_ci - to run docker compose command for CI image
 #
 # Global constants set:
 #
 #     PYTHON_BASE_IMAGE_VERSION
 #     PYTHON_BASE_IMAGE
 #     AIRFLOW_CI_IMAGE
-#     AIRFLOW_PROD_BASE_TAG
-#     AIRFLOW_PROD_IMAGE
-#     AIRFLOW_PROD_IMAGE_KUBERNETES
 #     BUILT_CI_IMAGE_FLAG_FILE
 #
 #######################################################################################################
 function breeze::prepare_command_files() {
     local main_ci_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
-    local main_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     local backend_port_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-port.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
     local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
-    local local_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
@@ -692,21 +677,17 @@ function breeze::prepare_command_files() {
 
 
     local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
-    local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
     if [[ "${MOUNT_SELECTED_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_docker_compose_file}:${backend_port_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}:${backend_port_docker_compose_file}
     fi
 
     if [[ "${MOUNT_ALL_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_all_sources_docker_compose_file}:${backend_port_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${local_all_sources_docker_compose_file}:${backend_port_docker_compose_file}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
         compose_ci_file=${compose_ci_file}:${forward_credentials_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${forward_credentials_docker_compose_file}
     fi
 
     if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} || -n ${USE_AIRFLOW_VERSION=} ]]; then
@@ -727,16 +708,8 @@ function breeze::prepare_command_files() {
     export DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI="dc_ci"
     readonly DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI
 
-    export DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD="dc_prod"
-    readonly DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD
-
-    # Prepare script for "run docker compose CI command"
     breeze::prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" \
-        "\"\${@}\"" "${compose_ci_file}" "${AIRFLOW_CI_IMAGE}"
-
-    # Prepare script for "run docker compose PROD command"
-    breeze::prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}" \
-        "\"\${@}\"" "${compose_prod_file}" "${AIRFLOW_PROD_IMAGE}"
+        "\"\${@}\"" "${compose_ci_file}"
 }
 
 #######################################################################################################
@@ -1152,20 +1125,12 @@ function breeze::parse_arguments() {
             export FORWARD_CREDENTIALS="true"
             shift
             ;;
-        -c | --use-github-registry)
-            echo
-            echo "Use GitHub registry"
-            echo
-            export USE_GITHUB_REGISTRY="true"
-            shift
-            ;;
         -g | --github-repository)
             echo
             echo "Using GitHub registry."
             echo "GitHub repository: ${2}"
             echo
             export GITHUB_REPOSITORY="${2}"
-            export USE_GITHUB_REGISTRY="true"
             shift 2
             ;;
         -s | --github-image-id)
@@ -1178,7 +1143,6 @@ function breeze::parse_arguments() {
             echo "behaviour as in the CI environment."
             echo
             export FORCE_PULL_IMAGES="true"
-            export USE_GITHUB_REGISTRY="true"
             export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
             export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
             export CHECK_IMAGE_FOR_REBUILD="false"
@@ -3300,16 +3264,11 @@ function breeze::make_sure_precommit_is_installed() {
 function breeze::remove_images() {
     # shellcheck disable=SC2086
     docker rmi --force ${PYTHON_BASE_IMAGE} \
-                       ${GITHUB_REGISTRY_PYTHON_BASE_IMAGE} \
                        ${AIRFLOW_PYTHON_BASE_IMAGE} \
-                       ${AIRFLOW_CI_IMAGE} \
-                       ${DEFAULT_CI_IMAGE} \
                        ${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE} \
-                       ${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE} \
+                       ${AIRFLOW_CI_IMAGE} \
                        ${AIRFLOW_PROD_IMAGE} \
-                       ${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE} \
                        ${AIRFLOW_PROD_BUILD_IMAGE} \
-                       ${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE} \
         2>/dev/null >/dev/null && true
     echo
     echo "###################################################################"
@@ -3514,7 +3473,7 @@ function breeze::run_breeze_command() {
         docker_engine_resources::check_all_resources
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"  || true
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/fix_ownership.sh"  || true
         else
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
@@ -3571,9 +3530,9 @@ function breeze::run_breeze_command() {
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            push_pull_remove_images::push_prod_images
+            push_pull_remove_images::push_prod_images_to_github
         else
-            push_pull_remove_images::push_ci_images
+            push_pull_remove_images::push_ci_images_to_github
         fi
         ;;
     perform_initialize_local_virtualenv)

@@ -567,7 +567,6 @@ function initialization::initialize_git_variables() {
 function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
     export GITHUB_REGISTRY="ghcr.io"
-    export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
     export GITHUB_REGISTRY_IMAGE_SUFFIX=${GITHUB_REGISTRY_IMAGE_SUFFIX:="-v2"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
@@ -729,7 +728,6 @@ Production image build variables:
 
 Detected GitHub environment:
 
-    USE_GITHUB_REGISTRY: '${USE_GITHUB_REGISTRY}'
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
     GITHUB_TOKEN: '${GITHUB_TOKEN}'
@@ -874,7 +872,6 @@ function initialization::make_constants_read_only() {
     readonly DOCKERHUB_REPO
     readonly DOCKER_CACHE
 
-    readonly USE_GITHUB_REGISTRY
     readonly GITHUB_REGISTRY
     readonly GITHUB_REGISTRY_WAIT_FOR_IMAGE
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
@@ -885,7 +882,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_USERNAME
 
     readonly FORWARD_CREDENTIALS
-    readonly USE_GITHUB_REGISTRY
 
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
@@ -893,15 +889,9 @@ function initialization::make_constants_read_only() {
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
-    readonly AIRFLOW_PYTHON_BASE_IMAGE
     readonly AIRFLOW_CI_BASE_TAG
-    readonly AIRFLOW_CI_IMAGE
-    readonly AIRFLOW_CI_IMAGE_DEFAULT
     readonly AIRFLOW_PROD_BASE_TAG
-    readonly AIRFLOW_PROD_IMAGE
-    readonly AIRFLOW_PROD_BUILD_IMAGE
     readonly AIRFLOW_PROD_IMAGE_KUBERNETES
-    readonly AIRFLOW_PROD_IMAGE_DEFAULT
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 
