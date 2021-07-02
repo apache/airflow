@@ -1159,15 +1159,6 @@ function breeze::parse_arguments() {
             export USE_GITHUB_REGISTRY="true"
             shift
             ;;
-        --github-registry)
-            echo
-            echo "Using GitHub registry."
-            echo "GitHub registry used: ${2}"
-            echo
-            export GITHUB_REGISTRY="${2}"
-            export USE_GITHUB_REGISTRY="true"
-            shift 2
-            ;;
         -g | --github-repository)
             echo
             echo "Using GitHub registry."
@@ -1623,10 +1614,6 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_GENERATE_CONSTRAINTS_MODE=$(echo "${_breeze_allowed_generate_constraints_modes=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_GENERATE_CONSTRAINTS_MODE
-
-    FORMATTED_GITHUB_REGISTRY=$(echo "${_breeze_allowed_github_registrys=""}" |
-        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
-    readonly FORMATTED_GITHUB_REGISTRY
 
     FORMATTED_POSTGRES_VERSIONS=$(echo "${_breeze_allowed_postgres_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -2846,16 +2833,6 @@ function breeze::flag_pull_push_docker_images() {
         DockerHub. You need to be logged in to the registry in order to be able to pull/push from
         and you need to be committer to push to Apache Airflow' GitHub registry.
 
---github-registry GITHUB_REGISTRY
-        GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-        registry.
-
-        Default: ${_breeze_default_github_registry:=}.
-
-        If you use this flag, automatically --use-github-registry flag is enabled.
-
-${FORMATTED_GITHUB_REGISTRY}
-
 -g, --github-repository GITHUB_REPOSITORY
         GitHub repository used to pull, push images when cache is used.
         Default: ${_breeze_default_github_repository:=}.
@@ -3186,7 +3163,6 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
     parameters::check_and_save_allowed_param "MSSQL_VERSION" "MSSql version" "--mssql-version"
-    parameters::check_and_save_allowed_param "GITHUB_REGISTRY" "GitHub Registry" "--github-registry"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
     parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"

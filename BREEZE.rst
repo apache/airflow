@@ -1446,16 +1446,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
-  --github-registry GITHUB_REGISTRY
-          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-          registry.
-
-          Default: ghcr.io.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
-
-                 ghcr.io docker.pkg.github.com
-
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
@@ -1619,16 +1609,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
-
-  --github-registry GITHUB_REGISTRY
-          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-          registry.
-
-          Default: ghcr.io.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
-
-                 ghcr.io docker.pkg.github.com
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
@@ -2692,16 +2672,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
-
-  --github-registry GITHUB_REGISTRY
-          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-          registry.
-
-          Default: ghcr.io.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
-
-                 ghcr.io docker.pkg.github.com
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.

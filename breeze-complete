@@ -27,8 +27,6 @@ _breeze_allowed_python_major_minor_versions="3.6 3.7 3.8 3.9"
 _breeze_allowed_backends="sqlite mysql postgres mssql"
 _breeze_allowed_integrations="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino all"
 _breeze_allowed_generate_constraints_modes="source-providers pypi-providers no-providers"
-# registrys is good here even if it is not correct english. We are adding s automatically to all variables
-_breeze_allowed_github_registrys="ghcr.io docker.pkg.github.com"
 _breeze_allowed_kubernetes_modes="image"
 _breeze_allowed_kubernetes_versions="v1.20.2 v1.19.7 v1.18.15"
 _breeze_allowed_helm_versions="v3.2.4"
@@ -46,7 +44,6 @@ _breeze_allowed_installation_methods=". apache-airflow"
 {
     # Default values for the commands & flags used
     _breeze_default_backend=$(echo "${_breeze_allowed_backends}" | awk '{print $1}')
-    _breeze_default_github_registry=$(echo "${_breeze_allowed_github_registrys}" | awk '{print $1}')
     _breeze_default_generate_providers_mode=$(echo "${_breeze_allowed_generate_constraints_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_mode=$(echo "${_breeze_allowed_kubernetes_modes}" | awk '{print $1}')
     _breeze_default_kubernetes_version=$(echo "${_breeze_allowed_kubernetes_versions}" | awk '{print $1}')
@@ -322,9 +319,6 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     --installation-method)
         _breeze_known_values="${_breeze_allowed_installation_methods}"
-        ;;
-    --github-registry)
-        _breeze_known_values="${_breeze_allowed_github_registrys}"
         ;;
     --generate-constraints-mode)
         _breeze_known_values="${_breeze_allowed_generate_constraints_modes}"
