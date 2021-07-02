@@ -4236,17 +4236,10 @@ class CustomViewMenuModelView(ViewMenuModelView):
     ]
 
 
-class CustomUserDBModelView(UserDBModelView):
-    """Customize permission names for FAB's builtin UserDBModelView."""
+class CustomUserCommonModelView():
+    """Customize permission names for FAB's builtin UserDBModelView. Common settings for all providers user views"""
 
     _class_permission_name = permissions.RESOURCE_USER
-
-    class_permission_name_mapping = {
-        'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
-        'resetpasswords': permissions.RESOURCE_PASSWORD,
-        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
-        'userinfo': permissions.RESOURCE_MY_PROFILE,
-    }
 
     method_permission_name = {
         'add': 'create',
@@ -4285,6 +4278,16 @@ class CustomUserDBModelView(UserDBModelView):
     def class_permission_name(self, name):
         self._class_permission_name = name
 
+class CustomUserDBModelView(UserDBModelView, CustomUserCommonModelView):
+    """Customize permission names for FAB's builtin UserDBModelView."""
+
+    class_permission_name_mapping = {
+        'resetmypassword': permissions.RESOURCE_MY_PASSWORD,
+        'resetpasswords': permissions.RESOURCE_PASSWORD,
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
 
 class CustomUserInfoEditView(UserInfoEditView):
     """Customize permission names for FAB's builtin UserInfoEditView."""
@@ -4310,53 +4313,40 @@ class CustomUserStatsChartView(UserStatsChartView):
     base_permissions = [permissions.ACTION_CAN_READ]
 
 
-class CustomUserLDAPModelView(UserLDAPModelView):
+
+
+
+class CustomUserLDAPModelView(UserLDAPModelView, CustomUserCommonModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE
     }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
 
 
-class CustomUserOAuthModelView(UserOAuthModelView):
+class CustomUserOAuthModelView(UserOAuthModelView, CustomUserCommonModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE
     }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
 
 
-class CustomUserOIDModelView(UserOIDModelView):
+class CustomUserOIDModelView(UserOIDModelView, CustomUserCommonModelView):
     """Customize permission names for FAB's builtin UserOIDModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE
     }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
 
 
-class CustomUserRemoteUserModelView(UserRemoteUserModelView):
+class CustomUserRemoteUserModelView(UserRemoteUserModelView, CustomUserCommonModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE
     }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
