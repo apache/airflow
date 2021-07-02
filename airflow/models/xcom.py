@@ -223,7 +223,9 @@ class BaseXCom(Base, LoggingMixin):
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
-            return json.dumps(value).encode('UTF-8')
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            return json.dumps(BaseSerialization._serialize(value, fail_on_error=True)).encode('UTF-8')
         except (ValueError, TypeError):
             log.error(
                 "Could not serialize the XCom value into JSON."
@@ -240,10 +242,14 @@ class BaseXCom(Base, LoggingMixin):
             try:
                 return pickle.loads(result.value)
             except pickle.UnpicklingError:
-                return json.loads(result.value.decode('UTF-8'))
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                return BaseSerialization.from_json(result.value.decode('UTF-8'))
         else:
             try:
-                return json.loads(result.value.decode('UTF-8'))
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                return BaseSerialization.from_json(result.value.decode('UTF-8'))
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return pickle.loads(result.value)
 

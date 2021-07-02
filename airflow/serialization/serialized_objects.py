@@ -196,7 +196,7 @@ class BaseSerialization:
         return serialized_object
 
     @classmethod
-    def _serialize(cls, var: Any) -> Any:  # Unfortunately there is no support for recursive types in mypy
+    def _serialize(cls, var: Any, fail_on_error: bool = False) -> Any:
         """Helper function of depth first search for serialization.
 
         The serialization protocol is:
@@ -251,6 +251,8 @@ class BaseSerialization:
         elif isinstance(var, TaskGroup):
             return SerializedTaskGroup.serialize_task_group(var)
         else:
+            if fail_on_error:
+                raise TypeError(f"Can't serialize {var} - invalid type - {type(var)} ")
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
 

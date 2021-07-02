@@ -259,3 +259,31 @@ class TestXCom(unittest.TestCase):
 
         instance.init_on_load()
         mock_orm_deserialize.assert_called_once_with()
+
+    @conf_vars({("core", "xcom_enable_pickling"): "False"})
+    def test_xcom_roundtrip_with_set(self):
+        json_obj = {"key": {"value1", "value2"}}
+        execution_date = timezone.utcnow()
+        key = "xcom_test1"
+        dag_id = "test_dag1"
+        task_id = "test_task1"
+        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+
+        assert ret_value == json_obj
+
+        session = settings.Session()
+        ret_value = (
+            session.query(XCom)
+            .filter(
+                XCom.key == key,
+                XCom.dag_id == dag_id,
+                XCom.task_id == task_id,
+                XCom.execution_date == execution_date,
+            )
+            .first()
+            .value
+        )
+
+        assert ret_value == json_obj
