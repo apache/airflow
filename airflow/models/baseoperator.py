@@ -1548,15 +1548,17 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
     List[airflow.models.XComArg]. If you want to chain between two List[airflow.models.BaseOperator]
     or List[airflow.models.XComArg], you have to make sure they have same length.
 
+    Using classic operators/sensors:
+
     .. code-block:: python
 
-         chain(t1, [t2, t3], [t4, t5], t6)
+        chain(t1, [t2, t3], [t4, t5], t6)
 
     is equivalent to::
 
-         / -> t2 -> t4 \
-       t1               -> t6
-         \ -> t3 -> t5 /
+          / -> t2 -> t4 \
+        t1               -> t6
+          \ -> t3 -> t5 /
 
     .. code-block:: python
 
@@ -1566,6 +1568,57 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
         t3.set_downstream(t5)
         t4.set_downstream(t6)
         t5.set_downstream(t6)
+
+    Using task-decorated functions aka XComArgs:
+
+    .. code-block:: python
+
+        chain(x1(), [x2(), x3()], [x4(), x5()], x6())
+
+    is equivalent to::
+
+          / -> x2 -> x4 \
+        x1               -> x6
+          \ -> x3 -> x5 /
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        x4 = x4()
+        x5 = x5()
+        x6 = x6()
+        x1.set_downstream(x2)
+        x1.set_downstream(x3)
+        x2.set_downstream(x4)
+        x3.set_downstream(x5)
+        x4.set_downstream(x6)
+        x5.set_downstream(x6)
+
+
+    It is also possible to mix between classic operator/sensor and XComArg tasks:
+
+    .. code-block:: python
+
+        chain(t1, [x1(), x2()], t2, x3())
+
+    is equivalent to::
+
+          / -> x1 \
+        t1         -> t2 -> x3
+          \ -> x2 /
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        t1.set_downstream(x1)
+        t1.set_downstream(x2)
+        x1.set_downstream(t2)
+        x2.set_downstream(t2)
+        t2.set_downstream(x3)
 
     :param tasks: List of tasks or XComArgs to set dependencies
     :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator, List[airflow.models.XComArg],
@@ -1605,6 +1658,8 @@ def cross_downstream(
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
 
+    Using classic operators/sensors:
+
     .. code-block:: python
 
         cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
@@ -1617,7 +1672,6 @@ def cross_downstream(
            / \
         t3 ---> t6
 
-
     .. code-block:: python
 
         t1.set_downstream(t4)
@@ -1629,6 +1683,67 @@ def cross_downstream(
         t3.set_downstream(t4)
         t3.set_downstream(t5)
         t3.set_downstream(t6)
+
+    Using task-decorated functions aka XComArgs:
+
+    .. code-block:: python
+
+        cross_downstream(from_tasks=[x1(), x2(), x3()], to_tasks=[x4(), x5(), x6()])
+
+    is equivalent to::
+
+        x1 ---> x4
+           \ /
+        x2 -X -> x5
+           / \
+        x3 ---> x6
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        x4 = x4()
+        x5 = x5()
+        x6 = x6()
+        x1.set_downstream(x4)
+        x1.set_downstream(x5)
+        x1.set_downstream(x6)
+        x2.set_downstream(x4)
+        x2.set_downstream(x5)
+        x2.set_downstream(x6)
+        x3.set_downstream(x4)
+        x3.set_downstream(x5)
+        x3.set_downstream(x6)
+
+    It is also possible to mix between classic operator/sensor and XComArg tasks:
+
+    .. code-block:: python
+
+        cross_downstream(from_tasks=[t1, x2(), t3], to_tasks=[x1(), t2, x3()])
+
+    is equivalent to::
+
+        t1 ---> x1
+           \ /
+        x2 -X -> t2
+           / \
+        t3 ---> x3
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        t1.set_downstream(x1)
+        t1.set_downstream(t2)
+        t1.set_downstream(x3)
+        x2.set_downstream(x1)
+        x2.set_downstream(t2)
+        x2.set_downstream(x3)
+        t3.set_downstream(x1)
+        t3.set_downstream(t2)
+        t3.set_downstream(x3)
 
     :param from_tasks: List of tasks or XComArgs to start from.
     :type from_tasks: List[airflow.models.BaseOperator] or List[airflow.models.XComArg]
