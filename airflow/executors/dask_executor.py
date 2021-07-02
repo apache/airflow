@@ -81,7 +81,22 @@ class DaskExecutor(BaseExecutor):
         if not self.client:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        future = self.client.submit(airflow_run, pure=False)
+        resources = None
+        if queue:
+            avail_resources = self.client.run_on_scheduler(
+                lambda dask_scheduler: dask_scheduler.resources
+            )
+            avail_queues = {
+                resource for resource, workers in avail_resources.items()
+                if workers
+            }
+            if queue not in avail_queues:
+                raise AirflowException(
+                    f"Attempted to submit task to an unavailable queue: '{queue}'"
+                )
+            resources = {queue: 1}
+
+        future = self.client.submit(airflow_run, pure=False, resources=resources)
         self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:
