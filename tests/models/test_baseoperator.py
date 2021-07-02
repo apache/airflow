@@ -109,6 +109,11 @@ class TestBaseOperator(unittest.TestCase):
         with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
             DummyClass(default_args=default_args)
 
+    def test_incorrect_priority_weight(self):
+        error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
+        with pytest.raises(AirflowException, match=error_msg):
+            DummyOperator(task_id="test_op", priority_weight="2")
+
     @parameterized.expand(
         [
             ("{{ foo }}", {"foo": "bar"}, "bar"),
