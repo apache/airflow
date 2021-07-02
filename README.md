@@ -280,7 +280,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
    in terms of "smoke tests" in CI PRs which are run using this default version and default reference
-   image available in DockerHub. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.1`` images
+   image available. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.1` images
    are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
    become Python 3.7 images.
 
