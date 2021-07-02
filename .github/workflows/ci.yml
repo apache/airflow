@@ -37,7 +37,6 @@ env:
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
-  GITHUB_REGISTRY: "ghcr.io"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -268,8 +267,6 @@ jobs:
       BACKEND: sqlite
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       WAIT_FOR_IMAGE: ${{ needs.build-info.outputs.waitForImage }}
-    outputs:
-      githubRegistry: ${{ steps.wait-for-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -297,9 +294,6 @@ jobs:
         # We are utilising single job to wait for all images because this job merely waits
         # for the images to be available.
         # The test jobs wait for it to complete if WAIT_FOR_IMAGE is 'true'!
-        # The job will set the output "githubRegistry" - result of auto-detect which registry has
-        # been used by checking where the image can be downloaded from.
-        #
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
 
 
@@ -313,7 +307,6 @@ jobs:
       SKIP: "identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -419,7 +412,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     if: needs.build-info.outputs.docs-build == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -467,7 +459,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       NON_INTERACTIVE: "true"
       GENERATE_PROVIDERS_ISSUE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -516,7 +507,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       NON_INTERACTIVE: "true"
       GENERATE_PROVIDERS_ISSUE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -560,7 +550,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: ""
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -620,7 +609,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -677,7 +665,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -733,7 +720,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MSSQL_VERSION: ${{ matrix.mssql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -787,7 +773,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -839,7 +824,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       TEST_TYPES: "Quarantined"
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -939,8 +923,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-    outputs:
-      githubRegistry: ${{ steps.wait-for-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -963,8 +945,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         # "build-images-workflow-run.yml' run as pull_request_target.
         # We are utilising single job to wait for all images because this job merely waits
         # For the images to be available. The test jobs wait for it to complete!
-        # The job will set the output "githubRegistry" - result of auto-detect which registry has
-        # been used by checking where the image can be downloaded from.
         #
         id: wait-for-images
         env:
@@ -989,7 +969,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       EXECUTOR: ${{matrix.executor}}
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
-      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
@@ -1055,7 +1034,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       EXECUTOR: "KubernetesExecutor"
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
-      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
@@ -1131,7 +1109,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1193,7 +1170,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1229,7 +1205,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
     # Only run it for direct pushes
     if: >
@@ -1326,8 +1301,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: React UI tests
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
-    env:
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-ui-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

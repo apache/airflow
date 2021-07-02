@@ -270,14 +270,11 @@ Choosing image registry
 =======================
 
 By default images are pulled and pushed from and to DockerHub registry when you use Breeze's push-image
-or build commands. But as described in `CI Documentation <CI.rst>`_, you can choose different image
-registry by setting ``GITHUB_REGISTRY`` to ``docker.pkg.github.com`` for GitHub Package Registry or
-``ghcr.io`` for GitHub Container Registry.
+or build commands.
 
-Default is the GitHub Package Registry one. The Pull Request forks have no access to the secret but they
-auto-detect the registry used when they wait for the images.
+But as described in `CI Documentation <CI.rst>`_, you can choose GitHub Container Registry.
 
-Our images are named following conventions below.
+Naming convention for DockerHub images.
 
 Images used during CI builds:
 
@@ -320,53 +317,16 @@ For example:
 You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
 
 
-Using GitHub registries as build cache
---------------------------------------
+Using GitHub Container Registry as build cache
+----------------------------------------------
 
-By default DockerHub registry is used when you push or pull such images.
-However for CI builds we keep the images in GitHub registry as well - this way we can easily push
-the images automatically after merge requests and use such images for Pull Requests
-as cache - which makes it much it much faster for CI builds (images are available in cache
-right after merged request in main finishes it's build), The difference is visible especially if
-significant changes are done in the Dockerfile.CI.
-
-The images are named differently (in Docker definition of image names - registry URL is part of the
-image name if DockerHub is not used as registry). Also GitHub has its own structure for registries
-each project has its own registry naming convention that should be followed. The name of
-images for GitHub registry are different as they must follow limitation of the registry used.
-
-We are still using GitHub Packages as registry, but we are in the process of testing and switching
-to GitHub Container Registry, and the naming conventions are slightly different (GitHub Packages
-required all packages to have "organization/repository/" URL prefix ("apache/airflow/",
-where in GitHub Container Registry, all images are in "organization" not in "repository" and they are all
-in organization wide "apache/" namespace rather than in "apache/airflow/" one).
-We are adding "airflow-" as prefix for image names of all Airflow images instead.
+We are using GitHub Container Registry as build cache.The images are all in organization wide "apache/"
+namespace. We are adding "airflow-" as prefix for image names of all Airflow images.
 The images are linked to the repository via ``org.opencontainers.image.source`` label in the image.
 
-Naming convention for GitHub Packages
--------------------------------------
+See https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package
 
-Images with a commit SHA (built for pull requests and pushes)
-
-.. code-block:: bash
-
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA> - for CI images
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-v2:<COMMIT_SHA>       - for production images
-  docker.pkg.github.com/apache-airflow/<BRANCH>-pythonX.Y-build-v2:<COMMIT_SHA> - for production build stage
-  docker.pkg.github.com/apache-airflow/python-v2:X.Y-slim-buster-<COMMIT_SHA>   - for base Python images
-
-Latest images (pushed when main merge succeeds):
-
-.. code-block:: bash
-
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-v2:latest       - for production images
-  docker.pkg.github.com/apache/airflow/<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  docker.pkg.github.com/apache/airflow/python-v2:X.Y-slim-buster          - for base Python images
-
-
-Naming convention for GitHub Container Registry
------------------------------------------------
+Naming convention for the GitHub packages.
 
 Images with a commit SHA (built for pull requests and pushes)
 
@@ -386,31 +346,21 @@ Latest images (pushed when main merge succeeds):
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
   ghcr.io/apache/airflow-python-v2:X.Y-slim-buster          - for base Python images
 
-Note that we never push or pull "release" images to GitHub registry. It is only used for CI builds
-
+Note that we never push or pull "release" images to GitHub registry. Those are only pushed to DockerHub.
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
-
-In order to interact with the GitHub images you need to add ``--use-github-registry`` flag to the pull/push
-commands in Breeze. This way the images will be pulled/pushed from/to GitHub rather than from/to
-DockerHub. Images are build locally as ``apache/airflow`` images but then they are tagged with the right
-GitHub tags for you. You can also specify ``--github-registry`` option and choose which of the
-GitHub registries are used (``docker.pkg.github.com`` chooses GitHub Packages and ``ghcr.io`` chooses
-GitHub Container Registry).
+In order to interact with the GitHub Container Registry you need to add ``--use-github-registry``
+flag to the pull/push commands in Breeze. This way the images will be pulled/pushed from/to GitHub
+rather than from/to DockerHub. Images are build locally as ``apache/airflow`` images but then they are
+tagged with the right GitHub tags for you automatically.
 
 You can read more about the CI configuration and how CI builds are using DockerHub/GitHub images
 in `<CI.rst>`_.
 
 Note that you need to be committer and have the right to push to DockerHub and GitHub and you need to
-be logged in. Only committers can push images directly. You need to login with your
-Personal Access Token with "packages" scope to be able to push to those repositories or pull from them
+be logged in to the registry. Only committers can push images directly. You need to login with your
+Personal Access Token with "packages" write scope to be able to push to those repositories or pull from them
 in case of GitHub Packages.
-
-GitHub Packages:
-
-.. code-block:: bash
-
-  docker login docker.pkg.github.com
 
 GitHub Container Registry
 
@@ -418,8 +368,6 @@ GitHub Container Registry
 
   docker login ghcr.io
 
-Interacting with container registries
-=====================================
 
 Since there are different naming conventions used for Airflow images and there are multiple images used,
 `Breeze <BREEZE.rst>`_ provides easy to use management interface for the images. The
@@ -431,23 +379,12 @@ to refresh them.
 This can be done with ``Breeze`` command line which has easy-to-use tool to manage those images. For
 example:
 
-
 Force building Python 3.6 CI image using local cache and pushing it container registry:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.6 --force-build-images --build-cache-local
-  ./breeze push-image --python 3.6 --github-registry ghcr.io
-
-
-Building Python 3.7 PROD images (both build and final image) using cache pulled
-from ``docker.pkg.github.com`` and pushing it back:
-
-.. code-block:: bash
-
-  ./breeze build-image --production-image --python 3.7 --github-registry docker.pkg.github.com
-  ./breeze push-image --production-image --python 3.7 --github-registry docker.pkg.github.com
-
+  ./breeze build-image --python 3.6 --force-build-images --force-pull-base-python-image --build-cache-local
+  ./breeze push-image --python 3.6 --use-github-registry
 
 Building Python 3.8 CI image using cache pulled from DockerHub and pushing it back:
 
@@ -461,13 +398,13 @@ tool that allows to reproduce CI failures locally, enter the images and fix them
 to pass ``--github-image-id`` and the registry and Breeze will download and execute commands using
 the same image that was used during the CI build.
 
-For example this command will run the same Python 3.8 image as was used in 210056909
-run with enabled Kerberos integration (assuming docker.pkg.github.com was used as build cache).
+For example this command will run the same Python 3.8 image as was used in build identified with
+9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e commit SHA  with enabled Kerberos integration.
 
 .. code-block:: bash
 
-  ./breeze --github-image-id 210056909 \
-    --github-registry docker.pkg.github.com \
+  ./breeze --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e \
+    --use-github-registry \
     --python 3.8 --integration kerberos
 
 You can see more details and examples in `Breeze <BREEZE.rst>`_
@@ -774,11 +711,9 @@ GitHub Registies in order to be able to do that.
             ./breeze build-image --python ${python_version} --build-cache-local \
                     --production-image --verbose
             ./breeze push-image
-            ./breeze push-image --github-registry ghcr.io
-            ./breeze push-image --github-registry docker.pkg.github.com
+            ./breeze push-image --use-github-registry
             ./breeze push-image --production-image
-            ./breeze push-image --github-registry ghcr.io --production-image
-            ./breeze push-image --github-registry docker.pkg.github.com --production-image
+            ./breeze push-image --production-image --use-github-registry
     done
 
 Running the CI image
