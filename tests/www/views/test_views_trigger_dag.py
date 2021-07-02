@@ -52,7 +52,6 @@ def test_trigger_dag_button(admin_client):
     assert run.run_type == DagRunType.MANUAL
 
 
-@pytest.mark.quarantined
 def test_trigger_dag_conf(admin_client):
     test_dag_id = "example_bash_operator"
     conf_dict = {'string': 'Hello, World!'}
