@@ -557,6 +557,10 @@
                             "description": "How many seconds KEDA will wait before scaling to zero.",
                             "type": "integer"
                         },
+                        "minReplicaCount": {
+                            "description": "Minimum number of workers created by KEDA.",
+                            "type": "integer"
+                        },
                         "maxReplicaCount": {
                             "description": "Maximum number of workers created by KEDA.",
                             "type": "integer"
