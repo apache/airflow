@@ -1036,15 +1036,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: failure()
         with:
           name: >
-            kind-logs-
+            kind-logs-${{matrix.executor}}
           path: /tmp/kind_logs_*
-          retention-days: 7
-      - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
-        with:
-          name: >
-            coverage-k8s-
-          path: "./files/coverage*.xml"
           retention-days: 7
 
   tests-helm-executor-upgrade:
@@ -1107,15 +1100,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: failure()
         with:
           name: >
-            kind-logs-
+            kind-logs-KubernetesExecutor
           path: /tmp/kind_logs_*
-          retention-days: 7
-      - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
-        with:
-          name: >
-            coverage-k8s-
-          path: "./files/coverage*.xml"
           retention-days: 7
 
   push-prod-images-to-github-registry:
