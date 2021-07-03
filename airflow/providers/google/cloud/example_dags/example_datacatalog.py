@@ -130,7 +130,9 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [END howto_operator_gcp_datacatalog_create_tag_result]
 
     # [START howto_operator_gcp_datacatalog_create_tag_result2]
-    create_tag_result2 = BashOperator(task_id=f"echo {create_tag.output}")
+    create_tag_result2 = BashOperator(
+        task_id="create_tag_result2", bash_command=f"echo {create_tag.output}"
+    )
     # [END howto_operator_gcp_datacatalog_create_tag_result2]
 
     # [START howto_operator_gcp_datacatalog_create_tag_template]
@@ -381,12 +383,25 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     chain(*create_tasks)
 
     create_entry_group >> delete_entry_group
+    create_entry_group >> create_entry_group_result
+    create_entry_group >> create_entry_group_result2
+
 
     create_entry_gcs >> delete_entry
+    create_entry_gcs >> create_entry_gcs_result
+    create_entry_gcs >> create_entry_gcs_result2
 
     create_tag_template >> delete_tag_template_field
+    create_tag_template >> create_tag_template_result
+    create_tag_template >> create_tag_template_result2
 
     create_tag_template_field >> delete_tag_template_field
+    create_tag_template_field >> create_tag_template_field_result
+    create_tag_template_field >> create_tag_template_field_result2
+
+    create_tag >> delete_tag
+    create_tag >> create_tag_result
+    create_tag >> create_tag_result2
 
     # Delete
     delete_tasks = [
@@ -400,13 +415,17 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
 
     # Get
     create_tag_template >> get_tag_template >> delete_tag_template
+    get_tag_template >> get_tag_template_result
 
     create_entry_gcs >> get_entry >> delete_entry
+    get_entry >> get_entry_result
 
     create_entry_group >> get_entry_group >> delete_entry_group
+    get_entry_group >> get_entry_group_result
 
     # List
     create_tag >> list_tags >> delete_tag
+    list_tags >> list_tags_result
 
     # Lookup
     create_entry_gcs >> lookup_entry_linked_resource >> delete_entry
@@ -418,28 +437,10 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
 
     # Search
     chain(create_tasks, search_catalog, delete_tasks)
+    search_catalog >> search_catalog_result
 
     # Update
     create_entry_gcs >> update_entry >> delete_entry
-    update_tag >> delete_tag
+    create_tag >> update_tag >> delete_tag
     create_tag_template >> update_tag_template >> delete_tag_template
     create_tag_template_field >> update_tag_template_field >> rename_tag_template_field
-
-    # Task dependencies created via `XComArgs`:
-    #   create_entry_group >> create_entry_group_result
-    #   create_entry_group >> create_entry_group_result2
-    #   create_entry_gcs >> create_entry_gcs_result
-    #   create_entry_gcs >> create_entry_gcs_result2
-    #   create_tag >> create_tag_result
-    #   create_tag >> create_tag_result2
-    #   create_tag_template >> create_tag_template_result
-    #   create_tag_template >> create_tag_template_result2
-    #   create_tag_template_field >> create_tag_template_field_result
-    #   create_tag_template_field >> create_tag_template_field_result2
-    #   create_tag >> delete_tag
-    #   get_entry_group >> get_entry_group_result
-    #   get_entry >> get_entry_result
-    #   get_tag_template >> get_tag_template_result
-    #   list_tags >> list_tags_result
-    #   search_catalog >> search_catalog_result
-    #   create_tag >> update_tag

@@ -191,11 +191,13 @@ with models.DAG(
 
     training >> create_version
     training >> create_version_2
+    create_model >> get_model >> [get_model_result, delete_model]
     create_model >> get_model >> delete_model
     create_model >> create_version >> create_version_2 >> set_defaults_version >> list_version
     create_version >> prediction
     create_version_2 >> prediction
     prediction >> delete_version
+    list_version >> list_version_result
     list_version >> delete_version
     delete_version >> delete_model
 
@@ -252,7 +254,3 @@ with models.DAG(
 
     create_model >> create_version >> evaluate_prediction
     evaluate_validation >> delete_version
-
-    # Task dependencies created via `XComArgs`:
-    #   get_model >> get_model_result
-    #   list_version >> list_version_result

@@ -79,28 +79,6 @@ KEYS = [
 TRANSACTION_OPTIONS: Dict[str, Any] = {"readWrite": {}}
 # [END how_to_transaction_def]
 
-# [START how_to_commit_def]
-COMMIT_BODY = {
-    "mode": "TRANSACTIONAL",
-    "mutations": [
-        {
-            "insert": {
-                "key": KEYS[0],
-                "properties": {"string": {"stringValue": "airflow is awesome!"}},
-            }
-        }
-    ],
-    "transaction": begin_transaction_commit.output,
-}
-# [END how_to_commit_def]
-
-# [START how_to_query_def]
-QUERY = {
-    "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
-    "readOptions": {"transaction": begin_transaction_query.output},
-    "query": {},
-}
-# [END how_to_query_def]
 
 with models.DAG(
     "example_gcp_datastore_operations",
@@ -122,6 +100,21 @@ with models.DAG(
     )
     # [END how_to_begin_transaction]
 
+    # [START how_to_commit_def]
+    COMMIT_BODY = {
+        "mode": "TRANSACTIONAL",
+        "mutations": [
+            {
+                "insert": {
+                    "key": KEYS[0],
+                    "properties": {"string": {"stringValue": "airflow is awesome!"}},
+                }
+            }
+        ],
+        "transaction": begin_transaction_commit.output,
+    }
+    # [END how_to_commit_def]
+
     # [START how_to_commit_task]
     commit_task = CloudDatastoreCommitOperator(
         task_id="commit_task", body=COMMIT_BODY, project_id=GCP_PROJECT_ID
@@ -135,6 +128,14 @@ with models.DAG(
         transaction_options=TRANSACTION_OPTIONS,
         project_id=GCP_PROJECT_ID,
     )
+
+    # [START how_to_query_def]
+    QUERY = {
+        "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
+        "readOptions": {"transaction": begin_transaction_query.output},
+        "query": {},
+    }
+    # [END how_to_query_def]
 
     # [START how_to_run_query]
     run_query = CloudDatastoreRunQueryOperator(task_id="run_query", body=QUERY, project_id=GCP_PROJECT_ID)

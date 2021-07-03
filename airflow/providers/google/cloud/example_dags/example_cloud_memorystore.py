@@ -234,7 +234,7 @@ with models.DAG(
     )
     # [START howto_operator_export_and_delete_instance]
 
-    create_instance >> get_instance
+    create_instance >> get_instance >> get_instance_result
     create_instance >> update_instance
     create_instance >> export_instance
     create_instance_2 >> import_instance
@@ -242,18 +242,15 @@ with models.DAG(
     list_instances >> delete_instance
     export_instance >> update_instance
     update_instance >> delete_instance
+    create_instance >> create_instance_result
     get_instance >> set_acl_permission >> export_instance
+    get_instance >> list_instances_result
     export_instance >> import_instance
     export_instance >> delete_instance
     failover_instance >> delete_instance_2
     import_instance >> failover_instance
 
     export_instance >> create_instance_and_import >> scale_instance >> export_and_delete_instance
-
-    # Task dependencies created via `XComArgs`:
-    #   create_instance >> create_instance_result
-    #   get_instance >> get_instance_result
-    #   get_instance >> list_instances_result
 
 
 with models.DAG(

@@ -232,7 +232,7 @@ with models.DAG(
     remove_product_from_product_set = CloudVisionRemoveProductFromProductSetOperator(
         location=GCP_VISION_LOCATION,
         product_set_id=product_set_create_output,
-        product_id=add_product_to_product_set,
+        product_id=product_create_output,
         retry=Retry(maximum=10.0),
         timeout=5,
         task_id='remove_product_from_product_set',
@@ -258,8 +258,7 @@ with models.DAG(
     #   product_set_create >> product_set_get
     #   product_set_create >> product_set_update
     #   product_set_create >> product_set_delete
-    #   product_set_create >> product_get
-    #   product_create >> product_create
+    #   product_create >> product_get
     #   product_create >> product_delete
     #   product_create >> reference_image_create
     #   product_create >> reference_image_delete
@@ -517,6 +516,4 @@ with models.DAG(
     detect_text >> detect_text_result
     document_detect_text >> document_detect_text_result
     detect_labels >> detect_labels_result
-
-    # Task dependency created via `XComArgs`:
-    #   detect_safe_search >> detect_safe_search_result
+    detect_safe_search >> detect_safe_search_result
