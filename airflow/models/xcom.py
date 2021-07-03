@@ -27,6 +27,7 @@ from sqlalchemy.orm import Query, Session, reconstructor
 
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -99,6 +100,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
+        run_id: Optional[str] = None,
         session: Session = None,
     ) -> Optional[Any]:
         """
@@ -107,6 +109,8 @@ class BaseXCom(Base, LoggingMixin):
 
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
+        :param run_id: DagRun ID for the task
+        :type run_id: str
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. To remove the filter, pass key=None.
         :type key: str
@@ -125,6 +129,7 @@ class BaseXCom(Base, LoggingMixin):
         """
         result = cls.get_many(
             execution_date=execution_date,
+            run_id=run_id,
             key=key,
             task_ids=task_id,
             dag_ids=dag_id,
@@ -145,6 +150,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
+        run_id: Optional[str] = None,
         session: Session = None,
     ) -> Query:
         """
@@ -152,6 +158,8 @@ class BaseXCom(Base, LoggingMixin):
 
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
+        :param run_id: DagRun ID for the task
+        :type run_id: str
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. To remove the filter, pass key=None.
         :type key: str
@@ -189,10 +197,22 @@ class BaseXCom(Base, LoggingMixin):
             else:
                 filters.append(cls.dag_id == dag_ids)
 
-        if include_prior_dates:
-            filters.append(cls.execution_date <= execution_date)
-        else:
-            filters.append(cls.execution_date == execution_date)
+        if execution_date is not None:
+            if include_prior_dates:
+                filters.append(cls.execution_date <= execution_date)
+            else:
+                filters.append(cls.execution_date == execution_date)
+
+        if run_id is not None:
+            dagrun_execution_date = (
+                session.query(DagRun.execution_date)
+                .filter(DagRun.run_id == run_id)
+                .subquery("dagrun_execution_date")
+            )
+            if include_prior_dates:
+                filters.append(DagRun.execution_date <= dagrun_execution_date)
+            else:
+                filters.append(DagRun.execution_date == dagrun_execution_date)
 
         query = (
             session.query(cls)
