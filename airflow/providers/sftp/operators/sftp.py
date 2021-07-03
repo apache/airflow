@@ -74,7 +74,7 @@ class SFTPOperator(BaseOperator):
         at ``/tmp/tmp1/tmp2/`` while creating ``tmp``,``tmp1`` and ``tmp2`` if they
         don't exist. If the parameter is not passed it would error as the directory
         does not exist. ::
-
+            # for transfer only one file
             put_file = SFTPOperator(
                 task_id="put_file",
                 ssh_conn_id="ssh_default",
@@ -84,7 +84,7 @@ class SFTPOperator(BaseOperator):
                 create_intermediate_dirs=True,
                 dag=dag
             )
-
+            # for transfer more files
             put_files = SFTPOperator(
                 task_id="put_files",
                 ssh_conn_id="ssh_default",
@@ -93,7 +93,7 @@ class SFTPOperator(BaseOperator):
                 operation=SFTPOperation.PUT,
                 create_intermediate_dirs=True
             )
-
+            # for transfer all files in dir with pattern
             put_dir_txt_files = SFTPOperator(
                 task_id="put_dir_txt_files",
                 ssh_conn_id="ssh_default",
@@ -205,6 +205,8 @@ class SFTPOperator(BaseOperator):
                         for file in files_list:
                             remote_file = ntpath.basename(file)
                             self._transfer(sftp_client, self.local_folder, remote_file, self.remote_folder)
+                else:
+                    raise AirflowException(f"Argument mismatch, please read docs \n {SFTPOperator.__doc__}")
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
