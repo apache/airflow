@@ -67,7 +67,7 @@ apache-airflow-providers-datadog==2.0.0
 apache-airflow-providers-dingding==2.0.0
 apache-airflow-providers-discord==2.0.0
 apache-airflow-providers-docker==2.0.0
-apache-airflow-providers-elasticsearch==2.0.1
+apache-airflow-providers-elasticsearch==2.0.2
 apache-airflow-providers-exasol==2.0.0
 apache-airflow-providers-facebook==2.0.0
 apache-airflow-providers-ftp==2.0.0
@@ -128,7 +128,7 @@ avro-python3==1.9.2.1
 aws-xray-sdk==2.8.0
 azure-batch==10.0.0
 azure-common==1.1.27
-azure-core==1.15.0
+azure-core==1.16.0
 azure-cosmos==3.2.0
 azure-datalake-store==0.0.52
 azure-identity==1.6.0
@@ -138,7 +138,7 @@ azure-keyvault-secrets==4.3.0
 azure-keyvault==4.1.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
-azure-mgmt-core==1.2.2
+azure-mgmt-core==1.3.0
 azure-mgmt-datafactory==1.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -155,9 +155,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.6b0
 blinker==1.4
-boto3==1.17.102
+boto3==1.17.105
 boto==2.49.0
-botocore==1.20.102
+botocore==1.20.105
 bowler==0.9.0
 cached-property==1.5.2
 cachetools==4.2.2
@@ -183,7 +183,7 @@ cryptography==3.4.7
 curlify==2.2.1
 cx-Oracle==8.2.1
 dask==2021.6.0
-datadog==0.41.0
+datadog==0.42.0
 decorator==5.0.9
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -194,9 +194,9 @@ docker==5.0.0
 docopt==0.6.2
 docutils==0.16
 ecdsa==0.17.0
-elasticsearch-dbapi==0.1.0
+elasticsearch-dbapi==0.2.4
 elasticsearch-dsl==7.3.0
-elasticsearch==7.5.1
+elasticsearch==7.13.1
 email-validator==1.1.3
 entrypoints==0.3
 eventlet==0.31.0
@@ -222,7 +222,7 @@ google-api-core==1.30.0
 google-api-python-client==1.12.8
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.4
-google-auth==1.32.0
+google-auth==1.32.1
 google-cloud-appengine-logging==0.1.1
 google-cloud-audit-log==0.1.0
 google-cloud-automl==2.3.0
@@ -239,15 +239,15 @@ google-cloud-kms==2.3.0
 google-cloud-language==1.3.0
 google-cloud-logging==2.5.0
 google-cloud-memcache==1.0.0
-google-cloud-monitoring==2.3.0
+google-cloud-monitoring==2.4.0
 google-cloud-os-login==2.2.1
 google-cloud-pubsub==2.6.0
 google-cloud-redis==2.1.1
 google-cloud-secret-manager==1.0.0
 google-cloud-spanner==1.19.1
 google-cloud-speech==1.3.2
-google-cloud-storage==1.39.0
-google-cloud-tasks==2.3.0
+google-cloud-storage==1.40.0
+google-cloud-tasks==2.4.0
 google-cloud-texttospeech==1.0.1
 google-cloud-translate==1.7.0
 google-cloud-videointelligence==1.16.1
@@ -346,7 +346,7 @@ parso==0.8.2
 partd==1.2.0
 pathspec==0.8.1
 pbr==5.6.0
-pdpyras==4.2.1
+pdpyras==4.3.0
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -407,7 +407,7 @@ python-jose==3.3.0
 python-ldap==3.3.1
 python-nvd3==0.15.0
 python-slugify==4.0.1
-python-telegram-bot==13.6
+python-telegram-bot==13.7
 python3-openid==3.2.0
 pytz==2021.1
 pytzdata==2020.1
@@ -415,7 +415,7 @@ pywinrm==0.4.2
 pyzmq==22.1.0
 qds-sdk==1.16.1
 redis==3.5.3
-regex==2021.4.4
+regex==2021.7.1
 requests-kerberos==0.12.0
 requests-mock==1.9.3
 requests-ntlm==1.1.0
@@ -503,6 +503,6 @@ yandexcloud==0.92.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
-zipp==3.4.1
+zipp==3.5.0
 zope.event==4.5.0
 zope.interface==5.4.0

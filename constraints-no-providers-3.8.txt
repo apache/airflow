@@ -62,7 +62,7 @@ filelock==3.0.12
 flower==0.9.7
 fsspec==2021.6.1
 gevent==21.1.2
-google-auth==1.32.0
+google-auth==1.32.1
 graphviz==0.16
 greenlet==1.1.0
 gunicorn==20.1.0
@@ -143,6 +143,6 @@ vine==1.3.0
 virtualenv==20.4.7
 websocket-client==1.1.0
 zict==2.0.0
-zipp==3.4.1
+zipp==3.5.0
 zope.event==4.5.0
 zope.interface==5.4.0
