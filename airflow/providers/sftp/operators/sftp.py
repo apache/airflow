@@ -214,7 +214,7 @@ class SFTPOperator(BaseOperator):
     def _search_files(self, files) -> List:
         if self.regexp_mask:
             files = list(filter(re.compile(self.regexp_mask).match, files))
-        self.log.info(f"File for transfer: \n {files}")
+        self.log.info("File for transfer: \n %s", files)
         return files
 
     def _transfer(self, sftp_client: SFTPClient, local_folder, file, remote_path) -> None:
