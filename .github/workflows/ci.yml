@@ -975,15 +975,72 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: failure()
         with:
           name: >
-            kind-logs-
+            kind-logs-${{matrix.executor}}
           path: /tmp/kind_logs_*
           retention-days: 7
-      - name: "Upload artifact for coverage"
+
+  tests-helm-executor-upgrade:
+    timeout-minutes: 50
+    name: Helm Chart Executor Upgrade
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, prod-images]
+
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+      BACKEND: postgres
+      RUN_TESTS: "true"
+      RUNTIME: "kubernetes"
+      KUBERNETES_MODE: "image"
+      EXECUTOR: "KubernetesExecutor"
+      KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
+      HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
+      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.pythonVersionsListAsString}}
+      CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+    if: needs.build-info.outputs.run-kubernetes-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Get all PROD images"
+        run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
+      - name: "Cache virtualenv for kubernetes testing"
+        uses: actions/cache@v2
+        with:
+          path: ".build/.kubernetes_venv"
+          key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
+  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+  -${{needs.build-info.outputs.pythonVersionsListAsString}}
+  -${{ hashFiles('setup.py','setup.cfg') }}"
+          restore-keys: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}-\
+  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+  -${{needs.build-info.outputs.pythonVersionsListAsString}}"
+      - name: "Cache bin folder with tools for kubernetes testing"
+        uses: actions/cache@v2
+        with:
+          path: ".build/kubernetes-bin"
+          key: "kubernetes-binaries
+  -${{ needs.build-info.outputs.defaultKindVersion }}\
+  -${{ needs.build-info.outputs.defaultHelmVersion }}"
+          restore-keys: "kubernetes-binaries"
+      - name: "Kubernetes Helm Chart Executor Upgrade Tests"
+        run: ./scripts/ci/kubernetes/ci_upgrade_cluster_with_different_executors_in_parallel.sh
+      - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
+        if: failure()
         with:
           name: >
-            coverage-k8s-
-          path: "./files/coverage*.xml"
+            kind-logs-KubernetesExecutor
+          path: /tmp/kind_logs_*
           retention-days: 7
 
   push-prod-images-to-github-registry:
