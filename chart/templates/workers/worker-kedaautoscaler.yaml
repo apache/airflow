@@ -42,12 +42,8 @@ spec:
   minReplicaCount: 1                                            # Optional. Default: 0
   maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}   # Optional. Default: 100
   triggers:
-    - type: postgresql
+    - type: cpu
       metadata:
-        targetQueryValue: "1"
-        connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
-        query: >-
-          SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
-          FROM task_instance
-          WHERE state='running' OR state='queued'
+        type: Utilization
+        value: "30"
 {{- end }}
