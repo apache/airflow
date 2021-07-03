@@ -102,3 +102,4 @@ with models.DAG(
     # Task dependencies created via `XComArgs`:
     #   create_dataset_task >> import_dataset_task
     #   create_dataset_task >> create_model
+    #   create_dataset_task >> delete_datasets_task

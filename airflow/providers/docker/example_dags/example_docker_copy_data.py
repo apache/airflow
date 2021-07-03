@@ -84,8 +84,8 @@ t_move = DockerOperator(
         "/bin/bash",
         "-c",
         "/bin/sleep 30; "
-        "/bin/mv {{ params.source_location }}/" + f"{task1.output}" + " {{ params.target_location }};"
-        "/bin/echo '{{ params.target_location }}/" + f"{task1.output}';",
+        "/bin/mv {{ params.source_location }}/" + f"{t_view.output}" + " {{ params.target_location }};"
+        "/bin/echo '{{ params.target_location }}/" + f"{t_view.output}';",
     ],
     task_id="move_data",
     do_xcom_push=True,
@@ -104,8 +104,8 @@ t_print = DockerOperator(
 )
 
 t_is_data_available.set_downstream(t_move)
+t_move.set_downstream(t_print)
 
 # Task dependencies created via `XComArgs`:
 #   t_view >> t_is_data_available
 #   t_view >> t_move
-#   t_move >> t_print

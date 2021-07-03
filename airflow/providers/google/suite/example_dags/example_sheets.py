@@ -70,7 +70,5 @@ with models.DAG(
     )
     # [END upload_gcs_to_sheet]
 
+    create_spreadsheet >> print_spreadsheet_url
     upload_sheet_to_gcs >> upload_gcs_to_sheet
-
-    # Task dependency created via `XComArgs`:
-    #   create_spreadsheet >> print_spreadsheet_url

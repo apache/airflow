@@ -134,14 +134,12 @@ with models.DAG(
     )
     # [END howto_operator_automl_column_specs]
 
-    list_columns_spec_task = str(list_columns_spec_task.output).strip("{ }")
-
     # [START howto_operator_automl_update_dataset]
     update = deepcopy(DATASET)
     update["name"] = '{{ task_instance.xcom_pull("create_dataset_task")["name"] }}'
     update["tables_dataset_metadata"][  # type: ignore
         "target_column_spec_id"
-    ] = f"{{{{ get_target_column_spec({list_columns_spec_task.output}, target) }}}}"
+    ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec_task'), target) }}"
 
     update_dataset_task = AutoMLTablesUpdateDatasetOperator(
         task_id="update_dataset_task",
@@ -241,12 +239,10 @@ with models.DAG(
     )
     # [END howto_operator_list_dataset]
 
-    dataset_id_list_output = str(list_datasets_task.output['dataset_id_list']).strip("{ }")
-
     # [START howto_operator_delete_dataset]
     delete_datasets_task = AutoMLDeleteDatasetOperator(
         task_id="delete_datasets_task",
-        dataset_id=f"{{{{ {dataset_id_list_output} | list }}}}",
+        dataset_id="{{ task_instance.xcom_pull('list_datasets_task', key='dataset_id_list') | list }}",
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )

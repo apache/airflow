@@ -36,7 +36,7 @@ with DAG(dag_id=DAG_NAME, start_date=days_ago(2), schedule_interval="@once", tag
 
     section_1 = SubDagOperator(
         task_id='section-1',
-        subdag=subdag(DAG_NAME, 'section-1', args),
+        subdag=subdag(DAG_NAME, 'section-1'),
     )
 
     some_other_task = DummyOperator(
@@ -45,7 +45,7 @@ with DAG(dag_id=DAG_NAME, start_date=days_ago(2), schedule_interval="@once", tag
 
     section_2 = SubDagOperator(
         task_id='section-2',
-        subdag=subdag(DAG_NAME, 'section-2', args),
+        subdag=subdag(DAG_NAME, 'section-2'),
     )
 
     end = DummyOperator(
