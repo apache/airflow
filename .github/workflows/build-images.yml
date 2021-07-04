@@ -47,7 +47,6 @@ env:
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
-  GITHUB_REGISTRY: "ghcr.io"
   TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 concurrency:
