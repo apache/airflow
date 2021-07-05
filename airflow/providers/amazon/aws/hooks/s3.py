@@ -23,6 +23,7 @@ import gzip as gz
 import io
 import re
 import shutil
+from datetime import datetime
 from functools import wraps
 from inspect import signature
 from io import BytesIO
@@ -268,6 +269,9 @@ class S3Hook(AwsBaseHook):
         delimiter: Optional[str] = None,
         page_size: Optional[int] = None,
         max_items: Optional[int] = None,
+        start_after_key: Optional[str] = '',
+        start_after_datetime: Optional[datetime] = None,
+        to_datetime: Optional[datetime] = None,
     ) -> list:
         """
         Lists keys in a bucket under prefix and not containing delimiter
@@ -282,6 +286,12 @@ class S3Hook(AwsBaseHook):
         :type page_size: int
         :param max_items: maximum items to return
         :type max_items: int
+        :param start_after_key: returns keys after this specified key in the bucket.
+        :type start_after_key: str
+        :param start_after_datetime: returns keys with last modified datetime greater than the specified datetime.
+        :type start_after_datetime: datetime , ISO8601: '%Y-%m-%dT%H:%M:%S%z', e.g. 2021-02-20T05:20:20+0000
+        :param to_datetime: returns keys with last modified datetime less than the specified datetime.
+        :type to_datetime: datetime , ISO8601: '%Y-%m-%dT%H:%M:%S%z', e.g. 2021-02-20T05:20:20+0000
         :return: a list of matched keys
         :rtype: list
         """
@@ -291,18 +301,24 @@ class S3Hook(AwsBaseHook):
             'PageSize': page_size,
             'MaxItems': max_items,
         }
-
         paginator = self.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(
-            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+            Bucket=bucket_name,
+            Prefix=prefix,
+            Delimiter=delimiter,
+            PaginationConfig=config,
+            StartAfter=start_after_key,
         )
-
+        # JMESPath to query directly on paginated results
+        filtered_response = response.search(
+            "Contents[?to_string("
+            "LastModified)<='\"{}\"' && "
+            "to_string(LastModified)>='\"{"
+            "}\"'].Key".format(to_datetime, start_after_datetime)
+        )
         keys = []
-        for page in response:
-            if 'Contents' in page:
-                for k in page['Contents']:
-                    keys.append(k['Key'])
-
+        for key in filtered_response:
+            keys.append(key)
         return keys
 
     @provide_bucket_name
