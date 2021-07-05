@@ -19,6 +19,7 @@
 import json
 import unittest
 from base64 import b64encode
+from datetime import datetime
 from unittest import mock
 
 import boto3
@@ -290,10 +291,7 @@ class TestAwsBaseHook(unittest.TestCase):
                     region_name=None,
                 ),
                 mock.call.session.Session()._session.__bool__(),
-                mock.call.session.Session(
-                    botocore_session=mock_session.Session.return_value,
-                    region_name=mock_boto3.session.Session.return_value.region_name,
-                ),
+                mock.call.session.Session(botocore_session=mock_session.get_session.return_value),
                 mock.call.session.Session().get_credentials(),
                 mock.call.session.Session().get_credentials().get_frozen_credentials(),
             ]
@@ -315,7 +313,14 @@ class TestAwsBaseHook(unittest.TestCase):
             ]
         )
 
-        mock_session.assert_has_calls([mock.call.Session()])
+        mock_session.assert_has_calls(
+            [
+                mock.call.get_session(),
+                mock.call.get_session().set_config_variable(
+                    'region', mock_boto3.session.Session.return_value.region_name
+                ),
+            ]
+        )
         mock_id_token_credentials.assert_has_calls(
             [mock.call.get_default_id_token_credentials(target_audience='aws-federation.airflow.apache.org')]
         )
@@ -368,10 +373,29 @@ class TestAwsBaseHook(unittest.TestCase):
                 return mock_lxml
             return orig_import(name, *args, **kwargs)
 
+        def mock_assume_role_with_saml(**kwargs):
+            assert kwargs['RoleArn'] == role_arn
+            assert kwargs['PrincipalArn'] == principal_arn
+            assert kwargs['SAMLAssertion'] == encoded_saml_assertion
+            assert kwargs['DurationSeconds'] == duration_seconds
+            sts_response = {
+                'ResponseMetadata': {'HTTPStatusCode': 200},
+                'Credentials': {
+                    'Expiration': datetime.now(),
+                    'AccessKeyId': 1,
+                    'SecretAccessKey': 1,
+                    'SessionToken': 1,
+                },
+            }
+            return sts_response
+
         with mock.patch('builtins.__import__', side_effect=import_mock), mock.patch(
             'airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get'
         ) as mock_get, mock.patch('airflow.providers.amazon.aws.hooks.base_aws.boto3') as mock_boto3:
             mock_get.return_value.ok = True
+
+            mock_client = mock_boto3.session.Session.return_value.client
+            mock_client.return_value.assume_role_with_saml.side_effect = mock_assume_role_with_saml
 
             hook = AwsBaseHook(aws_conn_id='aws_default', client_type='s3')
             hook.get_client_type('s3')

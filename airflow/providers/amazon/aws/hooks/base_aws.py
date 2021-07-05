@@ -36,7 +36,7 @@ import botocore.session
 import requests
 import tenacity
 from botocore.config import Config
-from botocore.credentials import DeferredRefreshableCredentials, ReadOnlyCredentials, RefreshableCredentials
+from botocore.credentials import ReadOnlyCredentials
 
 try:
     from functools import cached_property
@@ -112,14 +112,14 @@ class _SessionFactory(LoggingMixin):
         if assume_role_method == 'assume_role_with_web_identity':
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
-            credentials = DeferredRefreshableCredentials(
+            credentials = botocore.credentials.DeferredRefreshableCredentials(
                 method='assume-role-with-web-identity',
                 refresh_using=credential_fetcher.fetch_credentials,
                 time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
             )
         else:
             # Refreshable credentials do have initial credentials
-            credentials = RefreshableCredentials.create_from_metadata(
+            credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
                 metadata=self._refresh_credentials(),
                 refresh_using=self._refresh_credentials,
                 method="sts-assume-role",
@@ -130,9 +130,9 @@ class _SessionFactory(LoggingMixin):
         session.set_config_variable("region", region_name)
         return boto3.session.Session(botocore_session=session, **session_kwargs)
 
-    def _refresh_credentials(self) -> boto3.session.Session:
+    def _refresh_credentials(self) -> Dict[str, Any]:
         self.log.info('Refreshing credentials')
-        assume_role_method = self.extra_config.get('assume_role_method')
+        assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
         sts_session = self.basic_session
         if assume_role_method == 'assume_role':
             sts_client = sts_session.client("sts", config=self.config)
@@ -142,11 +142,12 @@ class _SessionFactory(LoggingMixin):
             sts_response = self._assume_role_with_saml(sts_client=sts_client)
         else:
             raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
-        if not sts_response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise Exception('An HTTP error occurred')
+        sts_response_http_status = sts_response['ResponseMetadata']['HTTPStatusCode']
+        if not sts_response_http_status == 200:
+            raise Exception(f'sts_response_http_status={sts_response_http_status}')
         credentials = sts_response['Credentials']
         expiry_time = credentials.get('Expiration').isoformat()
-        self.log.info(f'New credentials expiry_time:{credentials["expiry_time"]}')
+        self.log.info(f'New credentials expiry_time:{expiry_time}')
         credentials = {
             "access_key": credentials.get("AccessKeyId"),
             "secret_key": credentials.get("SecretAccessKey"),
@@ -297,8 +298,7 @@ class _SessionFactory(LoggingMixin):
         return saml_assertion
 
     def _get_web_identity_credential_fetcher(self):
-        base_session = self.basic_session._session  # pylint: disable=protected-access
-        base_session = base_session or botocore.session.get_session()
+        base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get('assume_role_with_web_identity_federation')
         if federation == 'google':
