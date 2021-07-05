@@ -226,7 +226,7 @@ def task_decorator_factory(
             )
             if f.__doc__:
                 op.doc_md = f.__doc__
-            return XComArg(op)
+            return XComArg(op, key=op.xcom_key)
 
         return cast(T, factory)
 

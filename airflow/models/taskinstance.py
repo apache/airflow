@@ -1313,7 +1313,7 @@ class TaskInstance(Base, LoggingMixin):
             result = task_copy.execute(context=context)
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
-            self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+            self.xcom_push(key=task_copy.xcom_key, value=result)
         return result
 
     def _run_execute_callback(self, context: Context, task):

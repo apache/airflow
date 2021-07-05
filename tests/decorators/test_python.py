@@ -400,6 +400,28 @@ class TestAirflowTaskDecorator(TestPythonBase):
         assert ti.xcom_pull(key='43') == 43
         assert ti.xcom_pull() == {'number': test_number + 1, '43': 43}
 
+    def test_xcom_key(self):
+        """Tests xcom_key argument on task"""
+
+        @task_decorator(xcom_key='mykey')
+        def return_val():
+            return {'number': 45}
+
+        with self.dag:
+            ret = return_val()
+
+        dr = self.dag.create_dagrun(
+            run_id=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull(key='mykey') == {'number': 45}
+
     def test_default_args(self):
         """Test that default_args are captured when calling the function correctly"""
 

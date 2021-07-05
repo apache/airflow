@@ -378,6 +378,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param xcom_key: Key used to push or pull XCom. If not specified XCOM_RETURN_KEY
+        will be used
+    :type xcom_key: str
     :param doc: Add documentation or notes to your Task objects that is visible in
         Task Instance details View in the Webserver
     :type doc: str
@@ -491,6 +494,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         task_concurrency: Optional[int] = None,
         executor_config: Optional[Dict] = None,
         do_xcom_push: bool = True,
+        xcom_key: str = XCOM_RETURN_KEY,
         inlets: Optional[Any] = None,
         outlets: Optional[Any] = None,
         task_group: Optional["TaskGroup"] = None,
@@ -616,6 +620,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
+        self.xcom_key = xcom_key
 
         self.doc_md = doc_md
         self.doc_json = doc_json

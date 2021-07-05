@@ -1163,6 +1163,33 @@ class TestTaskInstance(unittest.TestCase):
         ti.run()
         assert ti.xcom_pull(task_ids=task_id, key=models.XCOM_RETURN_KEY) is None
 
+    def test_xcom_push_with_a_specified_key_in_operator(self):
+        """
+        Tests the option for Operators to push XComs with a given key
+        """
+        key = 'mykey'
+        value = 'hello'
+        task_id = 'test_no_xcom_push'
+        dag = models.DAG(dag_id='test_xcom')
+
+        # nothing saved to XCom
+        task = PythonOperator(
+            task_id=task_id,
+            dag=dag,
+            python_callable=lambda: value,
+            xcom_key=key,
+            owner='airflow',
+            start_date=datetime.datetime(2017, 1, 1),
+        )
+        ti = TI(task=task, execution_date=datetime.datetime(2017, 1, 1))
+        dag.create_dagrun(
+            execution_date=ti.execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti.run()
+        assert ti.xcom_pull(task_ids=task_id, key=key) == value
+
     def test_post_execute_hook(self):
         """
         Test that post_execute hook is called with the Operator's result.
