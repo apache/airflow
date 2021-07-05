@@ -839,7 +839,7 @@ class SchedulerJob(BaseJob):
             )
             self.log.warning("Failing the corresponding DagRuns of the missing DAGs. DagRuns: %s", dag_runs)
             for dr in dag_runs:
-                dr.set_state(State.FAILED)
+                dr.state = State.FAILED
 
     def _do_scheduling(self, session) -> int:
         """

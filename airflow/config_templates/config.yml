@@ -1713,7 +1713,7 @@
       description: |
         How often (in seconds) to check and fail task instances and dagruns whose corresponding
         DAG is missing
-      version_added: 2.1.1
+      version_added: 2.1.2
       type: float
       example: ~
       default: "15.0"

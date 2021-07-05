@@ -879,7 +879,6 @@ class TestDagBag(unittest.TestCase):
 
         # We remove the dag from dag_bag.dags and ensure it returns True
         dag_bag.dags.pop(dag_id)
-        assert not dag_bag.dags.get(dag_id)
         assert dag_bag.has_dag(dag_id)
 
         # We removed dag_id from dag_bag.dags, let's add it back
