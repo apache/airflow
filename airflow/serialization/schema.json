@@ -161,6 +161,7 @@
         "weight_rule": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
         "do_xcom_push": { "type": "boolean" },
+        "xcom_key": { "type": "string" },
         "ui_color": { "$ref": "#/definitions/color" },
         "ui_fgcolor": { "$ref": "#/definitions/color" },
         "template_fields": {

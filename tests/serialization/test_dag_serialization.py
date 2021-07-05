@@ -916,6 +916,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             'trigger_rule': 'all_success',
             'wait_for_downstream': False,
             'weight_rule': 'downstream',
+            'xcom_key': 'return_value',
         } == fields, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

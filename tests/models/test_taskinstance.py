@@ -1172,7 +1172,7 @@ class TestTaskInstance(unittest.TestCase):
         task_id = 'test_no_xcom_push'
         dag = models.DAG(dag_id='test_xcom')
 
-        # nothing saved to XCom
+        # XCom pushed with key=mykey
         task = PythonOperator(
             task_id=task_id,
             dag=dag,
