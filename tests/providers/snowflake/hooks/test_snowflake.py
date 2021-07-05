@@ -211,7 +211,9 @@ class TestSnowflakeHookExtra(unittest.TestCase):
             def get_connection(self, _):
                 return conn
 
-        self.db_hook_extra = UnitTestSnowflakeHookExtra(session_parameters={"QUERY_TAG": "This is a test hook"})
+        self.db_hook_extra = UnitTestSnowflakeHookExtra(
+            session_parameters={"QUERY_TAG": "This is a test hook"}
+        )
 
         self.non_encrypted_private_key = "/tmp/test_key.pem"
         self.encrypted_private_key = "/tmp/test_key.p8"

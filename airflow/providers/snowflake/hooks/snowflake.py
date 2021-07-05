@@ -99,8 +99,7 @@ class SnowflakeHook(DbApiHook):
             "extra__snowflake__aws_secret_access_key": PasswordField(
                 lazy_gettext('AWS Secret Key'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()
-                                                  ),
+            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
