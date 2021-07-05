@@ -93,7 +93,7 @@ class TestClearTasks(unittest.TestCase):
 
             assert ti0.state is None
             assert ti0.external_executor_id is None
-            
+
     @parameterized.expand([(State.QUEUED, None), (State.RUNNING, DEFAULT_DATE)])
     def test_clear_task_instances_dr_state(self, state, last_scheduling):
         """Test that DR state is set to None after clear.
