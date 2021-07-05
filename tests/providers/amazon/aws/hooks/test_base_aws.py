@@ -19,7 +19,7 @@
 import json
 import unittest
 from base64 import b64encode
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import boto3
@@ -431,6 +431,60 @@ class TestAwsBaseHook(unittest.TestCase):
             hook = AwsBaseHook(aws_conn_id=conn_id, client_type='s3')
             # should cause no exception
             hook.get_client_type('s3')
+
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock.patch.object(AwsBaseHook, 'get_connection')
+    @mock_sts
+    def test_refreshable_credentials(self, mock_get_connection):
+        role_arn = "arn:aws:iam::123456:role/role_arn"
+        conn_id = "F5"
+        mock_connection = Connection(conn_id=conn_id, extra='{"role_arn":"' + role_arn + '"}')
+        mock_get_connection.return_value = mock_connection
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='airflow_test')
+
+        expire_on_calls = []
+
+        def mock_refresh_credentials():
+            expiry_datetime = datetime.now(timezone.utc)
+            expire_on_call = expire_on_calls.pop()
+            if expire_on_call:
+                expiry_datetime -= timedelta(minutes=1000)
+            else:
+                expiry_datetime += timedelta(minutes=1000)
+            credentials = {
+                "access_key": "1",
+                "secret_key": "2",
+                "token": "3",
+                "expiry_time": expiry_datetime.isoformat(),
+            }
+            return credentials
+
+        # Test with credentials that have not expired
+        expire_on_calls = [False]
+        with mock.patch(
+            'airflow.providers.amazon.aws.hooks.base_aws._SessionFactory._refresh_credentials'
+        ) as mock_refresh:
+            mock_refresh.side_effect = mock_refresh_credentials
+            client = hook.get_client_type('sts')
+            assert mock_refresh.call_count == 1
+            client.get_caller_identity()
+            assert mock_refresh.call_count == 1
+            client.get_caller_identity()
+            assert mock_refresh.call_count == 1
+            assert len(expire_on_calls) == 0
+
+        # Test with credentials that have expired
+        expire_on_calls = [False, True]
+        with mock.patch(
+            'airflow.providers.amazon.aws.hooks.base_aws._SessionFactory._refresh_credentials'
+        ) as mock_refresh:
+            mock_refresh.side_effect = mock_refresh_credentials
+            client = hook.get_client_type('sts')
+            client.get_caller_identity()
+            assert mock_refresh.call_count == 2
+            client.get_caller_identity()
+            assert mock_refresh.call_count == 2
+            assert len(expire_on_calls) == 0
 
 
 class ThrowErrorUntilCount:
