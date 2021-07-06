@@ -82,7 +82,7 @@ class DaskExecutor(BaseExecutor):
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         resources = None
-        if queue:
+        if queue is not None:
             avail_resources = self.client.run_on_scheduler(
                 lambda dask_scheduler: dask_scheduler.resources
             )
