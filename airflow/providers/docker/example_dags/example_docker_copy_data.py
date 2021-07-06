@@ -108,4 +108,3 @@ t_move.set_downstream(t_print)
 
 # Task dependencies created via `XComArgs`:
 #   t_view >> t_is_data_available
-#   t_view >> t_move

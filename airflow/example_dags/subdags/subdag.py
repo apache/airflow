@@ -24,7 +24,7 @@ from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
 
-def subdag(parent_dag_name, child_dag_name, args=dict()):
+def subdag(parent_dag_name, child_dag_name, args):
     """
     Generate a DAG to be used as a subdag.
 
