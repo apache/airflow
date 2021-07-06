@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
@@ -251,10 +252,12 @@ def post_dag_run(dag_id, session):
         .first()
     )
     if not dagrun_instance:
-        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
-        session.add(dag_run)
-        session.commit()
-        return dagrun_schema.dump(dag_run)
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+            dag_run = dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, **post_body)
+            return dagrun_schema.dump(dag_run)
+        except ValueError as ve:
+            raise BadRequest(detail=str(ve))
 
     if dagrun_instance.execution_date == post_body["execution_date"]:
         raise AlreadyExists(

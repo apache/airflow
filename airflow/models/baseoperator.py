@@ -66,7 +66,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.edgemodifier import EdgeModifier
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import transform_params, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
@@ -593,7 +593,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 self.log.debug("max_retry_delay isn't a timedelta object, assuming secs")
                 self.max_retry_delay = timedelta(seconds=max_retry_delay)
 
-        self.params = params or {}  # Available in templates!
+        self.params = transform_params(params)
         if priority_weight is not None and not isinstance(priority_weight, int):
             raise AirflowException(
                 f"`priority_weight` for task '{self.task_id}' only accepts integers, "

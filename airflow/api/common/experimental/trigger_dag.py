@@ -73,7 +73,7 @@ def _trigger_dag(
     if dag_run:
         raise DagRunAlreadyExists(f"Run id {run_id} already exists for dag id {dag_id}")
 
-    run_conf = None
+    run_conf = {}
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 

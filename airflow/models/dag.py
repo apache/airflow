@@ -66,6 +66,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagparam import DagParam
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.param import Param
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
@@ -77,7 +78,7 @@ from airflow.typing_compat import Literal, RePatternType
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import transform_params, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
@@ -285,6 +286,9 @@ class DAG(LoggingMixin):
             self.params.update(self.default_args['params'])
             del self.default_args['params']
 
+        # check self.params and convert
+        self.params = transform_params(self.params)
+
         validate_key(dag_id)
 
         self._dag_id = dag_id
@@ -384,6 +388,7 @@ class DAG(LoggingMixin):
         self.render_template_as_native_obj = render_template_as_native_obj
         self.tags = tags
         self._task_group = TaskGroup.create_root(self)
+        self.validate_schedule_and_params()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1973,7 +1978,7 @@ class DAG(LoggingMixin):
         run_id: Optional[str] = None,
         start_date: Optional[datetime] = None,
         external_trigger: Optional[bool] = False,
-        conf: Optional[dict] = None,
+        conf: Optional[dict] = {},
         run_type: Optional[DagRunType] = None,
         session=None,
         dag_hash: Optional[str] = None,
@@ -2016,6 +2021,15 @@ class DAG(LoggingMixin):
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
+
+        try:
+            for k, v in copy.deepcopy(self.params).items():
+                if isinstance(v, Param):
+                    if conf and k in conf:
+                        v.default = conf[k]
+                    v()
+        except ValueError as ve:
+            raise ValueError(f"Invalid input for param '{k}': {ve}")
 
         run = DagRun(
             dag_id=self.dag_id,
@@ -2275,6 +2289,7 @@ class DAG(LoggingMixin):
                 'user_defined_filters',
                 'user_defined_macros',
                 'partial',
+                'params',
                 '_pickle_id',
                 '_log',
                 'is_subdag',
@@ -2308,6 +2323,14 @@ class DAG(LoggingMixin):
         rather than merge with, existing info.
         """
         self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
+
+    def validate_schedule_and_params(self):
+        for k, v in self.params.items():
+            if isinstance(v, Param):
+                if v.default is None and self.schedule_interval is not None \
+                        and ('type' not in v.schema or "null" not in v.schema['type']):
+                    raise AirflowException('DAG Schedule must be None, if there are any '
+                                           'required params without default values')
 
 
 class DagTag(Base):

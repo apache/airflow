@@ -18,6 +18,7 @@
 from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
+from airflow.utils.helpers import transform_params
 
 
 class DagParam:
@@ -44,7 +45,7 @@ class DagParam:
 
     def __init__(self, current_dag, name: str, default: Optional[Any] = None):
         if default:
-            current_dag.params[name] = default
+            current_dag.params.update(transform_params({name: default}))
         self._name = name
         self._default = default
 

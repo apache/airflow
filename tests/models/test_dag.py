@@ -44,6 +44,7 @@ from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
 from airflow.models.dagparam import DagParam
+from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
@@ -51,6 +52,7 @@ from airflow.security import permissions
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
+from airflow.utils.helpers import transform_params
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime as datetime_tz
@@ -121,7 +123,18 @@ class TestDag(unittest.TestCase):
 
         params_combined = params1.copy()
         params_combined.update(params2)
+        params_combined = transform_params(params_combined)
         assert params_combined == dag.params
+
+    def test_not_none_schedule_with_non_default_params(self):
+        """
+        Test if there is a DAG with not None schedule_interval and have some params that
+        don't have a default value raise a error while DAG parsing
+        """
+        params = {'param1': Param(type="string")}
+
+        with pytest.raises(AirflowException):
+            dag = models.DAG('dummy-dag', params=params)
 
     def test_dag_invalid_default_view(self):
         """
@@ -1716,6 +1729,16 @@ class TestDag(unittest.TestCase):
             dag.access_control = outdated_permissions
         assert dag.access_control == updated_permissions
 
+    def test_validate_params_on_trigger_dag(self):
+        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+
+        with pytest.raises(ValueError):
+            dag.create_dagrun(
+                run_id="test_dagrun_missing_param",
+                state=State.RUNNING,
+                execution_date=TEST_DATE,
+            )
+
 
 class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):
@@ -1956,7 +1979,7 @@ class TestDagDecorator(unittest.TestCase):
             self.operator = xcom_arg.operator
 
         dag = xcom_pass_to_op()
-        assert dag.params['value'] == self.VALUE
+        assert dag.params['value']() == self.VALUE
 
 
 def test_set_task_instance_state():

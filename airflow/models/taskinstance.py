@@ -54,6 +54,7 @@ from airflow.exceptions import (
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.connection import Connection
 from airflow.models.log import Log
+from airflow.models.param import Param
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -1178,7 +1179,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
             if not mark_success:
-                context = self.get_template_context()
+                context = self.get_template_context(ignore_param_exceptions=False)
                 self._prepare_and_execute_task_with_callbacks(context, task)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
@@ -1517,7 +1518,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session
-    def get_template_context(self, session=None) -> Context:
+    def get_template_context(self, ignore_param_exceptions=True, session=None) -> Context:
         """Return TI Context"""
         task = self.task
         from airflow import macros
@@ -1584,6 +1585,17 @@ class TaskInstance(Base, LoggingMixin):
 
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
+
+        # Now update params dict with simple values
+        for k, v in params.items():
+            if isinstance(v, Param):
+                try:
+                    params[k] = v()
+                except ValueError:
+                    if ignore_param_exceptions:
+                        params[k] = None
+                    else:
+                        raise
 
         class VariableAccessor:
             """
@@ -1744,7 +1756,13 @@ class TaskInstance(Base, LoggingMixin):
         """Overwrite Task Params with DagRun.conf"""
         if dag_run and dag_run.conf:
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
-            params.update(dag_run.conf)
+            for k, v in dag_run.conf.items():
+                if k in params:
+                    params[k].default = v
+                    # Now call params to check if it's still valid
+                    params[k]()
+                else:
+                    params[k] = v
 
     def render_templates(self, context: Optional[Context] = None) -> None:
         """Render templates in the operator fields."""

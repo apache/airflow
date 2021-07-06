@@ -404,7 +404,14 @@ def task_test(args, dag=None):
     # Add CLI provided task_params to task.params
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
+        for k, v in task.params.items():
+            if k in passed_in_params:
+                v.default = passed_in_params.pop(k)
+                v()  # to raise if there are any validation issues
+
+        # just add any extra params into task params
         task.params.update(passed_in_params)
+
     ti = _get_ti(task, args.execution_date_or_run_id)
 
     try:

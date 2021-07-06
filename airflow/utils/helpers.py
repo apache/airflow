@@ -216,3 +216,18 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     view = conf.get('webserver', 'dag_default_view').lower()
     url = url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+def transform_params(params: Dict[str, Any]) -> Dict:
+    """
+    Iterate over the params dict & convert them into Param objects
+    """
+    if params is None or not isinstance(params, dict):
+        return {}
+
+    from airflow.models.param import Param
+
+    updated_params = {k: Param(default=v) for k, v in params.items() if type(v) is not Param}
+    params.update(updated_params)
+
+    return params

@@ -40,6 +40,7 @@ from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.param import Param
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -250,6 +251,10 @@ class BaseSerialization:
             return cls._encode([cls._serialize(v) for v in var], type_=DAT.TUPLE)
         elif isinstance(var, TaskGroup):
             return SerializedTaskGroup.serialize_task_group(var)
+        elif isinstance(var, Param):
+            param_attr = {str(k): cls._serialize(v) for k, v in var.__dict__.items()}
+            param_attr['_type'] = f'{var.__class__.__module__}.{var.__class__.__name__}'
+            return cls._encode(param_attr, type_=DAT.PARAM)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -293,6 +298,9 @@ class BaseSerialization:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
             return tuple(cls._deserialize(v) for v in var)
+        elif type_ == DAT.PARAM:
+            param_class = import_string(var['_type'])
+            return param_class(**var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -436,6 +444,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)
+
+        if op.params:
+            serialize_op['params'] = cls._serialize_operator_params(op.params)
 
         return serialize_op
 
@@ -637,6 +648,26 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         return serialize_operator_extra_links
 
+    @classmethod
+    def _deserialize_operator_params(cls, encoded_op_params: Dict) -> Dict[str, Param]:
+        """"""
+        op_params = {}
+        for k, v in encoded_op_params.items():
+            param_class = import_string(v['_type'])
+            op_params[k] = param_class(**v)
+
+        return op_params
+
+    @classmethod
+    def _serialize_operator_params(cls, op_params: Dict[str, Param]):
+        """"""
+        serialized_params = {}
+        for k, v in op_params.items():
+            serialized_params[k] = v.__dict__
+            serialized_params[k].update({'_type': f'{v.__class__.__module__}.{v.__class__.__name__}'})
+
+        return serialized_params
+
 
 class SerializedDAG(DAG, BaseSerialization):
     """
@@ -688,6 +719,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
             # Edge info in the JSON exactly matches our internal structure
             serialize_dag["edge_info"] = dag.edge_info
+            serialize_dag["params"] = cls._serialize_dag_params(dag.params)
 
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
@@ -725,6 +757,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 pass
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
+            elif k == "params":
+                v = cls._deserialize_dag_params(v)
             # else use v as it is
 
             setattr(dag, k, v)
@@ -788,6 +822,27 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
         return cls.deserialize_dag(serialized_obj['dag'])
+
+    @classmethod
+    def _serialize_dag_params(cls, dag_params: Dict[str, Param]):
+        """"""
+        serialized_params = {}
+        for k, v in dag_params.items():
+            serialized_params[k] = v.__dict__
+            serialized_params[k].update({'_type': f'{v.__class__.__module__}.{v.__class__.__name__}'})
+
+        return serialized_params
+
+    @classmethod
+    def _deserialize_dag_params(cls, encoded_dag_params: Dict) -> Dict[str, Param]:
+        """"""
+        op_params = {}
+        for k, v in encoded_dag_params.items():
+            param_class = import_string(v['_type'])
+            del v['_type']
+            op_params[k] = param_class(**v)
+
+        return op_params
 
 
 class SerializedTaskGroup(TaskGroup, BaseSerialization):
