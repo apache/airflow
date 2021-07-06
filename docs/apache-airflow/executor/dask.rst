@@ -52,6 +52,5 @@ Please note:
   require.
 - The DaskExecutor implements queues using
   `Dask Worker Resources <https://distributed.dask.org/en/latest/resources.html>` functionality. To enable the use of
-  queues, start your Dask workers with resources of the same name as the desired queues. The Dask worker resources only
-  need to be started with a limit of 1. The resource limit is inconsequential to the scheduling of tasks as long as it
-  is greater than 0.
+  queues, start your Dask workers with resources of the same name as the desired queues and a limit of ``inf``.
+  E.g. ``dask-worker <scheduler_address> --resources="QUEUE1=inf,QUEUE2=inf"``.
