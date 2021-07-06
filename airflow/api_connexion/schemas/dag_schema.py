@@ -56,7 +56,15 @@ class DAGSchema(SQLAlchemySchema):
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
     schedule_interval = fields.Nested(ScheduleIntervalSchema)
-    tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
+    tags = fields.Method("get_tags", dump_only=True)
+
+    @staticmethod
+    def get_tags(obj: DAG):
+        """Dumps tags as objects"""
+        tags = obj.tags
+        if tags:
+            return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
+        return []
 
     @staticmethod
     def get_owners(obj: DagModel):

@@ -34,14 +34,14 @@ from airflow.utils.session import provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
-@provide_session
-def get_dag(dag_id, session):
+def get_dag(dag_id):
     """Get basic information about a DAG."""
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
-
+    try:
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    except SerializedDagNotFound:
+        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     if dag is None:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-
     return dag_schema.dump(dag)
 
 
