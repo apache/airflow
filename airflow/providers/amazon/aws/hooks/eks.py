@@ -19,6 +19,8 @@
 """Interact with Amazon EKS, using the boto3 library."""
 import base64
 import json
+from functools import partial
+from typing import Callable, Dict, List, Optional
 import os
 import re
 from typing import Dict, List, Optional
@@ -280,79 +282,75 @@ class EKSHook(AwsBaseHook):
 
     def list_clusters(
         self,
-        maxResults: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
-        nextToken: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
-    ) -> Dict:
+    ) -> List:
         """
-        Lists the Amazon EKS Clusters in your AWS account.
+        Lists all Amazon EKS Clusters in your AWS account.
 
-        :param maxResults: The maximum number of results returned by ListClusters in paginated output.
-        :type maxResults: int
-        :param nextToken: The nextToken value returned from a previous paginated ListClusters request.
-        :type nextToken: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
         :type verbose: bool
 
-        :return: A Dictionary containing a list of cluster names and a string containing
-           the next token if paginated.
-        :rtype: Dict
+        :return: A List containing the cluster names.
+        :rtype: List
         """
-        try:
-            eks_client = self.conn
+        eks_client = self.conn
+        api_call = partial(eks_client.list_clusters)
 
-            response = eks_client.list_clusters(maxResults=maxResults, nextToken=nextToken)
-            cluster_list = response.get('clusters')
-
-            self.log.info("Retrieved list of %s clusters.", len(cluster_list))
-            if verbose:
-                self.log.info("Clusters found: %s", cluster_list)
-            return response
-
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        return self._list_all(api_call=api_call, response_key="clusters", verbose=verbose)
 
     def list_nodegroups(
         self,
         clusterName: str,
-        maxResults: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
-        nextToken: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
-    ) -> Dict:
+    ) -> List:
         """
-        Lists the Amazon EKS Nodegroups associated with the specified
-        cluster in your AWS account in the specified Region.
+        Lists all Amazon EKS Nodegroups associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing nodegroups to list.
         :type clusterName: str
-        :param maxResults: The maximum number of results returned by ListNodegroups in paginated output.
-        :type maxResults: int
-        :param nextToken: The nextToken value returned from a previous paginated ListNodegroups request.
-        :type nextToken: str
         :param verbose: Provides additional logging if set to True.  Defaults to False.
         :type verbose: bool
 
-        :return: A Dictionary containing a list of nodegroup names and a string containing
-           the next token if paginated.
-        :rtype: Dict
+        :return: A List of nodegroup names within the given cluster.
+        :rtype: List
         """
+        eks_client = self.conn
+        api_call = partial(eks_client.list_nodegroups, clusterName=clusterName)
+
+        return self._list_all(api_call=api_call, response_key="nodegroups", verbose=verbose)
+
+    def _list_all(self, api_call: Callable, response_key: str, verbose: bool) -> List[str]:
+        """
+        Repeatedly calls a provided boto3 API Callable and collates the responses into a List.
+
+        :param api_call: The api command to execute.
+        :type api_call: Callable
+        :param response_key: Which dict key to collect into the final list.
+        :type response_key: str
+        :param verbose: Provides additional logging if set to True.  Defaults to False.
+        :type verbose: bool
+
+        :return: A List of the combined results of the provided API call.
+        :rtype: List
+        """
+        name_collection = []
+        token = DEFAULT_PAGINATION_TOKEN
+
         try:
-            eks_client = self.conn
+            while token != "null":
+                response = api_call(nextToken=token)
+                # If response list is not empty, append it to the running list.
+                name_collection += filter(None, response.get(response_key))
+                token = response.get("nextToken")
 
-            response = eks_client.list_nodegroups(
-                clusterName=clusterName, maxResults=maxResults, nextToken=nextToken
-            )
-            nodegroup_list = response.get('nodegroups')
-
-            self.log.info("Retrieved list of %s nodegroups.", len(nodegroup_list))
+            self.log.info("Retrieved list of %s %s.", len(name_collection), response_key)
             if verbose:
-                self.log.info("Nodegroups found: %s", nodegroup_list)
-            return response
+                self.log.info("%s found: %s", response_key.title(), name_collection)
 
         except ClientError as e:
             self.log.error(e.response["Error"]["Message"])
             raise e
+        return name_collection
 
 
 def generate_config_file(

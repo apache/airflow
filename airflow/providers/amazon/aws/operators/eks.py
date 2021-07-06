@@ -30,9 +30,7 @@ from airflow.providers.amazon.aws.hooks.eks import (
     DEFAULT_CONTEXT_NAME,
     DEFAULT_KUBE_CONFIG_PATH,
     DEFAULT_NAMESPACE_NAME,
-    DEFAULT_PAGINATION_TOKEN,
     DEFAULT_POD_USERNAME,
-    DEFAULT_RESULTS_PER_PAGE,
     EKSHook,
     generate_config_file,
 )
@@ -139,8 +137,10 @@ class EKSCreateClusterOperator(BaseOperator):
                     )
                     sleep(CHECK_INTERVAL_SECONDS)
                 else:
-                    message = "Cluster is still inactive after the allocated time limit.  " \
-                              "Failed cluster will be torn down."
+                    message = (
+                        "Cluster is still inactive after the allocated time limit.  "
+                        "Failed cluster will be torn down."
+                    )
                     self.log.error(message)
                     # If there is something preventing the cluster for activating, tear it down and abort.
                     eks_hook.delete_cluster(name=self.clusterName)
@@ -326,10 +326,6 @@ class EKSDescribeAllClustersOperator(BaseOperator):
     """
     Describes all Amazon EKS Clusters in your AWS account.
 
-    :param max_results: The maximum number of results to return.
-    :type max_results: int
-    :param next_token: The nextToken value returned from a previous paginated execution.
-    :type next_token: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -343,16 +339,12 @@ class EKSDescribeAllClustersOperator(BaseOperator):
 
     def __init__(
         self,
-        max_results: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
-        next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.maxResults = max_results
-        self.nextToken = next_token
         self.verbose = verbose
         self.conn_id = conn_id
         self.region = region
@@ -363,9 +355,7 @@ class EKSDescribeAllClustersOperator(BaseOperator):
             region_name=self.region,
         )
 
-        response = eks_hook.list_clusters(
-            verbose=self.verbose, maxResults=self.maxResults, nextToken=self.nextToken
-        )
+        response = eks_hook.list_clusters(verbose=self.verbose)
         cluster_list = response.get('clusters')
         next_token = response.get('nextToken')
 
@@ -385,10 +375,6 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
     """
     Describes all Amazon EKS Nodegroups associated with the specified EKS Cluster.
 
-    :param max_results: The maximum number of results to return.
-    :type max_results: int
-    :param next_token: The nextToken value returned from a previous paginated execution.
-    :type next_token: str
     :param cluster_name: The name of the Amazon EKS Cluster to check..
     :type cluster_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -405,8 +391,6 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
     def __init__(
         self,
         cluster_name: str,
-        max_results: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
-        next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
@@ -414,8 +398,6 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
-        self.maxResults = max_results
-        self.nextToken = next_token
         self.verbose = verbose
         self.conn_id = conn_id
         self.region = region
@@ -426,12 +408,7 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
             region_name=self.region,
         )
 
-        response = eks_hook.list_nodegroups(
-            clusterName=self.clusterName,
-            verbose=self.verbose,
-            maxResults=self.maxResults,
-            nextToken=self.nextToken,
-        )
+        response = eks_hook.list_nodegroups(clusterName=self.clusterName, verbose=self.verbose)
         nodegroup_list = response.get('nodegroups')
         next_token = response.get('nextToken')
 
@@ -559,10 +536,6 @@ class EKSListClustersOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSListClustersOperator`
 
-    :param max_results: The maximum number of results to return.
-    :type max_results: int
-    :param next_token: The nextToken value returned from a previous paginated execution.
-    :type next_token: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -576,16 +549,12 @@ class EKSListClustersOperator(BaseOperator):
 
     def __init__(
         self,
-        max_results: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
-        next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.maxResults = max_results
-        self.nextToken = next_token
         self.verbose = verbose
         self.conn_id = conn_id
         self.region = region
@@ -596,9 +565,7 @@ class EKSListClustersOperator(BaseOperator):
             region_name=self.region,
         )
 
-        return eks_hook.list_clusters(
-            maxResults=self.maxResults, nextToken=self.nextToken, verbose=self.verbose
-        )
+        return eks_hook.list_clusters(verbose=self.verbose)
 
 
 class EKSListNodegroupsOperator(BaseOperator):
@@ -609,10 +576,6 @@ class EKSListNodegroupsOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSListNodegroupsOperator`
 
-    :param max_results: The maximum number of results to return.
-    :type max_results: int
-    :param next_token: The nextToken value returned from a previous paginated execution.
-    :type next_token: str
     :param cluster_name: The name of the Amazon EKS Cluster to check..
     :type cluster_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -629,8 +592,6 @@ class EKSListNodegroupsOperator(BaseOperator):
     def __init__(
         self,
         cluster_name: str,
-        max_results: Optional[int] = DEFAULT_RESULTS_PER_PAGE,
-        next_token: Optional[str] = DEFAULT_PAGINATION_TOKEN,
         verbose: Optional[bool] = False,
         conn_id: Optional[str] = CONN_ID,
         region: Optional[str] = None,
@@ -638,8 +599,6 @@ class EKSListNodegroupsOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.clusterName = cluster_name
-        self.maxResults = max_results
-        self.nextToken = next_token
         self.verbose = verbose
         self.conn_id = conn_id
         self.region = region
@@ -650,12 +609,7 @@ class EKSListNodegroupsOperator(BaseOperator):
             region_name=self.region,
         )
 
-        return eks_hook.list_nodegroups(
-            clusterName=self.clusterName,
-            verbose=self.verbose,
-            maxResults=self.maxResults,
-            nextToken=self.nextToken,
-        )
+        return eks_hook.list_nodegroups(clusterName=self.clusterName, verbose=self.verbose)
 
 
 class EKSPodOperator(KubernetesPodOperator):

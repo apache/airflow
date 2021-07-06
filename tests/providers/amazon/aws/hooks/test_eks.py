@@ -48,7 +48,6 @@ from airflow.providers.amazon.aws.hooks.eks import EKSHook
 
 from ..utils.eks_test_constants import (
     CONN_ID,
-    DEFAULT_MAX_RESULTS,
     DISK_SIZE,
     FROZEN_TIME,
     INSTANCE_TYPES,
@@ -63,7 +62,6 @@ from ..utils.eks_test_constants import (
     ErrorAttributes,
     NodegroupAttributes,
     NodegroupInputs,
-    PageCount,
     PossibleTestResults,
     RegExTemplates,
     ResponseAttribute,
@@ -191,7 +189,7 @@ class TestEKSHooks:
     def test_list_clusters_returns_empty_by_default(self) -> None:
         eks_hook: EKSHook = EKSHook(aws_conn_id=CONN_ID, region_name=REGION)
 
-        result: Dict = eks_hook.list_clusters()[ResponseAttribute.CLUSTERS]
+        result: List = eks_hook.list_clusters()
 
         assert isinstance(result, list)
         assert len(result) == 0
@@ -202,58 +200,19 @@ class TestEKSHooks:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
         expected_result: List = sorted(generated_test_data.cluster_names)
 
-        result: List = eks_hook.list_clusters()[ResponseAttribute.CLUSTERS]
+        result: List = eks_hook.list_clusters()
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
-    def test_list_clusters_returns_default_max_results(
+    def test_list_clusters_returns_all_results(
         self, cluster_builder, initial_batch_size: int = BatchCountSize.LARGE
     ) -> None:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
-        expected_result: List = (sorted(generated_test_data.cluster_names))[:DEFAULT_MAX_RESULTS]
+        expected_result: List = sorted(generated_test_data.cluster_names)
 
-        result: List = eks_hook.list_clusters()[ResponseAttribute.CLUSTERS]
+        result: List = eks_hook.list_clusters()
 
-        assert_result_matches_expected_list(result, expected_result, DEFAULT_MAX_RESULTS)
-
-    def test_list_clusters_returns_custom_max_results(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.MEDIUM
-    ) -> None:
-        eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
-        max_results: int = PageCount.LARGE
-        expected_result: List = (sorted(generated_test_data.cluster_names))[:max_results]
-
-        result: List = eks_hook.list_clusters(maxResults=max_results)[ResponseAttribute.CLUSTERS]
-
-        assert_result_matches_expected_list(result, expected_result, max_results)
-
-    def test_list_clusters_returns_second_page_results(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.MEDIUM
-    ) -> None:
-        eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
-        first_page_len: int = PageCount.LARGE
-        expected_len: int = initial_batch_size - first_page_len
-        expected_result: List = (sorted(generated_test_data.cluster_names))[first_page_len:]
-        token: str = eks_hook.list_clusters(maxResults=first_page_len)[ResponseAttribute.NEXT_TOKEN]
-
-        result: List = eks_hook.list_clusters(nextToken=token)[ResponseAttribute.CLUSTERS]
-
-        assert_result_matches_expected_list(result, expected_result, expected_len)
-
-    def test_list_clusters_returns_custom_second_page_results(
-        self, cluster_builder, initial_batch_size: int = BatchCountSize.MEDIUM
-    ) -> None:
-        eks_hook, generated_test_data = cluster_builder(count=initial_batch_size)
-        first_page_len: int = PageCount.LARGE
-        expected_len: int = PageCount.SMALL
-        expected_result: List = (sorted(generated_test_data.cluster_names))[
-            first_page_len : first_page_len + expected_len
-        ]
-        token: str = eks_hook.list_clusters(maxResults=first_page_len)[ResponseAttribute.NEXT_TOKEN]
-
-        result = eks_hook.list_clusters(maxResults=expected_len, nextToken=token)[ResponseAttribute.CLUSTERS]
-
-        assert_result_matches_expected_list(result, expected_result, expected_len)
+        assert_result_matches_expected_list(result, expected_result)
 
     def test_create_cluster_throws_exception_when_cluster_exists(
         self, cluster_builder, initial_batch_size: int = BatchCountSize.SMALL
@@ -275,7 +234,7 @@ class TestEKSHooks:
             raised_exception=raised_exception,
         )
         # Verify no new cluster was created.
-        len_after_test: int = len(eks_hook.list_clusters()[ResponseAttribute.CLUSTERS])
+        len_after_test: int = len(eks_hook.list_clusters())
         assert len_after_test == initial_batch_size
 
     def test_create_cluster_generates_valid_cluster_arn(self, cluster_builder) -> None:
@@ -359,7 +318,7 @@ class TestEKSHooks:
         eks_hook, generated_test_data = cluster_builder(count=initial_batch_size, minimal=False)
 
         eks_hook.delete_cluster(name=generated_test_data.existing_cluster_name)
-        result_cluster_list: List = eks_hook.list_clusters()[ResponseAttribute.CLUSTERS]
+        result_cluster_list: List = eks_hook.list_clusters()
 
         assert len(result_cluster_list) == (initial_batch_size - 1)
         assert generated_test_data.existing_cluster_name not in result_cluster_list
@@ -382,15 +341,13 @@ class TestEKSHooks:
             raised_exception=raised_exception,
         )
         # Verify nothing was deleted.
-        cluster_count_after_test: int = len(eks_hook.list_clusters()[ResponseAttribute.CLUSTERS])
+        cluster_count_after_test: int = len(eks_hook.list_clusters())
         assert cluster_count_after_test == initial_batch_size
 
     def test_list_nodegroups_returns_empty_by_default(self, cluster_builder) -> None:
         eks_hook, generated_test_data = cluster_builder()
 
-        result: List = eks_hook.list_nodegroups(clusterName=generated_test_data.existing_cluster_name)[
-            ResponseAttribute.NODEGROUPS
-        ]
+        result: List = eks_hook.list_nodegroups(clusterName=generated_test_data.existing_cluster_name)
 
         assert isinstance(result, list)
         assert len(result) == 0
@@ -401,74 +358,19 @@ class TestEKSHooks:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
         expected_result: List = sorted(generated_test_data.nodegroup_names)
 
-        result: List = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)[
-            ResponseAttribute.NODEGROUPS
-        ]
+        result: List = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
 
         assert_result_matches_expected_list(result, expected_result, initial_batch_size)
 
-    def test_list_nodegroups_returns_default_max_results(
+    def test_list_nodegroups_returns_all_results(
         self, nodegroup_builder, initial_batch_size: int = BatchCountSize.LARGE
     ) -> None:
         eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
-        expected_result: List = (sorted(generated_test_data.nodegroup_names))[:DEFAULT_MAX_RESULTS]
+        expected_result: List = sorted(generated_test_data.nodegroup_names)
 
-        result: List = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)[
-            ResponseAttribute.NODEGROUPS
-        ]
+        result: List = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
 
-        assert_result_matches_expected_list(result, expected_result, DEFAULT_MAX_RESULTS)
-
-    def test_list_nodegroups_returns_custom_max_results(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.LARGE
-    ) -> None:
-        eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
-        max_results: int = PageCount.LARGE
-        expected_result: List = (sorted(generated_test_data.nodegroup_names))[:max_results]
-
-        result: List = eks_hook.list_nodegroups(
-            clusterName=generated_test_data.cluster_name, maxResults=max_results
-        )[ResponseAttribute.NODEGROUPS]
-
-        assert_result_matches_expected_list(result, expected_result, max_results)
-
-    def test_list_nodegroups_returns_second_page_results(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.MEDIUM
-    ) -> None:
-        eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
-        first_page_len: int = PageCount.LARGE
-        expected_len: int = initial_batch_size - first_page_len
-        expected_result: List = (sorted(generated_test_data.nodegroup_names))[first_page_len:]
-        token: str = eks_hook.list_nodegroups(
-            clusterName=generated_test_data.cluster_name, maxResults=first_page_len
-        )[ResponseAttribute.NEXT_TOKEN]
-
-        result: List = eks_hook.list_nodegroups(
-            clusterName=generated_test_data.cluster_name, nextToken=token
-        )[ResponseAttribute.NODEGROUPS]
-
-        assert_result_matches_expected_list(result, expected_result, expected_len)
-
-    def test_list_nodegroups_returns_custom_second_page_results(
-        self, nodegroup_builder, initial_batch_size: int = BatchCountSize.MEDIUM
-    ) -> None:
-        eks_hook, generated_test_data = nodegroup_builder(count=initial_batch_size)
-        first_page_len: int = PageCount.LARGE
-        expected_len: int = PageCount.SMALL
-        expected_result: List = (sorted(generated_test_data.nodegroup_names))[
-            first_page_len : first_page_len + expected_len
-        ]
-        token: str = eks_hook.list_nodegroups(
-            clusterName=generated_test_data.cluster_name, maxResults=first_page_len
-        )[ResponseAttribute.NEXT_TOKEN]
-
-        result: List = eks_hook.list_nodegroups(
-            clusterName=generated_test_data.cluster_name,
-            maxResults=expected_len,
-            nextToken=token,
-        )[ResponseAttribute.NODEGROUPS]
-
-        assert_result_matches_expected_list(result, expected_result, expected_len)
+        assert_result_matches_expected_list(result, expected_result)
 
     @mock_eks
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
@@ -517,9 +419,7 @@ class TestEKSHooks:
         )
         # Verify no new nodegroup was created.
         nodegroup_count_after_test = len(
-            eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)[
-                ResponseAttribute.NODEGROUPS
-            ]
+            eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
         )
         assert nodegroup_count_after_test == initial_batch_size
 
@@ -548,9 +448,7 @@ class TestEKSHooks:
         )
         # Verify no new nodegroup was created.
         nodegroup_count_after_test = len(
-            eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)[
-                ResponseAttribute.NODEGROUPS
-            ]
+            eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
         )
         assert nodegroup_count_after_test == initial_batch_size
 
@@ -663,7 +561,7 @@ class TestEKSHooks:
             raised_exception=raised_exception,
         )
         # Verify no clusters were deleted.
-        cluster_count_after_test: int = len(eks_hook.list_clusters()[ResponseAttribute.CLUSTERS])
+        cluster_count_after_test: int = len(eks_hook.list_clusters())
         assert cluster_count_after_test == BatchCountSize.SINGLE
 
     def test_delete_nodegroup_removes_deleted_nodegroup(
@@ -675,9 +573,7 @@ class TestEKSHooks:
             clusterName=generated_test_data.cluster_name,
             nodegroupName=generated_test_data.existing_nodegroup_name,
         )
-        result_nodegroup_list: List = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)[
-            ResponseAttribute.NODEGROUPS
-        ]
+        result_nodegroup_list: List = eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
 
         assert len(result_nodegroup_list) == (initial_batch_size - 1)
         assert generated_test_data.existing_nodegroup_name not in result_nodegroup_list
@@ -736,9 +632,7 @@ class TestEKSHooks:
         )
         # Verify no new nodegroup was created.
         nodegroup_count_after_test: int = len(
-            eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)[
-                ResponseAttribute.NODEGROUPS
-            ]
+            eks_hook.list_nodegroups(clusterName=generated_test_data.cluster_name)
         )
         assert nodegroup_count_after_test == initial_batch_size
 
@@ -857,9 +751,11 @@ def assert_client_error_exception_thrown(
     assert response[ErrorAttributes.MESSAGE] == expected_msg
 
 
-def assert_result_matches_expected_list(result: List, expected_result: List, expected_len: int) -> None:
+def assert_result_matches_expected_list(
+    result: List, expected_result: List, expected_len: Optional[int] = None
+) -> None:
     assert result == expected_result
-    assert len(result) == expected_len
+    assert len(result) == expected_len or len(expected_result)
 
 
 def assert_is_valid_uri(value: str) -> None:
