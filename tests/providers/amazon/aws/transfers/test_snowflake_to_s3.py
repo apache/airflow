@@ -39,7 +39,7 @@ class TestSnowflakeToS3Transfer(unittest.TestCase):
             'OVERWRITE = TRUE',
         ]
         file_format = "file_format"
-        include_header=True
+        include_header = True
 
         SnowflakeToS3Operator(
             table=table,
