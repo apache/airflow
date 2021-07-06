@@ -294,13 +294,9 @@ with models.DAG(
         project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME, task_id='sql_instance_delete_task'
     )
     sql_instance_delete_task2 = CloudSQLDeleteInstanceOperator(
-        instance=INSTANCE_NAME2, task_id='sql_instance_delete_task2'
+        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME2, task_id='sql_instance_delete_task2'
     )
     # [END howto_operator_cloudsql_delete]
-
-    sql_instance_delete_2_task = CloudSQLDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME2, task_id='sql_instance_delete_2_task'
-    )
 
     (
         sql_instance_create_task
@@ -324,7 +320,7 @@ with models.DAG(
         >> sql_instance_failover_replica_delete_task
         >> sql_instance_read_replica_delete_task
         >> sql_instance_delete_task
-        >> sql_instance_delete_2_task
+        >> sql_instance_delete_task2
     )
 
     # Task dependencies created via `XComArgs`:

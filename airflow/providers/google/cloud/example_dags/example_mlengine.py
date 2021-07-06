@@ -56,13 +56,13 @@ TRAINER_PY_MODULE = os.environ.get("GCP_MLENGINE_TRAINER_TRAINER_PY_MODULE", "tr
 SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://INVALID BUCKET NAME/tmp/")
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID BUCKET NAME/staging/")
 
-default_args = {"params": {"model_name": MODEL_NAME}}
 
 with models.DAG(
     "example_gcp_mlengine",
     schedule_interval=None,  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
+    params={"model_name": MODEL_NAME},
 ) as dag:
     # [START howto_operator_gcp_mlengine_training]
     training = MLEngineStartTrainingJobOperator(

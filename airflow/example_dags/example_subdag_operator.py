@@ -25,10 +25,15 @@ from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils.dates import days_ago
 
-
 DAG_NAME = 'example_subdag_operator'
 
-with DAG(dag_id=DAG_NAME, start_date=days_ago(2), schedule_interval="@once", tags=['example']) as dag:
+args = {
+    'owner': 'airflow',
+}
+
+with DAG(
+    dag_id=DAG_NAME, default_args=args, start_date=days_ago(2), schedule_interval="@once", tags=['example']
+) as dag:
 
     start = DummyOperator(
         task_id='start',
@@ -36,7 +41,7 @@ with DAG(dag_id=DAG_NAME, start_date=days_ago(2), schedule_interval="@once", tag
 
     section_1 = SubDagOperator(
         task_id='section-1',
-        subdag=subdag(DAG_NAME, 'section-1'),
+        subdag=subdag(DAG_NAME, 'section-1', args),
     )
 
     some_other_task = DummyOperator(
@@ -45,7 +50,7 @@ with DAG(dag_id=DAG_NAME, start_date=days_ago(2), schedule_interval="@once", tag
 
     section_2 = SubDagOperator(
         task_id='section-2',
-        subdag=subdag(DAG_NAME, 'section-2'),
+        subdag=subdag(DAG_NAME, 'section-2', args),
     )
 
     end = DummyOperator(
