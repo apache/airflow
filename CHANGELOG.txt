@@ -1,3 +1,13 @@
+Airflow 2.1.2, 2021-07-09
+-------------------------
+
+Bug Fixes
+"""""""""
+
+- Only allow webserver to request from the worker log server (#16754)
+- Fix "Invalid JSON configuration, must be a dict" bug (#16648)
+
+
 Airflow 2.1.1, 2021-07-02
 -------------------------
 
