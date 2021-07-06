@@ -1546,7 +1546,7 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
     Given a number of tasks, builds a dependency chain.
     Support mix airflow.models.BaseOperator, List[airflow.models.BaseOperator], XComArg, and
     List[airflow.models.XComArg]. If you want to chain between two List[airflow.models.BaseOperator]
-    or List[airflow.models.XComArg], you have to make sure they have same length.
+    or List[airflow.models.XComArg], you have to make sure they have the same length.
 
     Using classic operators/sensors:
 
