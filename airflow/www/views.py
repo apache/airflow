@@ -1626,12 +1626,12 @@ class Airflow(AirflowBaseView):
         request_conf = request.values.get('conf')
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
 
-            dag = current_app.dag_bag.get_dag(dag_id)
             doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
             form = DateTimeForm(data={'execution_date': request_execution_date})
 
@@ -1639,7 +1639,9 @@ class Airflow(AirflowBaseView):
                 default_conf = request_conf
             else:
                 try:
-                    default_conf = json.dumps(dag.params, indent=4)
+                    default_conf = json.dumps(
+                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()}, indent=4
+                    )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
@@ -1703,20 +1705,30 @@ class Airflow(AirflowBaseView):
                     is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                 )
 
-        dag = current_app.dag_bag.get_dag(dag_id)
-
         if unpause and dag.is_paused:
             models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
 
-        dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
-            state=State.QUEUED,
-            conf=run_conf,
-            external_trigger=True,
-            dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
-        )
+        try:
+            dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                execution_date=execution_date,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
+                state=State.QUEUED,
+                conf=run_conf,
+                external_trigger=True,
+                dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
+            )
+        except ValueError as ve:
+            flash(f"{ve}", "error")
+            form = DateTimeForm(data={'execution_date': execution_date})
+            return self.render_template(
+                'airflow/trigger.html',
+                dag_id=dag_id,
+                origin=origin,
+                conf=request_conf,
+                form=form,
+                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+            )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
         return redirect(origin)

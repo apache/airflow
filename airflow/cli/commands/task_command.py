@@ -437,6 +437,9 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
+
+    task.params.validate()
+
     ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
 
     try:
