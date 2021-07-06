@@ -51,7 +51,7 @@ Please note:
 - Each Dask worker must be able to import Airflow and any dependencies you
   require.
 - The DaskExecutor implements queues using
-  `Dask Worker Resources <https://distributed.dask.org/en/latest/resources.html>` functionality . To enable the use of
+  `Dask Worker Resources <https://distributed.dask.org/en/latest/resources.html>` functionality. To enable the use of
   queues, start your Dask workers with resources of the same name as the desired queues. The Dask worker resources only
   need to be started with a limit of 1. The resource limit is inconsequential to the scheduling of tasks as long as it
   is greater than 0.
