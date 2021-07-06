@@ -33,7 +33,7 @@ from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union, cast
 
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle
 from sqlalchemy import or_
 from tabulate import tabulate
 
@@ -463,7 +463,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._parent_signal_conn.close()
 
 
-class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instance-attributes
+class DagFileProcessorManager(LoggingMixin):
     """
     Given a list of DAG definition files, this kicks off several processors
     in parallel to process them and put the results to a multiprocessing.Queue
@@ -580,7 +580,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # So that we ignore the debug dump signal, making it easier to send
         signal.signal(signal.SIGUSR2, signal.SIG_IGN)
 
-    def _exit_gracefully(self, signum, frame):  # pylint: disable=unused-argument
+    def _exit_gracefully(self, signum, frame):
         """Helper method to clean up DAG file processors to avoid leaving orphan processes."""
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         self.log.debug("Current Stacktrace is: %s", '\n'.join(map(str, inspect.stack())))
@@ -628,7 +628,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         while True:
             loop_start_time = time.monotonic()
 
-            # pylint: disable=no-else-break
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
             if self._signal_conn in ready:
                 agent_signal = self._signal_conn.recv()
@@ -674,7 +673,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 self._processors.pop(processor.file_path)
 
             self._refresh_dag_dir()
-            self._find_zombies()  # pylint: disable=no-value-for-parameter
+            self._find_zombies()
 
             self._kill_timed_out_processors()
 
@@ -760,8 +759,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
 
             try:
                 self.log.debug("Removing old import errors")
-                self.clear_nonexistent_import_errors()  # pylint: disable=no-value-for-parameter
-            except Exception:  # noqa pylint: disable=broad-except
+                self.clear_nonexistent_import_errors()
+            except Exception:
                 self.log.exception("Error removing old import errors")
 
             SerializedDagModel.remove_deleted_dags(self._file_paths)
@@ -1218,7 +1217,6 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             'dag_processing.import_errors', sum(stat.import_errors for stat in self._file_stats.values())
         )
 
-    # pylint: disable=missing-docstring
     @property
     def file_paths(self):
         return self._file_paths

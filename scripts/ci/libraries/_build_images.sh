@@ -131,7 +131,7 @@ function build_images::confirm_image_rebuild() {
     fi
     if [[ -f "${LAST_FORCE_ANSWER_FILE}" ]]; then
         # set variable from last answered response given in the same pre-commit run - so that it can be
-        # answered in the first pre-commit check (build) and then used in another (pylint/mypy/flake8 etc).
+        # answered in the first pre-commit check (build) and then used in another (mypy/flake8 etc).
         # shellcheck disable=SC1090
         source "${LAST_FORCE_ANSWER_FILE}"
     fi
@@ -495,7 +495,6 @@ function build_images::rebuild_ci_image_if_needed() {
         push_pull_remove_images::pull_ci_images_if_needed
         return
     fi
-
     local needs_docker_build="false"
     md5sum::check_if_docker_build_is_needed
     build_images::get_local_build_cache_hash
@@ -526,7 +525,7 @@ function build_images::rebuild_ci_image_if_needed() {
                 local root_files_count
                 root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${root_files_count} != "0" ]]; then
-                    ./scripts/ci/tools/ci_fix_ownership.sh
+                    ./scripts/ci/tools/ci_fix_ownership.sh || true
                 fi
             fi
             verbosity::print_info
@@ -744,8 +743,8 @@ function build_images::prepare_prod_build() {
         build_images::add_build_args_for_remote_install
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build using released PIP package
-        # For PROD image only numeric versions are allowed
-        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]*$ ]]; then
+        # For PROD image only numeric versions are allowed and RC candidates
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+(rc[0-9]+)?$ ]]; then
             echo
             echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
             echo

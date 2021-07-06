@@ -34,20 +34,20 @@ import pytest
 from freezegun import freeze_time
 
 from airflow.configuration import conf
-from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.jobs.scheduler_job import DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, TaskInstance as TI
-from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest, TaskCallbackRequest
-from airflow.utils.dag_processing import (
+from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
     DagFileProcessorManager,
     DagFileStat,
     DagParsingSignal,
     DagParsingStat,
 )
+from airflow.dag_processing.processor import DagFileProcessorProcess
+from airflow.jobs.local_task_job import LocalTaskJob as LJ
+from airflow.models import DagBag, DagModel, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.utils import timezone
+from airflow.utils.callback_requests import CallbackRequest, TaskCallbackRequest
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -417,7 +417,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1
             )
-            manager._find_zombies()  # pylint: disable=no-value-for-parameter
+            manager._find_zombies()
             requests = manager._callback_to_execute[dag.full_filepath]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.full_filepath

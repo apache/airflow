@@ -134,6 +134,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
+                "cleanup": {"enabled": True},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
         )
@@ -143,6 +144,7 @@ class TestBaseChartTest(unittest.TestCase):
         }
 
         kind_names_tuples = [
+            (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
             (f"{release_name}-airflow-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
@@ -156,6 +158,9 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
             (f"{release_name}-broker-url", "Secret", "redis"),
+            (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
+            (f"{release_name}-cleanup-role", "Role", None),
+            (f"{release_name}-cleanup-rolebinding", "RoleBinding", None),
             (f"{release_name}-create-user", "Job", "create-user-job"),
             (f"{release_name}-fernet-key", "Secret", None),
             (f"{release_name}-flower", "Deployment", "flower"),
@@ -253,7 +258,7 @@ class TestBaseChartTest(unittest.TestCase):
 
         objs_with_image = get_k8s_objs_with_image(k8s_objects)
         for obj in objs_with_image:
-            image: str = obj["image"]  # pylint: disable=invalid-sequence-index
+            image: str = obj["image"]
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
                 assert "command" not in obj

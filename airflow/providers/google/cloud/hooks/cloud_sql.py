@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=too-many-lines
+
 """This module contains a Google Cloud SQL Hook."""
 
 import errno
@@ -132,7 +132,7 @@ class CloudSQLHook(GoogleBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .instances()
             .get(project=project_id, instance=instance)
             .execute(num_retries=self.num_retries)
@@ -153,7 +153,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .instances()
             .insert(project=project_id, body=body)
             .execute(num_retries=self.num_retries)
@@ -181,7 +181,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .instances()
             .patch(project=project_id, instance=instance, body=body)
             .execute(num_retries=self.num_retries)
@@ -203,7 +203,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .instances()
             .delete(project=project_id, instance=instance)
             .execute(num_retries=self.num_retries)
@@ -228,7 +228,7 @@ class CloudSQLHook(GoogleBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .databases()
             .get(project=project_id, instance=instance, database=database)
             .execute(num_retries=self.num_retries)
@@ -251,7 +251,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .databases()
             .insert(project=project_id, instance=instance, body=body)
             .execute(num_retries=self.num_retries)
@@ -287,7 +287,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .databases()
             .patch(project=project_id, instance=instance, database=database, body=body)
             .execute(num_retries=self.num_retries)
@@ -311,7 +311,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .databases()
             .delete(project=project_id, instance=instance, database=database)
             .execute(num_retries=self.num_retries)
@@ -338,7 +338,7 @@ class CloudSQLHook(GoogleBaseHook):
         :return: None
         """
         response = (
-            self.get_conn()  # noqa # pylint: disable=no-member
+            self.get_conn()
             .instances()
             .export(project=project_id, instance=instance, body=body)
             .execute(num_retries=self.num_retries)
@@ -365,7 +365,7 @@ class CloudSQLHook(GoogleBaseHook):
         """
         try:
             response = (
-                self.get_conn()  # noqa # pylint: disable=no-member
+                self.get_conn()
                 .instances()
                 .import_(project=project_id, instance=instance, body=body)
                 .execute(num_retries=self.num_retries)
@@ -389,7 +389,7 @@ class CloudSQLHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             operation_response = (
-                service.operations()  # noqa # pylint: disable=no-member
+                service.operations()
                 .get(project=project_id, operation=operation_name)
                 .execute(num_retries=self.num_retries)
             )
@@ -565,9 +565,9 @@ class CloudSqlProxyRunner(LoggingMixin):
             command_to_run.extend(self.command_line_parameters)
             self.log.info("Creating directory %s", self.cloud_sql_proxy_socket_directory)
             Path(self.cloud_sql_proxy_socket_directory).mkdir(parents=True, exist_ok=True)
-            command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
+            command_to_run.extend(self._get_credential_parameters())
             self.log.info("Running the command: `%s`", " ".join(command_to_run))
-            # pylint: disable=consider-using-with
+
             self.sql_proxy_process = Popen(command_to_run, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
             while True:
@@ -625,7 +625,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self._download_sql_proxy_if_needed()
         command_to_run = [self.sql_proxy_path]
         command_to_run.extend(['--version'])
-        command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
+        command_to_run.extend(self._get_credential_parameters())
         result = subprocess.check_output(command_to_run).decode('utf-8')
         pattern = re.compile("^.*[V|v]ersion ([^;]*);.*$")
         matched = pattern.match(result)
@@ -674,10 +674,8 @@ CONNECTION_URIS = {
 CLOUD_SQL_VALID_DATABASE_TYPES = ['postgres', 'mysql']
 
 
-class CloudSQLDatabaseHook(BaseHook):  # noqa
-    # pylint: disable=too-many-instance-attributes
-    """
-    Serves DB connection configuration for Google Cloud SQL (Connections
+class CloudSQLDatabaseHook(BaseHook):
+    """Serves DB connection configuration for Google Cloud SQL (Connections
     of *gcpcloudsqldb://* type).
 
     The hook is a "meta" one. It does not perform an actual connection.
@@ -725,6 +723,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
            in the connection URL
     :type default_gcp_project_id: str
     """
+
     conn_name_attr = 'gcp_cloudsql_conn_id'
     default_conn_name = 'google_cloud_sql_default'
     conn_type = 'gcpcloudsqldb'

@@ -41,8 +41,8 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
 
-RT = TypeVar('RT')  # pylint: disable=invalid-name
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+RT = TypeVar('RT')
+T = TypeVar("T", bound=Callable)
 
 # Use default timeout from google-cloud-storage
 DEFAULT_TIMEOUT = 60
@@ -334,7 +334,7 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: Optional[str] = None,
         object_name: Optional[str] = None,
-        object_url: Optional[str] = None,  # pylint: disable=unused-argument
+        object_url: Optional[str] = None,
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -364,7 +364,7 @@ class GCSHook(GoogleBaseHook):
         self,
         bucket_name: Optional[str] = None,
         object_name: Optional[str] = None,
-        object_url: Optional[str] = None,  # pylint: disable=unused-argument
+        object_url: Optional[str] = None,
     ):
         """
         Creates temporary file, returns a file handle and uploads the files content
@@ -390,7 +390,7 @@ class GCSHook(GoogleBaseHook):
             tmp_file.flush()
             self.upload(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
 
-    def upload(  # pylint: disable=too-many-arguments
+    def upload(
         self,
         bucket_name: str,
         object_name: str,
@@ -896,9 +896,7 @@ class GCSHook(GoogleBaseHook):
 
         for item in bucket_resource:
             if item != "name":
-                bucket._patch_property(  # pylint: disable=protected-access
-                    name=item, value=resource[item]  # type: ignore[index]
-                )
+                bucket._patch_property(name=item, value=resource[item])  # type: ignore[index]
 
         bucket.storage_class = storage_class
         bucket.labels = labels

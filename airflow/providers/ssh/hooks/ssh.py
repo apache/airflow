@@ -35,7 +35,7 @@ except ImportError:
     from getpass import getuser
 
 
-class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -63,13 +63,13 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     :type keepalive_interval: int
     """
 
-    # key type name to paramiko PKey class
-    _default_pkey_mappings = {
-        'dsa': paramiko.DSSKey,
-        'ecdsa': paramiko.ECDSAKey,
-        'ed25519': paramiko.Ed25519Key,
-        'rsa': paramiko.RSAKey,
-    }
+    # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    _pkey_loaders = (
+        paramiko.RSAKey,
+        paramiko.ECDSAKey,
+        paramiko.Ed25519Key,
+        paramiko.DSSKey,
+    )
 
     _host_key_mappings = {
         'rsa': paramiko.RSAKey,
@@ -93,7 +93,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
             },
         }
 
-    def __init__(  # pylint: disable=too-many-statements, too-many-branches
+    def __init__(
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -127,7 +127,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         self.client = None
 
         # Use connection to override defaults
-        if self.ssh_conn_id is not None:  # pylint: disable=too-many-nested-blocks
+        if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
             if self.username is None:
                 self.username = conn.login
@@ -241,7 +241,12 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
-                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                if self.port == SSH_PORT:
+                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                else:
+                    client_host_keys.add(
+                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                    )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
@@ -357,15 +362,17 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         Creates appropriate paramiko key for given private key
 
         :param private_key: string containing private key
-        :return: `paramiko.PKey` appropriate for given key
+        :return: ``paramiko.PKey`` appropriate for given key
         :raises AirflowException: if key cannot be read
         """
-        allowed_pkey_types = self._default_pkey_mappings.values()
-        for pkey_type in allowed_pkey_types:
+        for pkey_class in self._pkey_loaders:
             try:
-                key = pkey_type.from_private_key(StringIO(private_key), password=passphrase)
+                key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
+                # Test it acutally works. If Paramiko loads an openssh generated key, sometimes it will
+                # happily load it as the wrong type, only to fail when actually used.
+                key.sign_ssh_data(b'')
                 return key
-            except paramiko.ssh_exception.SSHException:
+            except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
             'Private key provided cannot be read by paramiko.'

@@ -200,6 +200,68 @@ class WorkerTest(unittest.TestCase):
             docs[0],
         )
 
+    def test_should_create_valid_affinity_tolerations_and_node_selector_override(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "affinity": {
+                        "nodeAffinity": {
+                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                "nodeSelectorTerms": [
+                                    {
+                                        "matchExpressions": [
+                                            {"key": "foo", "operator": "In", "values": ["true"]},
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "tolerations": [
+                        {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                    ],
+                    "nodeSelector": {"diskType": "ssd"},
+                },
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {"key": "bar", "operator": "In", "values": ["true"]},
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "tolerations": [
+                    {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "nodeSelector": {"type": "user-node"},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "StatefulSet" == jmespath.search("kind", docs[0])
+        assert "bar" == jmespath.search(
+            "spec.template.spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
+        )
+        assert "user-node" == jmespath.search(
+            "spec.template.spec.nodeSelector.type",
+            docs[0],
+        )
+        assert "static-pods" == jmespath.search(
+            "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
+
     def test_should_create_default_affinity(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
 

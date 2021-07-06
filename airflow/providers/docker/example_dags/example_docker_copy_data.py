@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=missing-function-docstring
+
 """
 This sample "listen to directory". move the new file and print it,
 using docker-containers.

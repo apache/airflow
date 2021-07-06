@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.mysql.hooks.mysql import MySqlHook  # noqa
 
 warnings.warn(

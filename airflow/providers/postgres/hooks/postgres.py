@@ -144,7 +144,6 @@ class PostgresHook(DbApiHook):
         """Dumps a database table into a tab-delimited file"""
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
-    # pylint: disable=signature-differs
     @staticmethod
     def _serialize_cell(cell: object, conn: Optional[connection] = None) -> object:
         """

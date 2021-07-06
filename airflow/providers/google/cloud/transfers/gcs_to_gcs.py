@@ -186,7 +186,7 @@ class GCSToGCSOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         source_bucket,
         source_object=None,
         source_objects=None,

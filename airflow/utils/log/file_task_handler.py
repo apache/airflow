@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 import httpx
+from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.helpers import parse_template_string
@@ -94,7 +95,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
+    def _read(self, ti, try_number, metadata=None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -118,10 +119,10 @@ class FileTaskHandler(logging.Handler):
                 with open(location) as file:
                     log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
                 log += f"*** {str(e)}\n"
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':  # pylint: disable=too-many-nested-blocks
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
@@ -157,7 +158,7 @@ class FileTaskHandler(logging.Handler):
                 for line in res:
                     log += line.decode()
 
-            except Exception as f:  # pylint: disable=broad-except
+            except Exception as f:
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
@@ -172,14 +173,24 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                response = httpx.get(url, timeout=timeout)
+                signer = TimedJSONWebSignatureSerializer(
+                    secret_key=conf.get('webserver', 'secret_key'),
+                    algorithm_name='HS512',
+                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
+                    # This isn't really a "salt", more of a signing context
+                    salt='task-instance-logs',
+                )
+
+                response = httpx.get(
+                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                )
                 response.encoding = "utf-8"
 
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 
                 log += '\n' + response.text
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 log += f"*** Failed to fetch log file from worker. {str(e)}\n"
 
         return log, {'end_of_log': True}

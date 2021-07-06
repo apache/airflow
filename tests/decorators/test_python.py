@@ -117,25 +117,25 @@ class TestAirflowTaskDecorator(TestPythonBase):
         def identity_dict(x: int, y: int) -> Dict[str, int]:
             return {"x": x, "y": y}
 
-        assert identity_dict(5, 5).operator.multiple_outputs is True  # pylint: disable=maybe-no-member
+        assert identity_dict(5, 5).operator.multiple_outputs is True
 
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
             return x, y
 
-        assert identity_tuple(5, 5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+        assert identity_tuple(5, 5).operator.multiple_outputs is False
 
         @task_decorator
         def identity_int(x: int) -> int:
             return x
 
-        assert identity_int(5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+        assert identity_int(5).operator.multiple_outputs is False
 
         @task_decorator
         def identity_notyping(x: int):
             return x
 
-        assert identity_notyping(5).operator.multiple_outputs is False  # pylint: disable=maybe-no-member
+        assert identity_notyping(5).operator.multiple_outputs is False
 
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
@@ -152,12 +152,12 @@ class TestAirflowTaskDecorator(TestPythonBase):
             state=State.RUNNING,
         )
 
-        res.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        res.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
 
-        assert res.operator.multiple_outputs is False  # pylint: disable=maybe-no-member
-        assert ti.xcom_pull() == [8, 4]  # pylint: disable=maybe-no-member
+        assert res.operator.multiple_outputs is False
+        assert ti.xcom_pull() == [8, 4]
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
@@ -176,11 +176,11 @@ class TestAirflowTaskDecorator(TestPythonBase):
             state=State.RUNNING,
         )
 
-        ident.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        ident.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
 
-        assert not ident.operator.multiple_outputs  # pylint: disable=maybe-no-member
+        assert not ident.operator.multiple_outputs
         assert ti.xcom_pull() == [35, 36]
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
@@ -193,10 +193,10 @@ class TestAirflowTaskDecorator(TestPythonBase):
             return num + 2
 
         with pytest.raises(TypeError):
-            add_number(2, 3)  # pylint: disable=too-many-function-args
+            add_number(2, 3)
         with pytest.raises(TypeError):
-            add_number()  # pylint: disable=no-value-for-parameter
-        add_number('test')  # pylint: disable=no-value-for-parameter
+            add_number()
+        add_number('test')
 
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
@@ -227,7 +227,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         )
 
         with pytest.raises(AirflowException):
-            # pylint: disable=maybe-no-member
+
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_fail_multiple_outputs_no_dict(self):
@@ -245,7 +245,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         )
 
         with pytest.raises(AirflowException):
-            # pylint: disable=maybe-no-member
+
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_python_callable_arguments_are_templatized(self):
@@ -271,7 +271,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         assert len(recorded_calls) == 1
@@ -302,7 +302,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         assert len(recorded_calls) == 1
         self._assert_calls_equal(
@@ -341,8 +341,8 @@ class TestAirflowTaskDecorator(TestPythonBase):
             do_run_2 = do_run()
             assert ['do_run', 'do_run__1', 'do_run__2'] == self.dag.task_ids
 
-        assert do_run_1.operator.task_id == 'do_run__1'  # pylint: disable=maybe-no-member
-        assert do_run_2.operator.task_id == 'do_run__2'  # pylint: disable=maybe-no-member
+        assert do_run_1.operator.task_id == 'do_run__1'
+        assert do_run_2.operator.task_id == 'do_run__2'
 
     def test_multiple_calls_in_task_group(self):
         """Test calling task multiple times in a TaskGroup"""
@@ -393,7 +393,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
             state=State.RUNNING,
         )
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)  # pylint: disable=maybe-no-member
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(key='number') == test_number + 1
@@ -409,7 +409,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         with self.dag:
             ret = do_run()
-        assert ret.operator.owner == 'airflow'  # pylint: disable=maybe-no-member
+        assert ret.operator.owner == 'airflow'
 
         @task_decorator
         def test_apply_default_raise(unknow):
@@ -417,14 +417,14 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         with pytest.raises(TypeError):
             with self.dag:
-                test_apply_default_raise()  # pylint: disable=no-value-for-parameter
+                test_apply_default_raise()
 
         @task_decorator
         def test_apply_default(owner):
             return owner
 
         with self.dag:
-            ret = test_apply_default()  # pylint: disable=no-value-for-parameter
+            ret = test_apply_default()
         assert 'owner' in ret.operator.op_kwargs
 
     def test_xcom_arg(self):
@@ -442,7 +442,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
         with self.dag:
             bigger_number = add_2(test_number)
-            ret = add_num(bigger_number, XComArg(bigger_number.operator))  # pylint: disable=maybe-no-member
+            ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
         dr = self.dag.create_dagrun(
             run_id=DagRunType.MANUAL,
@@ -451,14 +451,11 @@ class TestAirflowTaskDecorator(TestPythonBase):
             state=State.RUNNING,
         )
 
-        bigger_number.operator.run(  # pylint: disable=maybe-no-member
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
-        )
-        # pylint: disable=no-member, maybe-no-member
+        bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == 'add_num'][0]
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
-        # pylint: enable=no-member, maybe-no-member
 
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
@@ -500,4 +497,4 @@ class TestAirflowTaskDecorator(TestPythonBase):
         with self.dag:
             ret = add_2(test_number)
 
-        assert ret.operator.doc_md.strip(), "Adds 2 to number."  # pylint: disable=maybe-no-member
+        assert ret.operator.doc_md.strip(), "Adds 2 to number."

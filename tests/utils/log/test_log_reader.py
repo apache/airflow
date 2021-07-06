@@ -42,7 +42,7 @@ class TestLogView(unittest.TestCase):
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
 
     def setUp(self):
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
         # Make sure that the configure_logging is not cached
         self.old_modules = dict(sys.modules)

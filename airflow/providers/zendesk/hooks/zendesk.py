@@ -92,7 +92,6 @@ class ZendeskHook(BaseHook):
             keys += query_params['include'].split(',')
         results = {key: results[key] for key in keys}
 
-        # pylint: disable=too-many-nested-blocks
         if get_all_pages:
             while next_page is not None:
                 try:

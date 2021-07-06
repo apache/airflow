@@ -580,7 +580,7 @@ Breeze can also be used to prepare airflow packages - both "apache-airflow" main
 provider packages.
 
 You can read more about testing provider packages in
-`TESTING.rst <TESTING.rst#running-tests-with-packages>`_
+`TESTING.rst <TESTING.rst#running-tests-with-provider-packages>`_
 
 There are several commands that you can run in Breeze to manage and build packages:
 
@@ -1068,6 +1068,7 @@ database client:
 
 You can change the used host port numbers by setting appropriate environment variables:
 
+* ``SSH_PORT``
 * ``WEBSERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
@@ -1263,7 +1264,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1445,16 +1446,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
-  --github-registry GITHUB_REGISTRY
-          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-          registry.
-
-          Default: ghcr.io.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
-
-                 ghcr.io docker.pkg.github.com
-
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
@@ -1493,7 +1484,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1560,7 +1551,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1619,16 +1610,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
 
-  --github-registry GITHUB_REGISTRY
-          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-          registry.
-
-          Default: ghcr.io.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
-
-                 ghcr.io docker.pkg.github.com
-
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.
           Default: apache/airflow.
@@ -1683,7 +1664,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
 
   ####################################################################################################
@@ -1878,7 +1859,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1942,7 +1923,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2239,23 +2220,22 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Run selected static checks for currently changed files. You should specify static check that
         you would like to run or 'all' to run all checks. One of:
 
-                 all all-but-pylint airflow-config-yaml airflow-providers-available
-                 airflow-provider-yaml-files-ok base-operator bats-tests bats-in-container-tests
-                 black blacken-docs boring-cyborg build build-providers-dependencies
-                 check-apache-license check-builtin-literals check-executables-have-shebangs
-                 check-hooks-apply check-integrations check-merge-conflict check-xml
-                 consistent-pylint daysago-import-check debug-statements detect-private-key doctoc
-                 dont-use-safe-filter end-of-file-fixer fix-encoding-pragma flake8 flynt forbid-tabs
-                 helm-lint identity incorrect-use-of-LoggingMixin insert-license isort json-schema
-                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
-                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
-                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
+                 all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
+                 base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
+                 build build-providers-dependencies check-apache-license check-builtin-literals
+                 check-executables-have-shebangs check-hooks-apply check-integrations
+                 check-merge-conflict check-xml daysago-import-check debug-statements
+                 detect-private-key doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
+                 flake8 flynt forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
+                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
+                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
+                 no-relative-imports pre-commit-descriptions pre-commit-hook-names pretty-format-json
                  provide-create-sessions providers-changelogs providers-init-file provider-yamls
-                 pydevd pydocstyle pylint pylint-tests python-no-log-warn pyupgrade
-                 restrict-start_date rst-backticks setup-order setup-extra-packages shellcheck
-                 sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace ui-lint
-                 update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
-                 verify-db-migrations-documented version-sync www-lint yamllint
+                 pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date rst-backticks
+                 setup-order setup-extra-packages shellcheck sort-in-the-wild sort-spelling-wordlist
+                 stylelint trailing-whitespace ui-lint update-breeze-file update-extras
+                 update-local-yml-file update-setup-cfg-file verify-db-migrations-documented
+                 version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2350,7 +2330,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8
+                 3.6 3.7 3.8 3.9
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2445,9 +2425,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kind version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v0.10.0
+                 v0.11.1
 
-          Default: v0.10.0
+          Default: v0.11.1
 
   --helm-version HELM_VERSION
           Helm version - only used in case one of kind-cluster commands is used.
@@ -2692,16 +2672,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
           DockerHub. You need to be logged in to the registry in order to be able to pull/push from
           and you need to be committer to push to Apache Airflow' GitHub registry.
-
-  --github-registry GITHUB_REGISTRY
-          GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-          registry.
-
-          Default: ghcr.io.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
-
-                 ghcr.io docker.pkg.github.com
 
   -g, --github-repository GITHUB_REPOSITORY
           GitHub repository used to pull, push images when cache is used.

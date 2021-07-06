@@ -26,7 +26,6 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 
 
-# pylint: disable=too-many-instance-attributes, too-many-arguments
 class AWSDataSyncOperator(BaseOperator):
     r"""Find, Create, Update, Execute and Delete AWS DataSync Tasks.
 

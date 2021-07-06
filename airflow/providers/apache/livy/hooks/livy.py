@@ -291,7 +291,6 @@ class LivyHook(HttpHook, LoggingMixin):
         Build the post batch request body.
         For more information about the format refer to
         .. seealso:: https://livy.apache.org/docs/latest/rest-api.html
-
         :param file: Path of the file containing the application to execute (required).
         :type file: str
         :param proxy_user: User to impersonate when running the job.
@@ -327,8 +326,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: request body
         :rtype: dict
         """
-        # pylint: disable-msg=too-many-arguments
-
         body: Dict[str, Any] = {'file': file}
 
         if proxy_user:

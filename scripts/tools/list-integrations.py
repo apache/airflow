@@ -95,7 +95,7 @@ If you want to count the operators/sensors in each providers package, you can us
         sort -n -r
 """
 
-parser = argparse.ArgumentParser(  # noqa
+parser = argparse.ArgumentParser(
     description=HELP, formatter_class=argparse.RawTextHelpFormatter, epilog=EPILOG
 )
 # argparse handle `-h/--help/` internally

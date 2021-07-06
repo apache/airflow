@@ -25,7 +25,7 @@ cd "${AIRFLOW_SOURCES}"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
 curl -Lo "docker-context-files/constraints-3.7.txt" \
-    https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.7.txt
+    https://raw.githubusercontent.com/apache/airflow/constraints-2.1.0/constraints-3.7.txt
 
 # For Airflow pre 2.1 you need to use PIP 20.2.4 to install/download Airflow packages.
 pip install pip==20.2.4
@@ -39,7 +39,7 @@ pip download --dest docker-context-files \
 docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="2.0.2" \
+    --build-arg AIRFLOW_VERSION="2.1.0" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \

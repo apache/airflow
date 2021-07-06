@@ -79,3 +79,20 @@ Information on how to set knownHosts can be found here:
 https://airflow.apache.org/docs/helm-chart/latest/production-guide.html#knownhosts
 
 {{- end }}
+
+{{- if .Values.flower.extraNetworkPolicies }}
+
+DEPRECATION WARNING:
+   `flower.extraNetworkPolicies` has been renamed to `flower.networkPolicy.peers`.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+
+{{- if .Values.webserver.extraNetworkPolicies }}
+
+DEPRECATION WARNING:
+    `webserver.extraNetworkPolicies` has been renamed to `webserver.networkPolicy.peers`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}

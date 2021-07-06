@@ -143,7 +143,7 @@ class PodGenerator:
     :type priority_class_name: str
     """
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(
         self,
         image: Optional[str] = None,
         name: Optional[str] = None,

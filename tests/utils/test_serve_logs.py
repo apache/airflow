@@ -14,33 +14,97 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import unittest
-from multiprocessing import Process
-from os.path import basename
-from tempfile import NamedTemporaryFile
-from time import sleep
+from typing import TYPE_CHECKING
 
 import pytest
-import requests
+from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import conf
-from airflow.utils.serve_logs import serve_logs
+from airflow.utils.serve_logs import flask_app
+from tests.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from flask.testing import FlaskClient
 
 LOG_DATA = "Airflow log data" * 20
 
 
-@pytest.mark.quarantined
-class TestServeLogs(unittest.TestCase):
-    def test_should_serve_file(self):
-        log_dir = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
-        log_port = conf.get('celery', 'WORKER_LOG_SERVER_PORT')
-        with NamedTemporaryFile(dir=log_dir) as f:
-            f.write(LOG_DATA.encode())
-            f.flush()
-            sub_proc = Process(target=serve_logs)
-            sub_proc.start()
-            sleep(1)
-            log_url = f"http://localhost:{log_port}/log/{basename(f.name)}"
-            assert LOG_DATA == requests.get(log_url).content.decode()
-            sub_proc.terminate()
+@pytest.fixture
+def client(tmpdir):
+    with conf_vars({('logging', 'base_log_folder'): str(tmpdir)}):
+        app = flask_app()
+
+        yield app.test_client()
+
+
+@pytest.fixture
+def sample_log(tmpdir):
+    f = tmpdir / 'sample.log'
+    f.write(LOG_DATA.encode())
+
+    return f
+
+
+@pytest.fixture
+def signer():
+    return TimedJSONWebSignatureSerializer(
+        secret_key=conf.get('webserver', 'secret_key'),
+        algorithm_name='HS512',
+        expires_in=30,
+        # This isn't really a "salt", more of a signing context
+        salt='task-instance-logs',
+    )
+
+
+@pytest.mark.usefixtures('sample_log')
+class TestServeLogs:
+    def test_forbidden_no_auth(self, client: "FlaskClient"):
+        assert 403 == client.get('/log/sample.log').status_code
+
+    def test_should_serve_file(self, client: "FlaskClient", signer):
+        assert (
+            LOG_DATA
+            == client.get(
+                '/log/sample.log',
+                headers={
+                    'Authorization': signer.dumps('sample.log'),
+                },
+            ).data.decode()
+        )
+
+    def test_forbidden_too_long_validity(self, client: "FlaskClient", signer):
+        signer.expires_in = 3600
+        assert (
+            403
+            == client.get(
+                '/log/sample.log',
+                headers={
+                    'Authorization': signer.dumps('sample.log'),
+                },
+            ).status_code
+        )
+
+    def test_forbidden_expired(self, client: "FlaskClient", signer):
+        # Fake the time we think we are
+        signer.now = lambda: 0
+        assert (
+            403
+            == client.get(
+                '/log/sample.log',
+                headers={
+                    'Authorization': signer.dumps('sample.log'),
+                },
+            ).status_code
+        )
+
+    def test_wrong_context(self, client: "FlaskClient", signer):
+        signer.salt = None
+        assert (
+            403
+            == client.get(
+                '/log/sample.log',
+                headers={
+                    'Authorization': signer.dumps('sample.log'),
+                },
+            ).status_code
+        )

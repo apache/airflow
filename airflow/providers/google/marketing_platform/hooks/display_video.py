@@ -95,12 +95,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param query: Query object to be passed to request body.
         :type query: Dict[str, Any]
         """
-        response = (
-            self.get_conn()  # pylint: disable=no-member
-            .queries()
-            .createquery(body=query)
-            .execute(num_retries=self.num_retries)
-        )
+        response = self.get_conn().queries().createquery(body=query).execute(num_retries=self.num_retries)
         return response
 
     def delete_query(self, query_id: str) -> None:
@@ -110,12 +105,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param query_id: Query ID to delete.
         :type query_id: str
         """
-        (
-            self.get_conn()  # pylint: disable=no-member
-            .queries()
-            .deletequery(queryId=query_id)
-            .execute(num_retries=self.num_retries)
-        )
+        (self.get_conn().queries().deletequery(queryId=query_id).execute(num_retries=self.num_retries))
 
     def get_query(self, query_id: str) -> dict:
         """
@@ -124,24 +114,14 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param query_id: Query ID to retrieve.
         :type query_id: str
         """
-        response = (
-            self.get_conn()  # pylint: disable=no-member
-            .queries()
-            .getquery(queryId=query_id)
-            .execute(num_retries=self.num_retries)
-        )
+        response = self.get_conn().queries().getquery(queryId=query_id).execute(num_retries=self.num_retries)
         return response
 
     def list_queries(
         self,
     ) -> List[Dict]:
         """Retrieves stored queries."""
-        response = (
-            self.get_conn()  # pylint: disable=no-member
-            .queries()
-            .listqueries()
-            .execute(num_retries=self.num_retries)
-        )
+        response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
         return response.get('queries', [])
 
     def run_query(self, query_id: str, params: Dict[str, Any]) -> None:
@@ -154,7 +134,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :type params: Dict[str, Any]
         """
         (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .queries()
             .runquery(queryId=query_id, body=params)
             .execute(num_retries=self.num_retries)
@@ -176,7 +156,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         }
 
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .lineitems()
             .uploadlineitems(body=request_body)
             .execute(num_retries=self.num_retries)
@@ -193,7 +173,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :type request_body: Dict[str, Any]
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .lineitems()
             .downloadlineitems(body=request_body)
             .execute(num_retries=self.num_retries)
@@ -211,7 +191,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         https://developers.google.com/display-video/api/reference/rest/v1/sdfdownloadtasks/create
         """
         result = (
-            self.get_conn_to_display_video()  # pylint: disable=no-member
+            self.get_conn_to_display_video()
             .sdfdownloadtasks()
             .create(body=body_request)
             .execute(num_retries=self.num_retries)
@@ -226,7 +206,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :type operation_name: str
         """
         result = (
-            self.get_conn_to_display_video()  # pylint: disable=no-member
+            self.get_conn_to_display_video()
             .sdfdownloadtasks()
             .operations()
             .get(name=operation_name)
@@ -241,9 +221,5 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param resource_name: of the media that is being downloaded.
         :type resource_name: str
         """
-        request = (
-            self.get_conn_to_display_video()  # pylint: disable=no-member
-            .media()
-            .download_media(resource_name=resource_name)
-        )
+        request = self.get_conn_to_display_video().media().download_media(resource_name=resource_name)
         return request

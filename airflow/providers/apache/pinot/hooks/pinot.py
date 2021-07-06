@@ -107,7 +107,6 @@ class PinotAdminHook(BaseHook):
             cmd += ["-exec"]
         self.run_cli(cmd)
 
-    # pylint: disable=too-many-arguments
     def create_segment(
         self,
         generator_config_file: Optional[str] = None,
@@ -262,9 +261,8 @@ class PinotDbApiHook(DbApiHook):
 
     def get_conn(self) -> Any:
         """Establish a connection to pinot broker through pinot dbapi."""
-        # pylint: disable=no-member
         conn = self.get_connection(self.pinot_broker_conn_id)  # type: ignore
-        # pylint: enable=no-member
+
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,

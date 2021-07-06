@@ -175,7 +175,7 @@ class DecoratedOperator(BaseOperator):
         return args, kwargs
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def task_decorator_factory(

@@ -99,12 +99,9 @@ def reset_logging():
     manager = logging.root.manager
     manager.disabled = logging.NOTSET
     airflow_loggers = [
-        # pylint: disable=no-member
-        logger
-        for logger_name, logger in manager.loggerDict.items()
-        if logger_name.startswith('airflow')
+        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith('airflow')
     ]
-    for logger in airflow_loggers:  # pylint: disable=too-many-nested-blocks
+    for logger in airflow_loggers:
         if isinstance(logger, logging.Logger):
             logger.setLevel(logging.NOTSET)
             logger.propagate = True

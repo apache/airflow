@@ -873,7 +873,7 @@ This can be done by running this (it utilizes parallel preparation of the constr
 
 .. code-block:: bash
 
-    export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.6 3.7 3.8"
+    export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.6 3.7 3.8 3.9"
     for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
     do
       ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
@@ -923,7 +923,7 @@ as described in the static code checks documentation.
 Coding style and best practices
 ===============================
 
-Most of our coding style rules are enforced programmatically by flake8 and pylint (which are run automatically
+Most of our coding style rules are enforced programmatically by flake8 and mypy (which are run automatically
 on every pull request), but there are some rules that are not yet automated and are more Airflow specific or
 semantic than style
 

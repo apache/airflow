@@ -52,7 +52,6 @@ DEFAULT_MEMORY_IN_GB = 2.0
 DEFAULT_CPU = 1.0
 
 
-# pylint: disable=too-many-instance-attributes
 class AzureContainerInstancesOperator(BaseOperator):
     """
     Start a container on Azure Container Instances
@@ -135,7 +134,6 @@ class AzureContainerInstancesOperator(BaseOperator):
     template_fields = ('name', 'image', 'command', 'environment_variables')
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -294,7 +292,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             self.log.info("Deleting container group")
             try:
                 self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Could not delete container group")
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
@@ -302,7 +300,6 @@ class AzureContainerInstancesOperator(BaseOperator):
         last_message_logged = None
         last_line_logged = None
 
-        # pylint: disable=too-many-nested-blocks
         while True:
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
@@ -358,7 +355,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     return 1
                 else:
                     self.log.exception("Exception while getting container groups")
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.log.exception("Exception while getting container groups")
 
             sleep(1)

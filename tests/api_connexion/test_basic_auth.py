@@ -31,7 +31,7 @@ class TestBasicAuth:
     def set_attrs(self, minimal_app_for_api):
         self.app = minimal_app_for_api
 
-        sm = self.app.appbuilder.sm  # pylint: disable=no-member,invalid-name
+        sm = self.app.appbuilder.sm
         tester = sm.find_user(username="test")
         if not tester:
             role_admin = sm.find_role("Admin")

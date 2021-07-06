@@ -206,7 +206,6 @@ class SqoopHook(BaseHook):
 
         return cmd
 
-    # pylint: disable=too-many-arguments
     def import_table(
         self,
         table: str,
@@ -280,7 +279,6 @@ class SqoopHook(BaseHook):
 
         self.popen(cmd)
 
-    # pylint: disable=too-many-arguments
     def _export_cmd(
         self,
         table: str,
@@ -348,7 +346,6 @@ class SqoopHook(BaseHook):
 
         return cmd
 
-    # pylint: disable=too-many-arguments
     def export_table(
         self,
         table: str,

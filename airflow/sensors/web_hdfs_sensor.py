@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor  # noqa
 
 warnings.warn(

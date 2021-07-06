@@ -18,6 +18,8 @@
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+: "${EXECUTOR:?You must set EXECUTOR to one of 'KubernetesExecutor', 'CeleryExecutor', 'CeleryKubernetesExecutor' }"
+
 kind::make_sure_kubernetes_tools_are_installed
 kind::get_kind_cluster_name
 
@@ -60,9 +62,6 @@ function parse_tests_to_run() {
             "--verbosity=1"
             "--strict-markers"
             "--durations=100"
-            "--cov=airflow/"
-            "--cov-config=.coveragerc"
-            "--cov-report=xml:files/coverage=${KIND_CLUSTER_NAME}.xml"
             "--color=yes"
             "--maxfail=50"
             "--pythonwarnings=ignore::DeprecationWarning"
@@ -76,7 +75,7 @@ function create_virtualenv() {
     HOST_PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
     readonly HOST_PYTHON_VERSION
 
-    local virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv/${KIND_CLUSTER_NAME}_host_python_${HOST_PYTHON_VERSION}"
+    local virtualenv_path="${BUILD_CACHE_DIR}/.kubernetes_venv/${KIND_CLUSTER_NAME}_host_python_${HOST_PYTHON_VERSION}_${EXECUTOR}"
 
     mkdir -pv "${BUILD_CACHE_DIR}/.kubernetes_venv/"
     if [[ ! -d ${virtualenv_path} ]]; then
@@ -90,7 +89,7 @@ function create_virtualenv() {
 
     pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
-    pip install pytest freezegun pytest-cov \
+    pip install pytest freezegun \
       --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
     pip install -e ".[cncf.kubernetes,postgres]" \

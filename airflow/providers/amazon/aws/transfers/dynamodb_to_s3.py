@@ -88,7 +88,7 @@ class DynamoDBToS3Operator(BaseOperator):
     :type s3_bucket_name: str
     :param file_size: Flush file to s3 if file size >= file_size
     :type file_size: int
-    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>  # noqa: E501 pylint: disable=line-too-long
+    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>  # noqa: E501
     :type dynamodb_scan_kwargs: Optional[Dict[str, Any]]
     :param s3_key_prefix: Prefix of s3 object key
     :type s3_key_prefix: Optional[str]
@@ -147,6 +147,6 @@ class DynamoDBToS3Operator(BaseOperator):
             if getsize(temp_file.name) >= self.file_size:
                 _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix)
                 temp_file.close()
-                # pylint: disable=consider-using-with
+
                 temp_file = NamedTemporaryFile()
         return temp_file

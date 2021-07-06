@@ -27,7 +27,7 @@ isort:skip_file
 """
 
 # flake8: noqa: F401
-# pylint: disable=wrong-import-position
+
 import sys
 from typing import Callable, Optional
 
@@ -36,7 +36,7 @@ from airflow import version
 
 __version__ = version.version
 
-__all__ = ['__version__', 'login', 'DAG']
+__all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39']
 
 # Make `airflow` an namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
@@ -50,16 +50,17 @@ login: Optional[Callable] = None
 PY36 = sys.version_info >= (3, 6)
 PY37 = sys.version_info >= (3, 7)
 PY38 = sys.version_info >= (3, 8)
+PY39 = sys.version_info >= (3, 9)
 
 
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
     if name == "DAG":
-        from airflow.models.dag import DAG  # pylint: disable=redefined-outer-name
+        from airflow.models.dag import DAG
 
         return DAG
     if name == "AirflowException":
-        from airflow.exceptions import AirflowException  # pylint: disable=redefined-outer-name
+        from airflow.exceptions import AirflowException
 
         return AirflowException
     raise AttributeError(f"module {__name__} has no attribute {name}")
@@ -76,8 +77,8 @@ if not settings.LAZY_LOAD_PROVIDERS:
     providers_manager.ProvidersManager().initialize_providers_manager()
 
 
-# This is never executed, but tricks static analyzers (PyDev, PyCharm,
-# pylint, etc.) into knowing the types of these symbols, and what
+# This is never executed, but tricks static analyzers (PyDev, PyCharm,)
+# into knowing the types of these symbols, and what
 # they contain.
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False

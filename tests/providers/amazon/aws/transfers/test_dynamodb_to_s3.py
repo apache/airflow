@@ -27,7 +27,7 @@ class DynamodbToS3Test(unittest.TestCase):
     def setUp(self):
         self.output_queue = []
 
-    def mock_upload_file(self, Filename, Bucket, Key):  # pylint: disable=unused-argument,invalid-name
+    def mock_upload_file(self, Filename, Bucket, Key):
         with open(Filename) as f:
             lines = f.readlines()
             for line in lines:

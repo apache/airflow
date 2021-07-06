@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pylint: disable=wrong-import-order
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -51,10 +51,12 @@ from rich.console import Console
 from rich.progress import Progress
 from rich.syntax import Syntax
 
+ALL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9"]
+
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
-    from yaml import SafeLoader  # noqa
+    from yaml import SafeLoader
 
 INITIAL_CHANGELOG_CONTENT = """
 
@@ -112,7 +114,7 @@ from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
 
-logger = logging.getLogger(__name__)  # noqa
+logger = logging.getLogger(__name__)
 
 PY3 = sys.version_info[0] == 3
 
@@ -208,6 +210,7 @@ class ProviderPackageDetails(NamedTuple):
     documentation_provider_package_path: str
     provider_description: str
     versions: List[str]
+    excluded_python_versions: List[str]
 
 
 ENTITY_NAMES = {
@@ -756,7 +759,7 @@ def get_package_class_summary(
     for entity in EntityType:
         print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
 
-    entities_summary: Dict[EntityType, EntityTypeSummary] = {}  # noqa
+    entities_summary: Dict[EntityType, EntityTypeSummary] = {}
 
     for entity_type in EntityType:
         entities_summary[entity_type] = get_details_about_classes(
@@ -1298,7 +1301,7 @@ def get_provider_yaml(provider_package_id: str) -> Dict[str, Any]:
     if not os.path.exists(provider_yaml_file_name):
         raise Exception(f"The provider.yaml file is missing: {provider_yaml_file_name}")
     with open(provider_yaml_file_name) as provider_file:
-        provider_yaml_dict = yaml.load(provider_file, SafeLoader)  # noqa
+        provider_yaml_dict = yaml.load(provider_file, SafeLoader)
     return provider_yaml_dict
 
 
@@ -1445,6 +1448,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         documentation_provider_package_path=get_documentation_package_path(provider_package_id),
         provider_description=provider_info['description'],
         versions=provider_info['versions'],
+        excluded_python_versions=provider_info.get("excluded-python-versions") or [],
     )
 
 
@@ -1483,6 +1487,12 @@ def get_provider_jinja_context(
     )
     with open(changelog_path) as changelog_file:
         changelog = changelog_file.read()
+    supported_python_versions = [
+        p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
+    ]
+    python_requires = "~=3.6"
+    for p in provider_details.excluded_python_versions:
+        python_requires += f", !={p}"
     context: Dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1517,6 +1527,8 @@ def get_provider_jinja_context(
             provider_details.documentation_provider_package_path,
         ),
         "CHANGELOG": changelog,
+        "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
+        "PYTHON_REQUIRES": python_requires,
     }
     return context
 
@@ -1718,7 +1730,7 @@ def black_mode():
     config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
 
     target_versions = set(
-        target_version_option_callback(None, None, config.get('target_version', [])),  # noqa
+        target_version_option_callback(None, None, config.get('target_version', [])),
     )
 
     return Mode(
@@ -2335,7 +2347,7 @@ def generate_issue_content(package_ids: List[str], github_token: str, suffix: st
                 except UnknownObjectException:
                     # Fallback to issue if PR not found
                     try:
-                        pull_requests[pr_number] = repo.get_issue(pr_number)  # noqa (same fields as PR)
+                        pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
                     except UnknownObjectException:
                         console.print(f"[red]The PR #{pr_number} could not be found[/]")
                 progress.advance(task)

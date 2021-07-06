@@ -15,24 +15,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-description "Airflow scheduler daemon"
+"""Tests for Timetable.iter_between()."""
 
-start on started networking
-stop on (deconfiguring-networking or runlevel [016])
+from datetime import datetime, timedelta
 
-respawn
-respawn limit 5 10
+import pytest
 
-setuid airflow
-setgid airflow
+from airflow.settings import TIMEZONE
+from airflow.timetables.interval import DeltaDataIntervalTimetable
 
-# env AIRFLOW_CONFIG=
-# env AIRFLOW_HOME=
-# export AIRFLOW_CONFIG
-# export AIRFLOW_HOME
 
-# required setting, 0 sets it to unlimited. Scheduler will restart after every X runs
-env SCHEDULER_RUNS=5
-export SCHEDULER_RUNS
+@pytest.fixture()
+def timetable_1s():
+    return DeltaDataIntervalTimetable(timedelta(seconds=1))
 
-exec usr/local/bin/airflow scheduler -n ${SCHEDULER_RUNS}
+
+def test_end_date_before_start_date(timetable_1s):
+    start = datetime(2016, 2, 1, tzinfo=TIMEZONE)
+    end = datetime(2016, 1, 1, tzinfo=TIMEZONE)
+    message = r"start \([- :+\d]{25}\) > end \([- :+\d]{25}\)"
+    with pytest.raises(ValueError, match=message):
+        list(timetable_1s.iter_between(start, end, align=True))

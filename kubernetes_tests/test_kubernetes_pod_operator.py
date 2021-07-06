@@ -1,4 +1,3 @@
-# pylint: disable=unused-argument
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -71,7 +70,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         return "_" + unittest.TestCase.id(self).replace(".", "_")[::-1]
 
     def setUp(self):
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
         self.api_client = ApiClient()
         self.expected_pod = {
             'apiVersion': 'v1',
@@ -568,7 +567,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         volume_mount = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME_MOUNT)
         container = self.api_client.sanitize_for_serialization(PodDefaults.SIDECAR_CONTAINER)
         self.expected_pod['spec']['containers'][0]['args'] = args
-        self.expected_pod['spec']['containers'][0]['volumeMounts'].insert(0, volume_mount)  # noqa
+        self.expected_pod['spec']['containers'][0]['volumeMounts'].insert(0, volume_mount)
         self.expected_pod['spec']['volumes'].insert(0, volume)
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
@@ -818,9 +817,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_template_file(
-        self, mock_client, monitor_mock, start_mock  # pylint: disable=unused-argument
-    ):
+    def test_pod_template_file(self, mock_client, monitor_mock, start_mock):
         from airflow.utils.state import State
 
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
@@ -902,9 +899,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
     @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_priority_class_name(
-        self, mock_client, monitor_mock, start_mock  # pylint: disable=unused-argument
-    ):
+    def test_pod_priority_class_name(self, mock_client, monitor_mock, start_mock):
         """Test ability to assign priorityClassName to pod"""
         from airflow.utils.state import State
 
@@ -945,7 +940,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             )
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    def test_on_kill(self, monitor_mock):  # pylint: disable=unused-argument
+    def test_on_kill(self, monitor_mock):
         from airflow.utils.state import State
 
         client = kube_client.get_kube_client(in_cluster=False)
@@ -1016,6 +1011,3 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             create_mock.return_value = ("success", {}, {})
             k.execute(context)
             create_mock.assert_called_once()
-
-
-# pylint: enable=unused-argument

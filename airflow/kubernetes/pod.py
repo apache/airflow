@@ -20,14 +20,11 @@ This module is deprecated.
 Please use :mod:`kubernetes.client.models for V1ResourceRequirements and Port.
 """
 # flake8: noqa
-# pylint: disable=unused-import
+
 import warnings
 
 with warnings.catch_warnings():
-    from airflow.providers.cncf.kubernetes.backcompat.pod import (  # pylint: disable=unused-import
-        Port,
-        Resources,
-    )
+    from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources
 
 warnings.warn(
     "This module is deprecated. Please use `kubernetes.client.models for V1ResourceRequirements and Port.",

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator  # noqa
 
 warnings.warn(

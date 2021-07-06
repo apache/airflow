@@ -139,7 +139,7 @@ class PodLauncher(LoggingMixin):
         :param get_logs: whether to read the logs locally
         :return:  Tuple[State, Optional[str]]
         """
-        if get_logs:  # pylint: disable=too-many-nested-blocks
+        if get_logs:
             read_logs_since_sec = None
             last_log_time = None
             while True:

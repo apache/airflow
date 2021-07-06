@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator  # noqa
 
 warnings.warn(

@@ -186,9 +186,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method = delete_method.return_value.execute
         wait_for_operation_to_complete.return_value = None
         execute_method.return_value = {"name": "operation_id"}
-        res = self.gcf_function_hook.delete_function(  # pylint: disable=assignment-from-no-return
-            name=GCF_FUNCTION
-        )
+        res = self.gcf_function_hook.delete_function(name=GCF_FUNCTION)
         assert res is None
         delete_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
@@ -204,9 +202,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
         wait_for_operation_to_complete.return_value = None
-        res = self.gcf_function_hook.update_function(  # pylint: disable=assignment-from-no-return
-            update_mask=['a', 'b', 'c'], name=GCF_FUNCTION, body={}
-        )
+        res = self.gcf_function_hook.update_function(update_mask=['a', 'b', 'c'], name=GCF_FUNCTION, body={})
         assert res is None
         patch_method.assert_called_once_with(body={}, name='function', updateMask='a,b,c')
         execute_method.assert_called_once_with(num_retries=5)

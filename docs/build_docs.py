@@ -26,24 +26,14 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.utils.helpers import partition
-from docs.exts.docs_build import dev_index_generator, lint_checks  # pylint: disable=no-name-in-module
+from docs.exts.docs_build import dev_index_generator, lint_checks
 from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
-from docs.exts.docs_build.docs_builder import (  # pylint: disable=no-name-in-module
-    DOCS_DIR,
-    AirflowDocsBuilder,
-    get_available_packages,
-)
-from docs.exts.docs_build.errors import (  # pylint: disable=no-name-in-module
-    DocBuildError,
-    display_errors_summary,
-)
-from docs.exts.docs_build.fetch_inventories import fetch_inventories  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.github_action_utils import with_group  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.package_filter import process_package_filters  # pylint: disable=no-name-in-module
-from docs.exts.docs_build.spelling_checks import (  # pylint: disable=no-name-in-module
-    SpellingError,
-    display_spelling_error_summary,
-)
+from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
+from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
+from docs.exts.docs_build.fetch_inventories import fetch_inventories
+from docs.exts.docs_build.github_action_utils import with_group
+from docs.exts.docs_build.package_filter import process_package_filters
+from docs.exts.docs_build.spelling_checks import SpellingError, display_spelling_error_summary
 
 TEXT_RED = '\033[31m'
 TEXT_RESET = '\033[0m'

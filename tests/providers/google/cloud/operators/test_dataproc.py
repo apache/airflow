@@ -540,11 +540,11 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     ):
         cluster = mock.MagicMock()
         cluster.status.state = 0
-        cluster.status.State.DELETING = 0  # pylint: disable=no-member
+        cluster.status.State.DELETING = 0
 
         cluster2 = mock.MagicMock()
         cluster2.status.state = 0
-        cluster2.status.State.ERROR = 0  # pylint: disable=no-member
+        cluster2.status.State.ERROR = 0
 
         mock_create_cluster.side_effect = [AlreadyExists("test"), cluster2]
         mock_generator.return_value = [0]

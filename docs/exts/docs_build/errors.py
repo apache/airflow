@@ -104,7 +104,7 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> List[DocBuildErro
                         message=warning_parts[2],
                     )
                 )
-            except Exception:  # noqa pylint: disable=broad-except
+            except Exception:
                 # If an exception occurred while parsing the warning message, display the raw warning message.
                 sphinx_build_errors.append(
                     DocBuildError(file_path=None, line_no=None, message=sphinx_warning)

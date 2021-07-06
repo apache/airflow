@@ -26,7 +26,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 
 
-# pylint: disable=too-many-instance-attributes
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
@@ -108,7 +107,6 @@ class SqoopOperator(BaseOperator):
     )
     ui_color = '#7D8CA4'
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         *,
@@ -246,7 +244,7 @@ class SqoopOperator(BaseOperator):
         if self.hook is None:
             self.hook = self._get_hook()
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)  # pylint: disable=no-member
+        os.killpg(os.getpgid(self.hook.sub_process.pid), signal.SIGTERM)
 
     def _get_hook(self) -> SqoopHook:
         return SqoopHook(

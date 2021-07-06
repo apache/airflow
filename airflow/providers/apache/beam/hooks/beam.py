@@ -94,7 +94,7 @@ class BeamCommandRunner(LoggingMixin):
         self.log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
         self.process_line_callback = process_line_callback
         self.job_id: Optional[str] = None
-        # pylint: disable=consider-using-with
+
         self._proc = subprocess.Popen(
             cmd,
             shell=False,
@@ -185,7 +185,7 @@ class BeamHook(BaseHook):
         )
         cmd_runner.wait_for_done()
 
-    def start_python_pipeline(  # pylint: disable=too-many-arguments
+    def start_python_pipeline(
         self,
         variables: dict,
         py_file: str,
