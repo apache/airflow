@@ -297,7 +297,9 @@ class _SessionFactory(LoggingMixin):
             raise ValueError('Invalid SAML Assertion')
         return saml_assertion
 
-    def _get_web_identity_credential_fetcher(self):
+    def _get_web_identity_credential_fetcher(
+        self,
+    ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
         base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get('assume_role_with_web_identity_federation')
