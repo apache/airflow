@@ -60,7 +60,7 @@ class DagRunState(str, Enum):
     same name in TaskInstanceState.
     """
 
-    QUEUED = 'queued'
+    QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
