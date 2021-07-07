@@ -397,7 +397,10 @@ class TestECSOperator(unittest.TestCase):
         client_mock.list_tasks.assert_called_once_with(cluster='c', desiredStatus='RUNNING', family='f')
 
         start_mock.assert_not_called()
-        xcom_pull_mock.assert_called_once_with(key='ecs_task_arn', task_ids='task_task_arn')
+        xcom_pull_mock.assert_called_once_with(
+            key=self.ecs.REATTACH_XCOM_KEY,
+            task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id)
+        )
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
         xcom_del_mock.assert_called_once()
@@ -442,8 +445,8 @@ class TestECSOperator(unittest.TestCase):
         client_mock.run_task.assert_called_once()
         xcom_set_mock.assert_called_once_with(
             None,
-            key="ecs_task_arn",
-            task_id="task_task_arn",
+            key=self.ecs.REATTACH_XCOM_KEY,
+            task_id=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
             value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
         )
         wait_mock.assert_called_once_with()

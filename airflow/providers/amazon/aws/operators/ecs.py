@@ -148,6 +148,8 @@ class ECSOperator(BaseOperator):
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
     template_fields_renderers = {"overrides": "json"}
+    REATTACH_XCOM_KEY = "ecs_task_arn"
+    REATTACH_XCOM_TASK_ID_TEMPLATE = "{task_id}_task_arn"
 
     def __init__(
         self,
@@ -278,7 +280,12 @@ class ECSOperator(BaseOperator):
 
         if self.reattach:
             # Save the task ARN in XCom to be able to reattach it if needed
-            self._xcom_set(context, key="ecs_task_arn", value=self.arn, task_id=f"{self.task_id}_task_arn")
+            self._xcom_set(
+                context,
+                key=self.REATTACH_XCOM_KEY,
+                value=self.arn,
+                task_id=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
+            )
 
     def _xcom_set(self, context, key, value, task_id):
         XCom.set(
@@ -300,7 +307,6 @@ class ECSOperator(BaseOperator):
 
         # Check if the ECS task previously launched is already running
         previous_task_arn = self.xcom_pull(task_ids=f"{self.task_id}_task_arn", key="ecs_task_arn")
-        self.log.info(f"Previously launched task = {previous_task_arn}")
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
             self.log.info("Reattaching previously launched task: %s", self.arn)
