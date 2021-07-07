@@ -60,6 +60,7 @@ class DagRunState(str, Enum):
     same name in TaskInstanceState.
     """
 
+    QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
@@ -92,6 +93,7 @@ class State:
     task_states: Tuple[Optional[TaskInstanceState], ...] = (None,) + tuple(TaskInstanceState)
 
     dag_states: Tuple[DagRunState, ...] = (
+        DagRunState.QUEUED,
         DagRunState.SUCCESS,
         DagRunState.RUNNING,
         DagRunState.FAILED,
