@@ -19,11 +19,18 @@ from typing import List, Optional
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
+from sqlalchemy.orm import Query, Session
 
 from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_array_filter, apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    apply_array_filter,
+    apply_sorting,
+    check_limit,
+    format_datetime,
+    format_parameters,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     dagrun_collection_schema,
@@ -87,7 +94,7 @@ def get_dag_run(dag_id, dag_run_id, session):
 )
 @provide_session
 def get_dag_runs(
-    session,
+    session: Session,
     dag_id: str,
     start_date_gte: Optional[str] = None,
     start_date_lte: Optional[str] = None,
@@ -128,7 +135,7 @@ def get_dag_runs(
 
 
 def _fetch_dag_runs(
-    query,
+    query: Query,
     end_date_gte: Optional[str],
     end_date_lte: Optional[str],
     execution_date_gte: Optional[str],
@@ -201,7 +208,7 @@ def _apply_date_filters_to_query(
     ]
 )
 @provide_session
-def get_dag_runs_batch(session):
+def get_dag_runs_batch(session: Session):
     """Get list of DAG Runs"""
     body = request.get_json()
     try:
