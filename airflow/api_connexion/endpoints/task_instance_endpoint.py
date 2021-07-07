@@ -22,7 +22,7 @@ from sqlalchemy import and_, func
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import format_datetime, format_parameters
+from airflow.api_connexion.parameters import apply_array_filter, format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
     TaskInstanceReferenceCollection,
@@ -75,12 +75,6 @@ def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
     return task_instance_schema.dump(task_instance)
 
 
-def _apply_array_filter(query, key, values):
-    if values is not None:
-        query = query.filter(key.in_(values))
-    return query
-
-
 def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
     gte_value, lte_value = value_range
     if gte_value is not None:
@@ -120,7 +114,7 @@ def get_task_instances(
     end_date_lte: Optional[str] = None,
     duration_gte: Optional[float] = None,
     duration_lte: Optional[float] = None,
-    state: Optional[str] = None,
+    state: Optional[List[str]] = None,
     pool: Optional[List[str]] = None,
     queue: Optional[List[str]] = None,
     offset: Optional[int] = None,
@@ -144,9 +138,9 @@ def get_task_instances(
     )
     base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
     base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
-    base_query = _apply_array_filter(base_query, key=TI.state, values=state)
-    base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
-    base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+    base_query = apply_array_filter(base_query, key=TI.state, values=state)
+    base_query = apply_array_filter(base_query, key=TI.pool, values=pool)
+    base_query = apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()
@@ -185,7 +179,7 @@ def get_task_instances_batch(session=None):
         raise BadRequest(detail=str(err.messages))
     base_query = session.query(TI)
 
-    base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
+    base_query = apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
     base_query = _apply_range_filter(
         base_query,
         key=TI.execution_date,
@@ -202,9 +196,9 @@ def get_task_instances_batch(session=None):
     base_query = _apply_range_filter(
         base_query, key=TI.duration, value_range=(data["duration_gte"], data["duration_lte"])
     )
-    base_query = _apply_array_filter(base_query, key=TI.state, values=data["state"])
-    base_query = _apply_array_filter(base_query, key=TI.pool, values=data["pool"])
-    base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
+    base_query = apply_array_filter(base_query, key=TI.state, values=data["state"])
+    base_query = apply_array_filter(base_query, key=TI.pool, values=data["pool"])
+    base_query = apply_array_filter(base_query, key=TI.queue, values=data["queue"])
 
     # Count elements before joining extra columns
     total_entries = base_query.with_entities(func.count('*')).scalar()

@@ -564,6 +564,7 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterState'
         - $ref: '#/components/parameters/OrderBy'
       responses:
         '200':
@@ -2809,6 +2810,7 @@ components:
             Returns objects greater or equal the specified date.
 
             This can be combined with end_date_lte parameter to receive only the selected period.
+
         end_date_lte:
           type: string
           format: date-time
@@ -2816,6 +2818,15 @@ components:
             Returns objects less than or equal to the specified date.
 
             This can be combined with end_date_gte parameter to receive only the selected period.
+
+        state:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with the given state.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
 
     ListTaskInstanceForm:
       type: object

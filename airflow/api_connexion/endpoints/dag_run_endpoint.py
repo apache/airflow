@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, Optional
+
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
@@ -21,7 +23,7 @@ from sqlalchemy import or_
 from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import apply_array_filter, apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     dagrun_collection_schema,
@@ -86,16 +88,17 @@ def get_dag_run(dag_id, dag_run_id, session):
 @provide_session
 def get_dag_runs(
     session,
-    dag_id,
-    start_date_gte=None,
-    start_date_lte=None,
-    execution_date_gte=None,
-    execution_date_lte=None,
-    end_date_gte=None,
-    end_date_lte=None,
-    offset=None,
-    limit=None,
-    order_by='id',
+    dag_id: str,
+    start_date_gte: Optional[str] = None,
+    start_date_lte: Optional[str] = None,
+    execution_date_gte: Optional[str] = None,
+    execution_date_lte: Optional[str] = None,
+    end_date_gte: Optional[str] = None,
+    end_date_lte: Optional[str] = None,
+    state: Optional[List[str]] = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
+    order_by: str = 'id',
 ):
     """Get all DAG Runs."""
     query = session.query(DagRun)
@@ -115,6 +118,7 @@ def get_dag_runs(
         execution_date_lte,
         start_date_gte,
         start_date_lte,
+        state,
         limit,
         offset,
         order_by,
@@ -125,15 +129,16 @@ def get_dag_runs(
 
 def _fetch_dag_runs(
     query,
-    end_date_gte,
-    end_date_lte,
-    execution_date_gte,
-    execution_date_lte,
-    start_date_gte,
-    start_date_lte,
-    limit,
-    offset,
-    order_by,
+    end_date_gte: Optional[str],
+    end_date_lte: Optional[str],
+    execution_date_gte: Optional[str],
+    execution_date_lte: Optional[str],
+    start_date_gte: Optional[str],
+    start_date_lte: Optional[str],
+    state: Optional[List[str]],
+    limit: Optional[int],
+    offset: Optional[int],
+    order_by: str,
 ):
     query = _apply_date_filters_to_query(
         query,
@@ -144,11 +149,14 @@ def _fetch_dag_runs(
         start_date_gte,
         start_date_lte,
     )
+
+    query = apply_array_filter(query, key=DagRun.state, values=state)
+
     # Count items
     total_entries = query.count()
     # sort
     to_replace = {"dag_run_id": "run_id"}
-    allowed_filter_attrs = [
+    allowed_sort_attrs = [
         "id",
         "state",
         "dag_id",
@@ -159,7 +167,7 @@ def _fetch_dag_runs(
         "external_trigger",
         "conf",
     ]
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     # apply offset and limit
     dag_run = query.offset(offset).limit(limit).all()
     return dag_run, total_entries
@@ -218,6 +226,7 @@ def get_dag_runs_batch(session):
         data["execution_date_lte"],
         data["start_date_gte"],
         data["start_date_lte"],
+        date["state"],
         data["page_limit"],
         data["page_offset"],
         order_by=data.get('order_by', "id"),

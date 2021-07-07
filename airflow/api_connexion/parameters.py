@@ -89,6 +89,13 @@ def format_parameters(params_formatters: Dict[str, Callable[..., bool]]) -> Call
     return format_parameters_decorator
 
 
+def apply_array_filter(query, key, values):
+    """Apply a filter to a query."""
+    if values is not None:
+        query = query.filter(key.in_(values))
+    return query
+
+
 def apply_sorting(query, order_by, to_replace=None, allowed_attrs=None):
     """Apply sorting to query"""
     lstriped_orderby = order_by.lstrip('-')

@@ -111,6 +111,7 @@ class DagRunsBatchFormSchema(Schema):
     start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
     end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
     end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
+    state = fields.List(fields.Str(), missing=None)
 
 
 dagrun_schema = DAGRunSchema()
