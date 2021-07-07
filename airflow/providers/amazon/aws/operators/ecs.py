@@ -229,7 +229,7 @@ class ECSOperator(BaseOperator):
         if self.reattach:
             # Clear the XCom value storing the ECS task ARN if the task has completed
             # as we can't reattach it anymore
-            self._xcom_del(session, f"{self.task_id}_task_arn")
+            self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
 
         if self.do_xcom_push:
             return self._last_log_message()
@@ -306,7 +306,10 @@ class ECSOperator(BaseOperator):
         running_tasks = list_tasks_resp['taskArns']
 
         # Check if the ECS task previously launched is already running
-        previous_task_arn = self.xcom_pull(task_ids=f"{self.task_id}_task_arn", key="ecs_task_arn")
+        previous_task_arn = self.xcom_pull(
+            task_ids=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
+            key=self.REATTACH_XCOM_KEY,
+        )
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
             self.log.info("Reattaching previously launched task: %s", self.arn)
