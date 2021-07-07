@@ -81,7 +81,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -1480,7 +1480,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=True,
-        dag_run_state: str = State.QUEUED,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run=False,
         session=None,
         get_tis=False,
@@ -1606,7 +1606,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=False,
-        dag_run_state=State.QUEUED,
+        dag_run_state=DagRunState.QUEUED,
         dry_run=False,
     ):
         all_tis = []
@@ -1968,7 +1968,7 @@ class DAG(LoggingMixin):
     @provide_session
     def create_dagrun(
         self,
-        state: State,
+        state: DagRunState,
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         start_date: Optional[datetime] = None,
@@ -1990,7 +1990,7 @@ class DAG(LoggingMixin):
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: airflow.utils.state.State
+        :type state: airflow.utils.state.DagRunState
         :param start_date: the date this dag run should be evaluated
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered

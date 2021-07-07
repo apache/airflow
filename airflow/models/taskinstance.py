@@ -73,7 +73,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.timeout import timeout
 
 try:
@@ -138,7 +138,7 @@ def clear_task_instances(
     session,
     activate_dag_runs=None,
     dag=None,
-    dag_run_state: Union[str, Literal[False]] = State.QUEUED,
+    dag_run_state: Union[DagRunState, Literal[False]] = DagRunState.QUEUED,
 ):
     """
     Clears a set of task instances, but makes sure the running ones
