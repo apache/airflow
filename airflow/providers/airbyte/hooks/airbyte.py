@@ -127,7 +127,7 @@ class AirbyteHook(HttpHook):
                 return True, 'Connection successfully tested'
             else:
                 return False, res.text
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             return False, str(e)
         finally:
             self.method = 'POST'

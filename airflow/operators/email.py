@@ -50,7 +50,7 @@ class EmailOperator(BaseOperator):
     template_ext = ('.html',)
     ui_color = '#e6faf9'
 
-    def __init__(  # pylint: disable=invalid-name
+    def __init__(
         self,
         *,
         to: Union[List[str], str],
@@ -65,11 +65,11 @@ class EmailOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.to = to  # pylint: disable=invalid-name
+        self.to = to
         self.subject = subject
         self.html_content = html_content
         self.files = files or []
-        self.cc = cc  # pylint: disable=invalid-name
+        self.cc = cc
         self.bcc = bcc
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset

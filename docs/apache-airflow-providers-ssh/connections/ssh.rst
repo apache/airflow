@@ -49,10 +49,10 @@ Extra (optional)
     * ``private_key_passphrase`` - Content of the private key passphrase used to decrypt the private key.
     * ``timeout`` - An optional timeout (in seconds) for the TCP connect. Default is ``10``.
     * ``compress`` - ``true`` to ask the remote client/server to compress traffic; ``false`` to refuse compression. Default is ``true``.
-    * ``no_host_key_check`` - Set to ``false`` to restrict connecting to hosts with either no entries in ``~/.ssh/known_hosts`` (Hosts file) or not present in the ``host_key`` extra. This provides maximum protection against trojan horse attacks, but can be troublesome when the ``/etc/ssh/ssh_known_hosts`` file is poorly maintained or connections to new hosts are frequently made. This option forces the user to manually add all new hosts. Default is ``true``, ssh will automatically add new host keys to the user known hosts files.
+    * ``no_host_key_check`` - Set to ``false`` to restrict connecting to hosts with no entries in ``~/.ssh/known_hosts`` (Hosts file). This provides maximum protection against trojan horse attacks, but can be troublesome when the ``/etc/ssh/ssh_known_hosts`` file is poorly maintained or connections to new hosts are frequently made. This option forces the user to manually add all new hosts. Default is ``true``, ssh will automatically add new host keys to the user known hosts files.
     * ``allow_host_key_change`` - Set to ``true`` if you want to allow connecting to hosts that has host key changed or when you get 'REMOTE HOST IDENTIFICATION HAS CHANGED' error.  This wont protect against Man-In-The-Middle attacks. Other possible solution is to remove the host entry from ``~/.ssh/known_hosts`` file. Default is ``false``.
     * ``look_for_keys`` - Set to ``false`` if you want to disable searching for discoverable private key files in ``~/.ssh/``
-    * ``host_key`` - The base64 encoded ssh-rsa public key of the host, as you would find in the ``known_hosts`` file. Specifying this, along with ``no_host_key_check=False`` allows you to only make the connection if the public key of the endpoint matches this value.
+    * ``host_key`` - The base64 encoded ssh-rsa public key of the host or "ssh-<key type> <key data>" (as you would find in the ``known_hosts`` file). Specifying this allows making the connection if and only if the public key of the endpoint matches this value.
 
     Example "extras" field:
 
@@ -63,7 +63,6 @@ Extra (optional)
           "timeout": "10",
           "compress": "false",
           "look_for_keys": "false",
-          "no_host_key_check": "false",
           "allow_host_key_change": "false",
           "host_key": "AAAHD...YDWwq=="
        }

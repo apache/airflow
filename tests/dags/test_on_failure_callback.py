@@ -31,7 +31,7 @@ args = {
 dag = DAG(dag_id='test_om_failure_callback_dag', default_args=args)
 
 
-def write_data_to_callback(*arg, **kwargs):  # pylint: disable=unused-argument
+def write_data_to_callback(*arg, **kwargs):
     with open(os.environ.get('AIRFLOW_CALLBACK_FILE'), "w+") as f:
         f.write("Callback fired")
 

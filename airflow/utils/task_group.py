@@ -247,7 +247,7 @@ class TaskGroup(TaskMixin):
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 
-    def __enter__(self):
+    def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)
         return self
 
@@ -345,7 +345,7 @@ class TaskGroupContext:
     _previous_context_managed_task_groups: List[TaskGroup] = []
 
     @classmethod
-    def push_context_managed_task_group(cls, task_group: TaskGroup):  # pylint: disable=redefined-outer-name
+    def push_context_managed_task_group(cls, task_group: TaskGroup):
         """Push a TaskGroup into the list of managed TaskGroups."""
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)

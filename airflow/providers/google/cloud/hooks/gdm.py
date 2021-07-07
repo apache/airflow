@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-method
+class GoogleDeploymentManagerHook(GoogleBaseHook):
     """
     Interact with Google Cloud Deployment Manager using the Google Cloud connection.
     This allows for scheduled and programmatic inspection and deletion fo resources managed by GDM.
@@ -55,7 +55,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
         self,
-        project_id: Optional[str] = None,  # pylint: disable=too-many-arguments
+        project_id: Optional[str] = None,
         deployment_filter: Optional[str] = None,
         order_by: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
@@ -72,15 +72,13 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         """
         deployments = []  # type: List[Dict]
         conn = self.get_conn()
-        # pylint: disable=no-member
+
         request = conn.deployments().list(project=project_id, filter=deployment_filter, orderBy=order_by)
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             deployments.extend(response.get("deployments", []))
-            request = conn.deployments().list_next(  # pylint: disable=no-member
-                previous_request=request, previous_response=response
-            )
+            request = conn.deployments().list_next(previous_request=request, previous_response=response)
 
         return deployments
 
@@ -101,7 +99,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):  # pylint: disable=abstract-m
         :rtype: None
         """
         conn = self.get_conn()
-        # pylint: disable=no-member
+
         request = conn.deployments().delete(
             project=project_id, deployment=deployment, deletePolicy=delete_policy
         )

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# pylint: disable=too-many-lines
+
 """This module contains Google AutoML operators."""
 import ast
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -280,7 +280,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         model_id: str,
@@ -577,7 +577,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         dataset_id: str,

@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook  # noqa
 
 warnings.warn(

@@ -110,7 +110,6 @@ class S3ToGCSOperator(S3ListOperator):
     )
     ui_color = '#e09411'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -168,7 +167,6 @@ class S3ToGCSOperator(S3ListOperator):
             impersonation_chain=self.google_impersonation_chain,
         )
 
-        # pylint: disable=too-many-nested-blocks
         if not self.replace:
             # if we are not replacing -> list all files in the GCS bucket
             # and only keep those files which are present in

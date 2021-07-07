@@ -18,7 +18,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.utils.log.task_handler_with_custom_formatter import TaskHandlerWithCustomFormatter  # noqa
 
 warnings.warn(

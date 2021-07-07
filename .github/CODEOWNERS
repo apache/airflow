@@ -12,7 +12,7 @@
 /airflow/executors/celery_kubernetes_executor.py @dimberman
 
 # Helm Chart
-/chart/ @dimberman @ashb @kaxil
+/chart/ @dimberman @ashb @kaxil @jedcunningham
 
 
 # Docs
@@ -21,7 +21,7 @@
 # Docs (without Providers)
 /docs/apache-airflow @kaxil
 /docs/docker-stack @kaxil
-/docs/helm-chart @kaxil
+/docs/helm-chart @kaxil @jedcunningham
 /docs/*.py @kaxil
 
 # API
@@ -38,6 +38,9 @@
 /airflow/security/permissions.py @jhtimmins
 /airflow/www/security.py @jhtimmins
 /airflow/api_connexion/security.py @jhtimmins
+
+# Calendar/Timetables
+/airflow/timetables/ @uranusjr
 
 # Providers
 /airflow/providers/google/ @turbaszek

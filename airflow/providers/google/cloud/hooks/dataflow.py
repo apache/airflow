@@ -44,7 +44,7 @@ JOB_ID_PATTERN = re.compile(
     r"Submitted job: (?P<job_id_java>.*)|Created job with id: \[(?P<job_id_python>.*)\]"
 )
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def process_line_and_extract_dataflow_job_id_callback(
@@ -184,7 +184,7 @@ class _DataflowJobsController(LoggingMixin):
         * for the batch pipeline, wait for the jobs to complete.
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         dataflow: Any,
         project_number: str,
@@ -230,7 +230,6 @@ class _DataflowJobsController(LoggingMixin):
                 return True
         return False
 
-    # pylint: disable=too-many-nested-blocks
     def _get_current_jobs(self) -> List[dict]:
         """
         Helper method to get list of jobs that start with job name or id
@@ -605,7 +604,7 @@ class DataflowHook(GoogleBaseHook):
             job_class=job_class,
             process_line_callback=process_line_and_extract_dataflow_job_id_callback(on_new_job_id_callback),
         )
-        self.wait_for_done(  # pylint: disable=no-value-for-parameter
+        self.wait_for_done(
             job_name=name,
             location=location,
             job_id=self.job_id,
@@ -696,7 +695,7 @@ class DataflowHook(GoogleBaseHook):
                 environment.update({key: variables[key]})
 
         service = self.get_conn()
-        # pylint: disable=no-member
+
         request = (
             service.projects()
             .locations()
@@ -756,7 +755,7 @@ class DataflowHook(GoogleBaseHook):
         """
         service = self.get_conn()
         request = (
-            service.projects()  # pylint: disable=no-member
+            service.projects()
             .locations()
             .flexTemplates()
             .launch(projectId=project_id, body=body, location=location)
@@ -784,7 +783,7 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
-    def start_python_dataflow(  # pylint: disable=too-many-arguments
+    def start_python_dataflow(
         self,
         job_name: str,
         variables: dict,
@@ -862,7 +861,7 @@ class DataflowHook(GoogleBaseHook):
             process_line_callback=process_line_and_extract_dataflow_job_id_callback(on_new_job_id_callback),
         )
 
-        self.wait_for_done(  # pylint: disable=no-value-for-parameter
+        self.wait_for_done(
             job_name=name,
             location=location,
             job_id=self.job_id,
@@ -1010,9 +1009,7 @@ class DataflowHook(GoogleBaseHook):
         ]
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(  # pylint: disable=subprocess-run-check
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.log.info("Output: %s", proc.stdout.decode())
         self.log.warning("Stderr: %s", proc.stderr.decode())
         self.log.info("Exit code %d", proc.returncode)

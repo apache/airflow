@@ -37,7 +37,6 @@ env:
   VERBOSE: "true"
   DOCKER_CACHE: "pulled"
   USE_GITHUB_REGISTRY: "true"
-  GITHUB_REGISTRY: "docker.pkg.github.com"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -268,8 +267,6 @@ jobs:
       BACKEND: sqlite
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       WAIT_FOR_IMAGE: ${{ needs.build-info.outputs.waitForImage }}
-    outputs:
-      githubRegistry: ${{ steps.wait-for-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -297,9 +294,6 @@ jobs:
         # We are utilising single job to wait for all images because this job merely waits
         # for the images to be available.
         # The test jobs wait for it to complete if WAIT_FOR_IMAGE is 'true'!
-        # The job will set the output "githubRegistry" - result of auto-detect which registry has
-        # been used by checking where the image can be downloaded from.
-        #
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
 
 
@@ -310,10 +304,9 @@ jobs:
     needs: [build-info, ci-images]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "pylint,identity"
+      SKIP: "identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -340,20 +333,20 @@ jobs:
 ${{ hashFiles('setup.py', 'setup.cfg') }}"
           restore-keys: "\
 pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
-      - name: "Cache pre-commit envs: no-pylint"
+      - name: "Cache pre-commit envs"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+          key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
+          restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
 
       - name: "Cache eslint"
         uses: actions/cache@v2
         with:
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
-      - name: "Static checks: except pylint"
+      - name: "Static checks"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
           VERBOSE: false
@@ -368,7 +361,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,mypy,flake8,pylint,bats-in-container-tests,identity"
+      SKIP: "build,mypy,flake8,bats-in-container-tests,identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'true'
@@ -400,68 +393,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 ${{ hashFiles('setup.py', 'setup.cfg') }}"
           restore-keys: "\
 pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
-      - name: "Cache pre-commit envs: no-pylint"
+      - name: "Cache pre-commit envs"
         uses: actions/cache@v2
         with:
           path: ~/.cache/pre-commit
-          key: "pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
+          key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-no-pylint-${{steps.host-python-version.outputs.host-python-version}}
+          restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
       - name: "Static checks: basic checks only"
         run: ./scripts/ci/static_checks/run_basic_static_checks.sh "${{ github.sha }}"
         env:
           VERBOSE: false
-
-  static-checks-pylint:
-    timeout-minutes: 60
-    name: "Pylint"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info, ci-images]
-    if: needs.build-info.outputs.basic-checks-only == 'false'
-    env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      # We want to make sure we have latest sources as only in_container scripts are added
-      # to the image but we want to static-check all of them
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
-      PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
-    steps:
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
-      - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
-      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Get Python version"
-        run: "echo \"::set-output name=host-python-version::$(python -c
- 'import platform; print(platform.python_version())')\""
-        id: host-python-version
-      - name: "Cache pre-commit local-installation"
-        uses: actions/cache@v2
-        with:
-          path: ~/.local
-          key: "pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('setup.py', 'setup.cfg') }}"
-          restore-keys: "\
-pre-commit-local-installation-${{steps.host-python-version.outputs.host-python-version}}-"
-      - name: "Cache pre-commit envs - pylint"
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pre-commit
-          key: "pre-commit-pylint-${{steps.host-python-version.outputs.host-python-version}}-\
-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: pre-commit-pylint-${{steps.host-python-version.outputs.host-python-version}}
-      - name: "Static checks: pylint"
-        run: ./scripts/ci/static_checks/run_static_checks.sh pylint
-        env:
-          VERBOSE: false
-
   docs:
     timeout-minutes: 45
     name: "Build docs"
@@ -470,7 +412,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     if: needs.build-info.outputs.docs-build == 'true'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -518,7 +459,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       NON_INTERACTIVE: "true"
       GENERATE_PROVIDERS_ISSUE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -567,7 +507,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       AIRFLOW_EXTRAS: "all"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       NON_INTERACTIVE: "true"
       GENERATE_PROVIDERS_ISSUE: "true"
     if: needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -611,7 +550,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: ""
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule')
@@ -671,7 +609,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       POSTGRES_VERSION: ${{ matrix.postgres-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -728,7 +665,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MYSQL_VERSION: ${{ matrix.mysql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -784,7 +720,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       MSSQL_VERSION: ${{ matrix.mssql-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -838,7 +773,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -890,7 +824,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       TEST_TYPES: "Quarantined"
       NUM_RUNS: 10
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -990,8 +923,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-    outputs:
-      githubRegistry: ${{ steps.wait-for-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1014,8 +945,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         # "build-images-workflow-run.yml' run as pull_request_target.
         # We are utilising single job to wait for all images because this job merely waits
         # For the images to be available. The test jobs wait for it to complete!
-        # The job will set the output "githubRegistry" - result of auto-detect which registry has
-        # been used by checking where the image can be downloaded from.
         #
         id: wait-for-images
         env:
@@ -1040,7 +969,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       EXECUTOR: ${{matrix.executor}}
       KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
       HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
-      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
@@ -1087,15 +1015,71 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: failure()
         with:
           name: >
-            kind-logs-
+            kind-logs-${{matrix.executor}}
           path: /tmp/kind_logs_*
           retention-days: 7
-      - name: "Upload artifact for coverage"
+
+  tests-helm-executor-upgrade:
+    timeout-minutes: 50
+    name: Helm Chart Executor Upgrade
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, prod-images]
+
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+      BACKEND: postgres
+      RUN_TESTS: "true"
+      RUNTIME: "kubernetes"
+      KUBERNETES_MODE: "image"
+      EXECUTOR: "KubernetesExecutor"
+      KIND_VERSION: "${{ needs.build-info.outputs.defaultKindVersion }}"
+      HELM_VERSION: "${{ needs.build-info.outputs.defaultHelmVersion }}"
+      CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.pythonVersionsListAsString}}
+      CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
+        ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+    if: needs.build-info.outputs.run-kubernetes-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+      - name: "Get all PROD images"
+        run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
+      - name: "Cache virtualenv for kubernetes testing"
+        uses: actions/cache@v2
+        with:
+          path: ".build/.kubernetes_venv"
+          key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
+  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+  -${{needs.build-info.outputs.pythonVersionsListAsString}}
+  -${{ hashFiles('setup.py','setup.cfg') }}"
+          restore-keys: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}-\
+  -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
+  -${{needs.build-info.outputs.pythonVersionsListAsString}}"
+      - name: "Cache bin folder with tools for kubernetes testing"
+        uses: actions/cache@v2
+        with:
+          path: ".build/kubernetes-bin"
+          key: "kubernetes-binaries
+  -${{ needs.build-info.outputs.defaultKindVersion }}\
+  -${{ needs.build-info.outputs.defaultHelmVersion }}"
+          restore-keys: "kubernetes-binaries"
+      - name: "Kubernetes Helm Chart Executor Upgrade Tests"
+        run: ./scripts/ci/kubernetes/ci_upgrade_cluster_with_different_executors_in_parallel.sh
+      - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
+        if: failure()
         with:
           name: >
-            coverage-k8s-
-          path: "./files/coverage*.xml"
+            kind-logs-KubernetesExecutor
+          path: /tmp/kind_logs_*
           retention-days: 7
 
   push-prod-images-to-github-registry:
@@ -1107,7 +1091,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs:
       - build-info
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-postgres
       - tests-mysql
@@ -1115,7 +1098,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-kubernetes
       - prod-images
       - docs
-    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
@@ -1127,7 +1109,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-      GITHUB_REGISTRY: ${{ needs.prod-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1171,7 +1152,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs:
       - build-info
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-postgres
       - tests-mysql
@@ -1179,7 +1159,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-kubernetes
       - ci-images
       - docs
-    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test') &&
@@ -1191,7 +1170,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1219,7 +1197,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - ci-images
       - prod-images
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-mysql
       - tests-mssql
@@ -1228,10 +1205,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
       CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: ${{needs.build-info.outputs.pythonVersionsListAsString}}
     # Only run it for direct pushes
-    # TODO: Generalize me (find a better way to select matching branches)
     if: >
       github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1-10-test' ||
       github.ref == 'refs/heads/v2-0-test' || github.ref == 'refs/heads/v2-1-test'
@@ -1289,7 +1264,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - docs
       - build-info
       - static-checks
-      - static-checks-pylint
       - tests-sqlite
       - tests-postgres
       - tests-mysql
@@ -1327,8 +1301,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: React UI tests
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, ci-images]
-    env:
-      GITHUB_REGISTRY: ${{ needs.ci-images.outputs.githubRegistry }}
     if: needs.build-info.outputs.run-ui-tests == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

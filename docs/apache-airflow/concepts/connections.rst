@@ -24,8 +24,10 @@ A Connection is essentially set of parameters - such as username, password and h
 
 They can be managed via the UI or via the CLI; see :doc:`/howto/connection` for more information on creating, editing and managing connections. There are customizable connection storage and backend options.
 
-You can use Connections directly from your own code, or you can use them via Hooks.
+You can use Connections directly from your own code, you can use them via Hooks or use them from :ref:`templates <concepts:jinja-templating>`::
 
+
+    echo {{ conn.<conn_id>.host }}
 
 Hooks
 -----

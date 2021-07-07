@@ -62,7 +62,7 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
     """
     # To maintain backwards compatibility, we import the task object into this file
     # This prevents breakages in dags that use `from airflow.operators.python import task`
-    from airflow.decorators.python import python_task  # noqa # pylint: disable=unused-import
+    from airflow.decorators.python import python_task
 
     warnings.warn(
         """airflow.operators.python.task is deprecated. Please use the following instead
@@ -295,7 +295,7 @@ class PythonVirtualenvOperator(PythonOperator):
     }
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task'}
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         python_callable: Callable,

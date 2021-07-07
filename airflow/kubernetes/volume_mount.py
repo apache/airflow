@@ -17,7 +17,7 @@
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1VolumeMount`."""
 # flake8: noqa
-# pylint: disable=unused-import
+
 
 import warnings
 

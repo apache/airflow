@@ -214,7 +214,7 @@ class AirflowInfo:
         try:
             handler_names = [get_fullname(handler) for handler in logging.getLogger('airflow.task').handlers]
             return ", ".join(handler_names)
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             return "NOT AVAILABLE"
 
     @property

@@ -160,9 +160,7 @@ class MySqlHook(DbApiHook):
 
         :return: a mysql connection object
         """
-        conn = self.connection or self.get_connection(
-            getattr(self, self.conn_name_attr)
-        )  # pylint: disable=no-member
+        conn = self.connection or self.get_connection(getattr(self, self.conn_name_attr))
 
         client_name = conn.extra_dejson.get('client', 'mysqlclient')
 
@@ -173,10 +171,10 @@ class MySqlHook(DbApiHook):
             return MySQLdb.connect(**conn_config)
 
         if client_name == 'mysql-connector-python':
-            import mysql.connector  # pylint: disable=no-name-in-module
+            import mysql.connector
 
             conn_config = self._get_conn_config_mysql_connector_python(conn)
-            return mysql.connector.connect(**conn_config)  # pylint: disable=no-member
+            return mysql.connector.connect(**conn_config)
 
         raise ValueError('Unknown MySQL client name provided!')
 
@@ -213,11 +211,9 @@ class MySqlHook(DbApiHook):
         conn.commit()
 
     @staticmethod
-    def _serialize_cell(
-        cell: object, conn: Optional[Connection] = None
-    ) -> object:  # pylint: disable=signature-differs   # noqa: D403
+    def _serialize_cell(cell: object, conn: Optional[Connection] = None) -> object:
         """
-        MySQLdb converts an argument to a literal
+        The package MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
 
         :param cell: The cell to insert into the table

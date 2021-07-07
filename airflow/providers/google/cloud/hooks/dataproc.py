@@ -25,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import ServerError
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
+from google.cloud.dataproc_v1beta2 import (
     Cluster,
     ClusterControllerClient,
     Job,
@@ -477,7 +477,7 @@ class DataprocHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def update_cluster(  # pylint: disable=too-many-arguments
+    def update_cluster(
         self,
         location: str,
         cluster_name: str,
@@ -820,7 +820,7 @@ class DataprocHook(GoogleBaseHook):
         project_id: str,
         job: dict,
         region: str = 'global',
-        job_error_states: Optional[Iterable[str]] = None,  # pylint: disable=unused-argument
+        job_error_states: Optional[Iterable[str]] = None,
     ) -> None:
         """
         Submits Google Cloud Dataproc job.

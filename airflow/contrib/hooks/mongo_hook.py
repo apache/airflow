@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.mongo.hooks.mongo import MongoHook  # noqa
 
 warnings.warn(

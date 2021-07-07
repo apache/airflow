@@ -86,7 +86,7 @@ class RunState:
         return str(self.__dict__)
 
 
-class DatabricksHook(BaseHook):  # noqa
+class DatabricksHook(BaseHook):
     """
     Interact with Databricks.
 

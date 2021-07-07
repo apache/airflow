@@ -74,8 +74,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         filename_template: str,
         gcp_key_path: Optional[str] = None,
         gcp_keyfile_dict: Optional[dict] = None,
-        # See: https://github.com/PyCQA/pylint/issues/2377
-        gcp_scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,  # pylint: disable=unsubscriptable-object
+        gcp_scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,
         project_id: Optional[str] = None,
     ):
         super().__init__(base_log_folder, filename_template)
@@ -158,7 +157,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             remote_log = blob.download_as_bytes().decode()
             log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             log = f'*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n'
             self.log.error(log)
             local_log, metadata = super()._read(ti, try_number)
@@ -179,13 +178,13 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
             log = '\n'.join([old_log, log]) if old_log else log
-        except Exception as e:  # pylint: disable=broad-except
-            if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
+        except Exception as e:
+            if not hasattr(e, 'resp') or e.resp.get('status') != '404':
                 log = f'*** Previous log discarded: {str(e)}\n\n' + log
                 self.log.info("Previous log discarded: %s", e)
 
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)

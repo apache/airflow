@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.apache.hdfs.sensors.hdfs`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsFolderSensor, HdfsRegexSensor
 
 warnings.warn(
@@ -32,7 +31,6 @@ warnings.warn(
 )
 
 
-# pylint: disable=too-many-ancestors
 class HdfsSensorFolder(HdfsFolderSensor):
     """This class is deprecated.
 
@@ -51,7 +49,6 @@ class HdfsSensorFolder(HdfsFolderSensor):
         super().__init__(*args, **kwargs)
 
 
-# pylint: disable=too-many-ancestors
 class HdfsSensorRegex(HdfsRegexSensor):
     """This class is deprecated.
 

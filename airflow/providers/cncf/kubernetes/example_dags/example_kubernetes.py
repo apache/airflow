@@ -163,3 +163,5 @@ with DAG(
         task_id="pod_task_xcom_result",
     )
     # [END howto_operator_k8s_write_xcom]
+
+    write_xcom >> pod_task_xcom_result

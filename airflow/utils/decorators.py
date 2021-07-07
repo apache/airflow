@@ -21,7 +21,7 @@ import warnings
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-T = TypeVar('T', bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar('T', bound=Callable)
 
 
 def apply_defaults(func: T) -> T:

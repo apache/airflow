@@ -99,7 +99,6 @@ class LivyOperator(BaseOperator):
         extra_headers: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
-        # pylint: disable-msg=too-many-arguments
 
         super().__init__(**kwargs)
 

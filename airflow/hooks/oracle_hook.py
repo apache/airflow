@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.oracle.hooks.oracle import OracleHook  # noqa
 
 warnings.warn(

@@ -35,19 +35,21 @@
 """Various security-related utils."""
 import re
 import socket
+from typing import List, Optional
 
 from airflow.utils.net import get_hostname
 
 
-def get_components(principal):  # noqa: D402
+def get_components(principal) -> Optional[List[str]]:
     """
-    get_components(principal) -> (short name, instance (FQDN), realm)
+    Returns components retrieved from the kerberos principal.
+    -> (short name, instance (FQDN), realm)
 
-    ``principal`` is the kerberos principal to parse.
+    ``principal`` .
     """
     if not principal:
         return None
-    return re.split(r'[\/@]', str(principal))
+    return re.split(r'[/@]', str(principal))
 
 
 def replace_hostname_pattern(components, host=None):

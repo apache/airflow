@@ -42,6 +42,14 @@ class ConnectorProtocol(Protocol):
         """
 
 
+#########################################################################################
+#                                                                                       #
+#  Note! Be extra careful when changing this file. This hook is used as a base for      #
+#  a number of DBApi-related hooks and providers depend on the methods implemented      #
+#  here. Whatever you add here, has to backwards compatible unless                      #
+#  `>=<Airflow version>` is added to providers' requirements using the new feature      #
+#                                                                                       #
+#########################################################################################
 class DbApiHook(BaseHook):
     """Abstract base class for sql hooks."""
 
@@ -311,7 +319,7 @@ class DbApiHook(BaseHook):
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):  # pylint: disable=unused-argument
+    def _serialize_cell(cell, conn=None):
         """
         Returns the SQL literal of the cell as a string.
 
@@ -360,7 +368,7 @@ class DbApiHook(BaseHook):
                     if cur.fetchone():
                         status = True
                         message = 'Connection successfully tested'
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             status = False
             message = str(e)
 

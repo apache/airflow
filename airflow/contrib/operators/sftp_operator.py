@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.sftp.operators.sftp import SFTPOperator  # noqa
 
 warnings.warn(

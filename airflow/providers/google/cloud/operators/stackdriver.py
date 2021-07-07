@@ -91,7 +91,6 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     )
     ui_color = "#e5ffcc"
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -576,7 +575,6 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

@@ -572,6 +572,7 @@ EOF
 #   BACKEND
 #   AIRFLOW_VERSION
 #   INSTALL_AIRFLOW_VERSION
+#   SSH_PORT
 #   WEBSERVER_HOST_PORT
 #   POSTGRES_HOST_PORT
 #   POSTGRES_VERSION
@@ -620,6 +621,7 @@ export PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION}"
 export BACKEND="${BACKEND}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
+export SSH_PORT="${SSH_PORT}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export FLOWER_HOST_PORT="${FLOWER_HOST_PORT}"
 export REDIS_HOST_PORT="${REDIS_HOST_PORT}"
@@ -637,7 +639,7 @@ export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
 export EXECUTOR="${EXECUTOR}"
-docker-compose --log-level INFO ${command}
+docker-compose ${command}
 EOF
     chmod u+x "${file}"
 }
@@ -1157,15 +1159,6 @@ function breeze::parse_arguments() {
             export USE_GITHUB_REGISTRY="true"
             shift
             ;;
-        --github-registry)
-            echo
-            echo "Using GitHub registry."
-            echo "GitHub registry used: ${2}"
-            echo
-            export GITHUB_REGISTRY="${2}"
-            export USE_GITHUB_REGISTRY="true"
-            shift 2
-            ;;
         -g | --github-repository)
             echo
             echo "Using GitHub registry."
@@ -1621,10 +1614,6 @@ function breeze::prepare_formatted_versions() {
     FORMATTED_GENERATE_CONSTRAINTS_MODE=$(echo "${_breeze_allowed_generate_constraints_modes=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_GENERATE_CONSTRAINTS_MODE
-
-    FORMATTED_GITHUB_REGISTRY=$(echo "${_breeze_allowed_github_registrys=""}" |
-        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
-    readonly FORMATTED_GITHUB_REGISTRY
 
     FORMATTED_POSTGRES_VERSIONS=$(echo "${_breeze_allowed_postgres_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
@@ -2844,16 +2833,6 @@ function breeze::flag_pull_push_docker_images() {
         DockerHub. You need to be logged in to the registry in order to be able to pull/push from
         and you need to be committer to push to Apache Airflow' GitHub registry.
 
---github-registry GITHUB_REGISTRY
-        GitHub registry used. GitHub has legacy Packages registry and Public Beta Container
-        registry.
-
-        Default: ${_breeze_default_github_registry:=}.
-
-        If you use this flag, automatically --use-github-registry flag is enabled.
-
-${FORMATTED_GITHUB_REGISTRY}
-
 -g, --github-repository GITHUB_REPOSITORY
         GitHub repository used to pull, push images when cache is used.
         Default: ${_breeze_default_github_repository:=}.
@@ -3184,7 +3163,6 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
     parameters::check_and_save_allowed_param "MSSQL_VERSION" "MSSql version" "--mssql-version"
-    parameters::check_and_save_allowed_param "GITHUB_REGISTRY" "GitHub Registry" "--github-registry"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
     parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
@@ -3197,6 +3175,7 @@ function breeze::check_and_save_all_params() {
 # Used global constants:
 #
 #     AIRFLOW_SOURCES
+#     SSH_PORT
 #     WEBSERVER_HOST_PORT
 #     POSTGRES_HOST_PORT
 #     MYSQL_HOST_PORT
@@ -3229,6 +3208,7 @@ function breeze::print_cheatsheet() {
         echo " Port forwarding:"
         echo
         echo "   Ports are forwarded to the running docker containers for webserver and database"
+        echo "     * ${SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22"
         echo "     * ${WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080"
         echo "     * ${FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555"
         echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
@@ -3237,6 +3217,7 @@ function breeze::print_cheatsheet() {
         echo "     * ${REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379"
         echo
         echo "   Here are links to those services that you can use on host:"
+        echo "     * ssh connection for remote debugging: ssh -p ${SSH_PORT} airflow@127.0.0.1 pw: airflow"
         echo "     * Webserver: http://127.0.0.1:${WEBSERVER_HOST_PORT}"
         echo "     * Flower:    http://127.0.0.1:${FLOWER_HOST_PORT}"
         echo "     * Postgres:  jdbc:postgresql://127.0.0.1:${POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow"
@@ -3354,14 +3335,8 @@ function breeze::run_static_checks() {
         echo "Running: pre-commit run" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
         echo
         pre-commit run "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-    elif [[ ${static_check} == "all-but-pylint" ]]; then
-        echo
-        echo "Setting SKIP=pylint. Running: pre-commit run" "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
-        echo
-        echo
-        SKIP=pylint pre-commit run "${EXTRA_STATIC_CHECK_OPTIONS[@]}" "$@"
     else
-        if [[ ${static_check} == *"pylint"* || ${static_check} == *"mypy"* || ${static_check} == *"flake8"* ]]; then
+        if [[ ${static_check} == *"mypy"* || ${static_check} == *"flake8"* ]]; then
             echo
             echo "Running build pre-commit before running the requested static check"
             echo
@@ -3539,7 +3514,7 @@ function breeze::run_breeze_command() {
         docker_engine_resources::check_all_resources
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"  || true
         else
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
@@ -3653,7 +3628,7 @@ function breeze::run_breeze_command() {
 # We have different versions of images depending on the python version used. We keep up with the
 # Latest patch-level changes in Python (this is done automatically during CI builds) so we have
 # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
-# version of python in X.Y format (3.6, 3.7, 3.8 etc).
+# version of python in X.Y format (3.6, 3.7, 3.8, 3.9).
 #
 # In Breeze the precedence of setting the version is as follows:
 #      1. --python flag (if set, it will explicitly override it in the next step)

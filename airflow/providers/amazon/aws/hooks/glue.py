@@ -64,7 +64,7 @@ class AwsGlueJobHook(AwsBaseHook):
         create_job_kwargs: Optional[dict] = None,
         *args,
         **kwargs,
-    ):  # pylint: disable=too-many-arguments
+    ):
         self.job_name = job_name
         self.desc = desc
         self.concurrent_run_limit = concurrent_run_limit

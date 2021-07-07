@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator  # noqa
 
 warnings.warn(

@@ -127,7 +127,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         dest_gcs_bucket, dest_gcs_object_prefix = _parse_gcs_url(self.dest_gcs)
 
-        # pylint: disable=too-many-nested-blocks
         if not self.replace:
             # if we are not replacing -> list all files in the GCS bucket
             # and only keep those files which are present in

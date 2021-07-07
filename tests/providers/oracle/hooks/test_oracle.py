@@ -27,7 +27,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
-# pylint: disable=c-extension-no-member
 try:
     import cx_Oracle
 except ImportError:

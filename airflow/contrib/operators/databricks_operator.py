@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.databricks.operators.databricks import (  # noqa
     DatabricksRunNowOperator,
     DatabricksSubmitRunOperator,

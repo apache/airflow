@@ -88,7 +88,7 @@ class BigQueryToMySqlOperator(BaseOperator):
 
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         dataset_table: str,
         mysql_table: str,
         selected_fields: Optional[str] = None,

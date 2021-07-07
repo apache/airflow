@@ -149,7 +149,7 @@ class TestDagBag(unittest.TestCase):
             def my_flow():
                 pass
 
-            my_dag = my_flow()  # noqa # pylint: disable=unused-variable
+            my_dag = my_flow()  # noqa
 
         source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
         with NamedTemporaryFile("w+", encoding="utf8") as tf_1, NamedTemporaryFile(
@@ -380,7 +380,7 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
-            import datetime  # pylint: disable=redefined-outer-name,reimported
+            import datetime
 
             from airflow.models import DAG
             from airflow.operators.dummy import DummyOperator
@@ -431,7 +431,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
-            import datetime  # pylint: disable=redefined-outer-name,reimported
+            import datetime
 
             from airflow.models import DAG
             from airflow.operators.dummy import DummyOperator
@@ -521,7 +521,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
-            import datetime  # pylint: disable=redefined-outer-name,reimported
+            import datetime
 
             from airflow.models import DAG
             from airflow.operators.dummy import DummyOperator
@@ -551,7 +551,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
-            import datetime  # pylint: disable=redefined-outer-name,reimported
+            import datetime
 
             from airflow.models import DAG
             from airflow.operators.dummy import DummyOperator

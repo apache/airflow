@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=R0904, C0111
+
 """
 This module contains various unit tests for Google Cloud DLP Operators
 """

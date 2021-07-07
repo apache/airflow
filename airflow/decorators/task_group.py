@@ -25,7 +25,7 @@ from typing import Callable, Optional, TypeVar, cast
 
 from airflow.utils.task_group import TaskGroup
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 task_group_sig = signature(TaskGroup.__init__)
 
