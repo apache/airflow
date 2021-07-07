@@ -25,7 +25,11 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
-from airflow.compat.functools import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
