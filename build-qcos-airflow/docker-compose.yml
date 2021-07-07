@@ -1,0 +1,112 @@
+version: '2.1'
+services:
+    webserver:
+        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        restart: always
+#        depends_on:
+#            - postgres
+#            - redis
+        environment:
+            - MQ_TEMPLATE_QUEUE=qcos_templates_airflow
+            - MQ_TEMPLATE_EXCHANGE=qcos_templates
+            - CAS_ANALYSIS_BASE_URL=http://localhost:9095
+            - CAS_TRAINING_BASE_URL=http://localhost:9095
+            - ENABLE_DELETE_CHILD_LOG = False
+            - MAX_LOG_AGE_IN_DAYS = 180
+            - LOAD_EX=n
+            - TRAIN_ERROR_TAG=False
+            - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - EXECUTOR=Celery
+            - POSTGRES_HOST=172.17.0.1
+            - POSTGRES_USER=admin
+            - POSTGRES_PASSWORD=admin
+            - POSTGRES_DB=airflow
+            - REDIS_HOST=172.17.0.1
+            - REDIS_DBNUM=0
+            - FACTORY_CODE=7200 # for ningde factory
+#            - TEMPLATE_KEY_PREFIX=qcos_templates
+#        volumes:
+#            - ./dags:/usr/local/airflow/dags
+            # Uncomment to include custom plugins
+            # - ./plugins:/usr/local/airflow/plugins
+        ports:
+            - "8080:8080"
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+
+    flower:
+        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        restart: always
+#        depends_on:
+#            - redis
+        environment:
+            - EXECUTOR=Celery
+            - POSTGRES_HOST=172.17.0.1
+            - POSTGRES_USER=admin
+            - POSTGRES_PASSWORD=admin
+            - POSTGRES_DB=airflow
+            - REDIS_HOST=172.17.0.1
+            - REDIS_DBNUM=0
+#            - TEMPLATE_KEY_PREFIX=qcos_templates
+        ports:
+            - "5555:5555"
+        command: flower
+
+    scheduler:
+        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        restart: always
+        depends_on:
+            - webserver
+#        volumes:
+#            - ./dags:/usr/local/airflow/dags
+            # Uncomment to include custom plugins
+            # - ./plugins:/usr/local/airflow/plugins
+        environment:
+            - MQ_TEMPLATE_QUEUE=qcos_templates_airflow
+            - MQ_TEMPLATE_EXCHANGE=qcos_templates
+            - CAS_ANALYSIS_BASE_URL=http://localhost:9095
+            - CAS_TRAINING_BASE_URL=http://localhost:9095
+            - ENABLE_DELETE_CHILD_LOG = False
+            - MAX_LOG_AGE_IN_DAYS = 180
+            - TRAIN_ERROR_TAG=False
+            - LOAD_EX=n
+            - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - EXECUTOR=Celery
+            - POSTGRES_HOST=172.17.0.1
+            - POSTGRES_USER=admin
+            - POSTGRES_PASSWORD=admin
+            - POSTGRES_DB=airflow
+            - REDIS_HOST=172.17.0.1
+            - REDIS_DBNUM=0
+            - FACTORY_CODE=7200 # for ningde factory
+#            - TEMPLATE_KEY_PREFIX=qcos_templates
+        command: scheduler
+
+    worker:
+        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        restart: always
+        depends_on:
+            - scheduler
+#        volumes:
+#            - ./dags:/usr/local/airflow/dags
+            # Uncomment to include custom plugins
+            # - ./plugins:/usr/local/airflow/plugins
+        environment:
+            - MQ_TEMPLATE_QUEUE=qcos_templates_airflow
+            - MQ_TEMPLATE_EXCHANGE=qcos_templates
+            - CAS_ANALYSIS_BASE_URL=http://localhost:9095
+            - CAS_TRAINING_BASE_URL=http://localhost:9095
+            - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+            - EXECUTOR=Celery
+            - POSTGRES_HOST=172.17.0.1
+            - POSTGRES_USER=admin
+            - POSTGRES_PASSWORD=admin
+            - POSTGRES_DB=airflow
+            - REDIS_HOST=172.17.0.1
+            - REDIS_DBNUM=0
+#            - TEMPLATE_KEY_PREFIX=qcos_templates
+        command: worker

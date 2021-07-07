@@ -22,14 +22,6 @@ jobs:
           submodules: true
           path: airflow
           token: ${{ secrets.airflow_curve }}
-      - name: Add dags
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-          repository: masami10/curve
-          ref: master
-          path: curve
-          token: ${{ secrets.airflow_curve }}
       - name: Add docker-ariflow
         uses: actions/checkout@v2
         with:
@@ -80,7 +72,7 @@ jobs:
           docker push docker.pkg.github.com/masami10/airflow/airflow-base:latest
       - name: Build airflow
         run: |
-          cd $GITHUB_WORKSPACE/curve
+          cd $GITHUB_WORKSPACE/airflow/build-qcos-airflow
           echo $(pwd)
           docker build -t docker.pkg.github.com/masami10/airflow/airflow:latest --no-cache .
           docker tag docker.pkg.github.com/masami10/airflow/airflow:latest docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)

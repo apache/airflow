@@ -1,0 +1,9 @@
+minio==5.0.8
+influxdb-client==1.5.0
+tablib==1.1.0
+aiohttp_retry==1.0
+aiohttp==3.6.2
+pika==1.1.0
+redis==3.4.1
+redis-py-cluster==2.1.0
+Flask-OAuthlib==0.9.6
