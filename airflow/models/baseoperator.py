@@ -1652,8 +1652,8 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequenc
 
 
 def cross_downstream(
-    from_tasks: Union[Sequence[BaseOperator], Sequence["XComArg"]],
-    to_tasks: Union[Sequence[BaseOperator], Sequence["XComArg"]],
+    from_tasks: Sequence[Union[BaseOperator, "XComArg"]],
+    to_tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "XComArg"]]],
 ):
     r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
