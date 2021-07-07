@@ -26,7 +26,7 @@ import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -89,6 +89,10 @@ Context = Dict[str, Any]
 
 _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
+
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG, DagModel
 
 
 @contextlib.contextmanager
@@ -436,15 +440,25 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag = self.task.dag
+        dag: Union["DAG", "DagModel"]
+        # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
+        if hasattr(self, 'task') and hasattr(self.task, 'dag'):
+            dag = self.task.dag
+        else:
+            dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = f"DAGS_FOLDER/{dag.filepath}"
-        elif should_pass_filepath and dag.full_filepath:
-            path = dag.full_filepath
-        else:
-            path = None
+        path = None
+        if should_pass_filepath:
+            if dag.is_subdag:
+                path = dag.parent_dag.relative_fileloc
+            else:
+                path = dag.relative_fileloc
+
+            if path:
+                if not path.is_absolute():
+                    path = 'DAGS_FOLDER' / path
+                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,

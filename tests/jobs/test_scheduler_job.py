@@ -200,8 +200,8 @@ class TestSchedulerJob:
         dag_id2 = "test_process_executor_events_2"
         task_id_1 = 'dummy_task'
 
-        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, full_filepath="/test_path1/")
-        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, full_filepath="/test_path1/")
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         DummyOperator(dag=dag2, task_id=task_id_1)
         dag.fileloc = "/test_path1/"
