@@ -226,7 +226,7 @@ def get_dag_runs_batch(session):
         data["execution_date_lte"],
         data["start_date_gte"],
         data["start_date_lte"],
-        date["state"],
+        data["state"],
         data["page_limit"],
         data["page_offset"],
         order_by=data.get('order_by', "id"),
