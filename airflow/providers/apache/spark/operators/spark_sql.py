@@ -46,10 +46,14 @@ class SparkSqlOperator(BaseOperator):
     :type executor_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
+    :param principal: The name of the kerberos principal used for keytab (templated)
+    :type principal: str
+    :param proxy_user: User to impersonate when submitting the application (templated)
+    :type proxy_user: str
     :param master: spark://host:port, mesos://host:port, yarn, or local
         (Default: The ``host`` and ``port`` set in the Connection, or ``"yarn"``)
     :type master: str
-    :param name: Name of the job
+    :param name: Name of the job (templated)
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int
@@ -60,7 +64,13 @@ class SparkSqlOperator(BaseOperator):
     :type yarn_queue: str
     """
 
-    template_fields = ["_sql"]
+    template_fields = (
+        '_sql',
+        '_keytab',
+        '_principal',
+        '_proxy_user',
+        '_name'
+    )
     template_ext = [".sql", ".hql"]
 
     # pylint: disable=too-many-arguments
@@ -75,6 +85,7 @@ class SparkSqlOperator(BaseOperator):
         executor_memory: Optional[str] = None,
         keytab: Optional[str] = None,
         principal: Optional[str] = None,
+        proxy_user: Optional[str] = None,
         master: Optional[str] = None,
         name: str = 'default-name',
         num_executors: Optional[int] = None,
@@ -91,6 +102,7 @@ class SparkSqlOperator(BaseOperator):
         self._executor_memory = executor_memory
         self._keytab = keytab
         self._principal = principal
+        self._proxy_user = proxy_user
         self._master = master
         self._name = name
         self._num_executors = num_executors
@@ -120,6 +132,7 @@ class SparkSqlOperator(BaseOperator):
             executor_memory=self._executor_memory,
             keytab=self._keytab,
             principal=self._principal,
+            proxy_user=self._proxy_user,
             name=self._name,
             num_executors=self._num_executors,
             master=self._master,

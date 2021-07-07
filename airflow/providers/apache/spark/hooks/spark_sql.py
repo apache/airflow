@@ -47,6 +47,10 @@ class SparkSqlHook(BaseHook):
     :type executor_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
+    :param principal: The name of the kerberos principal used for keytab
+    :type principal: str
+    :param proxy_user: User to impersonate when submitting the application
+    :type proxy_user: str
     :param master: spark://host:port, mesos://host:port, yarn, or local
         (Default: The ``host`` and ``port`` set in the Connection, or ``"yarn"``)
     :type master: str
@@ -77,6 +81,7 @@ class SparkSqlHook(BaseHook):
         executor_memory: Optional[str] = None,
         keytab: Optional[str] = None,
         principal: Optional[str] = None,
+        proxy_user: Optional[str] = None,
         master: Optional[str] = None,
         name: str = 'default-name',
         num_executors: Optional[int] = None,
@@ -111,6 +116,7 @@ class SparkSqlHook(BaseHook):
         self._executor_memory = executor_memory
         self._keytab = keytab
         self._principal = principal
+        self._proxy_user = proxy_user
         self._master = master
         self._name = name
         self._num_executors = num_executors
@@ -144,6 +150,8 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--keytab", self._keytab]
         if self._principal:
             connection_cmd += ["--principal", self._principal]
+        if self._proxy_user:
+            connection_cmd += ["--proxy-user", self._proxy_user]
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
@@ -152,8 +160,15 @@ class SparkSqlHook(BaseHook):
                 connection_cmd += ["-f", sql]
             else:
                 connection_cmd += ["-e", sql]
-        if self._master:
-            connection_cmd += ["--master", self._master]
+        if len(self._conn.host) > 0:
+            if self._conn.port:
+                master_url= f"{self._conn.host}:{self._conn.port}"
+            else:
+                master_url = self._conn.host
+        else:
+            master_url = self._master
+        if master_url:
+            connection_cmd += ["--master", master_url]
         if self._name:
             connection_cmd += ["--name", self._name]
         if self._verbose:

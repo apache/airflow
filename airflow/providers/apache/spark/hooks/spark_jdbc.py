@@ -196,6 +196,7 @@ class SparkJDBCHook(SparkSubmitHook):
             conn_data['password'] = conn.password
             extra = conn.extra_dejson
             conn_data['conn_prefix'] = extra.get('conn_prefix', '')
+            conn_data['conn_suffix'] = extra.get('conn_suffix', '')
         except AirflowException:
             self.log.debug(
                 "Could not load jdbc connection string %s, defaulting to %s", self._jdbc_conn_id, ""
@@ -206,9 +207,12 @@ class SparkJDBCHook(SparkSubmitHook):
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
         if self._jdbc_connection['url']:
+            url = f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}"
+            if jdbc_conn.get('schema') :
+                url += f"{url}/{jdbc_conn['schema']}"
             arguments += [
                 '-url',
-                f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",
+                f"{url}{jdbc_conn['conn_suffix']}",
             ]
         if self._jdbc_connection['user']:
             arguments += ['-user', self._jdbc_connection['user']]
@@ -244,6 +248,8 @@ class SparkJDBCHook(SparkSubmitHook):
             arguments += ['-saveFormat', self._save_format]
         if self._create_table_column_types:
             arguments += ['-createTableColumnTypes', self._create_table_column_types]
+        if self._name:
+            arguments += ['-name', self._name]
         return arguments
 
     def submit_jdbc_job(self) -> None:
