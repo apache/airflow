@@ -194,7 +194,7 @@ function set_pythonpath_for_root_user() {
 
 function wait_for_airflow_db() {
     # Check if Airflow has a command to check the connection to the database.
-    if ! airflow db check --help >/dev/null 2>&1; then
+    if airflow db check --help >/dev/null 2>&1; then
         run_check_with_retries "airflow db check"
     else
         # Verify connections to the Airflow DB by guessing the database address based on environment variables,
