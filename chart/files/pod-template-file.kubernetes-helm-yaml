@@ -19,11 +19,27 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: dummy-name
-spec:
-{{- if .Values.dags.gitSync.enabled }}
-  initContainers:
-{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
+  labels:
+    tier: airflow
+    component: worker
+    release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
 {{- end }}
+  {{- if .Values.airflowPodAnnotations }}
+  annotations:
+  {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
+  initContainers:
+    {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+    {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 4 }}
+    {{- end }}
+    {{- if .Values.workers.extraInitContainers }}
+    {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
+    {{- end }}
+  {{- end }}
   containers:
     - args: []
       command: []
@@ -38,39 +54,23 @@ spec:
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base
       ports: []
+      resources:
+{{ toYaml .Values.workers.resources | indent 8 }}
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
-          name: airflow-logs
+          name: logs
         - name: config
           mountPath: {{ template "airflow_config_path" . }}
           subPath: airflow.cfg
           readOnly: true
-{{- if .Values.scheduler.airflowLocalSettings }}
+{{- if .Values.airflowLocalSettings }}
         - name: config
           mountPath: {{ template "airflow_local_setting_path" . }}
           subPath: airflow_local_settings.py
           readOnly: true
 {{- end }}
-{{- if .Values.dags.gitSync.knownHosts }}
-        - mountPath: /etc/git-secret/known_hosts
-          name: git-sync-known-hosts
-          subPath: known_hosts
-{{- end }}
-{{- if .Values.dags.gitSync.sshKeySecret }}
-        - mountPath: /etc/git-secret/ssh
-          name: git-sync-ssh-key
-          subPath: ssh
-{{- end }}
-{{- if .Values.dags.persistence.enabled }}
-        - mountPath: {{ include "airflow_dags_mount_path" . }}
-          name: dags
-          readOnly: true
-{{- end }}
-{{- if .Values.dags.gitSync.enabled }}
-        - mountPath: {{ include "airflow_dags" . }}
-          name: dags
-          readOnly: true
-          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
+{{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
+        {{- include "airflow_dags_mount" . | nindent 8 }}
 {{- end }}
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
@@ -97,20 +97,20 @@ spec:
   - name: dags
     emptyDir: {}
   {{- end }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
-{{- include "git_sync_ssh_key_volume" . | indent 2 }}
-  {{- end }}
+  {{- if .Values.logs.persistence.enabled }}
+  - name: logs
+    persistentVolumeClaim:
+      claimName: {{ template "airflow_logs_volume_claim" . }}
+  {{- else }}
   - emptyDir: {}
-    name: airflow-logs
-{{- if .Values.dags.gitSync.knownHosts }}
-  - configMap:
-      defaultMode: 288
-      name: {{ include "airflow_config" . }}
-    name: git-sync-known-hosts
-{{- end }}
+    name: logs
+  {{- end }}
+  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+  {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
+  {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
-{{- if .Values.workers.extraVolumes }}
-{{ toYaml .Values.workers.extraVolumes | indent 2 }}
-{{- end }}
+  {{- if .Values.workers.extraVolumes }}
+  {{ toYaml .Values.workers.extraVolumes | nindent 2 }}
+  {{- end }}

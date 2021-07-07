@@ -31,7 +31,6 @@ from airflow.models import BaseOperator, SensorInstance, SkipMixin, TaskInstance
 from airflow.settings import LOGGING_CLASS_PATH
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.module_loading import import_string
@@ -106,11 +105,18 @@ class SensorWork:
         Create task log handler for a sensor work.
         :return: log handler
         """
+        from airflow.utils.log.secrets_masker import _secrets_masker  # noqa
+
         handler_config_copy = {k: handler_config[k] for k in handler_config}
+        del handler_config_copy['filters']
+
         formatter_config_copy = {k: formatter_config[k] for k in formatter_config}
         handler = dictConfigurator.configure_handler(handler_config_copy)
         formatter = dictConfigurator.configure_formatter(formatter_config_copy)
         handler.setFormatter(formatter)
+
+        # We want to share the _global_ filterer instance, not create a new one
+        handler.addFilter(_secrets_masker())
         return handler
 
     def _get_sensor_logger(self, si):
@@ -304,7 +310,6 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
 
     ui_color = '#e6f1f2'
 
-    @apply_defaults
     def __init__(
         self,
         poke_interval=180,
@@ -386,23 +391,34 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         :param session: The sqlalchemy session.
         """
         TI = TaskInstance
-        ti_keys = [(x.dag_id, x.task_id, x.execution_date) for x in sensor_works]
 
-        def update_ti_hostname_with_count(count, ti_keys):
+        def update_ti_hostname_with_count(count, sensor_works):
             # Using or_ instead of in_ here to prevent from full table scan.
-            tis = (
-                session.query(TI)
-                .filter(or_(tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key for ti_key in ti_keys))
-                .all()
-            )
+            if session.bind.dialect.name == 'mssql':
+                ti_filter = or_(
+                    and_(
+                        TI.dag_id == ti_key.dag_id,
+                        TI.task_id == ti_key.task_id,
+                        TI.execution_date == ti_key.execution_date,
+                    )
+                    for ti_key in sensor_works
+                )
+            else:
+                ti_keys = [(x.dag_id, x.task_id, x.execution_date) for x in sensor_works]
+                ti_filter = or_(
+                    tuple_(TI.dag_id, TI.task_id, TI.execution_date) == ti_key for ti_key in ti_keys
+                )
+            tis = session.query(TI).filter(ti_filter).all()
 
             for ti in tis:
                 ti.hostname = self.hostname
             session.commit()
 
-            return count + len(ti_keys)
+            return count + len(sensor_works)
 
-        count = helpers.reduce_in_chunks(update_ti_hostname_with_count, ti_keys, 0, self.max_tis_per_query)
+        count = helpers.reduce_in_chunks(
+            update_ti_hostname_with_count, sensor_works, 0, self.max_tis_per_query
+        )
         if count:
             self.log.info("Updated hostname on %s tis.", count)
 
@@ -430,6 +446,7 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
         TI = TaskInstance
 
         count_marked = 0
+        query_result = []
         try:
             query_result = (
                 session.query(TI, SI)

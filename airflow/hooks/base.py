@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import redact
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.
@@ -74,8 +75,8 @@ class BaseHook(LoggingMixin):
                 conn.port,
                 conn.schema,
                 conn.login,
-                "XXXXXXXX" if conn.password else None,
-                "XXXXXXXX" if conn.extra_dejson else None,
+                redact(conn.password),
+                redact(conn.extra_dejson),
             )
         return conn
 

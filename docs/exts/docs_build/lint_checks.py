@@ -195,7 +195,7 @@ def _extract_file_content(file_path: str, message: Optional[str], pattern: str, 
 
 def filter_file_list_by_pattern(file_paths: Iterable[str], pattern: str) -> List[str]:
     """
-    Filters file list to those tha content matches the pattern
+    Filters file list to those that content matches the pattern
     :param file_paths: file paths to check
     :param pattern: pattern to match
     :return: list of files matching the pattern
@@ -276,7 +276,7 @@ def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
 
         if len(example_dags_dirs) == 1:
             package_rel_path = os.path.relpath(example_dags_dirs[0], start=ROOT_PROJECT_DIR)
-            github_url = f"https://github.com/apache/airflow/tree/master/{package_rel_path}"
+            github_url = f"https://github.com/apache/airflow/tree/main/{package_rel_path}"
             expected_text = f"Example DAGs <{github_url}>"
         else:
             expected_text = "Example DAGs <example-dags>"

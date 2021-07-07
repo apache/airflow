@@ -23,7 +23,6 @@ from unittest import mock
 from boto3.session import Session
 
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
-from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
@@ -56,10 +55,55 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
+        copy_query = '''
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        with credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     '''
+        assert mock_run.call_count == 1
+        assert access_key in copy_query
+        assert secret_key in copy_query
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
 
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_query = op._build_copy_query(credentials_block, copy_options)
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
+    def test_execute_with_column_list(self, mock_run, mock_session):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
 
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        column_list = ["column_1", "column_2"]
+        copy_options = ""
+
+        op = S3ToRedshiftOperator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            column_list=column_list,
+            copy_options=copy_options,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+        )
+        op.execute(None)
+        copy_query = '''
+                        COPY schema.table (column_1, column_2)
+                        FROM 's3://bucket/key'
+                        with credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     '''
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
@@ -94,10 +138,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_statement = op._build_copy_query(credentials_block, copy_options)
-
+        copy_statement = '''
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        with credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     '''
         truncate_statement = f'TRUNCATE TABLE {schema}.{table};'
         transaction = f"""
                     BEGIN;
@@ -137,11 +184,14 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             task_id="task_id",
             dag=None,
         )
-
-        credentials_block = build_credentials_block(mock_session.return_value)
-        copy_statement = op._build_copy_query(credentials_block, copy_options)
         op.execute(None)
-
+        copy_statement = '''
+                            COPY schema.table
+                            FROM 's3://bucket/key'
+                            with credentials
+                            'aws_access_key_id=ASIA_aws_access_key_id;aws_secret_access_key=aws_secret_access_key;token=aws_secret_token'
+                            ;
+                         '''
         assert access_key in copy_statement
         assert secret_key in copy_statement
         assert token in copy_statement
@@ -154,5 +204,6 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             's3_key',
             'schema',
             'table',
+            'column_list',
             'copy_options',
         )

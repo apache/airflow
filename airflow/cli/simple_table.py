@@ -24,8 +24,8 @@ from rich.syntax import Syntax
 from rich.table import Table
 from tabulate import tabulate
 
-import airflow.utils.yaml as yaml
 from airflow.plugins_manager import PluginsDirectorySource
+from airflow.utils import yaml
 from airflow.utils.platform import is_tty
 
 
@@ -61,7 +61,7 @@ class AirflowConsole(Console):
             table.add_column(col)
 
         for row in data:
-            table.add_row(*[str(d) for d in row.values()])
+            table.add_row(*(str(d) for d in row.values()))
         self.print(table)
 
     def print_as_plain_table(self, data: List[Dict]):

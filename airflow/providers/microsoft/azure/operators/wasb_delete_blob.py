@@ -20,7 +20,6 @@ from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-from airflow.utils.decorators import apply_defaults
 
 
 class WasbDeleteBlobOperator(BaseOperator):
@@ -44,7 +43,6 @@ class WasbDeleteBlobOperator(BaseOperator):
 
     template_fields = ('container_name', 'blob_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,

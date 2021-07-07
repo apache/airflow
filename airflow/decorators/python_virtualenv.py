@@ -21,7 +21,6 @@ from typing import Callable, Optional, TypeVar
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.operators.python import PythonVirtualenvOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.python_virtualenv import remove_task_decorator
 
 
@@ -50,7 +49,6 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs = ('python_callable',)
 
-    @apply_defaults
     def __init__(
         self,
         **kwargs,

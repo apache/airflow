@@ -22,7 +22,6 @@ from typing import Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsGlueJobOperator(BaseOperator):
@@ -60,7 +59,6 @@ class AwsGlueJobOperator(BaseOperator):
     template_fields_renderers = {"script_args": "py"}
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -103,7 +101,11 @@ class AwsGlueJobOperator(BaseOperator):
         if self.script_location and not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
-            s3_hook.load_file(self.script_location, self.s3_bucket, self.s3_artifacts_prefix + script_name)
+            s3_hook.load_file(
+                filename=self.script_location,
+                key=self.s3_artifacts_prefix + script_name,
+                bucket_name=self.s3_bucket,
+            )
         glue_job = AwsGlueJobHook(
             job_name=self.job_name,
             desc=self.job_desc,

@@ -168,7 +168,7 @@ class BaseExecutor(LoggingMixin):
         :return: List of tuples from the queued_tasks according to the priority.
         """
         return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
+            self.queued_tasks.items(),
             key=lambda x: x[1][1],
             reverse=True,
         )

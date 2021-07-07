@@ -20,6 +20,7 @@ import io
 import json
 import logging
 import os
+import re
 import unittest
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
@@ -61,6 +62,10 @@ class TestCliTasks(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
+        clear_db_runs()
+
+    def tearDown(self) -> None:
+        clear_db_runs()
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags:
@@ -70,8 +75,7 @@ class TestCliTasks(unittest.TestCase):
         args = self.parser.parse_args(['tasks', 'list', 'example_bash_operator', '--tree'])
         task_command.task_list(args)
 
-    @mock.patch("airflow.models.taskinstance.TaskInstance._run_mini_scheduler_on_child_tasks")
-    def test_test(self, mock_run_mini_scheduler):
+    def test_test(self):
         """Test the `airflow test` command"""
         args = self.parser.parse_args(
             ["tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01']
@@ -80,9 +84,25 @@ class TestCliTasks(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
 
-        mock_run_mini_scheduler.assert_not_called()
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
+
+    def test_test_with_existing_dag_run(self):
+        """Test the `airflow test` command"""
+        dag_id = 'example_python_operator'
+        run_id = 'TEST_RUN_ID'
+        task_id = 'print_the_context'
+        dag = self.dagbag.get_dag(dag_id)
+
+        dag.create_dagrun(state=State.NONE, run_id=run_id, run_type=DagRunType.MANUAL, external_trigger=True)
+
+        args = self.parser.parse_args(["tasks", "test", dag_id, task_id, run_id])
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_test(args)
+
+        # Check that prints, and log messages, are shown
+        assert f"Marking task as SUCCESS. dag_id={dag_id}, task_id={task_id}" in stdout.getvalue()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_naive_taskinstance(self, mock_local_job):
@@ -116,6 +136,61 @@ class TestCliTasks(unittest.TestCase):
             pickle_id=None,
             pool=None,
         )
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_with_existing_dag_run_id(self, mock_local_job):
+        """
+        Test that we can run with existing dag_run_id
+        """
+        dag_id = 'test_run_ignores_all_dependencies'
+
+        dag = self.dagbag.get_dag(dag_id)
+        task0_id = 'test_run_dependent_task'
+        run_id = 'TEST_RUN_ID'
+        dag.create_dagrun(state=State.NONE, run_id=run_id, run_type=DagRunType.MANUAL, external_trigger=True)
+        args0 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            dag_id,
+            task0_id,
+            run_id,
+        ]
+
+        task_command.task_run(self.parser.parse_args(args0), dag=dag)
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+        )
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_raises_when_theres_no_dagrun(self, mock_local_job):
+        """
+        Test that run raises when there's run_id but no dag_run
+        """
+        dag_id = 'test_run_ignores_all_dependencies'
+        dag = self.dagbag.get_dag(dag_id)
+        task0_id = 'test_run_dependent_task'
+        run_id = 'TEST_RUN_ID'
+        args0 = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            dag_id,
+            task0_id,
+            run_id,
+        ]
+        with self.assertRaises(AirflowException) as err:
+            task_command.task_run(self.parser.parse_args(args0), dag=dag)
+        assert str(err.exception) == f"DagRun with run_id: {run_id} not found"
 
     def test_cli_test(self):
         task_command.task_test(
@@ -226,6 +301,47 @@ class TestCliTasks(unittest.TestCase):
                 )
             )
 
+    def test_task_render(self):
+        """
+        tasks render should render and displays templated fields for a given task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(['tasks', 'render', 'tutorial', 'templated', DEFAULT_DATE.isoformat()])
+            )
+
+        output = stdout.getvalue()
+
+        assert 'echo "2016-01-01"' in output
+        assert 'echo "2016-01-08"' in output
+        assert 'echo "Parameter I passed in"' in output
+
+    def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
+        """
+        tasks run should return an AirflowException when invalid pickle_id is passed
+        """
+        pickle_id = 'pickle_id'
+
+        with pytest.raises(
+            AirflowException,
+            match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
+        ):
+            dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        'tasks',
+                        'run',
+                        'example_bash_operator',
+                        'runme_0',
+                        DEFAULT_DATE.isoformat(),
+                        '--pickle',
+                        pickle_id,
+                    ]
+                ),
+                dag,
+            )
+
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
@@ -239,9 +355,13 @@ class TestCliTasks(unittest.TestCase):
         task2 = dag2.get_task(task_id='print_the_context')
         default_date2 = timezone.make_aware(datetime(2016, 1, 9))
         dag2.clear()
-
-        ti2 = TaskInstance(task2, default_date2)
-
+        dagrun = dag2.create_dagrun(
+            state=State.RUNNING,
+            execution_date=default_date2,
+            run_type=DagRunType.MANUAL,
+            external_trigger=True,
+        )
+        ti2 = TaskInstance(task2, dagrun.execution_date)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
@@ -270,6 +390,25 @@ class TestCliTasks(unittest.TestCase):
             'start_date': ti_start.isoformat(),
             'end_date': ti_end.isoformat(),
         }
+
+    def test_task_states_for_dag_run_when_dag_run_not_exists(self):
+        """
+        task_states_for_dag_run should return an AirflowException when invalid dag id is passed
+        """
+        with pytest.raises(AirflowException, match="DagRun does not exist."):
+            default_date2 = timezone.make_aware(datetime(2016, 1, 9))
+            task_command.task_states_for_dag_run(
+                self.parser.parse_args(
+                    [
+                        'tasks',
+                        'states-for-dag-run',
+                        'not_exists_dag',
+                        default_date2.isoformat(),
+                        '--output',
+                        "json",
+                    ]
+                )
+            )
 
     def test_subdag_clear(self):
         args = self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes'])

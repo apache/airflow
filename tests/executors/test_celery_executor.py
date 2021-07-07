@@ -18,6 +18,7 @@
 import contextlib
 import json
 import os
+import signal
 import sys
 import unittest
 from datetime import datetime, timedelta
@@ -370,10 +371,12 @@ class TestCeleryExecutor(unittest.TestCase):
             key_1: queued_dttm + executor.task_adoption_timeout,
             key_2: queued_dttm + executor.task_adoption_timeout,
         }
+        executor.running = {key_1, key_2}
         executor.tasks = {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
         executor.sync()
         assert executor.event_buffer == {key_1: (State.FAILED, None), key_2: (State.FAILED, None)}
         assert executor.tasks == {}
+        assert executor.running == set()
         assert executor.adopted_task_timeouts == {}
 
 
@@ -484,3 +487,55 @@ class TestBulkStateFetcher(unittest.TestCase):
         assert [
             'DEBUG:airflow.executors.celery_executor.BulkStateFetcher:Fetched 2 state(s) for 2 task(s)'
         ] == cm.output
+
+
+class MockTask:
+    """
+    A picklable object used to mock tasks sent to Celery. Can't use the mock library
+    here because it's not picklable.
+    """
+
+    def apply_async(self, *args, **kwargs):
+        return 1
+
+
+def _exit_gracefully(signum, _):
+    print(f"{os.getpid()} Exiting gracefully upon receiving signal {signum}")
+    sys.exit(signum)
+
+
+@pytest.fixture
+def register_signals():
+    """
+    Register the same signals as scheduler does to test celery_executor to make sure it does not
+    hang.
+    """
+    orig_sigint = orig_sigterm = orig_sigusr2 = signal.SIG_DFL
+
+    orig_sigint = signal.signal(signal.SIGINT, _exit_gracefully)
+    orig_sigterm = signal.signal(signal.SIGTERM, _exit_gracefully)
+    orig_sigusr2 = signal.signal(signal.SIGUSR2, _exit_gracefully)
+
+    yield
+
+    # Restore original signal handlers after test
+    signal.signal(signal.SIGINT, orig_sigint)
+    signal.signal(signal.SIGTERM, orig_sigterm)
+    signal.signal(signal.SIGUSR2, orig_sigusr2)
+
+
+@pytest.mark.quarantined
+def test_send_tasks_to_celery_hang(register_signals):  # pylint: disable=unused-argument
+    """
+    Test that celery_executor does not hang after many runs.
+    """
+    executor = celery_executor.CeleryExecutor()
+
+    task = MockTask()
+    task_tuples_to_send = [(None, None, None, None, task) for _ in range(26)]
+
+    for _ in range(500):
+        # This loop can hang on Linux if celery_executor does something wrong with
+        # multiprocessing.
+        results = executor._send_tasks_to_celery(task_tuples_to_send)
+        assert results == [(None, None, 1) for _ in task_tuples_to_send]

@@ -27,7 +27,7 @@ from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(
-    r"^((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
+    r"^((?P<days>[.\d]+?)d)?((?P<hours>[.\d]+?)h)?((?P<minutes>[.\d]+?)m)?((?P<seconds>[.\d]+?)s)?$"
 )
 
 
@@ -105,7 +105,7 @@ def chain_as_grid(*tasks: BashOperator):
     """
     if len(tasks) > 100 * 99 / 2:
         raise ValueError('Cannot generate grid DAGs with lateral size larger than 100 tasks.')
-    grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
+    grid_size = min(n for n in range(100) if n * (n + 1) / 2 >= len(tasks))
 
     def index(i, j):
         """

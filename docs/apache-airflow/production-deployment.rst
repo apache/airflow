@@ -120,6 +120,12 @@ Production Container Images
 
 We provide :doc:`a Docker Image (OCI) for Apache Airflow <docker-stack:index>` for use in a containerized environment. Consider using it to guarantee that software will always run the same no matter where it’s deployed.
 
+Helm Chart for Kubernetes
+=========================
+
+`The Helm <https://helm.sh/>`__ provides a simple mechanism to deploy software to a Kubernetes cluster. We maintain
+:doc:`official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment. The Helm Chart uses :doc:`official Docker image and Dockerfile <docker-stack:index>` that is also maintained and released by the community.
+
 .. _production-deployment:kerberos:
 
 Kerberos-authenticated workers
@@ -145,7 +151,7 @@ token refresher and worker are part of the same Pod. Only the Kerberos side-car 
 Keytab secret and both containers in the same Pod share the volume, where temporary token is written by
 the side-care container and read by the worker container.
 
-This concept is implemented in the development version of the Helm Chart that is part of Airflow source code.
+This concept is implemented in :doc:`the Helm Chart for Apache Airflow <helm-chart:index>`.
 
 
 .. spelling::

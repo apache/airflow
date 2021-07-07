@@ -112,6 +112,7 @@ Currently, **officially** using Airflow:
 1. [Clairvoyant](https://clairvoyantsoft.com) [[@shekharv](https://github.com/shekharv)]
 1. [Classmethod, Inc.](https://classmethod.jp/) [[@shoito](https://github.com/shoito)]
 1. [Cleartax](https://cleartax.in/) [[@anks](https://github.com/anks) & [@codebuff](https://github.com/codebuff)]
+1. [Clicksign](https://clicksign.com/) [[@mbbernstein](https://github.com/mbbernstein) & [@jorgeac12](https://github.com/jorgeac12) & [@franklin390](https://github.com/franklin390)]
 1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat)]
 1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
 1. [Colgate-Palmolive](https://www.colgatepalmolive.com/) [[@fhoda](https://github.com/fhoda)]
@@ -234,6 +235,7 @@ Currently, **officially** using Airflow:
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
 1. [Kargo](https://kargo.com) [[@chaithra-yenikapati](https://github.com/chaithra-yenikapati), [@akarsh3007](https://github.com/akarsh3007) & [@dineshanchan](https://github.com/dineshanchan)]
 1. [Karmic](https://karmiclabs.com) [[@hyw](https://github.com/hyw)]
+1. [Kayzen](https://kayzen.io) [[@arvindeybram](https://github.com/arvindeybram)]
 1. [King Abdullah Petroleum Studies and Research Center(KAPSARC)](https://github.com/kapsarc) [[@saianupkumarp](https://github.com/saianupkumarp)]
 1. [King](https://king.com) [[@nathadfield](https://github.com/nathadfield)]
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
@@ -411,6 +413,7 @@ Currently, **officially** using Airflow:
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
 1. [Wildlifestudios](https://wildlifestudios.com/)
 1. [WiseBanyan](https://wisebanyan.com/)
+1. [Wisr](https://wisr.com.au/) [[@fsodano](https://github.com/fsodano) & [@vincyf1](https://github.com/vincyf1)]
 1. [WixAnswers](https://www.wixanswers.com/) [[@eladkal](https://github.com/eladkal)]
 1. [Wix](https://www.wix.com/) [[@eladkal](https://github.com/eladkal)]
 1. [Wooga](https://www.wooga.com/)

@@ -34,9 +34,9 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-import airflow.utils.yaml as yaml
 from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
+from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63
@@ -451,7 +451,7 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
-        # Strip trailing '-' and '.' as they cant be followed by '.'
+        # Strip trailing '-' and '.' as they can't be followed by '.'
         trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
         safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"

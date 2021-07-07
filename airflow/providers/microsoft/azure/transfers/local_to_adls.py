@@ -20,7 +20,6 @@ from typing import Any, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class LocalToAzureDataLakeStorageOperator(BaseOperator):
@@ -62,7 +61,6 @@ class LocalToAzureDataLakeStorageOperator(BaseOperator):
     template_fields = ("local_path", "remote_path")
     ui_color = '#e4f0e8'
 
-    @apply_defaults
     def __init__(
         self,
         *,

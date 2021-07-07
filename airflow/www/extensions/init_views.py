@@ -19,10 +19,10 @@ import logging
 import warnings
 from os import path
 
-import connexion
-from connexion import ProblemException
 from flask import Flask, request
 
+from airflow._vendor import connexion
+from airflow._vendor.connexion import ProblemException
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
 from airflow.security import permissions
@@ -96,6 +96,11 @@ def init_appbuilder_views(app):
     )
     appbuilder.add_view(
         views.XComModelView, permissions.RESOURCE_XCOM, category=permissions.RESOURCE_ADMIN_MENU
+    )
+    appbuilder.add_view(
+        views.DagDependenciesView,
+        permissions.RESOURCE_DAG_DEPENDENCIES,
+        category=permissions.RESOURCE_BROWSE_MENU,
     )
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links

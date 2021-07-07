@@ -17,7 +17,7 @@
 # under the License.
 #
 
-import unittest
+from unittest import TestCase, mock
 
 from airflow import settings
 from airflow.models import DAG, Connection
@@ -36,7 +36,7 @@ TEST_CONN = "qubole_test_conn"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class TestQuboleOperator(unittest.TestCase):
+class TestQuboleOperator(TestCase):
     def setUp(self):
         db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
         db.merge_conn(Connection(conn_id=TEST_CONN, conn_type='HTTP', host='http://localhost/api'))
@@ -180,3 +180,17 @@ class TestQuboleOperator(unittest.TestCase):
         test_pool = 'test_pool'
         op = QuboleOperator(task_id=TASK_ID, pool=test_pool)
         assert op.pool == test_pool
+
+    @mock.patch('airflow.providers.qubole.hooks.qubole.QuboleHook.get_results')
+    def test_parameter_include_header_passed(self, mock_get_results):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
+        qubole_operator.get_results(include_headers=True)
+        mock_get_results.asset_called_with('include_headers', True)
+
+    @mock.patch('airflow.providers.qubole.hooks.qubole.QuboleHook.get_results')
+    def test_parameter_include_header_missing(self, mock_get_results):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
+        qubole_operator.get_results()
+        mock_get_results.asset_called_with('include_headers', False)

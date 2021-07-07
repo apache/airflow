@@ -72,7 +72,7 @@ def add_default_pool_if_not_exists(session=None):
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
-            slots=conf.getint(section='core', key='non_pooled_task_slot_count', fallback=128),
+            slots=conf.getint(section='core', key='default_pool_task_slot_count'),
             description="Default pool",
         )
         session.add(default_pool)
@@ -613,7 +613,10 @@ def check_migrations(timeout):
             if source_heads == db_heads:
                 break
             if ticker >= timeout:
-                raise TimeoutError(f"There are still unapplied migrations after {ticker} seconds.")
+                raise TimeoutError(
+                    f"There are still unapplied migrations after {ticker} seconds. "
+                    f"Migration Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+                )
             ticker += 1
             time.sleep(1)
             log.info('Waiting for migrations... %s second(s)', ticker)

@@ -27,6 +27,9 @@ rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files
 curl -Lo "docker-context-files/constraints-3.7.txt" \
     https://raw.githubusercontent.com/apache/airflow/constraints-2.0.2/constraints-3.7.txt
 
+# For Airflow pre 2.1 you need to use PIP 20.2.4 to install/download Airflow packages.
+pip install pip==20.2.4
+
 pip download --dest docker-context-files \
     --constraint docker-context-files/constraints-3.7.txt  \
     "apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,postgres,redis,slack,ssh,statsd,virtualenv]==2.0.2"
@@ -40,5 +43,6 @@ docker build . \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.7.txt"
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.7.txt" \
+    --tag my-restricted-environment:0.0.1
 # [END build]

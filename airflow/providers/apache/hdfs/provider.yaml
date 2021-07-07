@@ -23,8 +23,12 @@ description: |
     and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 versions:
+  - 2.0.0
   - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Hadoop Distributed File System (HDFS)

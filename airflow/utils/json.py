@@ -17,6 +17,7 @@
 # under the License.
 
 from datetime import date, datetime
+from decimal import Decimal
 
 import numpy as np
 from flask.json import JSONEncoder
@@ -37,12 +38,19 @@ class AirflowJsonEncoder(JSONEncoder):
         self.default = self._default
 
     @staticmethod
-    def _default(obj):
+    def _default(obj):  # pylint: disable=too-many-return-statements
         """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):
             return obj.strftime('%Y-%m-%d')
+        elif isinstance(obj, Decimal):
+            _, _, exponent = obj.as_tuple()
+            if exponent >= 0:  # No digits after the decimal point.
+                return int(obj)
+            # Technically lossy due to floating point errors, but the best we
+            # can do without implementing a custom encode function.
+            return float(obj)
         elif isinstance(
             obj,
             (

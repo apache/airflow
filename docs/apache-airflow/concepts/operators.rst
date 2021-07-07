@@ -67,33 +67,33 @@ For example, say you want to pass the execution date as an environment variable 
   # The execution date as YYYY-MM-DD
   date = "{{ ds }}"
   t = BashOperator(
-      task_id='test_env',
-      bash_command='/tmp/test.sh ',
+      task_id="test_env",
+      bash_command="/tmp/test.sh ",
       dag=dag,
-      env={'EXECUTION_DATE': date})
+      env={"EXECUTION_DATE": date},
+  )
 
 Here, ``{{ ds }}`` is a macro, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the execution date will be available as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 
-You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the pre_execute function of your operator is called.
+You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
 
 You can also use Jinja templating with nested fields, as long as these nested fields are marked as templated in the structure they belong to: fields registered in ``template_fields`` property will be submitted to template substitution, like the ``path`` field in the example below:
 
 .. code-block:: python
 
     class MyDataReader:
-        template_fields = ['path']
+        template_fields = ["path"]
 
         def __init__(self, my_path):
             self.path = my_path
 
         # [additional code here...]
 
+
     t = PythonOperator(
-        task_id='transform_data',
-        python_callable=transform_data
-        op_args=[
-            MyDataReader('/tmp/{{ ds }}/my_file')
-        ],
+        task_id="transform_data",
+        python_callable=transform_data,
+        op_args=[MyDataReader("/tmp/{{ ds }}/my_file")],
         dag=dag,
     )
 
@@ -104,27 +104,27 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
 .. code-block:: python
 
     class MyDataTransformer:
-        template_fields = ['reader']
+        template_fields = ["reader"]
 
         def __init__(self, my_reader):
             self.reader = my_reader
 
         # [additional code here...]
 
+
     class MyDataReader:
-        template_fields = ['path']
+        template_fields = ["path"]
 
         def __init__(self, my_path):
             self.path = my_path
 
         # [additional code here...]
 
+
     t = PythonOperator(
-        task_id='transform_data',
-        python_callable=transform_data
-        op_args=[
-            MyDataTransformer(MyDataReader('/tmp/{{ ds }}/my_file'))
-        ],
+        task_id="transform_data",
+        python_callable=transform_data,
+        op_args=[MyDataTransformer(MyDataReader("/tmp/{{ ds }}/my_file"))],
         dag=dag,
     )
 
@@ -133,11 +133,71 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 .. code-block:: python
 
     my_dag = DAG(
-        dag_id='my-dag',
+        dag_id="my-dag",
         jinja_environment_kwargs={
-            'keep_trailing_newline': True,
-             # some other jinja2 Environment options here
+            "keep_trailing_newline": True,
+            # some other jinja2 Environment options here
         },
     )
 
-See the `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_ to find all available options.
+See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
+
+Rendering Fields as Native Python Objects
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, all the ``template_fields`` are rendered as strings.
+
+Example, let's say ``extract`` task pushes a dictionary
+(Example: ``{"1001": 301.27, "1002": 433.21, "1003": 502.22}``) to :ref:`XCom <concepts:xcom>` table.
+Now, when the following task is run, ``order_data`` argument is passed a string, example:
+``'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'``.
+
+.. code-block:: python
+
+    transform = PythonOperator(
+        task_id="transform",
+        op_kwargs={"order_data": "{{ti.xcom_pull('extract')}}"},
+        python_callable=transform,
+    )
+
+
+If you instead want the rendered template field to return a Native Python object (``dict`` in our example),
+you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
+
+.. code-block:: python
+
+    dag = DAG(
+        dag_id="example_template_as_python_object",
+        schedule_interval=None,
+        start_date=days_ago(2),
+        render_template_as_native_obj=True,
+    )
+
+
+    def extract():
+        data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
+        return json.loads(data_string)
+
+
+    def transform(order_data):
+        print(type(order_data))
+        for value in order_data.values():
+            total_order_value += value
+        return {"total_order_value": total_order_value}
+
+
+    extract_task = PythonOperator(task_id="extract", python_callable=extract)
+
+    transform_task = PythonOperator(
+        task_id="transform",
+        op_kwargs={"order_data": "{{ti.xcom_pull('extract')}}"},
+        python_callable=transform,
+    )
+
+    extract_task >> transform_task
+
+In this case, ``order_data`` argument is passed: ``{"1001": 301.27, "1002": 433.21, "1003": 502.22}``.
+
+Airflow uses Jinja's `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_
+when ``render_template_as_native_obj`` is set to ``True``.
+With ``NativeEnvironment``, rendering a template produces a native Python type.

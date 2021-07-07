@@ -22,55 +22,12 @@ from datetime import datetime
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
-from parameterized import parameterized
 
 from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
-from tests.test_utils.config import conf_vars
 
 
 class TestUtils(unittest.TestCase):
-    def test_empty_variable_should_not_be_hidden(self):
-        assert not utils.should_hide_value_for_key("")
-        assert not utils.should_hide_value_for_key(None)
-
-    def test_normal_variable_should_not_be_hidden(self):
-        assert not utils.should_hide_value_for_key("key")
-
-    def test_sensitive_variable_should_be_hidden(self):
-        assert utils.should_hide_value_for_key("google_api_key")
-
-    def test_sensitive_variable_should_be_hidden_ic(self):
-        assert utils.should_hide_value_for_key("GOOGLE_API_KEY")
-
-    @parameterized.expand(
-        [
-            ('key', 'TRELLO_KEY', True),
-            ('key', 'TRELLO_API_KEY', True),
-            ('key', 'GITHUB_APIKEY', True),
-            ('key, token', 'TRELLO_TOKEN', True),
-            ('mysecretword, mysensitivekey', 'GITHUB_mysecretword', True),
-        ],
-    )
-    def test_sensitive_variable_fields_should_be_hidden(
-        self, sensitive_variable_fields, key, expected_result
-    ):
-        with conf_vars({('admin', 'sensitive_variable_fields'): str(sensitive_variable_fields)}):
-            assert expected_result == utils.should_hide_value_for_key(key)
-
-    @parameterized.expand(
-        [
-            (None, 'TRELLO_API', False),
-            ('token', 'TRELLO_KEY', False),
-            ('token, mysecretword', 'TRELLO_KEY', False),
-        ],
-    )
-    def test_normal_variable_fields_should_not_be_hidden(
-        self, sensitive_variable_fields, key, expected_result
-    ):
-        with conf_vars({('admin', 'sensitive_variable_fields'): str(sensitive_variable_fields)}):
-            assert expected_result == utils.should_hide_value_for_key(key)
-
     def check_generate_pages_html(self, current_page, total_pages, window=7, check_middle=False):
         extra_links = 4  # first, prev, next, last
         search = "'>\"/><img src=x onerror=alert(1)>"
@@ -261,3 +218,39 @@ class TestWrappedMarkdown(unittest.TestCase):
         )
 
         assert '<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered
+
+    def test_wrapped_markdown_with_raw_code_block(self):
+        rendered = wrapped_markdown(
+            """\
+            # Markdown code block
+
+            Inline `code` works well.
+
+                Code block
+                does not
+                respect
+                newlines
+
+            """
+        )
+
+        assert (
+            '<div class="rich_doc" ><h1>Markdown code block</h1>\n'
+            '<p>Inline <code>code</code> works well.</p>\n'
+            '<pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre></div>'
+        ) == rendered
+
+    def test_wrapped_markdown_with_nested_list(self):
+        rendered = wrapped_markdown(
+            """
+            ### Docstring with a code block
+
+            - And
+                - A nested list
+            """
+        )
+
+        assert (
+            '<div class="rich_doc" ><h3>Docstring with a code block</h3>\n'
+            '<ul>\n<li>And<ul>\n<li>A nested list</li>\n</ul>\n</li>\n</ul></div>'
+        ) == rendered

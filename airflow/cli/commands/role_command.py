@@ -30,7 +30,7 @@ def roles_list(args):
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
     roles = appbuilder.sm.get_all_roles()
     AirflowConsole().print_as(
-        data=sorted([r.name for r in roles]), output=args.output, mapper=lambda x: {"name": x}
+        data=sorted(r.name for r in roles), output=args.output, mapper=lambda x: {"name": x}
     )
 
 

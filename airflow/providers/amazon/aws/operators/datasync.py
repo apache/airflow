@@ -24,7 +24,6 @@ from typing import List, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
-from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes, too-many-arguments
@@ -125,7 +124,6 @@ class AWSDataSyncOperator(BaseOperator):
     }
     ui_color = "#44b5e2"
 
-    @apply_defaults
     def __init__(
         self,
         *,

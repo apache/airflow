@@ -24,7 +24,6 @@ from typing import Any, Dict, List, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.utils.decorators import apply_defaults
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -249,7 +248,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_fgcolor = '#fff'
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -460,7 +458,6 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_fgcolor = '#fff'
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

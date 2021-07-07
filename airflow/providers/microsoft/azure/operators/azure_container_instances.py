@@ -38,7 +38,6 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.azure_container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
-from airflow.utils.decorators import apply_defaults
 
 Volume = namedtuple(
     'Volume',
@@ -120,7 +119,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                      "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
                      "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
                     secured_variables = ['POSTGRES_PASSWORD'],
-                    volumes = [("azure_wasb_conn_id",
+                    volumes = [("azure_container_instance_conn_id",
                             "my_storage_container",
                             "my_fileshare",
                             "/input-data",
@@ -137,7 +136,6 @@ class AzureContainerInstancesOperator(BaseOperator):
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

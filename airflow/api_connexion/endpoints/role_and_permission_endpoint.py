@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from connexion import NoContent
 from flask import current_app, request
 from flask_appbuilder.security.sqla.models import Permission, Role
 from marshmallow import ValidationError
 from sqlalchemy import func
 
+from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
@@ -41,9 +41,9 @@ def _check_action_and_resource(sm, perms):
     This function is intended for use in the REST API because it raise 400
     """
     for item in perms:
-        if not sm.find_permission(item[0]):
+        if not sm.get_action(item[0]):
             raise BadRequest(detail=f"The specified action: '{item[0]}' was not found")
-        if not sm.find_view_menu(item[1]):
+        if not sm.get_resource(item[1]):
             raise BadRequest(detail=f"The specified resource: '{item[1]}' was not found")
 
 

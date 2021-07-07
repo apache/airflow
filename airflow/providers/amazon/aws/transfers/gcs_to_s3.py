@@ -22,7 +22,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union, cast
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSToS3Operator(BaseOperator):
@@ -94,7 +93,6 @@ class GCSToS3Operator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments

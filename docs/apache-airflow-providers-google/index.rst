@@ -68,7 +68,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 
-Release: 2.2.0
+Release: 4.0.0
 
 Provider package
 ----------------
@@ -79,16 +79,7 @@ are in ``airflow.providers.google`` python package.
 Installation
 ------------
 
-.. note::
-
-    On November 2020, new version of PIP (20.3) has been released with a new, 2020 resolver. This resolver
-    does not yet work with Apache Airflow and might lead to errors in installation - depends on your choice
-    of extras. In order to install Airflow you need to either downgrade pip to version 20.2.4
-    ``pip install --upgrade pip==20.2.4`` or, in case you use Pip 20.3, you need to add option
-    ``--use-deprecated legacy-resolver`` to your pip install command.
-
-
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-google``
 
 PIP requirements
@@ -97,6 +88,7 @@ PIP requirements
 ======================================  ===================
 PIP package                             Version required
 ======================================  ===================
+``apache-airflow``                      ``>=2.1.0``
 ``PyOpenSSL``
 ``google-ads``                          ``>=4.0.0,<8.0.0``
 ``google-api-core``                     ``>=1.25.1,<2.0.0``
@@ -129,9 +121,9 @@ PIP package                             Version required
 ``google-cloud-vision``                 ``>=0.35.2,<2.0.0``
 ``google-cloud-workflows``              ``>=0.1.0,<2.0.0``
 ``grpcio-gcp``                          ``>=0.2.2``
+``httpx``
 ``json-merge-patch``                    ``~=0.2``
 ``pandas-gbq``                          ``<0.15.0``
-``plyvel``
 ======================================  ===================
 
 Cross provider package dependencies
@@ -167,172 +159,13 @@ Dependent package                                                               
 `apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_                        ``trino``
 ========================================================================================================================  ====================
 
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+Downloading official packages
+-----------------------------
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+* `The apache-airflow-providers-google 4.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-4.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-4.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-4.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 4.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-4.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-4.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-4.0.0-py3-none-any.whl.sha512>`__)
 
-
-Changelog
----------
-
-2.2.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Adds 'Trino' provider (with lower memory footprint for tests) (#15187)``
-* ``update remaining old import paths of operators (#15127)``
-* ``Override project in dataprocSubmitJobOperator (#14981)``
-* ``GCS to BigQuery Transfer Operator with Labels and Description parameter (#14881)``
-* ``Add GCS timespan transform operator (#13996)``
-* ``Add job labels to bigquery check operators. (#14685)``
-* ``Use libyaml C library when available. (#14577)``
-* ``Add Google leveldb hook and operator (#13109) (#14105)``
-
-Bug fixes
-~~~~~~~~~
-
-* ``Google Dataflow Hook to handle no Job Type (#14914)``
-
-2.1.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Corrects order of argument in docstring in GCSHook.download method (#14497)``
-* ``Refactor SQL/BigQuery/Qubole/Druid Check operators (#12677)``
-* ``Add GoogleDriveToLocalOperator (#14191)``
-* ``Add 'exists_ok' flag to BigQueryCreateEmptyTable(Dataset)Operator (#14026)``
-* ``Add materialized view support for BigQuery (#14201)``
-* ``Add BigQueryUpdateTableOperator (#14149)``
-* ``Add param to CloudDataTransferServiceOperator (#14118)``
-* ``Add gdrive_to_gcs operator, drive sensor, additional functionality to drive hook  (#13982)``
-* ``Improve GCSToSFTPOperator paths handling (#11284)``
-
-Bug Fixes
-~~~~~~~~~
-
-* ``Fixes to dataproc operators and hook (#14086)``
-* ``#9803 fix bug in copy operation without wildcard  (#13919)``
-
-2.0.0
-.....
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-Updated ``google-cloud-*`` libraries
-````````````````````````````````````
-
-This release of the provider package contains third-party library updates, which may require updating your
-DAG files or custom hooks and operators, if you were using objects from those libraries.
-Updating of these libraries is necessary to be able to use new features made available by new versions of
-the libraries and to obtain bug fixes that are only available for new versions of the library.
-
-Details are covered in the UPDATING.md files for each library, but there are some details
-that you should pay attention to.
-
-
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| Library name                                                                                        | Previous constraints | Current constraints | Upgrade Documentation                                                                                                                 |
-+=====================================================================================================+======================+=====================+=======================================================================================================================================+
-| `google-cloud-automl <https://pypi.org/project/google-cloud-automl/>`_                              | ``>=0.4.0,<2.0.0``   | ``>=2.1.0,<3.0.0``  | `Upgrading google-cloud-automl <https://github.com/googleapis/python-automl/blob/master/UPGRADING.md>`_                               |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-bigquery-datatransfer <https://pypi.org/project/google-cloud-bigquery-datatransfer>`_ | ``>=0.4.0,<2.0.0``   | ``>=3.0.0,<4.0.0``  | `Upgrading google-cloud-bigquery-datatransfer <https://github.com/googleapis/python-bigquery-datatransfer/blob/master/UPGRADING.md>`_ |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-datacatalog <https://pypi.org/project/google-cloud-datacatalog>`_                     | ``>=0.5.0,<0.8``     | ``>=3.0.0,<4.0.0``  | `Upgrading google-cloud-datacatalog <https://github.com/googleapis/python-datacatalog/blob/master/UPGRADING.md>`_                     |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-dataproc <https://pypi.org/project/google-cloud-dataproc/>`_                          | ``>=1.0.1,<2.0.0``   | ``>=2.2.0,<3.0.0``  | `Upgrading google-cloud-dataproc <https://github.com/googleapis/python-dataproc/blob/master/UPGRADING.md>`_                           |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-kms <https://pypi.org/project/google-cloud-kms>`_                                     | ``>=1.2.1,<2.0.0``   | ``>=2.0.0,<3.0.0``  | `Upgrading google-cloud-kms <https://github.com/googleapis/python-kms/blob/master/UPGRADING.md>`_                                     |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-logging <https://pypi.org/project/google-cloud-logging/>`_                            | ``>=1.14.0,<2.0.0``  | ``>=2.0.0,<3.0.0``  | `Upgrading google-cloud-logging <https://github.com/googleapis/python-logging/blob/master/UPGRADING.md>`_                             |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-monitoring <https://pypi.org/project/google-cloud-monitoring>`_                       | ``>=0.34.0,<2.0.0``  | ``>=2.0.0,<3.0.0``  | `Upgrading google-cloud-monitoring <https://github.com/googleapis/python-monitoring/blob/master/UPGRADING.md)>`_                      |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-os-login <https://pypi.org/project/google-cloud-os-login>`_                           | ``>=1.0.0,<2.0.0``   | ``>=2.0.0,<3.0.0``  | `Upgrading google-cloud-os-login <https://github.com/googleapis/python-oslogin/blob/master/UPGRADING.md>`_                            |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-pubsub <https://pypi.org/project/google-cloud-pubsub>`_                               | ``>=1.0.0,<2.0.0``   | ``>=2.0.0,<3.0.0``  | `Upgrading google-cloud-pubsub <https://github.com/googleapis/python-pubsub/blob/master/UPGRADING.md>`_                               |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-| `google-cloud-tasks <https://pypi.org/project/google-cloud-tasks>`_                                 | ``>=1.2.1,<2.0.0``   | ``>=2.0.0,<3.0.0``  | `Upgrading google-cloud-task <https://github.com/googleapis/python-tasks/blob/master/UPGRADING.md>`_                                  |
-+-----------------------------------------------------------------------------------------------------+----------------------+---------------------+---------------------------------------------------------------------------------------------------------------------------------------+
-
-The field names use the snake_case convention
-`````````````````````````````````````````````
-
-If your DAG uses an object from the above mentioned libraries passed by XCom, it is necessary to update the
-naming convention of the fields that are read. Previously, the fields used the CamelSnake convention,
-now the snake_case convention is used.
-
-**Before:**
-
-.. code-block:: python
-
-    set_acl_permission = GCSBucketCreateAclEntryOperator(
-        task_id="gcs-set-acl-permission",
-        bucket=BUCKET_NAME,
-        entity="user-{{ task_instance.xcom_pull('get-instance')['persistenceIamIdentity']"
-        ".split(':', 2)[1] }}",
-        role="OWNER",
-    )
-
-
-**After:**
-
-.. code-block:: python
-
-    set_acl_permission = GCSBucketCreateAclEntryOperator(
-        task_id="gcs-set-acl-permission",
-        bucket=BUCKET_NAME,
-        entity="user-{{ task_instance.xcom_pull('get-instance')['persistence_iam_identity']"
-        ".split(':', 2)[1] }}",
-        role="OWNER",
-    )
-
-
-Features
-~~~~~~~~
-
-* ``Add Apache Beam operators (#12814)``
-* ``Add Google Cloud Workflows Operators (#13366)``
-* ``Replace 'google_cloud_storage_conn_id' by 'gcp_conn_id' when using 'GCSHook' (#13851)``
-* ``Add How To Guide for Dataflow (#13461)``
-* ``Generalize MLEngineStartTrainingJobOperator to custom images (#13318)``
-* ``Add Parquet data type to BaseSQLToGCSOperator (#13359)``
-* ``Add DataprocCreateWorkflowTemplateOperator (#13338)``
-* ``Add OracleToGCS Transfer (#13246)``
-* ``Add timeout option to gcs hook methods. (#13156)``
-* ``Add regional support to dataproc workflow template operators (#12907)``
-* ``Add project_id to client inside BigQuery hook update_table method (#13018)``
-
-Bug fixes
-~~~~~~~~~
-
-* ``Fix four bugs in StackdriverTaskHandler (#13784)``
-* ``Decode Remote Google Logs (#13115)``
-* ``Fix and improve GCP BigTable hook and system test (#13896)``
-* ``updated Google DV360 Hook to fix SDF issue (#13703)``
-* ``Fix insert_all method of BigQueryHook to support tables without schema (#13138)``
-* ``Fix Google BigQueryHook method get_schema() (#13136)``
-* ``Fix Data Catalog operators (#13096)``
-
-
-1.0.0
-.....
-
-Initial version of the provider.
+.. include:: ../../airflow/providers/google/CHANGELOG.rst

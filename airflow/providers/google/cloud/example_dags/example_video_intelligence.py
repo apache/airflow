@@ -38,7 +38,7 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_video_intelligence_os_args]
-GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "test-bucket-name")
+GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "INVALID BUCKET NAME")
 # [END howto_operator_video_intelligence_os_args]
 
 

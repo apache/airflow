@@ -20,7 +20,7 @@ Configuring Airflow
 
 All Airflow configuration parameters (equivalent of ``airflow.cfg``) are
 stored in
-`values.yaml <https://github.com/apache/airflow/blob/master/chart/values.yaml>`__
+`values.yaml <https://github.com/apache/airflow/blob/main/chart/values.yaml>`__
 under the ``config`` key . The following code demonstrates how one would
 allow webserver users to view the config from within the webserver
 application. See the bottom line of the example:

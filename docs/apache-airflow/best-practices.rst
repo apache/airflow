@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _best_practice:
+
 Best Practices
 ==============
 
@@ -25,10 +27,18 @@ Creating a new DAG is a two-step process:
 
 This tutorial will introduce you to the best practices for these two steps.
 
+.. _best_practice:writing_a_dag:
+
 Writing a DAG
 ^^^^^^^^^^^^^^
+
 Creating a new DAG in Airflow is quite simple. However, there are many things that you need to take care of
 to ensure the DAG run or failure does not produce unexpected results.
+
+Creating a Custom Operator/Hook
+-------------------------------
+
+Please follow our guide on :ref:`custom Operators <custom_operator>`.
 
 Creating a task
 ---------------
@@ -53,7 +63,6 @@ Some of the ways you can avoid producing a different result -
 
     You should define repetitive parameters such as ``connection_id`` or S3 paths in ``default_args`` rather than declaring them for each task.
     The ``default_args`` help to avoid mistakes such as typographical errors.
-
 
 Deleting a task
 ----------------
@@ -101,9 +110,12 @@ or if you need to deserialize a json object from the variable :
     {{ var.json.<variable_name> }}
 
 
-.. note::
+Top level Python Code
+---------------------
 
-    In general, you should not write any code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
+In general, you should not write any code outside of defining Airflow constructs like Operators. The code outside the
+tasks runs every time Airflow parses an eligible python file, which happens at the minimum frequency of
+:ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` seconds.
 
 
 Testing a DAG
@@ -138,16 +150,17 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
  from airflow.models import DagBag
  import unittest
 
- class TestHelloWorldDAG(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag()
 
-    def test_dag_loaded(self):
-        dag = self.dagbag.get_dag(dag_id='hello_world')
-        assert self.dagbag.import_errors == {}
-        assert dag is not None
-        assert len(dag.tasks) == 1
+ class TestHelloWorldDAG(unittest.TestCase):
+     @classmethod
+     def setUpClass(cls):
+         cls.dagbag = DagBag()
+
+     def test_dag_loaded(self):
+         dag = self.dagbag.get_dag(dag_id="hello_world")
+         assert self.dagbag.import_errors == {}
+         assert dag is not None
+         assert len(dag.tasks) == 1
 
 **Unit test a DAG structure:**
 This is an example test want to verify the structure of a code-generated DAG against a dict object
@@ -155,20 +168,26 @@ This is an example test want to verify the structure of a code-generated DAG aga
 .. code-block:: python
 
  import unittest
+
+
  class testClass(unittest.TestCase):
-     def assertDagDictEqual(self,source,dag):
+     def assertDagDictEqual(self, source, dag):
          assert dag.task_dict.keys() == source.keys()
          for task_id, downstream_list in source.items():
              assert dag.has_task(task_id)
              task = dag.get_task(task_id)
              assert task.downstream_task_ids == set(downstream_list)
+
      def test_dag(self):
-         self.assertDagDictEqual({
-           "DummyInstruction_0": ["DummyInstruction_1"],
-           "DummyInstruction_1": ["DummyInstruction_2"],
-           "DummyInstruction_2": ["DummyInstruction_3"],
-           "DummyInstruction_3": []
-         },dag)
+         self.assertDagDictEqual(
+             {
+                 "DummyInstruction_0": ["DummyInstruction_1"],
+                 "DummyInstruction_1": ["DummyInstruction_2"],
+                 "DummyInstruction_2": ["DummyInstruction_3"],
+                 "DummyInstruction_3": [],
+             },
+             dag,
+         )
 
 **Unit test for custom operator:**
 
@@ -177,23 +196,28 @@ This is an example test want to verify the structure of a code-generated DAG aga
  import unittest
  from airflow.utils.state import State
 
- DEFAULT_DATE = '2019-10-03'
- TEST_DAG_ID = 'test_my_custom_operator'
+ DEFAULT_DATE = "2019-10-03"
+ TEST_DAG_ID = "test_my_custom_operator"
+
 
  class MyCustomOperatorTest(unittest.TestCase):
-    def setUp(self):
-        self.dag = DAG(TEST_DAG_ID, schedule_interval='@daily', default_args={'start_date' : DEFAULT_DATE})
-        self.op = MyCustomOperator(
-            dag=self.dag,
-            task_id='test',
-            prefix='s3://bucket/some/prefix',
-        )
-        self.ti = TaskInstance(task=self.op, execution_date=DEFAULT_DATE)
+     def setUp(self):
+         self.dag = DAG(
+             TEST_DAG_ID,
+             schedule_interval="@daily",
+             default_args={"start_date": DEFAULT_DATE},
+         )
+         self.op = MyCustomOperator(
+             dag=self.dag,
+             task_id="test",
+             prefix="s3://bucket/some/prefix",
+         )
+         self.ti = TaskInstance(task=self.op, execution_date=DEFAULT_DATE)
 
-    def test_execute_no_trigger(self):
-        self.ti.run(ignore_ti_state=True)
-        assert self.ti.state == State.SUCCESS
-        # Assert something related to tasks results
+     def test_execute_no_trigger(self):
+         self.ti.run(ignore_ti_state=True)
+         assert self.ti.state == State.SUCCESS
+         # Assert something related to tasks results
 
 Self-Checks
 ------------
@@ -209,10 +233,10 @@ Similarly, if you have a task that starts a microservice in Kubernetes or Mesos,
 
    task = PushToS3(...)
    check = S3KeySensor(
-      task_id='check_parquet_exists',
-      bucket_key="s3://bucket/key/foo.parquet",
-      poke_interval=0,
-      timeout=0
+       task_id="check_parquet_exists",
+       bucket_key="s3://bucket/key/foo.parquet",
+       poke_interval=0,
+       timeout=0,
    )
    task >> check
 
@@ -231,10 +255,7 @@ You can use environment variables to parameterize the DAG.
 
    import os
 
-   dest = os.environ.get(
-      "MY_DAG_DEST_PATH",
-      "s3://default-target/path/"
-   )
+   dest = os.environ.get("MY_DAG_DEST_PATH", "s3://default-target/path/")
 
 Mocking variables and connections
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -245,7 +266,7 @@ For variable, use :envvar:`AIRFLOW_VAR_{KEY}`.
 
 .. code-block:: python
 
-    with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
+    with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
         assert "env-value" == Variable.get("key")
 
 For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
@@ -259,4 +280,4 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-      assert "cat" == Connection.get("my_conn").login
+        assert "cat" == Connection.get("my_conn").login

@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToG
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET_NAME", "postgres_to_gcs_example")
+GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
 FILENAME = "test_file"
 SQL_QUERY = "select * from test_table;"
 

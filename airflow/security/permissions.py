@@ -27,6 +27,7 @@ RESOURCE_DOCS_MENU = "Docs"
 RESOURCE_DOCS = "Documentation"
 RESOURCE_CONFIG = "Configurations"
 RESOURCE_CONNECTION = "Connections"
+RESOURCE_DAG_DEPENDENCIES = "DAG Dependencies"
 RESOURCE_DAG_CODE = "DAG Code"
 RESOURCE_DAG_RUN = "DAG Runs"
 RESOURCE_IMPORT_ERROR = "ImportError"
@@ -38,6 +39,7 @@ RESOURCE_PERMISSION = "Permissions"
 RESOURCE_PERMISSION_VIEW = "Permission Views"  # Refers to a Perm <-> View mapping, not an MVC View.
 RESOURCE_POOL = "Pools"
 RESOURCE_PLUGIN = "Plugins"
+RESOURCE_PROVIDER = "Providers"
 RESOURCE_ROLE = "Roles"
 RESOURCE_SLA_MISS = "SLA Misses"
 RESOURCE_TASK_INSTANCE = "Task Instances"
@@ -60,7 +62,7 @@ ACTION_CAN_ACCESS_MENU = "menu_access"
 DEPRECATED_ACTION_CAN_DAG_READ = "can_dag_read"
 DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 
-DAG_PERMS = {ACTION_CAN_READ, ACTION_CAN_EDIT}
+DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT}
 
 
 def resource_name_for_dag(dag_id):

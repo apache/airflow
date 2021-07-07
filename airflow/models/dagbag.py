@@ -36,7 +36,12 @@ from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowClusterPolicyViolation, AirflowDagCycleException, SerializedDagNotFound
+from airflow.exceptions import (
+    AirflowClusterPolicyViolation,
+    AirflowDagCycleException,
+    AirflowDagDuplicatedIdException,
+    SerializedDagNotFound,
+)
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import test_cycle
@@ -185,6 +190,8 @@ class DagBag(LoggingMixin):
             # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
             # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
             # 3. if (2) is yes, fetch the Serialized DAG.
+            # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
+            # if it exists and return None.
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
             if (
                 dag_id in self.dags_last_fetched
@@ -194,7 +201,14 @@ class DagBag(LoggingMixin):
                     dag_id=dag_id,
                     session=session,
                 )
-                if sd_last_updated_datetime and sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                if not sd_last_updated_datetime:
+                    self.log.warning("Serialized DAG %s no longer exists", dag_id)
+                    del self.dags[dag_id]
+                    del self.dags_last_fetched[dag_id]
+                    del self.dags_hash[dag_id]
+                    return None
+
+                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
@@ -215,8 +229,15 @@ class DagBag(LoggingMixin):
         # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
         is_expired = orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired
+        if is_expired:
+            # Remove associated dags so we can re-add them.
+            self.dags = {
+                key: dag
+                for key, dag in self.dags.items()
+                if root_dag_id != key and not (dag.is_subdag and root_dag_id == dag.parent_dag.dag_id)
+            }
         if is_missing or is_expired:
-            # Reprocess source file
+            # Reprocess source file.
             found_dags = self.process_file(
                 filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False
             )
@@ -381,7 +402,11 @@ class DagBag(LoggingMixin):
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
-            except (AirflowDagCycleException, AirflowClusterPolicyViolation) as exception:
+            except (
+                AirflowDagCycleException,
+                AirflowDagDuplicatedIdException,
+                AirflowClusterPolicyViolation,
+            ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath] = str(exception)
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
@@ -390,7 +415,17 @@ class DagBag(LoggingMixin):
     def bag_dag(self, dag, root_dag):
         """
         Adds the DAG into the bag, recurses into sub dags.
-        Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
+
+        :raises: AirflowDagCycleException if a cycle is detected in this dag or its subdags.
+        :raises: AirflowDagDuplicatedIdException if this dag or its subdags already exists in the bag.
+        """
+        self._bag_dag(dag=dag, root_dag=root_dag, recursive=True)
+
+    def _bag_dag(self, *, dag, root_dag, recursive):
+        """Actual implementation of bagging a dag.
+
+        The only purpose of this is to avoid exposing ``recursive`` in ``bag_dag()``,
+        intended to only be used by the ``_bag_dag()`` implementation.
         """
         test_cycle(dag)  # throws if a task cycle is found
 
@@ -406,24 +441,34 @@ class DagBag(LoggingMixin):
         subdags = dag.subdags
 
         try:
-            for subdag in subdags:
-                subdag.full_filepath = dag.full_filepath
-                subdag.parent_dag = dag
-                subdag.is_subdag = True
-                self.bag_dag(dag=subdag, root_dag=root_dag)
+            # DAG.subdags automatically performs DFS search, so we don't recurse
+            # into further _bag_dag() calls.
+            if recursive:
+                for subdag in subdags:
+                    subdag.full_filepath = dag.full_filepath
+                    subdag.parent_dag = dag
+                    subdag.is_subdag = True
+                    self._bag_dag(dag=subdag, root_dag=root_dag, recursive=False)
 
+            prev_dag = self.dags.get(dag.dag_id)
+            if prev_dag and prev_dag.full_filepath != dag.full_filepath:
+                raise AirflowDagDuplicatedIdException(
+                    dag_id=dag.dag_id,
+                    incoming=dag.full_filepath,
+                    existing=self.dags[dag.dag_id].full_filepath,
+                )
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)
-        except AirflowDagCycleException as cycle_exception:
+        except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception('Exception bagging dag: %s', dag.dag_id)
             # Only necessary at the root level since DAG.subdags automatically
             # performs DFS to search through all subdags
-            if dag == root_dag:
+            if recursive:
                 for subdag in subdags:
                     if subdag.dag_id in self.dags:
                         del self.dags[subdag.dag_id]
-            raise cycle_exception
+            raise
 
     def collect_dags(
         self,
@@ -471,7 +516,7 @@ class DagBag(LoggingMixin):
                         file=filepath.replace(settings.DAGS_FOLDER, ''),
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
-                        task_num=sum([len(dag.tasks) for dag in found_dags]),
+                        task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
                     )
                 )
@@ -504,9 +549,9 @@ class DagBag(LoggingMixin):
         """Prints a report around DagBag loading stats"""
         stats = self.dagbag_stats
         dag_folder = self.dag_folder
-        duration = sum([o.duration for o in stats], timedelta()).total_seconds()
-        dag_num = sum([o.dag_num for o in stats])
-        task_num = sum([o.task_num for o in stats])
+        duration = sum((o.duration for o in stats), timedelta()).total_seconds()
+        dag_num = sum(o.dag_num for o in stats)
+        task_num = sum(o.task_num for o in stats)
         table = tabulate(stats, headers="keys")
 
         report = textwrap.dedent(
@@ -538,7 +583,7 @@ class DagBag(LoggingMixin):
             if dag.is_subdag:
                 return []
             try:
-                # We cant use bulk_write_to_db as we want to capture each error individually
+                # We can't use bulk_write_to_db as we want to capture each error individually
                 dag_was_updated = SerializedDagModel.write_dag(
                     dag,
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
@@ -582,11 +627,11 @@ class DagBag(LoggingMixin):
         """Sync DAG specific permissions, if necessary"""
         from flask_appbuilder.security.sqla import models as sqla_models
 
-        from airflow.security.permissions import DAG_PERMS, resource_name_for_dag
+        from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
 
         def needs_perm_views(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)
-            for permission_name in DAG_PERMS:
+            for permission_name in DAG_ACTIONS:
                 if not (
                     session.query(sqla_models.PermissionView)
                     .join(sqla_models.Permission)

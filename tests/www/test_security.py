@@ -190,9 +190,7 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.bulk_sync_roles(mock_roles)
         role = self.security_manager.find_role(role_name)
 
-        perm = self.security_manager.find_permission_view_menu(
-            permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE
-        )
+        perm = self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
         self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
@@ -283,6 +281,7 @@ class TestSecurity(unittest.TestCase):
         viewer_role_perms = {
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -409,11 +408,11 @@ class TestSecurity(unittest.TestCase):
         prefixed_test_dag_id = f'DAG:{test_dag_id}'
         self.security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
         assert (
-            self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_READ, prefixed_test_dag_id)
+            self.security_manager.get_permission(permissions.ACTION_CAN_READ, prefixed_test_dag_id)
             is not None
         )
         assert (
-            self.security_manager.find_permission_view_menu(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id)
+            self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id)
             is not None
         )
 
@@ -462,7 +461,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_access_control_with_invalid_permission(self):
         invalid_permissions = [
-            'can_varimport',  # a real permission, but not a member of DAG_PERMS
+            'can_varimport',  # a real permission, but not a member of DAG_ACTIONS
             'can_eat_pudding',  # clearly not a real permission
         ]
         username = "LaUser"
@@ -616,9 +615,9 @@ class TestSecurity(unittest.TestCase):
 
         assert ('can_read', 'Connections') in perms
 
-    def test_get_all_non_dag_permissionviews(self):
+    def test_get_all_non_dag_permissions(self):
         with assert_queries_count(1):
-            pvs = self.security_manager._get_all_non_dag_permissionviews()
+            pvs = self.security_manager._get_all_non_dag_permissions()
 
         assert isinstance(pvs, dict)
         for (perm_name, viewmodel_name), perm_view in pvs.items():

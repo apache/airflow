@@ -38,7 +38,7 @@ PUBSUB_FLEX_TEMPLATE_TOPIC = os.environ.get(
 PUBSUB_FLEX_TEMPLATE_SUBSCRIPTION = PUBSUB_FLEX_TEMPLATE_TOPIC
 GCS_FLEX_TEMPLATE_TEMPLATE_PATH = os.environ.get(
     'GCP_DATAFLOW_GCS_FLEX_TEMPLATE_TEMPLATE_PATH',
-    "gs://test-airflow-dataflow-flex-template/samples/dataflow/templates/streaming-beam-sql.json",
+    "gs://INVALID BUCKET NAME/samples/dataflow/templates/streaming-beam-sql.json",
 )
 BQ_FLEX_TEMPLATE_DATASET = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_DATASET', 'airflow_dataflow_samples')
 BQ_FLEX_TEMPLATE_LOCATION = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_LOCATION>', 'us-west1')

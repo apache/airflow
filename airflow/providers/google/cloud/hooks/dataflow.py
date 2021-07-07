@@ -728,6 +728,7 @@ class DataflowHook(GoogleBaseHook):
             num_retries=self.num_retries,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
         )
         jobs_controller.wait_for_done()
         return response["job"]
@@ -774,6 +775,7 @@ class DataflowHook(GoogleBaseHook):
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
             cancel_timeout=self.cancel_timeout,
+            wait_until_finished=self.wait_until_finished,
         )
         jobs_controller.wait_for_done()
 
@@ -1006,7 +1008,7 @@ class DataflowHook(GoogleBaseHook):
             f"--region={location}",
             *(beam_options_to_args(options)),
         ]
-        self.log.info("Executing command: %s", " ".join([shlex.quote(c) for c in cmd]))
+        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
         with self.provide_authorized_gcloud():
             proc = subprocess.run(  # pylint: disable=subprocess-run-check
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -1030,6 +1032,7 @@ class DataflowHook(GoogleBaseHook):
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
             drain_pipeline=self.drain_pipeline,
+            wait_until_finished=self.wait_until_finished,
         )
         jobs_controller.wait_for_done()
 

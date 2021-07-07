@@ -20,6 +20,7 @@ import glob
 import logging
 import os
 import subprocess
+import sys
 import unittest
 from copy import deepcopy
 from distutils import log
@@ -36,10 +37,11 @@ from setuptools.command.install import install as install_orig
 # And it is particularly useful when you add a new provider and there is no
 # PyPI version to install the provider package from
 INSTALL_PROVIDERS_FROM_SOURCES = 'INSTALL_PROVIDERS_FROM_SOURCES'
+PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.1.0.dev0'
+version = '2.2.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -132,7 +134,7 @@ def git_version(version_: str) -> str:
     Return a version to identify the state of the underlying git repo. The version will
     indicate whether the head of the current git-backed working directory is tied to a
     release tag or not : it will indicate the former with a 'release:{version}' prefix
-    and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
+    and the latter with a '.dev0' suffix. Following the prefix will be a sha of the current
     branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
 
@@ -174,32 +176,17 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-def get_sphinx_theme_version() -> str:
-    """
-    Return sphinx theme version. If USE_THEME_FROM_GIT env variable is set, the theme is used from
-    GitHub to allow dynamically update it during development. However for regular PIP release
-    you cannot use @ package specification, so the latest available released theme package from
-    PIP is used.
-    :return: Version of sphinx theme to use.
-    """
-    if os.environ.get('USE_THEME_FROM_GIT'):
-        return (
-            "@ https://github.com/apache/airflow-site/releases/download/0.0.4/"
-            + "sphinx_airflow_theme-0.0.4-py3-none-any.whl"
-        )
-    return ''
-
-
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
     'boto3>=1.15.0,<1.18.0',
-    'watchtower~=0.7.3',
+    'watchtower~=1.0.6',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
 ]
+asana = ['asana>=0.10', 'cached-property>=1.5.2']
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -240,7 +227,7 @@ cloudant = [
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
     'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0;python_version>="3.7"',
+    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
@@ -249,10 +236,13 @@ databricks = [
 datadog = [
     'datadog>=0.14.0',
 ]
+deprecated_api = [
+    'requests>=2.20.0',
+]
 doc = [
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
     'sphinx>=2.1.2, <3.5.0',
-    f'sphinx-airflow-theme{get_sphinx_theme_version()}',
+    'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-copybutton',
@@ -263,14 +253,14 @@ doc = [
     'sphinxcontrib-spelling==5.2.1',
 ]
 docker = [
-    'docker~=3.0',
+    'docker',
 ]
 druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>7, <7.6.0',
-    'elasticsearch-dbapi==0.1.0',
+    'elasticsearch>7',
+    'elasticsearch-dbapi',
     'elasticsearch-dsl>=5.0.0',
 ]
 exasol = [
@@ -317,11 +307,11 @@ google = [
     'google-cloud-vision>=0.35.2,<2.0.0',
     'google-cloud-workflows>=0.1.0,<2.0.0',
     'grpcio-gcp>=0.2.2',
+    'httpx',
     'json-merge-patch~=0.2',
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
-    'plyvel',
 ]
 grpc = [
     'google-auth>=1.0.0, <2.0.0dev',
@@ -336,8 +326,22 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive[hive]>=0.6.0',
+    'pyhive[hive]>=0.6.0;python_version<"3.9"',
     'thrift>=0.9.2',
+]
+http = [
+    'requests>=2.20.0',
+]
+http_provider = [
+    # NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
+    #        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
+    #        See https://github.com/psf/requests/pull/5797
+    #        This means that providers that depend on Http and cannot work without it, have to have
+    #        explicit dependency on `apache-airflow-providers-http` which needs to be pulled in for them.
+    #        Other cross-provider-dependencies are optional (usually cross-provider dependencies only enable
+    #        some features of providers and majority of those providers works). They result with an extra,
+    #        not with the `install-requires` dependency.
+    'apache-airflow-providers-http',
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
@@ -362,6 +366,7 @@ ldap = [
     'ldap3>=2.5.1',
     'python-ldap',
 ]
+leveldb = ['plyvel']
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -397,7 +402,7 @@ pinot = [
     'pinotdb>0.1.2,<1.0.0',
 ]
 plexus = [
-    'arrow>=0.16.0,<1.0.0',
+    'arrow>=0.16.0',
 ]
 postgres = [
     'psycopg2-binary>=2.7.4',
@@ -452,7 +457,7 @@ tableau = [
     'tableauserverclient',
 ]
 telegram = [
-    'python-telegram-bot==13.0',
+    'python-telegram-bot~=13.0',
 ]
 trino = ['trino']
 vertica = [
@@ -483,7 +488,7 @@ devel = [
     'bowler',
     'click~=7.1',
     'coverage',
-    'docutils',
+    'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
@@ -493,7 +498,6 @@ devel = [
     'importlib-resources~=1.4',
     'ipdb',
     'jira',
-    'jsonpath-ng',
     'jsondiff',
     'mongomock',
     'moto~=2.0',
@@ -502,6 +506,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
+    'pygithub',
     'pylint~=2.8.1',
     'pysftp',
     'pytest~=6.0',
@@ -513,6 +518,7 @@ devel = [
     'python-jose',
     'pywinrm',
     'qds-sdk>=1.9.6',
+    'pytest-httpx',
     'requests_mock',
     'wheel',
     'yamllint',
@@ -523,7 +529,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-    'airbyte': [],
+    'airbyte': http_provider,
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
@@ -531,11 +537,12 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'apache.hdfs': hdfs,
     'apache.hive': hive,
     'apache.kylin': kylin,
-    'apache.livy': [],
+    'apache.livy': http_provider,
     'apache.pig': [],
     'apache.pinot': pinot,
     'apache.spark': spark,
     'apache.sqoop': [],
+    'asana': asana,
     'celery': celery,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
@@ -551,7 +558,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'google': google,
     'grpc': grpc,
     'hashicorp': hashicorp,
-    'http': [],
+    'http': http,
     'imap': [],
     'jdbc': jdbc,
     'jenkins': jenkins,
@@ -564,7 +571,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'neo4j': neo4j,
     'odbc': odbc,
     'openfaas': [],
-    'opsgenie': [],
+    'opsgenie': http_provider,
     'oracle': oracle,
     'pagerduty': pagerduty,
     'papermill': papermill,
@@ -609,17 +616,18 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cgroups': cgroups,
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
+    'deprecated_api': deprecated_api,
     'github_enterprise': flask_oauth,
     'google_auth': flask_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
+    'leveldb': leveldb,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,
     'statsd': statsd,
     'virtualenv': virtualenv,
 }
-
 
 EXTRAS_REQUIREMENTS: Dict[str, List[str]] = deepcopy(CORE_EXTRAS_REQUIREMENTS)
 
@@ -803,9 +811,12 @@ EXTRAS_REQUIREMENTS = sort_extras_requirements()
 # Those providers are pre-installed always when airflow is installed.
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
+# NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
+#        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
+#        we cannot make it mandatory dependency. See https://github.com/psf/requests/pull/5797
 PREINSTALLED_PROVIDERS = [
     'ftp',
-    'http',
+    # 'http',
     'imap',
     'sqlite',
 ]
@@ -822,9 +833,25 @@ def get_provider_package_from_package_id(package_id: str):
     return f"apache-airflow-providers-{package_suffix}"
 
 
+def get_excluded_providers():
+    """
+    Returns packages excluded for the current python version.
+
+    Currently the only excluded provider is apache hive for Python 3.9.
+    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
+
+    """
+    return ['apache.hive'] if PY39 else []
+
+
 def get_all_provider_packages():
     """Returns all provider packages configured in setup.py"""
-    return " ".join([get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS])
+    excluded_providers = get_excluded_providers()
+    return " ".join(
+        get_provider_package_from_package_id(package)
+        for package in PROVIDERS_REQUIREMENTS
+        if package not in excluded_providers
+    )
 
 
 class AirflowDistribution(Distribution):

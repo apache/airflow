@@ -28,16 +28,48 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-16
+
+================================================================================================  ===========  =================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`5c86e3d50 <https://github.com/apache/airflow/commit/5c86e3d50970e61d0eabd0965ebdc7b5ecf3bf14>`_  2021-06-14   ``Make SparkSqlHook use Connection (#15794)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+================================================================================================  ===========  =================================================================
+
+1.0.3
+.....
+
+Latest change: 2021-05-01
+
+================================================================================================  ===========  =========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`5b2fe0e74 <https://github.com/apache/airflow/commit/5b2fe0e74013cd08d1f76f5c115f2c8f990ff9bc>`_  2021-04-27   ``Add Connection Documentation for Popular Providers (#15393)``
+`4b031d39e <https://github.com/apache/airflow/commit/4b031d39e12110f337151cda6693e2541bf71c2c>`_  2021-04-27   ``Make Airflow code Pylint 2.8 compatible (#15534)``
+`657384615 <https://github.com/apache/airflow/commit/657384615fafc060f9e2ed925017306705770355>`_  2021-04-27   ``Fix 'logging.exception' redundancy (#14823)``
+`9015beb31 <https://github.com/apache/airflow/commit/9015beb316a7614616c9d8c5108f5b54e1b47843>`_  2021-04-10   ``Pass environment variables to process with yarn kill command (#15304)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+================================================================================================  ===========  =========================================================================
+
 1.0.2
 .....
 
-Latest change: 2021-02-11
+Latest change: 2021-02-27
 
-================================================================================================  ===========  =========================================================
+================================================================================================  ===========  ===========================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =========================================================
+================================================================================================  ===========  ===========================================================
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
 `f9c9e9c38 <https://github.com/apache/airflow/commit/f9c9e9c38f444a39987478f3d1a262db909de8c4>`_  2021-02-11   ``Use apache.spark provider without kubernetes (#14187)``
-================================================================================================  ===========  =========================================================
+================================================================================================  ===========  ===========================================================
 
 1.0.1
 .....

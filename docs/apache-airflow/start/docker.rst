@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _running-airflow-in-docker:
+
 Running Airflow in Docker
 #########################
 
@@ -26,9 +28,22 @@ Before you begin
 Follow these steps to install the necessary tools.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.27.0 and newer on your workstation.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
 
 Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
+
+.. warning::
+    Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
+    If you have not enough memory available it might lead to airflow webserver continuously restarting.
+    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
+
+    You can also check if you have enough memory by running this command:
+
+    .. code-block:: bash
+
+        docker run --rm "debian:buster-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+
 
 ``docker-compose.yaml``
 =======================
@@ -60,7 +75,11 @@ Some directories in the container are mounted, which means that their contents a
 - ``./logs`` - contains logs from task execution and scheduler.
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
 
-This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
+This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
+If you need install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
+
+.. _initializing_docker_compose_environment:
+
 
 Initializing Environment
 ========================
@@ -73,6 +92,8 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
 
     mkdir ./dags ./logs ./plugins
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
+
+See:ref:`Docker Compose environment variables <docker-compose-env-variables>`
 
 On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 
@@ -185,7 +206,6 @@ Here is a sample ``curl`` command, which sends a request to retrieve a pool list
         --user "airflow:airflow" \
         "${ENDPOINT_URL}/api/v1/pools"
 
-
 Cleaning up
 ===========
 
@@ -207,3 +227,62 @@ What's Next?
 ============
 
 From this point, you can head to the :doc:`/tutorial` section for further examples or the :doc:`/howto/index` section if you're ready to get your hands dirty.
+
+.. _docker-compose-env-variables:
+
+Environment variables supported by Docker Compose
+=================================================
+
+Do not confuse the variable names here with the build arguments set when image is built. The
+``AIRFLOW_UID`` and ``AIRFLOW_GID`` build args default to ``50000`` when the image is built, so they are
+"baked" into the image. On the other hand, the environment variables below can be set when the container
+is running, using - for example - result of ``id -u`` command, which allows to use the dynamic host
+runtime user id which is unknown at the time of building the image.
+
++--------------------------------+-----------------------------------------------------+--------------------------+
+|   Variable                     | Description                                         | Default                  |
++================================+=====================================================+==========================+
+| ``AIRFLOW_IMAGE_NAME``         | Airflow Image to use.                               | apache/airflow:|version| |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
+|                                | Override if you want to use use non-default Airflow |                          |
+|                                | UID (for example when you map folders from host,    |                          |
+|                                | it should be set to result of ``id -u`` call. If    |                          |
+|                                | you change it from default 50000, you must set      |                          |
+|                                | ``AIRFLOW_GID`` to ``0``. When it is changed,       |                          |
+|                                | a 2nd user with the UID specified is dynamically    |                          |
+|                                | created with ``default`` name inside the container  |                          |
+|                                | and home of the use is set to ``/airflow/home/``    |                          |
+|                                | in order to share Python libraries installed there. |                          |
+|                                | This is in order to achieve the  OpenShift          |                          |
+|                                | compatibility. See more in the                      |                          |
+|                                | :ref:`Arbitrary Docker User <arbitrary-docker-user>`|                          |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``AIRFLOW_GID``                | Group ID in Airflow containers. It overrides the    | ``50000``                |
+|                                | GID of the user. It is ``50000`` by default but if  |                          |
+|                                | you want to use different UID than default it must  |                          |
+|                                | be set to ``0``.                                    |                          |
++--------------------------------+-----------------------------------------------------+--------------------------+
+
+Those additional variables are useful in case you are trying out/testing Airflow installation via docker compose.
+They are not intended to be used in production, but they make the environment faster to bootstrap for first time
+users with the most common customizations.
+
++----------------------------------+-----------------------------------------------------+--------------------------+
+|   Variable                       | Description                                         | Default                  |
++==================================+=====================================================+==========================+
+| ``_AIRFLOW_WWW_USER_USERNAME``   | Username for the administrator UI account.          | airflow                  |
+|                                  | If this value is specified, admin UI user gets      |                          |
+|                                  | created automatically. This is only useful when     |                          |
+|                                  | you want to run Airflow for a test-drive and        |                          |
+|                                  | want to start a container with embedded development |                          |
+|                                  | database.                                           |                          |
++----------------------------------+-----------------------------------------------------+--------------------------+
+| ``_AIRFLOW_WWW_USER_PASSWORD``   | Password for the administrator UI account.          | airflow                  |
+|                                  | Only used when ``_AIRFLOW_WWW_USER_USERNAME`` set.  |                          |
++----------------------------------+-----------------------------------------------------+--------------------------+
+| ``_PIP_ADDITIONAL_REQUIREMENTS`` | If not empty, airflow containers will attempt to    |                          |
+|                                  | install requirements specified in the variable.     |                          |
+|                                  | example: ``lxml==4.6.3 charset-normalizer==1.4.1``. |                          |
+|                                  | Available in Airflow image 2.1.1 and above.         |                          |
++----------------------------------+-----------------------------------------------------+--------------------------+

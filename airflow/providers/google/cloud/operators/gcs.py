@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSCreateBucketOperator(BaseOperator):
@@ -97,12 +96,12 @@ class GCSCreateBucketOperator(BaseOperator):
     .. code-block:: python
 
         CreateBucket = GoogleCloudStorageCreateBucketOperator(
-            task_id='CreateNewBucket',
-            bucket_name='test-bucket',
-            storage_class='MULTI_REGIONAL',
-            location='EU',
-            labels={'env': 'dev', 'team': 'airflow'},
-            gcp_conn_id='airflow-conn-id'
+            task_id="CreateNewBucket",
+            bucket_name="test-bucket",
+            storage_class="MULTI_REGIONAL",
+            location="EU",
+            labels={"env": "dev", "team": "airflow"},
+            gcp_conn_id="airflow-conn-id",
         )
 
     """
@@ -116,7 +115,6 @@ class GCSCreateBucketOperator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -229,7 +227,6 @@ class GCSListObjectsOperator(BaseOperator):
 
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -318,7 +315,6 @@ class GCSDeleteObjectsOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -416,7 +412,6 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
     )
     # [END gcs_bucket_create_acl_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -511,7 +506,6 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     )
     # [END gcs_object_create_acl_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -602,7 +596,6 @@ class GCSFileTransformOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -759,7 +752,6 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         """
         return dt.strftime(prefix) if prefix else None
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -942,7 +934,6 @@ class GCSDeleteBucketOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1029,7 +1020,6 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

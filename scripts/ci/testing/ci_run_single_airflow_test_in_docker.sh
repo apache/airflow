@@ -82,6 +82,35 @@ function run_airflow_testing_in_docker() {
     echo
     echo "Semaphore grabbed. Running tests for ${TEST_TYPE}"
     echo
+    local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
+    if [[ ${BACKEND} == "mssql" ]]; then
+        local docker_filesystem
+        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker || echo "unknown")
+        if [[ ${docker_filesystem} == "tmpfs" ]]; then
+            # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
+            # O_DIRECT parameter for direct writing to the filesystem
+            # https://github.com/microsoft/mssql-docker/issues/13
+            # so we need to mount an external volume for its db location
+            # the external db must allow for parallel testing so TEST_TYPE
+            # is added to the volume name
+            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}"
+            mkdir -p "${MSSQL_DATA_VOLUME}"
+            # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
+            # This is a bit scary and we could get by making it group-writeable but the group would have
+            # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
+            chmod a+rwx "${MSSQL_DATA_VOLUME}"
+            backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml")
+
+            # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
+            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/*' || true" EXIT
+
+            # Clean up at start too, in case a previous runer left it messy
+            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/*'  || true
+        else
+            backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml")
+        fi
+    fi
+
     for try_num in {1..5}
     do
         echo
@@ -90,13 +119,14 @@ function run_airflow_testing_in_docker() {
         echo
         echo "Making sure docker-compose is down and remnants removed"
         echo
+
         docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
             --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
             down --remove-orphans \
             --volumes --timeout 10
         docker-compose --log-level INFO \
           -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-          -f "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml" \
+          "${backend_docker_compose[@]}" \
           "${INTEGRATIONS[@]}" \
           "${DOCKER_COMPOSE_LOCAL[@]}" \
           --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
@@ -132,42 +162,13 @@ function run_airflow_testing_in_docker() {
         echo "${COLOR_RED}*        See the above log for details.${COLOR_RESET}"
         echo "${COLOR_RED}*${COLOR_RESET}"
         echo "${COLOR_RED}***********************************************************************************************${COLOR_RESET}"
-        echo """
-*  You can easily reproduce the failed tests on your dev machine/
-*
-*   When you have the source branch checked out locally:
-*
-*     Run all tests:
-*
-*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} tests
-*
-*     Enter docker shell:
-*
-*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell
-*"""
-    if [[ -n "${GITHUB_REGISTRY_PULL_IMAGE_TAG=}" ]]; then
-        echo """
-*   When you do not have sources:
-*
-*     Run all tests:
-*
-*      ./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} tests
-*
-*     Enter docker shell:
-*
-*      ./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell
-*"""
-    fi
-    echo """
-*
-*   NOTE! Once you are in the docker shell, you can run failed test with:
-*
-*            pytest [TEST_NAME]
-*
-*   You can copy the test name from the output above
-*
-***********************************************************************************************"""
-
+        echo
+        echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+        echo "${COLOR_BLUE}Reproduce the failed tests on your local machine:${COLOR_RESET}"
+        echo "${COLOR_YELLOW}./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell${COLOR_RESET}"
+        echo "${COLOR_BLUE}Then you can run failed tests with:${COLOR_RESET}"
+        echo "${COLOR_YELLOW}pytest [TEST_NAME]${COLOR_RESET}"
+        echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
     fi
 
     echo ${exit_code} > "${PARALLEL_JOB_STATUS}"

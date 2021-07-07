@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
@@ -77,7 +76,6 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -183,7 +181,6 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -314,7 +311,6 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     template_ext = (".json",)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -402,7 +398,6 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -499,7 +494,6 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -601,7 +595,6 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

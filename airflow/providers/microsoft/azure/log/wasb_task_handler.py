@@ -66,7 +66,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         except AzureHttpError:
             self.log.exception(
                 'Could not create an WasbHook with connection id "%s".'
-                ' Please make sure that airflow[azure] is installed'
+                ' Please make sure that apache-airflow[azure] is installed'
                 ' and the Wasb connection exists.',
                 remote_conn_id,
             )
@@ -185,10 +185,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             log = '\n'.join([old_log, log]) if old_log else log
 
         try:
-            self.hook.load_string(
-                log,
-                self.wasb_container,
-                remote_log_location,
-            )
+            self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
         except AzureHttpError:
             self.log.exception('Could not write logs to %s', remote_log_location)

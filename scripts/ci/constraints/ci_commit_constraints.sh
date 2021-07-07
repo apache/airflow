@@ -30,5 +30,5 @@ with commit sha ${COMMIT_SHA}.
 
 All tests passed in this build so we determined we can push the updated constraints.
 
-See https://github.com/apache/airflow/blob/master/README.md#installing-from-pypi for details.
+See https://github.com/apache/airflow/blob/main/README.md#installing-from-pypi for details.
 "

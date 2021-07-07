@@ -21,7 +21,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.telegram.hooks.telegram import TelegramHook
-from airflow.utils.decorators import apply_defaults
 
 
 class TelegramOperator(BaseOperator):
@@ -49,7 +48,6 @@ class TelegramOperator(BaseOperator):
     template_fields = ('text', 'chat_id')
     ui_color = '#FFBA40'
 
-    @apply_defaults
     def __init__(
         self,
         *,

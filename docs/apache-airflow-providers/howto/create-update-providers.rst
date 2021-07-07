@@ -32,9 +32,9 @@ new provider.
 Another recommendation that will help you is to look for a provider that works similar to yours. That way it will
 help you to set up tests and other dependencies.
 
-First, you need to set up your local development environment. See `Contribution Quick Start <https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst>`_
+First, you need to set up your local development environment. See `Contribution Quick Start <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`_
 if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
-easily be able to have an environment more similar to the one executed by Github CI workflow.
+easily be able to have an environment more similar to the one executed by GitHub CI workflow.
 
   .. code-block:: bash
 
@@ -55,7 +55,7 @@ Most likely you have developed a version of the provider using some local custom
 transfer this code to the Airflow project. Below is described all the initial code structure that
 the provider may need. Understand that not all providers will need all the components described in this structure.
 If you still have doubts about building your provider, we recommend that you read the initial provider guide and
-open a issue on Github so the community can help you.
+open a issue on GitHub so the community can help you.
 
   .. code-block:: bash
 
@@ -124,14 +124,14 @@ Add your provider information in the following variables in ``test_providers_man
 Integration tests
 ^^^^^^^^^^^^^^^^^
 
-See `Airflow Integration Tests <https://github.com/apache/airflow/blob/master/TESTING.rst#airflow-integration-tests>`_
+See `Airflow Integration Tests <https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests>`_
 
 
 Documentation
 ^^^^^^^^^^^^^
 
 An important part of building a new provider is the documentation.
-Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/master/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
+Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/main/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
 
   .. code-block:: bash
 
@@ -196,15 +196,15 @@ any dependency add a empty list.
   .. code-block:: python
 
       PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-          ...
-          'microsoft.winrm': winrm,
-          'mongo': mongo,
-          'mysql': mysql,
-          'neo4j': neo4j,
-          '<NEW_PROVIDER>': [],
-          'odbc': odbc,
-          ...
-          }
+          # ...
+          "microsoft.winrm": winrm,
+          "mongo": mongo,
+          "mysql": mysql,
+          "neo4j": neo4j,
+          "<NEW_PROVIDER>": [],
+          "odbc": odbc,
+          # ...
+      }
 
 In the ``CONTRIBUTING.rst`` adds:
 
@@ -298,4 +298,4 @@ main Airflow documentation that involves some steps with the providers is also w
 How-to Update a community provider
 ----------------------------------
 
-See `Provider packages versioning <https://github.com/apache/airflow/blob/master/dev/README_RELEASE_PROVIDER_PACKAGES.md#provider-packages-versioning>`_
+See `Provider packages versioning <https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#provider-packages-versioning>`_

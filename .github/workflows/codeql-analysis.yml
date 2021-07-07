@@ -20,9 +20,15 @@ name: "CodeQL"
 
 on:  # yamllint disable-line rule:truthy
   push:
-    branches: [master, main]
+    branches: [main]
   schedule:
     - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   selective-checks:

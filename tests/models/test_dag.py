@@ -621,6 +621,46 @@ class TestDag(unittest.TestCase):
         _next = dag.following_schedule(_next)
         assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
 
+    def test_previous_schedule_datetime_timezone(self):
+        # Check that we don't get an AttributeError 'name' for self.timezone
+
+        start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
+        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        when = dag.previous_schedule(start)
+        assert when.isoformat() == "2018-03-25T01:00:00+00:00"
+
+    def test_following_schedule_datetime_timezone(self):
+        # Check that we don't get an AttributeError 'name' for self.timezone
+
+        start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
+        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        when = dag.following_schedule(start)
+        assert when.isoformat() == "2018-03-25T03:00:00+00:00"
+
+    def test_following_schedule_datetime_timezone_utc0530(self):
+        # Check that we don't get an AttributeError 'name' for self.timezone
+        class UTC0530(datetime.tzinfo):
+            """tzinfo derived concrete class named "+0530" with offset of 19800"""
+
+            # can be configured here
+            _offset = datetime.timedelta(seconds=19800)
+            _dst = datetime.timedelta(0)
+            _name = "+0530"
+
+            def utcoffset(self, dt):
+                return self.__class__._offset
+
+            def dst(self, dt):
+                return self.__class__._dst
+
+            def tzname(self, dt):
+                return self.__class__._name
+
+        start = datetime.datetime(2018, 3, 25, 10, tzinfo=UTC0530())
+        dag = DAG('tz_dag', start_date=start, schedule_interval='@hourly')
+        when = dag.following_schedule(start)
+        assert when.isoformat() == "2018-03-25T05:30:00+00:00"
+
     def test_dagtag_repr(self):
         clear_db_dags()
         dag = DAG('dag-test-dagtag', start_date=DEFAULT_DATE, tags=['tag-1', 'tag-2'])
@@ -1003,7 +1043,7 @@ class TestDag(unittest.TestCase):
             op1 >> op2
             op2 >> op3
 
-        sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
+        sub_dag = dag.partial_subset('t2', include_upstream=True, include_downstream=False)
         assert id(sub_dag.task_dict['t1'].downstream_list[0].dag) == id(sub_dag)
 
         # Copied DAG should not include unused task IDs in used_group_ids
@@ -1223,20 +1263,6 @@ class TestDag(unittest.TestCase):
 
         assert dag.normalized_schedule_interval == expected_n_schedule_interval
         assert dag.schedule_interval == schedule_interval
-
-    def test_set_dag_runs_state(self):
-        clear_db_runs()
-        dag_id = "test_set_dag_runs_state"
-        dag = DAG(dag_id=dag_id)
-
-        for i in range(3):
-            dag.create_dagrun(run_id=f"test{i}", state=State.RUNNING)
-
-        dag.set_dag_runs_state(state=State.NONE)
-        drs = DagRun.find(dag_id=dag_id)
-
-        assert len(drs) == 3
-        assert all(dr.state == State.NONE for dr in drs)
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
@@ -1715,7 +1741,7 @@ class TestDagModel:
         session = settings.Session()
         orm_dag = DagModel(
             dag_id=dag.dag_id,
-            concurrency=1,
+            max_active_tasks=1,
             has_task_concurrency_limits=False,
             next_dagrun=dag.start_date,
             next_dagrun_create_after=timezone.datetime(2038, 1, 2),
@@ -1804,6 +1830,16 @@ class TestDagDecorator(unittest.TestCase):
     def tearDown(self):
         super().tearDown()
         clear_db_runs()
+
+    def test_fileloc(self):
+        @dag_decorator(default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            ...
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id, 'noop_pipeline'
+        assert dag.fileloc == __file__
 
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""

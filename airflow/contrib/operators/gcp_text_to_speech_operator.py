@@ -40,6 +40,6 @@ class GcpTextToSpeechSynthesizeOperator(CloudTextToSpeechSynthesizeOperator):
             Please use
             `airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

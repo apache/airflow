@@ -111,7 +111,7 @@ class RedisTest(unittest.TestCase):
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
             expected_password_match=r"\w+",
-            expected_broker_url_match=fr"redis://:\w+@{RELEASE_NAME_REDIS}-redis:6379/0",
+            expected_broker_url_match=fr"redis://:.+@{RELEASE_NAME_REDIS}-redis:6379/0",
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)
@@ -123,7 +123,7 @@ class RedisTest(unittest.TestCase):
             {
                 "executor": executor,
                 "networkPolicies": {"enabled": True},
-                "redis": {"enabled": True, "password": "test-redis-password"},
+                "redis": {"enabled": True, "password": "test-redis-password!@#$%^&*()_+"},
             },
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
@@ -134,7 +134,9 @@ class RedisTest(unittest.TestCase):
         self.assert_password_and_broker_url_secrets(
             k8s_obj_by_key,
             expected_password_match="test-redis-password",
-            expected_broker_url_match=f"redis://:test-redis-password@{RELEASE_NAME_REDIS}-redis:6379/0",
+            expected_broker_url_match=re.escape(
+                "redis://:test-redis-password%21%40%23$%25%5E&%2A%28%29_+@TEST-REDIS-redis:6379/0"
+            ),
         )
 
         self.assert_broker_url_env(k8s_obj_by_key)
@@ -231,6 +233,15 @@ class RedisTest(unittest.TestCase):
 
         self.assert_broker_url_env(k8s_obj_by_key, expected_broker_url_secret_name)
 
+    def test_default_redis_secrets_created_with_non_celery_executor(self):
+        # We want to make sure default redis secrets (if needed) are still
+        # created during install, as they are marked "pre-install".
+        # See note in templates/secrets/redis-secrets.yaml for more.
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor"}, show_only=["templates/secrets/redis-secrets.yaml"]
+        )
+        assert 2 == len(docs)
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -275,3 +286,27 @@ class RedisTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    def test_redis_resources_are_configurable(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "resources": {
+                        "limits": {"cpu": "200m", 'memory': "128Mi"},
+                        "requests": {"cpu": "300m", 'memory': "169Mi"},
+                    }
+                },
+            },
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
+        assert "169Mi" == jmespath.search(
+            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        )
+        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+
+    def test_redis_resources_are_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}

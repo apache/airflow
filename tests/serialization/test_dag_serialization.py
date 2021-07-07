@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 from glob import glob
 from unittest import mock
 
+import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
@@ -145,6 +146,7 @@ serialized_simple_dag_ground_truth = {
             },
         },
         "edge_info": {},
+        "dag_dependencies": [],
     },
 }
 
@@ -443,6 +445,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
             ),
+            (pendulum.datetime(2019, 8, 1, tz='UTC'), None, pendulum.datetime(2019, 8, 1, tz='UTC')),
         ]
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
@@ -817,8 +820,18 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
 
         # The parameters we add manually in Serialization needs to be ignored
-        ignored_keys: set = {"is_subdag", "tasks", "has_on_success_callback", "has_on_failure_callback"}
-        dag_params: set = set(dag_schema.keys()) - ignored_keys
+        ignored_keys: set = {
+            "is_subdag",
+            "tasks",
+            "has_on_success_callback",
+            "has_on_failure_callback",
+            "dag_dependencies",
+        }
+
+        keys_for_backwards_compat: set = {
+            "_concurrency",
+        }
+        dag_params: set = set(dag_schema.keys()) - ignored_keys - keys_for_backwards_compat
         assert set(DAG.get_serialized_fields()) == dag_params
 
     def test_operator_subclass_changing_base_defaults(self):

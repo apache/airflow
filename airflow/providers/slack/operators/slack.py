@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SlackAPIOperator(BaseOperator):
@@ -44,7 +43,6 @@ class SlackAPIOperator(BaseOperator):
     :type client_args: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -123,7 +121,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
     template_fields = ('username', 'text', 'attachments', 'blocks', 'channel')
     ui_color = '#FFBA40'
 
-    @apply_defaults
     def __init__(
         self,
         channel: str = '#general',
@@ -132,7 +129,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         'Here is a cat video instead\n'
         'https://www.youtube.com/watch?v=J---aiyznGQ',
         icon_url: str = 'https://raw.githubusercontent.com/apache/'
-        'airflow/master/airflow/www/static/pin_100.png',
+        'airflow/main/airflow/www/static/pin_100.png',
         attachments: Optional[List] = None,
         blocks: Optional[List] = None,
         **kwargs,
@@ -191,7 +188,6 @@ class SlackAPIFileOperator(SlackAPIOperator):
     template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
     ui_color = '#44BEDF'
 
-    @apply_defaults
     def __init__(
         self,
         channel: str = '#general',

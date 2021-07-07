@@ -31,7 +31,6 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 from airflow.version import version
 
 
@@ -182,36 +181,36 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     **Example**: ::
 
         default_args = {
-            'owner': 'airflow',
-            'depends_on_past': False,
-            'start_date':
-                (2016, 8, 1),
-            'email': ['alex@vanboxel.be'],
-            'email_on_failure': False,
-            'email_on_retry': False,
-            'retries': 1,
-            'retry_delay': timedelta(minutes=30),
-            'dataflow_default_options': {
-                'project': 'my-gcp-project',
-                'zone': 'us-central1-f',
-                'stagingLocation': 'gs://bucket/tmp/dataflow/staging/',
-            }
+            "owner": "airflow",
+            "depends_on_past": False,
+            "start_date": (2016, 8, 1),
+            "email": ["alex@vanboxel.be"],
+            "email_on_failure": False,
+            "email_on_retry": False,
+            "retries": 1,
+            "retry_delay": timedelta(minutes=30),
+            "dataflow_default_options": {
+                "project": "my-gcp-project",
+                "zone": "us-central1-f",
+                "stagingLocation": "gs://bucket/tmp/dataflow/staging/",
+            },
         }
 
-        dag = DAG('test-dag', default_args=default_args)
+        dag = DAG("test-dag", default_args=default_args)
 
         task = DataflowCreateJavaJobOperator(
-            gcp_conn_id='gcp_default',
-            task_id='normalize-cal',
-            jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
+            gcp_conn_id="gcp_default",
+            task_id="normalize-cal",
+            jar="{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar",
             options={
-                'autoscalingAlgorithm': 'BASIC',
-                'maxNumWorkers': '50',
-                'start': '{{ds}}',
-                'partitionType': 'DAY'
-
+                "autoscalingAlgorithm": "BASIC",
+                "maxNumWorkers": "50",
+                "start": "{{ds}}",
+                "partitionType": "DAY",
             },
-            dag=dag)
+            dag=dag,
+        )
+
 
     .. seealso::
         For more detail on job submission have a look at the reference:
@@ -317,9 +316,9 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     .. code-block:: python
 
        default_args = {
-           'dataflow_default_options': {
-               'zone': 'europe-west1-d',
-               'stagingLocation': 'gs://my-staging-bucket/staging/'
+           "dataflow_default_options": {
+               "zone": "europe-west1-d",
+               "stagingLocation": "gs://my-staging-bucket/staging/",
            }
        }
 
@@ -331,17 +330,18 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataflowCreateJavaJobOperator(
-           task_id='dataflow_example',
-           jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
+           task_id="dataflow_example",
+           jar="{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar",
            options={
-               'autoscalingAlgorithm': 'BASIC',
-               'maxNumWorkers': '50',
-               'start': '{{ds}}',
-               'partitionType': 'DAY',
-               'labels': {'foo' : 'bar'}
+               "autoscalingAlgorithm": "BASIC",
+               "maxNumWorkers": "50",
+               "start": "{{ds}}",
+               "partitionType": "DAY",
+               "labels": {"foo": "bar"},
            },
-           gcp_conn_id='airflow-conn-id',
-           dag=my-dag)
+           gcp_conn_id="airflow-conn-id",
+           dag=my - dag,
+       )
 
     """
 
@@ -349,7 +349,6 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     ui_color = "#0273d4"
 
     # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -585,10 +584,9 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     .. code-block:: python
 
        default_args = {
-           'dataflow_default_options': {
-               'zone': 'europe-west1-d',
-               'tempLocation': 'gs://my-staging-bucket/staging/',
-               }
+           "dataflow_default_options": {
+               "zone": "europe-west1-d",
+               "tempLocation": "gs://my-staging-bucket/staging/",
            }
        }
 
@@ -599,14 +597,15 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataflowTemplatedJobStartOperator(
-           task_id='dataflow_example',
-           template='{{var.value.gcp_dataflow_base}}',
+           task_id="dataflow_example",
+           template="{{var.value.gcp_dataflow_base}}",
            parameters={
-               'inputFile': "gs://bucket/input/my_input.txt",
-               'outputFile': "gs://bucket/output/my_output.txt"
+               "inputFile": "gs://bucket/input/my_input.txt",
+               "outputFile": "gs://bucket/output/my_output.txt",
            },
-           gcp_conn_id='airflow-conn-id',
-           dag=my-dag)
+           gcp_conn_id="airflow-conn-id",
+           dag=my - dag,
+       )
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are
     templated so you can use variables in them.
@@ -635,7 +634,6 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
     ]
     ui_color = "#0273d4"
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
@@ -774,7 +772,6 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
     template_fields = ["body", "location", "project_id", "gcp_conn_id"]
 
-    @apply_defaults
     def __init__(
         self,
         body: Dict,
@@ -878,7 +875,6 @@ class DataflowStartSqlJobOperator(BaseOperator):
         "gcp_conn_id",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         job_name: str,
@@ -1051,7 +1047,6 @@ class DataflowCreatePythonJobOperator(BaseOperator):
 
     template_fields = ["options", "dataflow_default_options", "job_name", "py_file"]
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

@@ -26,13 +26,13 @@ from typing import Any, Dict, List, Optional
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.orm import Session, backref, foreign, relationship
-from sqlalchemy.sql import exists
+from sqlalchemy.sql.expression import func, literal
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -116,14 +116,20 @@ class SerializedDagModel(Base):
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if session.query(
-                exists().where(
+            if (
+                session.query(literal(True))
+                .filter(
                     and_(
                         cls.dag_id == dag.dag_id,
                         (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                     )
                 )
-            ).scalar():
+                .first()
+                is not None
+            ):
+                # TODO: .first() is not None can be changed to .scalar() once we update to sqlalchemy 1.4+
+                # as the associated sqlalchemy bug for MySQL was fixed
+                # related issue : https://github.com/sqlalchemy/sqlalchemy/issues/5481
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
@@ -216,7 +222,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to check
         :param session: ORM Session
         """
-        return session.query(exists().where(cls.dag_id == dag_id)).scalar()
+        return session.query(literal(True)).filter(cls.dag_id == dag_id).first() is not None
 
     @classmethod
     @provide_session
@@ -260,7 +266,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime:
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> Optional[datetime]:
         """
         Get the date when the Serialized DAG associated to DAG was last updated
         in serialized_dag table
@@ -274,7 +280,18 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
+    def get_max_last_updated_datetime(cls, session: Session = None) -> Optional[datetime]:
+        """
+        Get the maximum date when any DAG was last updated in serialized_dag table
+
+        :param session: ORM Session
+        :type session: Session
+        """
+        return session.query(func.max(cls.last_updated)).scalar()
+
+    @classmethod
+    @provide_session
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> Optional[str]:
         """
         Get the latest DAG version for a given DAG ID.
 
@@ -282,7 +299,26 @@ class SerializedDagModel(Base):
         :type dag_id: str
         :param session: ORM Session
         :type session: Session
-        :return: DAG Hash
-        :rtype: str
+        :return: DAG Hash, or None if the DAG is not found
+        :rtype: str | None
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    @provide_session
+    def get_dag_dependencies(cls, session: Session = None) -> Dict[str, List['DagDependency']]:
+        """
+        Get the dependencies between DAGs
+
+        :param session: ORM Session
+        :type session: Session
+        """
+        if session.bind.dialect.name in ["sqlite", "mysql"]:
+            query = session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies"))
+            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+        elif session.bind.dialect.name == "mssql":
+            query = session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies"))
+            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+        else:
+            iterator = session.query(cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies"))
+        return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}

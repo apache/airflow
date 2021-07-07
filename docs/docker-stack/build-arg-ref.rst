@@ -58,9 +58,8 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub    |
 |                                          |                                          | where constraints file is taken from     |
-|                                          |                                          | It can be ``constraints-master`` but     |
-|                                          |                                          | can be ``constraints-1-10`` for 1.10.*   |
-|                                          |                                          | versions of ``constraints-2-0`` for      |
+|                                          |                                          | It can be ``constraints-main`` or        |
+|                                          |                                          | ``constraints-2-0`` for                  |
 |                                          |                                          | 2.0.* installation. In case of building  |
 |                                          |                                          | specific version you want to point it    |
 |                                          |                                          | to specific tag, for example             |
@@ -223,7 +222,7 @@ docker context files.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
+| ``AIRFLOW_BRANCH``                       | ``main``                                 | the branch from which PIP dependencies   |
 |                                          |                                          | are pre-installed initially.             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_REPO``                         | ``apache/airflow``                       | the repository from which PIP            |

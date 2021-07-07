@@ -18,6 +18,8 @@
 """This module contains Google BigQuery to MSSQL operator."""
 from typing import Optional, Sequence, Union
 
+from google.cloud.bigquery.table import TableReference
+
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -91,7 +93,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     def __init__(
         self,
         *,  # pylint: disable=too-many-arguments
-        dataset_table: str,
+        source_project_dataset_table: str,
         mssql_table: str,
         selected_fields: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
@@ -115,14 +117,9 @@ class BigQueryToMsSqlOperator(BaseOperator):
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
-        try:
-            self.dataset_id, self.table_id = dataset_table.split('.')
-        except ValueError:
-            raise ValueError(f'Could not parse {dataset_table} as <dataset>.<table>')
+        self.source_project_dataset_table = source_project_dataset_table
 
     def _bq_get_data(self):
-        self.log.info('Fetching Data from:')
-        self.log.info('Dataset: %s ; Table: %s', self.dataset_id, self.table_id)
 
         hook = BigQueryHook(
             bigquery_conn_id=self.gcp_conn_id,
@@ -130,31 +127,27 @@ class BigQueryToMsSqlOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
+        table_ref = TableReference.from_string(self.source_project_dataset_table)
+        self.log.info('Fetching Data from:')
+        self.log.info('Dataset: %s, Table: %s', table_ref.dataset_id, table_ref.table_id)
 
         conn = hook.get_conn()
         cursor = conn.cursor()
         i = 0
         while True:
             response = cursor.get_tabledata(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
+                dataset_id=table_ref.dataset_id,
+                table_id=table_ref.table_id,
                 max_results=self.batch_size,
                 selected_fields=self.selected_fields,
                 start_index=i * self.batch_size,
             )
 
-<<<<<<< HEAD
-            if 'rows' in response:
-                rows = response['rows']
-            else:
-                self.log.info('Job Finished successfully')
-=======
             if 'rows' not in response:
                 self.log.info('Job Finished')
->>>>>>> 3cbc56a59c3b22edbca1aa8b6846b8a3e77ca968
                 return
-             
-             rows = response['rows']
+
+            rows = response['rows']
 
             self.log.info('Total Extracted rows: %s', len(rows) + i * self.batch_size)
 

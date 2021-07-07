@@ -28,14 +28,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.0
+.....
+
+Latest change: 2021-06-16
+
+================================================================================================  ===========  =================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`904709d34 <https://github.com/apache/airflow/commit/904709d34fbe0b6062d72932b72954afe13ec148>`_  2021-05-27   ``Check synctatic correctness for code-snippets (#16005)``
+`f122e2826 <https://github.com/apache/airflow/commit/f122e2826d6415340c6f8f96cc53044a2395c1e7>`_  2021-05-10   ``Update 'SimpleHttpOperator' to take auth object (#15605)``
+`37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
+`ca432eebd <https://github.com/apache/airflow/commit/ca432eebdfa625ea45219ed0d73aef30d2854325>`_  2021-05-04   ``HttpHook: Use request factory and respect defaults (#14701)``
+`807ad32ce <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
+`d7bc21795 <https://github.com/apache/airflow/commit/d7bc217957b65471ca5f2e259bba15c71a2b0c41>`_  2021-04-16   ``Add documentation for the HTTP connection (#15379)``
+`68e4c4dcb <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
+================================================================================================  ===========  =================================================================
+
 1.1.1
 .....
 
-Latest change: 2021-02-05
+Latest change: 2021-02-27
 
 ================================================================================================  ===========  =======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================
+`589d6dec9 <https://github.com/apache/airflow/commit/589d6dec922565897785bcbc5ac6bb3b973d7f5d>`_  2021-02-27   ``Prepare to release the next wave of providers: (#14487)``
 `10343ec29 <https://github.com/apache/airflow/commit/10343ec29f8f0abc5b932ba26faf49bc63c6bcda>`_  2021-02-05   ``Corrections in docs and tools after releasing provider RCs (#14082)``
 ================================================================================================  ===========  =======================================================================
 

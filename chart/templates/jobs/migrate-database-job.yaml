@@ -18,9 +18,9 @@
 ################################
 ## Airflow Run Migrations
 #################################
-{{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.webserver.affinity .Values.affinity }}
-{{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
+{{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
+{{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -38,6 +38,9 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- if .Values.migrateDatabaseJob.jobAnnotations }}
+    {{- toYaml .Values.migrateDatabaseJob.jobAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   template:
     metadata:
@@ -45,6 +48,15 @@ spec:
         tier: airflow
         component: run-airflow-migrations
         release: {{ .Release.Name }}
+      {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
+      annotations:
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values.migrateDatabaseJob.annotations }}
+        {{- toYaml .Values.migrateDatabaseJob.annotations | nindent 8 }}
+        {{- end }}
+      {{- end }}
     spec:
       securityContext:
           runAsUser: {{ .Values.uid }}
@@ -65,7 +77,11 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           # Support running against 1.10.x and 2.x
-          args: ["bash", "-c", "airflow db upgrade || airflow upgradedb"]
+          {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+          args: ["bash", "-c", "airflow db upgrade"]
+          {{- else }}
+          args: ["bash", "-c", "airflow upgradedb"]
+          {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:

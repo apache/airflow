@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import textwrap
 import time
 from urllib.parse import urlencode
 
@@ -28,7 +29,6 @@ from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter  # noqa pylint: disable=no-name-in-module
 
-from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -36,35 +36,33 @@ from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
-DEFAULT_SENSITIVE_VARIABLE_FIELDS = [
-    'password',
-    'secret',
-    'passwd',
-    'authorization',
-    'api_key',
-    'apikey',
-    'access_token',
-]
+
+def get_sensitive_variables_fields():  # noqa: D103
+    import warnings
+
+    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
+
+    warnings.warn(
+        "This function is deprecated. Please use "
+        "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return get_sensitive_variables_fields()
 
 
-def get_sensitive_variables_fields():
-    """Get comma-separated sensitive Variable Fields from airflow.cfg."""
-    sensitive_fields = set(DEFAULT_SENSITIVE_VARIABLE_FIELDS)
-    sensitive_variable_fields = conf.get('admin', 'sensitive_variable_fields')
-    if sensitive_variable_fields:
-        sensitive_fields.update({field.strip() for field in sensitive_variable_fields.split(',')})
-    return sensitive_fields
+def should_hide_value_for_key(key_name):  # noqa: D103
+    import warnings
 
+    from airflow.utils.log.secrets_masker import should_hide_value_for_key
 
-def should_hide_value_for_key(key_name):
-    """Returns True if hide_sensitive_variable_fields is True, else False"""
-    # It is possible via importing variables from file that a key is empty.
-    if key_name:
-        config_set = conf.getboolean('admin', 'hide_sensitive_variable_fields')
-
-        field_comp = any(s in key_name.strip().lower() for s in get_sensitive_variables_fields())
-        return config_set and field_comp
-    return False
+    warnings.warn(
+        "This function is deprecated. Please use "
+        "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return should_hide_value_for_key(key_name)
 
 
 def get_params(**kwargs):
@@ -214,7 +212,7 @@ def make_cache_key(*args, **kwargs):
 
 
 def task_instance_link(attr):
-    """Generates a URL to the Graph View for a TaskInstance."""
+    """Generates a URL to the Graph view for a TaskInstance."""
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
     execution_date = attr.get('execution_date')
@@ -295,7 +293,7 @@ def json_f(attr_name):
 
 
 def dag_link(attr):
-    """Generates a URL to the Graph View for a Dag."""
+    """Generates a URL to the Graph view for a Dag."""
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
@@ -303,7 +301,7 @@ def dag_link(attr):
 
 
 def dag_run_link(attr):
-    """Generates a URL to the Graph View for a DagRun."""
+    """Generates a URL to the Graph view for a DagRun."""
     dag_id = attr.get('dag_id')
     run_id = attr.get('run_id')
     execution_date = attr.get('execution_date')
@@ -347,9 +345,7 @@ def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
     if s is None:
         return None
-
-    s = '\n'.join(line.lstrip() for line in s.split('\n'))
-
+    s = textwrap.dedent(s)
     return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
 
 
@@ -464,7 +460,7 @@ class CustomSQLAInterface(SQLAInterface):
     filter_converter_class = UtcAwareFilterConverter
 
 
-# This class is used directly (i.e. we cant tell Fab to use a different
+# This class is used directly (i.e. we can't tell Fab to use a different
 # subclass) so we have no other option than to edit the conversion table in
 # place
 FieldConverter.conversion_table = (
