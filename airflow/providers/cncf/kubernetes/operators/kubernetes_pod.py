@@ -21,8 +21,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 from kubernetes.client import CoreV1Api, models as k8s
 
-from airflow.airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
-
 try:
     import airflow.utils.yaml as yaml
 except ImportError:
@@ -492,7 +490,9 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(pod, self.xcom_sidecar_container or PodDefaults.SIDECAR_CONTAINER)
+            pod = xcom_sidecar.add_xcom_sidecar(pod,
+                                                self.xcom_sidecar_container
+                                                or xcom_sidecar.PodDefaults.SIDECAR_CONTAINER)
         return pod
 
     def create_new_pod_for_operator(self, labels, launcher) -> Tuple[State, k8s.V1Pod, Optional[str]]:
