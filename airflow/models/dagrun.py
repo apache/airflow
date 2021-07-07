@@ -18,19 +18,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Index,
-    Integer,
-    PickleType,
-    String,
-    UniqueConstraint,
-    and_,
-    func,
-    or_,
-)
+from sqlalchemy import Boolean, Column, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship, synonym
@@ -165,20 +153,7 @@ class DagRun(Base, LoggingMixin):
         :param session: database session
         :type session: Session
         """
-        DR = DagRun
-
-        exec_date = func.cast(self.execution_date, DateTime)
-
-        dr = (
-            session.query(DR)
-            .filter(
-                DR.dag_id == self.dag_id,
-                func.cast(DR.execution_date, DateTime) == exec_date,
-                DR.run_id == self.run_id,
-            )
-            .one()
-        )
-
+        dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
         self.id = dr.id
         self.state = dr.state
 
