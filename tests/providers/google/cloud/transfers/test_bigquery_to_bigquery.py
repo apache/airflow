@@ -33,7 +33,7 @@ class TestBigQueryToBigQueryOperator(unittest.TestCase):
         destination_project_dataset_table = f"{TEST_DATASET + '_new'}.{TEST_TABLE_ID}"
         write_disposition = 'WRITE_EMPTY'
         create_disposition = 'CREATE_IF_NEEDED'
-        labels = {'k1': 'v1
+        labels = {'k1': 'v1'}
         encryption_configuration = {'key': 'kk'}
 
         operator = BigQueryToBigQueryOperator(
