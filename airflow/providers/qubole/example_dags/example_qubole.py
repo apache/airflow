@@ -22,7 +22,7 @@ import textwrap
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator, get_current_context
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils.dates import days_ago
@@ -55,7 +55,7 @@ with DAG(
         """
     )
 
-    def compare_result_fn(**kwargs):
+    def compare_result_fn():
         """
         Compares the results of two QuboleOperator tasks.
 
@@ -64,7 +64,7 @@ with DAG(
         :return: True if the files are the same, False otherwise.
         :rtype: bool
         """
-        ti = kwargs['ti']
+        ti = get_current_context()["ti"]
         qubole_result_1 = hive_show_table.get_results(ti)
         qubole_result_2 = hive_s3_location.get_results(ti)
         return filecmp.cmp(qubole_result_1, qubole_result_2)

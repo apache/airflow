@@ -27,11 +27,8 @@ from airflow import DAG
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator
 from airflow.utils.dates import days_ago
 
-default_args = {'owner': 'airflow'}
-
 dag = DAG(
     dag_id='example_sqlite',
-    default_args=default_args,
     schedule_interval='@daily',
     start_date=days_ago(2),
     tags=['example'],

@@ -29,9 +29,6 @@ from airflow.providers.asana.operators.asana_tasks import (
 )
 from airflow.utils.dates import days_ago
 
-default_args = {
-    "owner": "airflow",
-}
 
 ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
 ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
@@ -45,7 +42,6 @@ CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 
 with DAG(
     "example_asana",
-    default_args=default_args,
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:
