@@ -183,6 +183,9 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
             for obj in list(m.__dict__.values()):
                 if is_valid_plugin(obj, plugins):
                     plugins.append(obj)
+                    # 插件的on_load没有被调用，在2.0中已修复，此处对当前版本做临时修复
+                    # https://github.com/apache/airflow/issues/10868
+                    obj.on_load()
 
         except Exception as e:
             log.exception(e)
