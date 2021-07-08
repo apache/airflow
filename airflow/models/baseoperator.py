@@ -1541,12 +1541,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return getattr(self, '_is_dummy', False)
 
 
-def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[BaseOperator], Sequence["XComArg"]]):
+def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "XComArg"]]]):
     r"""
     Given a number of tasks, builds a dependency chain.
-    Support mix airflow.models.BaseOperator, List[airflow.models.BaseOperator], XComArg, and
-    List[airflow.models.XComArg]. If you want to chain between two List[airflow.models.BaseOperator]
-    or List[airflow.models.XComArg], you have to make sure they have the same length.
+
+    This function accepts values of BaseOperator (aka tasks), XComArg, or lists containing
+    either type (or a mix of both in the same list). If you want to chain between two lists you must
+    ensure they have the same length.
 
     Using classic operators/sensors:
 
