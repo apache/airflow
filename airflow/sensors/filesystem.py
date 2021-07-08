@@ -54,7 +54,7 @@ class FileSensor(BaseSensorOperator):
         full_path = os.path.join(basepath, self.filepath)
         self.log.info('Poking for file %s', full_path)
 
-        for path in glob(full_path):
+        for path in glob(full_path, recursive=True):
             if os.path.isfile(path):
                 mod_time = os.path.getmtime(path)
                 mod_time = datetime.datetime.fromtimestamp(mod_time).strftime('%Y%m%d%H%M%S')
