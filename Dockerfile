@@ -44,7 +44,7 @@ ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.1.1
+ARG AIRFLOW_PIP_VERSION=21.1.2
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
@@ -232,11 +232,10 @@ ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ARG INSTALL_FROM_PYPI="true"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * chardet<4 and certifi<2021.0.0 required to keep snowflake happy
-# * urllib3 - required to keep boto3 happy
+# * certifi<2021.0.0 required to keep snowflake happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 

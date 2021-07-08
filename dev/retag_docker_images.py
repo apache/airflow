@@ -47,7 +47,7 @@ from typing import List
 
 import click
 
-PYTHON_VERSIONS = ["3.6", "3.7", "3.8"]
+PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9"]
 
 DOCKERHUB_IMAGES = [
     "{prefix}:python{python_version}-{branch}",

@@ -20,6 +20,9 @@ import re
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow import PY39
 from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -29,6 +32,12 @@ from tests.test_utils.mock_hooks import MockHiveServer2Hook, MockMySqlHook
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 
 
+@pytest.mark.skipif(
+    PY39,
+    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
+    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
+    " is solved",
+)
 class TestHiveToMySqlTransfer(TestHiveEnvironment):
     def setUp(self):
         self.kwargs = dict(

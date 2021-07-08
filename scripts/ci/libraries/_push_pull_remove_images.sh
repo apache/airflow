@@ -144,7 +144,7 @@ function push_pull_remove_images::pull_base_python_image() {
         push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PYTHON_BASE_IMAGE}" \
             "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${python_tag_suffix}"
     else
-        docker_v pull "${AIRFLOW_PYTHON_BASE_IMAGE}"
+        docker_v pull "${AIRFLOW_PYTHON_BASE_IMAGE}" || true
     fi
 }
 
@@ -161,7 +161,7 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
             push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" \
                 "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         else
-            push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE}"
+            push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE}" || true
         fi
     fi
 }

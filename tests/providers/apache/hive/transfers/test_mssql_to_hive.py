@@ -21,7 +21,9 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
-from airflow import PY38
+import pytest
+
+from airflow import PY38, PY39
 
 if PY38:
     MsSqlToHiveTransferOperator: None = None
@@ -34,8 +36,14 @@ except ImportError:
     pymssql = None
 
 
-@unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
-@unittest.skipIf(pymssql is None, 'pymssql package not present')
+@pytest.mark.skipif(
+    PY39,
+    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
+    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
+    " is solved",
+)
+@pytest.mark.skipif(PY38, reason="Mssql package not available when Python >= 3.8.")
+@pytest.mark.skipif(pymssql is None, reason='pymssql package not present')
 class TestMsSqlToHiveTransfer(unittest.TestCase):
     def setUp(self):
         self.kwargs = dict(sql='sql', hive_table='table', task_id='test_mssql_to_hive', dag=None)

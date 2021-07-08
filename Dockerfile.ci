@@ -207,7 +207,7 @@ ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ARG INSTALL_FROM_PYPI="true"
-ARG AIRFLOW_PIP_VERSION=21.1.1
+ARG AIRFLOW_PIP_VERSION=21.1.2
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -251,13 +251,11 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Those limitations are:
-# * chardet<4 and certifi<2021.0.0: required by snowflake provider
+# * certifi<2021.0.0: required by snowflake provider
 # * lazy-object-proxy<1.5.0: required by astroid
-# * pyOpenSSL: required by snowflake provider https://github.com/snowflakedb/snowflake-connector-python/blob/v2.3.6/setup.py#L201
-# * urllib3<1.26: Required to keep boto3 happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 lazy-object-proxy<1.5.0 pyOpenSSL<20.0.0 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="lazy-object-proxy<1.5.0 pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
