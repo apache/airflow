@@ -37,4 +37,4 @@ docker_v run --entrypoint /bin/bash "${EXTRA_DOCKER_FLAGS[@]}" \
     --rm \
     --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
     "${AIRFLOW_CI_IMAGE}" \
-    -c /opt/airflow/scripts/in_container/run_fix_ownership.sh
+    -c /opt/airflow/scripts/in_container/run_fix_ownership.sh || true
