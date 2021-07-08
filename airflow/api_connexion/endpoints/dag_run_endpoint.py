@@ -40,6 +40,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 
@@ -102,7 +103,7 @@ def get_dag_runs(
     execution_date_lte: Optional[str] = None,
     end_date_gte: Optional[str] = None,
     end_date_lte: Optional[str] = None,
-    state: Optional[List[str]] = None,
+    state: Optional[List[DagRunState]] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     order_by: str = 'id',
@@ -142,7 +143,7 @@ def _fetch_dag_runs(
     execution_date_lte: Optional[str],
     start_date_gte: Optional[str],
     start_date_lte: Optional[str],
-    state: Optional[List[str]],
+    state: Optional[List[DagRunState]],
     limit: Optional[int],
     offset: Optional[int],
     order_by: str,

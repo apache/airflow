@@ -39,7 +39,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 @security.requires_access(
@@ -114,7 +114,7 @@ def get_task_instances(
     end_date_lte: Optional[str] = None,
     duration_gte: Optional[float] = None,
     duration_lte: Optional[float] = None,
-    state: Optional[List[str]] = None,
+    state: Optional[List[TaskInstanceState]] = None,
     pool: Optional[List[str]] = None,
     queue: Optional[List[str]] = None,
     offset: Optional[int] = None,
