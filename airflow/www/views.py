@@ -76,6 +76,7 @@ from flask_appbuilder.widgets import FormWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pendulum.datetime import DateTime
+from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, or_, union_all
@@ -1472,6 +1473,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
         request_conf = request.values.get('conf')
+        request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1479,6 +1481,7 @@ class Airflow(AirflowBaseView):
 
             dag = current_app.dag_bag.get_dag(dag_id)
             doc_md = wwwutils.wrapped_markdown(getattr(dag, 'doc_md', None))
+            form = DateTimeForm(data={'execution_date': request_execution_date})
 
             if request_conf:
                 default_conf = request_conf
@@ -1488,7 +1491,12 @@ class Airflow(AirflowBaseView):
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
-                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=default_conf, doc_md=doc_md
+                'airflow/trigger.html',
+                dag_id=dag_id,
+                origin=origin,
+                conf=default_conf,
+                doc_md=doc_md,
+                form=form,
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
@@ -1496,7 +1504,14 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
-        execution_date = timezone.utcnow()
+        try:
+            execution_date = timezone.parse(request_execution_date)
+        except ParserError:
+            flash("Invalid execution date", "error")
+            form = DateTimeForm(data={'execution_date': timezone.utcnow().isoformat()})
+            return self.render_template(
+                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
+            )
 
         dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
         if dr:
@@ -1509,13 +1524,15 @@ class Airflow(AirflowBaseView):
                 run_conf = json.loads(request_conf)
                 if not isinstance(run_conf, dict):
                     flash("Invalid JSON configuration, must be a dict", "error")
+                    form = DateTimeForm(data={'execution_date': execution_date})
                     return self.render_template(
-                        'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf
+                        'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
+                form = DateTimeForm(data={'execution_date': execution_date})
                 return self.render_template(
-                    'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf
+                    'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
                 )
 
         dag = current_app.dag_bag.get_dag(dag_id)
