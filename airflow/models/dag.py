@@ -81,7 +81,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -1304,6 +1304,85 @@ class DAG(LoggingMixin):
 
         return tis
 
+    @provide_session
+    def set_task_instance_state(
+        self,
+        task_id: str,
+        execution_date: datetime,
+        state: State,
+        upstream: Optional[bool] = False,
+        downstream: Optional[bool] = False,
+        future: Optional[bool] = False,
+        past: Optional[bool] = False,
+        commit: Optional[bool] = True,
+        session=None,
+    ) -> List[TaskInstance]:
+        """
+        Set the state of a TaskInstance to the given state, and clear its downstream tasks that are
+        in failed or upstream_failed state.
+
+        :param task_id: Task ID of the TaskInstance
+        :type task_id: str
+        :param execution_date: execution_date of the TaskInstance
+        :type execution_date: datetime
+        :param state: State to set the TaskInstance to
+        :type state: State
+        :param upstream: Include all upstream tasks of the given task_id
+        :type upstream: bool
+        :param downstream: Include all downstream tasks of the given task_id
+        :type downstream: bool
+        :param future: Include all future TaskInstances of the given task_id
+        :type future: bool
+        :param commit: Commit changes
+        :type commit: bool
+        :param past: Include all past TaskInstances of the given task_id
+        :type past: bool
+        """
+        from airflow.api.common.experimental.mark_tasks import set_state
+
+        task = self.get_task(task_id)
+        task.dag = self
+
+        altered = set_state(
+            tasks=[task],
+            execution_date=execution_date,
+            upstream=upstream,
+            downstream=downstream,
+            future=future,
+            past=past,
+            state=state,
+            commit=commit,
+            session=session,
+        )
+
+        if not commit:
+            return altered
+
+        # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+        # Flush the session so that the tasks marked success are reflected in the db.
+        session.flush()
+        subdag = self.partial_subset(
+            task_ids_or_regex={task_id},
+            include_downstream=True,
+            include_upstream=False,
+        )
+
+        end_date = execution_date if not future else None
+        start_date = execution_date if not past else None
+
+        subdag.clear(
+            start_date=start_date,
+            end_date=end_date,
+            include_subdags=True,
+            include_parentdag=True,
+            only_failed=True,
+            session=session,
+            # Exclude the task itself from being cleared
+            exclude_task_ids={task_id},
+        )
+
+        return altered
+
     @property
     def roots(self) -> List[BaseOperator]:
         """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
@@ -1401,7 +1480,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=True,
-        dag_run_state: str = State.RUNNING,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run=False,
         session=None,
         get_tis=False,
@@ -1527,7 +1606,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=False,
-        dag_run_state=State.RUNNING,
+        dag_run_state=DagRunState.QUEUED,
         dry_run=False,
     ):
         all_tis = []
@@ -1893,7 +1972,7 @@ class DAG(LoggingMixin):
     @provide_session
     def create_dagrun(
         self,
-        state: State,
+        state: DagRunState,
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         start_date: Optional[datetime] = None,
@@ -1915,7 +1994,7 @@ class DAG(LoggingMixin):
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: airflow.utils.state.State
+        :type state: airflow.utils.state.DagRunState
         :param start_date: the date this dag run should be evaluated
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered

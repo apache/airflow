@@ -60,13 +60,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.0",
+            "default": "2.1.1",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.0",
+            "default": "2.1.1",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -2739,13 +2739,16 @@
             "default": false
         },
         "podTemplate": {
-            "description": "The full text value to mount as the ``pod_template_file.yaml`` used for KubernetesExecutor workers",
+            "description": "The contents of ``pod_template_file.yaml`` used for KubernetesExecutor workers. The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [
                 "string",
                 "null"
             ],
             "x-docsSection": "Airflow",
-            "default": null
+            "default": null,
+            "examples": [
+                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: dummy-name\n  labels:\n    tier: airflow\n    component: worker\n    release: my-release\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
+            ]
         },
         "dags": {
             "description": "DAGs settings.",

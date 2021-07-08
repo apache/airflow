@@ -71,7 +71,7 @@ class RedshiftToS3Operator(BaseOperator):
     :type table_as_file_name: bool
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options')
+    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options', 'select_query')
     template_ext = ()
     ui_color = '#ededed'
 
@@ -105,11 +105,10 @@ class RedshiftToS3Operator(BaseOperator):
         self.include_header = include_header
         self.table_as_file_name = table_as_file_name
 
-        self._select_query = None
         if select_query:
-            self._select_query = select_query
+            self.select_query = select_query
         elif self.schema and self.table:
-            self._select_query = f"SELECT * FROM {self.schema}.{self.table}"
+            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
         else:
             raise ValueError(
                 'Please provide both `schema` and `table` params or `select_query` to fetch the data.'
@@ -140,7 +139,7 @@ class RedshiftToS3Operator(BaseOperator):
         unload_options = '\n\t\t\t'.join(self.unload_options)
 
         unload_query = self._build_unload_query(
-            credentials_block, self._select_query, self.s3_key, unload_options
+            credentials_block, self.select_query, self.s3_key, unload_options
         )
 
         self.log.info('Executing UNLOAD command...')

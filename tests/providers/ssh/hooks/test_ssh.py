@@ -18,6 +18,7 @@
 import json
 import random
 import string
+import textwrap
 import unittest
 from io import StringIO
 from typing import Optional
@@ -25,6 +26,7 @@ from unittest import mock
 
 import paramiko
 
+from airflow import settings
 from airflow.models import Connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
@@ -472,6 +474,47 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
+
+    def test_openssh_private_key(self):
+        # Paramiko behaves differently with OpenSSH generated keys to paramiko
+        # generated keys, so we need a test one.
+        # This has been gernerated specifically to put here, it is not otherwise in use
+        TEST_OPENSSH_PRIVATE_KEY = "-----BEGIN OPENSSH " + textwrap.dedent(
+            """\
+        PRIVATE KEY-----
+        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAlwAAAAdzc2gtcn
+        NhAAAAAwEAAQAAAIEAuPKIGPWtIpMDrXwMAvNKQlhQ1gXV/tKyufElw/n6hrr6lvtfGhwX
+        DihHMsAF+8+KKWQjWgh0fttbIF3+3C56Ns8hgvgMQJT2nyWd7egwqn+LQa08uCEBEka3MO
+        arKzj39P66EZ/KQDD29VErlVOd97dPhaR8pOZvzcHxtLbU6rMAAAIA3uBiZd7gYmUAAAAH
+        c3NoLXJzYQAAAIEAuPKIGPWtIpMDrXwMAvNKQlhQ1gXV/tKyufElw/n6hrr6lvtfGhwXDi
+        hHMsAF+8+KKWQjWgh0fttbIF3+3C56Ns8hgvgMQJT2nyWd7egwqn+LQa08uCEBEka3MOar
+        Kzj39P66EZ/KQDD29VErlVOd97dPhaR8pOZvzcHxtLbU6rMAAAADAQABAAAAgA2QC5b4/T
+        dZ3J0uSZs1yC5RV6w6RVUokl68Zm6WuF6E+7dyu6iogrBRF9eK6WVr9M/QPh9uG0zqPSaE
+        fhobdm7KeycXmtDtrJnXE2ZSk4oU29++TvYZBrAqAli9aHlSArwiLnOIMzY/kIHoSJLJmd
+        jwXykdQ7QAd93KPEnkaMzBAAAAQGTyp6/wWqtqpMmYJ5prCGNtpVOGthW5upeiuQUytE/K
+        5pyPoq6dUCUxQpkprtkuNAv/ff9nW6yy1v2DWohKfaEAAABBAO3y+erRXmiMreMOAd1S84
+        RK2E/LUHOvClQqf6GnVavmIgkxIYEgjcFiWv4xIkTc1/FN6aX5aT4MB3srvuM7sxEAAABB
+        AMb6QAkvxo4hT/xKY0E0nG7zCUMXeBV35MEXQK0/InFC7aZ0tjzFsQJzLe/7q7ljIf+9/O
+        rCqNhxgOrv7XrRuYMAAAAKYXNoQHNpbm9wZQE=
+        -----END OPENSSH PRIVATE KEY-----
+        """
+        )
+
+        session = settings.Session()
+        try:
+            conn = Connection(
+                conn_id='openssh_pkey',
+                host='localhost',
+                conn_type='ssh',
+                extra={"private_key": TEST_OPENSSH_PRIVATE_KEY},
+            )
+            session.add(conn)
+            session.flush()
+            hook = SSHHook(ssh_conn_id=conn.conn_id)
+            assert isinstance(hook.pkey, paramiko.RSAKey)
+        finally:
+            session.delete(conn)
+            session.commit()
 
 
 if __name__ == '__main__':

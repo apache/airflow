@@ -424,7 +424,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     )
 
                 deps.append(f'{module_name}.{klass.__name__}')
-            serialize_op['deps'] = deps
+            # deps needs to be sorted here, because op.deps is a set, which is unstable when traversing,
+            # and the same call may get different results.
+            # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
+            serialize_op['deps'] = sorted(deps)
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
@@ -796,6 +799,9 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         if not task_group:
             return None
 
+        # task_group.xxx_ids needs to be sorted here, because task_group.xxx_ids is a set,
+        # when converting set to list, the order is uncertain.
+        # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
         serialize_group = {
             "_group_id": task_group._group_id,
             "prefix_group_id": task_group.prefix_group_id,
@@ -808,10 +814,10 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
                 else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
                 for label, child in task_group.children.items()
             },
-            "upstream_group_ids": cls._serialize(list(task_group.upstream_group_ids)),
-            "downstream_group_ids": cls._serialize(list(task_group.downstream_group_ids)),
-            "upstream_task_ids": cls._serialize(list(task_group.upstream_task_ids)),
-            "downstream_task_ids": cls._serialize(list(task_group.downstream_task_ids)),
+            "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
+            "downstream_group_ids": cls._serialize(sorted(task_group.downstream_group_ids)),
+            "upstream_task_ids": cls._serialize(sorted(task_group.upstream_task_ids)),
+            "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
         }
 
         return serialize_group

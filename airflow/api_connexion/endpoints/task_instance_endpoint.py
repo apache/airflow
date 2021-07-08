@@ -20,7 +20,6 @@ from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
 
-from airflow.api.common.experimental.mark_tasks import set_state
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
@@ -295,14 +294,14 @@ def post_set_task_instances_state(dag_id, session):
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
-    tis = set_state(
-        tasks=[task],
+    tis = dag.set_task_instance_state(
+        task_id=task_id,
         execution_date=data["execution_date"],
+        state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],
         future=data["include_future"],
         past=data["include_past"],
-        state=data["new_state"],
         commit=not data["dry_run"],
     )
     execution_dates = {ti.execution_date for ti in tis}

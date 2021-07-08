@@ -567,7 +567,6 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
             dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-            # pylint: enable=no-member
 
             all_dags = dags_query
             active_dags = dags_query.filter(~DagModel.is_paused)
@@ -749,10 +748,8 @@ class Airflow(AirflowBaseView):
             .join(DagModel, DagModel.dag_id == DagRun.dag_id)
             .filter(DagRun.state == State.RUNNING, DagModel.is_active)
         )
-        # pylint: enable=comparison-with-callable
 
         running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
-        # pylint: enable=no-member
 
         running_dag_run_query_result = running_dag_run_query_result.subquery('running_dag_run')
 
@@ -766,7 +763,6 @@ class Airflow(AirflowBaseView):
                 running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
             ),
         )
-        # pylint: enable=no-member
 
         if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
 
@@ -776,11 +772,9 @@ class Airflow(AirflowBaseView):
                 .filter(DagRun.state != State.RUNNING, DagModel.is_active)
                 .group_by(DagRun.dag_id)
             )
-            # pylint: enable=comparison-with-callable
 
             last_dag_run = last_dag_run.filter(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery('last_dag_run')
-            # pylint: enable=no-member
 
             # Select all task_instances from active dag_runs.
             # If no dag_run is active, return task instances from most recent dag_run.
@@ -850,7 +844,7 @@ class Airflow(AirflowBaseView):
         ).group_by(DagRun.dag_id)
 
         # Filter to only ask for accessible and selected dags
-        query = query.filter(DagRun.dag_id.in_(filter_dag_ids))  # pylint: enable=no-member
+        query = query.filter(DagRun.dag_id.in_(filter_dag_ids))
 
         resp = {
             r.dag_id.replace('.', '__dot__'): {
@@ -1262,7 +1256,6 @@ class Airflow(AirflowBaseView):
 
                 if type(attr) != type(self.task) and attr_name not in wwwutils.get_attr_renderer():  # noqa
                     task_attrs.append((attr_name, str(attr)))
-                # pylint: enable=unidiomatic-typecheck
 
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
@@ -1529,7 +1522,7 @@ class Airflow(AirflowBaseView):
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
-            state=State.RUNNING,
+            state=State.QUEUED,
             conf=run_conf,
             external_trigger=True,
             dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
@@ -1676,7 +1669,6 @@ class Airflow(AirflowBaseView):
             .filter(DagRun.dag_id.in_(filter_dag_ids))
             .group_by(DagRun.dag_id)
         )
-        # pylint: enable=comparison-with-callable
 
         payload = []
         for dag_id, active_dag_runs in dags:
@@ -1797,55 +1789,17 @@ class Airflow(AirflowBaseView):
         state,
     ):
         dag = current_app.dag_bag.get_dag(dag_id)
-        task = dag.get_task(task_id)
-        task.dag = dag
-
         latest_execution_date = dag.get_latest_execution_date()
+
         if not latest_execution_date:
             flash(f"Cannot mark tasks as {state}, seem that dag {dag_id} has never run", "error")
             return redirect(origin)
 
         execution_date = timezone.parse(execution_date)
 
-        from airflow.api.common.experimental.mark_tasks import set_state
-
-        with create_session() as session:
-            altered = set_state(
-                tasks=[task],
-                execution_date=execution_date,
-                upstream=upstream,
-                downstream=downstream,
-                future=future,
-                past=past,
-                state=state,
-                commit=True,
-                session=session,
-            )
-
-            # Clear downstream tasks that are in failed/upstream_failed state to resume them.
-            # Flush the session so that the tasks marked success are reflected in the db.
-            session.flush()
-            subdag = dag.partial_subset(
-                task_ids_or_regex={task_id},
-                include_downstream=True,
-                include_upstream=False,
-            )
-
-            end_date = execution_date if not future else None
-            start_date = execution_date if not past else None
-
-            subdag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=True,
-                include_parentdag=True,
-                only_failed=True,
-                session=session,
-                # Exclude the task itself from being cleared
-                exclude_task_ids={task_id},
-            )
-
-            session.commit()
+        altered = dag.set_task_instance_state(
+            task_id, execution_date, state, upstream=upstream, downstream=downstream, future=future, past=past
+        )
 
         flash(f"Marked {state} on {len(altered)} task instances")
         return redirect(origin)
@@ -3585,6 +3539,7 @@ class DagRunModelView(AirflowModelView):
         'execution_date',
         'run_id',
         'run_type',
+        'queued_at',
         'start_date',
         'end_date',
         'external_trigger',
@@ -3920,7 +3875,7 @@ class TaskInstanceModelView(AirflowModelView):
         lazy_gettext('Clear'),
         lazy_gettext(
             'Are you sure you want to clear the state of the selected task'
-            ' instance(s) and set their dagruns to the running state?'
+            ' instance(s) and set their dagruns to the QUEUED state?'
         ),
         single=False,
     )
@@ -4085,7 +4040,6 @@ class DagModelView(AirflowModelView):
 
         dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
-        # pylint: enable=no-member
 
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
