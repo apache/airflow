@@ -25,14 +25,6 @@ from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreate
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 from airflow.utils.dates import days_ago
 
-DEFAULT_ARGS = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
-
 # [START howto_operator_emr_automatic_steps_config]
 SPARK_STEPS = [
     {
@@ -69,7 +61,13 @@ JOB_FLOW_OVERRIDES = {
 
 with DAG(
     dag_id='emr_job_flow_automatic_steps_dag',
-    default_args=DEFAULT_ARGS,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+    },
     dagrun_timeout=timedelta(hours=2),
     start_date=days_ago(2),
     schedule_interval='0 3 * * *',
@@ -86,9 +84,10 @@ with DAG(
 
     job_sensor = EmrJobFlowSensor(
         task_id='check_job_flow',
-        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+        job_flow_id=job_flow_creator.output,
         aws_conn_id='aws_default',
     )
-
-    job_flow_creator >> job_sensor
     # [END howto_operator_emr_automatic_steps_tasks]
+
+    # Task dependency created via `XComArgs`:
+    #   job_flow_creator >> job_sensor
