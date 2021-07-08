@@ -36,26 +36,17 @@ def push_by_returning(**kwargs):
     return value_2
 
 
-def puller(**kwargs):
+def _compare_values(pulled_value, check_value):
+    if pulled_value != check_value:
+        raise ValueError(f'The two values differ {pulled_value} and {check_value}')
+
+
+def puller(pulled_value_1, pulled_value_2, **kwargs):
     """Pull all previously pushed XComs and check if the pushed values match the pulled values."""
-    ti = kwargs['ti']
 
-    # get value_1
-    pulled_value_1 = ti.xcom_pull(key=None, task_ids='push')
-    if pulled_value_1 != value_1:
-        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
-
-    # get value_2
-    pulled_value_2 = ti.xcom_pull(task_ids='push_by_returning')
-    if pulled_value_2 != value_2:
-        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
-
-    # get both value_1 and value_2
-    pulled_value_1, pulled_value_2 = ti.xcom_pull(key=None, task_ids=['push', 'push_by_returning'])
-    if pulled_value_1 != value_1:
-        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
-    if pulled_value_2 != value_2:
-        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
+    # Check pulled values from function args
+    _compare_values(pulled_value_1, value_1)
+    _compare_values(pulled_value_2, value_2)
 
 
 def pull_value_from_bash_push(**kwargs):
@@ -70,7 +61,6 @@ with DAG(
     'example_xcom',
     schedule_interval="@once",
     start_date=days_ago(2),
-    default_args={'owner': 'airflow'},
     tags=['example'],
 ) as dag:
 
@@ -87,9 +77,11 @@ with DAG(
     pull = PythonOperator(
         task_id='puller',
         python_callable=puller,
+        op_kwargs={
+            'pulled_value_1': push1.output['value from pusher 1'],
+            'pulled_value_2': push2.output,
+        },
     )
-
-    pull << [push1, push2]
 
     bash_push = BashOperator(
         task_id='bash_push',
@@ -98,13 +90,12 @@ with DAG(
         '{{ ti.xcom_push(key="manually_pushed_value", value="manually_pushed_value") }}" && '
         'echo "value_by_return"',
     )
+
     bash_pull = BashOperator(
         task_id='bash_pull',
         bash_command='echo "bash pull demo" && '
-        'echo "The xcom pushed manually is '
-        '"{{ ti.xcom_pull(task_ids="bash_push", key="manually_pushed_value") }}" && '
-        'echo "The returned_value xcom is '
-        '"{{ ti.xcom_pull(task_ids="bash_push", key="return_value") }}" && '
+        f'echo "The xcom pushed manually is {bash_push.output["manually_pushed_value"]}" && '
+        f'echo "The returned_value xcom is {bash_push.output}" && '
         'echo "finished"',
         do_xcom_push=False,
     )
@@ -115,3 +106,7 @@ with DAG(
     )
 
     [bash_pull, python_pull_from_bash] << bash_push
+
+    # Task dependencies created via `XComArgs`:
+    #   push1 >> pull
+    #   push2 >> pull

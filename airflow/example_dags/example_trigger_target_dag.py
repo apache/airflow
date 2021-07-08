@@ -24,23 +24,23 @@ Example usage of the TriggerDagRunOperator. This example holds 2 DAGs:
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, get_current_context
 from airflow.utils.dates import days_ago
 
 
-def run_this_func(**context):
+def run_this_func():
     """
     Print the payload "message" passed to the DagRun conf attribute.
 
     :param context: The execution context
     :type context: dict
     """
+    context = get_current_context()
     print(f"Remotely received value of {context['dag_run'].conf['message']} for key=message")
 
 
 with DAG(
     dag_id="example_trigger_target_dag",
-    default_args={"owner": "airflow"},
     start_date=days_ago(2),
     schedule_interval=None,
     tags=['example'],
