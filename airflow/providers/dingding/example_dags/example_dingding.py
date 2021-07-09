@@ -54,7 +54,7 @@ def failure_callback(context):
 
 with DAG(
     dag_id='example_dingding_operator',
-    default_args={'owner': 'airflow', 'retries': 3, 'on_failure_callback': failure_callback},
+    default_args={'retries': 3, 'on_failure_callback': failure_callback},
     schedule_interval='@once',
     dagrun_timeout=timedelta(minutes=60),
     start_date=days_ago(2),
