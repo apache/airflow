@@ -39,7 +39,8 @@ class TableauJobFinishCode(Enum):
 class TableauHook(BaseHook):
     """
     Connects to the Tableau Server Instance and allows to communicate with it.
-    .. seealso:: https://tableau.github.io/server-client-python/docs/
+    .. see also:: https://tableau.github.io/server-client-python/docs/
+
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.
     :type site_id: Optional[str]
@@ -107,7 +108,8 @@ class TableauHook(BaseHook):
     def get_all(self, resource_name: str) -> Pager:
         """
         Get all items of the given resource.
-        .. seealso:: https://tableau.github.io/server-client-python/docs/page-through-results
+        .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
+
         :param resource_name: The name of the resource to paginate.
             For example: jobs or workbooks
         :type resource_name: str
