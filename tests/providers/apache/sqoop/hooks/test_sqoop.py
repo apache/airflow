@@ -257,6 +257,7 @@ class TestSqoopHook(unittest.TestCase):
                 batch=self._config_export['batch'],
                 relaxed_isolation=self._config_export['relaxed_isolation'],
                 extra_export_options=self._config_export['extra_export_options'],
+                schema=self._config_export['schema'],
             )
         )
 
@@ -285,6 +286,9 @@ class TestSqoopHook(unittest.TestCase):
             assert "--update-key" in cmd
             assert "--update-mode" in cmd
             assert "--fetch-size" in cmd
+
+        if self._config_export['schema']:
+            assert "-- --schema" in cmd
 
     def test_import_cmd(self):
         """
