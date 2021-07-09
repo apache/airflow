@@ -54,12 +54,22 @@ class TestTableauHook(unittest.TestCase):
         )
         db.merge_conn(
             models.Connection(
-                conn_id='tableau_test_ssl_connection',
+                conn_id='tableau_test_ssl_connection_verify_path',
                 conn_type='tableau',
                 host='tableau',
                 login='user',
                 password='password',
-                extra='{"verify": "my_cert", "cert": "my_client_cert"}',
+                extra='{"verify": "my_cert_path", "cert": "my_client_cert"}',
+            )
+        )
+        db.merge_conn(
+            models.Connection(
+                conn_id='tableau_test_ssl_false_connection',
+                conn_type='tableau',
+                host='tableau',
+                login='user',
+                password='password',
+                extra='{"verify": "False"}',
             )
         )
         db.merge_conn(
@@ -107,11 +117,11 @@ class TestTableauHook(unittest.TestCase):
 
     @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
     @patch('airflow.providers.tableau.hooks.tableau.Server')
-    def test_get_conn_ssl(self, mock_server, mock_tableau_auth):
+    def test_get_conn_ssl_cert_path(self, mock_server, mock_tableau_auth):
         """
-        Test get conn with SSL parameters
+        Test get conn with SSL parameters, verify as path
         """
-        with TableauHook(tableau_conn_id='tableau_test_ssl_connection') as tableau_hook:
+        with TableauHook(tableau_conn_id='tableau_test_ssl_connection_verify_path') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={'verify': tableau_hook.conn.extra_dejson['verify'],
@@ -143,6 +153,25 @@ class TestTableauHook(unittest.TestCase):
             mock_server.return_value.auth.sign_in_with_personal_access_token.assert_called_once_with(
                 mock_tableau_auth.return_value
             )
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
+    @patch('airflow.providers.tableau.hooks.tableau.Server')
+    def test_get_conn_ssl_disabled(self, mock_server, mock_tableau_auth):
+        """
+        Test get conn with default SSL disabled parameters
+        """
+        with TableauHook(tableau_conn_id='tableau_test_ssl_false_connection') as tableau_hook:
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
+            mock_server.return_value.add_http_options.assert_called_once_with(
+                options_dict={'verify': False,
+                              'cert': None})
+            mock_tableau_auth.assert_called_once_with(
+                username=tableau_hook.conn.login,
+                password=tableau_hook.conn.password,
+                site_id='',
+            )
+            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
