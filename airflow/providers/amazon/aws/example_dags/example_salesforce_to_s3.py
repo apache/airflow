@@ -38,7 +38,7 @@ with DAG(
 
     upload_salesforce_data_to_s3 = SalesforceToS3Operator(
         task_id="upload_salesforce_data_to_s3",
-        query="SELECT Id, Name, Company, Phone, Email, Region, CreatedDate, LastModifiedDate, IsActive FROM Customers",
+        query="SELECT Id, Name, Company, Phone, Email, LastModifiedDate, IsActive FROM Customers",
         s3_bucket_name="data-lake-raw",
         s3_key=f"{base_path}/{date_prefixes}/{file_name}",
         salesforce_conn_id="salesforce",
