@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from distutils.util import strtobool
 from enum import Enum
 from typing import Any, Optional
 
@@ -21,7 +22,6 @@ from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauA
 from tableauserverclient.server import Auth
 
 from airflow.hooks.base import BaseHook
-from distutils.util import strtobool
 
 
 class TableauJobFinishCode(Enum):
@@ -64,8 +64,9 @@ class TableauHook(BaseHook):
             verify = bool(strtobool(verify))
         except ValueError:
             pass
-        self.server.add_http_options(options_dict={'verify': verify,
-                                                   'cert': self.conn.extra_dejson.get('cert', None)})
+        self.server.add_http_options(
+            options_dict={'verify': verify, 'cert': self.conn.extra_dejson.get('cert', None)}
+        )
         self.server.use_server_version()
         self.tableau_conn = None
 

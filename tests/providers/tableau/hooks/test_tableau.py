@@ -54,12 +54,12 @@ class TestTableauHook(unittest.TestCase):
         )
         db.merge_conn(
             models.Connection(
-                conn_id='tableau_test_ssl_connection_verify_path',
+                conn_id='tableau_test_ssl_connection_certificates_path',
                 conn_type='tableau',
                 host='tableau',
                 login='user',
                 password='password',
-                extra='{"verify": "my_cert_path", "cert": "my_client_cert"}',
+                extra='{"verify": "my_cert_path", "cert": "my_client_cert_path"}',
             )
         )
         db.merge_conn(
@@ -124,8 +124,11 @@ class TestTableauHook(unittest.TestCase):
         with TableauHook(tableau_conn_id='tableau_test_ssl_connection_verify_path') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
-                options_dict={'verify': tableau_hook.conn.extra_dejson['verify'],
-                              'cert': tableau_hook.conn.extra_dejson['cert']})
+                options_dict={
+                    'verify': tableau_hook.conn.extra_dejson['verify'],
+                    'cert': tableau_hook.conn.extra_dejson['cert'],
+                }
+            )
             mock_tableau_auth.assert_called_once_with(
                 username=tableau_hook.conn.login,
                 password=tableau_hook.conn.password,
@@ -143,8 +146,8 @@ class TestTableauHook(unittest.TestCase):
         with TableauHook(tableau_conn_id='tableau_test_ssl_connection_default') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
-                options_dict={'verify': True,
-                              'cert': None})
+                options_dict={'verify': True, 'cert': None}
+            )
             mock_tableau_auth.assert_called_once_with(
                 token_name=tableau_hook.conn.extra_dejson['token_name'],
                 personal_access_token=tableau_hook.conn.extra_dejson['personal_access_token'],
@@ -164,8 +167,8 @@ class TestTableauHook(unittest.TestCase):
         with TableauHook(tableau_conn_id='tableau_test_ssl_false_connection') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
-                options_dict={'verify': False,
-                              'cert': None})
+                options_dict={'verify': False, 'cert': None}
+            )
             mock_tableau_auth.assert_called_once_with(
                 username=tableau_hook.conn.login,
                 password=tableau_hook.conn.password,
