@@ -81,7 +81,7 @@ with DAG(
     also_run_this = BashOperator(
         task_id='also_run_this',
         bash_command=my_templated_command,
-        params={"miff": "agg", "foo": "bar"},
+        params={"miff": "agg"},
     )
 
     env_var_test_task = PythonOperator(task_id='env_var_test_task', python_callable=print_env_vars)
