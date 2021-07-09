@@ -21,6 +21,7 @@ from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauA
 from tableauserverclient.server import Auth
 
 from airflow.hooks.base import BaseHook
+from distutils.util import strtobool
 
 
 class TableauJobFinishCode(Enum):
@@ -58,7 +59,12 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get('site_id', '')
         self.server = Server(self.conn.host)
-        self.server.add_http_options(options_dict={'verify': self.conn.extra_dejson.get('verify', True),
+        verify = self.conn.extra_dejson.get('verify', 'True')
+        try:
+            verify = bool(strtobool(verify))
+        except ValueError:
+            pass
+        self.server.add_http_options(options_dict={'verify': verify,
                                                    'cert': self.conn.extra_dejson.get('cert', None)})
         self.server.use_server_version()
         self.tableau_conn = None
