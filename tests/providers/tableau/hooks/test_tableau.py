@@ -121,7 +121,7 @@ class TestTableauHook(unittest.TestCase):
         """
         Test get conn with SSL parameters, verify as path
         """
-        with TableauHook(tableau_conn_id='tableau_test_ssl_connection_verify_path') as tableau_hook:
+        with TableauHook(tableau_conn_id='tableau_test_ssl_connection_certificates_path') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={
