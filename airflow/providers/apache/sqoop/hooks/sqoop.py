@@ -266,13 +266,11 @@ class SqoopHook(BaseHook):
         direct: Optional[bool] = None,
         driver: Optional[Any] = None,
         extra_import_options: Optional[Dict[str, Any]] = None,
-        schema: Optional[str] = None,
     ) -> Any:
         """
         Imports a specific query from the rdbms to hdfs
 
         :param query: Free format query to run
-        :param schema: Schema name
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
         :param file_type: "avro", "sequence", "text" or "parquet"
@@ -286,9 +284,6 @@ class SqoopHook(BaseHook):
         """
         cmd = self._import_cmd(target_dir, append, file_type, split_by, direct, driver, extra_import_options)
         cmd += ["--query", query]
-
-        if schema:
-            cmd += ["--", "--schema", schema]
 
         self.popen(cmd)
 
