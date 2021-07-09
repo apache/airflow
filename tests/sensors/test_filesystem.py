@@ -141,6 +141,7 @@ class TestFileSensor(unittest.TestCase):
             dag=self.dag,
             timeout=0,
             poke_interval=1,
+            recursive=True,
         )
         task._hook = self.hook
 
