@@ -100,6 +100,9 @@ import os
 import pandas as pd
 from pathlib import Path
 from airflow.configuration import AIRFLOW_HOME
+
+from airflow.utils.curve import get_task_instance_by_entity_id
+
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
 _logger = logging.getLogger(__name__)
@@ -403,22 +406,23 @@ class Airflow(AirflowBaseView):
 
         return wwwutils.json_response(payload)
 
-    # /view_curve/curve_anay/dag_runs/2020-04-07 10:04:48.786247 +00:00/tasks/trigger_anay_task
-    @expose('/view_curve/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>')
+    @expose('/view_curve/<string:entity_id>')
     @has_access
-    def view_curve_page(self, dag_id, execution_date, task_id):
+    def view_curve_page(self, entity_id: str):
+        entity_id = entity_id.replace('@', '/')
+
         _has_access = self.appbuilder.sm.has_access
-        execution_date = timezone.parse(execution_date)
-        ti = get_task_instance(dag_id, task_id, execution_date)
-        if not ti.entity_id:
+
+        ti = get_task_instance_by_entity_id(entity_id)
+        if not ti:
             return self.render_template('airflow/curve.html', task_instance=ti)
         try:
-            result = get_result(ti.entity_id)
+            result = get_result(entity_id)
         except Exception as e:
             logging.error(e)
             result = {}
         try:
-            curve = get_curve(ti.entity_id)
+            curve = get_curve(entity_id)
         except Exception as e:
             logging.error(e)
             curve = {}

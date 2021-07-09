@@ -256,6 +256,13 @@ def get_task_instances_by_entity_ids(entity_ids, session=None):
     return tis
 
 
+@provide_session
+def get_task_instance_by_entity_id(entity_id, session=None):
+    ti = session.query(TaskInstance).filter(
+        TaskInstance.entity_id == entity_id
+    ).first()
+    return ti
+
 def trigger_push_template_dag(template_name, template_data):
     push_result_dag_id = 'publish_result_dag'
     conf = {
