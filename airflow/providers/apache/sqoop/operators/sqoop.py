@@ -240,7 +240,6 @@ class SqoopOperator(BaseOperator):
                     direct=self.direct,
                     driver=self.driver,
                     extra_import_options=self.extra_import_options,
-                    schema=self.schema,
                 )
             else:
                 raise AirflowException("Provide query or table parameter to import using Sqoop")
