@@ -584,7 +584,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
     @conf_vars({('core', 'load_examples'): 'False'})
     @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.execution_timeout(30)
-    def test_pipe_full_deadlock(self):
+    @mock.patch('airflow.dag_processing.manager.DagFileProcessorProcess')
+    def test_pipe_full_deadlock(self, mock_processor):
         dag_filepath = TEST_DAG_FOLDER / "test_scheduler_dags.py"
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
@@ -620,6 +621,16 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 logging.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
+
+        fake_processors = []
+
+        def fake_processor_(*args, **kwargs):
+            nonlocal fake_processors
+            processor = FakeDagFileProcessorRunner._create_process(*args, **kwargs)
+            fake_processors.append(processor)
+            return processor
+
+        mock_processor.side_effect = fake_processor_
 
         manager = DagFileProcessorManager(
             dag_directory=dag_filepath,
