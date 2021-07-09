@@ -28,15 +28,15 @@ from airflow.operators.python import PythonOperator, get_current_context
 from airflow.utils.dates import days_ago
 
 
-def run_this_func():
+def run_this_func(dag_run):
     """
     Print the payload "message" passed to the DagRun conf attribute.
 
-    :param context: The execution context
-    :type context: dict
+    :param dag_run: The DagRun object
+    :type dag_run: dict
     """
     context = get_current_context()
-    print(f"Remotely received value of {context['dag_run'].conf['message']} for key=message")
+    print(f"Remotely received value of {dag_run.conf['message']} for key=message")
 
 
 with DAG(
