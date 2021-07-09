@@ -21,6 +21,7 @@ from tableauserverclient import WorkbookItem
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import TableauHook
+from airflow.providers.tableau.operators.tableau import TableauOperator
 
 
 class TableauRefreshWorkbookOperator(BaseOperator):
@@ -67,18 +68,16 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
             workbook = self._get_workbook_by_name(tableau_hook)
 
-            job_id = self._refresh_workbook(tableau_hook, workbook.id)
-            if self.blocking:
-                from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
+            job_id = TableauOperator(
+                resource='workbooks',
+                method='refresh',
+                resource_id=workbook.id,
+                site_id=self.site_id,
+                tableau_conn_id=self.tableau_conn_id,
+                task_id='refresh_workbook',
+                dag=None,
+            ).execute(context={})
 
-                TableauJobStatusSensor(
-                    job_id=job_id,
-                    site_id=self.site_id,
-                    tableau_conn_id=self.tableau_conn_id,
-                    task_id='wait_until_succeeded',
-                    dag=None,
-                ).execute(context={})
-                self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
             return job_id
 
     def _get_workbook_by_name(self, tableau_hook: TableauHook) -> WorkbookItem:
@@ -88,8 +87,3 @@ class TableauRefreshWorkbookOperator(BaseOperator):
                 return workbook
 
         raise AirflowException(f'Workbook {self.workbook_name} not found!')
-
-    def _refresh_workbook(self, tableau_hook: TableauHook, workbook_id: str) -> str:
-        job = tableau_hook.server.workbooks.refresh(workbook_id)
-        self.log.info('Refreshing Workbook %s...', self.workbook_name)
-        return job.id
