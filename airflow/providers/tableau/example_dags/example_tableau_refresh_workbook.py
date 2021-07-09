@@ -29,13 +29,6 @@ from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='example_tableau_refresh_workbook',
-    default_args={
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-    },
     dagrun_timeout=timedelta(hours=2),
     schedule_interval=None,
     start_date=days_ago(2),
