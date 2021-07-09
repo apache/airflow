@@ -204,7 +204,7 @@ class SqoopOperator(BaseOperator):
                 batch=self.batch,
                 relaxed_isolation=self.relaxed_isolation,
                 extra_export_options=self.extra_export_options,
-                schema=schema,
+                schema=self.schema,
             )
         elif self.cmd_type == 'import':
             # add create hcatalog table to extra import options if option passed
@@ -228,7 +228,7 @@ class SqoopOperator(BaseOperator):
                     direct=self.direct,
                     driver=self.driver,
                     extra_import_options=self.extra_import_options,
-                    schema=schema,
+                    schema=self.schema,
                 )
             elif self.query:
                 self.hook.import_query(
@@ -240,7 +240,7 @@ class SqoopOperator(BaseOperator):
                     direct=self.direct,
                     driver=self.driver,
                     extra_import_options=self.extra_import_options,
-                    schema=schema,
+                    schema=self.schema,
                 )
             else:
                 raise AirflowException("Provide query or table parameter to import using Sqoop")
