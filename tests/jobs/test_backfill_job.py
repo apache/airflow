@@ -605,6 +605,40 @@ class TestBackfillJob(unittest.TestCase):
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_backfill_rerun_succeeded_tasks(self):
+        dag = DAG(dag_id='test_backfill_rerun_succeeded', start_date=DEFAULT_DATE, schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(task_id='test_backfill_rerun_succeeded_task-1', dag=dag)
+
+        dag.clear()
+
+        executor = MockExecutor()
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+        )
+        job.run()
+
+        ti = TI(task=dag.get_task('test_backfill_rerun_succeeded_task-1'), execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.FAILED)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            rerun_succeeded_tasks=True,
+        )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_rerun_succeeded_task-1'), execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
     def test_backfill_rerun_upstream_failed_tasks(self):
         dag = DAG(
             dag_id='test_backfill_rerun_upstream_failed', start_date=DEFAULT_DATE, schedule_interval='@daily'
