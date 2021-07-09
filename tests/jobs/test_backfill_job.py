@@ -612,6 +612,38 @@ class TestBackfillJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_backfill_rerun_succeeded_tasks(self):
+        dag, _ = get_dummy_dag_and_run(
+            dag_id="test_backfill_rerun_succeeded", task_id="test_backfill_rerun_succeeded_task-1"
+        )
+
+        executor = MockExecutor()
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+        )
+        job.run()
+
+        ti = TI(task=dag.get_task('test_backfill_rerun_succeeded_task-1'), execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.FAILED)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            rerun_succeeded_tasks=True,
+        )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_rerun_succeeded_task-1'), execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+
     def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
 
         with dag_maker(
