@@ -58,7 +58,7 @@ class TestSqoopHook(unittest.TestCase):
         'extra_export_options': collections.OrderedDict(
             [('update-key', 'id'), ('update-mode', 'allowinsert'), ('fetch-size', 1)]
         ),
-        'schema': 'domino'
+        'schema': 'domino',
     }
     _config_import = {
         'target_dir': '/hdfs/data/target/location',
@@ -362,7 +362,7 @@ class TestSqoopHook(unittest.TestCase):
 
     def test_connection_string_preparation(self):
         """
-        Tests to verify the hook creates the connection string correctly for mssql and not database connections.
+        Tests to verify the hook creates the connection string correctly for mssql and not DB connections.
         """
         # Case mssql
         hook = SqoopHook(conn_id='sqoop_test_mssql')
