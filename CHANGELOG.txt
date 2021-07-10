@@ -1,4 +1,4 @@
-Airflow 2.1.2, 2021-07-10
+Airflow 2.1.2, 2021-07-13
 -------------------------
 
 Bug Fixes
@@ -10,13 +10,17 @@ Bug Fixes
 - Mask value if the key is ``token`` (#16474)
 - Fix impersonation issue with ``LocalTaskJob`` (#16852)
 
+Misc
+""""
+
+- Add Python 3.9 support (#15515)
+
 
 Airflow 2.1.1, 2021-07-02
 -------------------------
 
 Bug Fixes
 """""""""
-
 
 - Don't crash attempting to mask secrets in dict with non-string keys (#16601)
 - Always install sphinx_airflow_theme from ``PyPI`` (#16594)
