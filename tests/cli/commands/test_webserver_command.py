@@ -56,18 +56,18 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._get_num_ready_workers_running.return_value = 0
         self.monitor._get_num_workers_running.return_value = 4
         self.monitor._check_workers()
-        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_not_called()
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_not_called()
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
     def test_should_kill_excess_workers(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 10
         self.monitor._get_num_workers_running.return_value = 10
         self.monitor._check_workers()
-        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_called_once_with(2)  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_not_called()
+        self.monitor._kill_old_workers.assert_called_once_with(2)
+        self.monitor._reload_gunicorn.assert_not_called()
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
     def test_should_start_new_workers_when_missing(self, mock_sleep):
@@ -75,9 +75,9 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._get_num_workers_running.return_value = 3
         self.monitor._check_workers()
         # missing one worker, starting just 1
-        self.monitor._spawn_new_workers.assert_called_once_with(1)  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_called_once_with(1)
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_not_called()
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
     def test_should_start_new_batch_when_missing_many_workers(self, mock_sleep):
@@ -85,17 +85,17 @@ class TestGunicornMonitor(unittest.TestCase):
         self.monitor._get_num_workers_running.return_value = 1
         self.monitor._check_workers()
         # missing 3 workers, but starting single batch (2)
-        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_called_once_with(2)
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_not_called()
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
     def test_should_start_new_workers_when_refresh_interval_has_passed(self, mock_sleep):
         self.monitor._last_refresh_time -= 200
         self.monitor._check_workers()
-        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_called_once_with(2)
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_not_called()
         assert abs(self.monitor._last_refresh_time - time.monotonic()) < 5
 
     @mock.patch('airflow.cli.commands.webserver_command.sleep')
@@ -104,25 +104,25 @@ class TestGunicornMonitor(unittest.TestCase):
 
         self.monitor._check_workers()
 
-        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_not_called()
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_not_called()
 
         self.monitor._generate_plugin_state.return_value = {'AA': 32}
 
         self.monitor._check_workers()
 
-        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_not_called()
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_not_called()
 
         self.monitor._generate_plugin_state.return_value = {'AA': 32}
 
         self.monitor._check_workers()
 
-        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
-        self.monitor._reload_gunicorn.assert_called_once_with()  # pylint: disable=no-member
+        self.monitor._spawn_new_workers.assert_not_called()
+        self.monitor._kill_old_workers.assert_not_called()
+        self.monitor._reload_gunicorn.assert_called_once_with()
         assert abs(self.monitor._last_refresh_time - time.monotonic()) < 5
 
 
@@ -274,7 +274,7 @@ class TestCliWebServer(unittest.TestCase):
             try:
                 with open(pidfile) as file:
                     return int(file.read())
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 if start_time - time.monotonic() > 60:
                     raise
                 time.sleep(1)
@@ -287,7 +287,7 @@ class TestCliWebServer(unittest.TestCase):
             AIRFLOW__WEBSERVER__WORKERS="1",
         ):
             # Run webserver in foreground and terminate it.
-            # pylint: disable=consider-using-with
+
             proc = subprocess.Popen(["airflow", "webserver"])
             assert proc.poll() is None
 
@@ -310,7 +310,7 @@ class TestCliWebServer(unittest.TestCase):
                 AIRFLOW__CORE__LOAD_EXAMPLES="False",
                 AIRFLOW__WEBSERVER__WORKERS="1",
             ):
-                # pylint: disable=consider-using-with
+
                 proc = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
                 assert proc.poll() is None
 
@@ -336,7 +336,7 @@ class TestCliWebServer(unittest.TestCase):
             logfile = f"{tmpdir}/airflow-webserver.log"
             try:
                 # Run webserver as daemon in background. Note that the wait method is not called.
-                # pylint: disable=consider-using-with
+
                 proc = subprocess.Popen(
                     [
                         "airflow",
@@ -412,7 +412,7 @@ class TestCliWebServer(unittest.TestCase):
         ):
             access_logfile = f"{tmpdir}/access.log"
             # Run webserver in foreground and terminate it.
-            # pylint: disable=consider-using-with
+
             proc = subprocess.Popen(
                 [
                     "airflow",
@@ -428,7 +428,6 @@ class TestCliWebServer(unittest.TestCase):
             # Wait for webserver process
             time.sleep(10)
 
-            # pylint: disable=consider-using-with
             proc2 = subprocess.Popen(["curl", "http://localhost:8080"])
             proc2.wait(10)
             try:

@@ -54,11 +54,11 @@ from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
-# pylint: disable=c-extension-no-member
+
 CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = HTTPKerberosAuth(service='airflow')
 
 
-class KerberosService:  # pylint: disable=too-few-public-methods
+class KerberosService:
     """Class to keep information about the Kerberos Service initialized"""
 
     def __init__(self):
@@ -126,7 +126,7 @@ def _gssapi_authenticate(token):
             kerberos.authGSSServerClean(state)
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):

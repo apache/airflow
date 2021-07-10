@@ -37,8 +37,8 @@ if TYPE_CHECKING:
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r'(?!^)([A-Z]+)')
 
-T = TypeVar('T')  # pylint: disable=invalid-name
-S = TypeVar('S')  # pylint: disable=invalid-name
+T = TypeVar('T')
+S = TypeVar('S')
 
 
 def validate_key(k: str, max_length: int = 250) -> bool:
@@ -72,7 +72,7 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
 def ask_yesno(question: str) -> bool:
     """Helper to get yes / no answer from user."""
     yes = {'yes', 'y'}
-    no = {'no', 'n'}  # pylint: disable=invalid-name
+    no = {'no', 'n'}
 
     done = False
     print(question)

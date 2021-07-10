@@ -18,7 +18,6 @@
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.log.s3_task_handler`."""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler  # noqa
 
 warnings.warn(

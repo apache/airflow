@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook  # noqa
 
 warnings.warn(

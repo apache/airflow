@@ -155,7 +155,7 @@ spec:
 {{ toYaml .Values.webserver.extraVolumeMounts | indent 12 }}
 {{- end }}
           ports:
-            - name: webserver-ui
+            - name: airflow-ui
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:

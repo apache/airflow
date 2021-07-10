@@ -76,7 +76,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_create_instance_when_exists(self, mock_get_conn, mock_project_id):
         mock_get_conn.return_value.get_instance.return_value = Instance(name=TEST_NAME)
-        result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
+        result = self.hook.create_instance(
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
             instance=Instance(name=TEST_NAME),
@@ -104,7 +104,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             Instance(name=TEST_NAME),
         ]
         mock_get_conn.return_value.create_instance.return_value.result.return_value = Instance(name=TEST_NAME)
-        result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
+        result = self.hook.create_instance(
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
             instance=Instance(name=TEST_NAME),
@@ -140,7 +140,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_delete_instance(self, mock_get_conn, mock_project_id):
-        self.hook.delete_instance(  # pylint: disable=no-value-for-parameter
+        self.hook.delete_instance(
             location=TEST_LOCATION,
             instance=TEST_INSTANCE_ID,
             retry=TEST_RETRY,
@@ -161,7 +161,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_get_instance(self, mock_get_conn, mock_project_id):
-        self.hook.get_instance(  # pylint: disable=no-value-for-parameter
+        self.hook.get_instance(
             location=TEST_LOCATION,
             instance=TEST_INSTANCE_ID,
             retry=TEST_RETRY,
@@ -182,7 +182,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_list_instances(self, mock_get_conn, mock_project_id):
-        self.hook.list_instances(  # pylint: disable=no-value-for-parameter
+        self.hook.list_instances(
             location=TEST_LOCATION,
             page_size=TEST_PAGE_SIZE,
             retry=TEST_RETRY,
@@ -203,7 +203,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_update_instance(self, mock_get_conn, mock_project_id):
-        self.hook.update_instance(  # pylint: disable=no-value-for-parameter
+        self.hook.update_instance(
             update_mask=TEST_UPDATE_MASK,
             instance=Instance(name=TEST_NAME),
             location=TEST_LOCATION,
@@ -437,7 +437,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.get_conn")
     def test_update_instance_without_project_id(self, mock_get_conn, mock_project_id):
         with pytest.raises(AirflowException):
-            self.hook.update_instance(  # pylint: disable=no-value-for-parameter
+            self.hook.update_instance(
                 update_mask=TEST_UPDATE_MASK,
                 instance=Instance(name=TEST_NAME),
                 retry=TEST_RETRY,
@@ -466,7 +466,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
     )
     def test_create_instance_when_exists(self, mock_get_conn, mock_project_id):
         mock_get_conn.return_value.get_instance.return_value = cloud_memcache.Instance(name=TEST_NAME)
-        result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
+        result = self.hook.create_instance(
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
             instance=cloud_memcache.Instance(name=TEST_NAME),
@@ -495,7 +495,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         mock_get_conn.return_value.create_instance.return_value.result.return_value = cloud_memcache.Instance(
             name=TEST_NAME
         )
-        result = self.hook.create_instance(  # pylint: disable=no-value-for-parameter
+        result = self.hook.create_instance(
             location=TEST_LOCATION,
             instance_id=TEST_INSTANCE_ID,
             instance=cloud_memcache.Instance(name=TEST_NAME),
@@ -531,7 +531,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
     )
     def test_delete_instance(self, mock_get_conn, mock_project_id):
-        self.hook.delete_instance(  # pylint: disable=no-value-for-parameter
+        self.hook.delete_instance(
             location=TEST_LOCATION,
             instance=TEST_INSTANCE_ID,
             retry=TEST_RETRY,
@@ -551,7 +551,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
     )
     def test_get_instance(self, mock_get_conn, mock_project_id):
-        self.hook.get_instance(  # pylint: disable=no-value-for-parameter
+        self.hook.get_instance(
             location=TEST_LOCATION,
             instance=TEST_INSTANCE_ID,
             retry=TEST_RETRY,
@@ -571,7 +571,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
     )
     def test_list_instances(self, mock_get_conn, mock_project_id):
-        self.hook.list_instances(  # pylint: disable=no-value-for-parameter
+        self.hook.list_instances(
             location=TEST_LOCATION,
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
@@ -593,7 +593,7 @@ class TestCloudMemorystoreMemcachedWithDefaultProjectIdHook(TestCase):
         "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreMemcachedHook.get_conn"
     )
     def test_update_instance(self, mock_get_conn, mock_project_id):
-        self.hook.update_instance(  # pylint: disable=no-value-for-parameter
+        self.hook.update_instance(
             update_mask=TEST_UPDATE_MASK_MEMCACHED,
             instance=cloud_memcache.Instance(name=TEST_NAME),
             location=TEST_LOCATION,

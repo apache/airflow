@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.openfaas.hooks.openfaas import OK_STATUS_CODE, OpenFaasHook, requests  # noqa
 
 warnings.warn(

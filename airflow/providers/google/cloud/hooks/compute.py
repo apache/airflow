@@ -45,8 +45,6 @@ class ComputeEngineHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Any]
-
     def __init__(
         self,
         api_version: str = 'v1',
@@ -61,10 +59,11 @@ class ComputeEngineHook(GoogleBaseHook):
         )
         self.api_version = api_version
 
+    _conn: Optional[Any] = None
+
     def get_conn(self):
         """
         Retrieves connection to Google Compute Engine.
-
         :return: Google Compute Engine services object
         :rtype: dict
         """
@@ -89,7 +88,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instances()
@@ -118,7 +116,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instances()
@@ -159,7 +156,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _execute_set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> dict:
-        # noqa pylint: disable=no-member
+
         return (
             self.get_conn()
             .instances()
@@ -183,7 +180,6 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
-        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceTemplates()
@@ -217,7 +213,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceTemplates()
@@ -253,7 +248,6 @@ class ComputeEngineHook(GoogleBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
-        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceGroupManagers()
@@ -294,7 +288,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         :return: None
         """
-        # noqa pylint: disable=no-member
         response = (
             self.get_conn()
             .instanceGroupManagers()
@@ -384,7 +377,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         """
         instance_info = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .instances()
             .get(project=project_id, instance=resource_id, zone=zone)
             .execute(num_retries=self.num_retries)
@@ -437,11 +430,9 @@ class ComputeEngineHook(GoogleBaseHook):
         :type project_id: str
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .instances()
-            .setMetadata(  # pylint: disable=no-member
-                project=project_id, zone=zone, instance=resource_id, body=metadata
-            )
+            .setMetadata(project=project_id, zone=zone, instance=resource_id, body=metadata)
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]

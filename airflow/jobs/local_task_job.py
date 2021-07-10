@@ -19,6 +19,7 @@
 import signal
 from typing import Optional
 
+import psutil
 from sqlalchemy.exc import OperationalError
 
 from airflow.configuration import conf
@@ -74,7 +75,6 @@ class LocalTaskJob(BaseJob):
     def _execute(self):
         self.task_runner = get_task_runner(self)
 
-        # pylint: disable=unused-argument
         def signal_handler(signum, frame):
             """Setting kill signal handler"""
             self.log.error("Received SIGTERM. Terminating subprocesses")
@@ -82,12 +82,9 @@ class LocalTaskJob(BaseJob):
             self.task_instance.refresh_from_db()
             if self.task_instance.state not in State.finished:
                 self.task_instance.set_state(State.FAILED)
-            self.task_instance._run_finished_callback(  # pylint: disable=protected-access
-                error="task received sigterm"
-            )
+            self.task_instance._run_finished_callback(error="task received sigterm")
             raise AirflowException("LocalTaskJob received SIGTERM signal")
 
-        # pylint: enable=unused-argument
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
@@ -163,7 +160,7 @@ class LocalTaskJob(BaseJob):
             self.task_instance.set_state(State.FAILED)
         if self.task_instance.state != State.SUCCESS:
             error = self.task_runner.deserialize_run_error()
-        self.task_instance._run_finished_callback(error=error)  # pylint: disable=protected-access
+        self.task_instance._run_finished_callback(error=error)
         if not self.task_instance.test_mode:
             if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
                 self._run_mini_scheduler_on_child_tasks()
@@ -194,9 +191,10 @@ class LocalTaskJob(BaseJob):
                     fqdn,
                 )
                 raise AirflowException("Hostname of job runner does not match")
-
             current_pid = self.task_runner.process.pid
             same_process = ti.pid == current_pid
+            if ti.run_as_user:
+                same_process = psutil.Process(ti.pid).ppid() == current_pid
             if ti.pid is not None and not same_process:
                 self.log.warning("Recorded pid %s does not match " "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
@@ -212,7 +210,7 @@ class LocalTaskJob(BaseJob):
                 # error file will not be populated and it must be updated by
                 # external source suck as web UI
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
-            ti._run_finished_callback(error=error)  # pylint: disable=protected-access
+            ti._run_finished_callback(error=error)
             self.terminating = True
 
     @provide_session

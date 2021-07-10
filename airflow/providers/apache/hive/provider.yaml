@@ -31,6 +31,9 @@ versions:
 additional-dependencies:
   - apache-airflow>=2.1.0
 
+excluded-python-versions:
+  - "3.9"
+
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/

@@ -26,6 +26,22 @@ CYCLE_DONE = 2
 
 def test_cycle(dag):
     """
+    A wrapper function of `check_cycle` for backward compatibility purpose.
+    New code should use `check_cycle` instead since this function name `test_cycle` starts with 'test_' and
+    will be considered as a unit test by pytest, resulting in failure.
+    """
+    from warnings import warn
+
+    warn(
+        "Deprecated, please use `check_cycle` at the same module instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return check_cycle(dag)
+
+
+def check_cycle(dag):
+    """
     Check to see if there are any cycles in the DAG. Returns False if no cycle found,
     otherwise raises exception.
     """

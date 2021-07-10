@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook  # noqa
 
 warnings.warn(

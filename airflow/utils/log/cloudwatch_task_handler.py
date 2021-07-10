@@ -18,7 +18,6 @@
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.log.cloudwatch_task_handler`."""
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler  # noqa
 
 warnings.warn(

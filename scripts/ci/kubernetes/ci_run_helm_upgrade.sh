@@ -15,19 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS="quit"
-
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-function refresh_pylint_todo() {
-    docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
-        "${AIRFLOW_CI_IMAGE}" \
-        "/opt/airflow/scripts/in_container/refresh_pylint_todo.sh"
-}
+EXECUTOR=KubernetesExecutor
+export EXECUTOR
 
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed
-
-refresh_pylint_todo
+# We started with KubernetesExecutor. Let's run tests first
+"$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+for EXECUTOR in CeleryExecutor KubernetesExecutor
+do
+    kind::upgrade_airflow_with_helm "${EXECUTOR}"
+    "$( dirname "${BASH_SOURCE[0]}" )/ci_run_kubernetes_tests.sh"
+done

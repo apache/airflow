@@ -95,10 +95,10 @@ class StreamLogWriter:
         """
 
     @property
-    def closed(self):  # noqa: D402
+    def closed(self):
         """
-        Returns False to indicate that the stream is not closed (as it will be
-        open for the duration of Airflow's lifecycle).
+        Returns False to indicate that the stream is not closed, as it will be
+        open for the duration of Airflow's lifecycle.
 
         For compatibility with the io.IOBase interface.
         """
@@ -142,7 +142,6 @@ class RedirectStdHandler(StreamHandler):
     sys.stderr/stdout at handler construction time.
     """
 
-    # pylint: disable=super-init-not-called
     def __init__(self, stream):
         if not isinstance(stream, str):
             raise Exception(
@@ -154,7 +153,7 @@ class RedirectStdHandler(StreamHandler):
             self._use_stderr = False
 
         # StreamHandler tries to set self.stream
-        Handler.__init__(self)  # pylint: disable=non-parent-init-called
+        Handler.__init__(self)
 
     @property
     def stream(self):

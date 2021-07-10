@@ -61,12 +61,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         :param report: Report to be generated.
         :type report: Dict[str, Any]
         """
-        response = (
-            self.get_conn()  # pylint: disable=no-member
-            .reports()
-            .request(body=report)
-            .execute(num_retries=self.num_retries)
-        )
+        response = self.get_conn().reports().request(body=report).execute(num_retries=self.num_retries)
         return response
 
     def get(self, report_id: str) -> Any:
@@ -76,12 +71,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         :param report_id: ID of the report request being polled.
         :type report_id: str
         """
-        response = (
-            self.get_conn()  # pylint: disable=no-member
-            .reports()
-            .get(reportId=report_id)
-            .execute(num_retries=self.num_retries)
-        )
+        response = self.get_conn().reports().get(reportId=report_id).execute(num_retries=self.num_retries)
         return response
 
     def get_file(self, report_fragment: int, report_id: str) -> Any:
@@ -94,7 +84,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         :type report_id: str
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .getFile(reportFragment=report_fragment, reportId=report_id)
             .execute(num_retries=self.num_retries)

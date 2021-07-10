@@ -63,3 +63,14 @@ class ConfigmapTest(unittest.TestCase):
             "# Well hello RELEASE-NAME!"
             == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
         )
+
+    def test_kerberos_config_available_with_celery_executor(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "kerberos": {"enabled": True, "config": "krb5content"},
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        assert jmespath.search('data."krb5.conf"', docs[0]) == "\nkrb5content\n"

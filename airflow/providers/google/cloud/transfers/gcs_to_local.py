@@ -117,8 +117,8 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         super().__init__(**kwargs)
         self.bucket = bucket
         self.object_name = object_name
-        self.filename = filename  # noqa
-        self.store_to_xcom_key = store_to_xcom_key  # noqa
+        self.filename = filename
+        self.store_to_xcom_key = store_to_xcom_key
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain

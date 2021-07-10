@@ -27,7 +27,7 @@ import json
 import multiprocessing
 import time
 from datetime import timedelta
-from queue import Empty, Queue  # pylint: disable=unused-import
+from queue import Empty, Queue
 from typing import Any, Dict, List, Optional, Tuple
 
 from kubernetes import client, watch
@@ -451,7 +451,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.log.info('When executor started up, found %s queued task instances', len(queued_tasks))
 
         for task in queued_tasks:
-            # pylint: disable=protected-access
+
             self.log.debug("Checking task %s", task)
             dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
                 pod_generator.make_safe_label_value(task.dag_id),
@@ -459,7 +459,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 pod_generator.datetime_to_label_safe_datestring(task.execution_date),
                 pod_generator.make_safe_label_value(str(self.scheduler_job_id)),
             )
-            # pylint: enable=protected-access
+
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
                 for key, value in self.kube_config.kube_client_request_args.items():
@@ -504,7 +504,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.log.info('Add task %s with command %s with executor_config %s', key, command, executor_config)
         try:
             kube_executor_config = PodGenerator.from_obj(executor_config)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.error("Invalid executor_config for %s", key)
             self.fail(key=key, info="Invalid executor_config passed")
             return
@@ -537,7 +537,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_scheduler.sync()
 
         last_resource_version = None
-        while True:  # pylint: disable=too-many-nested-blocks
+        while True:
             try:
                 results = self.result_queue.get_nowait()
                 try:
@@ -546,7 +546,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     self.log.info('Changing state of %s to %s', results, state)
                     try:
                         self._change_state(key, state, pod_id, namespace)
-                    except Exception as e:  # pylint: disable=broad-except
+                    except Exception as e:
                         self.log.exception(
                             "Exception: %s when attempting to change state of %s to %s, re-queueing.",
                             e,
@@ -562,7 +562,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         resource_instance = ResourceVersion()
         resource_instance.resource_version = last_resource_version or resource_instance.resource_version
 
-        # pylint: disable=too-many-nested-blocks
         for _ in range(self.kube_config.worker_pods_creation_batch_size):
             try:
                 task = self.task_queue.get_nowait()
@@ -583,7 +582,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     self.task_queue.task_done()
             except Empty:
                 break
-        # pylint: enable=too-many-nested-blocks
 
         # Run any pending timed events
         next_event = self.event_scheduler.run(blocking=False)
@@ -725,7 +723,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         if not self.result_queue:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.log.debug('Executor shutting down, result_queue approximate size=%d', self.result_queue.qsize())
-        while True:  # pylint: disable=too-many-nested-blocks
+        while True:
             try:
                 results = self.result_queue.get_nowait()
                 self.log.warning('Executor shutting down, flushing results=%s', results)
@@ -736,7 +734,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     )
                     try:
                         self._change_state(key, state, pod_id, namespace)
-                    except Exception as e:  # pylint: disable=broad-except
+                    except Exception as e:
                         self.log.exception(
                             'Ignoring exception: %s when attempting to change state of %s to %s.',
                             e,

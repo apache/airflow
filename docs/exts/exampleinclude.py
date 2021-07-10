@@ -33,7 +33,7 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
 
 try:
-    import sphinx_airflow_theme  # pylint: disable=unused-import
+    import sphinx_airflow_theme
 
     airflow_theme_is_available = True
 except ImportError:
@@ -42,7 +42,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class ExampleHeader(nodes.reference, nodes.FixedTextElement):  # pylint: disable=too-many-ancestors
+class ExampleHeader(nodes.reference, nodes.FixedTextElement):
     """Header for examples."""
 
 
@@ -124,11 +124,10 @@ class ExampleInclude(SphinxDirective):
             retnode = container_node
 
             return [retnode]
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
             return [document.reporter.warning(str(exc), line=self.lineno)]
 
 
-# pylint: disable=protected-access
 def register_source(app, env, modname):
     """
     Registers source code.
@@ -147,7 +146,7 @@ def register_source(app, env, modname):
     if code_tags is None:
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             logger.info(
                 "Module \"%s\" could not be loaded. Full source will not be available. \"%s\"", modname, ex
             )
@@ -170,9 +169,6 @@ def register_source(app, env, modname):
         env._viewcode_modules[modname] = entry
 
     return True
-
-
-# pylint: enable=protected-access
 
 
 def create_node(env, relative_path, show_button):
@@ -208,7 +204,6 @@ def create_node(env, relative_path, show_button):
     return paragraph
 
 
-# pylint: disable=protected-access
 def doctree_read(app, doctree):
     """
     Reads documentation tree for the application and register sources in the generated documentation.
@@ -236,9 +231,6 @@ def doctree_read(app, doctree):
         onlynode = create_node(env, relative_path, show_button)
 
         objnode.replace_self(onlynode)
-
-
-# pylint: enable=protected-access
 
 
 def setup(app):

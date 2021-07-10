@@ -108,7 +108,7 @@ class AzureBatchHook(BaseHook):
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client
 
-    def configure_pool(  # pylint: disable=too-many-arguments
+    def configure_pool(
         self,
         pool_id: str,
         vm_size: Optional[str] = None,

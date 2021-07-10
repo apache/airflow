@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator  # noqa
 
 warnings.warn(

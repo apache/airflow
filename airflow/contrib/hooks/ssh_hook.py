@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.ssh.hooks.ssh import SSHHook  # noqa
 
 warnings.warn(

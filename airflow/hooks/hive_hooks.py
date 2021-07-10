@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.hooks.hive import (  # noqa
     HIVE_QUEUE_PRIORITIES,
     HiveCliHook,

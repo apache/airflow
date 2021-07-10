@@ -72,8 +72,8 @@ class TestGetExtraLinks:
         self.dag = self._create_dag()
 
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore  # pylint: disable=no-member
-        self.app.dag_bag.sync_to_db()  # type: ignore  # pylint: disable=no-member
+        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
+        self.app.dag_bag.sync_to_db()  # type: ignore
 
         dr = DagRun(
             dag_id=self.dag.dag_id,

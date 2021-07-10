@@ -91,7 +91,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :rtype: dict
         """
         # fmt: off
-        return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
+        return self.get_conn().projects().locations().functions().get(
             name=name).execute(num_retries=self.num_retries)
         # fmt: on
 
@@ -110,7 +110,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: None
         """
         # fmt: off
-        response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
+        response = self.get_conn().projects().locations().functions().create(
             location=self._full_location(project_id, location),
             body=body
         ).execute(num_retries=self.num_retries)
@@ -131,7 +131,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: None
         """
         # fmt: off
-        response = self.get_conn().projects().locations().functions().patch(  # pylint: disable=no-member
+        response = self.get_conn().projects().locations().functions().patch(
             updateMask=",".join(update_mask),
             name=name,
             body=body
@@ -156,7 +156,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :rtype: str
         """
         # fmt: off
-        # pylint: disable=no-member # noqa
+
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(
                 parent=self._full_location(project_id, location)
@@ -187,7 +187,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         :return: None
         """
         # fmt: off
-        response = self.get_conn().projects().locations().functions().delete(  # pylint: disable=no-member
+        response = self.get_conn().projects().locations().functions().delete(
             name=name).execute(num_retries=self.num_retries)
         # fmt: on
         operation_name = response["name"]
@@ -218,7 +218,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         """
         name = f"projects/{project_id}/locations/{location}/functions/{function_id}"
         # fmt: off
-        response = self.get_conn().projects().locations().functions().call(  # pylint: disable=no-member
+        response = self.get_conn().projects().locations().functions().call(
             name=name,
             body=input_data
         ).execute(num_retries=self.num_retries)
@@ -241,7 +241,7 @@ class CloudFunctionsHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             # fmt: off
-            operation_response = service.operations().get(  # pylint: disable=no-member
+            operation_response = service.operations().get(
                 name=operation_name,
             ).execute(num_retries=self.num_retries)
             # fmt: on

@@ -132,7 +132,7 @@ class SFTPHook(SSHHook):
                 cnopts.hostkeys = None
             else:
                 if self.host_key is not None:
-                    cnopts.hostkeys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                    cnopts.hostkeys.add(self.remote_host, self.host_key.get_name(), self.host_key)
                 else:
                     pass  # will fallback to system host keys if none explicitly specified in conn extra
 
@@ -224,9 +224,7 @@ class SFTPHook(SSHHook):
         :type local_full_path: str
         """
         conn = self.get_conn()
-        self.log.info('Retrieving file from FTP: %s', remote_full_path)
         conn.get(remote_full_path, local_full_path)
-        self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
     def store_file(self, remote_full_path: str, local_full_path: str) -> None:
         """

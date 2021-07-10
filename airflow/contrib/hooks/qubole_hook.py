@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.qubole.hooks.qubole import QuboleHook  # noqa
 
 warnings.warn(

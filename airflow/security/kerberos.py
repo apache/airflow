@@ -94,7 +94,7 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
             else:
                 return subp.returncode
 
-    global NEED_KRB181_WORKAROUND  # pylint: disable=global-statement
+    global NEED_KRB181_WORKAROUND
     if NEED_KRB181_WORKAROUND is None:
         NEED_KRB181_WORKAROUND = detect_conf_var()
     if NEED_KRB181_WORKAROUND:

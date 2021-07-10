@@ -37,7 +37,7 @@ branch_labels = None
 depends_on = None
 
 
-def prefix_individual_dag_permissions(session):  # noqa: D103
+def prefix_individual_dag_permissions(session):
     dag_perms = ['can_dag_read', 'can_dag_edit']
     prefix = "DAG:"
     perms = (
@@ -55,7 +55,7 @@ def prefix_individual_dag_permissions(session):  # noqa: D103
     session.commit()
 
 
-def get_or_create_dag_resource(session):  # noqa: D103
+def get_or_create_dag_resource(session):
     dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
     if dag_resource:
         return dag_resource
@@ -68,7 +68,7 @@ def get_or_create_dag_resource(session):  # noqa: D103
     return dag_resource
 
 
-def get_or_create_action(session, action_name):  # noqa: D103
+def get_or_create_action(session, action_name):
     action = get_action_query(session, action_name).first()
     if action:
         return action
@@ -81,28 +81,28 @@ def get_or_create_action(session, action_name):  # noqa: D103
     return action
 
 
-def get_resource_query(session, resource_name):  # noqa: D103
+def get_resource_query(session, resource_name):
     return session.query(ViewMenu).filter(ViewMenu.name == resource_name)
 
 
-def get_action_query(session, action_name):  # noqa: D103
+def get_action_query(session, action_name):
     return session.query(Permission).filter(Permission.name == action_name)
 
 
-def get_permission_with_action_query(session, action):  # noqa: D103
+def get_permission_with_action_query(session, action):
     return session.query(PermissionView).filter(PermissionView.permission == action)
 
 
-def get_permission_with_resource_query(session, resource):  # noqa: D103
+def get_permission_with_resource_query(session, resource):
     return session.query(PermissionView).filter(PermissionView.view_menu_id == resource.id)
 
 
-def update_permission_action(session, permission_query, action):  # noqa: D103
+def update_permission_action(session, permission_query, action):
     permission_query.update({PermissionView.permission_id: action.id}, synchronize_session=False)
     session.commit()
 
 
-def get_permission(session, resource, action):  # noqa: D103
+def get_permission(session, resource, action):
     return (
         session.query(PermissionView)
         .filter(PermissionView.view_menu == resource)
@@ -111,9 +111,9 @@ def get_permission(session, resource, action):  # noqa: D103
     )
 
 
-def update_permission_resource(session, permission_query, resource):  # noqa: D103
-    for permission in permission_query.all():  # noqa: D103
-        if not get_permission(session, resource, permission.permission):  # noqa: D103
+def update_permission_resource(session, permission_query, resource):
+    for permission in permission_query.all():
+        if not get_permission(session, resource, permission.permission):
             permission.view_menu = resource
         else:
             session.delete(permission)
@@ -121,7 +121,7 @@ def update_permission_resource(session, permission_query, resource):  # noqa: D1
     session.commit()
 
 
-def migrate_to_new_dag_permissions(db):  # noqa: D103
+def migrate_to_new_dag_permissions(db):
     # Prefix individual dag perms with `DAG:`
     prefix_individual_dag_permissions(db.session)
 
@@ -158,7 +158,7 @@ def migrate_to_new_dag_permissions(db):  # noqa: D103
     db.session.commit()
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     db = SQLA()
     db.session = settings.Session
     migrate_to_new_dag_permissions(db)
@@ -166,5 +166,5 @@ def upgrade():  # noqa: D103
     db.session.close()
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     pass

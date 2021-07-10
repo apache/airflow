@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.sftp.sensors.sftp import SFTPSensor  # noqa
 
 warnings.warn(

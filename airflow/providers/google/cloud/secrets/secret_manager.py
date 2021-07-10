@@ -24,7 +24,7 @@ except ImportError:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient  # noqa
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin

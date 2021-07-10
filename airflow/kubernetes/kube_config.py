@@ -20,14 +20,14 @@ from airflow.configuration import conf
 from airflow.settings import AIRFLOW_HOME
 
 
-class KubeConfig:  # pylint: disable=too-many-instance-attributes
+class KubeConfig:
     """Configuration for Kubernetes"""
 
     core_section = 'core'
     kubernetes_section = 'kubernetes'
     logging_section = 'logging'
 
-    def __init__(self):  # pylint: disable=too-many-statements
+    def __init__(self):
         configuration_dict = conf.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict[self.core_section]
         self.airflow_home = AIRFLOW_HOME

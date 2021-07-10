@@ -32,7 +32,7 @@ from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
 
 
-class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class S3ToHiveOperator(BaseOperator):
     """
     Moves data from S3 to Hive. The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.
@@ -103,7 +103,7 @@ class S3ToHiveOperator(BaseOperator):  # pylint: disable=too-many-instance-attri
     template_ext = ()
     ui_color = '#a0e08c'
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         s3_key: str,

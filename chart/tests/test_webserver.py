@@ -441,9 +441,7 @@ class WebserverServiceTest(unittest.TestCase):
             "spec.selector", docs[0]
         )
         assert "ClusterIP" == jmespath.search("spec.type", docs[0])
-        assert {"name": "airflow-ui", "protocol": "TCP", "port": 8080} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {"name": "airflow-ui", "port": 8080} in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
         docs = render_chart(
@@ -462,10 +460,38 @@ class WebserverServiceTest(unittest.TestCase):
 
         assert {"foo": "bar"} == jmespath.search("metadata.annotations", docs[0])
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
-        assert {"name": "airflow-ui", "protocol": "TCP", "port": 9000} in jmespath.search(
-            "spec.ports", docs[0]
-        )
+        assert {"name": "airflow-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+
+    @parameterized.expand(
+        [
+            ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
+            (
+                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
+                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 8080}],
+            ),
+            ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
+            (
+                [
+                    {"name": "airflow-ui", "port": "{{ .Values.ports.airflowUI }}"},
+                    {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
+                ],
+                [
+                    {"name": "airflow-ui", "port": 8080},
+                    {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
+                ],
+            ),
+        ]
+    )
+    def test_ports_overrides(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "webserver": {"service": {"ports": ports}},
+            },
+            show_only=["templates/webserver/webserver-service.yaml"],
+        )
+
+        assert expected_ports == jmespath.search("spec.ports", docs[0])
 
 
 class WebserverConfigmapTest(unittest.TestCase):
@@ -484,4 +510,86 @@ class WebserverConfigmapTest(unittest.TestCase):
         assert (
             "CSRF_ENABLED = True  # RELEASE-NAME"
             == jmespath.search('data."webserver_config.py"', docs[0]).strip()
+        )
+
+
+class WebserverNetworkPolicyTest(unittest.TestCase):
+    def test_off_by_default(self):
+        docs = render_chart(
+            show_only=["templates/webserver/webserver-networkpolicy.yaml"],
+        )
+        assert 0 == len(docs)
+
+    def test_defaults(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "webserver": {
+                    "networkPolicy": {
+                        "ingress": {
+                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                        }
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-networkpolicy.yaml"],
+        )
+
+        assert 1 == len(docs)
+        assert "NetworkPolicy" == docs[0]["kind"]
+        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
+            "spec.ingress[0].from", docs[0]
+        )
+        assert [{"port": "airflow-ui"}] == jmespath.search("spec.ingress[0].ports", docs[0])
+
+    @parameterized.expand(
+        [
+            (
+                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
+                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 8080}],
+            ),
+            ([{"name": "only_sidecar", "port": "sidecar"}], [{"name": "only_sidecar", "port": "sidecar"}]),
+            (
+                [
+                    {"name": "flower-ui", "port": "{{ .Values.ports.airflowUI }}"},
+                    {"name": "sidecar", "port": 80},
+                ],
+                [
+                    {"name": "flower-ui", "port": 8080},
+                    {"name": "sidecar", "port": 80},
+                ],
+            ),
+        ],
+    )
+    def test_ports_overrides(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "webserver": {
+                    "networkPolicy": {
+                        "ingress": {
+                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
+                            "ports": ports,
+                        }
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-networkpolicy.yaml"],
+        )
+
+        assert expected_ports == jmespath.search("spec.ingress[0].ports", docs[0])
+
+    def test_deprecated_from_param(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "webserver": {
+                    "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                },
+            },
+            show_only=["templates/webserver/webserver-networkpolicy.yaml"],
+        )
+
+        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
+            "spec.ingress[0].from", docs[0]
         )

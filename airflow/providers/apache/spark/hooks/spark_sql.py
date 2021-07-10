@@ -66,7 +66,6 @@ class SparkSqlHook(BaseHook):
     conn_type = 'spark_sql'
     hook_name = 'Spark SQL'
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         sql: str,
@@ -182,7 +181,7 @@ class SparkSqlHook(BaseHook):
         :type kwargs: dict
         """
         spark_sql_cmd = self._prepare_command(cmd)
-        # pylint: disable=consider-using-with
+
         self._sp = subprocess.Popen(spark_sql_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
 
         for line in iter(self._sp.stdout):  # type: ignore

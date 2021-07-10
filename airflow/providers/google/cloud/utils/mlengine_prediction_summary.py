@@ -1,4 +1,3 @@
-# flake8: noqa: F841
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -111,7 +110,7 @@ import logging
 import os
 
 import apache_beam as beam
-import dill  # pylint: disable=wrong-import-order
+import dill
 
 
 class JsonCoder:
@@ -129,7 +128,7 @@ class JsonCoder:
 
 
 @beam.ptransform_fn
-def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
+def MakeSummary(pcoll, metric_fn, metric_keys):
     """Summary PTransform used in Dataflow."""
     return (
         pcoll
@@ -186,7 +185,7 @@ def run(argv=None):
     metric_keys = known_args.metric_keys.split(",")
 
     with beam.Pipeline(options=beam.pipeline.PipelineOptions(pipeline_args)) as pipe:
-        # pylint: disable=no-value-for-parameter
+
         prediction_result_pattern = os.path.join(known_args.prediction_path, "prediction.results-*-of-*")
         prediction_summary_path = os.path.join(known_args.prediction_path, "prediction.summary.json")
         # This is apache-beam ptransform's convention

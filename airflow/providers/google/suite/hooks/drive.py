@@ -89,7 +89,7 @@ class GoogleDriveHook(GoogleBaseHook):
                 f"'{current_parent}' in parents",
             ]
             result = (
-                service.files()  # pylint: disable=no-member
+                service.files()
                 .list(q=" and ".join(conditions), spaces="drive", fields="files(id, name)")
                 .execute(num_retries=self.num_retries)
             )
@@ -111,7 +111,7 @@ class GoogleDriveHook(GoogleBaseHook):
                     "parents": [current_parent],
                 }
                 file = (
-                    service.files()  # pylint: disable=no-member
+                    service.files()
                     .create(body=file_metadata, fields="id")
                     .execute(num_retries=self.num_retries)
                 )
@@ -131,7 +131,7 @@ class GoogleDriveHook(GoogleBaseHook):
         :rtype: HttpRequest
         """
         service = self.get_conn()
-        request = service.files().get_media(fileId=file_id)  # pylint: disable=no-member
+        request = service.files().get_media(fileId=file_id)
         return request
 
     def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
@@ -168,7 +168,7 @@ class GoogleDriveHook(GoogleBaseHook):
         service = self.get_conn()
         if drive_id:
             files = (
-                service.files()  # pylint: disable=no-member
+                service.files()
                 .list(
                     q=query,
                     spaces="drive",
@@ -183,7 +183,7 @@ class GoogleDriveHook(GoogleBaseHook):
             )
         else:
             files = (
-                service.files()  # pylint: disable=no-member
+                service.files()
                 .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
                 .execute(num_retries=self.num_retries)
             )
@@ -213,7 +213,7 @@ class GoogleDriveHook(GoogleBaseHook):
         file_metadata = {"name": file_name, "parents": [parent]}
         media = MediaFileUpload(local_location)
         file = (
-            service.files()  # pylint: disable=no-member
+            service.files()
             .create(body=file_metadata, media_body=media, fields="id")
             .execute(num_retries=self.num_retries)
         )

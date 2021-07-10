@@ -68,7 +68,7 @@ class TestStandardTaskRunner:
         airflow_logger.handlers = []
         try:
             clear_db_runs()
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             # It might happen that we lost connection to the server here so we need to ignore any errors here
             pass
 

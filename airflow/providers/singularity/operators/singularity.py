@@ -71,7 +71,7 @@ class SingularityOperator(BaseOperator):
     )
     template_fields_renderers = {"command": "bash", "environment": "json"}
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         image: str,

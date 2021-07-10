@@ -76,7 +76,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
-    def get_failed_reason_from_response(self, response: dict) -> str:  # pylint: disable=unused-argument
+    def get_failed_reason_from_response(self, response: dict) -> str:
         """Placeholder for extracting the reason for failure from an AWS response."""
         return 'Unknown'
 

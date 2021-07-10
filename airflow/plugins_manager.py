@@ -172,7 +172,7 @@ def is_valid_plugin(plugin_obj):
     :return: Whether or not the obj is a valid subclass of
         AirflowPlugin
     """
-    global plugins  # pylint: disable=global-statement
+    global plugins
 
     if (
         inspect.isclass(plugin_obj)
@@ -190,7 +190,7 @@ def register_plugin(plugin_instance):
 
     :param plugin_instance: subclass of AirflowPlugin
     """
-    global plugins  # pylint: disable=global-statement
+    global plugins
     plugin_instance.on_load()
     plugins.append(plugin_instance)
 
@@ -200,7 +200,7 @@ def load_entrypoint_plugins():
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
     The entry_point group should be 'airflow.plugins'.
     """
-    global import_errors  # pylint: disable=global-statement
+    global import_errors
 
     log.debug("Loading plugins from entrypoints")
 
@@ -214,14 +214,14 @@ def load_entrypoint_plugins():
             plugin_instance = plugin_class()
             plugin_instance.source = EntryPointSource(entry_point, dist)
             register_plugin(plugin_instance)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module] = str(e)
 
 
 def load_plugins_from_plugin_directory():
     """Load and register Airflow Plugins from plugins directory"""
-    global import_errors  # pylint: disable=global-statement
+    global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
     for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
@@ -243,12 +243,11 @@ def load_plugins_from_plugin_directory():
                 plugin_instance = mod_attr_value()
                 plugin_instance.source = PluginsDirectorySource(file_path)
                 register_plugin(plugin_instance)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             log.exception('Failed to import plugin %s', file_path)
             import_errors[file_path] = str(e)
 
 
-# pylint: disable=protected-access
 def make_module(name: str, objects: List[Any]):
     """Creates new module."""
     if not objects:
@@ -262,9 +261,6 @@ def make_module(name: str, objects: List[Any]):
     return module
 
 
-# pylint: enable=protected-access
-
-
 def ensure_plugins_loaded():
     """
     Load plugins from plugins directory and entrypoints.
@@ -273,7 +269,7 @@ def ensure_plugins_loaded():
     """
     from airflow.stats import Stats
 
-    global plugins, registered_hooks  # pylint: disable=global-statement
+    global plugins, registered_hooks
 
     if plugins is not None:
         log.debug("Plugins are already loaded. Skipping.")
@@ -303,12 +299,10 @@ def ensure_plugins_loaded():
 
 def initialize_web_ui_plugins():
     """Collect extension points for WEB UI"""
-    # pylint: disable=global-statement
     global plugins
     global flask_blueprints
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
-    # pylint: enable=global-statement
 
     if (
         flask_blueprints is not None
@@ -345,11 +339,9 @@ def initialize_web_ui_plugins():
 
 def initialize_extra_operators_links_plugins():
     """Creates modules for loaded extension from extra operators links plugins"""
-    # pylint: disable=global-statement
     global global_operator_extra_links
     global operator_extra_links
     global registered_operator_link_classes
-    # pylint: enable=global-statement
 
     if (
         global_operator_extra_links is not None
@@ -383,10 +375,8 @@ def initialize_extra_operators_links_plugins():
 
 def integrate_executor_plugins() -> None:
     """Integrate executor plugins to the context."""
-    # pylint: disable=global-statement
     global plugins
     global executors_modules
-    # pylint: enable=global-statement
 
     if executors_modules is not None:
         return
@@ -407,15 +397,14 @@ def integrate_executor_plugins() -> None:
         executors_module = make_module('airflow.executors.' + plugin_name, plugin.executors)
         if executors_module:
             executors_modules.append(executors_module)
-            sys.modules[executors_module.__name__] = executors_module  # pylint: disable=no-member
+            sys.modules[executors_module.__name__] = executors_module
 
 
 def integrate_macros_plugins() -> None:
     """Integrates macro plugins."""
-    # pylint: disable=global-statement
     global plugins
     global macros_modules
-    # pylint: enable=global-statement
+
     from airflow import macros
 
     if macros_modules is not None:
@@ -438,7 +427,7 @@ def integrate_macros_plugins() -> None:
 
         if macros_module:
             macros_modules.append(macros_module)
-            sys.modules[macros_module.__name__] = macros_module  # pylint: disable=no-member
+            sys.modules[macros_module.__name__] = macros_module
             # Register the newly created module on airflow.macros such that it
             # can be accessed when rendering templates.
             setattr(macros, plugin.name, macros_module)

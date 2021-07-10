@@ -26,7 +26,6 @@ from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 
-# pylint: disable=too-many-instance-attributes
 class GCSToBigQueryOperator(BaseOperator):
     """
     Loads files from Google Cloud Storage into BigQuery.
@@ -172,7 +171,6 @@ class GCSToBigQueryOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
-    # pylint: disable=too-many-locals,too-many-arguments
     def __init__(
         self,
         *,
