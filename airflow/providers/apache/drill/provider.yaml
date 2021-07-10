@@ -45,4 +45,3 @@ hooks:
 
 hook-class-names:
   - airflow.providers.apache.drill.hooks.drill.DrillHook
-

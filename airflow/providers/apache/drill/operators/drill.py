@@ -17,10 +17,11 @@
 # under the License.
 from typing import Iterable, Mapping, Optional, Union
 
+import sqlparse
+
 from airflow.models import BaseOperator
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 from airflow.utils.decorators import apply_defaults
-import sqlparse
 
 
 class DrillOperator(BaseOperator):

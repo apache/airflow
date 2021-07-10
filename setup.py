@@ -255,10 +255,7 @@ doc = [
 docker = [
     'docker',
 ]
-drill = [
-    'sqlalchemy-drill>=1.1.0',
-    'sqlparse>=0.4.1'
-]
+drill = ['sqlalchemy-drill>=1.1.0', 'sqlparse>=0.4.1']
 druid = [
     'pydruid>=0.4.1',
 ]

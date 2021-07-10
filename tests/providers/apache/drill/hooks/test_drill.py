@@ -32,10 +32,7 @@ class TestDrillHook(unittest.TestCase):
         self.conn.host = 'host'
         self.conn.port = '8047'
         self.conn.conn_type = 'drill'
-        self.conn.extra_dejson = {
-            'dialect_driver': 'drill+sadrill',
-            'storage_plugin': 'dfs'
-        }
+        self.conn.extra_dejson = {'dialect_driver': 'drill+sadrill', 'storage_plugin': 'dfs'}
         self.conn.cursor.return_value = self.cur
 
         class TestDrillHook(DrillHook):

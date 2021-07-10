@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -51,16 +50,12 @@ class DrillHook(DbApiHook):
         creds = f'{conn_md.login}:{conn_md.password}@' if conn_md.login else ''
         engine = create_engine(
             f'{conn_md.extra_dejson.get("dialect_driver", "drill+sadrill")}://{creds}'
-
             f'{conn_md.host}:{conn_md.port}/'
             f'{conn_md.extra_dejson.get("storage_plugin", "dfs")}'
         )
 
         self.log.info(
-            'Connected to the Drillbit at %s:%s as user %s',
-            conn_md.host,
-            conn_md.port,
-            conn_md.login
+            'Connected to the Drillbit at %s:%s as user %s', conn_md.host, conn_md.port, conn_md.login
         )
         return engine.raw_connection()
 
@@ -75,14 +70,9 @@ class DrillHook(DbApiHook):
         if conn_md.port is not None:
             host += f':{conn_md.port}'
         conn_type = 'drill' if not conn_md.conn_type else conn_md.conn_type
-        dialect_driver = conn_md.extra_dejson.get(
-            'dialect_driver', 'drill+sadrill'
-        )
-        storage_plugin = conn_md.extra_dejson.get(
-            'storage_plugin', 'dfs'
-        )
-        return f'{conn_type}://{host}/{storage_plugin}' \
-            f'?dialect_driver={dialect_driver}'
+        dialect_driver = conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')
+        storage_plugin = conn_md.extra_dejson.get('storage_plugin', 'dfs')
+        return f'{conn_type}://{host}/{storage_plugin}' f'?dialect_driver={dialect_driver}'
 
     def set_autocommit(self, conn: Connection, autocommit: bool) -> NotImplemented:
         raise NotImplementedError("There are no transactions in Drill.")
