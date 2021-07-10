@@ -37,7 +37,7 @@ from airflow.utils import callback_requests, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -111,7 +111,7 @@ class DagRun(Base, LoggingMixin):
         start_date: Optional[datetime] = None,
         external_trigger: Optional[bool] = None,
         conf: Optional[Any] = None,
-        state: Optional[str] = None,
+        state: Optional[DagRunState] = None,
         run_type: Optional[str] = None,
         dag_hash: Optional[str] = None,
         creating_job_id: Optional[int] = None,
@@ -145,7 +145,7 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    def set_state(self, state):
+    def set_state(self, state: DagRunState):
         if self._state != state:
             self._state = state
             self.end_date = timezone.utcnow() if self._state in State.finished else None
@@ -171,7 +171,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     def next_dagruns_to_examine(
         cls,
-        state: str,
+        state: DagRunState,
         session: Session,
         max_number: Optional[int] = None,
     ):
@@ -220,7 +220,7 @@ class DagRun(Base, LoggingMixin):
         dag_id: Optional[Union[str, List[str]]] = None,
         run_id: Optional[str] = None,
         execution_date: Optional[datetime] = None,
-        state: Optional[str] = None,
+        state: Optional[DagRunState] = None,
         external_trigger: Optional[bool] = None,
         no_backfills: bool = False,
         run_type: Optional[DagRunType] = None,
@@ -240,7 +240,7 @@ class DagRun(Base, LoggingMixin):
         :param execution_date: the execution date
         :type execution_date: datetime.datetime or list[datetime.datetime]
         :param state: the state of the dag run
-        :type state: str
+        :type state: DagRunState
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
@@ -344,7 +344,9 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @provide_session
-    def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
+    def get_previous_dagrun(
+        self, state: Optional[DagRunState] = None, session: Session = None
+    ) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
         filters = [
             DagRun.dag_id == self.dag_id,
