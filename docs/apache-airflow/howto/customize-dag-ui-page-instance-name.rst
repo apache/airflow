@@ -38,7 +38,7 @@ To make this change, simply:
 
 .. code-block::
 
-  AIRFLOW__WEBSERVER__SITE_TITLE = "DevEnv"
+  AIRFLOW__WEBSERVER__INSTANCE_NAME = "DevEnv"
 
 
 Screenshots

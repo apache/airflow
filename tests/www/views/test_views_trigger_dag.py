@@ -21,6 +21,7 @@ import pytest
 
 from airflow.models import DagBag, DagRun
 from airflow.security import permissions
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.www import check_content_in_response
@@ -87,6 +88,31 @@ def test_trigger_dag_conf_not_dict(admin_client):
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is None
+
+
+def test_trigger_dag_wrong_execution_date(admin_client):
+    test_dag_id = "example_bash_operator"
+
+    response = admin_client.post(f'trigger?dag_id={test_dag_id}', data={'execution_date': "not_a_date"})
+    check_content_in_response("Invalid execution date", response)
+
+    with create_session() as session:
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    assert run is None
+
+
+def test_trigger_dag_execution_date(admin_client):
+    test_dag_id = "example_bash_operator"
+    exec_date = timezone.utcnow()
+
+    admin_client.post(f'trigger?dag_id={test_dag_id}', data={'execution_date': exec_date.isoformat()})
+
+    with create_session() as session:
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    assert run is not None
+    assert DagRunType.MANUAL in run.run_id
+    assert run.run_type == DagRunType.MANUAL
+    assert run.execution_date == exec_date
 
 
 def test_trigger_dag_form(admin_client):

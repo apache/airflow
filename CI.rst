@@ -54,7 +54,7 @@ it can be ~6-7 minutes and in case base image of Python releases new patch-level
 Container Registry used as cache
 --------------------------------
 
-For the CI builds of our we are using Container Registry to store results of the "Build Image" workflow
+For the CI builds of our we are using GitHub Container Registry to store results of the "Build Image" workflow
 and pass it to the "CI Build" workflow.
 
 Currently in main version of Airflow we run tests in 4 different versions of Python (3.6, 3.7, 3.8, 3.9)
@@ -70,40 +70,23 @@ This is especially important in our case where Pull Requests to Airflow might co
 and it would be a huge security issue if anyone from outside could
 utilise the WRITE access to Apache Airflow repository via an external Pull Request.
 
-Thanks to the WRITE access and fact that the 'pull_request_target' by default uses the 'main' version of the
+Thanks to the WRITE access and fact that the ``pull_request_target`` by default uses the ``main`` version of the
 sources, we can safely run some logic there will checkout the incoming Pull Request, build the container
 image from the sources from the incoming PR and push such image to an GitHub Docker Registry - so that
 this image can be built only once and used by all the jobs running tests. The image is tagged with unique
 ``COMMIT_SHA`` of the incoming Pull Request and the tests run in the Pull Request can simply pull such image
 rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
 a lot of precious time for jobs.
+4
+We use `GitHub Container Registry <https://docs.github.com/en/packages/guides/about-github-container-registry>`_
+GitHub Package Registry ``GITHUB_TOKEN`` is needed to push to the registry. You also have to manually manage
+permissions of the images, after creating image for the first time (pushing it using your personal token)
+you need to set their visibility to ``Public`` and enable
+`Inheriting access from repository <https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#inheriting-access-for-a-container-image-from-a-repository>`_
+Those images have specific naming schema. See `Images documentation <IMAGES.rst>`_ for details.
 
-We can use either of the two available GitHub Container registries as cache:
-
-* Legacy `GitHub Package Registry <https://github.com/features/packages>`_ which is not very
-  stable, uses old infrastructure of GitHub and it lacks certain features - notably it does not allow
-  us to delete the old image. The benefit of using GitHub Package Registry is that it works
-  out-of-the-box (write authentication is done using ``GITHUB_TOKEN`` and users do not have to do any
-  action to make it work in case they want to run build using their own forks. Also those images
-  do not provide public access, so you need to login to ``docker.pkg.github.com`` docker registry
-  using your username and personal token to be able to pull those images.
-
-* The new `GitHub Container Registry <https://docs.github.com/en/packages/guides/about-github-container-registry>`_
-  which is in Public Beta, has many more features (including permission management, public access and
-  image retention possibility). Similarly as in case of GitHub Package Registry ``GITHUB_TOKEN`` is needed
-  to push to the repositories. You also have to manually manage permissions of the images,
-  i.e. after creating images for the first time, you need to set their visibility to ``Public`` and
-  add ``Admin`` permissions to group of people managing the images (in our case ``airflow-committers`` group).
-  This makes it not very suitable to use GitHub container registry if you want to run builds of Airflow
-  in your own forks (note - it does not affect pull requests from forks to Airflow).
-
-Those two images have different naming schemas. See `Images documentation <IMAGES.rst>`_ for details.
-
-You can interact with the GitHub Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - you can
-pass ``--github-registry`` flag with either ``docker.pkg.github.com`` for GitHub Package Registry or
-``ghcr.io`` for GitHub Container Registry and pull/push operations will be performed using the chosen
-registry, using appropriate naming convention. This allows building and pushing the images locally by
-committers who have access to push/pull those images.
+You can interact with the GitHub Registry images (pull/push) via `Breeze <BREEZE.rst>`_  - by passing
+``--use-github-registry`` flag.
 
 Locally replicating CI failures
 -------------------------------
@@ -787,7 +770,7 @@ cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --github-registry ghcr.io --python 3.8
+  ./breeze --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --use=github-registry --python 3.8
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in
@@ -848,8 +831,7 @@ In order to add a new version the following operations should be done (example u
 .. code-block:: bash
 
   ./breeze push-image --python 3.9
-  ./breeze push-image --python 3.9 --github-registry ghcr.io
-  ./breeze push-image --python 3.9 --github-registry docker.pkg.github.com
+  ./breeze push-image --python 3.9 --use-github-registry
 
 * Find the 3 new images (main, ci, build) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_

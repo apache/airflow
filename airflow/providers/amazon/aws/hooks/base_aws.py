@@ -58,6 +58,8 @@ class _SessionFactory(LoggingMixin):
         self.region_name = region_name
         self.config = config
         self.extra_config = self.conn.extra_dejson
+        self.basic_session = None
+        self.role_arn = None
 
     def create_session(self) -> boto3.session.Session:
         """Create AWS session."""
@@ -68,13 +70,13 @@ class _SessionFactory(LoggingMixin):
                 self.extra_config["session_kwargs"],
             )
             session_kwargs = self.extra_config["session_kwargs"]
-        session = self._create_basic_session(session_kwargs=session_kwargs)
-        role_arn = self._read_role_arn_from_extra_config()
+        self.basic_session = self._create_basic_session(session_kwargs=session_kwargs)
+        self.role_arn = self._read_role_arn_from_extra_config()
         # If role_arn was specified then STS + assume_role
-        if role_arn is None:
-            return session
+        if self.role_arn is None:
+            return self.basic_session
 
-        return self._impersonate_to_role(role_arn=role_arn, session=session, session_kwargs=session_kwargs)
+        return self._create_session_with_assume_role(session_kwargs=session_kwargs)
 
     def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
         aws_access_key_id, aws_secret_access_key = self._read_credentials_from_connection()
@@ -97,57 +99,62 @@ class _SessionFactory(LoggingMixin):
             **session_kwargs,
         )
 
-    def _impersonate_to_role(
-        self, role_arn: str, session: boto3.session.Session, session_kwargs: Dict[str, Any]
-    ) -> boto3.session.Session:
-        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
-        assume_role_method = self.extra_config.get('assume_role_method')
+    def _create_session_with_assume_role(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
         self.log.info("assume_role_method=%s", assume_role_method)
-        if not assume_role_method or assume_role_method == 'assume_role':
-            sts_client = session.client("sts", config=self.config)
-            sts_response = self._assume_role(
-                sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
-            )
-        elif assume_role_method == 'assume_role_with_saml':
-            sts_client = session.client("sts", config=self.config)
-            sts_response = self._assume_role_with_saml(
-                sts_client=sts_client, role_arn=role_arn, assume_role_kwargs=assume_role_kwargs
-            )
-        elif assume_role_method == 'assume_role_with_web_identity':
-            botocore_session = self._assume_role_with_web_identity(
-                role_arn=role_arn,
-                assume_role_kwargs=assume_role_kwargs,
-                base_session=session._session,
-            )
-            return boto3.session.Session(
-                region_name=session.region_name,
-                botocore_session=botocore_session,
-                **session_kwargs,
-            )
-        else:
+        supported_methods = ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        if assume_role_method not in supported_methods:
             raise NotImplementedError(
                 f'assume_role_method={assume_role_method} in Connection {self.conn.conn_id} Extra.'
-                'Currently "assume_role" or "assume_role_with_saml" are supported.'
+                f'Currently {supported_methods} are supported.'
                 '(Exclude this setting will default to "assume_role").'
             )
-        # Use credentials retrieved from STS
-        credentials = sts_response["Credentials"]
-        aws_access_key_id = credentials["AccessKeyId"]
-        aws_secret_access_key = credentials["SecretAccessKey"]
-        aws_session_token = credentials["SessionToken"]
-        self.log.info(
-            "Creating session with aws_access_key_id=%s region_name=%s",
-            aws_access_key_id,
-            session.region_name,
-        )
+        if assume_role_method == 'assume_role_with_web_identity':
+            # Deferred credentials have no initial credentials
+            credential_fetcher = self._get_web_identity_credential_fetcher()
+            credentials = botocore.credentials.DeferredRefreshableCredentials(
+                method='assume-role-with-web-identity',
+                refresh_using=credential_fetcher.fetch_credentials,
+                time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
+            )
+        else:
+            # Refreshable credentials do have initial credentials
+            credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
+                metadata=self._refresh_credentials(),
+                refresh_using=self._refresh_credentials,
+                method="sts-assume-role",
+            )
+        session = botocore.session.get_session()
+        session._credentials = credentials  # pylint: disable=protected-access
+        region_name = self.basic_session.region_name
+        session.set_config_variable("region", region_name)
+        return boto3.session.Session(botocore_session=session, **session_kwargs)
 
-        return boto3.session.Session(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            region_name=session.region_name,
-            aws_session_token=aws_session_token,
-            **session_kwargs,
-        )
+    def _refresh_credentials(self) -> Dict[str, Any]:
+        self.log.info('Refreshing credentials')
+        assume_role_method = self.extra_config.get('assume_role_method', 'assume_role')
+        sts_session = self.basic_session
+        if assume_role_method == 'assume_role':
+            sts_client = sts_session.client("sts", config=self.config)
+            sts_response = self._assume_role(sts_client=sts_client)
+        elif assume_role_method == 'assume_role_with_saml':
+            sts_client = sts_session.client("sts", config=self.config)
+            sts_response = self._assume_role_with_saml(sts_client=sts_client)
+        else:
+            raise NotImplementedError(f'assume_role_method={assume_role_method} not expected')
+        sts_response_http_status = sts_response['ResponseMetadata']['HTTPStatusCode']
+        if not sts_response_http_status == 200:
+            raise Exception(f'sts_response_http_status={sts_response_http_status}')
+        credentials = sts_response['Credentials']
+        expiry_time = credentials.get('Expiration').isoformat()
+        self.log.info(f'New credentials expiry_time:{expiry_time}')
+        credentials = {
+            "access_key": credentials.get("AccessKeyId"),
+            "secret_key": credentials.get("SecretAccessKey"),
+            "token": credentials.get("SessionToken"),
+            "expiry_time": expiry_time,
+        }
+        return credentials
 
     def _read_role_arn_from_extra_config(self) -> Optional[str]:
         aws_account_id = self.extra_config.get("aws_account_id")
@@ -181,24 +188,21 @@ class _SessionFactory(LoggingMixin):
             self.log.info("No credentials retrieved from Connection")
         return aws_access_key_id, aws_secret_access_key
 
-    def _assume_role(
-        self, sts_client: boto3.client, role_arn: str, assume_role_kwargs: Dict[str, Any]
-    ) -> Dict:
+    def _assume_role(self, sts_client: boto3.client) -> Dict:
+        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         if "external_id" in self.extra_config:  # Backwards compatibility
             assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
         role_session_name = f"Airflow_{self.conn.conn_id}"
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
-            role_arn,
+            self.role_arn,
             role_session_name,
         )
         return sts_client.assume_role(
-            RoleArn=role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
+            RoleArn=self.role_arn, RoleSessionName=role_session_name, **assume_role_kwargs
         )
 
-    def _assume_role_with_saml(
-        self, sts_client: boto3.client, role_arn: str, assume_role_kwargs: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _assume_role_with_saml(self, sts_client: boto3.client) -> Dict[str, Any]:
         saml_config = self.extra_config['assume_role_with_saml']
         principal_arn = saml_config['principal_arn']
 
@@ -211,9 +215,13 @@ class _SessionFactory(LoggingMixin):
                 'Currently only "http_spegno_auth" is supported, and must be specified.'
             )
 
-        self.log.info("Doing sts_client.assume_role_with_saml to role_arn=%s", role_arn)
+        self.log.info("Doing sts_client.assume_role_with_saml to role_arn=%s", self.role_arn)
+        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         return sts_client.assume_role_with_saml(
-            RoleArn=role_arn, PrincipalArn=principal_arn, SAMLAssertion=saml_assertion, **assume_role_kwargs
+            RoleArn=self.role_arn,
+            PrincipalArn=principal_arn,
+            SAMLAssertion=saml_assertion,
+            **assume_role_kwargs,
         )
 
     def _get_idp_response(
@@ -289,8 +297,10 @@ class _SessionFactory(LoggingMixin):
             raise ValueError('Invalid SAML Assertion')
         return saml_assertion
 
-    def _assume_role_with_web_identity(self, role_arn, assume_role_kwargs, base_session):
-        base_session = base_session or botocore.session.get_session()
+    def _get_web_identity_credential_fetcher(
+        self,
+    ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
+        base_session = self.basic_session._session or botocore.session.get_session()
         client_creator = base_session.create_client
         federation = self.extra_config.get('assume_role_with_web_identity_federation')
         if federation == 'google':
@@ -299,20 +309,13 @@ class _SessionFactory(LoggingMixin):
             raise AirflowException(
                 f'Unsupported federation: {federation}. Currently "google" only are supported.'
             )
-        fetcher = botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
+        assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
+        return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
             client_creator=client_creator,
             web_identity_token_loader=web_identity_token_loader,
-            role_arn=role_arn,
-            extra_args=assume_role_kwargs or {},
+            role_arn=self.role_arn,
+            extra_args=assume_role_kwargs,
         )
-        aws_creds = botocore.credentials.DeferredRefreshableCredentials(
-            method='assume-role-with-web-identity',
-            refresh_using=fetcher.fetch_credentials,
-            time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
-        )
-        botocore_session = botocore.session.Session()
-        botocore_session._credentials = aws_creds
-        return botocore_session
 
     def _get_google_identity_token_loader(self):
         from google.auth.transport import requests as requests_transport

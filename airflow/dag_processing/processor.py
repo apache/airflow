@@ -32,7 +32,6 @@ from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.dag_processing.manager import AbstractDagFileProcessorProcess
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import DAG, DagModel, SlaMiss, errors
 from airflow.models.dagbag import DagBag
@@ -53,7 +52,7 @@ from airflow.utils.state import State
 TI = models.TaskInstance
 
 
-class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin, MultiprocessingStartMethodMixin):
+class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     """Runs DAG processing in a separate process using DagFileProcessor
 
     :param file_path: a Python file containing Airflow DAG definitions
@@ -401,7 +400,10 @@ class DagFileProcessor(LoggingMixin):
         ts = timezone.utcnow()
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
-            if task.sla and not isinstance(task.sla, timedelta):
+            if not task.sla:
+                continue
+
+            if not isinstance(task.sla, timedelta):
                 raise TypeError(
                     f"SLA is expected to be timedelta object, got "
                     f"{type(task.sla)} in {task.dag_id}:{task.task_id}"

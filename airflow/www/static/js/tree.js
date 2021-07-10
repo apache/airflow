@@ -58,7 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const tree = d3.layout.tree().nodeSize([0, 25]);
   let nodes = tree.nodes(data);
   const nodeobj = {};
-  const getActiveRuns = () => data.instances.filter((run) => run.state === 'running').length > 0;
+  const runActiveStates = ['queued', 'running'];
+  const getActiveRuns = () => data.instances
+    .filter((run) => runActiveStates.includes(run.state)).length > 0;
 
   const now = Date.now() / 1000;
   const devicePixelRatio = window.devicePixelRatio || 1;
@@ -455,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (getActiveRuns()) {
           handleRefresh();
         } else {
-          $('#auto_refresh').removeAttr('checked');
+          $('#auto_refresh').prop('checked', false);
         }
       }, 3000); // run refresh every 3 seconds
     } else {
@@ -478,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function initRefresh() {
     // default to auto-refresh if there are any active dag runs
     if (getActiveRuns() && !localStorage.getItem('disableAutoRefresh')) {
-      $('#auto_refresh').attr('checked', true);
+      $('#auto_refresh').prop('checked', true);
     }
     startOrStopRefresh();
     d3.select('#refresh_button').on('click', () => handleRefresh());

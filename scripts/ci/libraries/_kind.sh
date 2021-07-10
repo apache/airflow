@@ -335,7 +335,9 @@ function kind::deploy_airflow_with_helm() {
     pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
     helm dep update
-    helm install airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
+    helm install airflow . \
+        --timeout 10m0s \
+        --namespace "${HELM_AIRFLOW_NAMESPACE}" \
         --set "defaultAirflowRepository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.repository=${DOCKERHUB_USER}/${DOCKERHUB_REPO}" \
         --set "images.airflow.tag=${AIRFLOW_PROD_BASE_TAG}-kubernetes" -v 1 \

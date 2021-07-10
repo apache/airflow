@@ -321,3 +321,86 @@ class TestFlowerService:
         )
 
         assert expected_ports == jmespath.search("spec.ports", docs[0])
+
+
+class TestFlowerNetworkPolicy:
+    def test_off_by_default(self):
+        docs = render_chart(
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+        assert 0 == len(docs)
+
+    def test_defaults(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "flower": {
+                    "networkPolicy": {
+                        "ingress": {
+                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                        }
+                    }
+                },
+            },
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+
+        assert 1 == len(docs)
+        assert "NetworkPolicy" == docs[0]["kind"]
+        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
+            "spec.ingress[0].from", docs[0]
+        )
+        assert [{"port": "flower-ui"}] == jmespath.search("spec.ingress[0].ports", docs[0])
+
+    @pytest.mark.parametrize(
+        "ports, expected_ports",
+        [
+            (
+                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
+                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 5555}],
+            ),
+            ([{"name": "only_sidecar", "port": "sidecar"}], [{"name": "only_sidecar", "port": "sidecar"}]),
+            (
+                [
+                    {"name": "flower-ui", "port": "{{ .Values.ports.flowerUI }}"},
+                    {"name": "sidecar", "port": 80},
+                ],
+                [
+                    {"name": "flower-ui", "port": 5555},
+                    {"name": "sidecar", "port": 80},
+                ],
+            ),
+        ],
+    )
+    def test_ports_overrides(self, ports, expected_ports):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "flower": {
+                    "networkPolicy": {
+                        "ingress": {
+                            "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
+                            "ports": ports,
+                        }
+                    }
+                },
+            },
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+
+        assert expected_ports == jmespath.search("spec.ingress[0].ports", docs[0])
+
+    def test_deprecated_from_param(self):
+        docs = render_chart(
+            values={
+                "networkPolicies": {"enabled": True},
+                "flower": {
+                    "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                },
+            },
+            show_only=["templates/flower/flower-networkpolicy.yaml"],
+        )
+
+        assert [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}] == jmespath.search(
+            "spec.ingress[0].from", docs[0]
+        )

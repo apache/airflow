@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
-from snowflake.connector import SnowflakeConnection
+from snowflake.connector import DictCursor, SnowflakeConnection
 from snowflake.connector.util_text import split_statements
 
 from airflow.hooks.dbapi import DbApiHook
@@ -99,6 +99,7 @@ class SnowflakeHook(DbApiHook):
             "extra__snowflake__aws_secret_access_key": PasswordField(
                 lazy_gettext('AWS Secret Key'), widget=BS3PasswordFieldWidget()
             ),
+            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -112,7 +113,6 @@ class SnowflakeHook(DbApiHook):
             "placeholders": {
                 'extra': json.dumps(
                     {
-                        "role": "snowflake role",
                         "authenticator": "snowflake oauth",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
@@ -129,6 +129,7 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__region': 'snowflake hosted region',
                 'extra__snowflake__aws_access_key_id': 'aws access key id (S3ToSnowflakeOperator)',
                 'extra__snowflake__aws_secret_access_key': 'aws secret access key (S3ToSnowflakeOperator)',
+                'extra__snowflake__role': 'snowflake role',
             },
         }
 
@@ -160,7 +161,7 @@ class SnowflakeHook(DbApiHook):
             'database', ''
         )
         region = conn.extra_dejson.get('extra__snowflake__region', '') or conn.extra_dejson.get('region', '')
-        role = conn.extra_dejson.get('role', '')
+        role = conn.extra_dejson.get('extra__snowflake__role', '') or conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')
@@ -251,7 +252,10 @@ class SnowflakeHook(DbApiHook):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
-        sequentially
+        sequentially. The variable execution_info is returned so that
+        it can be used in the Operators to modify the behavior
+        depending on the result of the query (i.e fail the operator
+        if the copy has processed 0 files)
 
         :param sql: the sql string to be executed with possibly multiple statements,
           or a list of sql statements to execute
@@ -273,7 +277,8 @@ class SnowflakeHook(DbApiHook):
                 sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
 
             self.log.debug("Executing %d statements against Snowflake DB", len(sql))
-            with closing(conn.cursor()) as cur:
+            with closing(conn.cursor(DictCursor)) as cur:
+
                 for sql_statement in sql:
 
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
@@ -281,6 +286,12 @@ class SnowflakeHook(DbApiHook):
                         cur.execute(sql_statement, parameters)
                     else:
                         cur.execute(sql_statement)
+
+                    execution_info = []
+                    for row in cur:
+                        self.log.info("Statement execution info - %s", row)
+                        execution_info.append(row)
+
                     self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", cur.sfqid)
                     self.query_ids.append(cur.sfqid)
@@ -289,3 +300,5 @@ class SnowflakeHook(DbApiHook):
             # or if db does not supports autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+
+        return execution_info

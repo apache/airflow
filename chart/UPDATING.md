@@ -48,13 +48,19 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Default Airflow version is updated to ``2.1.0``
+### Default Airflow version is updated to ``2.1.1``
 
-The default Airflow version that is installed with the Chart is now ``2.1.0``, previously it was ``2.0.2``.
+The default Airflow version that is installed with the Chart is now ``2.1.1``, previously it was ``2.0.2``.
 
 ### Helm 2 no longer supported
 
 This chart has dropped support for [Helm 2 as it has been deprecated](https://helm.sh/blog/helm-v2-deprecation-timeline/) and no longer receiving security updates since November 2020.
+
+### `webserver.extraNetworkPolicies` and `flower.extraNetworkPolicies` parameters have been renamed
+
+`webserver.extraNetworkPolicies` and `flower.extraNetworkPolicies` have been renamed to `webserver.networkPolicy.ingress.from` and `flower.networkPolicy.ingress.from`, respectively. Their values and behavior are the same.
+
+The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
 
 ### Removed `dags.gitSync.root`, `dags.gitSync.dest`, and `dags.gitSync.excludeWebserver` parameters
 
