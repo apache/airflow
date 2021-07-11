@@ -18,10 +18,12 @@
 import json
 import textwrap
 import time
+from typing import Any
 from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
+from cron_descriptor import ExpressionDescriptor, CasingTypeEnum, MissingFieldException, FormatException
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
@@ -31,6 +33,7 @@ from pygments.formatters import HtmlFormatter
 
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
+from airflow.utils.dates import cron_presets
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
@@ -459,3 +462,25 @@ class CustomSQLAInterface(SQLAInterface):
 FieldConverter.conversion_table = (
     ('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
 ) + FieldConverter.conversion_table
+
+
+def get_schedule_interval_description(schedule_interval: Any) -> str:
+    """ Returns chron description for a schedule interval"""
+
+    if type(schedule_interval) is str:
+        if schedule_interval in cron_presets:
+            schedule_interval = cron_presets[schedule_interval]
+
+        descriptor = ExpressionDescriptor(
+            expression=schedule_interval,
+            casing_type=CasingTypeEnum.Sentence
+        )
+
+        try:
+            schedule_interval_description = f'Runs: {descriptor.get_description()}'
+        except (FormatException, MissingFieldException) as e:
+            schedule_interval_description = None
+    else:
+        schedule_interval_description = None
+
+    return schedule_interval_description

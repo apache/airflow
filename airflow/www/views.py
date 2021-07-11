@@ -619,6 +619,7 @@ class Airflow(AirflowBaseView):
                     dag.can_edit = (permissions.ACTION_CAN_EDIT, dag_resource_name) in user_permissions
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = can_delete_dag
+                dag.schedule_interval_description = wwwutils.get_schedule_interval_description(dag.schedule_interval)
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
