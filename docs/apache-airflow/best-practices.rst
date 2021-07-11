@@ -109,8 +109,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-Alternative option is to read from the environment variables in the top level python code instead of Airflow variables.
-This will avoid new connections to Airflow metadata DB everytime Airflow parses the python file.
+An alternative option is to use environment variables in the top-level python code or use Environment Variables to create and manage Airflow variables. to manage Airflow Variables. This will avoid new connections to Airflow metadata DB every time Airflow parses the python file. For more information, see: :ref:`managing_variables`.
 
 
 Top level Python Code
