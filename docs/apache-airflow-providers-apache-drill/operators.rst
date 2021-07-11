@@ -34,7 +34,7 @@ To use ``DrillOperator``, you must configure a :doc:`Drill Connection <connectio
 DrillOperator
 -------------
 
-Executes queries on an Apache Drill server.  The ``sql`` parameter can be templated and be an external ``.sql`` file.
+Executes one or more SQL queries on an Apache Drill server.  The ``sql`` parameter can be templated and be an external ``.sql`` file.
 
 Using the operator
 """"""""""""""""""
