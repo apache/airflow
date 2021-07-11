@@ -43,7 +43,7 @@ class SparkKubernetesOperator(BaseOperator):
     """
 
     template_fields = ['application_file', 'namespace']
-    template_ext = ('yaml', 'yml', 'json')
+    template_ext = ('.yaml', '.yml', '.json')
     ui_color = '#f4a460'
 
     def __init__(
