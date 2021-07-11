@@ -49,4 +49,6 @@ verbosity::print_info "Pulling the ${image_name_with_tag} image and tagging with
 push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${image_name_with_tag}"
 start_end::group_end
 
-verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+if [[ ${VERIFY_IMAGE=} != "false" ]]; then
+    verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+fi
