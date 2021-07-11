@@ -85,8 +85,8 @@ services:
 
   redis:
     image: redis:latest
-    ports:
-      - 6379:6379
+    expose:
+      - 6379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

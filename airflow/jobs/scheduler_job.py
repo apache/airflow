@@ -54,7 +54,7 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 TI = models.TaskInstance
@@ -192,7 +192,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def _change_state_for_tis_without_dagrun(
-        self, old_states: List[str], new_state: str, session: Session = None
+        self, old_states: List[TaskInstanceState], new_state: TaskInstanceState, session: Session = None
     ) -> None:
         """
         For all DAG IDs in the DagBag, look for task instances in the
@@ -266,7 +266,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def __get_concurrency_maps(
-        self, states: List[str], session: Session = None
+        self, states: List[TaskInstanceState], session: Session = None
     ) -> Tuple[DefaultDict[str, int], DefaultDict[Tuple[str, str], int]]:
         """
         Get the concurrency maps.
@@ -896,7 +896,7 @@ class SchedulerJob(BaseJob):
             return num_queued_tis
 
     @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state, session):
+    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
         """Get Next DagRuns to Examine with retries"""
         return DagRun.next_dagruns_to_examine(state, session)
 
