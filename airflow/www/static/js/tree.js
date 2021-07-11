@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (getActiveRuns()) {
           handleRefresh();
         } else {
-          $('#auto_refresh').removeAttr('checked');
+          $('#auto_refresh').prop('checked', false);
         }
       }, 3000); // run refresh every 3 seconds
     } else {
@@ -480,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function initRefresh() {
     // default to auto-refresh if there are any active dag runs
     if (getActiveRuns() && !localStorage.getItem('disableAutoRefresh')) {
-      $('#auto_refresh').attr('checked', true);
+      $('#auto_refresh').prop('checked', true);
     }
     startOrStopRefresh();
     d3.select('#refresh_button').on('click', () => handleRefresh());
