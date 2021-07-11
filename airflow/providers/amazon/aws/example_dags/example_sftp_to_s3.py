@@ -19,54 +19,26 @@
 import os
 
 from airflow import models
-from airflow.providers.amazon.aws.operators.glacier import GlacierCreateJobOperator
-from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
-from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
+from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.utils.dates import days_ago
 
 VAULT_NAME = "airflow"
-BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://INVALID BUCKET NAME")
-OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucker")
+S3_KEY = os.environ.get("S3_KEY", "key")
 
 with models.DAG(
     "example_sftp_to_s3",
     schedule_interval=None,
     start_date=days_ago(1),  # Override to match your needs
 ) as dag:
-    # [START howto_glacier_create_job_operator]
-    create_glacier_job = GlacierCreateJobOperator(
-        task_id="create_glacier_job",
-        aws_conn_id="aws_default",
-        vault_name=VAULT_NAME,
-    )
-    JOB_ID = '{{ task_instance.xcom_pull("create_glacier_job")["jobId"] }}'
-    # [END howto_glacier_create_job_operator]
-
-    # [START howto_glacier_job_operation_sensor]
-    wait_for_operation_complete = GlacierJobOperationSensor(
-        aws_conn_id="aws_default",
-        vault_name=VAULT_NAME,
-        job_id=JOB_ID,
-        task_id="wait_for_operation_complete",
-    )
-    # [END howto_glacier_job_operation_sensor]
 
     # [START howto_sftp_transfer_data_to_s3]
-    transfer_archive_to_gcs = GlacierToGCSOperator(
-        task_id="transfer_archive_to_gcs",
-        aws_conn_id="aws_default",
-        gcp_conn_id="google_cloud_default",
-        vault_name=VAULT_NAME,
-        bucket_name=BUCKET_NAME,
-        object_name=OBJECT_NAME,
-        gzip=False,
-        # Override to match your needs
-        # If chunk size is bigger than actual file size
-        # then whole file will be downloaded
-        chunk_size=1024,
-        delegate_to=None,
-        google_impersonation_chain=None,
+    create_sftp_to_s3_job = SFTPToS3Operator(
+        task_id="create_sftp_to_s3_job",
+        sftp_conn_id="sftp_conn_id",
+        sftp_path="sftp_path",
+        s3_conn_id="s3_conn_id",
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY
     )
     # [END howto_sftp_transfer_data_to_s3]
-
-    create_glacier_job >> wait_for_operation_complete >> transfer_archive_to_gcs
