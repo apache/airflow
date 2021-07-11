@@ -22,7 +22,6 @@ from airflow import models
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.utils.dates import days_ago
 
-VAULT_NAME = "airflow"
 S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucker")
 S3_KEY = os.environ.get("S3_KEY", "key")
 
