@@ -23,7 +23,7 @@ from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
-from cron_descriptor import ExpressionDescriptor, CasingTypeEnum, MissingFieldException, FormatException
+from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from flask import Markup, Response, request, url_for
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
@@ -465,21 +465,19 @@ FieldConverter.conversion_table = (
 
 
 def get_schedule_interval_description(schedule_interval: Any) -> str:
-    """ Returns chron description for a schedule interval"""
+    """Returns chron description for a schedule interval"""
 
     if type(schedule_interval) is str:
         if schedule_interval in cron_presets:
             schedule_interval = cron_presets[schedule_interval]
 
         descriptor = ExpressionDescriptor(
-            expression=schedule_interval,
-            casing_type=CasingTypeEnum.Sentence,
-            use_24hour_time_format=True
+            expression=schedule_interval, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
         )
 
         try:
             schedule_interval_description = f'Runs: {descriptor.get_description()}'
-        except (FormatException, MissingFieldException) as e:
+        except (FormatException, MissingFieldException):
             schedule_interval_description = None
     else:
         schedule_interval_description = None
