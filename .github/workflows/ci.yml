@@ -992,17 +992,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
         env:
           VERIFY_IMAGE: "false"
-      - name: "Cache virtualenv for kubernetes testing"
-        uses: actions/cache@v2
-        with:
-          path: ".build/.kubernetes_venv"
-          key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
--${{needs.build-info.outputs.kubernetesVersionsListAsString}}
--${{needs.build-info.outputs.pythonVersionsListAsString}}
--${{ hashFiles('setup.py','setup.cfg') }}"
-          restore-keys: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}-\
--${{needs.build-info.outputs.kubernetesVersionsListAsString}}
--${{needs.build-info.outputs.pythonVersionsListAsString}}"
       - name: "Cache bin folder with tools for kubernetes testing"
         uses: actions/cache@v2
         with:
