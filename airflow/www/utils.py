@@ -473,7 +473,8 @@ def get_schedule_interval_description(schedule_interval: Any) -> str:
 
         descriptor = ExpressionDescriptor(
             expression=schedule_interval,
-            casing_type=CasingTypeEnum.Sentence
+            casing_type=CasingTypeEnum.Sentence,
+            use_24hour_time_format=True
         )
 
         try:
