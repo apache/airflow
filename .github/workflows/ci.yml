@@ -286,16 +286,16 @@ jobs:
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         id: wait-for-images
-        env:
-          CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
-            ${{needs.build-info.outputs.pythonVersionsListAsString}}
         # We wait for the images to be available either from the build-ci-image step or from
         # "build-images-workflow-run.yml' run as pull_request_target.
         # We are utilising single job to wait for all images because this job merely waits
         # for the images to be available.
         # The test jobs wait for it to complete if WAIT_FOR_IMAGE is 'true'!
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
-
+        env:
+          CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
+            ${{needs.build-info.outputs.pythonVersionsListAsString}}
+          VERIFY_IMAGE: "true"
 
   static-checks:
     timeout-minutes: 30
@@ -947,10 +947,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         # For the images to be available. The test jobs wait for it to complete!
         #
         id: wait-for-images
+        run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
         env:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
-        run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
+          VERIFY_IMAGE: "true"
 
   tests-kubernetes:
     timeout-minutes: 50
@@ -989,6 +990,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Get all PROD images"
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
+        env:
+          VERIFY_IMAGE: "false"
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         with:
@@ -1052,6 +1055,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/ci_free_space_on_ci.sh
       - name: "Get all PROD images"
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_prod_images.sh
+        env:
+          VERIFY_IMAGE: "false"
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         with:
@@ -1226,6 +1231,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
         run: ./scripts/ci/images/ci_wait_for_and_verify_all_ci_images.sh
+        env:
+          VERIFY_IMAGE: "false"
       - name: "Generate constraints with PyPI providers"
         run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
