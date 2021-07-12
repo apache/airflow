@@ -55,9 +55,8 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauJobStatusSensor')
     @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
-    def test_execute_blocking(self, mock_tableau_hook, mock_tableau_job_status_sensor):
+    def test_execute_blocking(self, mock_tableau_hook):
         """
         Test execute blocking
         """
@@ -69,12 +68,8 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
 
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
-        mock_tableau_job_status_sensor.assert_called_once_with(
+        mock_tableau_hook.get_job_status.assert_called_once_with(
             job_id=job_id,
-            site_id=self.kwargs['site_id'],
-            tableau_conn_id='tableau_default',
-            task_id='wait_until_succeeded',
-            dag=None,
         )
 
     @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')

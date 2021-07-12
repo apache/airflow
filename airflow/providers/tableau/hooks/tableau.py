@@ -21,7 +21,12 @@ from typing import Any, Optional
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+
+class TableauJobFailedException(AirflowException):
+    """An exception that indicates that a Job failed to complete."""
 
 
 class TableauJobFinishCode(Enum):
@@ -118,3 +123,15 @@ class TableauHook(BaseHook):
         """
         resource = getattr(self.server, resource_name)
         return Pager(resource.get)
+
+    def get_job_status(self, job_id: str) -> Enum:
+        """
+           Get the current state of a defined Tableau Job.
+           .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
+
+           :param job_id: The id of the job to check.
+           :type job_id: str
+           :rtype: Enum
+           """
+        return TableauJobFinishCode(
+                int(self.server.jobs.get_by_id(job_id).finish_code))

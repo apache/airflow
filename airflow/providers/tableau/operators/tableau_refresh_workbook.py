@@ -20,7 +20,7 @@ from tableauserverclient import WorkbookItem
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import TableauHook
+from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode, TableauJobFailedException
 
 
 class TableauRefreshWorkbookOperator(BaseOperator):
@@ -69,16 +69,14 @@ class TableauRefreshWorkbookOperator(BaseOperator):
 
             job_id = self._refresh_workbook(tableau_hook, workbook.id)
             if self.blocking:
-                from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
+                finish_code = TableauJobFinishCode.PENDING
+                while finish_code == TableauJobFinishCode.PENDING:
+                    finish_code = tableau_hook.get_job_status(job_id=job_id)
 
-                TableauJobStatusSensor(
-                    job_id=job_id,
-                    site_id=self.site_id,
-                    tableau_conn_id=self.tableau_conn_id,
-                    task_id='wait_until_succeeded',
-                    dag=None,
-                ).execute(context={})
-                self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
+                if finish_code in [TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED]:
+                    raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
+
+            self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
             return job_id
 
     def _get_workbook_by_name(self, tableau_hook: TableauHook) -> WorkbookItem:
