@@ -44,13 +44,19 @@ class SQSSensor(BaseSensorOperator):
         Amazon SQS prevents other consumers from receiving and processing the message.
     :type visibility_timeout: Optional[Int]
     :param message_filtering: Specified how received messages should be filtered. Supported options are:
-        `None` (no filtering, default) or `'jsonpath'` (message Body filtered using a JSONPath expression).
+        `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
+        (message Body filtered using a JSONPath expression).
         You may add further methods by overriding the relevant class methods.
     :type message_filtering: Optional[str]
+    :param message_filtering_match_values: Optional value/s for the message filter to match on.
+        For example, with literal matching, if a message body matches any of the specified values
+        then it is included. For JSONPath matching, the result of the JSONPath expression is used
+        and may match any of the specified values.
+    :type message_filtering_match_values: Optional[Any]
     :param message_filtering_config: Additional configuration to pass to the message filter.
         For example with JSONPath filtering you can pass a JSONPath expression string here,
         such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
-    :type message_filtering_config: Optional[str]
+    :type message_filtering_config: Optional[Any]
     """
 
     template_fields = ('sqs_queue', 'max_messages', 'message_filtering_config')
@@ -64,6 +70,7 @@ class SQSSensor(BaseSensorOperator):
         wait_time_seconds: int = 1,
         visibility_timeout: Optional[int] = None,
         message_filtering: Optional[str] = None,
+        message_filtering_match_values: Optional[Any] = None,
         message_filtering_config: Optional[Any] = None,
         **kwargs,
     ):
@@ -73,8 +80,14 @@ class SQSSensor(BaseSensorOperator):
         self.max_messages = max_messages
         self.wait_time_seconds = wait_time_seconds
         self.visibility_timeout = visibility_timeout
+
         self.message_filtering = message_filtering
+        if message_filtering_match_values is not None:
+            if not isinstance(message_filtering_match_values, list):
+                message_filtering_match_values = [message_filtering_match_values]
+        self.message_filtering_match_values = message_filtering_match_values
         self.message_filtering_config = message_filtering_config
+
         self.hook: Optional[SQSHook] = None
 
     def poke(self, context):
@@ -141,10 +154,21 @@ class SQSSensor(BaseSensorOperator):
         return self.hook
 
     def filter_messages(self, messages):
+        if self.message_filtering == 'literal':
+            return self.filter_messages_literal(messages)
         if self.message_filtering == 'jsonpath':
             return self.filter_messages_jsonpath(messages)
         else:
             raise NotImplementedError('Override this method to define custom filters')
+
+    def filter_messages_literal(self, messages):
+        filtered_messages = []
+        if self.message_filtering_match_values is None:
+            raise Exception('message_filtering_match_values must be specified for literal matching')
+        for message in messages:
+            if message['Body'] in self.message_filtering_match_values:
+                filtered_messages.append(message)
+        return filtered_messages
 
     def filter_messages_jsonpath(self, messages):
         jsonpath_expr = parse(self.message_filtering_config)
@@ -153,6 +177,14 @@ class SQSSensor(BaseSensorOperator):
             body = message['Body']
             # Body is a string, deserialise to an object and then parse
             body = json.loads(body)
-            if jsonpath_expr.find(body):
+            results = jsonpath_expr.find(body)
+            if not results:
+                continue
+            if self.message_filtering_match_values is None:
                 filtered_messages.append(message)
+                continue
+            for result in results:
+                if result.value in self.message_filtering_match_values:
+                    filtered_messages.append(message)
+                    break
         return filtered_messages

@@ -154,6 +154,45 @@ class TestSQSSensor(unittest.TestCase):
         assert 'Override this method to define custom filters' in ctx.value.args[0]
 
     @mock.patch.object(SQSHook, "get_conn")
+    def test_poke_message_filtering_literal_values(self, mock_conn):
+        self.sqs_hook.create_queue('test')
+        matching = [{"id": 11, "body": "a matching message"}]
+        non_matching = [{"id": 12, "body": "a non-matching message"}]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        'MessageId': message['id'],
+                        'ReceiptHandle': 100 + message['id'],
+                        'Body': message['body'],
+                    }
+                )
+            return {'Messages': messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {'Successful'}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = 'literal'
+        self.sensor.message_filtering_match_values = ["a matching message"]
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{'Id': x['id'], 'ReceiptHandle': 100 + x['id']} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl='test', Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @mock.patch.object(SQSHook, "get_conn")
     def test_poke_message_filtering_jsonpath(self, mock_conn):
         self.sqs_hook.create_queue('test')
         matching = [
@@ -169,9 +208,13 @@ class TestSQSSensor(unittest.TestCase):
 
         def mock_receive_message(**kwargs):
             messages = []
-            for body in all:
+            for message in all:
                 messages.append(
-                    {'MessageId': body['id'], 'ReceiptHandle': 100 + body['id'], 'Body': json.dumps(body)}
+                    {
+                        'MessageId': message['id'],
+                        'ReceiptHandle': 100 + message['id'],
+                        'Body': json.dumps(message),
+                    }
                 )
             return {'Messages': messages}
 
@@ -185,6 +228,54 @@ class TestSQSSensor(unittest.TestCase):
         # Test that messages are filtered
         self.sensor.message_filtering = 'jsonpath'
         self.sensor.message_filtering_config = 'key.matches[*]'
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{'Id': x['id'], 'ReceiptHandle': 100 + x['id']} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl='test', Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @mock.patch.object(SQSHook, "get_conn")
+    def test_poke_message_filtering_jsonpath_values(self, mock_conn):
+        self.sqs_hook.create_queue('test')
+        matching = [
+            {"id": 11, "key": {"matches": [1, 2]}},
+            {"id": 12, "key": {"matches": [1, 4, 5]}},
+            {"id": 13, "key": {"matches": [4, 5]}},
+        ]
+        non_matching = [
+            {"id": 21, "key": {"matches": [10]}},
+            {"id": 22, "key": {"nope": [5, 6]}},
+            {"id": 23, "key": {"nope": [7, 8]}},
+        ]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        'MessageId': message['id'],
+                        'ReceiptHandle': 100 + message['id'],
+                        'Body': json.dumps(message),
+                    }
+                )
+            return {'Messages': messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {'Successful'}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = 'jsonpath'
+        self.sensor.message_filtering_config = 'key.matches[*]'
+        self.sensor.message_filtering_match_values = [1, 4]
         result = self.sensor.poke(self.mock_context)
         assert result
 
