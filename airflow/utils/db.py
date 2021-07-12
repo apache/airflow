@@ -41,6 +41,7 @@ from airflow.models import (  # noqa: F401
     SlaMiss,
     TaskFail,
     TaskInstance,
+    TaskNote,
     TaskReschedule,
     Variable,
     XCom,

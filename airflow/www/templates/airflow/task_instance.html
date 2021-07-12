@@ -46,6 +46,9 @@
     <li><a href="{{ url_for('Airflow.xcom', dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="material-icons" aria-hidden="true">sync_alt</span>
       XCom</a></li>
+     <li><a href="{{ url_for('Airflow.task_note', dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+        <span class="material-icons" aria-hidden="true">reorder</span>
+      Task Notes</a></li>
   </ul>
   <br>
 {% endblock %}

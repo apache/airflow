@@ -295,6 +295,7 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_NOTE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
@@ -305,8 +306,64 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_NOTE),
         }
         self.app.config['AUTH_ROLE_PUBLIC'] = 'Viewer'
+
+        with self.app.app_context():
+            user = mock.MagicMock()
+            user.is_anonymous = True
+
+            perms_views = set()
+            for role in self.security_manager.get_user_roles(user):
+                perms_views.update(
+                    {(perm_view.permission.name, perm_view.view_menu.name) for perm_view in role.permissions}
+                )
+            assert perms_views == viewer_role_perms
+
+    def test_get_user_roles_for_user(self):
+        viewer_role_perms = {
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_NOTE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_NOTE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_NOTE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_NOTE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_NOTE),
+        }
+        self.app.config['AUTH_ROLE_PUBLIC'] = 'User'
 
         with self.app.app_context():
             user = mock.MagicMock()

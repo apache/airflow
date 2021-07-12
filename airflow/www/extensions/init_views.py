@@ -86,6 +86,9 @@ def init_appbuilder_views(app):
         views.ConnectionModelView, permissions.RESOURCE_CONNECTION, category=permissions.RESOURCE_ADMIN_MENU
     )
     appbuilder.add_view(
+        views.TaskNoteView, permissions.RESOURCE_TASK_NOTE, category=permissions.RESOURCE_BROWSE_MENU
+    )
+    appbuilder.add_view(
         views.SlaMissModelView, permissions.RESOURCE_SLA_MISS, category=permissions.RESOURCE_BROWSE_MENU
     )
     appbuilder.add_view(

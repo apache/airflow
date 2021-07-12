@@ -35,6 +35,7 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import nvd3
+import pendulum
 import sqlalchemy as sqla
 from flask import (
     Markup,
@@ -96,7 +97,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, TaskNote, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -1161,6 +1162,7 @@ class Airflow(AirflowBaseView):
                 num_logs += 1
         logs = [''] * num_logs
         root = request.args.get('root', '')
+
         return self.render_template(
             'airflow/ti_log.html',
             logs=logs,
@@ -1353,6 +1355,82 @@ class Airflow(AirflowBaseView):
             dag=dag,
             title=title,
         )
+
+    @expose('/task_note', methods=['POST', 'GET'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_NOTE),
+        ]
+    )
+    @action_logging
+    @provide_session
+    def task_note(self, session=None):
+        """Retrieve and store task notes"""
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = timezone.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
+        dm_db = models.DagModel
+        ti_db = models.TaskInstance
+        request_note = request.values.get('note')
+        default_user = "Anonymous"
+        title = "Notes"
+
+        dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
+
+        ti = (
+            session.query(ti_db)
+            .filter(and_(ti_db.dag_id == dag_id, ti_db.task_id == task_id, ti_db.execution_date == dttm))
+            .first()
+        )
+
+        if not ti:
+            flash(f"Task [{dag_id}.{task_id}.{execution_date}] doesn't seem to exist at the moment", "error")
+            return redirect(url_for('Airflow.index'))
+
+        can_add_note = current_app.appbuilder.sm.has_access(
+            permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_NOTE
+        )
+
+        if request.method == 'GET':
+            notes = (
+                TaskNote.get_many(dag_ids=dag_id, task_ids=task_id, execution_date=dttm)
+                .order_by(TaskNote.timestamp.asc())
+                .all()
+            )
+
+            attributes = [(note.task_note, note.timestamp, note.user_name) for note in notes]
+
+            return self.render_template(
+                'airflow/task_notes.html',
+                attributes=attributes,
+                task_id=task_id,
+                execution_date=execution_date,
+                form=form,
+                can_add_note=can_add_note,
+                root=root,
+                dag=dag,
+                title=title,
+            )
+
+        if request.method == 'POST':
+            if not can_add_note:
+                flash("Current user cannot add notes")
+            else:
+                TaskNote.set(
+                    timestamp=pendulum.now(),
+                    task_note=request_note,
+                    user_name=str(g.user) if g.user else default_user,
+                    execution_date=dttm,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                )
+
+            return redirect(request.url)
 
     @expose('/run', methods=['POST'])
     @auth.has_access(
@@ -2978,6 +3056,56 @@ class SlaMissModelView(AirflowModelView):
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
+
+
+class TaskNoteView(AirflowModelView):
+    """View to show TaskNote table"""
+
+    route_base = '/notes'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(TaskNote)  # type: ignore
+
+    class_permission_name = permissions.RESOURCE_TASK_NOTE
+    method_permission_name = {
+        'list': 'read',
+        'delete': 'delete',
+        'action_muldelete': 'delete',
+        'edit': 'edit',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    list_columns = ['dag_id', 'task_id', 'execution_date', 'user_name', 'task_note', 'timestamp']
+    add_columns = ['dag_id', 'task_id', 'execution_date', 'user_name', 'task_note', 'timestamp']
+    edit_columns = ['task_note', 'timestamp']
+    search_columns = ['dag_id', 'task_id', 'task_note', 'user_name', 'execution_date']
+    base_order = ('execution_date', 'desc')
+    base_filters = [['dag_id', DagFilter, lambda: []]]
+
+    formatters_columns = {
+        'task_id': wwwutils.task_instance_link,
+        'execution_date': wwwutils.datetime_f('execution_date'),
+        'timestamp': wwwutils.datetime_f('timestamp'),
+        'dag_id': wwwutils.dag_link,
+    }
+
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_NOTE),
+        ]
+    )
+    def action_muldelete(self, items):
+        """Multiple delete action."""
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
 
 
 class XComModelView(AirflowModelView):

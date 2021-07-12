@@ -83,6 +83,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_NOTE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
@@ -93,6 +94,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_NOTE),
     ]
     # [END security_viewer_perms]
 
@@ -106,6 +108,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_NOTE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_NOTE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_NOTE),
     ]
     # [END security_user_perms]
 
@@ -131,6 +136,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_NOTE),
     ]
     # [END security_op_perms]
 
@@ -896,6 +902,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         session.commit()
 
         self.sync_roles()
+
+    def can_read_task_notes(self, user=None) -> bool:
+        """Determines whether a user can read task notes"""
+        if user is None:
+            user = g.user
+        return self._has_access(user, permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_NOTE)
 
 
 class ApplessAirflowSecurityManager(AirflowSecurityManager):

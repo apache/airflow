@@ -30,6 +30,7 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.sensorinstance import SensorInstance  # noqa: F401
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
+from airflow.models.task_note import TaskNote
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule

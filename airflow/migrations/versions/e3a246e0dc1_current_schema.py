@@ -220,6 +220,18 @@ def upgrade():
             sa.PrimaryKeyConstraint('id'),
         )
 
+    if 'task_notes' not in tables:
+        op.create_table(
+            'task_notes',
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('execution_date', sa.DateTime(), nullable=False),
+            sa.Column('timestamp', sa.DateTime(), nullable=False),
+            sa.Column('user_name', sa.String(length=250), nullable=True),
+            sa.Column('task_note', sa.Text(), nullable=True),
+            sa.PrimaryKeyConstraint('task_id', 'dag_id', 'execution_date', 'timestamp'),
+        )
+
 
 def downgrade():
     op.drop_table('chart')
@@ -239,3 +251,4 @@ def downgrade():
     op.drop_table('dag')
     op.drop_table('connection')
     op.drop_table('xcom')
+    op.drop_table('task_notes')

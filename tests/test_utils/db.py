@@ -27,6 +27,7 @@ from airflow.models import (
     SlaMiss,
     TaskFail,
     TaskInstance,
+    TaskNote,
     TaskReschedule,
     Variable,
     XCom,
@@ -122,3 +123,8 @@ def clear_db_task_fail():
 def clear_db_task_reschedule():
     with create_session() as session:
         session.query(TaskReschedule).delete()
+
+
+def clear_db_task_notes():
+    with create_session() as session:
+        session.query(TaskNote).delete()
