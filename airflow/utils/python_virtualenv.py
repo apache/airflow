@@ -35,12 +35,20 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     return cmd
 
 
-def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional[List[str]]:
+def _generate_pip_install_cmd(tmp_dir: str,
+                              requirements: List[str],
+                              repository_url: str = '',
+                              index_url: str = ''
+                              ) -> Optional[List[str]]:
     if not requirements:
         return None
-    # direct path alleviates need to activate
-    cmd = [f'{tmp_dir}/bin/pip', 'install']
-    return cmd + requirements
+
+    private_cmd = [f'{tmp_dir}/bin/pip', 'install']
+    public_cmd = [f'{tmp_dir}/bin/pip', 'install' f'--trusted-host {repository_url} -i {index_url}']
+    if repository_url:
+        print(private_cmd + requirements)
+        return private_cmd + requirements
+    return public_cmd + requirements
 
 
 def _balance_parens(after_decorator):
@@ -74,7 +82,8 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 
 def prepare_virtualenv(
-    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str]
+    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str],
+    repository_url: Optional[str] = None, index_url: Optional[str] = None
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -88,12 +97,16 @@ def prepare_virtualenv(
     :type system_site_packages: bool
     :param requirements: List of additional python packages
     :type requirements: List[str]
+    :param repository_url: The private repository in case there are private packages to install.
+    :type repository_url: str
+    :param index_url: The private index url (actual url to the direct python repository remotely)
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
-    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
+    pip_cmd = _generate_pip_install_cmd(
+        venv_directory, requirements, repository_url, index_url)
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 

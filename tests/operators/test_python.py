@@ -17,7 +17,10 @@
 # under the License.
 import copy
 import logging
+import os
+import subprocess
 import sys
+import time
 import unittest.mock
 from collections import namedtuple
 from datetime import date, datetime, timedelta
@@ -40,6 +43,7 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
+from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -817,6 +821,20 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
+    def test_private_repo_requirements(self):
+        def f():
+            import flask  # noqa: F401
+            import funcsigs  # noqa: F401
+
+        self._initiate_pypi_server()
+        self._run_as_operator(
+            f,
+            requirements=['funcsigs', 'flask'],
+            repository_url="localhost",
+            index_url="http://localhost:8080/repository/python/simple",
+            system_site_packages=False,
+        )
+
     def test_range_requirements(self):
         def f():
             import funcsigs  # noqa: F401
@@ -855,6 +873,16 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             raise Exception
 
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
+
+    @staticmethod
+    def _initiate_pypi_server():
+        try:
+            if not os.path.exists('/root/packages'):
+                os.makedirs('/root/packages')
+            subprocess.Popen(['pypi-server'])
+            time.sleep(1.5)
+        except Exception as e:
+            raise e
 
     @staticmethod
     def _invert_python_major_version():

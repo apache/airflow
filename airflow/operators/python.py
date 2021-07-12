@@ -308,6 +308,8 @@ class PythonVirtualenvOperator(PythonOperator):
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
+        repository_url: Optional[str] = None,
+        index_url: Optional[str] = None,
         **kwargs,
     ):
         if (
@@ -338,6 +340,9 @@ class PythonVirtualenvOperator(PythonOperator):
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
+        self.repository_url = repository_url
+        self.index_url = index_url
+
         if not self.system_site_packages and self.use_dill and 'dill' not in self.requirements:
             self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
@@ -361,6 +366,8 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements=self.requirements,
+                repository_url=self.repository_url,
+                index_url=self.index_url
             )
 
             self._write_args(input_filename)
