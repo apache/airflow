@@ -236,7 +236,8 @@ for details.
   ./breeze
 
 The First time you run Breeze, it pulls and builds a local version of Docker images.
-It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow-ci>`_
+It pulls the latest Airflow CI images from the
+`GitHub Container Registry <https://github.com/orgs/apache/packages?repo_name=airflow>`_
 and uses them to build your local Docker images. Note that the first run (per python) might take up to 10
 minutes on a fast connection to start. Subsequent runs should be much faster.
 
@@ -538,11 +539,7 @@ Building CI images
 With Breeze you can build images that are used by Airflow CI and production ones.
 
 For all development tasks, unit tests, integration tests, and static code checks, we use the
-**CI image** maintained on the DockerHub in the ``apache/airflow-ci`` repository.
-This Docker image contains a lot of test-related packages (size of ~1GB).
-Its tag follows the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>-ci``
-(for example, ``apache/airflow:main-python3.6-ci`` or ``apache/airflow-ci:v2-1-test-python3.6-ci``).
-The image is built using the `<Dockerfile.ci>`_ Dockerfile.
+**CI image** maintained in GitHub Container Registry.
 
 The CI image is built automatically as needed, however it can be rebuilt manually with
 ``build-image`` command. The production
@@ -634,12 +631,9 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
 Building Production images
 --------------------------
 
-The **Production image** is also maintained on the DockerHub in both ``apache/airflow`` (for tagged and latest
-releases) or ``apache/airflow-ci`` repository (for branches). This Docker image (built using official
-Dockerfile) contains size-optimised Airflow installation with selected extras and dependencies. Its tag follows
-the pattern of ``<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>`` (for example, ``apache/airflow-ci:main-python3.6``
-or ``apache/airflow-ci:v2-1-test-python3.6``) or in case of production images tagged with releases
-``apache/airflow:2.1.2-python3.8`` or ``apache/airflow:latest`` or ``apache/airflow:latest-python3.8``.
+The **Production image** is also maintained in GitHub Container Registry for Caching
+and in ``apache/airflow`` manually pushed for released versions. This Docker image (built using official
+Dockerfile) contains size-optimised Airflow installation with selected extras and dependencies.
 
 However in many cases you want to add your own custom version of the image - with added apt dependencies,
 python dependencies, additional Airflow extras. Breeze's ``build-image`` command helps to build your own,
@@ -1007,7 +1001,7 @@ by the root user, you can fix the ownership of those files by running this scrip
 
 .. code-block::
 
-  ./scripts/ci/tools/ci_fix_ownership.sh
+  ./scripts/ci/tools/fix_ownership.sh
 
 Mounting Local Sources to Breeze
 --------------------------------
@@ -1201,13 +1195,12 @@ This is the current syntax for  `./breeze <./breeze>`_:
         'breeze shell -- -c "ls -la"'
         'breeze -- -c "ls -la"'
 
-        For DockerHub pull: --dockerhub-user and --dockerhub-repo flags can be used to specify
-        the repository to pull from. For GitHub repository, the --github-repository
-        flag can be used for the same purpose. You can also use --github-image-id <COMMIT_SHA> in case
+        For GitHub repository, the --github-repository flag can be used to specify the repository
+        to pull and push images. You can also use --github-image-id <COMMIT_SHA> in case
         you want to pull the image with specific COMMIT_SHA tag.
 
         'breeze shell \
-              --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+              -- github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
         'breeze \
               --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
 
@@ -1249,14 +1242,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
            '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
 
         Choosing whether to force pull images or force build the image:
-            '--force-build-image',
-             '--force-pull-image', '--force-pull-base-python-image'
+            '--force-build-image', '--force-pull-image'
+
+        Checking if the base python image has been updated:
+            '--check-if-base-python-image-updated'
 
         You can also pass '--production-image' flag to build production image rather than CI image.
 
-        For DockerHub pulling of base images: '--dockerhub-user' and '--dockerhub-repo' flags can be
-        used to specify the repository to pull from. For GitHub repository, the '--github-repository'
-        flag can be used for the same purpose.
+        For GitHub repository, the '--github-repository' can be used to choose repository
+        to pull/push images.
+
   Flags:
 
   -p, --python PYTHON_MAJOR_MINOR_VERSION
@@ -1297,16 +1292,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
           package-related files, but you can force it using this flag.
 
   -P, --force-pull-images
-          Forces pulling of images from DockerHub before building to populate cache. The
-          images are pulled by default only for the first time you run the
+          Forces pulling of images from GitHub Container Registry before building to populate cache.
+          The images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
-  --force-pull-base-python-image
-          Forces pulling of Python base image from DockerHub before building to
-          populate cache. This should only be run in case we need to update to latest available
-          Python base image. This should be a rare and manually triggered event. Also this flag
-          is used in the scheduled run in CI when we rebuild all the images from the scratch
-          and run the tests to see if the latest python images do not fail our tests.
+  --check-if-base-python-image-updated
+          Checks if Python base image from DockerHub has been updated vs the current python base
+          image we store in GitHub Container Registry. Python images are updated regularly with
+          security fixes, this switch will check if a new one has been released and will pull and
+          prepare a new base python based on the latest one.
 
   --cleanup-docker-context-files
           Removes whl and tar.gz files created in docker-context-files before running the command.
@@ -1417,14 +1411,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           This is default strategy used by the Production image builds.
 
   -U, --build-cache-pulled
-          Uses images pulled from registry (either DockerHub or GitHub depending on
-          --use-github-registry flag) to build images. The pulled images will be used as cache.
+          Uses images pulled from GitHub Container Registry to build images.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
-          the registry images are not yet updated. The DockerHub images are updated nightly and the
-          GitHub images are updated after merges to main so it might be that the images are still
-          outdated vs. the latest version of the Dockerfiles you are using. In this case, the
-          ''--build-cache-local'' might be faster, especially if you iterate and change the
-          Dockerfiles yourself.
+          the registry images are not yet updated. The images are updated after successful merges
+          to main.
 
           This is default strategy used by the CI image builds.
 
@@ -1435,22 +1425,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           This strategy is used by default for both Production and CI images for the scheduled
           (nightly) builds in CI.
 
-  -D, --dockerhub-user DOCKERHUB_USER
-          DockerHub user used to pull, push and build images. Default: apache.
-
-  -H, --dockerhub-repo DOCKERHUB_REPO
-          DockerHub repository used to pull, push, build images. Default: airflow-ci.
-
-  -c, --use-github-registry
-          If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
-          DockerHub. You need to be logged in to the registry in order to be able to pull/push from
-          and you need to be committer to push to Apache Airflow' GitHub registry.
-
   -g, --github-repository GITHUB_REPOSITORY
-          GitHub repository used to pull, push images when cache is used.
+          GitHub repository used to pull, push images.
           Default: apache/airflow.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1574,24 +1551,17 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   breeze push_image [FLAGS]
 
-        Pushes images to docker registry. You can push the images to DockerHub registry (default)
-        or to the GitHub registry (if --use-github-registry flag is used).
+        Pushes images to GitHub registry.
 
-        For DockerHub pushes: --dockerhub-user and --dockerhub-repo flags can be used to specify
-        the repository to push to. For GitHub repository, the --github-repository
-        flag can be used for the same purpose. You can also add
-        --github-image-id <COMMIT_SHA> in case you want to push image with specific
-        SHA tag. In case you specify --github-repository or --github-image-id, you
-        do not need to specify --use-github-registry flag.
-
+        You can add --github-repository to push to a different repository/organisation.
+        You can add --github-image-id <COMMIT_SHA> in case you want to push image with specific
+        SHA tag.
         You can also add --production-image flag to switch to production image (default is CI one)
 
         Examples:
 
         'breeze push-image' or
-        'breeze push-image --dockerhub-user user' to push to your private registry or
         'breeze push-image --production-image' - to push production image or
-        'breeze push-image --use-github-registry' - to push to GitHub image registry or
         'breeze push-image \
               --github-repository user/airflow' - to push to your user's fork
         'breeze push-image \
@@ -1599,22 +1569,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   Flags:
 
-  -D, --dockerhub-user DOCKERHUB_USER
-          DockerHub user used to pull, push and build images. Default: apache.
-
-  -H, --dockerhub-repo DOCKERHUB_REPO
-          DockerHub repository used to pull, push, build images. Default: airflow-ci.
-
-  -c, --use-github-registry
-          If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
-          DockerHub. You need to be logged in to the registry in order to be able to pull/push from
-          and you need to be committer to push to Apache Airflow' GitHub registry.
-
   -g, --github-repository GITHUB_REPOSITORY
-          GitHub repository used to pull, push images when cache is used.
+          GitHub repository used to pull, push images.
           Default: apache/airflow.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
 
 
 
@@ -1625,8 +1582,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
-
-          If you use this flag, automatically --use-github-registry is enabled.
 
           Default: latest.
 
@@ -1931,16 +1886,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
           package-related files, but you can force it using this flag.
 
   -P, --force-pull-images
-          Forces pulling of images from DockerHub before building to populate cache. The
-          images are pulled by default only for the first time you run the
+          Forces pulling of images from GitHub Container Registry before building to populate cache.
+          The images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
-  --force-pull-base-python-image
-          Forces pulling of Python base image from DockerHub before building to
-          populate cache. This should only be run in case we need to update to latest available
-          Python base image. This should be a rare and manually triggered event. Also this flag
-          is used in the scheduled run in CI when we rebuild all the images from the scratch
-          and run the tests to see if the latest python images do not fail our tests.
+  --check-if-base-python-image-updated
+          Checks if Python base image from DockerHub has been updated vs the current python base
+          image we store in GitHub Container Registry. Python images are updated regularly with
+          security fixes, this switch will check if a new one has been released and will pull and
+          prepare a new base python based on the latest one.
 
   --cleanup-docker-context-files
           Removes whl and tar.gz files created in docker-context-files before running the command.
@@ -2051,14 +2005,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           This is default strategy used by the Production image builds.
 
   -U, --build-cache-pulled
-          Uses images pulled from registry (either DockerHub or GitHub depending on
-          --use-github-registry flag) to build images. The pulled images will be used as cache.
+          Uses images pulled from GitHub Container Registry to build images.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
-          the registry images are not yet updated. The DockerHub images are updated nightly and the
-          GitHub images are updated after merges to main so it might be that the images are still
-          outdated vs. the latest version of the Dockerfiles you are using. In this case, the
-          ''--build-cache-local'' might be faster, especially if you iterate and change the
-          Dockerfiles yourself.
+          the registry images are not yet updated. The images are updated after successful merges
+          to main.
 
           This is default strategy used by the CI image builds.
 
@@ -2521,16 +2471,15 @@ This is the current syntax for  `./breeze <./breeze>`_:
           package-related files, but you can force it using this flag.
 
   -P, --force-pull-images
-          Forces pulling of images from DockerHub before building to populate cache. The
-          images are pulled by default only for the first time you run the
+          Forces pulling of images from GitHub Container Registry before building to populate cache.
+          The images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
 
-  --force-pull-base-python-image
-          Forces pulling of Python base image from DockerHub before building to
-          populate cache. This should only be run in case we need to update to latest available
-          Python base image. This should be a rare and manually triggered event. Also this flag
-          is used in the scheduled run in CI when we rebuild all the images from the scratch
-          and run the tests to see if the latest python images do not fail our tests.
+  --check-if-base-python-image-updated
+          Checks if Python base image from DockerHub has been updated vs the current python base
+          image we store in GitHub Container Registry. Python images are updated regularly with
+          security fixes, this switch will check if a new one has been released and will pull and
+          prepare a new base python based on the latest one.
 
   --cleanup-docker-context-files
           Removes whl and tar.gz files created in docker-context-files before running the command.
@@ -2641,14 +2590,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           This is default strategy used by the Production image builds.
 
   -U, --build-cache-pulled
-          Uses images pulled from registry (either DockerHub or GitHub depending on
-          --use-github-registry flag) to build images. The pulled images will be used as cache.
+          Uses images pulled from GitHub Container Registry to build images.
           Those builds are usually faster than when ''--build-cache-local'' with the exception if
-          the registry images are not yet updated. The DockerHub images are updated nightly and the
-          GitHub images are updated after merges to main so it might be that the images are still
-          outdated vs. the latest version of the Dockerfiles you are using. In this case, the
-          ''--build-cache-local'' might be faster, especially if you iterate and change the
-          Dockerfiles yourself.
+          the registry images are not yet updated. The images are updated after successful merges
+          to main.
 
           This is default strategy used by the CI image builds.
 
@@ -2662,22 +2607,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   ****************************************************************************************************
    Flags for pulling/pushing Docker images (both CI and production)
 
-  -D, --dockerhub-user DOCKERHUB_USER
-          DockerHub user used to pull, push and build images. Default: apache.
-
-  -H, --dockerhub-repo DOCKERHUB_REPO
-          DockerHub repository used to pull, push, build images. Default: airflow-ci.
-
-  -c, --use-github-registry
-          If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
-          DockerHub. You need to be logged in to the registry in order to be able to pull/push from
-          and you need to be committer to push to Apache Airflow' GitHub registry.
-
   -g, --github-repository GITHUB_REPOSITORY
-          GitHub repository used to pull, push images when cache is used.
+          GitHub repository used to pull, push images.
           Default: apache/airflow.
-
-          If you use this flag, automatically --use-github-registry flag is enabled.
 
 
 
@@ -2688,8 +2620,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
           automatically pull and use that image so that you can easily reproduce a problem
           that occurred in CI.
-
-          If you use this flag, automatically --use-github-registry is enabled.
 
           Default: latest.
 

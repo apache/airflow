@@ -419,15 +419,11 @@ against main is done to ``v2-*-test`` branches, but PRs from contributors toward
 The ``v2-*-test`` branches and ``v2-*-stable`` ones are merged just before the release and that's the
 time when they converge.
 
-The production images are build in DockerHub from:
+The production images are released in DockerHub from:
 
 * main branch for development
-* v2-*-test branches for testing 2.*.x release
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
-  final releases. There are no production images prepared from v2-*-stable branch.
-
-Similar rules apply to ``1.10.x`` releases until June 2021. We have ``v1-10-test`` and ``v1-10-stable``
-branches there.
+  final releases.
 
 Development Environments
 ========================
