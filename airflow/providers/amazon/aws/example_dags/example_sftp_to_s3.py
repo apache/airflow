@@ -22,7 +22,7 @@ from airflow import models
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.utils.dates import days_ago
 
-S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucker")
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
 S3_KEY = os.environ.get("S3_KEY", "key")
 
 with models.DAG(
@@ -38,6 +38,7 @@ with models.DAG(
         sftp_path="sftp_path",
         s3_conn_id="s3_conn_id",
         s3_bucket=S3_BUCKET,
-        s3_key=S3_KEY
+        s3_key=S3_KEY,
+        dag=dag
     )
     # [END howto_sftp_transfer_data_to_s3]
