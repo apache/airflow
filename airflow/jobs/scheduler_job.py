@@ -36,7 +36,6 @@ from sqlalchemy.orm.session import Session, make_transient
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.exceptions import SerializedDagNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
@@ -49,7 +48,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
+from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
@@ -634,7 +633,6 @@ class SchedulerJob(BaseJob):
         self.processor_agent = DagFileProcessorAgent(
             dag_directory=self.subdir,
             max_runs=self.num_times_parse_dags,
-            processor_factory=type(self)._create_dag_file_processor,
             processor_timeout=processor_timeout,
             dag_ids=[],
             pickle_dags=pickle_dags,
@@ -679,18 +677,6 @@ class SchedulerJob(BaseJob):
             except Exception:
                 self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
-
-    @staticmethod
-    def _create_dag_file_processor(
-        file_path: str,
-        callback_requests: List[CallbackRequest],
-        dag_ids: Optional[List[str]],
-        pickle_dags: bool,
-    ) -> DagFileProcessorProcess:
-        """Creates DagFileProcessorProcess instance."""
-        return DagFileProcessorProcess(
-            file_path=file_path, pickle_dags=pickle_dags, dag_ids=dag_ids, callback_requests=callback_requests
-        )
 
     def _run_scheduler_loop(self) -> None:
         """
