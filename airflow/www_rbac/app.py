@@ -176,16 +176,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 gettext("XComs"),
                                 category=gettext("Admin"))
 
-            # MDM 主数据管理
-            appbuilder.add_view(views.TighteningControllerView,
-                                gettext("Equipments"),
-                                category=gettext("Master Data Management"))
-            appbuilder.add_view(views.ErrorTagModelView,
-                                gettext("Error Tags"),
-                                category=gettext("Master Data Management"))
-            appbuilder.add_view(views.DeviceTypeView,
-                                gettext("Device Type"),
-                                category=gettext("Master Data Management"))
             # 分析相关
             # appbuilder.add_view(views.XComModelView,
             #                     gettext("Analysis"))
@@ -194,10 +184,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 category=gettext("Analysis"))
             appbuilder.add_view(views.CurveAnalysisBoltNoView,
                                 gettext("Analysis Via Bolt No"),
-                                category=gettext("Analysis"))
-
-            appbuilder.add_view(views.CurveAnalysisControllerView,
-                                gettext("Analysis Via Controller"),
                                 category=gettext("Analysis"))
 
             if "dev" in version.version:

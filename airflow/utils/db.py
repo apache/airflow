@@ -159,7 +159,7 @@ def create_device_type_support(session=None):
         return
     from airflow.models.tightening_controller import DeviceTypeModel
     for name, view_config in support_device_types.items():
-        merge_error_tag(err_tag=DeviceTypeModel(name=name, view_config=view_config))
+        merge_device_type(device_type=DeviceTypeModel(name=name, view_config=view_config))
 
 
 @provide_session
