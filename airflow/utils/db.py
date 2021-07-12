@@ -168,6 +168,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="drill_default",
+            conn_type="drill",
+            host="localhost",
+            port=8047,
+            extra='{"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="druid_broker_default",
             conn_type="druid",
             host="druid-broker",
