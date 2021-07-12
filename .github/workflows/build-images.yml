@@ -34,7 +34,6 @@ env:
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DB_RESET: "true"
   VERBOSE: "true"
-  USE_GITHUB_REGISTRY: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
@@ -150,8 +149,8 @@ jobs:
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      FORCE_PULL_BASE_PYTHON_IMAGE: >
-        ${{ github.event_name == 'schedule' && 'true' || 'false' }}
+      CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
+        ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
       - name: Set envs
@@ -199,7 +198,7 @@ jobs:
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
@@ -225,8 +224,8 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      FORCE_PULL_BASE_PYTHON_IMAGE: >
-        ${{ github.event_name == 'schedule' && 'true' || 'false' }}
+      CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
+        ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
     steps:
       - name: Set envs
@@ -274,7 +273,7 @@ jobs:
           rm -rf "scripts/ci"
           mv "main-airflow/scripts/ci" "scripts"
       - name: "Free space"
-        run: ./scripts/ci/tools/ci_free_space_on_ci.sh
+        run: ./scripts/ci/tools/free_space.sh
       - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         # Pull images built in the previous step

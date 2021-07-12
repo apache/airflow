@@ -59,43 +59,6 @@ so that any changes in setup.py do not trigger reinstalling of all dependencies.
 There is a second step of installation that re-installs the dependencies
 from the latest sources so that we are sure that latest dependencies are installed.
 
-Image naming conventions
-========================
-
-The images are named as follows:
-
-``apache/airflow-ci:<BRANCH>-python<PYTHON_MAJOR_MINOR_VERSION>[-ci][-manifest]``
-
-For production images tagged with official releases:
-
-``apache/airflow:<TAG>-python<PYTHON_MAJOR_MINOR_VERSION>``
-
-And for production images with ``latest`` tag:
-
-````apache/airflow:latest[-python<PYTHON_MAJOR_MINOR_VERSION>]``
-
-where:
-
-* ``BRANCH_OR_TAG`` - branch or tag used when creating the image. Examples: ``main``,
-  ``v2-1-test``, ``2.1.0``. The ``main``, ``v2-*-test`` labels are
-  built from branches so they change over time. The ``2.*.*`` labels are built from git tags
-  and they are "fixed" once built.
-* ``PYTHON_MAJOR_MINOR_VERSION`` - version of Python used to build the image. Examples: ``3.6``, ``3.7``,
-  ``3.8``, ``3.9``
-* The ``-ci`` suffix is added for CI images
-* The ``-manifest`` is added for manifest images (see below for explanation of manifest images)
-
-We also store (to increase speed of local build/pulls) Python images that were used to build
-the CI images. Each CI image, when built uses current Python version of the base images. Those
-python images are regularly updated (with bugfixes/security fixes), so for example Python 3.8 from
-last week might be a different image than Python 3.8 today. Therefore whenever we push CI image
-to airflow repository, we also push the Python image that was used to build it this image is stored
-as ``apache/airflow-ci:python<PYTHON_MAJOR_MINOR_VERSION>-<BRANCH_OR_TAG>``.
-
-Since those are simply snapshots of the existing Python images, DockerHub does not create a separate
-copy of those images - all layers are mounted from the original Python images and those are merely
-labels pointing to those.
-
 Building docker images from current sources
 ===========================================
 
@@ -214,8 +177,8 @@ In this case you airflow and all packages (.whl files) should be placed in ``doc
 Using cache during builds
 =========================
 
-Default mechanism used in Breeze for building CI images uses images pulled from DockerHub or
-GitHub Image Registry. This is done to speed up local builds and CI builds - instead of 15 minutes
+Default mechanism used in Breeze for building CI images uses images pulled from
+GitHub Container Registry. This is done to speed up local builds and CI builds - instead of 15 minutes
 for rebuild of CI images, it takes usually less than 3 minutes when cache is used. For CI builds this is
 usually the best strategy - to use default "pull" cache. This is default strategy when
 `<BREEZE.rst>`_ builds are performed.
@@ -265,60 +228,11 @@ or
 
   export DOCKER_CACHE="disabled"
 
+Naming conventions
+==================
 
-Choosing image registry
-=======================
-
-By default images are pulled and pushed from and to DockerHub registry when you use Breeze's push-image
+By default images are pulled and pushed from and to Github Container registry when you use Breeze's push-image
 or build commands.
-
-But as described in `CI Documentation <CI.rst>`_, you can choose GitHub Container Registry.
-
-Naming convention for DockerHub images.
-
-Images used during CI builds:
-
-.. code-block:: bash
-
-  apache/airflow-ci:<BRANCH>-pythonX.Y         - for production images
-  apache/airflow-ci:<BRANCH>-pythonX.Y-ci      - for CI images
-  apache/airflow-ci:<BRANCH>-pythonX.Y-build   - for production build stage
-  apache/airflow-ci:pythonX.Y-<BRANCH>         - for Python base image used for both CI and PROD image
-
-For example:
-
-.. code-block:: bash
-
-  apache/airflow-ci:main-python3.6                - production "main" image from current main
-  apache/airflow-ci:main-python3.6-ci             - CI "main" image from current main
-  apache/airflow-ci:v2-1-test-python3.6-ci          - CI "main" image from current v2-1-test branch
-  apache/airflow:python3.6-main                - base Python image for the main branch
-
-You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow-ci>`_
-
-Released, production images
-
-.. code-block:: bash
-
-  apache/airflow:<TAG>-pythonX.Y         - for tagged released production images
-  apache/airflow:<TAG>                   - for default Python version released production images
-  apache/airflow:latest-pythonX.Y        - for latest released production images
-  apache/airflow:latest                  - for default Python version of latest released production images
-
-For example:
-
-.. code-block:: bash
-
-  apache/airflow:2.1.0-python3.8         - for regular released 2.1.0 production image with Python 3.8
-  apache/airflow:2.1.0                   - for default Python version of 2.1.0 production image
-  apache/airflow:latest-python3.8        - for latest released Python 3.8 production image
-  apache/airflow:latest                  - for latest released default Python production image
-
-You can see those CI DockerHub images at `<https://hub.docker.com/r/apache/airflow>`_
-
-
-Using GitHub Container Registry as build cache
-----------------------------------------------
 
 We are using GitHub Container Registry as build cache.The images are all in organization wide "apache/"
 namespace. We are adding "airflow-" as prefix for image names of all Airflow images.
@@ -346,18 +260,12 @@ Latest images (pushed when main merge succeeds):
   ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
   ghcr.io/apache/airflow-python-v2:X.Y-slim-buster          - for base Python images
 
-Note that we never push or pull "release" images to GitHub registry. Those are only pushed to DockerHub.
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
-In order to interact with the GitHub Container Registry you need to add ``--use-github-registry``
-flag to the pull/push commands in Breeze. This way the images will be pulled/pushed from/to GitHub
-rather than from/to DockerHub. Images are build locally as ``apache/airflow`` images but then they are
-tagged with the right GitHub tags for you automatically.
-
-You can read more about the CI configuration and how CI builds are using DockerHub/GitHub images
+You can read more about the CI configuration and how CI builds are using GitHub images
 in `<CI.rst>`_.
 
-Note that you need to be committer and have the right to push to DockerHub and GitHub and you need to
+Note that you need to be committer and have the right to push to GitHub and you need to
 be logged in to the registry. Only committers can push images directly. You need to login with your
 Personal Access Token with "packages" write scope to be able to push to those repositories or pull from them
 in case of GitHub Packages.
@@ -367,7 +275,6 @@ GitHub Container Registry
 .. code-block:: bash
 
   docker login ghcr.io
-
 
 Since there are different naming conventions used for Airflow images and there are multiple images used,
 `Breeze <BREEZE.rst>`_ provides easy to use management interface for the images. The
@@ -383,10 +290,10 @@ Force building Python 3.6 CI image using local cache and pushing it container re
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.6 --force-build-images --force-pull-base-python-image --build-cache-local
-  ./breeze push-image --python 3.6 --use-github-registry
+  ./breeze build-image --python 3.6 --force-build-images --check-if-base-python-image-updated --build-cache-local
+  ./breeze push-image --python 3.6
 
-Building Python 3.8 CI image using cache pulled from DockerHub and pushing it back:
+Building Python 3.8 CI image using cache pulled from GitHub Container Registry and pushing it back:
 
 .. code-block:: bash
 
@@ -404,7 +311,6 @@ For example this command will run the same Python 3.8 image as was used in build
 .. code-block:: bash
 
   ./breeze --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e \
-    --use-github-registry \
     --python 3.8 --integration kerberos
 
 You can see more details and examples in `Breeze <BREEZE.rst>`_
@@ -647,13 +553,13 @@ CI Image manifests
 Together with the main CI images we also build and push image manifests. Those manifests are very small images
 that contain only content of randomly generated file at the 'crucial' part of the CI image building.
 This is in order to be able to determine very quickly if the image in the docker registry has changed a
-lot since the last time. Unfortunately docker registry (specifically DockerHub registry) has no anonymous
+lot since the last time. Unfortunately docker registry has no anonymous
 way of querying image details via API. You really need to download the image to inspect it.
 We workaround it in the way that always when we build the image we build a very small image manifest
 containing randomly generated UUID and push it to registry together with the main CI image.
 The tag for the manifest image reflects the image it refers to with added ``-manifest`` suffix.
-The manifest image for ``apache/airflow:main-python3.6-ci`` is named
-``apache/airflow:main-python3.6-ci-manifest``.
+The manifest image for ``ghcr.io/apache/airflow-main-python3.6-ci-v2`` is named
+``ghcr.io/apache/airflow-main-python3.6-ci-v2-manifest``.
 
 The image is quickly pulled (it is really, really small) when important files change and the content
 of the randomly generated UUID is compared with the one in our image. If the contents are different
@@ -669,9 +575,8 @@ Working with the images
 Pulling the Latest Images
 -------------------------
 
-Sometimes the image needs to be refreshed from the registry in DockerHub - because you have an outdated
-version. You can do it via the ``--force-pull-images`` flag to force pulling the latest images from the
-DockerHub.
+Sometimes the image needs to be refreshed from the GitHub Container Registry - because you have an outdated
+version. You can do it via the ``--force-pull-images`` flag to force pulling the latest images.
 
 For production image:
 
@@ -692,14 +597,12 @@ Refreshing Base Python images
 Python base images are updated from time-to-time, usually as a result of implementing security fixes.
 When you build your image locally using ``docker build`` you use the version of image that you have locally.
 For the CI builds using ``breeze`` we use the image that is stored in our repository in order to use cache
-efficiently. However we can refresh the image to latest available by specifying
-``--force-pull-base-python-image`` and running it manually (you need to have access to DockerHub and our
-GitHub Registies in order to be able to do that.
+efficiently. However CI push build have ``CHECK_IF_BASE_PYTHON_IMAGE_UPDATED`` variable set to ``true``
+which checks if the image has been released and will pull it and rebuild it if needed
 
 .. code-block:: bash
 
     #/bin/bash
-    export DOCKERHUB_USER="apache"
     export GITHUB_REPOSITORY="apache/airflow"
     export FORCE_ANSWER_TO_QUESTIONS="true"
     export CI="true"
@@ -707,13 +610,11 @@ GitHub Registies in order to be able to do that.
     for python_version in "3.6" "3.7" "3.8"
     do
             ./breeze build-image --python ${python_version} --build-cache-local \
-                    --force-pull-base-python-image --verbose
+                    --check-if-python-base-image-updated --verbose
             ./breeze build-image --python ${python_version} --build-cache-local \
                     --production-image --verbose
             ./breeze push-image
-            ./breeze push-image --use-github-registry
             ./breeze push-image --production-image
-            ./breeze push-image --production-image --use-github-registry
     done
 
 Running the CI image

@@ -50,6 +50,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Official source code](#official-source-code)
 - [Convenience packages](#convenience-packages)
 - [User Interface](#user-interface)
+- [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions-1)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -243,6 +244,46 @@ following the ASF Policy.
 
   ![Code View](/docs/apache-airflow/img/code.png)
 
+| Version | Current Patch/Minor | State     | First Release | Limited Support | EOL/Terminated |
+|---------|---------------------|-----------|---------------|-----------------|----------------|
+| 2       | 2.1.1               | Supported | Dec 17, 2020  | Dec 2021        | TBD            |
+| 1.10    | 1.10.15             | EOL       | Aug 27, 2018  | Dec 17, 2020    | June 17, 2021  |
+| 1.9     | 1.9.0               | EOL       | Jan 03, 2018  | Aug 27, 2018    | Aug 27, 2018   |
+| 1.8     | 1.8.2               | EOL       | Mar 19, 2017  | Jan 03, 2018    | Jan 03, 2018   |
+| 1.7     | 1.7.1.2             | EOL       | Mar 28, 2016  | Mar 19, 2017    | Mar 19, 2017   |
+
+Limited support versions will be supported with security and critical bug fix only.
+EOL versions will not get any fixes nor support.
+We always recommend that all users run the latest available minor release for whatever major version is in use.
+We **highly** recommend upgrading to the latest Airflow major release at the earliest convenient time and before EOL date.
+
+## Support for Python and Kubernetes versions
+
+As of Airflow 2.0 we agreed to certain rules we follow for Python and Kubernetes support.
+They are based on the official release schedule of Python and Kubernetes, nicely summarized in the
+[Python Developer's Guide](https://devguide.python.org/#status-of-python-branches) and
+[Kubernetes version skew policy](https://kubernetes.io/docs/setup/release/version-skew-policy/).
+
+1. We drop support for Python and Kubernetes versions when they reach EOL. We drop support for those
+   EOL versions in main right after EOL date, and it is effectively removed when we release the
+   first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow
+   For example for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
+   MAJOR or MINOR version of Airflow released after will not have it.
+
+2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
+   in terms of "smoke tests" in CI PRs which are run using this default version and default reference
+   image available. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.1` images
+   are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
+   become Python 3.7 images.
+
+3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
+   make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
+   new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
+
+### Additional notes on Python version requirements
+
+* Previous version [requires](https://github.com/apache/airflow/issues/8162) at least Python 3.5.3
+  when using Python 3
 
 ## Contributing
 

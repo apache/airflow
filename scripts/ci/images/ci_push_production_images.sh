@@ -20,4 +20,4 @@
 
 build_images::prepare_prod_build
 
-push_pull_remove_images::push_prod_images
+push_pull_remove_images::push_prod_images_to_github

@@ -41,5 +41,5 @@ export INSTALL_AIRFLOW_VERSION="${1}"
 for python_version in "3.6" "3.7" "3.8" "3.9"
 do
   export PYTHON_MAJOR_MINOR_VERSION=${python_version}
-  "${AIRFLOW_SOURCES_DIR}/scripts/ci/images/ci_build_dockerhub.sh"
+  "${AIRFLOW_SOURCES_DIR}/scripts/ci/tools/build_dockerhub.sh"
 done

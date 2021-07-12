@@ -241,9 +241,8 @@ function build_images::build_ci_image_manifest() {
         --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
         -f- . <<EOF
 FROM scratch
-
 COPY "manifests/local-build-cache-hash" /build-cache-hash
-
+LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 CMD ""
 EOF
 }
@@ -348,6 +347,17 @@ function build_images::print_build_info() {
     verbosity::print_info
 }
 
+# Retrieves GitHub Container Registry image prefix from repository name
+# GitHub Container Registry stores all images at the organization level, they are just
+# linked to the repository via docker label - however we assume a convention where we will
+# add repository name to organisation separated by '-' and convert everything to lowercase
+# this is because in order for it to work for internal PR for users or other organisation's
+# repositories, the other organisations and repositories can be uppercase
+# container registry image name has to be lowercase
+function build_images::get_github_container_registry_image_prefix() {
+    echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
+}
+
 function build_images::get_docker_image_names() {
     # python image version to use
     export PYTHON_BASE_IMAGE_VERSION=${PYTHON_BASE_IMAGE_VERSION:=${PYTHON_MAJOR_MINOR_VERSION}}
@@ -355,112 +365,79 @@ function build_images::get_docker_image_names() {
     # Python base image to use
     export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
+    local image_name
+    image_name="${GITHUB_REGISTRY}/$(build_images::get_github_container_registry_image_prefix)"
+
     # CI image base tag
     export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
-    # CI image to build
-    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
-    # Default CI image
-    export AIRFLOW_PYTHON_BASE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:python${PYTHON_MAJOR_MINOR_VERSION}-${BRANCH_NAME}"
-    # CI image to build
-    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
 
-    # Base production image tag - used to build kubernetes tag as well
-    if [[ -z "${FORCE_AIRFLOW_PROD_BASE_TAG=}" ]]; then
-        export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
-    else
-        export AIRFLOW_PROD_BASE_TAG="${FORCE_AIRFLOW_PROD_BASE_TAG}"
-    fi
+    # Example:
+    #  ghcr.io/apache/airflow-main-python3.8-ci-v2
+    export AIRFLOW_CI_IMAGE="${image_name}-${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
 
-    # PROD image to build
-    export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"
+    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local-airflow-ci-manifest:${AIRFLOW_CI_BASE_TAG}"
 
-    # PROD build segment
-    export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
-
-    # PROD Kubernetes image to build
-    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
-
-    # PROD default image
-    export AIRFLOW_PROD_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}"
+    # Example:
+    #  ghcr.io/apache/airflow-main-python3.8-ci-v2-manifest
+    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${image_name}-${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}-manifest"
 
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
-    local image_name
-    image_name="${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)"
-    local image_separator
-    if [[ ${GITHUB_REGISTRY} == "ghcr.io" ]]; then
-        image_separator="-"
-    elif [[ ${GITHUB_REGISTRY} == "docker.pkg.github.com" ]]; then
-        image_separator="/"
-    else
-        echo
-        echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
-        echo
-        exit 1
-    fi
+    # PROD image to build
+    export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
 
     # Example:
-    #  docker.pkg.github.com/apache/airflow/main-python3.6-v2
     #  ghcr.io/apache/airflow-v2-1-test-python-v2:3.6-slim-buster
-    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
-    export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export AIRFLOW_PROD_IMAGE="${image_name}-${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+
+    # PROD Kubernetes image to build
+    export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE}-kubernetes"
+
     # Example:
-    #   docker.pkg.github.com/apache/airflow/main-python3.6-build-v2
     #   ghcr.io/apache/airflow-main-python3.6-build-v2
-    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    export AIRFLOW_PROD_BUILD_IMAGE="${image_name}-${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
 
     # Example:
-    #  docker.pkg.github.com/apache/airflow/python-v2:3.6-slim-buster
     #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster
-    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
-    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+    export AIRFLOW_PYTHON_BASE_IMAGE="${image_name}-python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
 
-    # Example:
-    #  docker.pkg.github.com/apache/airflow/main-python3.8-ci-v2
-    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
 # GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
-    if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        local token="${GITHUB_TOKEN}"
-        if [[ -z "${token}" ]] ; then
-            verbosity::print_info
-            verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
-            verbosity::print_info
-        fi
-        if [[ -n "${token}" ]]; then
-            echo "${token}" | docker_v login \
-                --username "${GITHUB_USERNAME:-apache}" \
-                --password-stdin \
-                "${GITHUB_REGISTRY}"
-        else
-            verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
-        fi
-        local new_config
-        new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
-        echo "${new_config}" > "${HOME}/.docker/config.json"
+    local token="${GITHUB_TOKEN}"
+    if [[ -z "${token}" ]] ; then
+        verbosity::print_info
+        verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
+        verbosity::print_info
     fi
+    if [[ -n "${token}" ]]; then
+        echo "${token}" | docker_v login \
+            --username "${GITHUB_USERNAME:-apache}" \
+            --password-stdin \
+            "${GITHUB_REGISTRY}"
+    else
+        verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
+    fi
+    local new_config
+    new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
+    echo "${new_config}" > "${HOME}/.docker/config.json"
 }
 
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_ci_build() {
-    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
-    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"
 
     # Those constants depend on the type of image run so they are only made constants here
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
-
-    export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
-    readonly AIRFLOW_IMAGE
 
     build_images::configure_docker_registry
     sanity_checks::go_to_airflow_sources
@@ -525,7 +502,7 @@ function build_images::rebuild_ci_image_if_needed() {
                 local root_files_count
                 root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${root_files_count} != "0" ]]; then
-                    ./scripts/ci/tools/ci_fix_ownership.sh || true
+                    ./scripts/ci/tools/fix_ownership.sh || true
                 fi
             fi
             verbosity::print_info
@@ -594,18 +571,6 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
         fi
     fi
 }
-
-# Retrieves GitHub Container Registry image prefix from repository name
-# GitHub Container Registry stores all images at the organization level, they are just
-# linked to the repository via docker label - however we assume a convention where we will
-# add repository name to organisation separated by '-' and convert everything to lowercase
-# this is because in order for it to work for internal PR for users or other organisation's
-# repositories, the other organisations and repositories can be uppercase
-# container registry image name has to be lowercase
-function get_github_container_registry_image_prefix() {
-    echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
-}
-
 
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
@@ -716,10 +681,6 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --target "main" \
         . -f Dockerfile.ci
     set -u
-    if [[ -n "${DEFAULT_CI_IMAGE=}" ]]; then
-        echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
-        docker_v tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
-    fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
@@ -769,20 +730,12 @@ function build_images::prepare_prod_build() {
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
     fi
-    if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
-        export DEFAULT_CI_IMAGE="${AIRFLOW_PROD_IMAGE_DEFAULT}"
-    else
-        export DEFAULT_CI_IMAGE=""
-    fi
     export THE_IMAGE_TYPE="PROD"
     export IMAGE_DESCRIPTION="Airflow production"
 
     # Those constants depend on the type of image run so they are only made constants here
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
-
-    export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
-    readonly AIRFLOW_IMAGE
 
     build_images::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
@@ -906,10 +859,6 @@ function build_images::build_prod_images() {
         --target "main" \
         . -f Dockerfile
     set -u
-    if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
-        echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
-        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
-    fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
