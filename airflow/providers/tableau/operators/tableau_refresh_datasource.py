@@ -20,7 +20,7 @@ from tableauserverclient import DatasourceItem
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode, TableauJobFailedException
+from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFailedException
 
 
 class TableauRefreshDatasourceOperator(BaseOperator):
@@ -69,11 +69,7 @@ class TableauRefreshDatasourceOperator(BaseOperator):
 
             job_id = self._refresh_datasource(tableau_hook, datasource.id)
             if self.blocking:
-                finish_code = TableauJobFinishCode.PENDING
-                while finish_code == TableauJobFinishCode.PENDING:
-                    finish_code = tableau_hook.get_job_status(job_id=job_id)
-
-                if finish_code in [TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED]:
+                if not tableau_hook.waiting_until_succeeded(job_id=job_id):
                     raise TableauJobFailedException('The Tableau Refresh Datasource Job failed!')
 
                 self.log.info('Datasource %s has been successfully refreshed.', self.datasource_name)

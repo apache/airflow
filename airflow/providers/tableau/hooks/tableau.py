@@ -126,12 +126,26 @@ class TableauHook(BaseHook):
 
     def get_job_status(self, job_id: str) -> Enum:
         """
-           Get the current state of a defined Tableau Job.
-           .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
+        Get the current state of a defined Tableau Job.
+        .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
-           :param job_id: The id of the job to check.
-           :type job_id: str
-           :rtype: Enum
-           """
-        return TableauJobFinishCode(
-                int(self.server.jobs.get_by_id(job_id).finish_code))
+        :param job_id: The id of the job to check.
+        :type job_id: str
+        :rtype: Enum
+        """
+        return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
+
+    def waiting_until_succeeded(self, job_id: str) -> bool:
+        """
+        Wait until the current state of a defined Tableau Job is not PENDING.
+
+        :param job_id: The id of the job to check.
+        :type job_id: str
+        :return: return True if the job has SUCCESS status, False otherwise.
+        :rtype: bool
+        """
+        finish_code = TableauJobFinishCode.PENDING
+        while finish_code == TableauJobFinishCode.PENDING:
+            finish_code = self.get_job_status(job_id=job_id)
+
+        return finish_code == TableauJobFinishCode.SUCCESS

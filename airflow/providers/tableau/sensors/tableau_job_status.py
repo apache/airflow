@@ -16,7 +16,11 @@
 # under the License.
 from typing import Optional
 
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode, TableauJobFailedException
+from airflow.providers.tableau.hooks.tableau import (
+    TableauHook,
+    TableauJobFailedException,
+    TableauJobFinishCode,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 

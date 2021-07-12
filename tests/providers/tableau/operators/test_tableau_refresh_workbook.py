@@ -68,7 +68,7 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
 
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
-        mock_tableau_hook.get_job_status.assert_called_once_with(
+        mock_tableau_hook.waiting_until_succeeded.assert_called_once_with(
             job_id=job_id,
         )
 
