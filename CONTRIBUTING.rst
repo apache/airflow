@@ -129,7 +129,7 @@ The official list of committers can be found `here <https://airflow.apache.org/d
 
 Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
 
-* https://whimsy.apache.org/roster/ppmc/airflow
+* https://whimsy.apache.org/roster/committee/airflow
 * https://github.com/orgs/apache/teams/airflow-committers/members
 
 Committers are responsible for:
@@ -366,10 +366,9 @@ these guidelines:
     These are things that aren't currently enforced programmatically (either because they are too hard or just
     not yet done.)
 
--   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, squash
-    commits, and resolve all conflicts.
+-   `Rebase your fork <http://stackoverflow.com/a/7244456/1110993>`__, and resolve all conflicts.
 
--   When merging PRs, wherever possible try to use **Squash and Merge** instead of **Rebase and Merge**.
+-   When merging PRs, Commiter will use **Squash and Merge** which means then your PR will be merged as one commit, regardless of the number of commits in your PR. During the review cycle, you can keep a commit history for easier review, but if you need to, you can also squash all commits to reduce the maintenance burden during rebase.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
     to all new files.

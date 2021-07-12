@@ -661,7 +661,6 @@ webserver:
   # Add additional init containers into webserver.
   extraInitContainers: []
 
-
   # Mount additional volumes into webserver.
   extraVolumes: []
   extraVolumeMounts: []
@@ -929,7 +928,6 @@ pgbouncer:
     #   cpu: 100m
     #   memory: 128Mi
 
-
 # Configuration for the redis provisioned by the chart
 redis:
   enabled: true
@@ -1120,9 +1118,30 @@ config:
 
 multiNamespaceMode: false
 
-# The full text value to mount as the "pod_template_file.yaml" file used for KubernetesExecutor workers.
-# If not set, a default one is created using "files/pod-template-file.kubernetes-helm-yaml"
+# `podTemplate` is a string containing the contents of `pod_template_file.yaml` used for KubernetesExecutor
+# workers. The default `podTemplate` will use normal `workers` configuration parameters
+# (e.g. `workers.resources`). As such, you normally won't need to override this directly, however,
+# you can still provide a completely custom `pod_template_file.yaml` if desired.
+# If not set, a default one is created using `files/pod-template-file.kubernetes-helm-yaml`.
 podTemplate: ~
+# The following example is NOT functional, but meant to be illustrative of how you can provide a custom
+# `pod_template_file`. You're better off starting with the default in
+# `files/pod-template-file.kubernetes-helm-yaml` and modifying from there.
+# We will set `priorityClassName` in this example:
+# podTemplate: |
+#   apiVersion: v1
+#   kind: Pod
+#   metadata:
+#     name: dummy-name
+#     labels:
+#       tier: airflow
+#       component: worker
+#       release: my-release
+#   spec:
+#     priorityClassName: high-priority
+#     containers:
+#       - name: base
+#         ...
 
 # Git sync
 dags:

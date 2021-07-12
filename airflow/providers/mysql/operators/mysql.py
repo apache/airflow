@@ -45,8 +45,9 @@ class MySqlOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields = ('sql', 'parameters')
+    template_fields_renderers = {'sql': 'sql', 'parameters': 'json'}
+    template_ext = ('.sql', '.json')
     ui_color = '#ededed'
 
     def __init__(
