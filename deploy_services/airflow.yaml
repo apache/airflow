@@ -1,0 +1,441 @@
+# pv & pvc
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-pv
+spec:
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: 10Gi
+  csi:
+    driver: com.tencent.cloud.csi.cfs
+    volumeAttributes:
+      host: 192.168.0.2
+      path: /
+    volumeHandle: airflow
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-pvc
+  namespace: test
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ""
+  volumeMode: Filesystem
+  volumeName: airflow-pv
+
+# Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-dep
+  namespace: test
+  labels:
+    app: airflow-dep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-dep
+  template:
+    metadata:
+      labels:
+        app: airflow-dep
+    spec:
+      containers:
+        - name: webserver
+          image: ${IMAGE}
+          imagePullPolicy: Always
+          ports:
+            - name: webserver
+              containerPort: 8080
+              protocol: TCP
+          args: ["webserver"]
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /usr/local/airflow
+              subPath: airflow_data
+          env:
+            - name: "FILTER_MISMATCHES"
+              value: "False"
+            - name: "CURVE_GRAPH_SHOW_RANGE"
+              value: "True"
+            - name: "ANALYSIS_NOK_RESULTS"
+              value: "False"
+            - name: "MISMATCH_RATE_RELAXATION_FACTOR"
+              value: "10"
+            - name: "MISMATCH_RATE_RELAXATION_THRESHOLD"
+              value: "0.0001"
+            - name: "AIRFLOW__WEBSERVER__BASE_URL"
+              value: "http://qcos.admin.airflow.lexengroup.com"
+            - name: "AIRFLOW__CELERY__FLOWER_HOST"
+              value: "localhost"
+            - name: "AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL"
+              value: "10"
+            - name: "AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC"
+              value: "60"
+            - name: "AIRFLOW__CORE__SQL_ALCHEMY_POOL_SIZE"
+              value: "256"
+            - name: "AIRFLOW__SCHEDULER__MAX_THREADS"
+              value: "15"
+            - name: "AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_THRESHOLD"
+              value: "120"
+            - name: "AIRFLOW__CORE__DAG_CONCURRENCY"
+              value: "160"
+            - name: "AIRFLOW__CORE__PARALLELISM"
+              value: "160"
+            - name: "MAX_ACTIVE_ANALYSIS"
+              value: "500"
+            - name: "MQ_TEMPLATE_QUEUE"
+              value: "qcos_templates_training"
+            - name: "MQ_TEMPLATE_EXCHANGE"
+              value: "qcos_templates"
+            - name: "CAS_ANALYSIS_BASE_URL"
+              value: "http://cas-svc.test:9095"
+            - name: "CAS_TRAINING_BASE_URL"
+              value: "http://cas-svc.test:9095"
+            - name: "TRAIN_ERROR_TAG"
+              value: "False"
+            - name: "ENABLE_DELETE_CHILD_LOG"
+              value: "False"
+            - name: "MAX_LOG_AGE_IN_DAYS"
+              value: "10"
+            - name: "LOAD_EX"
+              value: "n"
+            - name: "FERNET_KEY"
+              value: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho="
+            - name: "EXECUTOR"
+              value: "Celery"
+            - name: "POSTGRES_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_USER"
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_DB"
+              value: "airflow"
+            - name: "REDIS_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_DBNUM"
+              valueFrom:
+                secretKeyRef:
+                  key: db
+                  name: redis-config
+                  optional: false
+            - name: "FACTORY_CODE"
+              value: "7200"
+            - name: "TEMPLATE_KEY_PREFIX"
+              value: "qcos_templates"
+          securityContext:
+            privileged: true
+        - name: flower
+          image: ${IMAGE}
+          imagePullPolicy: Always
+          ports:
+            - name: flower
+              containerPort: 5555
+              protocol: TCP
+          args: [ "flower" ]
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /usr/local/airflow
+              subPath: airflow_data
+          env:
+            - name: "MQ_TEMPLATE_QUEUE"
+              value: "qcos_templates_training"
+            - name: "MQ_TEMPLATE_EXCHANGE"
+              value: "qcos_templates"
+            - name: "FERNET_KEY"
+              value: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho="
+            - name: "EXECUTOR"
+              value: "Celery"
+            - name: "POSTGRES_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_USER"
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_DB"
+              value: "airflow"
+            - name: "REDIS_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_DBNUM"
+              valueFrom:
+                secretKeyRef:
+                  key: db
+                  name: redis-config
+                  optional: false
+            - name: "FACTORY_CODE"
+              value: "7200"
+            - name: "TEMPLATE_KEY_PREFIX"
+              value: "qcos_templates"
+        - name: scheduler
+          image: ${IMAGE}
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /usr/local/airflow
+              subPath: airflow_data
+          env:
+            - name: "AIRFLOW__LOGGING__FAB_LOGGING_LEVEL"
+              value: "DEBUG"
+            - name: "AIRFLOW__CELERY__FLOWER_HOST"
+              value: "localhost"
+            - name: "AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL"
+              value: "10"
+            - name: "AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC"
+              value: "60"
+            - name: "AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_THRESHOLD"
+              value: "120"
+            - name: "AIRFLOW__CORE__SQL_ALCHEMY_POOL_SIZE"
+              value: "256"
+            - name: "AIRFLOW__SCHEDULER__MAX_THREADS"
+              value: "15"
+            - name: "AIRFLOW__CORE__DAG_CONCURRENCY"
+              value: "160"
+            - name: "AIRFLOW__CORE__PARALLELISM"
+              value: "160"
+            - name: "MQ_TEMPLATE_QUEUE"
+              value: "qcos_templates_training"
+            - name: "MQ_TEMPLATE_EXCHANGE"
+              value: "qcos_templates"
+            - name: "CAS_ANALYSIS_BASE_URL"
+              value: "http://cas-svc.test:9095"
+            - name: "CAS_TRAINING_BASE_URL"
+              value: "http://cas-svc.test:9095"
+            - name: "ENABLE_DELETE_CHILD_LOG"
+              value: "False"
+            - name: "MAX_LOG_AGE_IN_DAYS"
+              value: "10"
+            - name: "TRAIN_ERROR_TAG"
+              value: "False"
+            - name: "LOAD_EX"
+              value: "n"
+            - name: "FERNET_KEY"
+              value: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho="
+            - name: "EXECUTOR"
+              value: "Celery"
+            - name: "POSTGRES_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_USER"
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_DB"
+              value: "airflow"
+            - name: "REDIS_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_DBNUM"
+              valueFrom:
+                secretKeyRef:
+                  key: db
+                  name: redis-config
+                  optional: false
+            - name: "FACTORY_CODE"
+              value: "7200"
+            - name: "TEMPLATE_KEY_PREFIX"
+              value: "qcos_templates"
+          args: ["scheduler"]
+        - name: worker
+          image: ccr.ccs.tencentyun.com/dev-tke/airflow:1.10.10.54
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: airflow-data
+              mountPath: /usr/local/airflow
+              subPath: airflow_data
+          ports:
+            - name: worker
+              containerPort: 8793
+              protocol: TCP
+          env:
+            - name: "AIRFLOW__CELERY__FLOWER_HOST"
+              value: "localhost"
+            - name: "AIRFLOW__CELERY__WORKER_AUTOSCALE"
+              value: "36,16"
+            - name: "MQ_TEMPLATE_QUEUE"
+              value: "qcos_templates_training"
+            - name: "MQ_TEMPLATE_EXCHANGE"
+              value: "qcos_templates"
+            - name: "CAS_ANALYSIS_BASE_URL"
+              value: "http://cas-svc.test:9095"
+            - name: "CAS_TRAINING_BASE_URL"
+              value: "http://cas-svc.test:9095"
+            - name: "MAX_LOG_AGE_IN_DAYS"
+              value: "10"
+            - name: "FERNET_KEY"
+              value: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho="
+            - name: "EXECUTOR"
+              value: "Celery"
+            - name: "POSTGRES_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_USER"
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: postgresql-config
+                  optional: false
+            - name: "POSTGRES_DB"
+              value: "airflow"
+            - name: "FACTORY_CODE"
+              value: "7200"
+            - name: "TEMPLATE_KEY_PREFIX"
+              value: "qcos_templates"
+            - name: "ENV_ALWAYS_TRIGGER_ANAY"
+              value: "false"
+            - name: "ENV_PUSH_HMI_ENABLE"
+              value: "false"
+            - name: "REDIS_HOST"
+              valueFrom:
+                secretKeyRef:
+                  key: hostname
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: redis-config
+                  optional: false
+            - name: "REDIS_DBNUM"
+              valueFrom:
+                secretKeyRef:
+                  key: db
+                  name: redis-config
+                  optional: false
+          args: [ "worker" ]
+      volumes:
+        - name: airflow-data
+          persistentVolumeClaim:
+            claimName: airflow-pvc
+      imagePullSecrets:
+        - name: qcloudregistrykey
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-svc
+  namespace: test
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: airflow-8080
+    - port: 5555
+      targetPort: 5555
+      protocol: TCP
+      name: airflow-5555
+  selector:
+    app: airflow-dep
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: default-nginx-ingress
+    kubernetes.io/ingress.http-rules: '[{"host":"qcos.admin.airflow.lexengroup.com","path":"","backend":{"serviceName":"airflow-svc","servicePort":"8080"}}]'
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  labels:
+    app: airflow-dep
+  name: airflow-ingress
+  namespace: test
+spec:
+  rules:
+    - host: qcos.admin.airflow.lexengroup.com
+      http:
+        paths:
+          - backend:
+              serviceName: airflow-svc
+              servicePort: 8080
+            path: /
