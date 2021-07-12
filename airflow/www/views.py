@@ -3383,10 +3383,11 @@ class VariableModelView(AirflowModelView):
 
     def hidden_field_formatter(self):
         """Formats hidden fields"""
-        key = self.get('key')
-        val = self.get('val')
-        if secrets_masker.should_hide_value_for_key(key):
-            return Markup('*' * 8)
+        #key = self.get('key')
+        #val = self.get('val')
+        #if secrets_masker.should_hide_value_for_key(key):
+        #    return Markup('*' * 8)
+        val = self
         if val:
             return val
         else:
