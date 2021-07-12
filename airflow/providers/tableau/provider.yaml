@@ -38,6 +38,7 @@ operators:
   - integration-name: Tableau
     python-modules:
       - airflow.providers.tableau.operators.tableau_refresh_workbook
+      - airflow.providers.tableau.operators.tableau_refresh_datasource
 
 sensors:
   - integration-name: Tableau
