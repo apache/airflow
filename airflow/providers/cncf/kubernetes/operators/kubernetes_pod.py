@@ -301,6 +301,11 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     @staticmethod
+    def _get_pod_launcher(**kwargs):
+        return pod_launcher.PodLauncher(kube_client=kwargs.get('client'),
+                                        extract_xcom=kwargs.get('do_xcom_push'))
+
+    @staticmethod
     def create_labels_for_pod(context) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
@@ -354,7 +359,7 @@ class KubernetesPodOperator(BaseOperator):
                     f'More than one pod running with labels: {label_selector}'
                 )
 
-            launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
+            launcher = self._get_pod_launcher(client=client, do_xcom_push=self.do_xcom_push)
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
