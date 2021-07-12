@@ -27,12 +27,10 @@ from functools import wraps
 import os
 import contextlib
 import json
-import re
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.load_data_from_csv import load_data_from_csv
-from airflow.www_rbac.app import cached_appbuilder
+from airflow.utils.create_default_user import create_default_users
 
 log = LoggingMixin().log
 
@@ -87,21 +85,6 @@ def merge_conn(conn, session=None):
         session.add(conn)
         session.commit()
 
-@provide_session
-def merge_device_type(device_type, session=None):
-    from airflow.models.tightening_controller import DeviceTypeModel
-    if not session.query(DeviceTypeModel).filter(DeviceTypeModel.name == device_type.name).first():
-        session.add(device_type)
-        session.commit()
-
-
-@provide_session
-def merge_error_tag(err_tag, session=None):
-    from airflow.models import ErrorTag
-    if not session.query(ErrorTag).filter(ErrorTag.label == err_tag.label).first():
-        session.add(err_tag)
-        session.commit()
-
 
 @provide_session
 def add_default_pool_if_not_exists(session=None):
@@ -115,86 +98,6 @@ def add_default_pool_if_not_exists(session=None):
         )
         session.add(default_pool)
         session.commit()
-
-
-default_error_tags = {
-    '1': '曲线异常（未知原因）',
-    '101': '螺栓粘滑',
-    '102': '扭矩异常下落',
-    '103': '重复拧紧',
-    '104': '提前松手',
-    '105': '角度过大',
-    # '100': '提前松手',
-    # '101': '螺栓放偏',
-    # '102': '螺栓空转，没办法旋入',
-    # '103': '螺栓被错误的预拧紧',
-    # '104': '螺纹胶涂胶识别有无',
-    # '105': '螺纹胶涂覆位置错误-前后',
-    # '106': '螺钉太长',
-    # '107': '螺钉太短',
-    # '108': '工件开裂',
-    # '109': '尖叫螺栓',
-    # '110': '提前进入屈服阶段',
-    # '111': '转角法监控扭矩小于下限值',
-    # '112': '转角法监控扭矩大于上限值-或者临界上限值'
-}
-
-
-@provide_session
-def create_default_error_tags(session=None):
-    from airflow.models import ErrorTag
-    # todo: error tag init
-    for key, value in default_error_tags.items():
-        merge_error_tag(err_tag=ErrorTag(lable=value, value=key))
-
-
-support_device_types = {
-    '拧紧工具': '{}',
-    '压机': '{}',
-}
-
-@provide_session
-def create_device_type_support(session=None):
-    if not session:
-        return
-    from airflow.models.tightening_controller import DeviceTypeModel
-    for name, view_config in support_device_types.items():
-        merge_device_type(device_type=DeviceTypeModel(name=name, view_config=view_config))
-
-
-@provide_session
-def create_default_lg_line_controller_map_var(session=None):
-    if not session:
-        return
-    #TODO: 增加临港工厂基础数据创建
-    return
-
-
-@provide_session
-def create_default_nd_line_controller_map_var(session=None):
-    log.info("Loading default controllers")
-    from airflow.models import TighteningController
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    val = load_data_from_csv(os.path.join(current_dir, 'default_controllers.csv'), {
-        'controller_name': '控制器名称',
-        'line_code': '工段编号',
-        'work_center_code': '工位编号',
-        'line_name': '工段名称',
-        'work_center_name': '工位名称'
-    })
-    controllers = TighteningController.list_controllers(session=session)
-    if len(controllers) > 0:
-        log.info("Controllers already exists, skipping")
-        return
-    for controller in val:
-        TighteningController.add_controller(
-            controller_name=controller.get('controller_name', None),
-            line_code=controller.get('line_code', None),
-            work_center_code=controller.get('work_center_code', None),
-            line_name=controller.get('line_name', None),
-            work_center_name=controller.get('work_center_name', None),
-            session=session
-        )
 
 
 @provide_session
@@ -423,35 +326,6 @@ def get_connection(conn_id):
         return conn
 
 
-def create_default_users():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    default_users = load_data_from_csv(os.path.join(current_dir, 'default_users.csv'), {
-        'username': 'username',
-        'email': 'email',
-        'lastname': 'lastname',
-        'firstname': 'firstname',
-        'password': 'password',
-        'role': 'role'
-    })
-    appbuilder = cached_appbuilder()
-    for user in default_users:
-        role = appbuilder.sm.find_role(user['role'])
-        if not role:
-            raise SystemExit('{} is not a valid role.'.format(user['role']))
-        user_created = appbuilder.sm.add_user(
-            user['username'],
-            user['firstname'],
-            user['lastname'],
-            user['email'],
-            role,
-            user['password'])
-        if user_created:
-            log.info('{} user {} created.'.format(
-                user['role'], user['username']))
-        else:
-            raise SystemExit('Failed to create user.')
-
-
 def initdb(rbac=False):
     upgradedb()
     from airflow.models import Connection
@@ -459,19 +333,6 @@ def initdb(rbac=False):
     session = settings.Session()
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS', fallback=True):
         create_default_connections()
-
-    if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
-        create_default_error_tags()
-
-    if conf.getboolean('core', 'LOAD_DEFAULT_DEVICE_TYPE', fallback=True):
-        create_device_type_support()
-
-    if os.environ.get('FACTORY_CODE', '') in ['nd', '7200', 'ND']:
-        create_default_nd_line_controller_map_var(session)
-
-    if os.environ.get('FACTORY_CODE', '') in ['lg', '2200', 'LG']:
-        # 临港工厂上汽乘用车
-        create_default_lg_line_controller_map_var(session)
 
     merge_conn(
         Connection(
