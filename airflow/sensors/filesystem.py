@@ -38,8 +38,8 @@ class FileSensor(BaseSensorOperator):
     :param filepath: File or folder name (relative to
         the base path set within the connection), can be a glob.
     :type filepath: str
-    :param recursive: when set True, enables recursive directory matching behavior of
-        `**` in glob filepath parameter. Defaults to False.
+    :param recursive: when set to ``True``, enables recursive directory matching behavior of
+        ``**`` in glob filepath parameter. Defaults to ``False``.
     :type recursive: bool
     """
 
