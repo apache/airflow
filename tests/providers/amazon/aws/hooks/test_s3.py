@@ -152,15 +152,19 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
 
-        start_datetime = datetime.strptime('1900-08-19T09:55:48+0000', '%Y-%m-%dT%H:%M:%S%z')
-        to_datetime = datetime.strptime('1901-08-19T09:55:48+0000', '%Y-%m-%dT%H:%M:%S%z')
+        LastModified__gte = datetime.strptime('1900-08-19T09:55:48+0000', '%Y-%m-%dT%H:%M:%S%z')
+        LastModified__lt = datetime.strptime('1901-08-19T09:55:48+0000', '%Y-%m-%dT%H:%M:%S%z')
+        object_filter = {
+            "LastModified__gte": LastModified__gte,
+            "LastModified__lt": LastModified__lt,
+        }
 
         assert [] == hook.list_keys(s3_bucket, prefix='non-existent/')
         assert ['a', 'dir/b'] == hook.list_keys(s3_bucket)
         assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
         assert ['dir/b'] == hook.list_keys(s3_bucket, start_after_key='a')
-        assert [] == hook.list_keys(s3_bucket, start_after_datetime=start_datetime, to_datetime=to_datetime)
+        assert [] == hook.list_keys(s3_bucket, object_filter=object_filter)
 
     def test_list_keys_paged(self, s3_bucket):
         hook = S3Hook()
