@@ -231,7 +231,6 @@ jobs:
       - name: Set envs
         run: |
           echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
-          echo "GITHUB_REGISTRY_PULL_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
