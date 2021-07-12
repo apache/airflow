@@ -16,30 +16,26 @@
     under the License.
 
 
-Amazon SFTP to S3 Transfer Operator
+Amazon S3 to SFTP Transfer Operator
 ===================================
 
-Amazon Glacier is a secure, durable, and extremely low-cost Amazon S3 cloud storage classes for data archiving and long-term backup.
-For more information about the service visit `Amazon Glacier API documentation <https://docs.aws.amazon.com/code-samples/latest/catalog/code-catalog-python-example_code-glacier.html>`_
+AWS Transfer for SFTP provides Secure File Transfer Protocol (SFTP) access to a customer's S3 resources.
+For more information about the service visits `Amazon Transfer for SFTP API documentation <https://docs.aws.amazon.com/whitepapers/latest/architecting-hipaa-security-and-compliance-on-aws/aws-transfer-for-sftp.html>`_
 
 .. _howto/operator:SFTPToS3Operator:
 
-SFTPToS3Operator
+S3ToSFTPOperator
 ^^^^^^^^^^^^^^^^
 
-Operator task is transfer data from Glacier vault to Google Cloud Storage.
-
-.. note::
-    Please be warn that GlacierToGCSOperator may depends on memory usage.
-    Transferring big files may not working well.
+This operator enables the transferring of files from S3 to a SFTP Server.
 
 To get more information about operator visit:
-:class:`~airflow.providers.amazon.aws.transfers.sftp_to_s3.SFTPToS3Operator`
+:class:`~airflow.providers.amazon.aws.transfers.s3_to_sftp.S3ToSFTPOperator`
 
 Example usage:
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sftp_to_s3.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3_to_sftp.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_glacier_transfer_data_to_gcs]
-    :end-before: [END howto_glacier_transfer_data_to_gcs]
+    :start-after: [START howto_s3_transfer_data_to_sftp]
+    :end-before: [END howto_s3_transfer_data_to_sftp]
