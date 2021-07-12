@@ -25,7 +25,6 @@ import operator
 import re
 import shutil
 from collections import namedtuple
-from datetime import datetime
 from functools import wraps
 from inspect import signature
 from io import BytesIO
@@ -76,7 +75,7 @@ class ResponseFilter:
                 contents = self.data["Contents"]
                 for content in contents:
                     result.append(content.get("Key"))
-                return result
+            return result
 
         # object_filter is expected to be list of tuple with exactly two elements.
         object_filter = [(k, v) for k, v in object_filter.items()]
@@ -365,9 +364,7 @@ class S3Hook(AwsBaseHook):
         :param start_after_key: returns keys after this specified key in the bucket.
         :type start_after_key: str
         :param object_filter: returns keys based on object filter dict
-        :type object_filter: dict, for example: object_filter = {
-                "LastModified__lt": datetime.now(),
-            }
+        :type object_filter: dict, for example: object_filter = {"LastModified__lt": datetime.now(),}
         :return: a list of matched keys
         :rtype: list
         """
@@ -377,6 +374,7 @@ class S3Hook(AwsBaseHook):
             'PageSize': page_size,
             'MaxItems': max_items,
         }
+
         paginator = self.get_conn().get_paginator('list_objects_v2')
         operation_parameters = {
             "Bucket": bucket_name,
