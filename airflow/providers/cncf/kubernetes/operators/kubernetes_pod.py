@@ -17,7 +17,7 @@
 """Executes task in a Kubernetes POD"""
 import re
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Type
 
 from kubernetes.client import CoreV1Api, models as k8s
 
@@ -220,6 +220,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[str] = None,
+        pod_launcher_class: Type[pod_launcher.PodLauncher] = pod_launcher.PodLauncher,
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
@@ -280,6 +281,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
+        self.pod_launcher_class = pod_launcher_class
 
     def _render_nested_template_fields(
         self,
@@ -299,11 +301,6 @@ class KubernetesPodOperator(BaseOperator):
             jinja_env,
             seen_oids
         )
-
-    @staticmethod
-    def _get_pod_launcher(**kwargs):
-        return pod_launcher.PodLauncher(kube_client=kwargs.get('client'),
-                                        extract_xcom=kwargs.get('do_xcom_push'))
 
     @staticmethod
     def create_labels_for_pod(context) -> dict:
@@ -359,7 +356,7 @@ class KubernetesPodOperator(BaseOperator):
                     f'More than one pod running with labels: {label_selector}'
                 )
 
-            launcher = self._get_pod_launcher(client=client, do_xcom_push=self.do_xcom_push)
+            launcher = self.pod_launcher_class(kube_client=client, extract_xcom=self.do_xcom_push)
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
