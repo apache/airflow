@@ -1607,9 +1607,9 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
-#### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
-We changed signature of BigQueryGetDatasetTablesOperator.
+We changed signature of `BigQueryGetDatasetTablesOperator`.
 
 Before:
 
