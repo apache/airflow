@@ -21,8 +21,10 @@
 import fnmatch
 import gzip as gz
 import io
+import operator
 import re
 import shutil
+from collections import namedtuple
 from datetime import datetime
 from functools import wraps
 from inspect import signature
@@ -40,6 +42,81 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import chunks
 
 T = TypeVar("T", bound=Callable)
+
+
+class ResponseFilter:
+    """
+    ResponseFilter class filters the S3 boto3 response based on various operations
+    defined by user. This class can be extended as per required for parsing and filtering the
+    response based on different object filter
+    """
+
+    allowed_operations = {
+        "lte": operator.le,
+        "gte": operator.ge,
+        "gt": operator.gt,
+        "lt": operator.lt,
+        "eq": operator.eq,
+    }
+
+    def __init__(self, data):
+        self.data = data
+
+    def filter(self, object_filter: Optional[dict] = None) -> list:
+        """
+        object_filter = {
+            'key': 'Sample',
+            'LastModified__gt': datetime.now()
+        }
+        """
+        # if object_filter is None return all the Keys.
+        if object_filter is None:
+            result = []
+            if "Contents" in self.data:
+                contents = self.data["Contents"]
+                for content in contents:
+                    result.append(content.get("Key"))
+                return result
+
+        # object_filter is expected to be list of tuple with exactly two elements.
+        object_filter = [(k, v) for k, v in object_filter.items()]
+        operation = namedtuple("Q", "op key value")
+
+        def parse_filter(item) -> operation:
+            """
+            The item is expected to be a tuple with exactly two elements
+            >>> parse_filter(('LastModified__gt', datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z')))
+            Q(op=<built-in function gt>, key='LastModified__gt', value=datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z'))
+            >>> parse_filter(('Key', 'Sample'))
+            Q(op=<built-in function eq>, key='Key', value='Sample')
+            >>> parse_filter(('LastModified__bad', 'red'))
+            Traceback (most recent call last):
+             ...
+            AssertionError: 'bad' operation is not allowed
+            >>> parse_filter(('Name', 'red'))
+            Traceback (most recent call last):
+             ...
+            AssertionError: Key Name not found
+            """
+            key, *op = item[0].split("__")
+            # no value after __ means exact value query, e.g. key='Sample'
+            op = "".join(op).strip() or "eq"
+            assert op in self.allowed_operations, f"{repr(op)} operation is not allowed"
+            return operation(self.allowed_operations[op], key, item[1])
+
+        if "Contents" in self.data:
+            contents = self.data["Contents"]
+            results = {i["Key"] for i in contents}
+            for item in map(parse_filter, object_filter):
+                if "Contents" in self.data:
+                    for content in contents:
+                        if item.op == operator.contains and all(
+                            item.op(content[item.key], v) for v in item.value
+                        ):
+                            results.add(content.get("Key"))
+                        elif not item.op(content[item.key], item.value):
+                            results.discard(content.get("Key"))
+        return results
 
 
 def provide_bucket_name(func: T) -> T:
@@ -269,9 +346,8 @@ class S3Hook(AwsBaseHook):
         delimiter: Optional[str] = None,
         page_size: Optional[int] = None,
         max_items: Optional[int] = None,
-        start_after_key: Optional[str] = '',
-        start_after_datetime: Optional[datetime] = None,
-        to_datetime: Optional[datetime] = None,
+        start_after_key: Optional[str] = None,
+        object_filter: Optional[dict] = None,
     ) -> list:
         """
         Lists keys in a bucket under prefix and not containing delimiter
@@ -288,10 +364,10 @@ class S3Hook(AwsBaseHook):
         :type max_items: int
         :param start_after_key: returns keys after this specified key in the bucket.
         :type start_after_key: str
-        :param start_after_datetime: returns keys with last modified datetime greater than the specified datetime.
-        :type start_after_datetime: datetime , ISO8601: '%Y-%m-%dT%H:%M:%S%z', e.g. 2021-02-20T05:20:20+0000
-        :param to_datetime: returns keys with last modified datetime less than the specified datetime.
-        :type to_datetime: datetime , ISO8601: '%Y-%m-%dT%H:%M:%S%z', e.g. 2021-02-20T05:20:20+0000
+        :param object_filter: returns keys based on object filter dict
+        :type object_filter: dict, for example: object_filter = {
+                "LastModified__lt": datetime.now(),
+            }
         :return: a list of matched keys
         :rtype: list
         """
@@ -302,23 +378,22 @@ class S3Hook(AwsBaseHook):
             'MaxItems': max_items,
         }
         paginator = self.get_conn().get_paginator('list_objects_v2')
-        response = paginator.paginate(
-            Bucket=bucket_name,
-            Prefix=prefix,
-            Delimiter=delimiter,
-            PaginationConfig=config,
-            StartAfter=start_after_key,
-        )
-        # JMESPath to query directly on paginated results
-        filtered_response = response.search(
-            "Contents[?to_string("
-            "LastModified)<='\"{}\"' && "
-            "to_string(LastModified)>='\"{"
-            "}\"'].Key".format(to_datetime, start_after_datetime)
-        )
+        operation_parameters = {
+            "Bucket": bucket_name,
+            "Prefix": prefix,
+            "Delimiter": delimiter,
+            "PaginationConfig": config,
+        }
+
+        if start_after_key:
+            operation_parameters["StartAfter"] = start_after_key
+
+        response = paginator.paginate(**operation_parameters)
         keys = []
-        for key in filtered_response:
-            keys.append(key)
+        for page in response:
+            page_response = ResponseFilter(page)
+            keys.extend(page_response.filter(object_filter=object_filter))
+
         return keys
 
     @provide_bucket_name
