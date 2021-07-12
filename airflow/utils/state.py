@@ -186,7 +186,7 @@ class State:
     A list of states indicating that a task or dag is a success state.
     """
 
-    terminated_states = frozenset([TaskInstanceState.SHUTDOWN, TaskInstanceState.RESTARTING])
+    terminating_states = frozenset([TaskInstanceState.SHUTDOWN, TaskInstanceState.RESTARTING])
     """
     A list of states indicating that a task has been terminated.
     """
