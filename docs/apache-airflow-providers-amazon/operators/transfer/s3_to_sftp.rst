@@ -22,7 +22,8 @@ Amazon S3 to SFTP Transfer Operator
 AWS Transfer for SFTP provides Secure File Transfer Protocol (SFTP) access to a customer's S3 resources.
 For more information about the service visits `Amazon Transfer for SFTP API documentation <https://docs.aws.amazon.com/whitepapers/latest/architecting-hipaa-security-and-compliance-on-aws/aws-transfer-for-sftp.html>`_
 
-.. _howto/operator:SFTPToS3Operator:
+
+.. _howto/operator:S3ToSFTPOperator:
 
 S3ToSFTPOperator
 ^^^^^^^^^^^^^^^^

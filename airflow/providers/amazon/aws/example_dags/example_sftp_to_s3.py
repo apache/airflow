@@ -30,7 +30,6 @@ with models.DAG(
     schedule_interval=None,
     start_date=days_ago(1),  # Override to match your needs
 ) as dag:
-
     # [START howto_sftp_transfer_data_to_s3]
     create_sftp_to_s3_job = SFTPToS3Operator(
         task_id="create_sftp_to_s3_job",

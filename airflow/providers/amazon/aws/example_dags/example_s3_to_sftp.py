@@ -31,7 +31,7 @@ with models.DAG(
     start_date=days_ago(1),  # Override to match your needs
 ) as dag:
 
-    # [START howto_s3_transfer_data_to_s3ftp]
+    # [START howto_s3_transfer_data_to_sftp]
     create_s3_to_sftp_job = S3ToSFTPOperator(
         task_id="create_to_s3_sftp_job",
         sftp_conn_id="sftp_conn_id",
@@ -41,4 +41,4 @@ with models.DAG(
         s3_key=S3_KEY,
         dag=dag
     )
-    # [END howto_s3_transfer_data_to_s3ftp]
+    # [END howto_s3_transfer_data_to_sftp]
