@@ -541,6 +541,7 @@ intersphinx_mapping = {
         'boto3',
         'celery',
         'docker',
+        'drill',
         'hdfs',
         'jinja2',
         'mongodb',
