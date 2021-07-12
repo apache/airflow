@@ -53,7 +53,7 @@ class SQSSensor(BaseSensorOperator):
     :type message_filtering_config: Optional[str]
     """
 
-    template_fields = ('sqs_queue', 'max_messages')
+    template_fields = ('sqs_queue', 'max_messages', 'message_filtering_config')
 
     def __init__(
         self,
