@@ -466,7 +466,6 @@ FieldConverter.conversion_table = (
 
 def get_schedule_interval_description(schedule_interval: Any) -> str:
     """Returns chron description for a schedule interval"""
-
     if type(schedule_interval) is str:
         if schedule_interval in cron_presets:
             schedule_interval = cron_presets[schedule_interval]
