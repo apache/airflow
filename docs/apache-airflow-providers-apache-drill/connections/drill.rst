@@ -34,11 +34,11 @@ Configuring the Connection
 Host (required)
     The host of the Drillbit to connect to (HTTP, JDBC) or the DSN of the Drill ODBC connection.
 
-Port (optioal)
+Port (optional)
     The port of the Drillbit to connect to.
 
 Extra (optional)
      A JSON dictionary specifying the extra parameters that can be used in sqlalchemy-drill connection.
 
-    * ``dialect_driver`` - The dialect and driver as understood by sqlalchemy-drill.  Defaults to 'drill_sadrill' (HTTP).
-    * ``storage_plugin`` - The default Drill storage plugin for this connection.  Defaults to 'dfs'.
+    * ``dialect_driver`` - The dialect and driver as understood by sqlalchemy-drill.  Defaults to ``drill_sadrill`` (HTTP).
+    * ``storage_plugin`` - The default Drill storage plugin for this connection.  Defaults to ``dfs``.

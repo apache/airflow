@@ -31,7 +31,7 @@ class DrillHook(DbApiHook):
     You can specify the SQLAlchemy dialect and driver that sqlalchemy-drill
     will employ to communicate with Drill in the extras field of your
     connection, e.g. ``{"dialect_driver": "drill+sadrill"}`` for communication
-    over Drill's REST API.  See the sqlalchemy-drill documenation for
+    over Drill's REST API.  See the sqlalchemy-drill documentation for
     descriptions of the supported dialects and drivers.
 
     You can specify the default storage_plugin for the sqlalchemy-drill
@@ -63,7 +63,7 @@ class DrillHook(DbApiHook):
         """
         Returns the connection URI
 
-        e.g: drill://localhost:8047/dfs
+        e.g: ``drill://localhost:8047/dfs``
         """
         conn_md = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn_md.host
