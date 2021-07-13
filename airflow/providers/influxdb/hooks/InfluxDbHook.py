@@ -20,6 +20,7 @@
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
+from influxdb_client.client.write.point import Point
 from typing import List, Generator, Any
 
 from airflow.hooks.base import BaseHook
@@ -73,7 +74,7 @@ class InfluxDBHook(BaseHook):
         return self.client
 
 
-    def run(self, query) -> List[FluxTable]:
+    def query(self, query) -> List[FluxTable]:
         """
         Function to use the query_api
         to run the query.
@@ -88,6 +89,17 @@ class InfluxDBHook(BaseHook):
 
         query_api = client.query_api()
         return query_api.query(query)
+
+    def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value):
+        """
+        Writes a Point to the bucket specified.
+        Example: Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)
+        """
+        write_api = self.client.write_api()
+
+        p = Point(point_name).tag(tag_name, tag_value).field(field_name, field_value)
+
+        write_api.write(bucket=bucket_name, record=p)
 
     def create_organization(self, name):
         """
