@@ -40,7 +40,7 @@ Authentication by personal token was deprecated as Tableau automatically invalid
 personal token connection if one or more parallel connections with the same token are opened.
 So, in the environments with multiple parallel tasks this authentication method can lead to numerous bugs
 and all the jobs will not run as they intended. Therefore, personal token auth option
-is considered harmful and has been deprecated.
+is considered harmful until the logic of Tableau server client changes.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
