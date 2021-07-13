@@ -23,6 +23,7 @@ from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MA
 import logging
 import os
 from flask._compat import PY2
+import pandas as pd
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
@@ -98,16 +99,14 @@ class TighteningControllerView(AirflowModelView):
     @action_logging
     def controllerimport(self):
         try:
-            out = request.files['file'].read()
-            if not PY2 and isinstance(out, bytes):
-                d = json.loads(out.decode('utf-8'))
-            else:
-                d = json.loads(out)
-            if not isinstance(d, list):
-                raise Exception()
-        except Exception:
+            d = pd.read_csv(request.files['file'])
+            if d.empty:
+                raise Exception('设备清单为空')
+            data = d.to_json(orient='records')
+            d = json.loads(data)
+        except Exception as e:
             self.update_redirect()
-            flash("Missing file or syntax error.", 'error')
+            flash(repr(e), 'error')
             return redirect(self.get_redirect())
         suc_count = fail_count = 0
         controller: dict
@@ -134,9 +133,9 @@ class TighteningControllerView(AirflowModelView):
             except Exception as e:
                 val = str(controller)
             ret.append(val)
-
-        response = make_response(json.dumps(ret, sort_keys=True, indent=4, ensure_ascii=False))
-        response.headers["Content-Disposition"] = "attachment; filename=controller.json"
+        d = pd.DataFrame.from_records(ret, index=[i for i in range(len(ret))])
+        response = make_response(d.to_csv(index=False))
+        response.headers["Content-Disposition"] = "attachment; filename=controllers.csv"
         response.headers["Content-Type"] = "application/json; charset=utf-8"
         return response
 
