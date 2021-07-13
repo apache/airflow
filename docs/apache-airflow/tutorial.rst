@@ -154,7 +154,7 @@ references parameters like ``{{ ds }}``, calls a function as in
 ``{{ macros.ds_add(ds, 7)}}``, and references a user-defined parameter
 in ``{{ params.my_param }}``.
 
-The ``params`` hook in ``BaseOperator`` allows you to pass a dictionary of
+The ``params`` hook in ``BashOperator`` allows you to pass a dictionary of
 parameters and/or objects to your templates. Please take the time
 to understand how the parameter ``my_param`` makes it through to the template.
 
