@@ -120,7 +120,7 @@ function breeze::setup_default_breeze_constants() {
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
     # CI main and when we manually refresh the images to latest versions
-    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
+    export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="false"
 
     # Forward common host credentials to docker (gcloud, aws etc.).
     export FORWARD_CREDENTIALS="false"
@@ -416,8 +416,6 @@ EOF
 #    AIRFLOW_CI_IMAGE
 #    AIRFLOW_PROD_IMAGE
 #    AIRFLOW_VERSION
-#    DOCKERHUB_USER
-#    DOCKERHUB_REPO
 #    INSTALL_AIRFLOW_VERSION
 #    INSTALL_AIRFLOW_REFERENCE
 #
@@ -483,7 +481,6 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_PROD_IMAGE}
-                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: $(build_images::get_airflow_version_from_production_image)
 EOF
         else
@@ -493,14 +490,11 @@ EOF
 
                                Branch name:            ${BRANCH_NAME}
                                Docker image:           ${AIRFLOW_CI_IMAGE}
-                               GitHub cache prefix:    ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
         cat <<EOF
                                Python version:         ${PYTHON_MAJOR_MINOR_VERSION}
-                               DockerHub user:         ${DOCKERHUB_USER}
-                               DockerHub repo:         ${DOCKERHUB_REPO}
                                Backend:                ${BACKEND} ${backend_version}
 EOF
         if [[ -n ${USE_AIRFLOW_VERSION=} ]]; then
@@ -518,7 +512,6 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_PROD_IMAGE}
-   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 EOF
         else
             cat <<EOF
@@ -527,7 +520,6 @@ EOF
 
    Branch name:             ${BRANCH_NAME}
    Docker image:            ${AIRFLOW_CI_IMAGE}
-   GitHub cache prefix:     ${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)
 
 EOF
         fi
@@ -541,8 +533,6 @@ EOF
 
    Airflow source version:  ${AIRFLOW_VERSION}
    Python version:          ${PYTHON_MAJOR_MINOR_VERSION}
-   DockerHub user:          ${DOCKERHUB_USER}
-   DockerHub repo:          ${DOCKERHUB_REPO}
    Backend:                 ${BACKEND} ${backend_version}
 EOF
     fi
@@ -567,8 +557,6 @@ EOF
 # Used Globals:
 #   BRANCH_NAME
 #   PYTHON_MAJOR_MINOR_VERSION
-#   DOCKERHUB_USER
-#   DOCKERHUB_REPO
 #   BACKEND
 #   AIRFLOW_VERSION
 #   INSTALL_AIRFLOW_VERSION
@@ -600,7 +588,6 @@ function breeze::prepare_command_file() {
     local file="${1}"
     local command="${2}"
     local compose_file="${3}"
-    local airflow_image="${4}"
     cat <<EOF >"${file}"
 #!/usr/bin/env bash
 if [[ \${VERBOSE} == "true" ]]; then
@@ -612,8 +599,6 @@ if [[ \${VERBOSE} == "true" ]]; then
   set -x
 fi
 cd "\$( dirname "\${BASH_SOURCE[0]}" )" || exit
-export DOCKERHUB_USER=${DOCKERHUB_USER}
-export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export HOST_USER_ID=${HOST_USER_ID}
 export HOST_GROUP_ID=${HOST_GROUP_ID}
 export COMPOSE_FILE="${compose_file}"
@@ -634,7 +619,6 @@ export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE_KUBERNETES}"
 export AIRFLOW_PROD_BASE_TAG="${AIRFLOW_PROD_BASE_TAG}"
-export AIRFLOW_IMAGE="${airflow_image}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
@@ -646,32 +630,23 @@ EOF
 
 #######################################################################################################
 #
-# Prepare all command files that we are using. Depending on the command to execute we use two
-# convenience scripts:
-#
-#    dc_ci - to run docker compose command for CI image
-#    dc_prod - to run docker compose command for PROD image
+# Prepare all command files that we are using. We use dc_ci - to run docker compose command for CI image
 #
 # Global constants set:
 #
 #     PYTHON_BASE_IMAGE_VERSION
 #     PYTHON_BASE_IMAGE
 #     AIRFLOW_CI_IMAGE
-#     AIRFLOW_PROD_BASE_TAG
-#     AIRFLOW_PROD_IMAGE
-#     AIRFLOW_PROD_IMAGE_KUBERNETES
 #     BUILT_CI_IMAGE_FLAG_FILE
 #
 #######################################################################################################
 function breeze::prepare_command_files() {
     local main_ci_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
-    local main_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/base.yml
     local backend_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     local backend_port_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}-port.yml
     local local_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local.yml
     local local_all_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-all-sources.yml
     local files_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/files.yml
-    local local_prod_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/local-prod.yml
     local remove_sources_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
     local forward_credentials_docker_compose_file=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
@@ -692,21 +667,17 @@ function breeze::prepare_command_files() {
 
 
     local compose_ci_file=${main_ci_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
-    local compose_prod_file=${main_prod_docker_compose_file}:${backend_docker_compose_file}:${files_docker_compose_file}
 
     if [[ "${MOUNT_SELECTED_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_docker_compose_file}:${backend_port_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${local_prod_docker_compose_file}:${backend_port_docker_compose_file}
     fi
 
     if [[ "${MOUNT_ALL_LOCAL_SOURCES}" != "false" ]]; then
         compose_ci_file=${compose_ci_file}:${local_all_sources_docker_compose_file}:${backend_port_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${local_all_sources_docker_compose_file}:${backend_port_docker_compose_file}
     fi
 
     if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
         compose_ci_file=${compose_ci_file}:${forward_credentials_docker_compose_file}
-        compose_prod_file=${compose_prod_file}:${forward_credentials_docker_compose_file}
     fi
 
     if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} || -n ${USE_AIRFLOW_VERSION=} ]]; then
@@ -727,16 +698,8 @@ function breeze::prepare_command_files() {
     export DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI="dc_ci"
     readonly DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI
 
-    export DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD="dc_prod"
-    readonly DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD
-
-    # Prepare script for "run docker compose CI command"
     breeze::prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" \
-        "\"\${@}\"" "${compose_ci_file}" "${AIRFLOW_CI_IMAGE}"
-
-    # Prepare script for "run docker compose PROD command"
-    breeze::prepare_command_file "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_PROD}" \
-        "\"\${@}\"" "${compose_prod_file}" "${AIRFLOW_PROD_IMAGE}"
+        "\"\${@}\"" "${compose_ci_file}"
 }
 
 #######################################################################################################
@@ -1015,10 +978,10 @@ function breeze::parse_arguments() {
             export FORCE_ANSWER_TO_QUESTIONS="yes"
             shift
             ;;
-        --force-pull-base-python-image)
-            echo "Force pulling base python image. Uses pulled images as cache."
+        --check-if-base-python-image-updated)
+            echo "Checks if base python image has been."
             echo
-            export FORCE_PULL_BASE_PYTHON_IMAGE="true"
+            export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="true"
             export FORCE_BUILD_IMAGES="true"
             # if you want to force  build an image - assume you want to build it :)
             export FORCE_ANSWER_TO_QUESTIONS="yes"
@@ -1134,29 +1097,10 @@ function breeze::parse_arguments() {
             echo "Tag to add to the image: ${IMAGE_TAG}"
             shift 2
             ;;
-        -D | --dockerhub-user)
-            export DOCKERHUB_USER="${2}"
-            echo "Dockerhub user ${DOCKERHUB_USER}"
-            echo
-            shift 2
-            ;;
-        -R | --dockerhub-repo)
-            export DOCKERHUB_REPO="${2}"
-            echo "Dockerhub repo ${DOCKERHUB_REPO}"
-            echo
-            shift 2
-            ;;
         -f | --forward-credentials)
             echo "Forwarding credentials. Be careful as your credentials ar available in the container!"
             echo
             export FORWARD_CREDENTIALS="true"
-            shift
-            ;;
-        -c | --use-github-registry)
-            echo
-            echo "Use GitHub registry"
-            echo
-            export USE_GITHUB_REGISTRY="true"
             shift
             ;;
         -g | --github-repository)
@@ -1165,7 +1109,6 @@ function breeze::parse_arguments() {
             echo "GitHub repository: ${2}"
             echo
             export GITHUB_REPOSITORY="${2}"
-            export USE_GITHUB_REGISTRY="true"
             shift 2
             ;;
         -s | --github-image-id)
@@ -1178,7 +1121,6 @@ function breeze::parse_arguments() {
             echo "behaviour as in the CI environment."
             echo
             export FORCE_PULL_IMAGES="true"
-            export USE_GITHUB_REGISTRY="true"
             export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
             export GITHUB_REGISTRY_PUSH_IMAGE_TAG="${2}"
             export CHECK_IMAGE_FOR_REBUILD="false"
@@ -1741,13 +1683,12 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
       '${CMDNAME} shell -- -c \"ls -la\"'
       '${CMDNAME} -- -c \"ls -la\"'
 
-      For DockerHub pull: --dockerhub-user and --dockerhub-repo flags can be used to specify
-      the repository to pull from. For GitHub repository, the --github-repository
-      flag can be used for the same purpose. You can also use --github-image-id <COMMIT_SHA> in case
+      For GitHub repository, the --github-repository flag can be used to specify the repository
+      to pull and push images. You can also use --github-image-id <COMMIT_SHA> in case
       you want to pull the image with specific COMMIT_SHA tag.
 
       '${CMDNAME} shell \\
-            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+            -- github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
       '${CMDNAME} \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
 
@@ -1787,14 +1728,16 @@ ${CMDNAME} build-image [FLAGS]
          '--build-cache-local' or '-build-cache-pulled', or '--build-cache-none'
 
       Choosing whether to force pull images or force build the image:
-          '--force-build-image',
-           '--force-pull-image', '--force-pull-base-python-image'
+          '--force-build-image', '--force-pull-image'
+
+      Checking if the base python image has been updated:
+          '--check-if-base-python-image-updated'
 
       You can also pass '--production-image' flag to build production image rather than CI image.
 
-      For DockerHub pulling of base images: '--dockerhub-user' and '--dockerhub-repo' flags can be
-      used to specify the repository to pull from. For GitHub repository, the '--github-repository'
-      flag can be used for the same purpose.
+      For GitHub repository, the '--github-repository' can be used to choose repository
+      to pull/push images.
+
 Flags:
 $(breeze::flag_airflow_variants)
 $(breeze::flag_build_different_airflow_version)
@@ -1961,24 +1904,17 @@ $(breeze::flag_verbosity)
     export DETAILED_USAGE_PUSH_IMAGE="
 ${CMDNAME} push_image [FLAGS]
 
-      Pushes images to docker registry. You can push the images to DockerHub registry (default)
-      or to the GitHub registry (if --use-github-registry flag is used).
+      Pushes images to GitHub registry.
 
-      For DockerHub pushes: --dockerhub-user and --dockerhub-repo flags can be used to specify
-      the repository to push to. For GitHub repository, the --github-repository
-      flag can be used for the same purpose. You can also add
-      --github-image-id <COMMIT_SHA> in case you want to push image with specific
-      SHA tag. In case you specify --github-repository or --github-image-id, you
-      do not need to specify --use-github-registry flag.
-
+      You can add --github-repository to push to a different repository/organisation.
+      You can add --github-image-id <COMMIT_SHA> in case you want to push image with specific
+      SHA tag.
       You can also add --production-image flag to switch to production image (default is CI one)
 
       Examples:
 
       '${CMDNAME} push-image' or
-      '${CMDNAME} push-image --dockerhub-user user' to push to your private registry or
       '${CMDNAME} push-image --production-image' - to push production image or
-      '${CMDNAME} push-image --use-github-registry' - to push to GitHub image registry or
       '${CMDNAME} push-image \\
             --github-repository user/airflow' - to push to your user's fork
       '${CMDNAME} push-image \\
@@ -2667,16 +2603,15 @@ function breeze::flag_build_docker_images() {
         package-related files, but you can force it using this flag.
 
 -P, --force-pull-images
-        Forces pulling of images from DockerHub before building to populate cache. The
-        images are pulled by default only for the first time you run the
+        Forces pulling of images from GitHub Container Registry before building to populate cache.
+        The images are pulled by default only for the first time you run the
         environment, later the locally build images are used as cache.
 
---force-pull-base-python-image
-        Forces pulling of Python base image from DockerHub before building to
-        populate cache. This should only be run in case we need to update to latest available
-        Python base image. This should be a rare and manually triggered event. Also this flag
-        is used in the scheduled run in CI when we rebuild all the images from the scratch
-        and run the tests to see if the latest python images do not fail our tests.
+--check-if-base-python-image-updated
+        Checks if Python base image from DockerHub has been updated vs the current python base
+        image we store in GitHub Container Registry. Python images are updated regularly with
+        security fixes, this switch will check if a new one has been released and will pull and
+        prepare a new base python based on the latest one.
 
 --cleanup-docker-context-files
         Removes whl and tar.gz files created in docker-context-files before running the command.
@@ -2785,14 +2720,10 @@ Build options:
         This is default strategy used by the Production image builds.
 
 -U, --build-cache-pulled
-        Uses images pulled from registry (either DockerHub or GitHub depending on
-        --use-github-registry flag) to build images. The pulled images will be used as cache.
+        Uses images pulled from GitHub Container Registry to build images.
         Those builds are usually faster than when ''--build-cache-local'' with the exception if
-        the registry images are not yet updated. The DockerHub images are updated nightly and the
-        GitHub images are updated after merges to main so it might be that the images are still
-        outdated vs. the latest version of the Dockerfiles you are using. In this case, the
-        ''--build-cache-local'' might be faster, especially if you iterate and change the
-        Dockerfiles yourself.
+        the registry images are not yet updated. The images are updated after successful merges
+        to main.
 
         This is default strategy used by the CI image builds.
 
@@ -2811,8 +2742,6 @@ Build options:
 # Prints flags controlling docker pull and push process
 #
 # Global constants used:
-#       _breeze_default_dockerhub_user
-#       _breeze_default_dockerhub_repo
 #       _breeze_default_github_repository
 #       _breeze_default_github_image_id
 #
@@ -2822,22 +2751,9 @@ Build options:
 function breeze::flag_pull_push_docker_images() {
     local show_sha="${1-'show_sha'}"
     echo "
--D, --dockerhub-user DOCKERHUB_USER
-        DockerHub user used to pull, push and build images. Default: ${_breeze_default_dockerhub_user:=}.
-
--H, --dockerhub-repo DOCKERHUB_REPO
-        DockerHub repository used to pull, push, build images. Default: ${_breeze_default_dockerhub_repo:=}.
-
--c, --use-github-registry
-        If GitHub registry is enabled, pulls and pushes are done from the GitHub registry not
-        DockerHub. You need to be logged in to the registry in order to be able to pull/push from
-        and you need to be committer to push to Apache Airflow' GitHub registry.
-
 -g, --github-repository GITHUB_REPOSITORY
-        GitHub repository used to pull, push images when cache is used.
+        GitHub repository used to pull, push images.
         Default: ${_breeze_default_github_repository:=}.
-
-        If you use this flag, automatically --use-github-registry flag is enabled.
 
 "
 
@@ -2849,8 +2765,6 @@ function breeze::flag_pull_push_docker_images() {
         <COMMIT_SHA>, you can specify it in github-image-id flag and Breeze will
         automatically pull and use that image so that you can easily reproduce a problem
         that occurred in CI.
-
-        If you use this flag, automatically --use-github-registry is enabled.
 
         Default: ${_breeze_default_github_image_id:=}.
 
@@ -3074,8 +2988,6 @@ function breeze::print_star_line() {
 #   EXECUTOR
 #   POSTGRES_VERSION
 #   MYSQL_VERSION
-#   DOCKERHUB_USER
-#   DOCKERHUB_REPO
 #
 #######################################################################################################
 
@@ -3129,8 +3041,6 @@ function breeze::read_saved_environment_variables() {
 #     POSTGRES_VERSION
 #     MYSQL_VERSION
 #     MSSQL_VERSION
-#     DOCKERHUB_USER
-#     DOCKERHUB_REPO
 #
 # Updated Global constants:
 #      BRANCH_NAME
@@ -3300,16 +3210,12 @@ function breeze::make_sure_precommit_is_installed() {
 function breeze::remove_images() {
     # shellcheck disable=SC2086
     docker rmi --force ${PYTHON_BASE_IMAGE} \
-                       ${GITHUB_REGISTRY_PYTHON_BASE_IMAGE} \
                        ${AIRFLOW_PYTHON_BASE_IMAGE} \
-                       ${AIRFLOW_CI_IMAGE} \
-                       ${DEFAULT_CI_IMAGE} \
                        ${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE} \
-                       ${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE} \
+                       ${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE} \
+                       ${AIRFLOW_CI_IMAGE} \
                        ${AIRFLOW_PROD_IMAGE} \
-                       ${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE} \
                        ${AIRFLOW_PROD_BUILD_IMAGE} \
-                       ${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE} \
         2>/dev/null >/dev/null && true
     echo
     echo "###################################################################"
@@ -3514,7 +3420,7 @@ function breeze::run_breeze_command() {
         docker_engine_resources::check_all_resources
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
-            ${run_command} "${SCRIPTS_CI_DIR}/tools/ci_fix_ownership.sh"  || true
+            ${run_command} "${SCRIPTS_CI_DIR}/tools/fix_ownership.sh"  || true
         else
             ${run_command} "${dc_run_file}" run --service-ports --rm airflow "${@}"
         fi
@@ -3571,9 +3477,9 @@ function breeze::run_breeze_command() {
         ;;
     perform_push_image)
         if [[ ${PRODUCTION_IMAGE} == "true" ]]; then
-            push_pull_remove_images::push_prod_images
+            push_pull_remove_images::push_prod_images_to_github
         else
-            push_pull_remove_images::push_ci_images
+            push_pull_remove_images::push_ci_images_to_github
         fi
         ;;
     perform_initialize_local_virtualenv)

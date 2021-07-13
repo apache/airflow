@@ -28,27 +28,22 @@ shift
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
-
 start_end::group_start "Configure Docker Registry"
 build_images::configure_docker_registry
 start_end::group_end
 
-export AIRFLOW_PROD_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
+start_end::group_start "Waiting for ${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 
-start_end::group_start "Waiting for ${AIRFLOW_PROD_IMAGE_NAME} image to appear"
-
-push_pull_remove_images::wait_for_github_registry_image \
-    "${AIRFLOW_PROD_IMAGE_NAME}${GITHUB_REGISTRY_IMAGE_SUFFIX}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+push_pull_remove_images::wait_for_image "${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 start_end::group_end
 
 start_end::group_start "Pulling the PROD Image"
 build_images::prepare_prod_build
-image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+image_name_with_tag="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 verbosity::print_info "Pulling the ${image_name_with_tag} image and tagging with ${AIRFLOW_PROD_IMAGE}"
-push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_PROD_IMAGE}" "${image_name_with_tag}"
+push_pull_remove_images::pull_image_if_not_present_or_forced "${image_name_with_tag}"
 start_end::group_end
 
 if [[ ${VERIFY_IMAGE=} != "false" ]]; then
-    verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+    verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 fi
