@@ -161,9 +161,8 @@ class TestUtils(unittest.TestCase):
         assert "At 00:00, on day 1 of the month" == utils.get_schedule_interval_description(
             schedule_interval='@monthly'
         )
-        assert (
-            "At 00:00, on day 1 of the month, only in January"
-            == utils.get_schedule_interval_description(schedule_interval='@yearly')
+        assert "At 00:00, on day 1 of the month, only in January" == utils.get_schedule_interval_description(
+            schedule_interval='@yearly'
         )
         assert "At 00:00, only on Tuesday" == utils.get_schedule_interval_description(
             schedule_interval='0 0 * * 2'
