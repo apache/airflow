@@ -262,11 +262,28 @@ and Admin role. They also forward local port ``8080`` to the webserver port and 
 Installing additional requirements
 ..................................
 
+.. warning:: Installing requirements this way is a very convenient method of running Airflow, very useful for
+    testing and debugging. However, do not be tricked by its convenience. You should never, ever use it in
+    production environment. We have deliberately chose to make it a development/test dependency and we print
+    a warning, whenever it is used. There is an inherent security-related issue with using this method in
+    production. Installing the requirements this way can happen at literally any time - when your containers
+    get restarted, when your machines in K8S cluster get restarted. In a K8S Cluster those events can happen
+    literally any time. This opens you up to a serious vulnerability where your production environment
+    might be brought down by a single dependency being removed from PyPI - or even dependency of your
+    dependency. This means that you put your production service availability in hands of 3rd-party developers.
+    At any time, any moment including weekends and holidays those 3rd party developers might bring your
+    production Airflow instance down, without you even knowing it. This is a serious vulnerability that
+    is similar to the infamous
+    `leftpad <https://qz.com/646467/how-one-programmer-broke-the-internet-by-deleting-a-tiny-piece-of-code/>`_
+    problem. You can fully protect against this case by building your own, immutable custom image, where the
+    dependencies are baked in. You have been warned.
+
 Installing additional requirements can be done by specifying ``_PIP_ADDITIONAL_REQUIREMENTS`` variable.
 The variable should contain a list of requirements that should be installed additionally when entering
 the containers. Note that this option slows down starting of Airflow as every time any container starts
-it must install new packages. Therefore this option should only be used for testing. When testing is
-finished, you should create your custom image with dependencies baked in.
+it must install new packages and it opens up huge potential security vulnerability when used in production
+(see below). Therefore this option should only be used for testing. When testing is finished,
+you should create your custom image with dependencies baked in.
 
 Example:
 

@@ -144,7 +144,7 @@ class ECSOperator(BaseOperator):
 
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
-    template_fields_renderers = {"overrides": "py"}
+    template_fields_renderers = {"overrides": "json"}
 
     def __init__(
         self,

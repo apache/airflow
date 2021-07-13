@@ -255,6 +255,7 @@ doc = [
 docker = [
     'docker',
 ]
+drill = ['sqlalchemy-drill>=1.1.0', 'sqlparse>=0.4.1']
 druid = [
     'pydruid>=0.4.1',
 ]
@@ -532,6 +533,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
+    'apache.drill': drill,
     'apache.druid': druid,
     'apache.hdfs': hdfs,
     'apache.hive': hive,
@@ -722,6 +724,7 @@ ALL_PROVIDERS = list(PROVIDERS_REQUIREMENTS.keys())
 
 ALL_DB_PROVIDERS = [
     'apache.cassandra',
+    'apache.drill',
     'apache.druid',
     'apache.hdfs',
     'apache.hive',

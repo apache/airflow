@@ -419,15 +419,11 @@ against main is done to ``v2-*-test`` branches, but PRs from contributors toward
 The ``v2-*-test`` branches and ``v2-*-stable`` ones are merged just before the release and that's the
 time when they converge.
 
-The production images are build in DockerHub from:
+The production images are released in DockerHub from:
 
 * main branch for development
-* v2-*-test branches for testing 2.*.x release
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
-  final releases. There are no production images prepared from v2-*-stable branch.
-
-Similar rules apply to ``1.10.x`` releases until June 2021. We have ``v1-10-test`` and ``v1-10-stable``
-branches there.
+  final releases.
 
 Development Environments
 ========================
@@ -576,17 +572,17 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-airbyte, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid,
-apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark,
-apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
-cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel, devel_all, devel_ci,
-devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp,
-gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
-jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql,
-microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, papermill,
-password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
-segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau,
-telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+airbyte, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
+apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
+apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
+cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
+devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
+facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
+http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
+microsoft.mssql, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle,
+pagerduty, papermill, password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3,
+salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite,
+ssh, statsd, tableau, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
 
   .. END EXTRAS HERE
 

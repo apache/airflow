@@ -41,6 +41,7 @@ const Docs: React.FC = () => {
     { path: 'amazon', name: 'Amazon' },
     { path: 'apache-beam', name: 'Apache Beam' },
     { path: 'apache-cassandra', name: 'Apache Cassandra' },
+    { path: 'apache-drill', name: 'Apache Drill' },
     { path: 'apache-druid', name: 'Apache Druid' },
     { path: 'apache-hdfs', name: 'Apache HDFS' },
     { path: 'apache-hive', name: 'Apache Hive' },

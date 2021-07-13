@@ -1379,7 +1379,6 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
         if not res:
-            self.log.info("CHECK AND CHANGE")
             return
 
         try:
