@@ -825,6 +825,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_private_repo_requirements(self):
 
         with create_session() as session:
+            self._clean_stop_pypi_server()
             self._initiate_pypi_server()
             session.execute("delete from connection where conn_id = 'private_repo_test_conn';")
             cn = Connection("private_repo_test_conn",

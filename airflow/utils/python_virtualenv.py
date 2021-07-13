@@ -52,13 +52,15 @@ def _generate_pip_install_cmd(tmp_dir: str,
         port = con.port
         host = con.host
         if user:
-            extra_index_url = f"{schema}://{user}:{password}@{host}:{port}/repository/python/simple"
+            index_url = f"{schema}://{user}:{password}@{host}:{port}/repository/python/simple"
         else:
-            extra_index_url = f"{schema}://{host}:{port}/repository/python/simple"
+            index_url = f"{schema}://{host}:{port}/repository/python/simple"
         private_cmd = [f'{tmp_dir}/bin/pip',
                        'install',
                        f'--trusted-host', host,
-                       f'--extra-index-url', extra_index_url]
+                       f'--index-url', index_url,
+                       f'--extra-index-url', 'https://pypi.org/simple'
+                       ]
         return private_cmd + requirements
 
     public_cmd = [f'{tmp_dir}/bin/pip', 'install']
@@ -112,7 +114,8 @@ def prepare_virtualenv(
     :type system_site_packages: bool
     :param requirements: List of additional python packages
     :type requirements: List[str]
-    :param connection_id: The private repository in case there are private packages to install.
+    :param connection_id: The private repository connection_id
+     case there are private packages to install.
     :type connection_id: str
     :rtype: str
     """
