@@ -19,20 +19,15 @@
 package-name: apache-airflow-providers-influxdb
 name: Influxdb
 description: |
-    `Neo4j <https://neo4j.com/>`__
+    `InfluxDB <https://www.influxdata.com/>`__
 versions:
   - 1.0.0
 integrations:
   - integration-name: Influxdb
-    external-doc-url: https://neo4j.com/
+    external-doc-url: https://www.influxdata.com/
     how-to-guide:
       - /docs/apache-airflow-providers-influxdb/operators/influxdb.rst
     tags: [software]
-
-operators:
-  - integration-name: Influxdb
-    python-modules:
-      - airflow.providers.influxdb.operators.influxdb
 
 hooks:
   - integration-name: Influxdb
