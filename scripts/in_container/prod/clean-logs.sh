@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,14 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+set -e pipefail
 
-DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
+readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
 
 trap "exit" INT TERM
 
-EVERY=$((15*60))
+readonly EVERY=$((15*60))
 
 echo "Cleaning logs every $EVERY seconds"
 
@@ -33,5 +32,5 @@ while true; do
   find "${DIRECTORY}"/logs -mtime +"${RETENTION}" -name '*.log' -delete
 
   seconds=$(( $(date -u +%s) % EVERY))
-  [[ $seconds -lt 1 ]] || sleep $((EVERY - seconds))
+  (( "${seconds}" < 1 )) || sleep $((EVERY - seconds))
 done
