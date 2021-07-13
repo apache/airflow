@@ -264,10 +264,9 @@ class PythonVirtualenvOperator(PythonOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
-    :param repository_url: string with the private repo url.
-    :type repository_url: optional[str]
-    :param index_url: string with the index url of the private repo.
-    :type: index_url: optional[str]
+    :param connection_id: connection id can be set in case we want to login into a private
+    repository so retrieving the information of the private repository later.
+    :type connection_id: optional[str]
     """
 
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
@@ -312,8 +311,7 @@ class PythonVirtualenvOperator(PythonOperator):
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
-        repository_url: Optional[str] = None,
-        index_url: Optional[str] = None,
+        connection_id: Optional[str] = None,
         **kwargs,
     ):
         if (
@@ -344,8 +342,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
-        self.repository_url = repository_url
-        self.index_url = index_url
+        self.connection_id = connection_id
 
         if not self.system_site_packages and self.use_dill and 'dill' not in self.requirements:
             self.requirements.append('dill')
@@ -370,8 +367,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements=self.requirements,
-                repository_url=self.repository_url,
-                index_url=self.index_url
+                connection_id=self.connection_id
             )
 
             self._write_args(input_filename)

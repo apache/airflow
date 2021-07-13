@@ -18,7 +18,6 @@
 import copy
 import logging
 import os
-import re
 import subprocess
 import sys
 import time
@@ -31,7 +30,7 @@ from typing import List
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models import Connection, DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
 from airflow.operators.dummy import DummyOperator
@@ -44,7 +43,6 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
-from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -768,10 +766,12 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
+    def _run_as_operator(self, fn, python_version=sys.version_info[0], connection_id=None, **kwargs):
 
         task = PythonVirtualenvOperator(
-            python_callable=fn, python_version=python_version, task_id='task', dag=self.dag, **kwargs
+            python_callable=fn, python_version=python_version, task_id='task', dag=self.dag,
+            connection_id=connection_id,
+            **kwargs
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         return task
@@ -823,19 +823,28 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
     def test_private_repo_requirements(self):
-        def f():
-            import flask  # noqa: F401
-            import funcsigs  # noqa: F401
 
-        self._initiate_pypi_server()
-        self._run_as_operator(
-            f,
-            requirements=['flask', 'funcsigs'],
-            repository_url="localhost",
-            index_url="http://localhost:8080/repository/python/simple",
-            system_site_packages=False,
-        )
-        self._clean_stop_pypi_server()
+        with create_session() as session:
+            self._initiate_pypi_server()
+            session.execute("delete from connection where conn_id = 'private_repo_test_conn';")
+            cn = Connection("private_repo_test_conn",
+                            "private_pypi",
+                            host="localhost",
+                            schema="http",
+                            port=8080)
+            session.add(cn)
+
+            def f():
+                import flask  # noqa: F401
+                import funcsigs  # noqa: F401
+            self._run_as_operator(
+                f,
+                requirements=['flask', 'funcsigs'],
+                connection_id="private_repo_test_conn",
+                system_site_packages=False,
+            )
+            session.commit()
+            self._clean_stop_pypi_server()
 
     def test_range_requirements(self):
         def f():

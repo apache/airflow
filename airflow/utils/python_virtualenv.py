@@ -23,6 +23,8 @@ from typing import List, Optional
 
 import jinja2
 
+from airflow.hooks.base import BaseHook
+from airflow.models import BaseOperator, Connection
 from airflow.utils.process_utils import execute_in_subprocess
 
 
@@ -37,19 +39,30 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
 
 def _generate_pip_install_cmd(tmp_dir: str,
                               requirements: List[str],
-                              repository_url: str = '',
-                              index_url: str = ''
+                              connection_id: Optional[str] = None
                               ) -> Optional[List[str]]:
     if not requirements:
         return None
 
-    public_cmd = [f'{tmp_dir}/bin/pip', 'install']
-    private_cmd = [f'{tmp_dir}/bin/pip',
-                   'install',
-                   f'--trusted-host', f'{repository_url}',
-                   f'--extra-index-url',  f'{index_url}']
-    if repository_url:
+    if connection_id:
+        con: Connection = BaseHook.get_connection(connection_id)
+        user = con.login
+        schema = con.schema or 'http'
+        password = con.get_password()
+        port = con.port
+        host = con.host
+        if user:
+            extra_index_url = f"{schema}://{user}:{password}@{host}:{port}/repository/python/simple"
+        else:
+            extra_index_url = f"{schema}://{host}:{port}/repository/python/simple"
+        private_cmd = [f'{tmp_dir}/bin/pip',
+                       'install',
+                       f'--trusted-host', host,
+                       f'--extra-index-url', extra_index_url]
         return private_cmd + requirements
+
+    public_cmd = [f'{tmp_dir}/bin/pip', 'install']
+
     return public_cmd + requirements
 
 
@@ -85,7 +98,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 def prepare_virtualenv(
     venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str],
-    repository_url: Optional[str] = None, index_url: Optional[str] = None
+    connection_id: Optional[str] = None
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -99,16 +112,14 @@ def prepare_virtualenv(
     :type system_site_packages: bool
     :param requirements: List of additional python packages
     :type requirements: List[str]
-    :param repository_url: The private repository in case there are private packages to install.
-    :type repository_url: str
-    :param index_url: The private index url (actual url to the direct python repository remotely)
-    :return: Path to a binary file with Python in a virtual environment.
+    :param connection_id: The private repository in case there are private packages to install.
+    :type connection_id: str
     :rtype: str
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
     pip_cmd = _generate_pip_install_cmd(
-        venv_directory, requirements, repository_url, index_url)
+        venv_directory, requirements, connection_id)
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 
