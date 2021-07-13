@@ -157,19 +157,19 @@ class TestUtils(unittest.TestCase):
     def test_get_schedule_interval_description(self):
         """Testing that our cron descriptor works as expected"""
 
-        assert "Runs: At 00:00" == utils.get_schedule_interval_description(schedule_interval='@daily')
-        assert "Runs: At 00:00, on day 1 of the month" == utils.get_schedule_interval_description(
+        assert "At 00:00" == utils.get_schedule_interval_description(schedule_interval='@daily')
+        assert "At 00:00, on day 1 of the month" == utils.get_schedule_interval_description(
             schedule_interval='@monthly'
         )
         assert (
-            "Runs: At 00:00, on day 1 of the month, only in January"
+            "At 00:00, on day 1 of the month, only in January"
             == utils.get_schedule_interval_description(schedule_interval='@yearly')
         )
-        assert "Runs: At 00:00, only on Tuesday" == utils.get_schedule_interval_description(
+        assert "At 00:00, only on Tuesday" == utils.get_schedule_interval_description(
             schedule_interval='0 0 * * 2'
         )
         assert (
-            "Runs: At 23 minutes past the hour, every 2 hours, between 00:00 and 20:59"
+            "At 23 minutes past the hour, every 2 hours, between 00:00 and 20:59"
             == utils.get_schedule_interval_description(schedule_interval='23 0-20/2 * * *')
         )
 

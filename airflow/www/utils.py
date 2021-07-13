@@ -475,7 +475,7 @@ def get_schedule_interval_description(schedule_interval: Any) -> str:
         )
 
         try:
-            schedule_interval_description = f'Runs: {descriptor.get_description()}'
+            schedule_interval_description = descriptor.get_description()
         except (FormatException, MissingFieldException):
             schedule_interval_description = None
     else:
