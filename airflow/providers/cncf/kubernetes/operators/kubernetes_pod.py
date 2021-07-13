@@ -357,7 +357,7 @@ class KubernetesPodOperator(BaseOperator):
                     f'More than one pod running with labels: {label_selector}'
                 )
 
-            launcher = self._get_pod_launcher()
+            launcher = self.create_pod_launcher()
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
