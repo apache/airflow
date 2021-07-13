@@ -35,7 +35,7 @@ class TighteningControllerView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
 
-    base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete']
+    base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete', 'can_controllerimport']
 
     extra_fields = []
     list_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code', 'work_center_name', 'device_type']
@@ -94,7 +94,7 @@ class TighteningControllerView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @expose('/controllerimport', methods=["POST"])
-    # @has_access
+    @has_access
     @action_logging
     def controllerimport(self):
         try:

@@ -8,6 +8,7 @@ from airflow.entities.kafka_consumer import ClsKafkaConsumer
 from airflow.utils.logger import generate_logger
 import time
 from airflow.utils.db import get_connection
+from dags.curve_store_dag import doStoreTask, doTriggerAnayTask
 
 _logger = generate_logger(__name__)
 
@@ -34,7 +35,14 @@ dag = DAG(
 
 def curve_data_handler(msg):
     try:
-        _logger.info(msg)
+        _logger.debug(f'收到kafka数据包:{msg}')
+        data = {
+            'params': {
+                'conf': msg
+            }
+        }
+        doStoreTask(True, data)
+        doTriggerAnayTask(True, data)
     except Exception as e:
         _logger.error(repr(e))
 
@@ -55,18 +63,17 @@ def get_kafka_config():
 
 
 def watch_kafka_curve(*args, **kwargs):
+    consumer = ClsKafkaConsumer(
+        **get_kafka_config(),
+        handler=curve_data_handler
+    )
     while True:
         try:
-            consumer = ClsKafkaConsumer(
-                **get_kafka_config(),
-                handler=curve_data_handler
-            )
             consumer.read()
-            return
         except Exception as e:
             _logger.error(repr(e))
-            _logger.info('retry in {} seconds'.format(retry_delay))
-            time.sleep(retry_delay)
+            # _logger.info('retry in {} seconds'.format(retry_delay))
+            # time.sleep(retry_delay)
             continue
 
 
