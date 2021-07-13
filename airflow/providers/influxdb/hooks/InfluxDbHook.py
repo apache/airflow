@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module allows to connect to a Neo4j database."""
+"""This module allows to connect to a InfluxDB database."""
 
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
