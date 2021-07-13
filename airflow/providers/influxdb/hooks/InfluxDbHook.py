@@ -49,6 +49,12 @@ class InfluxDBHook(BaseHook):
         self.client = None
         self.extras = None
         self.uri = None
+        self.org_name = None
+
+    def get_client(self, uri, token, org_name):
+        return InfluxDBClient(url=uri,
+                                token=token,
+                                org=org_name)
 
     def get_conn(self) -> InfluxDBClient:
         """
@@ -65,11 +71,9 @@ class InfluxDBHook(BaseHook):
             return self.client
 
         token = self.connection.extra_dejson.get('token')
-        org_name = self.connection.extra_dejson.get('org_name')
+        self.org_name = self.connection.extra_dejson.get('org_name')
 
-        self.client = InfluxDBClient(url=self.uri,
-                                token=token,
-                                org=org_name)
+        self.client = self.get_client(self.uri, token, self.org_name)
 
         return self.client
 
