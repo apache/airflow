@@ -47,17 +47,17 @@ def _generate_pip_install_cmd(tmp_dir: str,
     if connection_id:
         con: Connection = BaseHook.get_connection(connection_id)
         user = con.login
-        schema = con.schema or 'http'
+        schema = con.schema or 'https'
         password = con.get_password()
-        port = con.port
+        port = con.port or 8080
         host = con.host
+        host_suffix = con.extra_dejson.get('host_suffix', 'repository/python/simple')
         if user:
-            index_url = f"{schema}://{user}:{password}@{host}:{port}/repository/python/simple"
+            index_url = os.path.join(f"{schema}://{user}:{password}@{host}:{port}", host_suffix)
         else:
-            index_url = f"{schema}://{host}:{port}/repository/python/simple"
+            index_url = os.path.join(f"{schema}://{host}:{port}", host_suffix)
         private_cmd = [f'{tmp_dir}/bin/pip',
                        'install',
-                       f'--trusted-host', host,
                        f'--index-url', index_url,
                        f'--extra-index-url', 'https://pypi.org/simple'
                        ]

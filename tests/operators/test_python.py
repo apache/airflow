@@ -18,6 +18,8 @@
 import copy
 import logging
 import os
+import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -59,6 +61,22 @@ TI_CONTEXT_ENV_VARS = [
     'AIRFLOW_CTX_EXECUTION_DATE',
     'AIRFLOW_CTX_DAG_RUN_ID',
 ]
+
+
+def _clean_stop_pypi_server(pid):
+    subprocess.Popen(['kill', '-9', f'{pid}'])
+
+
+@pytest.fixture()
+def pypi_server():
+    if not os.path.exists('/root/packages'):
+        os.makedirs('/root/packages')
+    process = subprocess.Popen(['pypi-server', '-p', '8282'])
+    yield
+    _clean_stop_pypi_server(process.pid)
+    shutil.rmtree('/root/packages')
+
+
 
 
 class Call:
@@ -744,6 +762,7 @@ class TestShortCircuitOperator(unittest.TestCase):
 virtualenv_string_args: List[str] = []
 
 
+@pytest.mark.usefixtures("pypi_server")
 class TestPythonVirtualenvOperator(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -824,28 +843,22 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_private_repo_requirements(self):
 
-        with create_session() as session:
-            self._clean_stop_pypi_server()
-            self._initiate_pypi_server()
-            session.execute("delete from connection where conn_id = 'private_repo_test_conn';")
-            cn = Connection("private_repo_test_conn",
-                            "private_pypi",
-                            host="localhost",
-                            schema="http",
-                            port=8080)
-            session.add(cn)
+        c = Connection("private_repo_test_conn",
+                       "private_pypi",
+                       host="localhost",
+                       schema="http",
+                       port=8282)
+        os.environ[f"AIRFLOW_CONN_{c.conn_id.upper()}"]=f'{c.get_uri()}'
 
-            def f():
-                import flask  # noqa: F401
-                import funcsigs  # noqa: F401
-            self._run_as_operator(
-                f,
-                requirements=['flask', 'funcsigs'],
-                connection_id="private_repo_test_conn",
-                system_site_packages=False,
-            )
-            session.commit()
-            self._clean_stop_pypi_server()
+        def f():
+            import flask  # noqa: F401
+            import funcsigs  # noqa: F401
+        self._run_as_operator(
+            f,
+            requirements=['flask', 'funcsigs'],
+            connection_id="private_repo_test_conn",
+            system_site_packages=False,
+        )
 
     def test_range_requirements(self):
         def f():
@@ -885,25 +898,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             raise Exception
 
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
-
-    @staticmethod
-    def _initiate_pypi_server():
-        try:
-            if not os.path.exists('/root/packages'):
-                os.makedirs('/root/packages')
-            subprocess.Popen(['pypi-server'])
-            time.sleep(1.5)
-        except Exception as e:
-            pass
-
-    @staticmethod
-    def _clean_stop_pypi_server(port: bytes = b"8080"):
-        popen = subprocess.Popen(['netstat', '-lpn'], shell=False, stdout=subprocess.PIPE)
-        (data, err) = popen.communicate()
-        process = [process for process in data.split(b'\n') if port in process]
-        if process:
-            pid = process[0].split(b"LISTEN")[1].strip().split(b"/")[0]
-            subprocess.Popen(['kill', '-9', pid])
 
     @staticmethod
     def _invert_python_major_version():
