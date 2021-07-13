@@ -18,6 +18,7 @@
 import copy
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
@@ -834,6 +835,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             index_url="http://localhost:8080/repository/python/simple",
             system_site_packages=False,
         )
+        self._clean_stop_pypi_server()
 
     def test_range_requirements(self):
         def f():
@@ -883,6 +885,15 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             time.sleep(1.5)
         except Exception as e:
             pass
+
+    @staticmethod
+    def _clean_stop_pypi_server(port: bytes = b"8080"):
+        popen = subprocess.Popen(['netstat', '-lpn'], shell=False, stdout=subprocess.PIPE)
+        (data, err) = popen.communicate()
+        process = [process for process in data.split(b'\n') if port in process]
+        if process:
+            pid = process[0].split(b"LISTEN")[1].strip().split(b"/")[0]
+            subprocess.Popen(['kill', '-9', pid])
 
     @staticmethod
     def _invert_python_major_version():
