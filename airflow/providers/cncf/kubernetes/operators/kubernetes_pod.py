@@ -166,6 +166,7 @@ class KubernetesPodOperator(BaseOperator):
         This class needs to inherit from pod_launcher.PodLauncher and accept
         the same arguments in object constructor.
         defaults to airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher
+    :type pod_launcher_class: Type[pod_launcher.PodLauncher]
     """
 
     template_fields: Iterable[str] = (
