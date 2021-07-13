@@ -385,8 +385,6 @@ It is still possible (but not required) to "register" hooks in plugins. This is 
 
 See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
 
-### Adding Operators and Sensors via plugins is no longer supported
-
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
 The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.
