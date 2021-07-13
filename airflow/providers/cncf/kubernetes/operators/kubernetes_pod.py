@@ -160,6 +160,13 @@ class KubernetesPodOperator(BaseOperator):
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
     :type termination_grace_period: int
+    :param xcom_sidecar_container: Definition of custom sidecar container. Useful when
+        you need to customize some parts of a default one (like container image poitning
+        to private repository). It is a good idea to define this as a modification of
+        airflow.providers.cncf.kubernetes.utils.xcom_sidecar.PodDefaults.SIDECAR_CONTAINER.
+        If no xcom-sidecar_container is provided then PodDefaults.SIDECAR_CONTAINER will
+        be used.
+        defaults to None
     """
 
     template_fields: Iterable[str] = (
