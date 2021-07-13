@@ -167,6 +167,7 @@ class KubernetesPodOperator(BaseOperator):
         If no xcom-sidecar_container is provided then PodDefaults.SIDECAR_CONTAINER will
         be used.
         defaults to None
+    :type xcom_sidecar_container: Optional[k8s.V1Container]
     """
 
     template_fields: Iterable[str] = (
