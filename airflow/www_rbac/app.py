@@ -179,12 +179,12 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             # 分析相关
             # appbuilder.add_view(views.XComModelView,
             #                     gettext("Analysis"))
-            appbuilder.add_view(views.CurveAnalysisTrackNoView,
-                                gettext("Analysis Via Track No"),
-                                category=gettext("Analysis"))
-            appbuilder.add_view(views.CurveAnalysisBoltNoView,
-                                gettext("Analysis Via Bolt No"),
-                                category=gettext("Analysis"))
+            # appbuilder.add_view(views.CurveAnalysisTrackNoView,
+            #                     gettext("Analysis Via Track No"),
+            #                     category=gettext("Analysis"))
+            # appbuilder.add_view(views.CurveAnalysisBoltNoView,
+            #                     gettext("Analysis Via Bolt No"),
+            #                     category=gettext("Analysis"))
 
             if "dev" in version.version:
                 airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
