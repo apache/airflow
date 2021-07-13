@@ -453,7 +453,7 @@ class PodGenerator:
         # Strip trailing '-' and '.' as they can't be followed by '.'
         trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
+        safe_pod_id = f"{trimmed_pod_id}-{safe_uuid}"
         return safe_pod_id
 
 
