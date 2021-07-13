@@ -28,7 +28,6 @@ from textwrap import dedent
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
-from airflow.models.param import Param
 
 # Operators; we need this to operate!
 from airflow.operators.bash import BashOperator
@@ -68,10 +67,9 @@ with DAG(
     'tutorial',
     default_args=default_args,
     description='A simple tutorial DAG',
-    schedule_interval=None,
+    schedule_interval=timedelta(days=1),
     start_date=days_ago(2),
     tags=['example'],
-    params={'param1': Param(type="number", minimum=0, maximum=10), 'param2': 'fix_string'}
 ) as dag:
     # [END instantiate_dag]
 
@@ -79,13 +77,13 @@ with DAG(
     # [START basic_task]
     t1 = BashOperator(
         task_id='print_date',
-        bash_command='echo {{ params.param1 }}',
+        bash_command='date',
     )
 
     t2 = BashOperator(
         task_id='sleep',
         depends_on_past=False,
-        bash_command='echo {{ params.param2 }}',
+        bash_command='sleep 5',
         retries=3,
     )
     # [END basic_task]
@@ -123,7 +121,7 @@ with DAG(
         task_id='templated',
         depends_on_past=False,
         bash_command=templated_command,
-        params={'my_param': Param('Parameter I passed in')},
+        params={'my_param': 'Parameter I passed in'},
     )
     # [END jinja_template]
 

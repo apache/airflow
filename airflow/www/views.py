@@ -1548,8 +1548,9 @@ class Airflow(AirflowBaseView):
             )
         except ValueError as ve:
             flash(f"{ve}", "error")
+            form = DateTimeForm(data={'execution_date': execution_date})
             return self.render_template(
-                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf
+                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")

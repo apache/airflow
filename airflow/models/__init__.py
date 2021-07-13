@@ -25,6 +25,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.errors import ImportError
 from airflow.models.log import Log
+from airflow.models.param import Param
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.sensorinstance import SensorInstance  # noqa: F401
