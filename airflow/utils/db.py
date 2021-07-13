@@ -427,7 +427,7 @@ def create_default_connections(session=None):
             login="postgres",
             password="airflow",
             schema="airflow",
-            host="postgres",
+            host="localhost",
         ),
         session,
     )
