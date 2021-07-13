@@ -1,24 +1,20 @@
-# -*- coding:utf-8 -*-
+import asyncio
 import os
-import datetime as dt
-from datetime import timedelta
 from airflow.models import DAG, DagRun
 from airflow.utils.curve import get_curve_params, get_task_params, generate_bolt_number, \
     get_craft_type
-import pendulum
-from airflow.operators.python_operator import PythonOperator
-from typing import Dict, Any
-from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
+from typing import Dict
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
-from airflow.entities.curve_storage import ClsCurveStorage
-from airflow.entities.result_storage import ClsResultStorage
+import datetime as dt
+from datetime import timedelta
+import pendulum
 from airflow.utils.logger import generate_logger
 from airflow.api.common.experimental import trigger_dag as trigger
-from airflow.models.tightening_controller import TighteningController
-from airflow.utils.curve import get_result_args, get_curve_args
 from distutils.util import strtobool
+from airflow.hooks.cas_plugin import CasHook
+from airflow.operators.python_operator import PythonOperator
 
-MINIO_ROOT_URL = os.environ.get('MINIO_ROOT_URL', None)
+_logger = generate_logger(__name__)
 
 try:
     ENV_ALWAYS_TRIGGER_ANAY = strtobool(
@@ -26,78 +22,8 @@ try:
 except:
     ENV_ALWAYS_TRIGGER_ANAY = True
 
-RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 # MAX_ACTIVE_ANALYSIS = os.environ.get('MAX_ACTIVE_ANALYSIS', 100)
 MAX_ACTIVE_ANALYSIS = 100
-STORE_TASK = 'store_result_curve'
-TRIGGER_ANAY_TASK = 'trigger_anay_task'
-DAG_ID = 'curve_anay'
-
-if RUNTIME_ENV == 'prod':
-    schedule_interval = None
-    write_options = SYNCHRONOUS
-else:
-    schedule_interval = None
-    write_options = ASYNCHRONOUS
-
-_logger = generate_logger(__name__)
-
-
-def onCurveAnalyFail(context):
-    _logger.error("{0} Run Fail".format(context))
-
-
-def onCurveAnalySuccess(context):
-    _logger.info("{0} Run Success".format(context))
-
-
-local_tz = pendulum.timezone("Asia/Shanghai")
-
-desoutter_default_args = {
-    'owner': 'desoutter',
-    'depends_on_past': False,
-    'start_date': dt.datetime(2020, 1, 1, tzinfo=local_tz),
-    'email': ['support@desoutter.cn'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 2,
-    'retry_delay': timedelta(minutes=2),
-    'retry_exponential_backoff': True,
-    'on_failure_callback': onCurveAnalyFail,
-    'on_success_callback': onCurveAnalySuccess,
-    'on_retry_callback': None,
-    'trigger_rule': 'all_success'
-}
-
-
-def doPush2Storage(params: Dict):
-    _logger.debug('start pushing result & curve...')
-    curveArgs = get_curve_args()
-    if MINIO_ROOT_URL:
-        curveArgs.update({'endpoint': MINIO_ROOT_URL})
-    ct = ClsCurveStorage(**curveArgs)
-    ct.metadata = params  # 必须在设置curvefile前赋值
-    resultArgs = get_result_args()
-    st = ClsResultStorage(**resultArgs)
-    st.metadata = params
-    params.update({'curveFile': ct.ObjectName})
-    if not st:
-        raise Exception('result storage not ready!')
-    _logger.debug('pushing result...')
-    st.write_result(params)
-    if not ct:
-        raise Exception('curve storage not ready!')
-    _logger.debug('pushing curve...')
-    try:
-        ct.write_curve(params)
-    except Exception as e:
-        _logger.info('writing curve error')
-        _logger.info(repr(e))
-        _logger.info(repr(params))
-        raise e
-
-
-SUPPORT_DEVICE_TYPE = ['tightening', 'servo_press']
 
 
 def isValidParams(test_mode, **kwargs):
@@ -123,37 +49,6 @@ def isValidParams(test_mode, **kwargs):
         raise Exception(u'参数result中设备类型: {}不支持'.format(device_type))
     result.update({'device_type': device_type})
     return params
-
-
-def trigger_push_result_dag(params):
-    _logger.info('pushing result to mq...')
-    push_result_dat_id = 'publish_result_dag'
-    conf = {
-        'data': params,
-        'data_type': 'tightening_result'
-    }
-    trigger.trigger_dag(push_result_dat_id, conf=conf,
-                        replace_microseconds=False)
-
-
-def doStoreTask(test_mode, **kwargs):
-    _logger.debug('start storing with kwargs: {0}'.format(kwargs))
-    params = isValidParams(test_mode, **kwargs)
-    _logger.info('params verify success')
-    _logger.debug('dag_run conf param: {0}'.format(params))  # 从接口中获取的参数
-    _logger.info('pushing result to storage...')
-    doPush2Storage(params)
-    _logger.info('push to storage success')
-
-
-def get_line_code_by_controller_name(controller_name):
-    controller_data = TighteningController.find_controller(controller_name)
-    if not controller_data:
-        raise Exception('未找到控制器数据: {}'.format(controller_name))
-    controller = '{}@{}/{}'.format(controller_data.get('controller_name'),
-                                   controller_data.get('work_center_code'),
-                                   controller_data.get('work_center_name'))
-    return controller_data.get('line_code', None), controller
 
 
 def prepare_trigger_params(params: Dict, task_instance):
@@ -231,6 +126,22 @@ def prepare_trigger_params(params: Dict, task_instance):
     return new_param
 
 
+def trigger_push_result_dag(params):
+    _logger.info('pushing result to mq...')
+    push_result_dat_id = 'publish_result_dag'
+    conf = {
+        'data': params,
+        'data_type': 'tightening_result'
+    }
+    trigger.trigger_dag(push_result_dat_id, conf=conf,
+                        replace_microseconds=False)
+
+
+def params_should_analyze(params: Dict) -> bool:
+    should_analyze = params.get('should_analyze', True)
+    return should_analyze
+
+
 def is_rework_result(params: Dict) -> bool:
     result_body = params.get('result', None)
     if not result_body:
@@ -242,20 +153,8 @@ def is_rework_result(params: Dict) -> bool:
     return False
 
 
-def params_should_anaylze(params: Dict) -> bool:
-    should_analyze = params.get('should_analyze', True)
-    return should_analyze
-
-
-def get_task_instance_type(params: Dict) -> str:
-    ret = 'normal'
-    if is_rework_result(params):
-        return 'rework'
-    return ret
-
-
 def should_skip_analysis(params: Dict) -> bool:
-    if not params_should_anaylze(params):
+    if not params_should_analyze(params):
         _logger.info('强制不分析结果，跳过分析...')
         return True
     if ENV_ALWAYS_TRIGGER_ANAY:
@@ -266,14 +165,54 @@ def should_skip_analysis(params: Dict) -> bool:
     return False
 
 
+def do_trigger_anay_task(test_mode, **kwargs):
+    params = isValidParams(test_mode, **kwargs)
+    task_instance = kwargs.get('task_instance', None)
+    new_param = prepare_trigger_params(params, task_instance)
+    trigger_push_result_dag(new_param)
+    if should_skip_analysis(params):
+        return
+    cas = CasHook(role='analysis')
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(cas.trigger_analyze(new_param))
+    loop.close()
+    return result
+
+
+def on_dag_fail(context):
+    _logger.error("{0} Run Fail".format(context))
+
+
+def on_dag_success(context):
+    _logger.info("{0} Run Success".format(context))
+
+
 dag = DAG(
-    dag_id=DAG_ID,
+    dag_id='curve_analyze_dag',
     description=u'上汽拧紧曲线分析',
-    schedule_interval=schedule_interval,
-    default_args=desoutter_default_args,
-    concurrency=100,
+    schedule_interval=None,
+    default_args={
+        'owner': 'desoutter',
+        'depends_on_past': False,
+        'start_date': dt.datetime(2020, 1, 1, tzinfo=pendulum.timezone("Asia/Shanghai")),
+        'email': ['support@desoutter.cn'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+        'retries': 0,
+        'retry_delay': timedelta(minutes=2),
+        'retry_exponential_backoff': True,
+        'on_failure_callback': on_dag_fail,
+        'on_success_callback': on_dag_success,
+        'on_retry_callback': None,
+        'trigger_rule': 'all_success'
+    },
+    concurrency=MAX_ACTIVE_ANALYSIS,
     max_active_runs=MAX_ACTIVE_ANALYSIS)
 
-store_task = PythonOperator(provide_context=True,
-                            task_id=STORE_TASK, dag=dag, priority_weight=2,
-                            python_callable=doStoreTask)
+trigger_anay_task = PythonOperator(
+    provide_context=True,
+    task_id='trigger_anay_task',
+    dag=dag,
+    priority_weight=9,
+    python_callable=do_trigger_anay_task
+)

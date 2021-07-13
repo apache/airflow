@@ -8,13 +8,12 @@ from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from typing import Dict
 import logging
-from airflow.utils.curve import get_cas_training_base_url, get_cas_analysis_base_url, get_curve_template_name
+from airflow.utils.curve import get_curve_template_name
 from airflow.models import Variable
-from aiohttp import ClientTimeout
-from aiohttp_retry import RetryClient
 import asyncio
 from airflow.entities.redis import ClsRedisConnection
 from airflow.utils.curve import parse_template_name
+from airflow.hooks.cas_plugin import CasHook
 
 CURVE_MODE_MAP = {
     'OK': 0,
@@ -125,23 +124,14 @@ def get_templates_from_variables(template_names=None) -> Dict:
     return templates
 
 
-def get_cas_templates_endpoint(baseUrl):
-    return '{}/{}'.format(baseUrl, 'cas/templates')
-
-
 async def training_server_update_templates():
-    headers = {
-        'Accept': 'application/json',
-        'Content-type': 'application/json'
-    }
-    analysisUrl = get_cas_templates_endpoint(get_cas_analysis_base_url())
-    trainingUrl = get_cas_templates_endpoint(get_cas_training_base_url())
-    for url in list(dict.fromkeys([analysisUrl, trainingUrl])):  # remove duplicate
-        async with RetryClient(timeout=ClientTimeout(300)) as client:
-            async with client.post(headers=headers, url=url, retry_attempts=5) as r:
-                r.raise_for_status()
-                resp = await r.read()
-                _logger.debug("cas/templates called, url: {} resp: {}".format(url, resp))
+    cas_analysis = CasHook(role='analysis')
+    cas_training = CasHook(role='training')
+    cas_all = CasHook(role='all')
+    loop = asyncio.get_event_loop()
+    for cas in filter(lambda x: x.connection is not None, [cas_analysis, cas_training, cas_all]):
+        loop.run_until_complete(cas.training_server_update_templates())
+    loop.close()
 
 
 def doLoadCurveTmplsTask(**kwargs):
@@ -152,9 +142,7 @@ def doLoadCurveTmplsTask(**kwargs):
     doLoadTmpls2Redis(template_names)
     _logger.debug("Load Curve Templates to Redis Success!")
     _logger.debug("informing training server to update templates...")
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(training_server_update_templates())
-    loop.close()
+    training_server_update_templates()
     _logger.debug("task finished")
 
 
