@@ -160,6 +160,12 @@ class KubernetesPodOperator(BaseOperator):
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
     :type termination_grace_period: int
+    :param pod_launcher_class: Class used to manage lifecycle of target pod.
+        For more advanced users this is a way to use custom pod launcher and,
+        for example, conduct additional activities upon pods creation and deletion.
+        This class needs to inherit from pod_launcher.PodLauncher and accept
+        the same arguments in object constructor.
+        defaults to airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher
     """
 
     template_fields: Iterable[str] = (
