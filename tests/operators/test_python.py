@@ -829,7 +829,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._initiate_pypi_server()
         self._run_as_operator(
             f,
-            requirements=['funcsigs', 'flask'],
+            requirements=['flask', 'funcsigs'],
             repository_url="localhost",
             index_url="http://localhost:8080/repository/python/simple",
             system_site_packages=False,
@@ -882,7 +882,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             subprocess.Popen(['pypi-server'])
             time.sleep(1.5)
         except Exception as e:
-            raise e
+            pass
 
     @staticmethod
     def _invert_python_major_version():

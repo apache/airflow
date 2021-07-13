@@ -43,10 +43,12 @@ def _generate_pip_install_cmd(tmp_dir: str,
     if not requirements:
         return None
 
-    private_cmd = [f'{tmp_dir}/bin/pip', 'install']
-    public_cmd = [f'{tmp_dir}/bin/pip', 'install' f'--trusted-host {repository_url} -i {index_url}']
+    public_cmd = [f'{tmp_dir}/bin/pip', 'install']
+    private_cmd = [f'{tmp_dir}/bin/pip',
+                   'install',
+                   f'--trusted-host', f'{repository_url}',
+                   f'--extra-index-url',  f'{index_url}']
     if repository_url:
-        print(private_cmd + requirements)
         return private_cmd + requirements
     return public_cmd + requirements
 

@@ -264,6 +264,10 @@ class PythonVirtualenvOperator(PythonOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param repository_url: string with the private repo url.
+    :type repository_url: optional[str]
+    :param index_url: string with the index url of the private repo.
+    :type: index_url: optional[str]
     """
 
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
