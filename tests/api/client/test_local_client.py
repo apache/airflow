@@ -71,7 +71,7 @@ class TestLocalClient(unittest.TestCase):
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
-                conf=None,
+                conf={},
                 external_trigger=True,
                 dag_hash=ANY,
             )
@@ -83,7 +83,7 @@ class TestLocalClient(unittest.TestCase):
                 run_id=run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
-                conf=None,
+                conf={},
                 external_trigger=True,
                 dag_hash=ANY,
             )
@@ -96,7 +96,7 @@ class TestLocalClient(unittest.TestCase):
                 run_id=custom_run_id,
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
-                conf=None,
+                conf={},
                 external_trigger=True,
                 dag_hash=ANY,
             )

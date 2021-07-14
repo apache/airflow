@@ -76,7 +76,7 @@ class TestDagParamRuntime(unittest.TestCase):
 
             xcom_arg = return_num(value)
 
-        assert dag.params['value'] == self.VALUE
+        assert dag.params['value']() == self.VALUE
         new_value = 2
         dr = dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,

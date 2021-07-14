@@ -42,6 +42,7 @@ from airflow.models import (
     DAG,
     Connection,
     DagRun,
+    Param,
     Pool,
     RenderedTaskInstanceFields,
     TaskInstance as TI,
@@ -1287,30 +1288,30 @@ class TestTaskInstance(unittest.TestCase):
         ti = TI(task=task, execution_date=datetime.datetime.now())
         dag_run = DagRun()
         dag_run.conf = {"override": True}
-        params = {"override": False}
+        params = {"override": Param(False)}
 
         ti.overwrite_params_with_dag_run_conf(params, dag_run)
 
-        assert params["override"] is True
+        assert params["override"]() is True
 
     def test_overwrite_params_with_dag_run_none(self):
         task = DummyOperator(task_id='op')
         ti = TI(task=task, execution_date=datetime.datetime.now())
-        params = {"override": False}
+        params = {"override": Param(False)}
 
         ti.overwrite_params_with_dag_run_conf(params, None)
 
-        assert params["override"] is False
+        assert params["override"]() is False
 
     def test_overwrite_params_with_dag_run_conf_none(self):
         task = DummyOperator(task_id='op')
         ti = TI(task=task, execution_date=datetime.datetime.now())
-        params = {"override": False}
+        params = {"override": Param(False)}
         dag_run = DagRun()
 
         ti.overwrite_params_with_dag_run_conf(params, dag_run)
 
-        assert params["override"] is False
+        assert params["override"]() is False
 
     @patch('airflow.models.taskinstance.send_email')
     def test_email_alert(self, mock_send_email):

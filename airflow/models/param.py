@@ -63,3 +63,9 @@ class Param:
                 return None
             raise ValueError(err)
         return self.default
+
+    def dump(self) -> dict:
+        """Dump the Param as a dictionary"""
+        out_dict = {'__type': f'{self.__module__}.{self.__class__.__name__}'}
+        out_dict.update(self.__dict__)
+        return out_dict

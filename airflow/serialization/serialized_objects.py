@@ -653,7 +653,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """ """
         op_params = {}
         for k, v in encoded_op_params.items():
-            param_class = import_string(v['_type'])
+            param_class = import_string(v['__type'])
             op_params[k] = param_class(**v)
 
         return op_params
@@ -664,7 +664,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialized_params = {}
         for k, v in op_params.items():
             serialized_params[k] = v.__dict__
-            serialized_params[k].update({'_type': f'{v.__class__.__module__}.{v.__class__.__name__}'})
+            serialized_params[k].update({'__type': f'{v.__class__.__module__}.{v.__class__.__name__}'})
 
         return serialized_params
 
@@ -829,7 +829,7 @@ class SerializedDAG(DAG, BaseSerialization):
         serialized_params = {}
         for k, v in dag_params.items():
             serialized_params[k] = v.__dict__
-            serialized_params[k].update({'_type': f'{v.__class__.__module__}.{v.__class__.__name__}'})
+            serialized_params[k].update({'__type': f'{v.__class__.__module__}.{v.__class__.__name__}'})
 
         return serialized_params
 
@@ -838,8 +838,8 @@ class SerializedDAG(DAG, BaseSerialization):
         """ """
         op_params = {}
         for k, v in encoded_dag_params.items():
-            param_class = import_string(v['_type'])
-            del v['_type']
+            param_class = import_string(v['__type'])
+            del v['__type']
             op_params[k] = param_class(**v)
 
         return op_params

@@ -133,8 +133,6 @@ def dag_trigger(args):
             dag_id=args.dag_id, run_id=args.run_id, conf=args.conf, execution_date=args.exec_date
         )
         print(message)
-    except ValueError as vr:
-        logging.error(str(vr))
     except OSError as err:
         raise AirflowException(err)
 
