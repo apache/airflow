@@ -20,6 +20,7 @@
 import os
 from collections import deque
 from typing import List, Optional
+from urllib.parse import SplitResult, urlunsplit
 
 import jinja2
 
@@ -49,18 +50,27 @@ def _generate_pip_install_cmd(tmp_dir: str,
         user = con.login
         schema = con.schema or 'https'
         password = con.get_password()
-        port = con.port or 8080
+        port = con.port or ''
         host = con.host
-        host_suffix = con.extra_dejson.get('host_suffix', 'repository/python/simple')
+        path = con.extra_dejson.get('path', '')
+        pypi_as_fallback = con.extra_dejson.get('pypi_as_fallback', False)
+
         if user:
-            index_url = os.path.join(f"{schema}://{user}:{password}@{host}:{port}", host_suffix)
+            netloc = f'{user}:{password}@{host}'
         else:
-            index_url = os.path.join(f"{schema}://{host}:{port}", host_suffix)
+            netloc = host
+
+        netloc = netloc + f':{port}' if port else netloc
+
+        index_url = SplitResult(scheme=schema,
+                                netloc=netloc, path=path, query='', fragment='').geturl()
+
         private_cmd = [f'{tmp_dir}/bin/pip',
                        'install',
-                       f'--index-url', index_url,
-                       f'--extra-index-url', 'https://pypi.org/simple'
-                       ]
+                       f'--index-url', index_url]
+
+        if pypi_as_fallback:
+            private_cmd.extend([f'--extra-index-url', 'https://pypi.org/simple'])
         return private_cmd + requirements
 
     public_cmd = [f'{tmp_dir}/bin/pip', 'install']

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import json
 import logging
 import os
 import shutil
@@ -63,19 +64,14 @@ TI_CONTEXT_ENV_VARS = [
 ]
 
 
-def _clean_stop_pypi_server(pid):
-    subprocess.Popen(['kill', '-9', f'{pid}'])
-
-
 @pytest.fixture()
 def pypi_server():
     if not os.path.exists('/root/packages'):
         os.makedirs('/root/packages')
-    process = subprocess.Popen(['pypi-server', '-p', '8282'])
+    process = subprocess.Popen(['pypi-server', '--port=8282'])
     yield
-    _clean_stop_pypi_server(process.pid)
+    process.kill()
     shutil.rmtree('/root/packages')
-
 
 
 
@@ -841,24 +837,50 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
-    def test_private_repo_requirements(self):
+    def test_private_repo_fallback_to_pypi_installation(self):
+
+        c = Connection("private_repo_test_conn",
+                       "private_pypi",
+                       host="localhost",
+                       schema="http",
+                       extra=json.dumps({"pypi_as_fallback": True,
+                                         "path": "/repository/python/simple"}),
+                       port=8282)
+
+        os.environ[f"AIRFLOW_CONN_{c.conn_id.upper()}"] = f'{c.get_uri()}'
+
+        def f():
+            import funcsigs  # noqa: F401
+            import flask  # noqa: F401
+
+        self._run_as_operator(
+            f,
+            requirements=['flask', 'funcsigs'],
+            connection_id="private_repo_test_conn",
+            system_site_packages=False
+        )
+
+    def test_private_package_does_not_exists_repo_requirements(self):
 
         c = Connection("private_repo_test_conn",
                        "private_pypi",
                        host="localhost",
                        schema="http",
                        port=8282)
-        os.environ[f"AIRFLOW_CONN_{c.conn_id.upper()}"]=f'{c.get_uri()}'
+
+        os.environ[f"AIRFLOW_CONN_{c.conn_id.upper()}"] = f'{c.get_uri()}'
 
         def f():
-            import flask  # noqa: F401
             import funcsigs  # noqa: F401
-        self._run_as_operator(
-            f,
-            requirements=['flask', 'funcsigs'],
-            connection_id="private_repo_test_conn",
-            system_site_packages=False,
-        )
+            import flask  # noqa: F401
+
+        with pytest.raises(subprocess.CalledProcessError):
+            self._run_as_operator(
+                f,
+                requirements=['flask', 'funcsigs'],
+                connection_id="private_repo_test_conn",
+                system_site_packages=False
+            )
 
     def test_range_requirements(self):
         def f():
