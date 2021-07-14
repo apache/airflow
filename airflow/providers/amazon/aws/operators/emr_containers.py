@@ -115,12 +115,13 @@ class EMRContainerOperator(BaseOperator):
         if query_status in EMRContainerHook.FAILURE_STATES:
             error_message = self.hook.get_job_failure_reason(self.job_id)
             raise AirflowException(
-                f"EMR Containers job failed. Final state is {query_status}, query_execution_id is {self.job_id}. Error: {error_message}"
+                f"EMR Containers job failed. Final state is {query_status}. "
+                f"query_execution_id is {self.job_id}. Error: {error_message}"
             )
         elif not query_status or query_status in EMRContainerHook.INTERMEDIATE_STATES:
             raise AirflowException(
-                "Final state of EMR Containers job is {query_status}. "
-                "Max tries of poll status exceeded, query_execution_id is {self.job_id}."
+                f"Final state of EMR Containers job is {query_status}. "
+                f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
             )
 
         return self.job_id

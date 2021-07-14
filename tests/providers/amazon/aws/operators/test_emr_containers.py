@@ -100,3 +100,37 @@ class TestEMRContainerOperator(unittest.TestCase):
         with pytest.raises(AirflowException) as ctx:
             self.emr_container.execute(None)
         assert 'EMR Containers job failed' in str(ctx.value)
+        assert 'Error: CLUSTER_UNAVAILABLE' in str(ctx.value)
+
+    @mock.patch.object(
+        EMRContainerHook,
+        'check_query_status',
+        side_effect=['PENDING', 'PENDING', 'SUBMITTED', 'RUNNING', 'COMPLETED'],
+    )
+    def test_execute_with_polling_timeout(self, mock_check_query_status):
+        # Mock out the emr_client creator
+        emr_client_mock = MagicMock()
+        emr_client_mock.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = emr_client_mock
+        boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
+        timeout_container = EMRContainerOperator(
+            task_id='start_job',
+            name='test_emr_job',
+            virtual_cluster_id='vzw123456',
+            execution_role_arn='arn:aws:somerole',
+            release_label='6.3.0-latest',
+            job_driver={},
+            configuration_overrides={},
+            poll_interval=0,
+            max_tries=3,
+        )
+
+        with patch('boto3.session.Session', boto3_session_mock):
+            with pytest.raises(AirflowException) as ctx:
+                timeout_container.execute(None)
+
+            assert mock_check_query_status.call_count == 3
+            assert 'Final state of EMR Containers job is SUBMITTED' in str(ctx.value)
+            assert 'Max tries of poll status exceeded' in str(ctx.value)
