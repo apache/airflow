@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=invalid-name
 """Interact with Amazon EKS, using the boto3 library."""
 import base64
 import json

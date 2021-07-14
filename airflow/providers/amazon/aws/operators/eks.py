@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=invalid-name
 """This module contains Amazon EKS operators."""
 import json
 from datetime import datetime
@@ -77,6 +76,17 @@ class EKSCreateClusterOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "cluster_role_arn",
+        "resources_vpc_config",
+        "nodegroup_name",
+        "nodegroup_role_arn",
+        "compute",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -90,17 +100,17 @@ class EKSCreateClusterOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.clusterRoleArn = cluster_role_arn
-        self.resourcesVpcConfig = resources_vpc_config
+        self.cluster_name = cluster_name
+        self.cluster_role_arn = cluster_role_arn
+        self.resources_vpc_config = resources_vpc_config
         self.compute = compute
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
         if self.compute == 'nodegroup':
-            self.nodegroupName = nodegroup_name or self.clusterName + DEFAULT_NODEGROUP_NAME_SUFFIX
+            self.nodegroup_name = nodegroup_name or self.cluster_name + DEFAULT_NODEGROUP_NAME_SUFFIX
             if nodegroup_role_arn:
-                self.nodegroupRoleArn = nodegroup_role_arn
+                self.nodegroup_role_arn = nodegroup_role_arn
             else:
                 message = "Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in."
                 self.log.error(message)
@@ -108,21 +118,21 @@ class EKSCreateClusterOperator(BaseOperator):
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
         eks_hook.create_cluster(
-            name=self.clusterName,
-            roleArn=self.clusterRoleArn,
-            resourcesVpcConfig=self.resourcesVpcConfig,
+            name=self.cluster_name,
+            roleArn=self.cluster_role_arn,
+            resourcesVpcConfig=self.resources_vpc_config,
         )
 
         if self.compute is not None:
             self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
 
             countdown = TIMEOUT_SECONDS
-            while eks_hook.get_cluster_state(clusterName=self.clusterName) != "ACTIVE":
+            while eks_hook.get_cluster_state(clusterName=self.cluster_name) != "ACTIVE":
                 if countdown >= CHECK_INTERVAL_SECONDS:
                     countdown -= CHECK_INTERVAL_SECONDS
                     self.log.info(
@@ -136,15 +146,15 @@ class EKSCreateClusterOperator(BaseOperator):
                     )
                     self.log.error(message)
                     # If there is something preventing the cluster for activating, tear it down and abort.
-                    eks_hook.delete_cluster(name=self.clusterName)
+                    eks_hook.delete_cluster(name=self.cluster_name)
                     raise RuntimeError(message)
 
         if self.compute == 'nodegroup':
             eks_hook.create_nodegroup(
-                clusterName=self.clusterName,
-                nodegroupName=self.nodegroupName,
-                subnets=self.resourcesVpcConfig.get('subnetIds'),
-                nodeRole=self.nodegroupRoleArn,
+                clusterName=self.cluster_name,
+                nodegroupName=self.nodegroup_name,
+                subnets=self.resources_vpc_config.get('subnetIds'),
+                nodeRole=self.nodegroup_role_arn,
             )
 
 
@@ -178,6 +188,15 @@ class EKSCreateNodegroupOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "nodegroup_subnets",
+        "nodegroup_role_arn",
+        "nodegroup_name",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -189,24 +208,24 @@ class EKSCreateNodegroupOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.nodegroupSubnets = nodegroup_subnets
-        self.nodegroupRoleArn = nodegroup_role_arn
-        self.nodegroupName = nodegroup_name or cluster_name + datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.conn_id = aws_conn_id
+        self.cluster_name = cluster_name
+        self.nodegroup_subnets = nodegroup_subnets
+        self.nodegroup_role_arn = nodegroup_role_arn
+        self.nodegroup_name = nodegroup_name or cluster_name + datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
         return eks_hook.create_nodegroup(
-            clusterName=self.clusterName,
-            nodegroupName=self.nodegroupName,
-            subnets=self.nodegroupSubnets,
-            nodeRole=self.nodegroupRoleArn,
+            clusterName=self.cluster_name,
+            nodegroupName=self.nodegroup_name,
+            subnets=self.nodegroup_subnets,
+            nodeRole=self.nodegroup_role_arn,
         )
 
 
@@ -232,21 +251,27 @@ class EKSDeleteClusterOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self, cluster_name: str, aws_conn_id: Optional[str] = CONN_ID, region: Optional[str] = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.conn_id = aws_conn_id
+        self.cluster_name = cluster_name
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        nodegroups = eks_hook.list_nodegroups(clusterName=self.clusterName).get('nodegroups')
+        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name).get('nodegroups')
         nodegroup_count = len(nodegroups)
         if nodegroup_count > 0:
             self.log.info(
@@ -254,12 +279,12 @@ class EKSDeleteClusterOperator(BaseOperator):
                 nodegroup_count,
             )
             for group in nodegroups:
-                eks_hook.delete_nodegroup(clusterName=self.clusterName, nodegroupName=group)
+                eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
 
             # Scaling up the timeout based on the number of nodegroups that are being processed.
             additional_seconds = 5 * 60
             countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
-            while eks_hook.list_nodegroups(clusterName=self.clusterName).get('nodegroups'):
+            while eks_hook.list_nodegroups(clusterName=self.cluster_name).get('nodegroups'):
                 if countdown >= CHECK_INTERVAL_SECONDS:
                     countdown -= CHECK_INTERVAL_SECONDS
                     sleep(CHECK_INTERVAL_SECONDS)
@@ -274,7 +299,7 @@ class EKSDeleteClusterOperator(BaseOperator):
                     raise RuntimeError(message)
 
         self.log.info("No nodegroups remain, deleting cluster.")
-        return eks_hook.delete_cluster(name=self.clusterName)
+        return eks_hook.delete_cluster(name=self.cluster_name)
 
 
 class EKSDeleteNodegroupOperator(BaseOperator):
@@ -301,6 +326,13 @@ class EKSDeleteNodegroupOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "nodegroup_name",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -310,18 +342,18 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.nodegroupName = nodegroup_name
-        self.conn_id = aws_conn_id
+        self.cluster_name = cluster_name
+        self.nodegroup_name = nodegroup_name
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        return eks_hook.delete_nodegroup(clusterName=self.clusterName, nodegroupName=self.nodegroupName)
+        return eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
 
 
 class EKSDescribeAllClustersOperator(BaseOperator):
@@ -342,6 +374,12 @@ class EKSDescribeAllClustersOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "verbose",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         verbose: Optional[bool] = False,
@@ -351,12 +389,12 @@ class EKSDescribeAllClustersOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.verbose = verbose
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
@@ -396,6 +434,13 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "verbose",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -405,25 +450,25 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
+        self.cluster_name = cluster_name
         self.verbose = verbose
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        response = eks_hook.list_nodegroups(clusterName=self.clusterName, verbose=self.verbose)
+        response = eks_hook.list_nodegroups(clusterName=self.cluster_name, verbose=self.verbose)
         nodegroup_list = response.get('nodegroups')
         next_token = response.get('nextToken')
 
         result = []
         for nodegroup in nodegroup_list:
             full_describe = json.loads(
-                eks_hook.describe_nodegroup(clusterName=self.clusterName, nodegroupName=nodegroup)
+                eks_hook.describe_nodegroup(clusterName=self.cluster_name, nodegroupName=nodegroup)
             )
             nodegroup_details = json.dumps(full_describe.get('nodegroup'))
             result.append(nodegroup_details)
@@ -458,6 +503,13 @@ class EKSDescribeClusterOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "verbose",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -467,18 +519,18 @@ class EKSDescribeClusterOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
+        self.cluster_name = cluster_name
         self.verbose = verbose
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        response = eks_hook.describe_cluster(name=self.clusterName, verbose=self.verbose)
+        response = eks_hook.describe_cluster(name=self.cluster_name, verbose=self.verbose)
         response_json = json.loads(response)
         # Extract the cluster data, drop the request metadata
         cluster_data = response_json.get('cluster')
@@ -511,6 +563,14 @@ class EKSDescribeNodegroupOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "nodegroup_name",
+        "verbose",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -521,20 +581,20 @@ class EKSDescribeNodegroupOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.nodegroupName = nodegroup_name
+        self.cluster_name = cluster_name
+        self.nodegroup_name = nodegroup_name
         self.verbose = verbose
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
         response = eks_hook.describe_nodegroup(
-            clusterName=self.clusterName, nodegroupName=self.nodegroupName, verbose=self.verbose
+            clusterName=self.cluster_name, nodegroupName=self.nodegroup_name, verbose=self.verbose
         )
         response_json = json.loads(response)
         # Extract the nodegroup data, drop the request metadata
@@ -561,6 +621,12 @@ class EKSListClustersOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "verbose",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         verbose: Optional[bool] = False,
@@ -570,12 +636,12 @@ class EKSListClustersOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.verbose = verbose
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
@@ -606,6 +672,13 @@ class EKSListNodegroupsOperator(BaseOperator):
 
     """
 
+    template_fields = (
+        "cluster_name",
+        "verbose",
+        "aws_conn_id",
+        "region",
+    )
+
     def __init__(
         self,
         cluster_name: str,
@@ -615,18 +688,18 @@ class EKSListNodegroupsOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
+        self.cluster_name = cluster_name
         self.verbose = verbose
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        return eks_hook.list_nodegroups(clusterName=self.clusterName, verbose=self.verbose)
+        return eks_hook.list_nodegroups(clusterName=self.cluster_name, verbose=self.verbose)
 
 
 class EKSPodOperator(KubernetesPodOperator):
@@ -665,7 +738,18 @@ class EKSPodOperator(KubernetesPodOperator):
     :type aws_conn_id: str
     """
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    template_fields = (
+        "role_arn",
+        "cluster_name",
+        "pod_name",
+        "pod_username",
+        "pod_context",
+        "region",
+        "aws_conn_id",
+        "namespace",
+    )
+
+    def __init__(
         self,
         cluster_name: str,
         cluster_role_arn: Optional[str] = None,
@@ -686,22 +770,22 @@ class EKSPodOperator(KubernetesPodOperator):
             name=pod_name,
             **kwargs,
         )
-        self.roleArn = cluster_role_arn
-        self.clusterName = cluster_name
+        self.role_arn = cluster_role_arn
+        self.cluster_name = cluster_name
         self.pod_name = pod_name
         self.pod_username = pod_username
         self.pod_context = pod_context
         self.region = region
-        self.conn_id = aws_conn_id
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
         with eks_hook.generate_config_file(
-            eks_cluster_name=self.clusterName,
+            eks_cluster_name=self.cluster_name,
             pod_namespace=self.namespace,
             pod_username=self.pod_username,
             pod_context=self.pod_context,
