@@ -108,7 +108,7 @@ class TableauHook(BaseHook):
         warnings.warn(
             "Authentication via personal access token is deprecated. "
             "Please, use the password authentication to avoid inconsistencies.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson['token_name'],
