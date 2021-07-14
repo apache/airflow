@@ -522,6 +522,25 @@ class TestDag(unittest.TestCase):
 
         assert task.test_field == ['{{ ds }}', 'some_string']
 
+    def test_resolve_template_json_file(self):
+
+        with NamedTemporaryFile(suffix='.json') as f:
+            f.write(b"{\n \"foo\": \"{{ ds }}\"}")
+            f.flush()
+            template_dir = os.path.dirname(f.name)
+            template_file = os.path.basename(f.name)
+
+            with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir):
+                task = DummyOperator(task_id="op1")
+
+            task.test_field = template_file
+            task.template_fields = ("test_field",)
+            task.template_ext = (".json",)
+            task.resolve_template_files()
+
+        assert isinstance(task.test_field, dict)
+        assert task.test_field["foo"] == "{{ ds }}"
+
     def test_following_previous_schedule(self):
         """
         Make sure DST transitions are properly observed

@@ -17,6 +17,7 @@
 # under the License.
 """Base operator for all operators."""
 import abc
+import ast
 import copy
 import functools
 import logging
@@ -1077,6 +1078,17 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             self._render_nested_template_fields(content, context, jinja_env, seen_oids)
             return content
 
+    @staticmethod
+    def _parse_json(rendered_content) -> Dict[str, Any]:
+        """Parse JSON content."""
+        return ast.literal_eval(rendered_content)
+
+    @classmethod
+    def _parse_template_files(cls, rendered_content: str, ext: str) -> Any:
+        """Parse template files."""
+        file_parser = {"json": cls._parse_json}
+        return file_parser.get(ext, lambda x: x)(rendered_content)
+
     def _render_nested_template_fields(
         self, content: Any, context: Dict, jinja_env: jinja2.Environment, seen_oids: Set
     ) -> None:
@@ -1116,7 +1128,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
                     env = self.get_template_env()
                     try:
-                        setattr(self, field, env.loader.get_source(env, content)[0])
+                        file_content = env.loader.get_source(env, content)[0]
+                        setattr(
+                            self, field, self._parse_template_files(file_content, content.rsplit(".", 1)[1])
+                        )
                     except Exception as e:
                         self.log.exception(e)
                 elif isinstance(content, list):
