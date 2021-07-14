@@ -49,12 +49,12 @@ class InfluxDBHook(BaseHook):
         self.client = None
         self.extras = None
         self.uri = None
-        self.org_name = None
+        self.org_id = None
 
-    def get_client(self, uri, token, org_name):
+    def get_client(self, uri, token, org_id):
         return InfluxDBClient(url=uri,
                                 token=token,
-                                org=org_name)
+                                org=org_id)
 
     def get_uri(self,  conn: Connection):
         """
@@ -83,9 +83,9 @@ class InfluxDBHook(BaseHook):
             return self.client
 
         token = self.connection.extra_dejson.get('token')
-        self.org_name = self.connection.extra_dejson.get('org_name')
+        self.org_id = self.connection.extra_dejson.get('org_id')
 
-        self.client = self.get_client(self.uri, token, self.org_name)
+        self.client = self.get_client(self.uri, token, self.org_id)
 
         return self.client
 
@@ -142,3 +142,4 @@ class InfluxDBHook(BaseHook):
         Function to delete bucket by bucket id.
         """
         return self.client.buckets_api.delete_bucket(bucket_id)
+

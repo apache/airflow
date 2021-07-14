@@ -31,7 +31,7 @@ class TestInfluxDbHookConn(unittest.TestCase):
         extra['org_id'] = 'test'
 
         self.connection = Connection(
-            conn_type='influxdb', host='host', extra=extra
+            conn_type='http', host='localhost', extra=extra
         )
 
     def test_get_conn(self):
@@ -42,3 +42,4 @@ class TestInfluxDbHookConn(unittest.TestCase):
         self.influxdb_hook.get_conn()
 
         assert self.influxdb_hook.org_id == 'test'
+        assert self.influxdb_hook.uri == 'http://localhost:7687'
