@@ -456,6 +456,14 @@ class DagFileProcessor(LoggingMixin):
                 if ti.task_id in dag.task_ids:
                     ti.task = dag.get_task(ti.task_id)
                     blocking_tis.append(ti)
+                else:
+                    # avoid use session.delete(ti), it will delete dag_run too
+                    session.query(TI).filter(
+                        TI.dag_id == ti.dag_id,
+                        TI.task_id == ti.task_id,
+                        TI.execution_date == ti.execution_date,
+                    ).delete()
+                    session.commit()
 
             task_list = "\n".join(sla.task_id + ' on ' + sla.execution_date.isoformat() for sla in slas)
             blocking_task_list = "\n".join(
