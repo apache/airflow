@@ -316,7 +316,6 @@ class TestECSOperator(unittest.TestCase):
             ['', {'testTagKey': 'testTagValue'}],
         ]
     )
-<<<<<<< HEAD
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
     @mock.patch.object(ECSOperator, '_start_task')
