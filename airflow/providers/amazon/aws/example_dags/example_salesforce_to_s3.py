@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOp
 from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObjectsOperator
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
 
-
 BASE_PATH = "salesforce/customers"
 FILE_NAME = "customer_daily_extract_{{ ds_nodash }}.csv"
 LANDING_BUCKET = "landing_bucket"
