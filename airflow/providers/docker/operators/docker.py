@@ -260,8 +260,6 @@ class DockerOperator(BaseOperator):
                             " to False to disable mounting and remove the warning"
                         )
                         return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
-                    else:
-                        raise Exception(str(e))
                     raise
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
