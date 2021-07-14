@@ -110,6 +110,7 @@ Dockerise
 Docstring
 Docstrings
 Dont
+Drillbit
 Drivy
 Dsn
 Dynamodb
@@ -371,6 +372,8 @@ Webhook
 Webserver
 Werkzeug
 XCom
+XComArg
+XComArgs
 XComs
 Xcom
 Xero

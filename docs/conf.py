@@ -517,6 +517,7 @@ autodoc_mock_imports = [
     'slack_sdk',
     'smbclient',
     'snowflake',
+    'sqlalchemy-drill',
     'sshtunnel',
     'telegram',
     'tenacity',

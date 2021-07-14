@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-ARG TRINO_VERSION="354"
+ARG TRINO_VERSION="359"
 FROM trinodb/trino:${TRINO_VERSION}
 
 # Obtain root privileges

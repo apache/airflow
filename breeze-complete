@@ -151,8 +151,6 @@ yesqa
 EOF
 )
 
-_breeze_default_dockerhub_user="apache"
-_breeze_default_dockerhub_repo="airflow-ci"
 _breeze_default_github_repository="apache/airflow"
 _breeze_default_github_image_id="latest"
 
@@ -163,7 +161,7 @@ l a: t: d:
 v y n q f
 F P I E: C r
 L U X
-D: R: c g: s:
+g: s:
 S: N:
 "
 
@@ -172,9 +170,9 @@ help python: backend: integration:
 kubernetes-mode: kubernetes-version: helm-version: kind-version:
 skip-mounting-local-sources mount-all-local-sources install-airflow-version: install-airflow-reference: db-reset
 verbose assume-yes assume-no assume-quit forward-credentials init-script:
-force-build-images force-pull-images force-pull-base-python-image production-image extras: force-clean-images skip-rebuild-check
+force-build-images force-pull-images check-if-base-python-image-updated production-image extras: force-clean-images skip-rebuild-check
 build-cache-local build-cache-pulled build-cache-disabled disable-pip-cache
-dockerhub-user: dockerhub-repo: use-github-registry github-registry: github-repository: github-image-id: generate-constraints-mode:
+github-repository: github-image-id: generate-constraints-mode:
 postgres-version: mysql-version: mssql-version:
 version-suffix-for-pypi: version-suffix-for-svn:
 additional-extras: additional-python-deps: additional-dev-deps: additional-runtime-deps: image-tag:
@@ -289,12 +287,6 @@ function breeze_complete::get_known_values_breeze() {
         ;;
     --mssql-version)
         _breeze_known_values=${_breeze_allowed_mssql_versions}
-        ;;
-    -D | --dockerhub-user)
-        _breeze_known_values="${_breeze_default_dockerhub_user}"
-        ;;
-    -R | --dockerhub-repo)
-        _breeze_known_values="${_breeze_default_dockerhub_repo}"
         ;;
     -g | --github-repository)
         _breeze_known_values="${_breeze_default_github_repository}"

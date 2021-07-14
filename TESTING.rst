@@ -726,8 +726,6 @@ The typical session for tests with Kubernetes looks like follows:
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
-       DockerHub user:          apache
-       DockerHub repo:          airflow
        Backend:                 postgres 9.6
 
     No kind clusters found.
@@ -768,8 +766,6 @@ The typical session for tests with Kubernetes looks like follows:
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
-       DockerHub user:          apache
-       DockerHub repo:          airflow
        Backend:                 postgres 9.6
 
     airflow-python-3.7-v1.17.0-control-plane
