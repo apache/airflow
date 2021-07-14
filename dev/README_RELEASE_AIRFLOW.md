@@ -23,7 +23,7 @@
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
-  - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
+  - [\[Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
