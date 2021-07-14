@@ -124,15 +124,14 @@ def prepare_virtualenv(
     :type system_site_packages: bool
     :param requirements: List of additional python packages
     :type requirements: List[str]
-    :param connection_id: The private repository connection_id
-     case there are private packages to install.
+    :param connection_id: The connection ID of an http/https connection to use as the index
+        url for installing packages from a private PyPi repository
     :type connection_id: str
     :rtype: str
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
-    pip_cmd = _generate_pip_install_cmd(
-        venv_directory, requirements, connection_id)
+    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements, connection_id)
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 
