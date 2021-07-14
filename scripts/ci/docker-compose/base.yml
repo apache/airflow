@@ -26,7 +26,7 @@ services:
       - KUBECONFIG=/files/.kube/config
       - HOST_HOME=${HOME}
     env_file:
-      - _docke_compose.env
+      - _docker_compose.env
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
