@@ -100,7 +100,6 @@ from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, Task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.param import Param
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers_manager import ProvidersManager
@@ -113,7 +112,6 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
@@ -1489,7 +1487,9 @@ class Airflow(AirflowBaseView):
                 default_conf = request_conf
             else:
                 try:
-                    default_conf = json.dumps({k: v(suppress_exception=True) for k, v in dag.params.items()}, indent=4)
+                    default_conf = json.dumps(
+                        {k: v(suppress_exception=True) for k, v in dag.params.items()}, indent=4
+                    )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(

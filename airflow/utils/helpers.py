@@ -219,9 +219,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
 
 
 def transform_params(params: Dict[str, Any]) -> Dict:
-    """
-    Iterate over the params dict & convert them into Param objects
-    """
+    """Iterate over the params dict & convert them into Param objects"""
     if params is None or not isinstance(params, dict):
         return {}
 

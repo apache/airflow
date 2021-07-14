@@ -134,7 +134,7 @@ class TestDag(unittest.TestCase):
         params = {'param1': Param(type="string")}
 
         with pytest.raises(AirflowException):
-            dag = models.DAG('dummy-dag', params=params)
+            models.DAG('dummy-dag', params=params)
 
     def test_dag_invalid_default_view(self):
         """

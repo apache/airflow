@@ -33,12 +33,9 @@ with DAG(
         'str_param': Param(type="string", minlength=2, maxlength=4),  # a mandatory str param
         'old_param': 'old_way_of_passing',
         'simple_param': Param('im_just_like_old_param'),  # i.e. no type checking
-        'email_param': Param('example@example.com',
-                             type='string',
-                             pattern='\\S+@\\S+\\.\\S+$',
-                             minlength=6,
-                             maxlength=255
-                             ),
+        'email_param': Param(
+            'example@example.com', type='string', pattern='\\S+@\\S+\\.\\S+$', minlength=6, maxlength=255
+        ),
     },
     schedule_interval=None,
     start_date=days_ago(1),
@@ -47,5 +44,5 @@ with DAG(
     all_params = BashOperator(
         task_id='all_param',
         bash_command="echo {{ params.int_param }} {{ params.str_param }} {{ params.old_param }} "
-                     "{{ params.simple_param }} {{ params.email_param }}",
+        "{{ params.simple_param }} {{ params.email_param }}",
     )

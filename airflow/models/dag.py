@@ -2327,10 +2327,15 @@ class DAG(LoggingMixin):
     def validate_schedule_and_params(self):
         for k, v in self.params.items():
             if isinstance(v, Param):
-                if v.default is None and self.schedule_interval is not None \
-                        and ('type' not in v.schema or "null" not in v.schema['type']):
-                    raise AirflowException('DAG Schedule must be None, if there are any '
-                                           'required params without default values')
+                if (
+                    v.default is None
+                    and self.schedule_interval is not None
+                    and ('type' not in v.schema or "null" not in v.schema['type'])
+                ):
+                    raise AirflowException(
+                        'DAG Schedule must be None, if there are any '
+                        'required params without default values'
+                    )
 
 
 class DagTag(Base):

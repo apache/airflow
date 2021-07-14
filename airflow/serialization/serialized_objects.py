@@ -650,7 +650,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _deserialize_operator_params(cls, encoded_op_params: Dict) -> Dict[str, Param]:
-        """"""
+        """ """
         op_params = {}
         for k, v in encoded_op_params.items():
             param_class = import_string(v['_type'])
@@ -660,7 +660,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _serialize_operator_params(cls, op_params: Dict[str, Param]):
-        """"""
+        """ """
         serialized_params = {}
         for k, v in op_params.items():
             serialized_params[k] = v.__dict__
@@ -825,7 +825,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def _serialize_dag_params(cls, dag_params: Dict[str, Param]):
-        """"""
+        """ """
         serialized_params = {}
         for k, v in dag_params.items():
             serialized_params[k] = v.__dict__
@@ -835,7 +835,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def _deserialize_dag_params(cls, encoded_dag_params: Dict) -> Dict[str, Param]:
-        """"""
+        """ """
         op_params = {}
         for k, v in encoded_dag_params.items():
             param_class = import_string(v['_type'])
