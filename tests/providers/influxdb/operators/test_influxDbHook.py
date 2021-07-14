@@ -19,13 +19,13 @@ import unittest
 from unittest import mock
 
 from airflow.models import Connection
-from airflow.providers.influxdb.hooks import InfluxDbHook
+from airflow.providers.influxdb.hooks.influxDBHook import InfluxDBHook
 
 
 class TestInfluxDbHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
-        self.influxdb_hook = InfluxDbHook()
+        self.influxdb_hook = InfluxDBHook()
         extra = dict()
         extra['token'] = '123456789'
         extra['org_id'] = 'test'
@@ -35,6 +35,9 @@ class TestInfluxDbHookConn(unittest.TestCase):
         )
 
     def test_get_conn(self):
+        self.influxdb_hook.get_connection = mock.Mock()
+        self.influxdb_hook.get_connection.return_value = self.connection
+
         self.influxdb_hook.get_client = mock.Mock()
         self.influxdb_hook.get_conn()
 

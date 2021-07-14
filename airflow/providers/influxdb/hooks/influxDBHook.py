@@ -21,7 +21,7 @@
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
 from influxdb_client.client.write.point import Point
-from typing import List, Generator, Any
+from typing import List
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -55,6 +55,18 @@ class InfluxDBHook(BaseHook):
         return InfluxDBClient(url=uri,
                                 token=token,
                                 org=org_name)
+
+    def get_uri(self,  conn: Connection):
+        """
+        Function to add additional parameters to the URI
+        based on SSL or other InfluxDB host requirements
+
+        """
+        return '{scheme}://{host}:{port}'.format(
+            scheme='https' if conn.conn_type is None else f'{conn.conn_type}',
+            host=conn.host,
+            port='7687' if conn.port is None else f'{conn.port}',
+        )
 
     def get_conn(self) -> InfluxDBClient:
         """
