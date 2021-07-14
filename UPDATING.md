@@ -1934,7 +1934,7 @@ We deprecated a number of extras in 2.0.
 
 For example:
 
-If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+If you want to install integration for Apache Atlas, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
 
