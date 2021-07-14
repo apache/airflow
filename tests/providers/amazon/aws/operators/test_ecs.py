@@ -357,10 +357,7 @@ class TestECSOperator(unittest.TestCase):
             ['', {'testTagKey': 'testTagValue'}],
         ]
     )
-    @mock.patch.object(
-        ECSOperator,
-        "_xcom_del"
-    )
+    @mock.patch.object(ECSOperator, "_xcom_del")
     @mock.patch.object(
         ECSOperator,
         "xcom_pull",
