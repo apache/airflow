@@ -101,7 +101,7 @@ class DockerOperator(BaseOperator):
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
     :type tls_ssl_version: str
     :param mount_tmp_dir: Specify whether the temporary directory should be bind-mounted
-        from the host to the container
+        from the host to the container. Defaults to True
     :type mount_tmp_dir: bool
     :param tmp_dir: Mount point inside the container to
         a temporary directory created on the host by the operator.
