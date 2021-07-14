@@ -1688,7 +1688,7 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
       you want to pull the image with specific COMMIT_SHA tag.
 
       '${CMDNAME} shell \\
-            -- github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
       '${CMDNAME} \\
             --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
 
