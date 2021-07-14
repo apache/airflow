@@ -359,6 +359,10 @@ class TestECSOperator(unittest.TestCase):
     )
     @mock.patch.object(
         ECSOperator,
+        "_xcom_del"
+    )
+    @mock.patch.object(
+        ECSOperator,
         "xcom_pull",
         return_value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
     )
@@ -398,7 +402,7 @@ class TestECSOperator(unittest.TestCase):
         start_mock.assert_not_called()
         xcom_pull_mock.assert_called_once_with(
             key=self.ecs.REATTACH_XCOM_KEY,
-            task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id)
+            task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
         )
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
