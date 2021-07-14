@@ -47,10 +47,12 @@ class TableauOperator(BaseOperator):
     :type method: str
     :param resource_id: The id of resource wich will recive the action.
     :type resource_id: str
+    :param resource_id_by: The resource field to be used as an id.
+    :type resource_id_by: Optional[str]
     :param site_id: The id of the site where the workbook belongs to.
     :type site_id: Optional[str]
-    :param blocking: By default the extract refresh will be blocking means it will wait until it has finished.
-    :type blocking: bool
+    :param blocking_refresh: By default the extract refresh will be blocking means it will wait until it has finished.
+    :type blocking_refresh: bool
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
     :type tableau_conn_id: str
@@ -62,6 +64,7 @@ class TableauOperator(BaseOperator):
         resource: str,
         method: str,
         resource_id: str,
+        resource_id_by: str = 'id',
         site_id: Optional[str] = None,
         blocking_refresh: bool = True,
         tableau_conn_id: str = 'tableau_default',
@@ -71,6 +74,7 @@ class TableauOperator(BaseOperator):
         self.resource = resource
         self.method = method
         self.resource_id = resource_id
+        self.resource_id_by = resource_id_by
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
@@ -99,7 +103,9 @@ class TableauOperator(BaseOperator):
             resource = getattr(tableau_hook.server, self.resource)
             method = getattr(resource, self.resource)
 
-            response = method(self.resource_id)
+            resource_id = self._get_resource_id_by(tableau_hook)
+
+            response = method(resource_id)
 
         if self.method == 'download':
             return response
@@ -122,3 +128,17 @@ class TableauOperator(BaseOperator):
                     '%s has been successfully refreshed.',  self.resource)
 
             return job_id
+
+    def _get_resource_id_by(self, tableau_hook: TableauHook) -> str:
+
+        if self.resource_id_by == 'id':
+            return self.resource_id
+
+        for resource in tableau_hook.get_all(resource_name=self.resource):
+            if getattr(resource, self.resource_id_by) == self.resource_id:
+                resource_id = resource.id
+                self.log.info('Found matching with id %s', resource_id)
+                return resource_id
+
+        raise AirflowException(
+            f'{self.resource} with {self.resource_id_by} {self.resource_id} not found!')

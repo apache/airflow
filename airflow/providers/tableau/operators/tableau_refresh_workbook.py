@@ -14,18 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from typing import Optional
 
-from tableauserverclient import WorkbookItem
-
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.providers.tableau.sensors.tableau_job_status import TableauJobFailedException
 
+warnings.warn(
+    """
+    Deprecated class for refresh tableau workbooks. please use
+    airflow.providers.tableau.operators.tableau.TableauOperator instead
+    """,
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class TableauRefreshWorkbookOperator(BaseOperator):
     """
+    Deprecated class for refresh tableau workbooks. please use
+    airflow.providers.tableau.operators.tableau.TableauOperator instead
+
     Refreshes a Tableau Workbook/Extract
 
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#workbooks
@@ -68,12 +78,12 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         :rtype: str
         """
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
-            workbook = self._get_workbook_by_name(tableau_hook)
 
             job_id = TableauOperator(
                 resource='workbooks',
                 method='refresh',
-                resource_id=workbook.id,
+                resource_id=self.workbook_name,
+                resource_id_by='name',
                 site_id=self.site_id,
                 tableau_conn_id=self.tableau_conn_id,
                 task_id='refresh_workbook',
