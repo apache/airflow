@@ -590,6 +590,22 @@ function breeze::prepare_command_file() {
     local compose_file="${3}"
     cat <<EOF >"${file}"
 #!/usr/bin/env bash
+docker_compose_version=\$(docker-compose --version)
+if [[ \${docker_compose_version} =~ .*version\ 2.* ]]; then
+  echo
+  echo "${COLOR_RED}Docker Compose Beta version 2has bug that prevents breeze from running.${COLOR_RESET}"
+  echo "${COLOR_RED}You have: \${docker_compose_version}.${COLOR_RESET}"
+  echo
+  echo "${COLOR_YELLOW}Please switch to stable version via Docker Desktop -> Experimental or by running:${COLOR_RESET}"
+  echo
+  echo "${COLOR_CYAN}docker-compose disable-v2${COLOR_RESET}"
+  echo
+  echo "${COLOR_YELLOW}Also please upvote https://github.com/docker/compose-cli/issues/1917${COLOR_RESET}"
+  echo
+  echo "${COLOR_RED}Exiting until you disable v2 version.${COLOR_RESET}"
+  exit 1
+fi
+
 if [[ \${VERBOSE} == "true" ]]; then
   echo
   echo "Executing script:"
