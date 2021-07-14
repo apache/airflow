@@ -27,8 +27,8 @@ from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 class SalesforceToS3Operator(BaseOperator):
     """
     Submits Salesforce query and uploads results to AWS S3
-    :param query: The query to make to Salesforce.
-    :type query: str
+    :param salesforce_query: The query to send to Salesforce.
+    :type salesforce_query: str
     :param s3_bucket_name: The bucket to upload to.
     :type s3_bucket_name: str
     :param s3_key: The object name to set when uploading the file.
@@ -38,7 +38,7 @@ class SalesforceToS3Operator(BaseOperator):
     :type salesforce_conn_id: str
     :param export_format: Desired format of files to be exported.
     :type export_format: str
-    :param query_params: Additional optional arguments
+    :param query_params: Additional optional arguments to be passed to the HTTP request querying Salesforce.
     :type query_params: dict
     :param include_deleted: True if the query should include deleted records.
     :type include_deleted: bool
@@ -62,13 +62,13 @@ class SalesforceToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = ("query", "s3_bucket_name", "s3_key")
+    template_fields = ("salesforce_query", "s3_bucket_name", "s3_key")
     template_ext = (".sql",)
-    template_fields_renderers = {"query": "sql"}
+    template_fields_renderers = {"salesforce_query": "sql"}
 
     def __init__(
         self,
-        query: str,
+        salesforce_query: str,
         s3_bucket_name: str,
         s3_key: str,
         salesforce_conn_id: str,
@@ -85,7 +85,7 @@ class SalesforceToS3Operator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.query = query
+        self.salesforce_query = salesforce_query
         self.s3_bucket_name = s3_bucket_name
         self.s3_key = s3_key
         self.salesforce_conn_id = salesforce_conn_id
@@ -103,7 +103,7 @@ class SalesforceToS3Operator(BaseOperator):
     def execute(self, context: Dict):
         salesforce_hook = SalesforceHook(conn_id=self.salesforce_conn_id)
         response = salesforce_hook.make_query(
-            query=self.query,
+            query=self.salesforce_query,
             include_deleted=self.include_deleted,
             query_params=self.query_params,
         )
