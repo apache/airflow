@@ -38,6 +38,5 @@ with models.DAG(
         s3_conn_id="s3_conn_id",
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,
-        dag=dag
     )
     # [END howto_sftp_transfer_data_to_s3]
