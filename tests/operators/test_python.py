@@ -843,8 +843,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
                        "private_pypi",
                        host="localhost",
                        schema="http",
-                       extra=json.dumps({"pypi_as_fallback": True,
-                                         "path": "/repository/python/simple"}),
+                       extra={"pypi_as_fallback": True, "path": "/repository/python/simple"},
                        port=8282)
 
         os.environ[f"AIRFLOW_CONN_{c.conn_id.upper()}"] = f'{c.get_uri()}'
