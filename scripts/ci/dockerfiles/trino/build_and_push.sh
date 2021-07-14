@@ -16,15 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
-readonly DOCKERHUB_USER
-readonly DOCKERHUB_REPO
+GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+readonly GITHUB_REPOSITORY
 
-TRINO_VERSION="354"
+TRINO_VERSION="359"
 readonly TRINO_VERSION
 
-AIRFLOW_TRINO_VERSION="2021.04.28"
+AIRFLOW_TRINO_VERSION="2021.07.04"
 readonly AIRFLOW_TRINO_VERSION
 
 COMMIT_SHA=$(git rev-parse HEAD)
@@ -32,7 +30,7 @@ readonly COMMIT_SHA
 
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:trino-${AIRFLOW_TRINO_VERSION}"
+TAG="ghcr.io/${GITHUB_REPOSITORY}-trino:${TRINO_VERSION}-${AIRFLOW_TRINO_VERSION}"
 readonly TAG
 
 docker build . \
@@ -40,6 +38,7 @@ docker build . \
     --build-arg "TRINO_VERSION=${TRINO_VERSION}" \
     --build-arg "AIRFLOW_TRINO_VERSION=${AIRFLOW_TRINO_VERSION}" \
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
     --tag "${TAG}"
 
 docker push "${TAG}"

@@ -78,7 +78,7 @@ this image can be built only once and used by all the jobs running tests. The im
 rather than build it from the scratch. Pulling such image takes ~ 1 minute, thanks to that we are saving
 a lot of precious time for jobs.
 
-We use `GitHub Container Registry <https://docs.github.com/en/packages/guides/about-github-container-registry>`_
+We use `GitHub Container Registry <https://docs.github.com/en/packages/guides/about-github-container-registry>`_.
 ``GITHUB_TOKEN`` is needed to push to the registry and we configured scopes of the tokens in our jobs
 to be able to write to the registry.
 
@@ -411,9 +411,9 @@ The following components are part of the CI infrastructure
 * **GitHub Actions** -  (GA) UI + execution engine for our jobs
 * **GA CRON trigger** - GitHub Actions CRON triggering our jobs
 * **GA Workers** - virtual machines running our jobs at GitHub Actions (max 20 in parallel)
-* **GitHub Image Registry**- image registry used as build cache for CI  jobs.
+* **GitHub Image Registry** - image registry used as build cache for CI jobs.
   It is at https://ghcr.io/apache/airflow
-* **DockerHub Image Registry**- image registry used to pull base Python images and (manually) publish
+* **DockerHub Image Registry** - image registry used to pull base Python images and (manually) publish
   the released Production Airflow images. It is at https://dockerhub.com/apache/airflow
 * **Official Images** (future) - these are official images that are prominently visible in DockerHub.
   We aim our images to become official images so that you will be able to pull them
