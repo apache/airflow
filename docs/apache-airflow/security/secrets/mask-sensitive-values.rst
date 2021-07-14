@@ -27,7 +27,7 @@ It does this by looking for the specific *value* appearing anywhere in your outp
 have a connection with a password of ``a``, then every instance of the letter a in your logs will be replaced
 with ``***``.
 
-To disable masking you can setting :ref:`config:core__hide_sensitive_var_conn_fields` to false.
+To disable masking you can set :ref:`config:core__hide_sensitive_var_conn_fields` to false.
 
 The automatic masking is triggered by Connection or Variable access. This means that if you pass a sensitive
 value via XCom or any other side-channel it will not be masked when printed in the downstream task.
