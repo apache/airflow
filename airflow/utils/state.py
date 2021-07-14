@@ -39,8 +39,8 @@ class TaskInstanceState(str, Enum):
     QUEUED = "queued"  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing
     SUCCESS = "success"  # Task completed
-    SHUTDOWN = "shutdown"  # External request to shut down
-    RESTARTING = "restarting"  # Cleared by user when running
+    SHUTDOWN = "shutdown"  # External request to shut down (e.g. marked failed when running)
+    RESTARTING = "restarting"  # External request to restart (e.g. cleared when running)
     FAILED = "failed"  # Task errored out
     UP_FOR_RETRY = "up_for_retry"  # Task failed but has retries left
     UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
