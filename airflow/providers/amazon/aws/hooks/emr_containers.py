@@ -101,7 +101,7 @@ class EMRContainerHook(AwsBaseHook):
             raise AirflowException(f'Start Job Run failed: {response}')
         else:
             self.log.info(
-                f"Start Job Run success - Job Id %s and virtual cluster id %s",
+                "Start Job Run success - Job Id %s and virtual cluster id %s",
                 response['id'],
                 response['virtualClusterId'],
             )
@@ -177,15 +177,11 @@ class EMRContainerHook(AwsBaseHook):
         while True:
             query_state = self.check_query_status(job_id)
             if query_state is None:
-                self.log.info(f"Try %s: Invalid query state. Retrying again", try_number)
+                self.log.info("Try %s: Invalid query state. Retrying again", try_number)
             elif query_state in self.INTERMEDIATE_STATES:
-                self.log.info(
-                    f"Try %s: Query is still in an intermediate state - %s", try_number, query_state
-                )
+                self.log.info("Try %s: Query is still in an intermediate state - %s", try_number, query_state)
             else:
-                self.log.info(
-                    f"Try %s: Query execution completed. Final state is %s", try_number, query_state
-                )
+                self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
                 final_query_state = query_state
                 break
             if max_tries and try_number >= max_tries:  # Break loop if max_tries reached
