@@ -33,5 +33,5 @@ while true; do
   find "${DIRECTORY}"/logs -mtime +"${RETENTION}" -name '*.log' -delete
 
   seconds=$(( $(date -u +%s) % EVERY))
-  (( "${seconds}" < 1 )) || sleep $((EVERY - seconds))
+  (( seconds < 1 )) || sleep $((EVERY - seconds))
 done
