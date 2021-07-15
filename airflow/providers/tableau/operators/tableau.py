@@ -23,7 +23,7 @@ from airflow.providers.tableau.hooks.tableau import TableauHook
 from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
 
 RESOURCES_METHODS = {
-    'datasources': ['delete', 'download', 'refresh'],
+    'datasources': ['delete', 'refresh'],
     'groups': ['delete'],
     'projects': ['delete'],
     'schedule': ['delete'],
@@ -31,7 +31,7 @@ RESOURCES_METHODS = {
     'subscriptions': ['delete'],
     'tasks': ['delete', 'run'],
     'users': ['remove'],
-    'workbooks': ['delete', 'download', 'refresh'],
+    'workbooks': ['delete', 'refresh'],
 }
 
 
@@ -45,10 +45,10 @@ class TableauOperator(BaseOperator):
     :type resource: str
     :param method: The name of the resource's method to execute.
     :type method: str
-    :param resource_id: The id of resource wich will recive the action.
-    :type resource_id: str
-    :param resource_id_by: The resource field to be used as an id.
-    :type resource_id_by: Optional[str]
+    :param find: The reference of resource wich will recive the action.
+    :type find: str
+    :param match_with: The resource field name to be matched with find parameter.
+    :type match_with: Optional[str]
     :param site_id: The id of the site where the workbook belongs to.
     :type site_id: Optional[str]
     :param blocking_refresh: By default the extract refresh will be blocking means it will wait until it has finished.
@@ -63,8 +63,8 @@ class TableauOperator(BaseOperator):
         *,
         resource: str,
         method: str,
-        resource_id: str,
-        resource_id_by: str = 'id',
+        find: str,
+        match_with: str = 'id',
         site_id: Optional[str] = None,
         blocking_refresh: bool = True,
         tableau_conn_id: str = 'tableau_default',
@@ -73,8 +73,8 @@ class TableauOperator(BaseOperator):
         super().__init__(**kwargs)
         self.resource = resource
         self.method = method
-        self.resource_id = resource_id
-        self.resource_id_by = resource_id_by
+        self.find = find
+        self.match_with = match_with
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
@@ -103,14 +103,11 @@ class TableauOperator(BaseOperator):
             resource = getattr(tableau_hook.server, self.resource)
             method = getattr(resource, self.resource)
 
-            resource_id = self._get_resource_id_by(tableau_hook)
+            resource_id = self._get_resource_id(tableau_hook)
 
             response = method(resource_id)
 
-        if self.method == 'download':
-            return response
-
-        elif self.method == 'refresh':
+        if self.method == 'refresh':
 
             job_id = response.id
 
@@ -124,21 +121,20 @@ class TableauOperator(BaseOperator):
                     dag=None,
                 ).execute(context={})
 
-                self.log.info(
-                    '%s has been successfully refreshed.',  self.resource)
+                self.log.info(f'{self.resource} has been successfully refreshed.')
 
             return job_id
 
-    def _get_resource_id_by(self, tableau_hook: TableauHook) -> str:
+    def _get_resource_id(self, tableau_hook: TableauHook) -> str:
 
-        if self.resource_id_by == 'id':
-            return self.resource_id
+        if self.match_with == 'id':
+            return self.find
 
         for resource in tableau_hook.get_all(resource_name=self.resource):
-            if getattr(resource, self.resource_id_by) == self.resource_id:
+            if getattr(resource, self.match_with) == self.find:
                 resource_id = resource.id
                 self.log.info('Found matching with id %s', resource_id)
                 return resource_id
 
         raise AirflowException(
-            f'{self.resource} with {self.resource_id_by} {self.resource_id} not found!')
+            f'{self.resource} with {self.match_with} {self.find} not found!')

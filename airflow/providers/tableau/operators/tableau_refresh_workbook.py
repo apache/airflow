@@ -82,8 +82,8 @@ class TableauRefreshWorkbookOperator(BaseOperator):
             job_id = TableauOperator(
                 resource='workbooks',
                 method='refresh',
-                resource_id=self.workbook_name,
-                resource_id_by='name',
+                find=self.workbook_name,
+                match_with='name',
                 site_id=self.site_id,
                 tableau_conn_id=self.tableau_conn_id,
                 task_id='refresh_workbook',
