@@ -50,6 +50,8 @@ with DAG(
         zone=AVAILABILITY_ZONE_ID,
         connection_id=CONNECTION_ID,
         s3_bucket=S3_BUCKET_NAME_FOR_JOB_LOGS,
+        computenode_count=1,
+        computenode_max_hosts_count=5,
     )
 
     create_hive_query = DataprocCreateHiveJobOperator(
