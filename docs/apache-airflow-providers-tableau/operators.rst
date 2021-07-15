@@ -29,13 +29,16 @@ Tableau server client python commands in a `Tableau <https://tableau.github.io/s
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-**resource**: The name of the resource to use. **str**  
-**method**: The name of the resource's method to execute. **str**  
-**find**: The reference of resource wich will recive the action. **str**  
-**match_with**: The resource field name to be matched with find parameter. **str** - Default: **id**  
-**site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**  
-**blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**  
-**tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**  
+| **resource**: The name of the resource to use. **str**
+| **method**: The name of the resource's method to execute. **str**  
+| **find**: The reference of resource wich will recive the action. **str**  
+| **match_with**: The resource field name to be matched with find parameter. **str** - Default: **id**  
+| **site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**  
+| **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**  
+| **tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**  
+|
+|
+
 
 
 .. list-table:: Available methods by resource
