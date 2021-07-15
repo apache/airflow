@@ -22,9 +22,25 @@ Changelog
 2.1.0
 .....
 
+Features
+~~~~~~~~
+* ``Allow attaching to previously launched task in ECSOperator (#16685)``
+* ``Update AWS Base hook to use refreshable credentials (#16770) (#16771)``
+* ``Added select_query to the templated fields in RedshiftToS3Operator (#16767)``
+* ``AWS Hook - allow IDP HTTP retry (#12639) (#16612)``
+* ``Update Boto3 API calls in ECSOperator (#16050)``
+
 Bug Fixes
 ~~~~~~~~~
+
 * ``AWS DataSync default polling adjusted from 5s to 30s (#11011)``
+* ``Fix wrong template_fields_renderers for AWS operators (#16820)``
+* ``AWS DataSync cancel task on exception (#11011) (#16589)``
+
+.. Below changes are excluded from the changelog. Move them to
+appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Bump &#39;&#39;sphinxcontrib-spelling&#39;&#39; and minor improvements (#16675)``
 
 2.0.0
 .....

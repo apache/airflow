@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``BugFix: Using &#39;json&#39; string in template_field causes issue with K8s Operators (#16930)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updating task dependencies (#16624)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 

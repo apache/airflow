@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for non-RSA type key for SFTP hook (#16314)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``SSHHook: Using correct hostname for host_key when using non-default ssh port (#15964)``
+* ``Correctly load openssh-gerenated private keys in SSHHook (#16756)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 

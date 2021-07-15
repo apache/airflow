@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.1
+.....
+
+Latest change: 2021-07-11
+
+================================================================================================  ===========  ==========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================================
+`b2c66e45b <https://github.com/apache/airflow/commit/b2c66e45b7c27d187491ec6a1dd5cc92ac7a1e32>`_  2021-07-11   ``BugFix: Using 'json' string in template_field causes issue with K8s Operators (#16930)``
+`9d6ae609b <https://github.com/apache/airflow/commit/9d6ae609b60449bd274c2f96e72486d73ad2b8f9>`_  2021-06-28   ``Updating task dependencies (#16624)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ==========================================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-17
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `4c9735ff9 <https://github.com/apache/airflow/commit/4c9735ff9b0201758564fcd64166abde318ec8a7>`_  2021-06-17   ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``

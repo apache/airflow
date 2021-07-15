@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for managed identity in WASB hook (#16628)``
+* ``Reduce log messages for happy path (#16626)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix multiple issues in Microsoft AzureContainerInstancesOperator (#15634)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+
 3.0.0
 .....
 

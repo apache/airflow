@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-07-07
+
+================================================================================================  ===========  ===========================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================================
+`5999cb9a6 <https://github.com/apache/airflow/commit/5999cb9a660fcf54e68d8b331b0d912f71f4836d>`_  2021-07-07   ``Adding: Snowflake Role in snowflake provider hook (#16735)``
+`8b41c2e0b <https://github.com/apache/airflow/commit/8b41c2e0b982335ee380f732452d133ad2dd7ce9>`_  2021-07-01   ``Logging and returning info about query execution SnowflakeHook (#15736)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ===========================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  =========================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `608dd0ddf <https://github.com/apache/airflow/commit/608dd0ddf65dac7f7eee2cb54628a93805b7ad66>`_  2021-06-15   ``Fix formatting and missing import (#16455)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``

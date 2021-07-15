@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.1
+.....
+
+Latest change: 2021-07-10
+
+================================================================================================  ===========  =============================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================
+`fc917af8b <https://github.com/apache/airflow/commit/fc917af8b49a914d4404faebbec807679f0626af>`_  2021-07-10   ``Fix Minor Bugs in Apache Sqoop Hook and Operator (#16350)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  =============================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ========================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ========================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``

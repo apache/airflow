@@ -18,6 +18,23 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Standardise dataproc location param to region (#16034)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update alias for field_mask in Google Memmcache (#16975)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+
 4.0.0
 .....
 

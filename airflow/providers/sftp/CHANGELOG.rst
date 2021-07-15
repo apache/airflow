@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for non-RSA type key for SFTP hook (#16314)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove redundant logging in SFTP Hook (#16704)``
+
 2.0.0
 .....
 

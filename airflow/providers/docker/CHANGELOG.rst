@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adds option to disable mounting temporary folder in DockerOperator (#16932)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+The ``DockerOperator`` in version 2.0.0 did not work for remote Docker Engine or Docker-In-Docker case.
+That was an unintended side effect of #15843 that has been fixed in #16932. There is a fallback mode
+which will make Docker Operator works with warning and you will be able to remove the warning by
+using the new parameter to disable mounting the folder.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 

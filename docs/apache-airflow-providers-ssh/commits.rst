@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-07-03
+
+================================================================================================  ===========  =========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================================
+`a2dc01b34 <https://github.com/apache/airflow/commit/a2dc01b34590fc7830bdb76fea653e1a0ebecbd3>`_  2021-07-03   ``SSHHook: Using correct hostname for host_key when using non-default ssh port (#15964)``
+`7777d4f2f <https://github.com/apache/airflow/commit/7777d4f2fd0a63758c34769f8aa0438c8b4c6d83>`_  2021-07-01   ``Correctly load openssh-gerenated private keys in SSHHook (#16756)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+`50e334df3 <https://github.com/apache/airflow/commit/50e334df3245072f55ce75c2611dca2df0cbd031>`_  2021-06-24   ``Add support for non-RSA type key for SFTP hook (#16314)``
+================================================================================================  ===========  =========================================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ======================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``

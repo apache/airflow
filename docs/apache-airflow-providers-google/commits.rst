@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2021-07-13
+
+================================================================================================  ===========  ============================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================
+`a3f5c9380 <https://github.com/apache/airflow/commit/a3f5c93806258b5ad396a638ba0169eca7f9d065>`_  2021-07-13   ``Update alias for field_mask in Google Memmcache (#16975)``
+`b0f7f91fe <https://github.com/apache/airflow/commit/b0f7f91fe29d1314b71c76de0f11d2dbe81c5c4a>`_  2021-07-07   ``Standardise dataproc location param to region (#16034)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ============================================================
+
 4.0.0
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  =========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `8a9c33783 <https://github.com/apache/airflow/commit/8a9c3378385454f16560d82e885ebc00c5ec069c>`_  2021-06-15   ``Remove class references in changelogs (#16454)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``

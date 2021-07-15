@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-07-02
+
+================================================================================================  ===========  ===========================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================
+`81be82bfb <https://github.com/apache/airflow/commit/81be82bfb73f263ecd3b2d5f664e9c1ea751408a>`_  2021-07-02   ``Remove redundant logging in SFTP Hook (#16704)``
+`50e334df3 <https://github.com/apache/airflow/commit/50e334df3245072f55ce75c2611dca2df0cbd031>`_  2021-06-24   ``Add support for non-RSA type key for SFTP hook (#16314)``
+================================================================================================  ===========  ===========================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ====================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ====================================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9351e2a2d <https://github.com/apache/airflow/commit/9351e2a2d43b6ec3c019df19afb445a3dcf587ac>`_  2021-06-10   ``Depreciate private_key_pass in SFTPHook conn extra and rename to private_key_passphrase (#14028)``

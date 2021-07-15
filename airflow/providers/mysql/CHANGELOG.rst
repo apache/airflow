@@ -22,6 +22,19 @@ used with MySQL server 5.6.4 through 5.7.
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added template_fields_renderers for MySQL Operator (#16914)``
+* ``Extended template_fields_renderers for MySQL provider (#16987)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 
