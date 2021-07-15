@@ -37,7 +37,7 @@ CONNECTION_ID = 'yandexcloud_default'
 AVAILABILITY_ZONE_ID = 'ru-central1-c'
 
 CLUSTER_NAME = 'dataproc_cluster'
-CLUSTER_IMAGE_VERSION = '1.1'
+CLUSTER_IMAGE_VERSION = '1.4'
 
 # https://cloud.yandex.com/docs/resource-manager/operations/folder/get-id
 FOLDER_ID = 'my_folder_id'
@@ -92,20 +92,27 @@ class DataprocClusterCreateOperatorTest(TestCase):
         operator.execute(context)
         create_cluster_mock.assert_called_once_with(
             cluster_description='',
-            cluster_image_version='1.1',
+            cluster_image_version='1.4',
             cluster_name=None,
             computenode_count=0,
-            computenode_disk_size=15,
-            computenode_disk_type='network-ssd',
-            computenode_resource_preset='s2.small',
-            datanode_count=2,
-            datanode_disk_size=15,
-            datanode_disk_type='network-ssd',
-            datanode_resource_preset='s2.small',
+            computenode_disk_size=None,
+            computenode_disk_type=None,
+            computenode_resource_preset=None,
+            computenode_max_hosts_count=None,
+            computenode_measurement_duration=None,
+            computenode_warmup_duration=None,
+            computenode_stabilization_duration=None,
+            computenode_preemptible=False,
+            computenode_cpu_utilization_target=None,
+            computenode_decommission_timeout=None,
+            datanode_count=1,
+            datanode_disk_size=None,
+            datanode_disk_type=None,
+            datanode_resource_preset=None,
             folder_id='my_folder_id',
-            masternode_disk_size=15,
-            masternode_disk_type='network-ssd',
-            masternode_resource_preset='s2.small',
+            masternode_disk_size=None,
+            masternode_disk_type=None,
+            masternode_resource_preset=None,
             s3_bucket='my_bucket_name',
             service_account_id=None,
             services=('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
