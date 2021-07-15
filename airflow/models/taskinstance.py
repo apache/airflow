@@ -318,6 +318,16 @@ class TaskInstance(Base, LoggingMixin):
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            TaskInstance.dag_id == DagRun.dag_id,"
+            TaskInstance.execution_date == DagRun.execution_date,
+        )""",
+        foreign_keys=(dag_id, execution_date),
+        backref="task_insntances",
+    )
+
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
         Index('ti_dag_date', dag_id, execution_date),
@@ -2142,7 +2152,5 @@ globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
 
     from airflow.job.base_job import BaseJob
-    from airflow.models.dagrun import DagRun
 
-    TaskInstance.dag_run = relationship(DagRun)
     TaskInstance.queued_by_job = relationship(BaseJob)

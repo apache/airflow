@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tup
 from sqlalchemy import Boolean, Column, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import backref, relationship, synonym
+from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import expression
 
@@ -87,13 +87,6 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'execution_date'),
         UniqueConstraint('dag_id', 'run_id'),
         Index('idx_last_scheduling_decision', last_scheduling_decision),
-    )
-
-    task_instances = relationship(
-        TI,
-        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),  # type: ignore
-        foreign_keys=(dag_id, execution_date),
-        backref=backref('dag_run', uselist=False),
     )
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
