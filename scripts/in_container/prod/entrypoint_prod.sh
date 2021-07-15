@@ -192,7 +192,7 @@ function wait_for_airflow_db() {
 
 function upgrade_db() {
     # Runs airflow db upgrade
-    airflow upgradedb || true
+    airflow db upgrade || true
 }
 
 function wait_for_celery_backend() {
