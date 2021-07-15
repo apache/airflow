@@ -86,6 +86,10 @@
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
         schedule: {{ dag.schedule_interval }}
       </a>
+      {% if dag.timetable.interval_description is not none %}
+      <span id="schedule-description-{{ dag.safe_dag_id }}" class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="{{ dag.timetable.interval_description|string }}">info</span>
+      {% endif %}
+
     </h4>
   </div>
   <div class="clearfix"></div>

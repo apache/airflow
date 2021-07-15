@@ -2404,6 +2404,20 @@ class DagModel(Base):
     def timezone(self):
         return settings.TIMEZONE
 
+    @property
+    def timetable(self) -> Timetable:
+        interval = self.schedule_interval
+        if interval is None:
+            return NullTimetable()
+        if interval == "@once":
+            return OnceTimetable()
+        if isinstance(interval, (timedelta, relativedelta)):
+            return DeltaDataIntervalTimetable(interval)
+        if isinstance(interval, str):
+            return CronDataIntervalTimetable(interval, self.timezone)
+        type_name = type(interval).__name__
+        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
+
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=None):

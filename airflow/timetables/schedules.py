@@ -96,6 +96,10 @@ class CronSchedule(Schedule):
         self._expression = expression = cron_presets.get(expression, expression)
         self._timezone = timezone
 
+    @property
+    def expression(self):
+        return self._expression
+
     def __eq__(self, other: typing.Any) -> bool:
         """Both expression and timezone should match."""
         if not isinstance(other, CronSchedule):

@@ -1249,21 +1249,23 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, NullTimetable()),
-            ("@daily", cron_timetable("0 0 * * *")),
-            ("@weekly", cron_timetable("0 0 * * 0")),
-            ("@monthly", cron_timetable("0 0 1 * *")),
-            ("@quarterly", cron_timetable("0 0 1 */3 *")),
-            ("@yearly", cron_timetable("0 0 1 1 *")),
-            ("@once", OnceTimetable()),
-            (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1))),
+            (None, NullTimetable(), None),
+            ("@daily", cron_timetable("0 0 * * *"),"At 00:00"),
+            ("@weekly", cron_timetable("0 0 * * 0"),"At 00:00, only on Sunday"),
+            ("@monthly", cron_timetable("0 0 1 * *"),"At 00:00, on day 1 of the month"),
+            ("@quarterly", cron_timetable("0 0 1 */3 *"),"At 00:00, on day 1 of the month, every 3 months"),
+            ("@yearly", cron_timetable("0 0 1 1 *"),"At 00:00, on day 1 of the month, only in January"),
+            ("5 0 * 8 *", cron_timetable("5 0 * 8 *"),"At 00:05, only in August"),
+            ("@once", OnceTimetable(), None),
+            (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), None),
         ]
     )
-    def test_timetable(self, schedule_interval, expected_timetable):
+    def test_timetable(self, schedule_interval, expected_timetable, interval_description):
         dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
 
         assert dag.timetable == expected_timetable
         assert dag.schedule_interval == schedule_interval
+        assert dag.timetable.interval_description == interval_description
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
