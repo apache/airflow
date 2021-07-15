@@ -16,19 +16,17 @@
 # under the License.
 from typing import Optional
 
-from airflow.exceptions import AirflowException
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
+from airflow.providers.tableau.hooks.tableau import (
+    TableauHook,
+    TableauJobFailedException,
+    TableauJobFinishCode,
+)
 from airflow.sensors.base import BaseSensorOperator
-
-
-class TableauJobFailedException(AirflowException):
-    """An exception that indicates that a Job failed to complete."""
 
 
 class TableauJobStatusSensor(BaseSensorOperator):
     """
     Watches the status of a Tableau Server Job.
-
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
     :param job_id: Id of the job to watch.
@@ -58,17 +56,16 @@ class TableauJobStatusSensor(BaseSensorOperator):
     def poke(self, context: dict) -> bool:
         """
         Pokes until the job has successfully finished.
-
         :param context: The task context during execution.
         :type context: dict
         :return: True if it succeeded and False if not.
         :rtype: bool
         """
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
-            finish_code = TableauJobFinishCode(
-                int(tableau_hook.server.jobs.get_by_id(self.job_id).finish_code)
-            )
+            finish_code = tableau_hook.get_job_status(job_id=self.job_id)
             self.log.info('Current finishCode is %s (%s)', finish_code.name, finish_code.value)
+
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
                 raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
+
             return finish_code == TableauJobFinishCode.SUCCESS

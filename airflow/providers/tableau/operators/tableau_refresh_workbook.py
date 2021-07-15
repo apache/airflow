@@ -20,14 +20,12 @@ from tableauserverclient import WorkbookItem
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
-from airflow.providers.tableau.sensors.tableau_job_status import TableauJobFailedException
+from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFailedException
 
 
 class TableauRefreshWorkbookOperator(BaseOperator):
     """
     Refreshes a Tableau Workbook/Extract
-
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#workbooks
 
     :param workbook_name: The name of the workbook to refresh.
@@ -61,7 +59,6 @@ class TableauRefreshWorkbookOperator(BaseOperator):
     def execute(self, context: dict) -> str:
         """
         Executes the Tableau Extract Refresh and pushes the job id to xcom.
-
         :param context: The task context during execution.
         :type context: dict
         :return: the id of the job that executes the extract refresh
@@ -72,14 +69,10 @@ class TableauRefreshWorkbookOperator(BaseOperator):
 
             job_id = self._refresh_workbook(tableau_hook, workbook.id)
             if self.blocking:
-                finish_code = TableauJobFinishCode.PENDING
-                negative_codes = (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED)
-                while not finish_code == TableauJobFinishCode.SUCCESS:
-                    return_code = int(tableau_hook.server.jobs.get_by_id(job_id).finish_code)
-                    finish_code = TableauJobFinishCode(return_code)
-                    if finish_code in negative_codes:
-                        raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
-                self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
+                if not tableau_hook.waiting_until_succeeded(job_id=job_id):
+                    raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
+
+            self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
             return job_id
 
     def _get_workbook_by_name(self, tableau_hook: TableauHook) -> WorkbookItem:

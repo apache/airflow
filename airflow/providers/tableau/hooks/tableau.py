@@ -22,7 +22,12 @@ from typing import Any, Optional
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+
+class TableauJobFailedException(AirflowException):
+    """An exception that indicates that a Job failed to complete."""
 
 
 class TableauJobFinishCode(Enum):
@@ -40,7 +45,6 @@ class TableauJobFinishCode(Enum):
 class TableauHook(BaseHook):
     """
     Connects to the Tableau Server Instance and allows to communicate with it.
-
     Can be used as a context manager: automatically authenticates the connection
     when opened and signs out when closed.
 
@@ -121,7 +125,6 @@ class TableauHook(BaseHook):
         """
         Get all items of the given resource.
         .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
-
         :param resource_name: The name of the resource to paginate.
             For example: jobs or workbooks.
         :type resource_name: str
@@ -133,3 +136,27 @@ class TableauHook(BaseHook):
         except AttributeError:
             raise ValueError(f"Resource name {resource_name} is not found.")
         return Pager(resource.get)
+
+    def get_job_status(self, job_id: str) -> Enum:
+        """
+        Get the current state of a defined Tableau Job.
+        .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
+        :param job_id: The id of the job to check.
+        :type job_id: str
+        :rtype: Enum
+        """
+        return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
+
+    def waiting_until_succeeded(self, job_id: str) -> bool:
+        """
+        Wait until the current state of a defined Tableau Job is not PENDING.
+        :param job_id: The id of the job to check.
+        :type job_id: str
+        :return: return True if the job has SUCCESS status, False otherwise.
+        :rtype: bool
+        """
+        finish_code = TableauJobFinishCode.PENDING
+        while finish_code == TableauJobFinishCode.PENDING:
+            finish_code = self.get_job_status(job_id=job_id)
+
+        return finish_code == TableauJobFinishCode.SUCCESS
