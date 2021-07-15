@@ -34,7 +34,7 @@ class SalesforceToS3Operator(BaseOperator):
 
     :param salesforce_query: The query to send to Salesforce.
     :type salesforce_query: str
-    :param s3_bucket_name: The bucket to upload to.
+    :param s3_bucket_name: The bucket name to upload to.
     :type s3_bucket_name: str
     :param s3_key: The object name to set when uploading the file.
     :type s3_key: str

@@ -34,8 +34,8 @@ are initially written to a local, temporary directory and then uploaded to an S3
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_salesforce_to_s3.py
     :language: python
-    :start-after: [START howto_operator_salesforce_to_s3]
-    :end-before: [END howto_operator_salesforce_to_s3]
+    :start-after: [START howto_operator_salesforce_to_s3_transfer]
+    :end-before: [END howto_operator_salesforce_to_s3_transfer]
 
 Reference
 ^^^^^^^^^
