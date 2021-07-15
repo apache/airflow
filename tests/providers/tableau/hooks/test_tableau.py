@@ -16,9 +16,7 @@
 # under the License.
 
 import unittest
-from unittest import mock
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import MagicMock, patch
 
 from airflow import configuration, models
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
@@ -218,13 +216,20 @@ class TestTableauHook(unittest.TestCase):
         '''
         # Test SUCCESS
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
-            tableau_hook.get_job_status = MagicMock(name='get_job_status', side_effect=[TableauJobFinishCode.PENDING, TableauJobFinishCode.SUCCESS])
+            tableau_hook.get_job_status = MagicMock(
+                name='get_job_status',
+                side_effect=[TableauJobFinishCode.PENDING, TableauJobFinishCode.SUCCESS],
+            )
             assert tableau_hook.waiting_until_succeeded(job_id='j1')
 
         # Test Not SUCCESS
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
-            tableau_hook.get_job_status = MagicMock(name='get_job_status', side_effect=[TableauJobFinishCode.PENDING,
-                                                                                        TableauJobFinishCode.PENDING,
-                                                                                        TableauJobFinishCode.ERROR])
+            tableau_hook.get_job_status = MagicMock(
+                name='get_job_status',
+                side_effect=[
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.ERROR,
+                ],
+            )
             assert not tableau_hook.waiting_until_succeeded(job_id='j1')
-
