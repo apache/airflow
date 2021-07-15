@@ -4216,7 +4216,7 @@ class CustomViewMenuModelView(ViewMenuModelView):
     ]
 
 
-class CustomUserCommonModelView():
+class CustomUserCommonModelView:
     """Customize permission names for FAB's builtin UserDBModelView. Common settings for all providers user views"""
 
     _class_permission_name = permissions.RESOURCE_USER
