@@ -1,5 +1,3 @@
-from http import HTTPStatus
-import requests
 from airflow.utils.logger import generate_logger
 import os
 from airflow.api.common.experimental.get_task_instance import get_task_instance
@@ -11,11 +9,10 @@ from airflow.operators.python_operator import PythonOperator
 import datetime as dt
 import pendulum
 from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
-from airflow.utils.curve import do_save_curve_error_tag, get_cas_training_base_url, get_task_params, get_craft_type, \
+from airflow.utils.curve import do_save_curve_error_tag, get_task_params, get_craft_type, \
     generate_bolt_number, get_curve_params, get_result, get_curve, trigger_push_result_to_mq, get_curve_mode, \
     should_trigger_training
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
-import json
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 MAX_ACTIVE_TRAINING = os.environ.get('MAX_ACTIVE_TRAINING', 100)
@@ -72,7 +69,6 @@ def update_confirm_data(task_data, verify_error, curve_mode):
 
 def do_trigger_training(task_instance, final_state):
     entity_id = task_instance.entity_id
-    url = "{}/cas/invalid-curve".format(get_cas_training_base_url())
     _logger.info('getting result...')
     result = get_result(entity_id)
     _logger.info('getting curve...')
@@ -97,19 +93,8 @@ def do_trigger_training(task_instance, final_state):
     }
     data.update(task_param)
     data.update(curve_params)
-    json_data = {
-        'conf': data
-    }
-    try:
-        _logger.info('posting to training server')
-        _logger.debug('data:{}'.format(json.dumps(json_data, indent=4)))
-        resp = requests.post(headers={'Content-Type': 'application/json'}, url=url, json=json_data, timeout=(3.05, 27))
-        _logger.info('training server response')
-        if resp.status_code != HTTPStatus.OK:
-            raise Exception(resp.content)
-    except Exception as e:
-        _logger.error(repr(e))
-        raise Exception(str(e))
+    cas = CasHook(role='training')
+    cas.trigger_training(data)
 
 
 def verify_params(**kwargs):

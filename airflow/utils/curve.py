@@ -1,5 +1,6 @@
 from airflow import models
 from airflow import settings
+from airflow.utils.db import get_connection
 from airflow.utils.db import create_session, get_connection
 from airflow.utils.logger import generate_logger
 import os
@@ -10,14 +11,12 @@ from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.api.common.experimental import trigger_dag as trigger
 import json
-from typing import Dict, Optional, Union
+from typing import Optional
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowConfigException
 from airflow.utils import timezone
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.utils.db import provide_session
 
-CAS_ANALYSIS_BASE_URL = os.environ.get("CAS_ANALYSIS_BASE_URL", "http://localhost:9095")
-CAS_TRAINING_BASE_URL = os.environ.get("CAS_TRAINING_BASE_URL", "http://localhost:9095")
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
 CRAFT_TYPE_MAP = {
@@ -47,26 +46,6 @@ def ensure_int(num):
     except Exception as e:
         _logger.error(e)
         return num
-
-
-def get_cas_analysis_base_url():
-    connection_model = models.connection.Connection
-    with create_session() as session:
-        url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_analysis').first()
-    if not url:
-        url = CAS_ANALYSIS_BASE_URL  # 从环境变量中获取URL配置
-    return url.get_uri() if isinstance(url, connection_model) else url
-
-
-def get_cas_training_base_url():
-    connection_model = models.connection.Connection
-    with create_session() as session:
-        url = session.query(connection_model).filter(
-            connection_model.conn_id == 'cas_training').first()
-    if not url:
-        url = CAS_TRAINING_BASE_URL  # 从环境变量中获取URL配置
-    return url.get_uri() if isinstance(url, connection_model) else url
 
 
 def get_craft_type(nut_no: str) -> Optional[int]:
@@ -250,6 +229,13 @@ def get_task_instances_by_entity_ids(entity_ids, session=None):
     ).all()
     return tis
 
+
+@provide_session
+def get_task_instance_by_entity_id(entity_id, session=None):
+    ti = session.query(TaskInstance).filter(
+        TaskInstance.entity_id == entity_id
+    ).first()
+    return ti
 
 def trigger_push_template_dag(template_name, template_data):
     push_result_dag_id = 'publish_result_dag'
