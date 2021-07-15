@@ -1,12 +1,19 @@
 # -*- coding:utf-8 -*-
-from typing import Dict, Optional
-from influxdb_client import InfluxDBClient, Point, WriteApi
-from .entity import ClsEntity
-from airflow.utils.logger import generate_logger
 import os
 import json
+import pytz
+import datetime
 import threading
-import json
+from typing import Dict, Optional
+from dateutil.parser import parse
+
+from airflow.utils.db import create_session
+from airflow.utils.logger import generate_logger
+
+from .entity import ClsEntity
+from plugins.result_storage.base import Base
+from plugins.result_storage.model import ResultModel
+
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -24,88 +31,29 @@ class ClsResultStorage(ClsEntity):
                     ClsResultStorage._instance = object.__new__(cls)
         return ClsResultStorage._instance
 
-    def __init__(self, url, bucket, token, ou, write_options):
+    def __init__(self, engine):
         super(ClsResultStorage, self).__init__()
-        if not self.is_config_changed(url, bucket, token, ou, write_options):
-            return
-        self._token = token
-        self._ou = ou
-        self._client = None
-        self._bucket = bucket
-        self._url = url
-        self.write_options = write_options
+        self.engine = engine
+        self.create_table_if_existed()
 
-    def is_config_changed(self, url, bucket, token, ou, write_options):
+    def create_table_if_existed(self):
+        if not self.engine.dialect.has_table(self.engine, ResultModel.__tablename__):
+            Base.metadata.create_all(self.engine)
+
+    def _write(self, data: Optional[Dict]):
         try:
-            if self._token != token:
-                return True
-            if self._ou != ou:
-                return True
-            if self._bucket != bucket:
-                return True
-            if self._url != url:
-                return True
-            if self.write_options != write_options:
-                return True
-            return False
+            with create_session() as session:
+                result = ResultModel(**data)
+                session.add(result)
         except Exception as e:
-            return True
+            _logger.error("Error: {}".format(e))
 
-    @property
-    def endpoint(self):
-        return self._url
-
-    def ensure_connect(self):
-        if self._client:
-            return
-        self.connect()
-        if self._client:
-            return
-        raise BaseException(u'{} 无法创建连接'.format(__class__.__name__))
-
-    def connect(self):
-        if not self.endpoint:
-            raise BaseException(u'{} 地址未定义'.format(__class__.__name__))
-        self._client = InfluxDBClient(
-            self.endpoint,
-            org=self._ou,
-            timeout=30,
-            token=self._token,
-            debug=IS_DEBUG)
-
-    @property
-    def write_api(self) -> Optional[WriteApi]:
-        if not self._client or not self.write_options:
-            return None
-        return self._client.write_api(write_options=self.write_options)
-
-    @property
-    def query_api(self) -> Optional[WriteApi]:
-        if not self._client:
-            return None
-        return self._client.query_api()
-
-    def _write(self, data: Point) -> None:
-        if not self.write_api or not self._bucket:
-            raise BaseException(u'请先进行连接')
-        return self.write_api.write(bucket=self._bucket, record=data)
-
-    def _query(self, query_str) -> Point:
-        if not self.query_api:
-            raise BaseException(u'请先进行连接')
-        return self.query_api.query(query_str)
-
-    def package_result_point(self, data: Dict) -> Optional[Point]:
-        sn = data.pop('tool_sn') if data.get('tool_sn', None) else None
-        if not sn:
-            raise BaseException(u'未定义工具序列号')
-        p = Point('results').tag('tool_sn', sn).tag('entity_id', self.entity_id)
-        for key, value in data.items():
-            if key in ['step_results']:
-                p.field(key, json.dumps(value))
-                continue
-            p.field(key, value)
-        return p
+    def _filter(self, params) -> list:
+        try:
+            with create_session() as session:
+                return session.query(ResultModel).filter(params).all()
+        except Exception as e:
+            _logger.error("Error: {}".format(e))
 
     @staticmethod
     def result_pkg_validator(data: Optional[Dict]):
@@ -129,62 +77,42 @@ class ClsResultStorage(ClsEntity):
             if not entity_id:
                 raise Exception("entity id Is Required!")
             result_body: Optional[Dict] = data.get('result')  # 之前验证过了 无需再验证有效性
-            self.ensure_connect()
-            result_body.update({"entity_id": entity_id, })  # 将 entity id 也保存到数据库中
-            result = self.package_result_point(result_body)
-            return self._write(result)
+            if result_body.get("update_time"):
+                update_time = parse(result_body.get("update_time"))
+            else:
+                update_time = datetime.datetime.now(tz=pytz.utc)
+            step_results = data.get("step_results")
+            if step_results and (isinstance(step_results, list) or isinstance(step_results, dict)):
+                step_results = json.dumps(step_results, ensure_ascii=False)
+            result_body.update({"entity_id": entity_id, "update_time": update_time, "step_results": step_results})
+            return self._write(result_body)
         except Exception as err:
             raise Exception(u"写入结果失败: {}, result: {}".format(repr(err), repr(data)))
 
     def query_results(self):
-        self.ensure_connect()
         if not self.entity_id:
             raise BaseException(u'entity_id未指定')
-        if not self._bucket:
-            raise BaseException(u'_bucket未指定')
         if not isinstance(self.entity_id, list):
             raise BaseException(u'entity_id必须是列表')
-        unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
-        query_condition = ' or '.join('r.entity_id == "{}"'.format(entity_id) for entity_id in self.entity_id)
-        query_str = '''from(bucket: "{}")
-          |> range(start: 0, stop: now())
-          |> filter(fn: (r) => r._measurement == "results")
-          |> filter(fn: (r) => {})
-          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-          '''.format(self._bucket, query_condition)
-        data = self._query(query_str)
+
+        data = self._filter(ResultModel.entity_id.in_(self.entity_id))
         ret = []
         if not data:
             return ret
         for table in data:
-            for record in table.records:
-                a = record.values
-                for key in unused_keys:
-                    a.pop(key)
-                ret.append(a)
+            if isinstance(table, ResultModel):
+                ret.append(table.as_dict())
         return ret
 
     def query_result(self):
-        self.ensure_connect()
         if not self.entity_id:
             raise BaseException(u'entity_id未指定')
-        if not self._bucket:
-            raise BaseException(u'_bucket未指定')
-        query_str = '''from(bucket: "{}")
-          |> range(start: 0, stop: now())
-          |> filter(fn: (r) => r._measurement == "results")
-          |> filter(fn: (r) => r.entity_id == "{}")
-          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")''' \
-            .format(self._bucket, self.entity_id)
-        unused_keys = ['_time', 'table', 'result', '_start', '_stop', '_measurement']
-        data = self._query(query_str)
+        data = self._filter(ResultModel.entity_id == self.entity_id)
         for table in data:
             for record in table.records:
                 ret = record.values
-                for key in unused_keys:
-                    ret.pop(key)
                 for key in ret.keys():
                     if key in ['step_results']:
                         ret[key] = json.loads(ret[key])
-                return ret  # 返回第一条记录
+                return ret
         return None

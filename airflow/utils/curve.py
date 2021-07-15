@@ -1,4 +1,5 @@
 from airflow import models
+from airflow import settings
 from airflow.utils.db import create_session, get_connection
 from airflow.utils.logger import generate_logger
 import os
@@ -130,15 +131,9 @@ def get_task_params(task_instance, entity_id):
     return {'task': task}
 
 
-def get_result_args(connection_key='qcos_influxdb'):
-    influxdb = get_connection(connection_key)
-    extra = influxdb.extra_dejson if influxdb else {}
+def get_result_args():
     return {
-        "bucket": extra.get('bucket', 'desoutter'),
-        "url": '{}:{}'.format(influxdb.host, influxdb.port) if influxdb else None,
-        "ou": extra.get('ou', 'desoutter'),
-        "token": influxdb.get_password() if influxdb else None,
-        'write_options': write_options
+        "engine": settings.engine,
     }
 
 
