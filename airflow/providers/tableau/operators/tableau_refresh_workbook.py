@@ -18,8 +18,7 @@ import warnings
 from typing import Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
-from airflow.providers.tableau.sensors.tableau_job_status import TableauJobFailedException
+from airflow.providers.tableau.operators.tableau import TableauOperator
 
 warnings.warn(
     """
