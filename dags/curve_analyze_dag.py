@@ -63,3 +63,11 @@ trigger_anay_task = TriggerAnalyzeOperator(
             dag=dag,
             priority_weight=9
         )
+
+# test
+# https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
+if __name__ == '__main__':
+    from tests.curve_dags.test_trigger import body
+    dag.clear(reset_dag_runs=True)
+    conf = body.get('conf')
+    dag.run(conf=conf)

@@ -126,7 +126,6 @@ def on_curve_receive(test_mode, **kwargs):
         trigger.trigger_dag('curve_analyze_dag', conf=params, replace_microseconds=False)
 
 
-
 def onCurveAnalyFail(context):
     _logger.error("{0} Run Fail".format(context))
 
@@ -165,3 +164,11 @@ store_task = PythonOperator(
     priority_weight=2,
     python_callable=on_curve_receive
 )
+
+# test
+# https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
+if __name__ == '__main__':
+    from tests.curve_dags.test_trigger import body
+    dag.clear(reset_dag_runs=True)
+    conf = body.get('conf')
+    dag.run(conf=conf)
