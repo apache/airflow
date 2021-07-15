@@ -153,10 +153,7 @@ official Apache releases must not include the rcN suffix.
 ## Prepare PyPI convenience "snapshot" packages
 
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to pypi for installing via pip. Also those packages
-are used to build the production docker image in DockerHub, so we need to upload the packages
-before we push the tag to GitHub. Pushing the tag to GitHub automatically triggers image building in
-DockerHub.
+publish "snapshots" of the RC builds to pypi for installing via pip.
 
 To do this we need to
 

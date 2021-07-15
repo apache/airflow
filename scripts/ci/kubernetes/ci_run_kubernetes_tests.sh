@@ -62,9 +62,6 @@ function parse_tests_to_run() {
             "--verbosity=1"
             "--strict-markers"
             "--durations=100"
-            "--cov=airflow/"
-            "--cov-config=.coveragerc"
-            "--cov-report=xml:files/coverage-${KIND_CLUSTER_NAME}-${HOST_PYTHON_VERSION}-${EXECUTOR}.xml"
             "--color=yes"
             "--maxfail=50"
             "--pythonwarnings=ignore::DeprecationWarning"
@@ -92,7 +89,7 @@ function create_virtualenv() {
 
     pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
-    pip install pytest freezegun pytest-cov \
+    pip install pytest freezegun \
       --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
 
     pip install -e ".[cncf.kubernetes,postgres]" \

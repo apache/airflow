@@ -172,7 +172,7 @@ class KubernetesPodOperator(BaseOperator):
         'pod_template_file',
     )
 
-    template_ext = ('yaml', 'yml', 'json')
+    template_ext = ('.yaml', '.yml', '.json')
 
     # fmt: off
     def __init__(

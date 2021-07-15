@@ -321,8 +321,6 @@ Using Breeze
    Docker image:           apache/airflow:main-python3.8-ci
    Airflow source version: 2.0.0b2
    Python version:         3.8
-   DockerHub user:         apache
-   DockerHub repo:         airflow
    Backend:                mysql 5.7
 
 

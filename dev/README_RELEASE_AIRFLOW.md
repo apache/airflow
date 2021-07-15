@@ -84,13 +84,13 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Clean the checkout: the sdist step below will
 
     ```shell script
-    rm -rf dist/*
     git clean -fxd
     ```
 
 - Tarball the repo
 
     ```shell script
+    mkdir dist
     git archive --format=tar.gz ${VERSION} \
         --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
@@ -168,17 +168,14 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 ## Prepare PyPI convenience "snapshot" packages
 
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to PyPI for installing via pip. Also those packages
-are used to build the production docker image in DockerHub, so we need to upload the packages
-before we push the tag to GitHub. Pushing the tag to GitHub automatically triggers image building in
-DockerHub.
+publish "snapshots" of the RC builds to PyPI for installing via pip:
 
 To do this we need to
 
 - Build the package:
 
     ```shell script
-    ./breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}"
+    ./breeze prepare-airflow-packages --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -558,9 +555,9 @@ cd "${VERSION}"
 
 # Move the artifacts to svn folder & commit
 for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
-    svn cp "$f" "${$(basename $f)/rc?/}"
+    svn cp "$f" "${$(basename $f)/}"
     # Those will be used to upload to PyPI
-    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/rc?/}"
+    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/}"
 done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
