@@ -50,6 +50,7 @@ class TableauHook(BaseHook):
 
     .. seealso:: https://tableau.github.io/server-client-python/docs/
 
+
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.
     :type site_id: Optional[str]
@@ -125,6 +126,7 @@ class TableauHook(BaseHook):
         """
         Get all items of the given resource.
         .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
+
         :param resource_name: The name of the resource to paginate.
             For example: jobs or workbooks.
         :type resource_name: str
@@ -141,6 +143,7 @@ class TableauHook(BaseHook):
         """
         Get the current state of a defined Tableau Job.
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
+
         :param job_id: The id of the job to check.
         :type job_id: str
         :rtype: Enum
