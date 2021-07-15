@@ -19,8 +19,8 @@ from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import TableauHook
-from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
+from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
+from airflow.providers.tableau.sensors.tableau_job_status import TableauJobFailedException
 
 RESOURCES_METHODS = {
     'datasources': ['delete', 'refresh'],
@@ -113,13 +113,13 @@ class TableauOperator(BaseOperator):
 
             if self.blocking_refresh:
 
-                TableauJobStatusSensor(
-                    job_id=job_id,
-                    site_id=self.site_id,
-                    tableau_conn_id=self.tableau_conn_id,
-                    task_id='wait_until_succeeded',
-                    dag=None,
-                ).execute(context={})
+                finish_code = TableauJobFinishCode.PENDING
+                negative_codes = (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED)
+                while not finish_code == TableauJobFinishCode.SUCCESS:
+                    return_code = int(tableau_hook.server.jobs.get_by_id(job_id).finish_code)
+                    finish_code = TableauJobFinishCode(return_code)
+                    if finish_code in negative_codes:
+                        raise TableauJobFailedException(f'The Tableau Refresh {self.resource} Job failed!')
 
                 self.log.info(f'{self.resource} has been successfully refreshed.')
 

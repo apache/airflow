@@ -92,10 +92,3 @@ class TableauRefreshWorkbookOperator(BaseOperator):
             ).execute(context={})
 
             return job_id
-
-    def _get_workbook_by_name(self, tableau_hook: TableauHook) -> WorkbookItem:
-        for workbook in tableau_hook.get_all(resource_name='workbooks'):
-            if workbook.name == self.workbook_name:
-                self.log.info('Found matching workbook with id %s', workbook.id)
-                return workbook
-        raise AirflowException(f'Workbook {self.workbook_name} not found!')
