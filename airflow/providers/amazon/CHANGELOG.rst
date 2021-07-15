@@ -38,9 +38,10 @@ Bug Fixes
 * ``AWS DataSync cancel task on exception (#11011) (#16589)``
 
 .. Below changes are excluded from the changelog. Move them to
-appropriate section above if needed. Do not delete the lines(!):
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
-   * ``Bump &#39;&#39;sphinxcontrib-spelling&#39;&#39; and minor improvements (#16675)``
+   * ``Bump sphinxcontrib-spelling and minor improvements (#16675)``
+   * ``Prepare documentation for July release of providers. (#17015)``
 
 2.0.0
 .....

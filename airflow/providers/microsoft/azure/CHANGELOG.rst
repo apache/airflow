@@ -36,6 +36,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
 
 3.0.0
 .....

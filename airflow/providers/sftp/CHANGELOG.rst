@@ -30,6 +30,7 @@ Features
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove redundant logging in SFTP Hook (#16704)``
+   * ``Prepare documentation for July release of providers. (#17015)``
 
 2.0.0
 .....

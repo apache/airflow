@@ -31,6 +31,7 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updating task dependencies (#16624)``
    * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
 
 2.0.0
 .....

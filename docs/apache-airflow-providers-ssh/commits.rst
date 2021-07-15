@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-07-03
+Latest change: 2021-07-15
 
 ================================================================================================  ===========  =========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `a2dc01b34 <https://github.com/apache/airflow/commit/a2dc01b34590fc7830bdb76fea653e1a0ebecbd3>`_  2021-07-03   ``SSHHook: Using correct hostname for host_key when using non-default ssh port (#15964)``
 `7777d4f2f <https://github.com/apache/airflow/commit/7777d4f2fd0a63758c34769f8aa0438c8b4c6d83>`_  2021-07-01   ``Correctly load openssh-gerenated private keys in SSHHook (#16756)``
 `866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
