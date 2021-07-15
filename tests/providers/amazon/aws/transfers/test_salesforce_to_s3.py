@@ -27,8 +27,8 @@ TASK_ID = "test-task-id"
 QUERY = "SELECT id, company FROM Lead WHERE company = 'Hello World Inc'"
 SALESFORCE_CONNECTION_ID = "test-salesforce-connection"
 S3_BUCKET = "test-bucket"
-S3_OBJECT_PATH = "path/to/test-file-path"
-EXPECTED_S3_URI = f"s3://{S3_BUCKET}/{S3_OBJECT_PATH}"
+S3_KEY = "path/to/test-file-path/test-file.json"
+EXPECTED_S3_URI = f"s3://{S3_BUCKET}/{S3_KEY}"
 AWS_CONNECTION_ID = "aws_default"
 SALESFORCE_RESPONSE = {
     'records': [
@@ -66,7 +66,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             task_id=TASK_ID,
             salesforce_query=QUERY,
             s3_bucket_name=S3_BUCKET,
-            s3_key=S3_OBJECT_PATH,
+            s3_key=S3_KEY,
             salesforce_conn_id=SALESFORCE_CONNECTION_ID,
             export_format=EXPORT_FORMAT,
             query_params=QUERY_PARAMS,
@@ -83,7 +83,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
         assert operator.task_id == TASK_ID
         assert operator.salesforce_query == QUERY
         assert operator.s3_bucket_name == S3_BUCKET
-        assert operator.s3_key == S3_OBJECT_PATH
+        assert operator.s3_key == S3_KEY
         assert operator.salesforce_conn_id == SALESFORCE_CONNECTION_ID
         assert operator.export_format == EXPORT_FORMAT
         assert operator.query_params == QUERY_PARAMS
@@ -112,7 +112,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
 
         mock_load_file.assert_called_once_with(
             bucket_name=S3_BUCKET,
-            key=S3_OBJECT_PATH,
+            key=S3_KEY,
             filename=mock.ANY,
             replace=REPLACE,
             encrypt=ENCRYPT,
