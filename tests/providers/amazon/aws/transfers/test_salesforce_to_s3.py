@@ -48,8 +48,10 @@ SALESFORCE_RESPONSE = {
     'totalSize': 1,
     'done': True,
 }
-INCLUDE_DELETED = True
 QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
+INCLUDE_DELETED = COERCE_TO_TIMESTAMP = RECORD_TIME_ADDED = True
+REPLACE = ENCRYPT = GZIP = False
+ACL_POLICY = None
 
 
 class TestSalesforceToGcsOperator(unittest.TestCase):
@@ -68,36 +70,53 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             export_format="json",
             query_params=QUERY_PARAMS,
             include_deleted=INCLUDE_DELETED,
-            coerce_to_timestamp=True,
-            record_time_added=True,
+            coerce_to_timestamp=COERCE_TO_TIMESTAMP,
+            record_time_added=RECORD_TIME_ADDED,
             aws_conn_id=AWS_CONNECTION_ID,
-            replace=False,
-            encrypt=False,
-            gzip=False,
-            acl_policy=None,
+            replace=REPLACE,
+            encrypt=ENCRYPT,
+            gzip=GZIP,
+            acl_policy=ACL_POLICY,
         )
-        result = operator.execute({})
+
+        assert operator.task_id == TASK_ID
+        assert operator.salesforce_query == QUERY
+        assert operator.s3_bucket_name == S3_BUCKET
+        assert operator.s3_key == S3_OBJECT_PATH
+        assert operator.salesforce_conn_id == SALESFORCE_CONNECTION_ID
+        assert operator.export_format == "json"
+        assert operator.query_params == QUERY_PARAMS
+        assert operator.include_deleted == INCLUDE_DELETED
+        assert operator.coerce_to_timestamp == COERCE_TO_TIMESTAMP
+        assert operator.record_time_added == RECORD_TIME_ADDED
+        assert operator.aws_conn_id == AWS_CONNECTION_ID
+        assert operator.replace == REPLACE
+        assert operator.encrypt == ENCRYPT
+        assert operator.gzip == GZIP
+        assert operator.acl_policy == ACL_POLICY
+
+        assert EXPECTED_S3_URI == operator.execute({})
 
         mock_make_query.assert_called_once_with(
             query=QUERY, include_deleted=INCLUDE_DELETED, query_params=QUERY_PARAMS
         )
 
+        print(mock_make_query.return_value)
+
         mock_write_object_to_file.assert_called_once_with(
             query_results=SALESFORCE_RESPONSE['records'],
             filename=mock.ANY,
             fmt="json",
-            coerce_to_timestamp=True,
-            record_time_added=True,
+            coerce_to_timestamp=COERCE_TO_TIMESTAMP,
+            record_time_added=RECORD_TIME_ADDED,
         )
 
         mock_load_file.assert_called_once_with(
             bucket_name=S3_BUCKET,
             key=S3_OBJECT_PATH,
             filename=mock.ANY,
-            replace=False,
-            encrypt=False,
-            gzip=False,
-            acl_policy=None,
+            replace=REPLACE,
+            encrypt=ENCRYPT,
+            gzip=GZIP,
+            acl_policy=ACL_POLICY,
         )
-
-        assert EXPECTED_S3_URI == result
