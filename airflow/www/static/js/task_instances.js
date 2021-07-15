@@ -85,10 +85,12 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   } else {
     tt += `Started: ${escapeHtml(ti.start_date)}<br>`;
   }
-  // Calculate duration on the fly if task instance is still running
-  if (ti.state === 'running') {
-    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
-    ti.duration = moment().diff(startDate, 'second');
+
+  const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+  ti.duration = moment().diff(startDate, 'second');
+  if (ti.end_date) {
+    const endDate = ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
+      ti.duration = endDate.diff(startDate, 'second');  
   }
 
   tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
