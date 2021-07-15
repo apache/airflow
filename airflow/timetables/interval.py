@@ -18,7 +18,7 @@
 import datetime
 from typing import Any, Optional
 
-from cron_descriptor import ExpressionDescriptor, CasingTypeEnum, MissingFieldException, FormatException
+from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from pendulum import DateTime
 
 from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
@@ -84,7 +84,9 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def interval_description(self) -> [str, None]:
         """Returns chron description for a schedule interval"""
         descriptor = ExpressionDescriptor(
-            expression=self._schedule.expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            expression=self._schedule.expression,
+            casing_type=CasingTypeEnum.Sentence,
+            use_24hour_time_format=True,
         )
         try:
             schedule_interval_description = descriptor.get_description()

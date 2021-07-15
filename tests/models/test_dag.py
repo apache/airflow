@@ -1250,12 +1250,12 @@ class TestDag(unittest.TestCase):
     @parameterized.expand(
         [
             (None, NullTimetable(), None),
-            ("@daily", cron_timetable("0 0 * * *"),"At 00:00"),
-            ("@weekly", cron_timetable("0 0 * * 0"),"At 00:00, only on Sunday"),
-            ("@monthly", cron_timetable("0 0 1 * *"),"At 00:00, on day 1 of the month"),
-            ("@quarterly", cron_timetable("0 0 1 */3 *"),"At 00:00, on day 1 of the month, every 3 months"),
-            ("@yearly", cron_timetable("0 0 1 1 *"),"At 00:00, on day 1 of the month, only in January"),
-            ("5 0 * 8 *", cron_timetable("5 0 * 8 *"),"At 00:05, only in August"),
+            ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
+            ("@weekly", cron_timetable("0 0 * * 0"), "At 00:00, only on Sunday"),
+            ("@monthly", cron_timetable("0 0 1 * *"), "At 00:00, on day 1 of the month"),
+            ("@quarterly", cron_timetable("0 0 1 */3 *"), "At 00:00, on day 1 of the month, every 3 months"),
+            ("@yearly", cron_timetable("0 0 1 1 *"), "At 00:00, on day 1 of the month, only in January"),
+            ("5 0 * 8 *", cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
             ("@once", OnceTimetable(), None),
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), None),
         ]
