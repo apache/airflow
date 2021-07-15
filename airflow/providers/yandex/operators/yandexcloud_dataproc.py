@@ -126,7 +126,6 @@ class DataprocCreateClusterOperator(BaseOperator):
         computenode_preemptible: bool = False,
         computenode_cpu_utilization_target: Optional[int] = None,
         computenode_decommission_timeout: Optional[int] = None,
-
         connection_id: Optional[str] = None,
         **kwargs,
     ) -> None:
