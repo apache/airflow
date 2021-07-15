@@ -26,10 +26,10 @@ from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOp
 from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObjectsOperator
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
 
-
 BASE_PATH = "salesforce/customers"
 FILE_NAME = "customer_daily_extract_{{ ds_nodash }}.csv"
-LANDING_BUCKET = "landing_bucket"
+LANDING_BUCKET = "landing-bucket"
+S3_KEY = f"{BASE_PATH}/{FILE_NAME}"
 
 
 with DAG(
@@ -46,7 +46,7 @@ with DAG(
         task_id="upload_salesforce_data_to_s3",
         salesforce_query="SELECT Id, Name, Company, Phone, Email, LastModifiedDate, IsActive FROM Customers",
         s3_bucket_name=LANDING_BUCKET,
-        s3_key=f"{BASE_PATH}/{FILE_NAME}",
+        s3_key=S3_KEY,
         salesforce_conn_id="salesforce",
         replace=True,
     )
@@ -64,7 +64,7 @@ with DAG(
     delete_data_from_s3_landing = S3DeleteObjectsOperator(
         task_id="delete_data_from_s3_landing",
         bucket=LANDING_BUCKET,
-        keys=f"{BASE_PATH}/{FILE_NAME}",
+        keys=S3_KEY,
     )
 
     store_to_s3_data_lake >> delete_data_from_s3_landing
