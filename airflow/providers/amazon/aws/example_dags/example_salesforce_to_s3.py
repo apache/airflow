@@ -31,6 +31,8 @@ FILE_NAME = "customer_daily_extract_{{ ds_nodash }}.csv"
 LANDING_BUCKET = "landing-bucket"
 S3_KEY = f"{BASE_PATH}/{FILE_NAME}"
 
+AWS_CONN_ID = "s3"
+
 
 with DAG(
     dag_id="example_salesforce_to_s3_transfer",
@@ -49,7 +51,7 @@ with DAG(
         s3_key=S3_KEY,
         salesforce_conn_id="salesforce",
         replace=True,
-        aws_conn_id="s3",
+        aws_conn_id=AWS_CONN_ID,
     )
     # [END howto_operator_salesforce_to_s3_transfer]
 
@@ -60,14 +62,14 @@ with DAG(
         source_bucket_key=upload_salesforce_data_to_s3_landing.output,
         dest_bucket_name="data_lake",
         dest_bucket_key=f"{BASE_PATH}/{date_prefixes}/{FILE_NAME}",
-        aws_conn_id="s3",
+        aws_conn_id=AWS_CONN_ID,
     )
 
     delete_data_from_s3_landing = S3DeleteObjectsOperator(
         task_id="delete_data_from_s3_landing",
         bucket=LANDING_BUCKET,
         keys=S3_KEY,
-        aws_conn_id="s3",
+        aws_conn_id=AWS_CONN_ID,
     )
 
     store_to_s3_data_lake >> delete_data_from_s3_landing
