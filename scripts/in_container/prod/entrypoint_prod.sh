@@ -153,13 +153,6 @@ function create_www_user() {
        --lastname "${_AIRFLOW_WWW_USER_LASTNME="Admin"}" \
        --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
        --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
-       --password "${local_password}" ||
-    airflow create_user \
-       --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
-       --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
-       --lastname "${_AIRFLOW_WWW_USER_LASTNME="Admin"}" \
-       --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
-       --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
        --password "${local_password}" || true
 }
 
@@ -193,30 +186,13 @@ function set_pythonpath_for_root_user() {
 }
 
 function wait_for_airflow_db() {
-    # Check if Airflow has a command to check the connection to the database.
-    if ! airflow db check --help >/dev/null 2>&1; then
-        run_check_with_retries "airflow db check"
-    else
-        # Verify connections to the Airflow DB by guessing the database address based on environment variables,
-        # then uses netcat to check that the host is reachable.
-        # This is only used by Airflow 1.10+ as there are no built-in commands to check the db connection.
-        local connection_url
-        if [[ -n "${AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=}" ]]; then
-            connection_url="$(eval "${AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD}")"
-        else
-            # if no DB configured - use sqlite db by default
-            connection_url="${AIRFLOW__CORE__SQL_ALCHEMY_CONN:="sqlite:///${AIRFLOW_HOME}/airflow.db"}"
-        fi
-        # SQLite doesn't require a remote connection, so we don't have to wait.
-        if [[ ${connection_url} != sqlite* ]]; then
-            wait_for_connection "${connection_url}"
-        fi
-    fi
+    # Wait for the command to run successfully to validate the database connection.
+    run_check_with_retries "airflow db check"
 }
 
 function upgrade_db() {
     # Runs airflow db upgrade
-    airflow db upgrade || airflow upgradedb || true
+    airflow db upgrade || true
 }
 
 function wait_for_celery_backend() {
@@ -232,8 +208,8 @@ function wait_for_celery_backend() {
 }
 
 function exec_to_bash_or_python_command_if_specified() {
-    # If one of the commands: 'airflow', 'bash', 'python' is used, either run appropriate
-    # command with exec or update the command line parameters
+    # If one of the commands: 'bash', 'python' is used, either run appropriate
+    # command with exec
     if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
        shift
        exec "/bin/bash" "${@}"
