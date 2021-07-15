@@ -24,7 +24,7 @@ import re
 from enum import Enum
 from typing import Dict, List, Pattern, Tuple
 
-CONN_ID: str = "eks"
+DEFAULT_CONN_ID: str = "aws_default"
 FROZEN_TIME: str = "2013-11-27T01:42:00Z"
 PACKAGE_NOT_PRESENT_MSG: str = "mock_eks package not present"
 PARTITION: str = "aws"

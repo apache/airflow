@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.hooks.eks import EKSHook
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
-CONN_ID = "eks"
+DEFAULT_CONN_ID = "aws_default"
 TARGET_STATE = 'ACTIVE'
 
 
@@ -37,7 +37,7 @@ class EKSClusterStateSensor(BaseSensorOperator):
     :type target_state: str
     """
 
-    template_fields = ("target_state", "cluster_name")
+    template_fields = ("target_state", "cluster_name", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
     valid_states = ["CREATING", "ACTIVE", "DELETING", "FAILED", "UPDATING"]
@@ -48,7 +48,7 @@ class EKSClusterStateSensor(BaseSensorOperator):
         *,
         cluster_name: str,
         target_state: Optional[str] = TARGET_STATE,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ):
@@ -57,12 +57,12 @@ class EKSClusterStateSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.target_state = target_state.upper()
         self.cluster_name = cluster_name
-        self.conn_id = conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def poke(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
@@ -83,7 +83,7 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
     :type target_state: str
     """
 
-    template_fields = ("target_state", "cluster_name", "nodegroup_name")
+    template_fields = ("target_state", "cluster_name", "nodegroup_name", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
     valid_states = [
@@ -103,7 +103,7 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         cluster_name: str,
         nodegroup_name: str,
         target_state: Optional[str] = TARGET_STATE,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ):
@@ -113,12 +113,12 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         self.target_state = target_state.upper()
         self.cluster_name = cluster_name
         self.nodegroup_name = nodegroup_name
-        self.conn_id = conn_id
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def poke(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 

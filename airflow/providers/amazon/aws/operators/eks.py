@@ -27,8 +27,8 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
-CONN_ID = "eks"
 DEFAULT_COMPUTE_TYPE = 'nodegroup'
+DEFAULT_CONN_ID = "aws_default"
 DEFAULT_NAMESPACE_NAME = 'default'
 DEFAULT_NODEGROUP_NAME_SUFFIX = '-nodegroup'
 DEFAULT_POD_NAME = 'pod'
@@ -95,7 +95,7 @@ class EKSCreateClusterOperator(BaseOperator):
         nodegroup_name: Optional[str] = None,
         nodegroup_role_arn: Optional[str] = None,
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -203,7 +203,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         nodegroup_subnets: List[str],
         nodegroup_role_arn: str,
         nodegroup_name: Optional[str],
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -258,7 +258,11 @@ class EKSDeleteClusterOperator(BaseOperator):
     )
 
     def __init__(
-        self, cluster_name: str, aws_conn_id: Optional[str] = CONN_ID, region: Optional[str] = None, **kwargs
+        self,
+        cluster_name: str,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        region: Optional[str] = None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
@@ -337,7 +341,7 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         self,
         cluster_name: str,
         nodegroup_name: str,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -383,7 +387,7 @@ class EKSDescribeAllClustersOperator(BaseOperator):
     def __init__(
         self,
         verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -445,7 +449,7 @@ class EKSDescribeAllNodegroupsOperator(BaseOperator):
         self,
         cluster_name: str,
         verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -514,7 +518,7 @@ class EKSDescribeClusterOperator(BaseOperator):
         self,
         cluster_name: str,
         verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -576,7 +580,7 @@ class EKSDescribeNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_name: str,
         verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -630,7 +634,7 @@ class EKSListClustersOperator(BaseOperator):
     def __init__(
         self,
         verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -683,7 +687,7 @@ class EKSListNodegroupsOperator(BaseOperator):
         self,
         cluster_name: str,
         verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -761,7 +765,7 @@ class EKSPodOperator(KubernetesPodOperator):
         pod_name: Optional[str] = DEFAULT_POD_NAME,
         pod_username: Optional[str] = DEFAULT_POD_USERNAME,
         region: Optional[str] = None,
-        aws_conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         **kwargs,
     ) -> None:
         super().__init__(

@@ -47,7 +47,7 @@ from moto.eks.models import (
 from airflow.providers.amazon.aws.hooks.eks import EKSHook
 
 from ..utils.eks_test_constants import (
-    CONN_ID,
+    DEFAULT_CONN_ID,
     DISK_SIZE,
     FROZEN_TIME,
     INSTANCE_TYPES,
@@ -115,7 +115,7 @@ def cluster_builder():
 
     mock_eks().start()
     eks_hook = EKSHook(
-        aws_conn_id=CONN_ID,
+        aws_conn_id=DEFAULT_CONN_ID,
         region_name=REGION,
     )
     yield _execute
@@ -168,7 +168,7 @@ class TestEKSHooks:
     def test_hook(self, cluster_builder) -> None:
         eks_hook, _ = cluster_builder()
         assert eks_hook.get_conn() is not None
-        assert eks_hook.aws_conn_id == CONN_ID
+        assert eks_hook.aws_conn_id == DEFAULT_CONN_ID
         assert eks_hook.region_name == REGION
 
     ###
@@ -179,7 +179,7 @@ class TestEKSHooks:
     ###
     @mock_eks
     def test_list_clusters_returns_empty_by_default(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=CONN_ID, region_name=REGION)
+        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
 
         result: List = eks_hook.list_clusters()
 
@@ -366,7 +366,7 @@ class TestEKSHooks:
 
     @mock_eks
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
-        eks_hook: EKSHook = EKSHook(aws_conn_id=CONN_ID, region_name=REGION)
+        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
         non_existent_nodegroup_name: str = NON_EXISTING_NODEGROUP_NAME
         expected_exception: Type[AWSError] = ResourceNotFoundException
