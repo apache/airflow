@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.1.0
 .....
 
-Latest change: 2021-06-28
+Latest change: 2021-07-15
 
 ================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =============================================================================
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
 `caf0a8499 <https://github.com/apache/airflow/commit/caf0a8499f6099c943b0dd5054a9480b2e046bf1>`_  2021-06-25   ``Add support for managed identity in WASB hook (#16628)``
 `ffb1fcacf <https://github.com/apache/airflow/commit/ffb1fcacff21c31d7cacfbd843a84208fca38d1e>`_  2021-06-24   ``Fix multiple issues in Microsoft AzureContainerInstancesOperator (#15634)``

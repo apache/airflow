@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-07-14
+Latest change: 2021-07-15
 
 ================================================================================================  ===========  ==================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==================================================================
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `6ab00bfcf <https://github.com/apache/airflow/commit/6ab00bfcfdfe1213928281527f32ca31b77cce1b>`_  2021-07-14   ``Extended template_fields_renderers for MySQL provider (#16987)``
 `c3b8212b6 <https://github.com/apache/airflow/commit/c3b8212b6e82145f96d17e51cc462db8e2506220>`_  2021-07-10   ``Added template_fields_renderers for MySQL Operator (#16914)``
 `866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
