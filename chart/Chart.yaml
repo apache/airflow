@@ -34,7 +34,7 @@ keywords:
   - scheduler
 dependencies:
   - name: postgresql
-    version: 6.3.12
+    version: 10.5.3
     repository: "https://charts.bitnami.com/bitnami"
     condition: postgresql.enabled
 maintainers:
