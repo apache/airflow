@@ -86,6 +86,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
                 match_with='name',
                 site_id=self.site_id,
                 tableau_conn_id=self.tableau_conn_id,
+                blocking_refresh=self.blocking,
                 task_id='refresh_workbook',
                 dag=None,
             ).execute(context={})
