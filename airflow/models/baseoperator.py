@@ -191,8 +191,8 @@ class BaseOperatorMeta(abc.ABCMeta):
 
         return cast(T, apply_defaults)
 
-    def __new__(cls, name, bases, namespace):
-        new_cls = super().__new__(cls, name, bases, namespace)
+    def __new__(cls, name, bases, namespace, **kwargs):
+        new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
         return new_cls
 

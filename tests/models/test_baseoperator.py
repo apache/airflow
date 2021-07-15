@@ -563,3 +563,29 @@ class TestXComArgsRelationsAreResolved:
         with pytest.raises(AirflowException):
             op1 = DummyOperator(task_id="op1")
             CustomOp(task_id="op2", field=op1.output)
+
+
+class InitSubclassOp(DummyOperator):
+    def __init_subclass__(cls, class_arg=None, **kwargs) -> None:
+        cls._class_arg = class_arg
+        super().__init_subclass__(**kwargs)
+
+    def execute(self, context):
+        self.context_arg = context
+
+
+class TestInitSubclassOperator:
+    def test_init_subclass_args(self):
+        class_arg = "foo"
+        context = {"key": "value"}
+
+        class ConcreteSubclassOp(InitSubclassOp, class_arg=class_arg):
+            pass
+
+        task = ConcreteSubclassOp(task_id="op1")
+        task_copy = task.prepare_for_execution()
+
+        task_copy.execute(context)
+
+        assert task_copy._class_arg == class_arg
+        assert task_copy.context_arg == context
