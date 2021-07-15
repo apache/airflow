@@ -37,18 +37,6 @@ Using the Operator
 **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**
 **tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**
 
-RESOURCES_METHODS = {
-    'datasources': ['delete', 'refresh'],
-    'groups': ['delete'],
-    'projects': ['delete'],
-    'schedule': ['delete'],
-    'sites': ['delete'],
-    'subscriptions': ['delete'],
-    'tasks': ['delete', 'run'],
-    'users': ['remove'],
-    'workbooks': ['delete', 'refresh'],
-}
-
 
 .. list-table:: Available methods by resource
    :widths: 15 15 15 15 15
