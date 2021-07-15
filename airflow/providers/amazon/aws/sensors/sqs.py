@@ -117,20 +117,20 @@ class SQSSensor(BaseSensorOperator):
 
         messages = response['Messages']
         num_messages = len(messages)
-        self.log.info("received %s messages", str(num_messages))
+        self.log.info("Received %d messages", num_messages)
 
-        if num_messages == 0:
+        if not num_messages:
             return False
 
         if self.message_filtering:
             messages = self.filter_messages(messages)
             num_messages = len(messages)
-            self.log.info("filtered %s messages", str(num_messages))
+            self.log.info("There are %d messages left after filtering", num_messages)
 
-        if num_messages == 0:
+        if not num_messages:
             return False
 
-        self.log.info("deleting %s messages", str(num_messages))
+        self.log.info("Deleting %d messages", num_messages)
 
         entries = [
             {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']} for message in messages
