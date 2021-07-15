@@ -72,7 +72,9 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
 
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
-        mock_tableau_hook.server.jobs.get_by_id.assert_called_once_with(job_id)
+        mock_tableau_hook.waiting_until_succeeded.assert_called_once_with(
+            job_id=job_id,
+        )
 
     @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
     def test_execute_missing_workbook(self, mock_tableau_hook):
