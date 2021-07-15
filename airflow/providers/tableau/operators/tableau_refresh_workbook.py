@@ -76,18 +76,17 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         :return: the id of the job that executes the extract refresh
         :rtype: str
         """
-        with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
 
-            job_id = TableauOperator(
-                resource='workbooks',
-                method='refresh',
-                find=self.workbook_name,
-                match_with='name',
-                site_id=self.site_id,
-                tableau_conn_id=self.tableau_conn_id,
-                blocking_refresh=self.blocking,
-                task_id='refresh_workbook',
-                dag=None,
-            ).execute(context={})
+        job_id = TableauOperator(
+            resource='workbooks',
+            method='refresh',
+            find=self.workbook_name,
+            match_with='name',
+            site_id=self.site_id,
+            tableau_conn_id=self.tableau_conn_id,
+            blocking_refresh=self.blocking,
+            task_id='refresh_workbook',
+            dag=None,
+        ).execute(context={})
 
-            return job_id
+        return job_id
