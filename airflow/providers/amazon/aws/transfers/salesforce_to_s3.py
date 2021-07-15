@@ -26,7 +26,12 @@ from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
 class SalesforceToS3Operator(BaseOperator):
     """
-    Submits Salesforce query and uploads results to AWS S3
+    Submits a Salesforce query and uploads the results to AWS S3.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SalesforceToS3Operator`
+
     :param salesforce_query: The query to send to Salesforce.
     :type salesforce_query: str
     :param s3_bucket_name: The bucket to upload to.
@@ -68,6 +73,7 @@ class SalesforceToS3Operator(BaseOperator):
 
     def __init__(
         self,
+        *,
         salesforce_query: str,
         s3_bucket_name: str,
         s3_key: str,
