@@ -37,7 +37,7 @@ with DAG(
     schedule_interval="@daily",
     start_date=datetime(2021, 7, 8),
     catchup=False,
-    default_args={"retries": 1, "aws_conn_id": "s3"},
+    default_args={"retries": 1},
     tags=["example"],
     default_view="graph",
 ) as dag:
@@ -49,6 +49,7 @@ with DAG(
         s3_key=S3_KEY,
         salesforce_conn_id="salesforce",
         replace=True,
+        aws_conn_id="s3",
     )
     # [END howto_operator_salesforce_to_s3_transfer]
 
@@ -59,12 +60,14 @@ with DAG(
         source_bucket_key=upload_salesforce_data_to_s3_landing.output,
         dest_bucket_name="data_lake",
         dest_bucket_key=f"{BASE_PATH}/{date_prefixes}/{FILE_NAME}",
+        aws_conn_id="s3",
     )
 
     delete_data_from_s3_landing = S3DeleteObjectsOperator(
         task_id="delete_data_from_s3_landing",
         bucket=LANDING_BUCKET,
         keys=S3_KEY,
+        aws_conn_id="s3",
     )
 
     store_to_s3_data_lake >> delete_data_from_s3_landing

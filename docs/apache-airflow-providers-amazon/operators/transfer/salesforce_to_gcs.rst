@@ -29,7 +29,7 @@ SalesforceToS3Operator
 
 Use the
 :class:`~airflow.providers.amazon.aws.transfers.salesforce_to_s3.SalesforceToS3Operator`
-to execute a Salesforce query to fetch data and load it to S3.  The results of the query
+to execute a Salesforce query to fetch data and upload to S3.  The results of the query
 are initially written to a local, temporary directory and then uploaded to an S3 bucket.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_salesforce_to_s3.py
@@ -44,4 +44,4 @@ This operator uses the :class:`~airflow.providers.salesforce.hooks.salesforce.Sa
 to interact with Salesforce.  This hook is built with functionality from the Simple Salesforce
 package.
 
-For further information, review the `Simple Salesforce Documentation <https://simple-salesforce.readthedocs.io/en/latest/>`__
+For further information, review the `Simple Salesforce Documentation <https://simple-salesforce.readthedocs.io/en/latest/>`__.
