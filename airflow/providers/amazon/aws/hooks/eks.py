@@ -25,7 +25,6 @@ from functools import partial
 from typing import Callable, Dict, List, Optional
 
 import yaml
-from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -69,19 +68,14 @@ class EKSHook(AwsBaseHook):
         :return: Returns descriptive information about the created EKS Cluster.
         :rtype: Dict
         """
-        try:
-            eks_client = self.conn
+        eks_client = self.conn
 
-            response = eks_client.create_cluster(
-                name=name, roleArn=roleArn, resourcesVpcConfig=resourcesVpcConfig, **kwargs
-            )
+        response = eks_client.create_cluster(
+            name=name, roleArn=roleArn, resourcesVpcConfig=resourcesVpcConfig, **kwargs
+        )
 
-            self.log.info("Created cluster with the name %s.", response.get('cluster').get('name'))
-            return response
-
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        self.log.info("Created cluster with the name %s.", response.get('cluster').get('name'))
+        return response
 
     def create_nodegroup(
         self, clusterName: str, nodegroupName: str, subnets: List[str], nodeRole: str, **kwargs
@@ -101,35 +95,30 @@ class EKSHook(AwsBaseHook):
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
         :rtype: Dict
         """
-        try:
-            eks_client = self.conn
-            # The below tag is mandatory and must have a value of either 'owned' or 'shared'
-            # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
-            # The 'shared' value allows more than one resource to use the subnet.
-            tags = {'kubernetes.io/cluster/' + clusterName: 'owned'}
-            if "tags" in kwargs:
-                tags = {**tags, **kwargs["tags"]}
-                kwargs.pop("tags")
+        eks_client = self.conn
+        # The below tag is mandatory and must have a value of either 'owned' or 'shared'
+        # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
+        # The 'shared' value allows more than one resource to use the subnet.
+        tags = {'kubernetes.io/cluster/' + clusterName: 'owned'}
+        if "tags" in kwargs:
+            tags = {**tags, **kwargs["tags"]}
+            kwargs.pop("tags")
 
-            response = eks_client.create_nodegroup(
-                clusterName=clusterName,
-                nodegroupName=nodegroupName,
-                subnets=subnets,
-                nodeRole=nodeRole,
-                tags=tags,
-                **kwargs,
-            )
+        response = eks_client.create_nodegroup(
+            clusterName=clusterName,
+            nodegroupName=nodegroupName,
+            subnets=subnets,
+            nodeRole=nodeRole,
+            tags=tags,
+            **kwargs,
+        )
 
-            self.log.info(
-                "Created a managed nodegroup named %s in cluster %s",
-                response.get('nodegroup').get('nodegroupName'),
-                response.get('nodegroup').get('clusterName'),
-            )
-            return response
-
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        self.log.info(
+            "Created a managed nodegroup named %s in cluster %s",
+            response.get('nodegroup').get('nodegroupName'),
+            response.get('nodegroup').get('clusterName'),
+        )
+        return response
 
     def delete_cluster(self, name: str) -> Dict:
         """
@@ -141,16 +130,12 @@ class EKSHook(AwsBaseHook):
         :return: Returns descriptive information about the deleted EKS Cluster.
         :rtype: Dict
         """
-        try:
-            eks_client = self.conn
+        eks_client = self.conn
 
-            response = eks_client.delete_cluster(name=name)
-            self.log.info("Deleted cluster with the name %s.", response.get('cluster').get('name'))
-            return response
+        response = eks_client.delete_cluster(name=name)
 
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        self.log.info("Deleted cluster with the name %s.", response.get('cluster').get('name'))
+        return response
 
     def delete_nodegroup(self, clusterName: str, nodegroupName: str) -> Dict:
         """
@@ -164,20 +149,16 @@ class EKSHook(AwsBaseHook):
         :return: Returns descriptive information about the deleted EKS Managed Nodegroup.
         :rtype: Dict
         """
-        try:
-            eks_client = self.conn
+        eks_client = self.conn
 
-            response = eks_client.delete_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
-            self.log.info(
-                "Deleted nodegroup named %s from cluster %s.",
-                response.get('nodegroup').get('nodegroupName'),
-                response.get('nodegroup').get('clusterName'),
-            )
-            return response
+        response = eks_client.delete_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
 
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        self.log.info(
+            "Deleted nodegroup named %s from cluster %s.",
+            response.get('nodegroup').get('nodegroupName'),
+            response.get('nodegroup').get('clusterName'),
+        )
+        return response
 
     def describe_cluster(self, name: str, verbose: Optional[bool] = False) -> Dict:
         """
@@ -191,19 +172,15 @@ class EKSHook(AwsBaseHook):
         :return: Returns descriptive information about a specific EKS Cluster.
         :rtype: Dict
         """
-        try:
-            eks_client = self.conn
+        eks_client = self.conn
 
-            response = eks_client.describe_cluster(name=name)
-            self.log.info("Retrieved details for cluster named %s.", response.get('cluster').get('name'))
-            if verbose:
-                cluster_data = response.get('cluster')
-                self.log.info("Cluster Details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
-            return response
+        response = eks_client.describe_cluster(name=name)
 
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        self.log.info("Retrieved details for cluster named %s.", response.get('cluster').get('name'))
+        if verbose:
+            cluster_data = response.get('cluster')
+            self.log.info("Cluster Details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
+        return response
 
     def describe_nodegroup(
         self, clusterName: str, nodegroupName: str, verbose: Optional[bool] = False
@@ -221,23 +198,19 @@ class EKSHook(AwsBaseHook):
         :return: Returns descriptive information about a specific EKS Nodegroup.
         :rtype: Dict
         """
-        try:
-            eks_client = self.conn
+        eks_client = self.conn
 
-            response = eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
-            self.log.info(
-                "Retrieved details for nodegroup named %s in cluster %s.",
-                response.get('nodegroup').get('nodegroupName'),
-                response.get('nodegroup').get('clusterName'),
-            )
-            if verbose:
-                nodegroup_data = response.get('nodegroup')
-                self.log.info("Nodegroup Details: %s", json.dumps(nodegroup_data, cls=AirflowJsonEncoder))
-            return response
+        response = eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
 
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
+        self.log.info(
+            "Retrieved details for nodegroup named %s in cluster %s.",
+            response.get('nodegroup').get('nodegroupName'),
+            response.get('nodegroup').get('clusterName'),
+        )
+        if verbose:
+            nodegroup_data = response.get('nodegroup')
+            self.log.info("Nodegroup Details: %s", json.dumps(nodegroup_data, cls=AirflowJsonEncoder))
+        return response
 
     def get_cluster_state(self, clusterName: str) -> str:
         """
@@ -329,20 +302,16 @@ class EKSHook(AwsBaseHook):
         name_collection = []
         token = DEFAULT_PAGINATION_TOKEN
 
-        try:
-            while token != "null":
-                response = api_call(nextToken=token)
-                # If response list is not empty, append it to the running list.
-                name_collection += filter(None, response.get(response_key))
-                token = response.get("nextToken")
+        while token != "null":
+            response = api_call(nextToken=token)
+            # If response list is not empty, append it to the running list.
+            name_collection += filter(None, response.get(response_key))
+            token = response.get("nextToken")
 
-            self.log.info("Retrieved list of %s %s.", len(name_collection), response_key)
-            if verbose:
-                self.log.info("%s found: %s", response_key.title(), name_collection)
+        self.log.info("Retrieved list of %s %s.", len(name_collection), response_key)
+        if verbose:
+            self.log.info("%s found: %s", response_key.title(), name_collection)
 
-        except ClientError as e:
-            self.log.error(e.response["Error"]["Message"])
-            raise e
         return name_collection
 
     @contextmanager
