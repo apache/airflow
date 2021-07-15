@@ -22,7 +22,12 @@ class CasHook(BaseHook):
             conn_id = 'cas_server'
 
         self.conn_id = conn_id
-        self.connection = self.get_connection(conn_id)
+
+        try:
+            self.connection = self.get_connection(conn_id)
+        except Exception as e:
+            self.log.error(e)
+            self.connection = None
         if self.connection:
             self.extras = self.connection.extra_dejson.copy()
             self.uri = '{scheme}://{host}{port}'.format(
@@ -87,7 +92,9 @@ class CasHook(BaseHook):
                                    retry_attempts=retry_attempts) as r:
                 r.raise_for_status()
                 resp = await r.read()
-                self.log.debug("training_server_update_templates called, url: {} resp: {}".format(self.load_templates_endpoint, resp))
+                self.log.debug(
+                    "training_server_update_templates called, url: {} resp: {}".format(self.load_templates_endpoint,
+                                                                                       resp))
 
     def trigger_training(self, data):
         json_data = {

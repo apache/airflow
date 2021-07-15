@@ -124,7 +124,7 @@ def get_templates_from_variables(template_names=None) -> Dict:
     return templates
 
 
-async def training_server_update_templates():
+def training_server_update_templates():
     cas_analysis = CasHook(role='analysis')
     cas_training = CasHook(role='training')
     cas_all = CasHook(role='all')
