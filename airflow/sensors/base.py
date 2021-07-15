@@ -254,9 +254,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
 
             run_hash = int(
-                hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode("utf-8")
-                ).hexdigest(),
+                hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),
                 16,
             )
             modded_hash = min_backoff + run_hash % min_backoff

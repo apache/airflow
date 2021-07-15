@@ -31,7 +31,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
 
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
-    :param job_id: The job to watch.
+    :param job_id: Id of the job to watch.
     :type job_id: str
     :param site_id: The id of the site where the workbook belongs to.
     :type site_id: Optional[str]
@@ -69,6 +69,6 @@ class TableauJobStatusSensor(BaseSensorOperator):
                 int(tableau_hook.server.jobs.get_by_id(self.job_id).finish_code)
             )
             self.log.info('Current finishCode is %s (%s)', finish_code.name, finish_code.value)
-            if finish_code in [TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED]:
+            if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
                 raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
             return finish_code == TableauJobFinishCode.SUCCESS

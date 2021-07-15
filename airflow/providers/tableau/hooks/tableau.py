@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from distutils.util import strtobool
 from enum import Enum
 from typing import Any, Optional
@@ -39,7 +40,11 @@ class TableauJobFinishCode(Enum):
 class TableauHook(BaseHook):
     """
     Connects to the Tableau Server Instance and allows to communicate with it.
-    .. see also:: https://tableau.github.io/server-client-python/docs/
+
+    Can be used as a context manager: automatically authenticates the connection
+    when opened and signs out when closed.
+
+    .. seealso:: https://tableau.github.io/server-client-python/docs/
 
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.
@@ -81,7 +86,8 @@ class TableauHook(BaseHook):
 
     def get_conn(self) -> Auth.contextmgr:
         """
-        Signs in to the Tableau Server and automatically signs out if used as ContextManager.
+        Sign in to the Tableau Server.
+
         :return: an authorized Tableau Server Context Manager object.
         :rtype: tableauserverclient.server.Auth.contextmgr
         """
@@ -98,6 +104,12 @@ class TableauHook(BaseHook):
         return self.server.auth.sign_in(tableau_auth)
 
     def _auth_via_token(self) -> Auth.contextmgr:
+        """The method is deprecated. Please, use the authentication via password instead."""
+        warnings.warn(
+            "Authentication via personal access token is deprecated. "
+            "Please, use the password authentication to avoid inconsistencies.",
+            DeprecationWarning,
+        )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson['token_name'],
             personal_access_token=self.conn.extra_dejson['personal_access_token'],
@@ -111,10 +123,13 @@ class TableauHook(BaseHook):
         .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
 
         :param resource_name: The name of the resource to paginate.
-            For example: jobs or workbooks
+            For example: jobs or workbooks.
         :type resource_name: str
         :return: all items by returning a Pager.
         :rtype: tableauserverclient.Pager
         """
-        resource = getattr(self.server, resource_name)
+        try:
+            resource = getattr(self.server, resource_name)
+        except AttributeError:
+            raise ValueError(f"Resource name {resource_name} is not found.")
         return Pager(resource.get)

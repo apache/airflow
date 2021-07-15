@@ -94,31 +94,13 @@ You can read more about it in the "Support arbitrary user ids" chapter in the
 Waits for Airflow DB connection
 -------------------------------
 
-In case Postgres or MySQL DB is used, the entrypoint will wait until the airflow DB connection becomes
-available. This happens always when you use the default entrypoint.
+The entrypoint is waiting for a connection to the database independent of the database engine. This allows us to increase
+the stability of the environment.
 
-The script detects backend type depending on the URL schema and assigns default port numbers if not specified
-in the URL. Then it loops until the connection to the host/port specified can be established
+Waiting for connection involves executing ``airflow db check`` command, which means that a ``select 1 as is_alive;`` statement
+is executed. Then it loops until the the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
-
-Supported schemes:
-
-* ``postgres://`` - default port 5432
-* ``mysql://``    - default port 3306
-* ``sqlite://``
-
-In case of SQLite backend, there is no connection to establish and waiting is skipped.
-
-For older than Airflow 1.10.14, waiting for connection involves checking if a matching port is open.
-The host information is derived from the variables :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` and
-:envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD`. If :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD` variable
-is passed to the container, it is evaluated as a command to execute and result of this evaluation is used
-as :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN`. The :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD` variable
-takes precedence over the :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` variable.
-
-For newer versions, the ``airflow db check`` command is used, which means that a ``select 1 as is_alive;`` query
-is executed. This also means that you can keep your password in secret backend.
 
 Waits for celery broker connection
 ----------------------------------
@@ -155,7 +137,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.1.0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.1.2-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -167,7 +149,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.1.2-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -175,14 +157,14 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.1.0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.1.2-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 version
-  2.1.0
+  > docker run -it apache/airflow:2.1.2-python3.6 version
+  2.1.2
 
 Additional quick test options
 -----------------------------

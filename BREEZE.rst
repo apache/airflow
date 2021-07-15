@@ -1200,7 +1200,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         you want to pull the image with specific COMMIT_SHA tag.
 
         'breeze shell \
-              -- github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
+              --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
         'breeze \
               --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
 

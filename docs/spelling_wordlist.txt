@@ -372,6 +372,8 @@ Webhook
 Webserver
 Werkzeug
 XCom
+XComArg
+XComArgs
 XComs
 Xcom
 Xero

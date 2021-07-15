@@ -50,7 +50,11 @@ from airflow.models import (  # noqa: F401
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import create_session, provide_session  # noqa: F401
+from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
+    create_global_lock,
+    create_session,
+    provide_session,
+)
 
 log = logging.getLogger(__name__)
 
@@ -568,23 +572,25 @@ def create_default_connections(session=None):
     )
 
 
-def initdb():
+@provide_session
+def initdb(session=None):
     """Initialize Airflow database."""
-    upgradedb()
+    with create_global_lock(session=session):
+        upgradedb()
 
-    if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
-        create_default_connections()
+        if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
+            create_default_connections()
 
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db()
+        dagbag = DagBag()
+        # Save DAGs in the ORM
+        dagbag.sync_to_db()
 
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys())
+        # Deactivate the unknown ones
+        DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
-    from flask_appbuilder.models.sqla import Base
+        from flask_appbuilder.models.sqla import Base
 
-    Base.metadata.create_all(settings.engine)
+        Base.metadata.create_all(settings.engine)
 
 
 def _get_alembic_config():
@@ -694,7 +700,8 @@ def auto_migrations_available(session=None):
     return errors_
 
 
-def upgradedb():
+@provide_session
+def upgradedb(session=None):
     """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
     from alembic import command
@@ -709,20 +716,23 @@ def upgradedb():
         for err in errs:
             log.error("Automatic migration is not available\n%s", err)
         return
-    command.upgrade(config, 'heads')
-    add_default_pool_if_not_exists()
+    with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
+        command.upgrade(config, 'heads')
+        add_default_pool_if_not_exists()
 
 
-def resetdb():
+@provide_session
+def resetdb(session=None):
     """Clear out the database"""
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
 
-    drop_airflow_models(connection)
-    drop_flask_models(connection)
+    with create_global_lock(session=session, pg_lock_id=3, lock_name="reset"):
+        drop_airflow_models(connection)
+        drop_flask_models(connection)
 
-    initdb()
+        initdb()
 
 
 def drop_airflow_models(connection):
