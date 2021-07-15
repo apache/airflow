@@ -47,8 +47,8 @@ with DAG(
     task_refresh_workbook_blocking = TableauOperator(
         resource='workbooks',
         method='refresh',
-        resource_id='MyWorkbook',
-        resource_id_by='name',
+        find='MyWorkbook',
+        match_with='name',
         site_id='my_site',
         blocking=True,
         task_id='refresh_tableau_workbook_blocking',
@@ -57,8 +57,8 @@ with DAG(
     task_refresh_workbook_non_blocking = TableauOperator(
         resource='workbooks',
         method='refresh',
-        resource_id='MyWorkbook',
-        resource_id_by='name',
+        find='MyWorkbook',
+        match_with='name',
         site_id='my_site',
         blocking=False,
         task_id='refresh_tableau_workbook_non_blocking',

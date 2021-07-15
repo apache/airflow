@@ -52,7 +52,7 @@ class TestTableauOperator(unittest.TestCase):
             'site_id': 'test_site',
             'task_id': 'task',
             'dag': None,
-            'resource_id_by': 'name',
+            'match_with': 'name',
             'method': 'refresh'
         }
 
@@ -63,7 +63,7 @@ class TestTableauOperator(unittest.TestCase):
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(blocking_refresh=False, resource_id='wb_2', resource='workbooks', **self.kwargs)
+        operator = TableauOperator(blocking_refresh=False, find='wb_2', resource='workbooks', **self.kwargs)
 
         job_id = operator.execute(context={})
 
@@ -78,7 +78,7 @@ class TestTableauOperator(unittest.TestCase):
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(resource_id='wb_2', resource='workbooks', **self.kwargs)
+        operator = TableauOperator(find='wb_2', resource='workbooks', **self.kwargs)
 
         job_id = operator.execute(context={})
 
@@ -99,7 +99,7 @@ class TestTableauOperator(unittest.TestCase):
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(resource_id='test', resource='workbooks', **self.kwargs)
+        operator = TableauOperator(find='test', resource='workbooks', **self.kwargs)
 
         with pytest.raises(AirflowException):
             operator.execute({})
@@ -111,7 +111,7 @@ class TestTableauOperator(unittest.TestCase):
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(resource_id='test', resource='datasources', **self.kwargs)
+        operator = TableauOperator(find='test', resource='datasources', **self.kwargs)
 
         job_id = operator.execute(context={})
 
@@ -126,7 +126,7 @@ class TestTableauOperator(unittest.TestCase):
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(
             return_value=mock_tableau_hook)
-        operator = TableauOperator(resource_id='test', resource='datasources', **self.kwargs)
+        operator = TableauOperator(find='test', resource='datasources', **self.kwargs)
 
         job_id = operator.execute(context={})
 
@@ -143,7 +143,7 @@ class TestTableauOperator(unittest.TestCase):
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(resource_id='test', resource='datasources', **self.kwargs)
+        operator = TableauOperator(find='test', resource='datasources', **self.kwargs)
 
         with pytest.raises(AirflowException):
             operator.execute({})
@@ -153,22 +153,22 @@ class TestTableauOperator(unittest.TestCase):
         """
         Test execute unavailable resource
         """
-        operator = TableauOperator(resource='test', resource_id='test', **self.kwargs)
+        operator = TableauOperator(resource='test', find='test', **self.kwargs)
 
         with pytest.raises(AirflowException):
             operator.execute({})
 
     @patch('airflow.providers.tableau.operators.tableau.TableauHook')
-    def test_resource_id_by_id(self, mock_tableau_hook):
+    def test_get_resource_id(self, mock_tableau_hook):
         """
-        Test resource id by id
+        Test get resource id
         """
         resource_id = 'res_id'
         operator = TableauOperator(
             resource='task', 
-            resource_id=resource_id, 
+            find=resource_id, 
             method='run',
             task_id='t',
             dag=None
         )
-        assert operator._get_resource_id_by(mock_tableau_hook) == resource_id
+        assert operator._get_resource_id(mock_tableau_hook) == resource_id
