@@ -137,7 +137,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.1.0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.1.2-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -149,7 +149,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.1.2-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -157,14 +157,14 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.1.0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.1.2-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 version
-  2.1.0
+  > docker run -it apache/airflow:2.1.2-python3.6 version
+  2.1.2
 
 Additional quick test options
 -----------------------------
