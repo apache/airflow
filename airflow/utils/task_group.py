@@ -247,7 +247,7 @@ class TaskGroup(TaskMixin):
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 
-    def __enter__(self):
+    def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)
         return self
 

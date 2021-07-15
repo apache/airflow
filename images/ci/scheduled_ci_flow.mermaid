@@ -16,94 +16,83 @@
 %% under the License.
 
 sequenceDiagram
-    CRON job -->> Airflow Repo: Nightly run
+    Note over Airflow Repo: scheduled
+    Note over CI Build: schedule<br>[Write Token]
+    Note over Build Images: schedule<br>[Write Token]
     activate Airflow Repo
-    Note over Airflow Repo: Trigger PR build
-    Note over CI Build: push<br>[Write Token]
-    Note over Build Images: workflow_run<br>[Write Token]
-    Airflow Repo -->> CI Build: Trigger 'pull_request' event
+    Airflow Repo -->> CI Build: Trigger 'schedule'
     activate CI Build
-    CI Build -->> Build Images: Trigger 'workflow_run' event
+    Airflow Repo -->> Build Images: Trigger 'schedule'
     activate Build Images
-    Note over Build Images: Find Duplicate<br>[CI Build]
-    opt Duplicated builds
-        Build Images -->> CI Build: Cancel
-    end
-    Note over Build Images: Find Duplicates<br>[Build Image]
-    opt Duplicated builds
-        Build Images -->> Build Images: Cancel
-    end
-    Note over Build Images: Find failed<br>[CI Build]
-    opt Failed builds
-        Build Images -->> CI Build: Cancel
-    end
-    Note over Build Images: Find failed<br>[Build Image]
-    opt Failed builds
-        Build Images -->> Build Images: Cancel
-    end
     Note over Build Images: Build info
-    par 3.6, 3.7, 3.8
-        Note over Build Images: Build from scratch
-        Note over Build Images: Update constraints
-        Note over Build Images: Build PROD Images<br>[GITHUB_RUN_ID]
-    and
-        Note over Build Images: Build from scratch
-        Note over Build Images: Update constraints
-        Note over Build Images: Build CI Images<br>[GITHUB_RUN_ID]
+    par 3.6, 3.7, 3.8, 3.9
+        Note over Build Images: Build CI Images<br>Cache disabled<br>[COMMIT_SHA]
     end
     par No CI image
-        Note over CI Build: Build info
-    and
-        Note over CI Build: Test always!
-    and
-        Note over CI Build: Helm tests
+        Note over CI Build: Build info<br>All tests<br>All python
     and
         Note over CI Build: OpenAPI client gen
+    and
+        Note over CI Build: Test UI
+    and
+        Note over CI Build: Test examples<br>PROD image building
     end
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         Build Images ->> GitHub Registry: Push CI Images
         activate GitHub Registry
-    and
-        Build Images ->> GitHub Registry: Push PROD Images
+        Note over GitHub Registry: Tagged CI Images<br>[COMMIT_SHA]
     end
-    opt If any step failed
-        Build Images -->> CI Build: Cancel triggering run
+    par 3.6, 3.7, 3.8, 3.9
+        Note over Build Images: Build PROD Images<br>Cache disabled<br>[COMMIT_SHA]
     end
-    deactivate Build Images
-    Note over GitHub Registry: Tagged Images<br>[GITHUB_RUN_ID]
-    loop Wait for images
-        par 3.6, 3.7, 3.8
-            CI Build ->> CI Build: Pull CI Images
-            Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
-        and
-            CI Build ->> CI Build: Pull PROD Images
-            Note over CI Build: Wait for<br>[GITHUB_RUN_ID]
+    loop Wait for CI images
+        par 3.6, 3.7, 3.8, 3.9
+            CI Build ->> CI Build: Check CI Images
+            Note over CI Build: Wait for<br>[COMMIT_SHA]
         end
     end
-    par 3.6, 3.7, 3.8
-        GitHub Registry ->> CI Build: Pull CI Images
-    and
-        GitHub Registry ->> CI Build: Pull PROD Images
+    par 3.6, 3.7, 3.8, 3.9
+        GitHub Registry ->> CI Build: Pull CI Image [COMMIT_SHA]
+        Note over CI Build: Verify CI Image
     end
     deactivate GitHub Registry
-    par 3.6, 3.7, 3.8
+    par 3.6, 3.7, 3.8, 3.9
         Note over CI Build: Run static checks
     and
         Note over CI Build: Build docs
     and
-        Note over CI Build: Spell check docs
-    and
         Note over CI Build: Tests
     and
-        Note over CI Build: Kubernetes  Tests
+        Note over CI Build: Test provider <br>packages build
+    and
+        Note over CI Build: Helm tests
     end
-    Note over CI Build: Quarantined tests
-    Note over CI Build: Merge Coverage
-    CI Build -->> Coverage.io: Upload Coverage
-    par 3.6, 3.7, 3.8
-        CI Build ->> Airflow Repo: Push Constraints
+    par 3.6, 3.7, 3.8, 3.9
+        Build Images ->> GitHub Registry: Push PROD Images
+        activate GitHub Registry
+        Note over GitHub Registry: Tagged PROD Images<br>[COMMIT_SHA]
     end
-    CI Build ->> Airflow Repo: Push Nightly Tag
-    CI Build -->> Airflow Repo: Status Check for CI Build
+    deactivate Build Images
+    loop Wait for PROD images
+        par 3.6, 3.7, 3.8, 3.9
+            CI Build ->> CI Build: Check PROD Images
+            Note over CI Build: Wait for<br>[COMMIT_SHA]
+        end
+    end
+    par 3.6, 3.7, 3.8, 3.9
+        GitHub Registry ->> CI Build: Pull PROD Image [COMMIT_SHA]
+        Note over CI Build: Verify PROD Image
+    end
+    deactivate GitHub Registry
+    par 3.6, 3.7, 3.8, 3.9
+        Note over CI Build: Run Kubernetes <br>tests
+    and
+        Note over CI Build: Run Kubernetes <br>upgrade tests
+    end
+    par 3.6, 3.7, 3.8, 3.9
+        Note over CI Build: Generate constraints
+        CI Build ->> Airflow Repo: Push constraints
+    end
+    CI Build -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate CI Build

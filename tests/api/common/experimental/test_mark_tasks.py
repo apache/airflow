@@ -414,7 +414,9 @@ class TestMarkDAGRun(unittest.TestCase):
             assert ti.state == state
 
     def _create_test_dag_run(self, state, date):
-        return self.dag1.create_dagrun(run_type=DagRunType.MANUAL, state=state, execution_date=date)
+        return self.dag1.create_dagrun(
+            run_type=DagRunType.MANUAL, state=state, start_date=date, execution_date=date
+        )
 
     def _verify_dag_run_state(self, dag, date, state):
         drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)

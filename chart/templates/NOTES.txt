@@ -66,6 +66,17 @@ You can get Fernet Key value by running the following:
 
 {{- end }}
 
+{{- if or (eq .Values.executor "KubernetesExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- if and (not .Values.logs.persistence.enabled) (eq (lower (tpl .Values.config.logging.remote_logging .)) "false") }}
+
+WARNING:
+    Kubernetes workers task logs may not persist unless you configure log persistence or remote logging!
+    Logging options can be found at: https://airflow.apache.org/docs/helm-chart/stable/manage-logs.html
+    (This warning can be ignored if logging is configured with environment variables or secrets backend)
+
+{{- end }}
+{{- end }}
+
 {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret (not .Values.dags.gitSync.knownHosts)}}
 
 #####################################################
