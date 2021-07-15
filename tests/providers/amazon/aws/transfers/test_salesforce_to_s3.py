@@ -101,8 +101,6 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             query=QUERY, include_deleted=INCLUDE_DELETED, query_params=QUERY_PARAMS
         )
 
-        print(mock_make_query.return_value)
-
         mock_write_object_to_file.assert_called_once_with(
             query_results=SALESFORCE_RESPONSE['records'],
             filename=mock.ANY,
