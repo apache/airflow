@@ -30,7 +30,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
 from sqlalchemy import or_
@@ -98,11 +98,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
     :type max_runs: int
-    :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path, log_file_path)
-    :type processor_factory: ([str, List[CallbackRequest], Optional[List[str]], bool]) -> (
-        DagFileProcessorProcess
-    )
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
@@ -117,9 +112,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self,
         dag_directory: str,
         max_runs: int,
-        processor_factory: Callable[
-            [str, List[CallbackRequest], Optional[List[str]], bool], DagFileProcessorProcess
-        ],
         processor_timeout: timedelta,
         dag_ids: Optional[List[str]],
         pickle_dags: bool,
@@ -129,7 +121,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._file_path_queue: List[str] = []
         self._dag_directory: str = dag_directory
         self._max_runs = max_runs
-        self._processor_factory = processor_factory
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
         self._pickle_dags = pickle_dags
@@ -158,8 +149,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             args=(
                 self._dag_directory,
                 self._max_runs,
-                # getattr prevents error while pickling an instance method.
-                getattr(self, "_processor_factory"),
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
@@ -250,7 +239,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     def _run_processor_manager(
         dag_directory: str,
         max_runs: int,
-        processor_factory: Callable[[str, List[CallbackRequest]], DagFileProcessorProcess],
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: Optional[List[str]],
@@ -279,7 +267,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         processor_manager = DagFileProcessorManager(
             dag_directory,
             max_runs,
-            processor_factory,
             processor_timeout,
             signal_conn,
             dag_ids,
@@ -397,9 +384,6 @@ class DagFileProcessorManager(LoggingMixin):
     :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
     :type max_runs: int
-    :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path)
-    :type processor_factory: (unicode, unicode, list) -> (DagFileProcessorProcess)
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
@@ -416,7 +400,6 @@ class DagFileProcessorManager(LoggingMixin):
         self,
         dag_directory: Union[str, "pathlib.Path"],
         max_runs: int,
-        processor_factory: Callable[[str, List[CallbackRequest]], DagFileProcessorProcess],
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: Optional[List[str]],
@@ -428,7 +411,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._file_path_queue: List[str] = []
         self._dag_directory = dag_directory
         self._max_runs = max_runs
-        self._processor_factory = processor_factory
         self._signal_conn = signal_conn
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
@@ -544,7 +526,6 @@ class DagFileProcessorManager(LoggingMixin):
             # If we're in async mode, we can start up straight away. If we're
             # in sync mode we need to be told to start a "loop"
             self.start_new_processes()
-
         while True:
             loop_start_time = time.monotonic()
 
@@ -932,6 +913,13 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
+    @staticmethod
+    def _create_process(file_path, pickle_dags, dag_ids, callback_requests):
+        """Creates DagFileProcessorProcess instance."""
+        return DagFileProcessorProcess(
+            file_path=file_path, pickle_dags=pickle_dags, dag_ids=dag_ids, callback_requests=callback_requests
+        )
+
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process"""
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
@@ -941,8 +929,8 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             callback_to_execute_for_file = self._callback_to_execute[file_path]
-            processor = self._processor_factory(
-                file_path, callback_to_execute_for_file, self._dag_ids, self._pickle_dags
+            processor = self._create_process(
+                file_path, self._pickle_dags, self._dag_ids, callback_to_execute_for_file
             )
 
             del self._callback_to_execute[file_path]

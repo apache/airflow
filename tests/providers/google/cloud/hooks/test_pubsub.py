@@ -69,7 +69,7 @@ class TestPubSubHook(unittest.TestCase):
             ReceivedMessage(
                 ack_id=str(i),
                 message={
-                    "data": f'Message {i}'.encode('utf8'),
+                    "data": f'Message {i}'.encode(),
                     "attributes": {"type": "generated message"},
                 },
             )
