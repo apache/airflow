@@ -61,9 +61,13 @@ It may take a few minutes. Confirm the pods are up:
    kubectl get pods --namespace $NAMESPACE
    helm list --namespace $NAMESPACE
 
-Run ``kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow``
+Run the following command
 to port-forward the Airflow UI to http://localhost:8080/ to confirm
 Airflow is working.
+
+.. code-block:: bash
+
+   kubectl port-forward svc/$RELEASE_NAME-webserver 8080:8080 --namespace $NAMESPACE
 
 Extending Airflow Image
 -----------------------
