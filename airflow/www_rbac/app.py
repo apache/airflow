@@ -142,7 +142,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
-            appbuilder.add_view_no_menu(views.CurvesView())
             appbuilder.add_view(views.DagRunModelView,
                                 gettext("DAG Runs"),
                                 category=gettext("Browse"),
@@ -209,11 +208,17 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                     flask_appbuilder_views, flask_appbuilder_menu_links
                 )
 
-                for v in flask_appbuilder_views:
-                    log.debug("Adding view %s", v["name"])
-                    appbuilder.add_view(v["view"],
-                                        v["name"],
-                                        category=v["category"])
+                # v2使用该方式实现，临时修改以使用add_view_no_menu加载view
+                for view in flask_appbuilder_views:
+                    name = view.get('name')
+                    if name:
+                        log.debug("Adding view %s with menu", name)
+                        appbuilder.add_view(view["view"], name, category=view["category"])
+                    else:
+                        # if 'name' key is missing, intent is to add view without menu
+                        log.debug("Adding view %s without menu", str(type(view["view"])))
+                        appbuilder.add_view_no_menu(view["view"])
+
                 for ml in sorted(flask_appbuilder_menu_links, key=lambda x: x["name"]):
                     log.debug("Adding menu link %s", ml["name"])
                     appbuilder.add_link(ml["name"],

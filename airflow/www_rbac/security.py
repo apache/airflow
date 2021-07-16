@@ -326,7 +326,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         '管理',
         '拧紧控制器',
         '变量',
-        'CurvesView',
         'ErrorTagModelView',
         'VariableModelView',
         'TighteningControllerView'

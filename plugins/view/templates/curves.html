@@ -44,8 +44,6 @@
                            data-carCode="{{ task.car_code }}"
                            data-date="{{ task.execution_date }}"
                            data-measureresult="{{ task.measure_result }}"
-                           data-dag="{{ task.dag_id }}"
-                           data-task="{{ task.task_id }}"
                            type="checkbox">
                     <a type="button" class="btn btn-sm btn-default"
                        href="{{ url_for('Airflow.view_curve_page', entity_id=task.entity_id.replace('/', '@')) }}"
@@ -148,15 +146,13 @@
       });
       $('.action_check').change((ev) => {
         const {checked, value, dataset} = ev.target;
-        const {carcode: carCode, date, measureresult: measureResult, dag, task} = dataset;
+        const {carcode: carCode, date, measureresult: measureResult} = dataset;
         if (checked) {
           entityIdSelect(value, {
             value, //entity id
             carCode,
             date,
-            measureResult,
-            dag,
-            task
+            measureResult
           });
         } else {
           entityIdUnselect(value);
