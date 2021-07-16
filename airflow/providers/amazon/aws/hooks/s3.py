@@ -63,12 +63,9 @@ class ResponseFilter:
 
     def filter(self, object_filter: Optional[dict] = None) -> list:
         """
-        object_filter = {
-            'key': 'Sample',
-            'LastModified__gt': datetime.now()
-        }
+        object_filter = {'key': 'Sample','LastModified__gt': datetime.now()}
+        if object_filter is None return all the Keys.
         """
-        # if object_filter is None return all the Keys.
         if object_filter is None:
             result = []
             if "Contents" in self.data:
@@ -84,8 +81,10 @@ class ResponseFilter:
         def parse_filter(item) -> operation:
             """
             The item is expected to be a tuple with exactly two elements
-            >>> parse_filter(('LastModified__gt', datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z')))
-            Q(op=<built-in function gt>, key='LastModified__gt', value=datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z'))
+            >>> parse_filter(('LastModified__gt',
+             datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z')))
+            Q(op=<built-in function gt>, key='LastModified__gt',
+             value=datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z'))
             >>> parse_filter(('Key', 'Sample'))
             Q(op=<built-in function eq>, key='Key', value='Sample')
             >>> parse_filter(('LastModified__bad', 'red'))
