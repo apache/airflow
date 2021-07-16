@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from plugins.tightening_controller_views import TighteningControllerView
+from plugins.view.tightening_controller_views import TighteningControllerView
 from plugins import PAGE_SIZE, AirflowModelView
 from airflow.models import TaskInstance
-from airflow.www_rbac.widgets import AirflowModelListWidget, AirflowControllerListWidget
+from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_babel import lazy_gettext, gettext
 from airflow.www_rbac import utils as wwwutils
-from flask_appbuilder.models.sqla.filters import BaseFilter, get_field_setup_query
+from flask_appbuilder.models.sqla.filters import BaseFilter
 
 from airflow.plugins_manager import AirflowPlugin
 

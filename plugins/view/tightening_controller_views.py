@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-
-from flask import (
-    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
-    session as flask_session, url_for,
-)
+from flask import flash, make_response, request
 import json
 from flask_babel import lazy_gettext, gettext
 from datetime import datetime
@@ -22,7 +18,6 @@ from flask_wtf.csrf import CSRFProtect
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
-from flask._compat import PY2
 import pandas as pd
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')

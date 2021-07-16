@@ -1,24 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import json
-from flask_babel import lazy_gettext, gettext
+from flask_babel import gettext
 from plugins import AirflowModelView
 
 from datetime import datetime
 from flask_login import current_user
-from flask_appbuilder.fieldwidgets import (
-    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
-)
-from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+from flask_appbuilder.fieldwidgets import  BS3TextFieldWidget
+from wtforms.fields import StringField
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_appbuilder.actions import action
 from flask_appbuilder import expose, has_access
-from flask import (
-    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
-    session as flask_session, url_for,
-)
+from flask import make_response, redirect
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
 from airflow.utils.db import provide_session
