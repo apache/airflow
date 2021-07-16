@@ -80,8 +80,8 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def __init__(self, cron: str, timezone: datetime.tzinfo) -> None:
         self._schedule = CronSchedule(cron, timezone)
 
-    @Timetable.interval_description.getter
-    def interval_description(self) -> [str, None]:
+    @property
+    def interval_description(self) -> Optional[str]:
         """Returns chron description for a schedule interval"""
         descriptor = ExpressionDescriptor(
             expression=self._schedule.expression,

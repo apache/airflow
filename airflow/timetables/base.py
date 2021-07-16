@@ -84,7 +84,7 @@ class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
     @property
-    def interval_description(self) -> [str, None]:
+    def interval_description(self) -> Optional[str]:
         """Override to describe the interval.
 
         For cron ``'30 21 * * 5'``, description could be like ``'At 09:30 PM, only on Friday'``.
