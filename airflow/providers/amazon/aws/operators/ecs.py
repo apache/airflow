@@ -24,11 +24,12 @@ from typing import Dict, Generator, Optional
 from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
+from airflow.utils.session import provide_session
 
 
 def should_retry(exception: Exception):
@@ -135,8 +136,10 @@ class ECSOperator(BaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
-    :param reattach: If set to True, will check if a task from the same family is already running.
-        If so, the operator will attach to it instead of starting a new task.
+    :param reattach: If set to True, will check if the task previously launched by the task_instance
+        is already running. If so, the operator will attach to it instead of starting a new task.
+        This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
+        the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
     :param quota_retry: Config if and how to retry _start_task() for transient errors.
     :type quota_retry: dict
@@ -145,6 +148,8 @@ class ECSOperator(BaseOperator):
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
     template_fields_renderers = {"overrides": "json"}
+    REATTACH_XCOM_KEY = "ecs_task_arn"
+    REATTACH_XCOM_TASK_ID_TEMPLATE = "{task_id}_task_arn"
 
     def __init__(
         self,
@@ -200,7 +205,8 @@ class ECSOperator(BaseOperator):
         self.arn: Optional[str] = None
         self.retry_args = quota_retry
 
-    def execute(self, context):
+    @provide_session
+    def execute(self, context, session=None):
         self.log.info(
             'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
@@ -212,7 +218,7 @@ class ECSOperator(BaseOperator):
             self._try_reattach_task()
 
         if not self.arn:
-            self._start_task()
+            self._start_task(context)
 
         self._wait_for_task_ended()
 
@@ -220,12 +226,20 @@ class ECSOperator(BaseOperator):
 
         self.log.info('ECS Task has been successfully executed')
 
+        if self.reattach:
+            # Clear the XCom value storing the ECS task ARN if the task has completed
+            # as we can't reattach it anymore
+            self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
+
         if self.do_xcom_push:
             return self._last_log_message()
 
         return None
 
-    def _start_task(self):
+    def _xcom_del(self, session, task_id):
+        session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()
+
+    def _start_task(self, context):
         run_opts = {
             'cluster': self.cluster,
             'taskDefinition': self.task_definition,
@@ -261,6 +275,26 @@ class ECSOperator(BaseOperator):
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
+        ecs_task_id = self.arn.split("/")[-1]
+        self.log.info(f"ECS task ID is: {ecs_task_id}")
+
+        if self.reattach:
+            # Save the task ARN in XCom to be able to reattach it if needed
+            self._xcom_set(
+                context,
+                key=self.REATTACH_XCOM_KEY,
+                value=self.arn,
+                task_id=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
+            )
+
+    def _xcom_set(self, context, key, value, task_id):
+        XCom.set(
+            key=key,
+            value=value,
+            task_id=task_id,
+            dag_id=self.dag_id,
+            execution_date=context["ti"].execution_date,
+        )
 
     def _try_reattach_task(self):
         task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
@@ -271,15 +305,16 @@ class ECSOperator(BaseOperator):
         )
         running_tasks = list_tasks_resp['taskArns']
 
-        running_tasks_count = len(running_tasks)
-        if running_tasks_count > 1:
-            self.arn = running_tasks[0]
-            self.log.warning('More than 1 ECS Task found. Reattaching to %s', self.arn)
-        elif running_tasks_count == 1:
-            self.arn = running_tasks[0]
-            self.log.info('Reattaching task: %s', self.arn)
+        # Check if the ECS task previously launched is already running
+        previous_task_arn = self.xcom_pull(
+            task_ids=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
+            key=self.REATTACH_XCOM_KEY,
+        )
+        if previous_task_arn in running_tasks:
+            self.arn = previous_task_arn
+            self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
-            self.log.info('No active tasks found to reattach')
+            self.log.info("No active previously launched task found to reattach")
 
     def _wait_for_task_ended(self) -> None:
         if not self.client or not self.arn:

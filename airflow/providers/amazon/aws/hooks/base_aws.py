@@ -530,7 +530,7 @@ class AwsBaseHook(BaseHook):
             def decorator_f(self, *args, **kwargs):
                 retry_args = getattr(self, 'retry_args', None)
                 if retry_args is None:
-                    return fun(self)
+                    return fun(self, *args, **kwargs)
                 multiplier = retry_args.get('multiplier', 1)
                 min_limit = retry_args.get('min', 1)
                 max_limit = retry_args.get('max', 1)
@@ -543,7 +543,7 @@ class AwsBaseHook(BaseHook):
                     'before': tenacity_logger,
                     'after': tenacity_logger,
                 }
-                return tenacity.retry(**default_kwargs)(fun)(self)
+                return tenacity.retry(**default_kwargs)(fun)(self, *args, **kwargs)
 
             return decorator_f
 

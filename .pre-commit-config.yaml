@@ -143,7 +143,7 @@ repos:
         files: \.mermaid$
         exclude: ^airflow/_vendor/
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.0.0
+    rev: v2.0.1
     hooks:
       - id: doctoc
         name: Add TOC for md files
@@ -154,7 +154,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.5b1
+    rev: 21.6b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -164,7 +164,7 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.5b1]
+        additional_dependencies: [black==21.6b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
@@ -196,13 +196,13 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.19.0
+    rev: v2.21.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.8.0
+    rev: v1.9.0
     hooks:
       - id: rst-backticks
         exclude: ^airflow/_vendor/
@@ -218,7 +218,7 @@ repos:
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|^airflow/_vendor/
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.8.0
+    rev: 5.9.2
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files

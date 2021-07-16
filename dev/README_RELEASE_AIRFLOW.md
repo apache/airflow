@@ -555,9 +555,9 @@ cd "${VERSION}"
 
 # Move the artifacts to svn folder & commit
 for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
-    svn cp "$f" "${$(basename $f)/rc?/}"
+    svn cp "$f" "${$(basename $f)/}"
     # Those will be used to upload to PyPI
-    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/rc?/}"
+    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/}"
 done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 

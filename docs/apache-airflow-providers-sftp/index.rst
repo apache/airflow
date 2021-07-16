@@ -51,7 +51,7 @@ Package apache-airflow-providers-sftp
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -68,14 +68,15 @@ You can install this package on top of an existing airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.1.0``
-``paramiko``        ``>=2.6.0``
-``pysftp``          ``>=0.2.9``
-``sshtunnel``       ``>=0.1.4,<0.2``
-==================  ==================
+================================  ==================
+PIP package                       Version required
+================================  ==================
+``apache-airflow``                ``>=2.1.0``
+``apache-airflow-providers-ssh``  ``>=2.1.0``
+``paramiko``                      ``>=2.6.0``
+``pysftp``                        ``>=0.2.9``
+``sshtunnel``                     ``>=0.1.4,<0.2``
+================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -102,7 +103,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-sftp 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-sftp 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-sftp 2.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-sftp 2.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.1.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/sftp/CHANGELOG.rst
