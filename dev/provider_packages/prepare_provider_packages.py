@@ -357,11 +357,12 @@ def get_long_description(provider_package_id: str) -> str:
     return long_description
 
 
-def get_install_requirements(provider_package_id: str) -> List[str]:
+def get_install_requirements(provider_package_id: str, version_suffix: str) -> List[str]:
     """
     Returns install requirements for the package.
 
     :param provider_package_id: id of the provider package
+    :param version_suffix: optional version suffix for packages
 
     :return: install requirements of the package
     """
@@ -369,7 +370,21 @@ def get_install_requirements(provider_package_id: str) -> List[str]:
     provider_yaml = get_provider_yaml(provider_package_id)
     install_requires = []
     if "additional-dependencies" in provider_yaml:
-        install_requires = provider_yaml['additional-dependencies']
+        additional_dependencies = provider_yaml['additional-dependencies']
+        if version_suffix:
+            # In case we are preparing "rc" or dev0 packages, we should also
+            # make sure that cross-dependency with Airflow or Airflow Providers will
+            # contain the version suffix, otherwise we will have conflicting dependencies.
+            # For example if (in sftp) we have ssh>=2.0.1 and release ssh==2.0.1
+            # we want to turn this into ssh>=2.0.1.dev0 if we build dev0 version of the packages
+            # or >=2.0.1rc1 if we build rc1 version of the packages.
+            for dependency in additional_dependencies:
+                if dependency.startswith("apache-airflow") and ">=" in dependency:
+                    dependency = dependency + version_suffix
+                install_requires.append(dependency)
+        else:
+            install_requires.extend(additional_dependencies)
+
     install_requires.extend(dependencies)
     return install_requires
 
@@ -1513,7 +1528,7 @@ def get_provider_jinja_context(
         "PROVIDERS_FOLDER": "providers",
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
-            provider_package_id=provider_details.provider_package_id
+            provider_package_id=provider_details.provider_package_id, version_suffix=version_suffix
         ),
         "SETUP_REQUIREMENTS": get_setup_requirements(),
         "EXTRAS_REQUIREMENTS": get_package_extras(provider_package_id=provider_details.provider_package_id),

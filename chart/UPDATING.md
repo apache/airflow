@@ -48,9 +48,9 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Default Airflow version is updated to ``2.1.1``
+### Default Airflow version is updated to ``2.1.2``
 
-The default Airflow version that is installed with the Chart is now ``2.1.1``, previously it was ``2.0.2``.
+The default Airflow version that is installed with the Chart is now ``2.1.2``, previously it was ``2.0.2``.
 
 ### Helm 2 no longer supported
 
