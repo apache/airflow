@@ -23,7 +23,7 @@ import os
 import pickle
 import signal
 import warnings
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
@@ -54,6 +54,7 @@ from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -817,6 +818,7 @@ class TaskInstance(Base, LoggingMixin):
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
 
+    @cache  # Avoid making multiple database calls when rendering a template.
     @provide_session
     def get_previous_ti(
         self, state: Optional[str] = None, session: Session = None
@@ -1686,21 +1688,25 @@ class TaskInstance(Base, LoggingMixin):
         integrate_macros_plugins()
 
         params = {}  # type: Dict[str, Any]
-        run_id = ''
-        dag_run = None
-        if hasattr(task, 'dag'):
-            if task.dag.params:
-                params.update(task.dag.params)
-            from airflow.models.dagrun import DagRun  # Avoid circular import
+        with contextlib.suppress(AttributeError):
+            params.update(task.dag.params)
 
-            dag_run = (
-                session.query(DagRun)
-                .filter_by(dag_id=task.dag.dag_id, execution_date=self.execution_date)
-                .first()
+        dag_run = self.get_dagrun()
+
+        # FIXME: Many tests don't create a DagRun. We should fix the tests.
+        if dag_run is None:
+            FakeDagRun = namedtuple(
+                "FakeDagRun",
+                # A minimal set of attributes to keep things working.
+                "conf data_interval_start data_interval_end external_trigger run_id",
             )
-            run_id = dag_run.run_id if dag_run else None
-            session.expunge_all()
-            session.commit()
+            dag_run = FakeDagRun(
+                conf=None,
+                data_interval_start=None,
+                data_interval_end=None,
+                external_trigger=False,
+                run_id="",
+            )
 
         ds = self.execution_date.strftime('%Y-%m-%d')
         ts = self.execution_date.isoformat()
@@ -1711,11 +1717,9 @@ class TaskInstance(Base, LoggingMixin):
         # schedule dates don't make sense, and should be set to execution date for
         # consistency with how execution_date is set for manually triggered tasks, i.e.
         # triggered_date == execution_date.
-        if dag_run and dag_run.external_trigger:
-            prev_execution_date = self.execution_date
+        if dag_run.external_trigger:
             next_execution_date = self.execution_date
         else:
-            prev_execution_date = task.dag.previous_schedule(self.execution_date)
             next_execution_date = task.dag.following_schedule(self.execution_date)
 
         next_ds = None
@@ -1723,14 +1727,7 @@ class TaskInstance(Base, LoggingMixin):
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
             next_ds_nodash = next_ds.replace('-', '')
-            next_execution_date = pendulum.instance(next_execution_date)
-
-        prev_ds = None
-        prev_ds_nodash = None
-        if prev_execution_date:
-            prev_ds = prev_execution_date.strftime('%Y-%m-%d')
-            prev_ds_nodash = prev_ds.replace('-', '')
-            prev_execution_date = pendulum.instance(prev_execution_date)
+            next_execution_date = timezone.coerce_datetime(next_execution_date)
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
@@ -1826,37 +1823,97 @@ class TaskInstance(Base, LoggingMixin):
                 except AirflowNotFoundException:
                     return default_conn
 
+        def deprecated_proxy(func, *, key, replacement=None) -> lazy_object_proxy.Proxy:
+            def deprecated_func():
+                message = (
+                    f"Accessing {key!r} from the template is deprecated and "
+                    f"will be removed in a future version."
+                )
+                if replacement:
+                    message += f" Please use {replacement!r} instead."
+                warnings.warn(message, DeprecationWarning)
+                return func()
+
+            return lazy_object_proxy.Proxy(deprecated_func)
+
+        def get_previous_schedule_date() -> Optional[pendulum.DateTime]:
+            ti = self.get_previous_ti(None)
+            if ti is None:
+                return None
+            return timezone.coerce_datetime(ti.execution_date)
+
+        def get_prev_execution_date():
+            if dag_run.external_trigger:
+                dt = self.execution_date
+            else:
+                dt = task.dag.previous_schedule(self.execution_date)
+            return timezone.coerce_datetime(dt)
+
+        def get_prev_ds() -> Optional[str]:
+            execution_date = get_prev_execution_date()
+            if execution_date is None:
+                return None
+            return execution_date.strftime(r'%Y-%m-%d')
+
+        def get_prev_ds_nodash() -> Optional[str]:
+            prev_ds = get_prev_ds()
+            if prev_ds is None:
+                return None
+            return prev_ds.replace('-', '')
+
         return {
             'conf': conf,
             'dag': task.dag,
             'dag_run': dag_run,
+            'data_interval_end': timezone.coerce_datetime(dag_run.data_interval_end),
+            'data_interval_start': timezone.coerce_datetime(dag_run.data_interval_start),
             'ds': ds,
             'ds_nodash': ds_nodash,
-            'execution_date': pendulum.instance(self.execution_date),
+            'execution_date': deprecated_proxy(
+                lambda: timezone.coerce_datetime(self.execution_date),
+                key='execution_date',
+                replacement='schedule_date',
+            ),
             'inlets': task.inlets,
             'macros': macros,
             'next_ds': next_ds,
             'next_ds_nodash': next_ds_nodash,
-            'next_execution_date': next_execution_date,
+            'next_execution_date': deprecated_proxy(
+                lambda: next_execution_date,
+                key='next_execution_date',
+                replacement='next_schedule_date',
+            ),
+            'next_schedule_date': next_execution_date,
             'outlets': task.outlets,
             'params': params,
-            'prev_ds': prev_ds,
-            'prev_ds_nodash': prev_ds_nodash,
-            'prev_execution_date': prev_execution_date,
-            'prev_execution_date_success': lazy_object_proxy.Proxy(
+            'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),
+            'prev_ds_nodash': deprecated_proxy(get_prev_ds_nodash, key="prev_ds_nodash"),
+            'prev_execution_date': deprecated_proxy(
+                get_prev_execution_date,
+                key='prev_execution_date',
+                replacement='prev_schedule_date',
+            ),
+            'prev_execution_date_success': deprecated_proxy(
+                lambda: self.get_previous_execution_date(state=State.SUCCESS),
+                key='prev_execution_date_success',
+                replacement='prev_schedule_date_success',
+            ),
+            'prev_schedule_date': lazy_object_proxy.Proxy(get_previous_schedule_date),
+            'prev_schedule_date_success': lazy_object_proxy.Proxy(
                 lambda: self.get_previous_execution_date(state=State.SUCCESS)
             ),
             'prev_start_date_success': lazy_object_proxy.Proxy(
                 lambda: self.get_previous_start_date(state=State.SUCCESS)
             ),
-            'run_id': run_id,
+            'run_id': dag_run.run_id,
+            'schedule_date': timezone.coerce_datetime(self.execution_date),
             'task': task,
             'task_instance': self,
             'task_instance_key_str': ti_key_str,
             'test_mode': self.test_mode,
             'ti': self,
-            'tomorrow_ds': tomorrow_ds,
-            'tomorrow_ds_nodash': tomorrow_ds_nodash,
+            'tomorrow_ds': deprecated_proxy(lambda: tomorrow_ds, key='tomorrow_ds'),
+            'tomorrow_ds_nodash': deprecated_proxy(lambda: tomorrow_ds_nodash, key='tomorrow_ds_nodash'),
             'ts': ts,
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,
@@ -1865,8 +1922,8 @@ class TaskInstance(Base, LoggingMixin):
                 'value': VariableAccessor(),
             },
             'conn': ConnectionAccessor(),
-            'yesterday_ds': yesterday_ds,
-            'yesterday_ds_nodash': yesterday_ds_nodash,
+            'yesterday_ds': deprecated_proxy(lambda: yesterday_ds, key='yesterday_ds'),
+            'yesterday_ds_nodash': deprecated_proxy(lambda: yesterday_ds_nodash, key='yesterday_ds_nodash'),
         }
 
     def get_rendered_template_fields(self):
