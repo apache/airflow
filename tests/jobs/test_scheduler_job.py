@@ -20,7 +20,6 @@
 import datetime
 import os
 import shutil
-import unittest
 from datetime import timedelta
 from tempfile import mkdtemp
 from unittest import mock
@@ -97,8 +96,18 @@ def disable_load_example():
             yield
 
 
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models.dagbag import DagBag
+
+    # Ensure the DAGs we are looking at from the DB are up-to-date
+    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
+    non_serialized_dagbag.sync_to_db()
+    return DagBag(read_dags_from_db=True)
+
+
 @pytest.mark.usefixtures("disable_load_example")
-class TestSchedulerJob(unittest.TestCase):
+class TestSchedulerJob:
     @staticmethod
     def clean_db():
         clear_db_runs()
@@ -110,33 +119,28 @@ class TestSchedulerJob(unittest.TestCase):
         # DO NOT try to run clear_db_serialized_dags() here - this will break the tests
         # The tests expect DAGs to be fully loaded here via setUpClass method below
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def set_instance_attrs(self, dagbag):
+        self.dagbag = dagbag
         self.clean_db()
         self.scheduler_job = None
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec = MockExecutor()
 
-        self.patcher = patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags')
         # Since we don't want to store the code for the DAG defined in this file
-        self.patcher_dag_code = patch.object(settings, "STORE_DAG_CODE", False)
-        self.patcher.start()
-        self.patcher_dag_code.start()
+        with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch.object(
+            settings,
+            "STORE_DAG_CODE",
+            False,
+        ):
 
-    def tearDown(self):
+            yield
+
         if self.scheduler_job and self.scheduler_job.processor_agent:
             self.scheduler_job.processor_agent.end()
             self.scheduler_job = None
-        self.patcher.stop()
-        self.patcher_dag_code.stop()
         self.clean_db()
-
-    @classmethod
-    def setUpClass(cls):
-        # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
-        non_serialized_dagbag.sync_to_db()
-        cls.dagbag = DagBag(read_dags_from_db=True)
 
     def test_is_alive(self):
         self.scheduler_job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -1260,7 +1264,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         res = self.scheduler_job._critical_section_execute_task_instances(session)
         # 20 dag runs * 2 tasks each = 40, but limited by number of slots available
-        self.assertEqual(36, res)
+        assert res == 36
         session.rollback()
 
     def test_change_state_for_tis_without_dagrun(self):
@@ -1497,7 +1501,7 @@ class TestSchedulerJob(unittest.TestCase):
         mock_processor_agent.return_value.end.side_effect = Exception("double oops")
         self.scheduler_job.executor.end = mock.MagicMock(side_effect=Exception("triple oops"))
 
-        with self.assertRaises(Exception):
+        with pytest.raises(Exception):
             self.scheduler_job.run()
 
         self.scheduler_job.processor_agent.end.assert_called_once()
@@ -3257,7 +3261,7 @@ class TestSchedulerJob(unittest.TestCase):
         # Test that custom_task has no Operator Links (after de-serialization) in the Scheduling Loop
         assert not custom_task.operator_extra_links
 
-    def test_scheduler_create_dag_runs_does_not_raise_error(self):
+    def test_scheduler_create_dag_runs_does_not_raise_error(self, caplog):
         """
         Test that scheduler._create_dag_runs does not raise an error when the DAG does not exist
         in serialized_dag table
@@ -3282,15 +3286,16 @@ class TestSchedulerJob(unittest.TestCase):
         self.scheduler_job = SchedulerJob(subdir=os.devnull, executor=self.null_exec)
         self.scheduler_job.processor_agent = mock.MagicMock()
 
-        with create_session() as session, self.assertLogs(
-            'airflow.jobs.scheduler_job', level="ERROR"
-        ) as log_output:
+        caplog.set_level('FATAL')
+        caplog.clear()
+        with create_session() as session, caplog.at_level(
+            'ERROR',
+            logger='airflow.jobs.scheduler_job',
+        ):
             self.scheduler_job._create_dag_runs([dag_model], session)
-
-            assert (
-                "airflow.exceptions.SerializedDagNotFound: DAG "
-                "'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table"
-            ) in log_output.output[0]
+            assert caplog.messages == [
+                "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
+            ]
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self):
         """
@@ -3635,7 +3640,7 @@ def test_task_with_upstream_skip_process_task_instances():
 
 # TODO(potiuk): unquarantine me where we get rid of those pesky 195 -> 196 problem!
 @pytest.mark.quarantined
-class TestSchedulerJobQueriesCount(unittest.TestCase):
+class TestSchedulerJobQueriesCount:
     """
     These tests are designed to detect changes in the number of queries for
     different DAG files. These tests allow easy detection when a change is
@@ -3652,10 +3657,12 @@ class TestSchedulerJobQueriesCount(unittest.TestCase):
         clear_db_jobs()
         clear_db_serialized_dags()
 
-    def setUp(self) -> None:
+    @pytest.fixture(autouse=True)
+    def per_test(self) -> None:
         self.clean_db()
 
-    def tearDown(self):
+        yield
+
         if self.scheduler_job and self.scheduler_job.processor_agent:
             self.scheduler_job.processor_agent.end()
             self.scheduler_job = None
