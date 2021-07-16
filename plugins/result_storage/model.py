@@ -1,5 +1,3 @@
-from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
 from sqlalchemy import Column, Float, Integer, String, Text
 
 from plugins.result_storage.base import Base
@@ -46,7 +44,7 @@ class ResultModel(Base):
     torque_min = Column(Integer)
     torque_target = Column(Integer)
     torque_threshold = Column(Integer)
-    update_time = Column(UtcDateTime, default=timezone.utcnow())
+    update_time = Column(String(256))
     user_id = Column(Integer)
     workorder_id = Column(Integer)
     vin = Column(String(256))
@@ -54,7 +52,8 @@ class ResultModel(Base):
     def as_dict(self):
         v: dict = self.__dict__
         if v:
-            v.pop('_sa_instance_state')
+            if v.get('_sa_instance_state'):
+                v.pop('_sa_instance_state')
             return v
         else:
             return dict()

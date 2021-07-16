@@ -77,14 +77,10 @@ class ClsResultStorage(ClsEntity):
             if not entity_id:
                 raise Exception("entity id Is Required!")
             result_body: Optional[Dict] = data.get('result')  # 之前验证过了 无需再验证有效性
-            if result_body.get("update_time"):
-                update_time = parse(result_body.get("update_time"))
-            else:
-                update_time = datetime.datetime.now(tz=pytz.utc)
             step_results = data.get("step_results")
             if step_results and (isinstance(step_results, list) or isinstance(step_results, dict)):
                 step_results = json.dumps(step_results, ensure_ascii=False)
-            result_body.update({"entity_id": entity_id, "update_time": update_time, "step_results": step_results})
+            result_body.update({"entity_id": entity_id, "step_results": step_results})
             return self._write(result_body)
         except Exception as err:
             raise Exception(u"写入结果失败: {}, result: {}".format(repr(err), repr(data)))
@@ -109,10 +105,8 @@ class ClsResultStorage(ClsEntity):
             raise BaseException(u'entity_id未指定')
         data = self._filter(ResultModel.entity_id == self.entity_id)
         for table in data:
-            for record in table.records:
-                ret = record.values
-                for key in ret.keys():
-                    if key in ['step_results']:
-                        ret[key] = json.loads(ret[key])
-                return ret
+            ret = table.as_dict()
+            if ret.get('step_results'):
+                ret['step_results'] = json.loads(ret['step_results'])
+            return ret
         return None
