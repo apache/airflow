@@ -85,8 +85,10 @@ class Timetable(Protocol):
 
     @property
     def interval_description(self) -> [str, None]:
-        """Defines the interval description,
-        eg. for cron '30 21 * * 5', description could be like 'At 09:30 PM, only on Friday'
+        """Override to describe the interval.
+
+        For cron ``'30 21 * * 5'``, description could be like ``'At 09:30 PM, only on Friday'``.
+        This is used in the web UI.
         """
         return None
 
