@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import time
 import warnings
 from distutils.util import strtobool
 from enum import Enum
@@ -150,16 +151,25 @@ class TableauHook(BaseHook):
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
-    def waiting_until_succeeded(self, job_id: str) -> bool:
+    def wait_for_state(self, job_id: str, target_state: Enum, check_interval: float) -> bool:
         """
-        Wait until the current state of a defined Tableau Job is not PENDING.
+        Wait until the current state of a defined Tableau Job is equal
+        to target_state or different from PENDING.
+
         :param job_id: The id of the job to check.
         :type job_id: str
-        :return: return True if the job has SUCCESS status, False otherwise.
+        :param target_state: target state of the job
+        :type target_state: Enum
+        :param check_interval: time in seconds that the job should wait in
+            between each instance state checks until operation is completed
+        :type check_interval: float
+        :return: return True if the job is equal to the target_status, False otherwise.
         :rtype: bool
         """
-        finish_code = TableauJobFinishCode.PENDING
-        while finish_code == TableauJobFinishCode.PENDING:
+        finish_code = self.get_job_status(job_id=job_id)
+        while finish_code == TableauJobFinishCode.PENDING and finish_code != target_state:
+            self.log.info("job state: %s", finish_code)
+            time.sleep(check_interval)
             finish_code = self.get_job_status(job_id=job_id)
 
-        return finish_code == TableauJobFinishCode.SUCCESS
+        return finish_code == target_state

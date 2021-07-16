@@ -20,7 +20,11 @@ from tableauserverclient import WorkbookItem
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFailedException
+from airflow.providers.tableau.hooks.tableau import (
+    TableauHook,
+    TableauJobFailedException,
+    TableauJobFinishCode,
+)
 
 
 class TableauRefreshWorkbookOperator(BaseOperator):
@@ -39,6 +43,9 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         containing the credentials to authenticate to the Tableau Server. Default:
         'tableau_default'.
     :type tableau_conn_id: str
+    :param check_interval: time in seconds that the job should wait in
+        between each instance state checks until operation is completed
+    :type check_interval: float
     """
 
     def __init__(
@@ -48,6 +55,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         site_id: Optional[str] = None,
         blocking: bool = True,
         tableau_conn_id: str = 'tableau_default',
+        check_interval: float = 20,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -55,6 +63,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         self.site_id = site_id
         self.blocking = blocking
         self.tableau_conn_id = tableau_conn_id
+        self.check_interval = check_interval
 
     def execute(self, context: dict) -> str:
         """
@@ -69,7 +78,11 @@ class TableauRefreshWorkbookOperator(BaseOperator):
 
             job_id = self._refresh_workbook(tableau_hook, workbook.id)
             if self.blocking:
-                if not tableau_hook.waiting_until_succeeded(job_id=job_id):
+                if not tableau_hook.wait_for_state(
+                    job_id=job_id,
+                    check_interval=self.check_interval,
+                    target_state=TableauJobFinishCode.SUCCESS,
+                ):
                     raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
 
             self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
