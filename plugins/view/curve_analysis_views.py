@@ -12,7 +12,7 @@ from airflow.plugins_manager import AirflowPlugin
 
 
 class CurveAnalysisListWidget(AirflowModelListWidget):
-    template = 'airflow/curve_analysis_list.html'
+    template = 'curve_analysis_list.html'
 
 
 class TrackNoNotNullFilter(BaseFilter):

@@ -43,7 +43,7 @@ from flask import (
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access, permission_name
 from flask_appbuilder.actions import action
-from flask_appbuilder.models.sqla.filters import BaseFilter, get_field_setup_query
+from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
 import lazy_object_proxy
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
@@ -873,7 +873,6 @@ class Airflow(AirflowBaseView):
                     while 'end_of_log' not in metadata or not metadata['end_of_log']:
                         logs, metadata = _get_logs_with_metadata(try_number, metadata)
                         yield "\n".join(logs) + "\n"
-
             return Response(_generate_log_stream(try_number, metadata),
                             mimetype="text/plain",
                             headers={"Content-Disposition": "attachment; filename={}".format(
@@ -2350,27 +2349,6 @@ class DagFilter(BaseFilter):
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
-class TrackNoNotNullFilter(BaseFilter):
-    def apply(self, query, func):  # noqa
-        ti = self.model
-        ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
-        return ret
-
-
-class BoltNoNotNullFilter(BaseFilter):
-    def apply(self, query, func):  # noqa
-        ti = self.model
-        return query.filter(ti.bolt_number.isnot(None)).distinct(ti.bolt_number).group_by(ti)
-
-
-class ErrorTagFilter(BaseFilter):
-
-    def apply(self, query, func):  # noqa
-        _logger.info("ErrorTagFilter: {}".format(pprint.pformat(func)))
-        query, field = get_field_setup_query(query, self.model, self.column_name)
-        return query
-
-
 class AirflowModelView(ModelView):
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
@@ -3205,46 +3183,3 @@ class DagModelView(AirflowModelView):
         payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
 
         return wwwutils.json_response(payload)
-
-
-class CurveAnalysisListWidget(AirflowModelListWidget):
-    template = 'airflow/curve_analysis_list.html'
-
-
-class CurveAnalysisTrackNoView(TaskInstanceModelView):
-    route_base = '/curves_analysis_track'
-
-    datamodel = wwwutils.DistinctSQLAInterface(models.TaskInstance)
-
-    base_permissions = ['can_list', 'can_show']
-
-    list_widget = CurveAnalysisListWidget
-
-    list_title = lazy_gettext("Analysis Via Track No")
-
-    list_columns = ['car_code']
-
-    search_columns = ['car_code']
-
-    label_columns = TaskInstanceModelView.label_columns.update({
-        'car_code': lazy_gettext('Car Code')
-    })
-
-    base_filters = [['car_code', TrackNoNotNullFilter, lambda: []]]
-
-    base_order = ('car_code', 'asc')
-
-
-class CurveAnalysisBoltNoView(CurveAnalysisTrackNoView):
-    route_base = '/curves_analysis_bolt'
-
-    list_title = lazy_gettext("Analysis Via Bolt No")
-
-    list_columns = ['bolt_number']
-
-    search_columns = ['bolt_number']
-
-    base_filters = [['bolt_number', BoltNoNotNullFilter, lambda: []]]
-
-    base_order = ('bolt_number', 'asc')
-

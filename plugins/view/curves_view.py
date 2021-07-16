@@ -26,7 +26,6 @@ from pathlib import Path
 from airflow.configuration import AIRFLOW_HOME
 from airflow.plugins_manager import AirflowPlugin
 from plugins import AirflowModelView
-from flask import Blueprint
 
 _logger = logging.getLogger(__name__)
 
@@ -245,14 +244,7 @@ class CurvesView(AirflowModelView):
 curves_view = CurvesView()
 curves_view_package = {"view": curves_view}
 
-# Creating a flask blueprint to intergrate the templates and static folder
-bp = Blueprint(
-    "test_plugin", __name__,
-    template_folder='templates'
-)
-
 
 class CurvesViewPlugin(AirflowPlugin):
     name = "curves_view_plugin"
-    flask_blueprints = [bp]
     appbuilder_views = [curves_view_package]
