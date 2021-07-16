@@ -6,9 +6,7 @@ import pendulum
 from airflow.operators.python_operator import PythonOperator
 from airflow.entities.kafka_consumer import ClsKafkaConsumer
 from airflow.utils.logger import generate_logger
-import time
 from airflow.utils.db import get_connection
-from dags.curve_store_dag import doStoreTask, doTriggerAnayTask
 
 _logger = generate_logger(__name__)
 
@@ -41,8 +39,10 @@ def curve_data_handler(msg):
                 'conf': msg
             }
         }
-        doStoreTask(True, data)
-        doTriggerAnayTask(True, data)
+        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        params = ResultStorageHook.on_curve_receive(True, data)
+        from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
+        TriggerAnalyzeHook.trigger_analyze(params)
     except Exception as e:
         _logger.error(repr(e))
 
