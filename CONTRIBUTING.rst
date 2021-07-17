@@ -208,11 +208,18 @@ You can configure the Docker-based Breeze development environment as follows:
 1. Install the latest versions of the Docker Community Edition
    and Docker Compose and add them to the PATH.
 
-2. Install jq on your machine, using the following command:
+2. Install jq on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+For example, on Ubuntu:
 
 .. code-block:: bash
 
   sudo apt install jq
+
+or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
+
+.. code-block:: bash
+
+  brew install jq
 
 3. Enter Breeze: ``./breeze``
 
