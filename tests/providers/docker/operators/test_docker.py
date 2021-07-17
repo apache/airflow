@@ -37,6 +37,7 @@ except ImportError:
 
 TEMPDIR_MOCK_RETURN_VALUE = '/mkdtemp'
 
+
 class TestDockerOperator(unittest.TestCase):
     def setUp(self):
         self.tempdir_patcher = mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
@@ -187,7 +188,7 @@ class TestDockerOperator(unittest.TestCase):
 
     def test_execute_fallback_temp_dir(self):
         self.client_mock.create_container.side_effect = [
-            APIError(message="wrong path: " +TEMPDIR_MOCK_RETURN_VALUE ),
+            APIError(message="wrong path: " + TEMPDIR_MOCK_RETURN_VALUE),
             {'Id': 'some_id'},
         ]
         operator = DockerOperator(
