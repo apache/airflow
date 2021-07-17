@@ -181,23 +181,23 @@ class SFTPOperator(BaseOperator):
                         for file_path in self.local_filepath:
                             local_folder = os.path.dirname(file_path)
                             remote_folder = os.path.dirname(self.remote_filepath)
-                            local_file = ntpath.basename(file_path)
+                            local_file = os.path.basename(file_path)
                             self._transfer(sftp_client, local_folder, local_file, remote_folder)
                     elif isinstance(self.remote_filepath, list) and isinstance(self.local_filepath, str):
                         for file_path in self.remote_filepath:
                             remote_folder = os.path.dirname(file_path)
-                            remote_file = ntpath.basename(file_path)
+                            remote_file = os.path.basename(file_path)
                             self._transfer(sftp_client, self.local_filepath, remote_file, remote_folder)
                     elif isinstance(self.remote_filepath, str) and isinstance(self.local_filepath, str):
                         local_folder = os.path.dirname(self.local_filepath)
                         remote_folder = os.path.dirname(self.remote_filepath)
-                        local_file = ntpath.basename(self.local_filepath)
+                        local_file = os.path.basename(self.local_filepath)
                         self._transfer(sftp_client, local_folder, local_file, remote_folder)
                 elif self.local_folder and self.remote_folder:
                     if self.operation.lower() == SFTPOperation.PUT:
                         files_list = self._search_files(os.listdir(self.local_folder))
                         for file in files_list:
-                            local_file = ntpath.basename(file)
+                            local_file = os.path.basename(file)
                             self._transfer(sftp_client, self.local_folder, local_file, self.remote_folder)
                     elif self.operation.lower() == SFTPOperation.GET:
                         files_list = self._search_files(sftp_client.listdir(self.remote_folder))

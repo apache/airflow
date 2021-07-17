@@ -28,10 +28,11 @@ To start working with an operator, you need to register an SFTP \ SSH connection
 Use ssh_conn_id to specify the name of the connection.
 
 You can use the operator for the following tasks:
+
 1. Send one file to the server with the full path
 
-.. exampleinclude airflow/providers/sftp/example_dags/example_sftp_operator.py
-  :language: python
+.. code-block:: python
+
     put_file = SFTPOperator(
         task_id="put_file",
         ssh_conn_id="ssh_default",
@@ -43,8 +44,8 @@ You can use the operator for the following tasks:
 
 2. Send multiple files to the specified directory on the remote server
 
-.. exampleinclude airflow/providers/sftp/example_dags/example_sftp_operator.py
-  :language: python
+.. code-block:: python
+
     put_files = SFTPOperator(
         task_id="put_files",
         ssh_conn_id="ssh_default",
@@ -56,8 +57,8 @@ You can use the operator for the following tasks:
 
 3. Send all files from local directory to remote server
 
-.. exampleinclude airflow/providers/sftp/example_dags/example_sftp_operator.py
-  :language: python
+.. code-block:: python
+
      put_dir_files = SFTPOperator(
         task_id="put_dir_files",
         ssh_conn_id="ssh_default",
@@ -69,17 +70,17 @@ You can use the operator for the following tasks:
 
 4. Send all files from the local directory that match the specified pattern to the remote server
 
-.. exampleinclude airflow/providers/sftp/example_dags/example_sftp_operator.py
-  :language: python
-    put_dir_txt_files = SFTPOperator(
-        task_id="put_dir_txt_files",
-        ssh_conn_id="ssh_default",
-        local_folder="/tmp/dir_for_remote_transfer/",
-        remote_folder="/tmp/dir_for_remote_transfer/remote/txt/",
-        regexp_mask=".*.txt",
-        operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True
-    )
+.. code-block:: python
+
+  put_dir_txt_files = SFTPOperator(
+      task_id="put_dir_txt_files",
+      ssh_conn_id="ssh_default",
+      local_folder="/tmp/dir_for_remote_transfer/",
+      remote_folder="/tmp/dir_for_remote_transfer/remote/txt/",
+      regexp_mask=".*.txt",
+      operation=SFTPOperation.PUT,
+      create_intermediate_dirs=True
+  )
 
 The operator also supports transfer files from a remote server to a local,
 for this you need to change the parameter ``operation`` from ``SFTPOperation.PUT`` to ``SFTPOperation.GET``.
