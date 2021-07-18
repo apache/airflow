@@ -113,6 +113,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str,
         scheduler_job_id: Optional[str],
         kube_config: Configuration,
+        allow_watch_bookmarks: bool = True,
     ):
         super().__init__()
         self.namespace = namespace
@@ -121,6 +122,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
         self.kube_config = kube_config
+        self.allow_watch_bookmarks = allow_watch_bookmarks
 
     def run(self) -> None:
         """Performs watching"""
@@ -175,6 +177,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         kwargs = {
             'label_selector': f'airflow-worker={scheduler_job_id}',
             'resource_version': resource_version,
+            'allow_watch_bookmarks': self.allow_watch_bookmarks,
+            # see https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
         }
         if kube_config.kube_client_request_args:
             for key, value in kube_config.kube_client_request_args.items():
@@ -314,7 +318,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def _make_kube_watcher(self) -> KubernetesJobWatcher:
         resource_version = ResourceVersion(
             kube_client=self.kube_client, namespace=self.kube_config.kube_namespace
-        ).resource_version  # pylint: disable=no-member
+        ).resource_version
         watcher = KubernetesJobWatcher(
             watcher_queue=self.watcher_queue,
             namespace=self.kube_config.kube_namespace,
