@@ -28,7 +28,7 @@ class TestInfluxDbHookConn(unittest.TestCase):
         self.influxdb_hook = InfluxDBHook()
         extra = dict()
         extra['token'] = '123456789'
-        extra['org_id'] = 'test'
+        extra['org_name'] = 'test'
 
         self.connection = Connection(
             schema='http', host='localhost', extra=extra
@@ -41,5 +41,5 @@ class TestInfluxDbHookConn(unittest.TestCase):
         self.influxdb_hook.get_client = mock.Mock()
         self.influxdb_hook.get_conn()
 
-        assert self.influxdb_hook.org_id == 'test'
+        assert self.influxdb_hook.org_name == 'test'
         assert self.influxdb_hook.uri == 'http://localhost:7687'

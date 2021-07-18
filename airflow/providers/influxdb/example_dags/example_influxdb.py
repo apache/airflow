@@ -27,10 +27,10 @@ def test_influxdb_hook():
     influxdb_hook = InfluxDBHook("influxdb_default")
     client = influxdb_hook.get_conn()
     print(client)
-    print(f"Organization name {influxdb_hook.org_id}")
+    print(f"Organization name {influxdb_hook.org_name}")
 
     # Make sure enough permissions to create bucket.
-    # influxdb_hook.create_bucket(bucket_name, "Bucket to test influxdb connection", influxdb_hook.org_id)
+    influxdb_hook.create_bucket(bucket_name, "Bucket to test influxdb connection", influxdb_hook.org_name)
     influxdb_hook.write(bucket_name, "test_point", "location", "Prague", "temperature", 25.3, True)
 
     tables = influxdb_hook.query('from(bucket:"test-influx") |> range(start: -10m)')
@@ -42,7 +42,7 @@ def test_influxdb_hook():
 
     bucket_id = influxdb_hook.find_bucket_id_by_name(bucket_name)
     # Delete bucket takes bucket id.
-    influxdb_hook.delete_bucket(bucket_id)
+    influxdb_hook.delete_bucket(bucket_name)
 
 
 with DAG(
