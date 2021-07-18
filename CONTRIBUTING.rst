@@ -208,27 +208,40 @@ You can configure the Docker-based Breeze development environment as follows:
 1. Install the latest versions of the Docker Community Edition
    and Docker Compose and add them to the PATH.
 
-2. Enter Breeze: ``./breeze``
+2. Install jq on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+For example, on Ubuntu:
+
+.. code-block:: bash
+
+  sudo apt install jq
+
+or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
+
+.. code-block:: bash
+
+  brew install jq
+
+3. Enter Breeze: ``./breeze``
 
    Breeze starts with downloading the Airflow CI image from
    the Docker Hub and installing all required dependencies.
 
-3. Enter the Docker environment and mount your local sources
+4. Enter the Docker environment and mount your local sources
    to make them immediately visible in the environment.
 
-4. Create a local virtualenv, for example:
+5. Create a local virtualenv, for example:
 
 .. code-block:: bash
 
    mkvirtualenv myenv --python=python3.6
 
-5. Initialize the created environment:
+6. Initialize the created environment:
 
 .. code-block:: bash
 
    ./breeze initialize-local-virtualenv --python 3.6
 
-6. Open your IDE (for example, PyCharm) and select the virtualenv you created
+7. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
 
 Step 3: Connect with People

@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,21 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
 
-readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
-readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+import os
 
-trap "exit" INT TERM
+from airflow import models
+from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
+from airflow.utils.dates import days_ago
 
-readonly EVERY=$((15*60))
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
+S3_KEY = os.environ.get("S3_KEY", "key")
 
-echo "Cleaning logs every $EVERY seconds"
-
-while true; do
-  echo "Trimming airflow logs to ${RETENTION} days."
-  find "${DIRECTORY}"/logs -mtime +"${RETENTION}" -name '*.log' -delete
-
-  seconds=$(( $(date -u +%s) % EVERY))
-  (( seconds < 1 )) || sleep $((EVERY - seconds))
-done
+with models.DAG(
+    "example_sftp_to_s3",
+    schedule_interval=None,
+    start_date=days_ago(1),  # Override to match your needs
+) as dag:
+    # [START howto_sftp_transfer_data_to_s3]
+    create_sftp_to_s3_job = SFTPToS3Operator(
+        task_id="create_sftp_to_s3_job",
+        sftp_conn_id="sftp_conn_id",
+        sftp_path="sftp_path",
+        s3_conn_id="s3_conn_id",
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY,
+    )
+    # [END howto_sftp_transfer_data_to_s3]
