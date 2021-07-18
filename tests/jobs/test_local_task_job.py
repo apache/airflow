@@ -54,13 +54,19 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 
+@pytest.fixture
+def clear_db():
+    db.clear_db_dags()
+    db.clear_db_jobs()
+    db.clear_db_runs()
+    db.clear_db_task_fail()
+    yield
+
+
+@pytest.mark.usefixtures('clear_db')
 class TestLocalTaskJob:
     @pytest.fixture(autouse=True)
-    def clean_db_and_set_instance_attrs(self):
-        db.clear_db_dags()
-        db.clear_db_jobs()
-        db.clear_db_runs()
-        db.clear_db_task_fail()
+    def set_instance_attrs(self):
         with patch('airflow.jobs.base_job.sleep') as self.mock_base_job_sleep:
             yield
 
