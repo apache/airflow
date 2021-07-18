@@ -33,8 +33,8 @@ default_args = {
     "owner": "airflow",
 }
 
-TASK_TO_UPDATE = os.environ.get("TASK_TO_UPDATE")
-TASK_TO_DELETE = os.environ.get("TASK_TO_DELETE")
+ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
+ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
 ASANA_PROJECT_ID = os.environ.get("ASANA_PROJECT_ID")
 CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 
@@ -77,7 +77,7 @@ with DAG(
     # task attributes you want to update.
     update = AsanaUpdateTaskOperator(
         task_id="run_asana_update_task",
-        asana_task_gid=TASK_TO_UPDATE,
+        asana_task_gid=ASANA_TASK_TO_UPDATE,
         task_parameters={"notes": "This task was updated!", "completed": True},
         conn_id=CONN_ID,
     )
@@ -88,7 +88,7 @@ with DAG(
     delete = AsanaDeleteTaskOperator(
         task_id="run_asana_delete_task",
         conn_id=CONN_ID,
-        asana_task_gid=TASK_TO_DELETE,
+        asana_task_gid=ASANA_TASK_TO_DELETE,
     )
     # [END run_asana_delete_task_operator]
 
