@@ -954,8 +954,6 @@ in `SubDagOperator`.
 
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
-#### `airflow.providers.http.operators.http.SimpleHttpOperator`
-
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
 The following operators were affected:
@@ -1934,7 +1932,7 @@ We deprecated a number of extras in 2.0.
 
 For example:
 
-If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+If you want to install integration for Apache Atlas, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
 
@@ -1946,7 +1944,7 @@ If you want to install integration for Microsoft Azure, then instead of
 pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
 
-you should execute `pip install 'apache-airflow[azure]'`
+you should run `pip install 'apache-airflow[microsoft.azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`

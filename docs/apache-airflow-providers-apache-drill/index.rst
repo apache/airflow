@@ -43,8 +43,43 @@ Content
 
 .. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
+
 .. toctree::
     :maxdepth: 1
     :caption: Commits
 
     Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-apache-drill
+------------------------------------------------------
+
+`Apache Drill <https://drill.apache.org/>`__.
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``apache.drill`` provider. All classes for this provider package
+are in ``airflow.providers.apache.drill`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-apache-drill``
+
+PIP requirements
+----------------
+
+====================  ==================
+PIP package           Version required
+====================  ==================
+``apache-airflow``    ``>=2.1.0``
+``sqlalchemy-drill``  ``>=1.1.0``
+``sqlparse``          ``>=0.4.1``
+====================  ==================
+
+.. include:: ../../airflow/providers/apache/drill/CHANGELOG.rst
