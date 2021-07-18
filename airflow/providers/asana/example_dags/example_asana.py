@@ -17,6 +17,7 @@
 """
 Example DAG showing how to use Asana TaskOperators.
 """
+import os
 
 from airflow import DAG
 from airflow.providers.asana.operators.asana_tasks import (
@@ -26,10 +27,16 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaUpdateTaskOperator,
 )
 from airflow.utils.dates import days_ago
+from datetime import datetime, timedelta
 
 default_args = {
     "owner": "airflow",
 }
+
+TASK_TO_UPDATE = os.environ.get("TASK_TO_UPDATE")
+TASK_TO_DELETE = os.environ.get("TASK_TO_DELETE")
+ASANA_PROJECT_ID = os.environ.get("ASANA_PROJECT_ID")
+CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 
 
 with DAG(
@@ -38,8 +45,6 @@ with DAG(
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:
-    conn_id = "asana_test"
-
     # [START run_asana_create_task_operator]
     # Create a task. `task_parameters` is used to specify attributes the new task should have.
     # You must specify at least one of 'workspace', 'projects', or 'parent' in `task_parameters`
@@ -48,7 +53,7 @@ with DAG(
     create = AsanaCreateTaskOperator(
         task_id="run_asana_create_task",
         task_parameters={"notes": "Some notes about the task."},
-        conn_id=conn_id,
+        conn_id=CONN_ID,
         name="New Task Name",
     )
     # [END run_asana_create_task_operator]
@@ -59,10 +64,11 @@ with DAG(
     # `assignee` and `workspace` in `search_parameters` or in the connection.
     # This example shows how you can override a project specified in the connection by
     # passing a different value for project into `search_parameters`
+    one_week_ago = (datetime.now()-timedelta(days=7)).strftime("%Y-%m-%d")
     find = AsanaFindTaskOperator(
         task_id="run_asana_find_task",
-        search_parameters={"project": "your_project", "modified_since": "2021-04-10"},
-        conn_id=conn_id,
+        search_parameters={"project": ASANA_PROJECT_ID, "modified_since": one_week_ago},
+        conn_id=CONN_ID,
     )
     # [END run_asana_find_task_operator]
 
@@ -71,9 +77,9 @@ with DAG(
     # task attributes you want to update.
     update = AsanaUpdateTaskOperator(
         task_id="run_asana_update_task",
-        asana_task_gid="your_task_id",
+        asana_task_gid=TASK_TO_UPDATE,
         task_parameters={"notes": "This task was updated!", "completed": True},
-        conn_id=conn_id,
+        conn_id=CONN_ID,
     )
     # [END run_asana_update_task_operator]
 
@@ -81,8 +87,8 @@ with DAG(
     # Delete a task. This task will complete successfully even if `asana_task_gid` does not exist.
     delete = AsanaDeleteTaskOperator(
         task_id="run_asana_delete_task",
-        conn_id=conn_id,
-        asana_task_gid="your_task_id",
+        conn_id=CONN_ID,
+        asana_task_gid=TASK_TO_DELETE,
     )
     # [END run_asana_delete_task_operator]
 
