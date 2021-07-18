@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # Might be empty
-AIRFLOW_COMMAND="${1:-}"
+readonly AIRFLOW_COMMAND="${1:-}"
 
 set -euo pipefail
 
@@ -68,8 +68,10 @@ function run_nc() {
     # Even if this message might be harmless, it might hide the real reason for the problem
     # Which is the long time needed to start some services, seeing this message might be totally misleading
     # when you try to analyse the problem, that's why it's best to avoid it,
-    local host="${1}"
-    local port="${2}"
+    local host
+    host="${1}"
+    local port
+    port="${2}"
     local ip
     ip=$(python -c "import socket; print(socket.gethostbyname('${host}'))")
     nc -zvvn "${ip}" "${port}"
@@ -83,9 +85,12 @@ function wait_for_connection {
     # It tries `CONNECTION_CHECK_MAX_COUNT` times and sleeps `CONNECTION_CHECK_SLEEP_TIME` between checks
     local connection_url
     connection_url="${1}"
-    local detected_backend=""
-    local detected_host=""
-    local detected_port=""
+    local detected_backend
+    detected_backend=""
+    local detected_host
+    detected_host=""
+    local detected_port
+    detected_port=""
 
     # Auto-detect DB parameters
     # Examples:
@@ -129,7 +134,8 @@ function wait_for_connection {
 }
 
 function create_www_user() {
-    local local_password=""
+    local local_password
+    local_password=""
     # Warning: command environment variables (*_CMD) have priority over usual configuration variables
     # for configuration parameters that require sensitive information. This is the case for the SQL database
     # and the broker backend in this entrypoint script.
@@ -201,7 +207,7 @@ function wait_for_celery_backend() {
         wait_for_connection "$(eval "${AIRFLOW__CELERY__BROKER_URL_CMD}")"
     else
         AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL:=}
-        if [[ -n ${AIRFLOW__CELERY__BROKER_URL=} ]]; then
+        if [[ -n "${AIRFLOW__CELERY__BROKER_URL=}" ]]; then
             wait_for_connection "${AIRFLOW__CELERY__BROKER_URL}"
         fi
     fi
@@ -210,10 +216,10 @@ function wait_for_celery_backend() {
 function exec_to_bash_or_python_command_if_specified() {
     # If one of the commands: 'bash', 'python' is used, either run appropriate
     # command with exec
-    if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
+    if [[ "${AIRFLOW_COMMAND}" == "bash" ]]; then
        shift
        exec "/bin/bash" "${@}"
-    elif [[ ${AIRFLOW_COMMAND} == "python" ]]; then
+    elif [[ "${AIRFLOW_COMMAND}" == "python" ]]; then
        shift
        exec "python" "${@}"
     fi
@@ -314,13 +320,13 @@ exec_to_bash_or_python_command_if_specified "${@}"
 #     docker run IMAGE airflow webserver
 #     docker run IMAGE webserver
 #
-if [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
+if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
    AIRFLOW_COMMAND="${2:-}"
    shift
 fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
-if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]] \
+if [[ "${AIRFLOW_COMMAND}" =~ ^(scheduler|celery|worker|flower)$ ]] \
     && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_celery_backend
 fi
