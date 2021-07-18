@@ -18,6 +18,7 @@
 Example DAG showing how to use Asana TaskOperators.
 """
 import os
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.asana.operators.asana_tasks import (
@@ -27,7 +28,6 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaUpdateTaskOperator,
 )
 from airflow.utils.dates import days_ago
-from datetime import datetime, timedelta
 
 default_args = {
     "owner": "airflow",
@@ -64,7 +64,7 @@ with DAG(
     # `assignee` and `workspace` in `search_parameters` or in the connection.
     # This example shows how you can override a project specified in the connection by
     # passing a different value for project into `search_parameters`
-    one_week_ago = (datetime.now()-timedelta(days=7)).strftime("%Y-%m-%d")
+    one_week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
     find = AsanaFindTaskOperator(
         task_id="run_asana_find_task",
         search_parameters={"project": ASANA_PROJECT_ID, "modified_since": one_week_ago},
