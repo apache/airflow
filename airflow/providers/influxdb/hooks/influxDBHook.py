@@ -23,6 +23,8 @@ from influxdb_client.client.flux_table import FluxTable
 from influxdb_client.client.write.point import Point
 from typing import List
 
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 
@@ -53,17 +55,17 @@ class InfluxDBHook(BaseHook):
 
     def get_client(self, uri, token, org_id):
         return InfluxDBClient(url=uri,
-                                token=token,
-                                org=org_id)
+                              token=token,
+                              org=org_id)
 
-    def get_uri(self,  conn: Connection):
+    def get_uri(self, conn: Connection):
         """
         Function to add additional parameters to the URI
         based on SSL or other InfluxDB host requirements
 
         """
         return '{scheme}://{host}:{port}'.format(
-            scheme='https' if conn.conn_type is None else f'{conn.conn_type}',
+            scheme='https' if conn.schema is None else f'{conn.schema}',
             host=conn.host,
             port='7687' if conn.port is None else f'{conn.port}',
         )
@@ -85,10 +87,12 @@ class InfluxDBHook(BaseHook):
         token = self.connection.extra_dejson.get('token')
         self.org_id = self.connection.extra_dejson.get('org_id')
 
+        self.log.info('URI: %s', self.uri)
+        self.log.info('Organization: %s', self.org_id)
+
         self.client = self.get_client(self.uri, token, self.org_id)
 
         return self.client
-
 
     def query(self, query) -> List[FluxTable]:
         """
@@ -106,12 +110,16 @@ class InfluxDBHook(BaseHook):
         query_api = client.query_api()
         return query_api.query(query)
 
-    def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value):
+    def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value, synchronous=False):
         """
         Writes a Point to the bucket specified.
         Example: Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)
         """
-        write_api = self.client.write_api()
+        # By defaults its Batching
+        if synchronous:
+            write_api = self.client.write_api(write_options=SYNCHRONOUS)
+        else:
+            write_api = self.client.write_api()
 
         p = Point(point_name).tag(tag_name, tag_value).field(field_name, field_value)
 
@@ -134,12 +142,17 @@ class InfluxDBHook(BaseHook):
         Function to create a bucket for an organization
 
         """
-        return self.client.buckets_api.create_bucket(bucket_name=bucket_name, description=description,
-                                              org_id=org_id, retention_rules=None)
+        return self.client.buckets_api().create_bucket(bucket_name=bucket_name, description=description,
+                                                       org_id=org_id, retention_rules=None)
 
-    def delete_bucket(self, bucket_id):
-        """
-        Function to delete bucket by bucket id.
-        """
-        return self.client.buckets_api.delete_bucket(bucket_id)
+    def find_bucket_id_by_name(self, bucket_name):
+        bucket = self.client.buckets_api().find_bucket_by_name(bucket_name)
 
+        return "" if bucket is None else bucket.id
+
+    def delete_bucket(self, bucket_name):
+        """
+        Function to delete bucket by bucket name.
+        """
+        bucket = self.find_bucket_id_by_name(bucket_name)
+        return self.client.buckets_api().delete_bucket(bucket)

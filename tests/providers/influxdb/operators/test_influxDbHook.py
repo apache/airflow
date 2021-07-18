@@ -31,7 +31,7 @@ class TestInfluxDbHookConn(unittest.TestCase):
         extra['org_id'] = 'test'
 
         self.connection = Connection(
-            conn_type='http', host='localhost', extra=extra
+            schema='http', host='localhost', extra=extra
         )
 
     def test_get_conn(self):
