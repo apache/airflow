@@ -193,7 +193,12 @@ class TestTableauHook(unittest.TestCase):
         mock_pager.assert_called_once_with(mock_server.return_value.jobs.get)
 
     @parameterized.expand(
-        [(0, TableauJobFinishCode.SUCCESS), (1, TableauJobFinishCode.ERROR), (2, TableauJobFinishCode.CANCELED)])
+        [
+            (0, TableauJobFinishCode.SUCCESS),
+            (1, TableauJobFinishCode.ERROR),
+            (2, TableauJobFinishCode.CANCELED),
+        ]
+    )
     @patch('airflow.providers.tableau.hooks.tableau.Server')
     def test_get_job_status(self, finish_code, expected_status, mock_tableau_server):
         """
