@@ -195,15 +195,14 @@ function upgrade_db() {
     airflow db upgrade || true
 }
 
-function wait_for_celery_backend() {
+function wait_for_celery_broker() {
     # Verifies connection to Celery Broker
-    if [[ -n "${AIRFLOW__CELERY__BROKER_URL_CMD=}" ]]; then
-        wait_for_connection "$(eval "${AIRFLOW__CELERY__BROKER_URL_CMD}")"
-    else
-        AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL:=}
-        if [[ -n ${AIRFLOW__CELERY__BROKER_URL=} ]]; then
-            wait_for_connection "${AIRFLOW__CELERY__BROKER_URL}"
-        fi
+    local executor
+    executor="$(airflow config get-value core executor)"
+    if [[ "${executor}" == "CeleryExecutor" ]]; then
+        local connection_url
+        connection_url="$(airflow config get-value celery broker_url)"
+        wait_for_connection "${connection_url}"
     fi
 }
 
@@ -322,7 +321,7 @@ fi
 # Note: the broker backend configuration concerns only a subset of Airflow components
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery|worker|flower)$ ]] \
     && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
-    wait_for_celery_backend
+    wait_for_celery_broker
 fi
 
 exec "airflow" "${@}"

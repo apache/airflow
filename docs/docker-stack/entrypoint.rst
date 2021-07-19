@@ -105,7 +105,7 @@ To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 Waits for celery broker connection
 ----------------------------------
 
-In case Postgres or MySQL DB is used, and one of the ``scheduler``, ``celery``, ``worker``, or ``flower``
+In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``, ``worker``, or ``flower``
 commands are used the entrypoint will wait until the celery broker DB connection is available.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
@@ -120,12 +120,7 @@ Supported schemes:
 * ``postgres://``            - default port 5432
 * ``mysql://``               - default port 3306
 
-Waiting for connection involves checking if a matching port is open.
-The host information is derived from the variables :envvar:`AIRFLOW__CELERY__BROKER_URL` and
-:envvar:`AIRFLOW__CELERY__BROKER_URL_CMD`. If :envvar:`AIRFLOW__CELERY__BROKER_URL_CMD` variable
-is passed to the container, it is evaluated as a command to execute and result of this evaluation is used
-as :envvar:`AIRFLOW__CELERY__BROKER_URL`. The :envvar:`AIRFLOW__CELERY__BROKER_URL_CMD` variable
-takes precedence over the :envvar:`AIRFLOW__CELERY__BROKER_URL` variable.
+Waiting for connection involves checking if a matching port is open. The host information is derived from the Airflow configuration.
 
 .. _entrypoint:commands:
 
