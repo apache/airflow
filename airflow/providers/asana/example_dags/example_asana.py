@@ -33,14 +33,14 @@ default_args = {
     "owner": "airflow",
 }
 
-ASANA_TASK_TO_UPDATE = os.environ["ASANA_TASK_TO_UPDATE"]
-ASANA_TASK_TO_DELETE = os.environ["ASANA_TASK_TO_DELETE"]
+ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
+ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
 # This example assumes a default project ID has been specified in the connection. If you
 # provide a different id in ASANA_PROJECT_ID_OVERRIDE, it will override this default
 # project ID in the AsanaFindTaskOperator example below
-ASANA_PROJECT_ID_OVERRIDE = os.environ["ASANA_PROJECT_ID_OVERRIDE"]
+ASANA_PROJECT_ID_OVERRIDE = os.environ.get("ASANA_PROJECT_ID_OVERRIDE")
 # This connection should specify a personal access token and a default project ID
-CONN_ID = os.environ["ASANA_CONNECTION_ID"]
+CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 
 
 with DAG(
