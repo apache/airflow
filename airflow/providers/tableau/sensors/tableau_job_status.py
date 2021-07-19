@@ -27,6 +27,7 @@ from airflow.sensors.base import BaseSensorOperator
 class TableauJobStatusSensor(BaseSensorOperator):
     """
     Watches the status of a Tableau Server Job.
+
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
     :param job_id: Id of the job to watch.
@@ -56,6 +57,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
     def poke(self, context: dict) -> bool:
         """
         Pokes until the job has successfully finished.
+
         :param context: The task context during execution.
         :type context: dict
         :return: True if it succeeded and False if not.

@@ -46,11 +46,11 @@ class TableauJobFinishCode(Enum):
 class TableauHook(BaseHook):
     """
     Connects to the Tableau Server Instance and allows to communicate with it.
+
     Can be used as a context manager: automatically authenticates the connection
     when opened and signs out when closed.
 
     .. seealso:: https://tableau.github.io/server-client-python/docs/
-
 
     :param site_id: The id of the site where the workbook belongs to.
         It will connect to the default site if you don't provide an id.

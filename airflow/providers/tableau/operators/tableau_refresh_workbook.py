@@ -30,6 +30,7 @@ from airflow.providers.tableau.hooks.tableau import (
 class TableauRefreshWorkbookOperator(BaseOperator):
     """
     Refreshes a Tableau Workbook/Extract
+
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#workbooks
 
     :param workbook_name: The name of the workbook to refresh.
@@ -68,6 +69,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
     def execute(self, context: dict) -> str:
         """
         Executes the Tableau Extract Refresh and pushes the job id to xcom.
+
         :param context: The task context during execution.
         :type context: dict
         :return: the id of the job that executes the extract refresh
