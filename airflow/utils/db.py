@@ -576,11 +576,7 @@ def create_default_connections(session=None):
 def initdb(session=None):
     """Initialize Airflow database."""
     upgradedb(session=session)
-    filldb()
 
-
-@provide_session
-def filldb(session=None):
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
 
