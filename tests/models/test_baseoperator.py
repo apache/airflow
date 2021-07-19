@@ -414,8 +414,8 @@ class TestBaseOperatorMethods(unittest.TestCase):
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
-        assert "label1" == dag.get_edge_info(op1.task_id, op2.task_id)["label"]
-        assert "label2" == dag.get_edge_info(op1.task_id, op3.task_id)["label"]
+        assert {"label": "label1"} == dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op2.task_id)
+        assert {"label": "label2"} == dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op3.task_id)
 
         # Begin test for `XComArgs`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
@@ -430,8 +430,8 @@ class TestBaseOperatorMethods(unittest.TestCase):
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
         assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
 
-        assert "xcomarg_label1" == dag.get_edge_info(xop1.operator.task_id, xop2.operator.task_id)["label"]
-        assert "xcomarg_label2" == dag.get_edge_info(xop1.operator.task_id, xop3.operator.task_id)["label"]
+        assert {"label": "xcomarg_label1"} == dag.get_edge_info(upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id)
+        assert {"label": "xcomarg_label2"} == dag.get_edge_info(upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id)
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
@@ -448,13 +448,22 @@ class TestBaseOperatorMethods(unittest.TestCase):
         with pytest.raises(TypeError):
             chain([xop1, xop2], 1)
 
+        with pytest.raises(TypeError):
+            chain([Label("labe1"), Label("label2")], 1)
+
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 6)]
+
         with pytest.raises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
 
+        with pytest.raises(AirflowException):
+            chain([op1, op2, op3], [label1, label2])
+
         # Begin test for `XComArgs`
+        [label3, label4] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
         [xop1, xop2, xop3, xop4, xop5] = [
             task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
             for i in range(1, 6)
@@ -462,6 +471,9 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
         with pytest.raises(AirflowException):
             chain([xop1, xop2], [xop3, xop4, xop5])
+
+        with pytest.raises(AirflowException):
+            chain([xop1, xop2, xop3], [label1, label2])
 
     def test_lineage_composition(self):
         """

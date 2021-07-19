@@ -1548,17 +1548,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
 def chain(
     *tasks: Union[
-        BaseOperator,
-        "XComArg",
-        EdgeModifier,
-        Sequence[Union[BaseOperator, "XComArg", EdgeModifier]]
+        BaseOperator, "XComArg", EdgeModifier, Sequence[Union[BaseOperator, "XComArg", EdgeModifier]]
     ]
 ):
     r"""
     Given a number of tasks, builds a dependency chain.
 
     This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists containing
-    any mix of these type (or a mix in the same list). If you want to chain between two lists you must
+    any mix of these types (or a mix in the same list). If you want to chain between two lists you must
     ensure they have the same length.
 
     Using classic operators/sensors:
@@ -1637,8 +1634,21 @@ def chain(
         x2.set_downstream(t2)
         t2.set_downstream(x3)
 
-    :param tasks: List of tasks or XComArgs to set dependencies
-    :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator, List[airflow.models.XComArg],
+        # or
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        t1.set_downstream(x1, edge_modifier=Label("branch one"))
+        t1.set_downstream(x2, edge_modifier=Label("branch two"))
+        x1.set_downstream(t2)
+        x2.set_downstream(t2)
+        t2.set_downstream(x3)
+
+
+    :param tasks: Individual and/or list of tasks, EdgeModifiers, or XComArgs to set dependencies
+    :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator,
+        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg],
         or XComArg
     """
     from airflow.models.xcom_arg import XComArg
@@ -1661,8 +1671,8 @@ def chain(
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):
             raise AirflowException(
-                f'Chain not supported different length Iterable '
-                f'but get {len(up_task_list)} and {len(down_task_list)}'
+                f'Chain not supported for different length Iterable. '
+                f'Got {len(up_task_list)} and {len(down_task_list)}.'
             )
         for up_t, down_t in zip(up_task_list, down_task_list):
             up_t.set_downstream(down_t)
