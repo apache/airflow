@@ -111,8 +111,30 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
+class DagBase:
+    """Base Class for DAG and DagModel for containing common properties and methods"""
+
+    @property
+    def safe_dag_id(self):
+        return self.dag_id.replace('.', '__dot__')
+
+    @cached_property
+    def timetable(self) -> Timetable:
+        interval = self.schedule_interval
+        if interval is None:
+            return NullTimetable()
+        if interval == "@once":
+            return OnceTimetable()
+        if isinstance(interval, (timedelta, relativedelta)):
+            return DeltaDataIntervalTimetable(interval)
+        if isinstance(interval, str):
+            return CronDataIntervalTimetable(interval, self.timezone)
+        type_name = type(interval).__name__
+        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
+
+
 @functools.total_ordering
-class DAG(LoggingMixin):
+class DAG(LoggingMixin, DagBase):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start date and an end date
@@ -340,7 +362,6 @@ class DAG(LoggingMixin):
         self.template_undefined = template_undefined
         self.parent_dag: Optional[DAG] = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
-        self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
@@ -563,20 +584,6 @@ class DAG(LoggingMixin):
         else:
             latest = None
         return TimeRestriction(earliest, latest, self.catchup)
-
-    @cached_property
-    def timetable(self) -> Timetable:
-        interval = self.schedule_interval
-        if interval is None:
-            return NullTimetable()
-        if interval == "@once":
-            return OnceTimetable()
-        if isinstance(interval, (timedelta, relativedelta)):
-            return DeltaDataIntervalTimetable(interval)
-        if isinstance(interval, str):
-            return CronDataIntervalTimetable(interval, self.timezone)
-        type_name = type(interval).__name__
-        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
 
     def get_run_dates(self, start_date, end_date=None, *, align: bool = True):
         """
@@ -2321,7 +2328,7 @@ class DagTag(Base):
         return self.name
 
 
-class DagModel(Base):
+class DagModel(Base, DagBase):
     """Table containing DAG properties"""
 
     __tablename__ = "dag"
@@ -2404,20 +2411,6 @@ class DagModel(Base):
     def timezone(self):
         return settings.TIMEZONE
 
-    @property
-    def timetable(self) -> Timetable:
-        interval = self.schedule_interval
-        if interval is None:
-            return NullTimetable()
-        if interval == "@once":
-            return OnceTimetable()
-        if isinstance(interval, (timedelta, relativedelta)):
-            return DeltaDataIntervalTimetable(interval)
-        if isinstance(interval, str):
-            return CronDataIntervalTimetable(interval, self.timezone)
-        type_name = type(interval).__name__
-        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
-
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=None):
@@ -2461,10 +2454,6 @@ class DagModel(Base):
         """
         # This is for backwards-compatibility with old dags that don't have None as default_view
         return self.default_view or conf.get('webserver', 'dag_default_view').lower()
-
-    @property
-    def safe_dag_id(self):
-        return self.dag_id.replace('.', '__dot__')
 
     @provide_session
     def set_is_paused(self, is_paused: bool, including_subdags: bool = True, session=None) -> None:
