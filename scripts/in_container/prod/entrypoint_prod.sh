@@ -199,7 +199,7 @@ function wait_for_celery_broker() {
     # Verifies connection to Celery Broker
     local executor
     executor="$(airflow config get-value core executor)"
-    if [[ "${executor=}" == "CeleryExecutor" ]]; then
+    if [[ "${executor}" == "CeleryExecutor" ]]; then
         local connection_url
         connection_url="$(airflow config get-value celery broker_url)"
         wait_for_connection "${connection_url}"
