@@ -196,8 +196,21 @@ class TestCli(TestCase):
             cli_parser.positive_int(allow_zero=False)('0')
             cli_parser.positive_int(allow_zero=True)('-1')
 
+    def test_dag_parser_celery_command_require_celery_executor(self):
+        with conf_vars({('core', 'executor'): 'SequentialExecutor'}), contextlib.redirect_stderr(
+            io.StringIO()
+        ) as stderr:
+            parser = cli_parser.get_parser()
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['celery'])
+            stderr = stderr.getvalue()
+        assert (
+            "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
+            "works only with CeleryExecutor, your current executor: SequentialExecutor, see help above."
+        ) in stderr
+
     @parameterized.expand(["CeleryExecutor", "CeleryKubernetesExecutor"])
-    def test_dag_parser_celery_command_required_celery_executor(self, executor):
+    def test_dag_parser_celery_command_accept_celery_executor(self, executor):
         with conf_vars({('core', 'executor'): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
             parser = cli_parser.get_parser()
             with self.assertRaises(SystemExit):
