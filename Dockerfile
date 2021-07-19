@@ -248,14 +248,15 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 WORKDIR /opt/airflow
 
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        bash /scripts/docker/install_from_docker_context_files.sh; \
-    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        bash /scripts/docker/install_airflow.sh; \
-    else \
+RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # only compile assets if the prod image is build from sources
         # otherwise they are already compiled-in
         bash /scripts/docker/compile_www_assets.sh; \
+    fi; \
+    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
+    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
