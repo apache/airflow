@@ -147,7 +147,12 @@ class ECSOperator(BaseOperator):
 
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
-    template_fields_renderers = {"overrides": "json"}
+    template_fields_renderers = {
+        "overrides": "json",
+        "network_configuration": "json",
+        "tags": "json",
+        "quota_retry": "json",
+    }
     REATTACH_XCOM_KEY = "ecs_task_arn"
     REATTACH_XCOM_TASK_ID_TEMPLATE = "{task_id}_task_arn"
 

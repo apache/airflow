@@ -68,7 +68,7 @@ class MySQLToS3Operator(BaseOperator):
         'query',
     )
     template_ext = ('.sql',)
-    template_fields_renderers = {"query": "sql"}
+    template_fields_renderers = {"query": "sql", "pd_csv_kwargs": "json"}
 
     def __init__(
         self,

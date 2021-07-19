@@ -99,7 +99,7 @@ class AwsBatchOperator(BaseOperator):
         "overrides",
         "parameters",
     )
-    template_fields_renderers = {"overrides": "py", "parameters": "py"}
+    template_fields_renderers = {"overrides": "json", "parameters": "json"}
 
     def __init__(
         self,
