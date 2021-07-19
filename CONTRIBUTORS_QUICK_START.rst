@@ -44,6 +44,7 @@ Prerequisites
 1. Docker Community Edition
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
+4. jq
 
 
 Installing Prerequisites on Ubuntu
@@ -174,6 +175,18 @@ Pyenv and setting up virtual-env
 
   $ pyenv activate airflow-env
 
+
+
+Installing jq
+--------------------------------
+
+``jq`` is a lightweight and flexible command-line JSON processor.
+
+Install ``jq`` with the following command:
+
+.. code-block:: bash
+
+  $ sudo apt install jq
 
 
 
