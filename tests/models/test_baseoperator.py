@@ -414,8 +414,12 @@ class TestBaseOperatorMethods(unittest.TestCase):
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
-        assert {"label": "label1"} == dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op2.task_id)
-        assert {"label": "label2"} == dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op3.task_id)
+        assert {"label": "label1"} == dag.get_edge_info(
+            upstream_task_id=op1.task_id, downstream_task_id=op2.task_id
+        )
+        assert {"label": "label2"} == dag.get_edge_info(
+            upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
+        )
 
         # Begin test for `XComArgs`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
@@ -430,8 +434,12 @@ class TestBaseOperatorMethods(unittest.TestCase):
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
         assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
 
-        assert {"label": "xcomarg_label1"} == dag.get_edge_info(upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id)
-        assert {"label": "xcomarg_label2"} == dag.get_edge_info(upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id)
+        assert {"label": "xcomarg_label1"} == dag.get_edge_info(
+            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
+        )
+        assert {"label": "xcomarg_label2"} == dag.get_edge_info(
+            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
+        )
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
