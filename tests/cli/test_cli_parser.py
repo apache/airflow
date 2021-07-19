@@ -28,10 +28,9 @@ import pytest
 from parameterized import parameterized
 
 from airflow.cli import cli_parser
-
-# Can not be `--snake_case` or contain uppercase letter
 from tests.test_utils.config import conf_vars
 
+# Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
 # Only can be `-[a-z]` or `-[A-Z]`
 LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-z]$")
