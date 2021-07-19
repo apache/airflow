@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from typing import Iterator, NamedTuple, Optional
 
 from pendulum import DateTime
 
+from airflow.compat.functools import cached_property
 from airflow.typing_compat import Protocol
 
 
@@ -83,7 +83,7 @@ class DagRunInfo(NamedTuple):
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
-    @property
+    @cached_property
     def interval_description(self) -> Optional[str]:
         """Override to describe the interval.
 
