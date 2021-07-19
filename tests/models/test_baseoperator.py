@@ -30,6 +30,7 @@ from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.edgemodifier import Label
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -402,25 +403,35 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
+
+        # Begin test for classic operators
+        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
-        chain(op1, [op2, op3], [op4, op5], op6)
+        chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
 
         assert {op2, op3} == set(op1.get_direct_relatives(upstream=False))
         assert [op4] == op2.get_direct_relatives(upstream=False)
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
+        assert "label1" == dag.get_edge_info(op1.task_id, op2.task_id)["label"]
+        assert "label2" == dag.get_edge_info(op1.task_id, op3.task_id)["label"]
+
         # Begin test for `XComArgs`
+        [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
         [xop1, xop2, xop3, xop4, xop5, xop6] = [
             task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
             for i in range(1, 7)
         ]
-        chain(xop1, [xop2, xop3], [xop4, xop5], xop6)
+        chain(xop1, [xlabel1, xlabel2], [xop2, xop3], [xop4, xop5], xop6)
 
         assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
         assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
         assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
+
+        assert "xcomarg_label1" == dag.get_edge_info(xop1.operator.task_id, xop2.operator.task_id)["label"]
+        assert "xcomarg_label2" == dag.get_edge_info(xop1.operator.task_id, xop3.operator.task_id)["label"]
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())

@@ -1546,12 +1546,19 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return getattr(self, '_is_dummy', False)
 
 
-def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "XComArg"]]]):
+def chain(
+    *tasks: Union[
+        BaseOperator,
+        "XComArg",
+        EdgeModifier,
+        Sequence[Union[BaseOperator, "XComArg", EdgeModifier]]
+    ]
+):
     r"""
     Given a number of tasks, builds a dependency chain.
 
-    This function accepts values of BaseOperator (aka tasks), XComArg, or lists containing
-    either type (or a mix of both in the same list). If you want to chain between two lists you must
+    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists containing
+    any mix of these type (or a mix in the same list). If you want to chain between two lists you must
     ensure they have the same length.
 
     Using classic operators/sensors:
@@ -1603,25 +1610,29 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "X
         x5.set_downstream(x6)
 
 
-    It is also possible to mix between classic operator/sensor and XComArg tasks:
+    It is also possible to mix between classic operator/sensor, EdgeModifiers, and XComArg tasks:
 
     .. code-block:: python
 
-        chain(t1, [x1(), x2()], t2, x3())
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], t2, x3())
 
     is equivalent to::
 
-          / -> x1 \
-        t1         -> t2 -> x3
-          \ -> x2 /
+          / "branch one" -> x1 \
+        t1                      -> t2 -> x3
+          \ "branch two" -> x2 /
 
     .. code-block:: python
 
         x1 = x1()
         x2 = x2()
         x3 = x3()
-        t1.set_downstream(x1)
-        t1.set_downstream(x2)
+        label1 = Label("branch one")
+        label2 = Label("branch two")
+        t1.set_downstream(label1)
+        label1.set_downstream(x1)
+        t2.set_downstream(label2)
+        label2.set_downstream(x2)
         x1.set_downstream(t2)
         x2.set_downstream(t2)
         t2.set_downstream(x3)
@@ -1634,10 +1645,10 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "X
 
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, (BaseOperator, XComArg)):
+        if isinstance(up_task, (BaseOperator, XComArg, EdgeModifier)):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, (BaseOperator, XComArg)):
+        if isinstance(down_task, (BaseOperator, XComArg, EdgeModifier)):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):

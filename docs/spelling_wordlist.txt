@@ -115,6 +115,8 @@ Drivy
 Dsn
 Dynamodb
 EDITMSG
+EdgeModifier
+EdgeModifiers
 ETag
 Eg
 EmrAddSteps
