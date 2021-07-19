@@ -253,6 +253,20 @@ class TestTableauHook(unittest.TestCase):
                 job_id='j1', target_state=TableauJobFinishCode.ERROR, check_interval=1
             )
 
+        # Test CANCELLED Positive
+        with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
+            tableau_hook.get_job_status = MagicMock(
+                name='get_job_status',
+                side_effect=[
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.PENDING,
+                    TableauJobFinishCode.CANCELED,
+                ],
+            )
+            assert tableau_hook.wait_for_state(
+                job_id='j1', target_state=TableauJobFinishCode.CANCELED, check_interval=1
+            )
+
         # Test PENDING Positive
         with TableauHook(tableau_conn_id='tableau_test_password') as tableau_hook:
             tableau_hook.get_job_status = MagicMock(
