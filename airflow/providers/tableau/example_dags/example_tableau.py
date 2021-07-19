@@ -50,7 +50,7 @@ with DAG(
         find='MyWorkbook',
         match_with='name',
         site_id='my_site',
-        blocking=True,
+        blocking_refresh=True,
         task_id='refresh_tableau_workbook_blocking',
     )
     # Refreshes a workbook and does not wait until it succeeds.
@@ -60,7 +60,7 @@ with DAG(
         find='MyWorkbook',
         match_with='name',
         site_id='my_site',
-        blocking=False,
+        blocking_refresh=False,
         task_id='refresh_tableau_workbook_non_blocking',
     )
     # The following task queries the status of the workbook refresh job until it succeeds.
