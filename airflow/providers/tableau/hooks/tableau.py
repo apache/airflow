@@ -140,26 +140,27 @@ class TableauHook(BaseHook):
             raise ValueError(f"Resource name {resource_name} is not found.")
         return Pager(resource.get)
 
-    def get_job_status(self, job_id: str) -> Enum:
+    def get_job_status(self, job_id: str) -> TableauJobFinishCode:
         """
         Get the current state of a defined Tableau Job.
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.
         :type job_id: str
-        :rtype: Enum
+        :return: An Enum that describe the Tableau job’s return code
+        :rtype: TableauJobFinishCode
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
-    def wait_for_state(self, job_id: str, target_state: Enum, check_interval: float) -> bool:
+    def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
         """
         Wait until the current state of a defined Tableau Job is equal
         to target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
         :type job_id: str
-        :param target_state: target state of the job
-        :type target_state: Enum
+        :param target_state: Enum that describe the Tableau job’s target state
+        :type target_state: TableauJobFinishCode
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :type check_interval: float
