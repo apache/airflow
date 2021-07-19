@@ -55,4 +55,5 @@ hooks:
       - airflow.providers.salesforce.hooks.salesforce
 
 hook-class-names:
+  - airflow.providers.salesforce.hooks.salesforce.SalesforceHook
   - airflow.providers.salesforce.hooks.tableau.TableauHook

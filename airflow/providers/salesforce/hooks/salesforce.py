@@ -24,11 +24,10 @@ retrieve data from it, and write that data to a file for other uses.
       https://github.com/simple-salesforce/simple-salesforce
 """
 import logging
-import time
-from typing import Iterable, List, Optional
-
 import pandas as pd
+import time
 from simple_salesforce import Salesforce, api
+from typing import Any, Dict, Iterable, List, Optional
 
 from airflow.hooks.base import BaseHook
 
@@ -55,10 +54,44 @@ class SalesforceHook(BaseHook):
 
     """
 
-    def __init__(self, conn_id: str) -> None:
+    conn_name_attr = "salesforce_conn_id"
+    default_conn_name = "salesforce_default"
+    conn_type = "salesforce"
+    hook_name = "Salesforce"
+
+    def __init__(self, salesforce_conn_id: str = "salesforce_default") -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = salesforce_conn_id
         self.conn = None
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "extra__salesforce__security_token": PasswordField(
+                lazy_gettext('Security Token'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__salesforce__domain": StringField(
+                lazy_gettext('Domain'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["schema", "port", "extra", "host"],
+            "relabeling": {
+                "login": "Username",
+            },
+            "placeholders": {
+                "extra__salesforce__domain": "(Optional)  Set to 'test' if working in sandbox mode.",
+            },
+        }
 
     def get_conn(self) -> api.Salesforce:
         """Sign into Salesforce, only if we are not already signed in."""
@@ -68,9 +101,8 @@ class SalesforceHook(BaseHook):
             self.conn = Salesforce(
                 username=connection.login,
                 password=connection.password,
-                security_token=extras['security_token'],
-                instance_url=connection.host,
-                domain=extras.get('domain'),
+                security_token=extras['extra__salesforce__security_token'],
+                domain=extras.get('extra__salesforce__domain'),
             )
         return self.conn
 
