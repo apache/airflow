@@ -34,14 +34,14 @@ function run_check_with_retries {
         last_check_result=$(eval "${cmd} 2>&1")
         res=$?
         set -e
-        if [[ ${res} == 0 ]]; then
+        if [[ "${res}" == 0 ]]; then
             echo
             break
         else
             echo -n "."
             countdown=$((countdown-1))
         fi
-        if [[ ${countdown} == 0 ]]; then
+        if [[ "${countdown}" == 0 ]]; then
             echo
             echo "ERROR! Maximum number of retries (${CONNECTION_CHECK_MAX_COUNT}) reached."
             echo
@@ -111,13 +111,13 @@ function wait_for_connection {
     readonly BACKEND
 
     if [[ -z "${detected_port=}" ]]; then
-        if [[ ${BACKEND} == "postgres"* ]]; then
+        if [[ "${BACKEND}" == "postgres"* ]]; then
             detected_port=5432
-        elif [[ ${BACKEND} == "mysql"* ]]; then
+        elif [[ "${BACKEND}" == "mysql"* ]]; then
             detected_port=3306
-        elif [[ ${BACKEND} == "redis"* ]]; then
+        elif [[ "${BACKEND}" == "redis"* ]]; then
             detected_port=6379
-        elif [[ ${BACKEND} == "amqp"* ]]; then
+        elif [[ "${BACKEND}" == "amqp"* ]]; then
             detected_port=5672
         fi
     fi
@@ -183,7 +183,7 @@ function set_pythonpath_for_root_user() {
     # Airflow is installed as a local user application which means that if the container is running as root
     # the application is not available. because Python then only load system-wide applications.
     # Now also adds applications installed as local user "airflow".
-    if [[ $UID == "0" ]]; then
+    if [[ "${UID}" == "0" ]]; then
         local python_major_minor
         python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
         export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
