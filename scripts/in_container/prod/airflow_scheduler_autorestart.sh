@@ -17,8 +17,19 @@
 # under the License.
 
 while echo "Running"; do
-    airflow scheduler -n 5
-    echo "Scheduler crashed with exit code $?.  Respawning.." >&2
-    date >> /tmp/airflow_scheduler_errors.txt
-    sleep 1
+    cmd="airflow scheduler -n 5"
+    if ! $cmd ; then
+        echo "Scheduler crashed. Respawning.." >&2
+        date >> /tmp/airflow_scheduler_errors.txt
+        sleep 1
+    fi
+
+    eval "${cmd}"
+    return_code=$?
+    if (( return_code != 0 )); then
+        echo "Scheduler crashed with exit code $return_code. Respawning.." >&2
+        date >> /tmp/airflow_scheduler_errors.txt
+        sleep 1
+    fi
+
 done
