@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import ast
 from typing import Dict, Iterable, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
@@ -37,6 +38,8 @@ class MySqlOperator(BaseOperator):
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
+        Template reference are recognized by str ending in '.json'
+        (templated)
     :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
@@ -66,6 +69,11 @@ class MySqlOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
+
+    def prepare_template(self) -> None:
+        """Parse template file for attribute parameters."""
+        if isinstance(self.parameters, str):
+            self.parameters = ast.literal_eval(self.parameters)
 
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
