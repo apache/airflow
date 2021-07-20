@@ -1554,9 +1554,9 @@ def chain(
     r"""
     Given a number of tasks, builds a dependency chain.
 
-    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists containing
-    any mix of these types (or a mix in the same list). If you want to chain between two lists you must
-    ensure they have the same length.
+    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists
+    containing any mix of these types (or a mix in the same list). If you want to chain between two lists
+    you must ensure they have the same length.
 
     Using classic operators/sensors:
 
