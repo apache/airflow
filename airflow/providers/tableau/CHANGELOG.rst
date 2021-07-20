@@ -27,10 +27,14 @@ Features
 
 * ``Allow disable SSL for TableauHook (#16365)``
 * ``Deprecate Tableau personal token authentication (#16916)``
+* ``Fix bool conversion Verify parameter in Tableau Hook (#17125)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Refactored waiting function for Tableau Jobs (#17034)``
+   * ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
 
 2.0.0
 .....

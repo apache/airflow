@@ -31,15 +31,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-07-15
+Latest change: 2021-07-26
 
-================================================================================================  ===========  =================================================================
+================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =================================================================
+================================================================================================  ===========  =============================================================================
+`0dbd0f420 <https://github.com/apache/airflow/commit/0dbd0f420cc08e011317e2a9f21f92fff4a64c1b>`_  2021-07-26   ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
+`29b6be848 <https://github.com/apache/airflow/commit/29b6be8482f4cd5da46511e91d3b910014980308>`_  2021-07-21   ``Refactored waiting function for Tableau Jobs (#17034)``
+`ef3c75df1 <https://github.com/apache/airflow/commit/ef3c75df17d87b292f8c06b250a41633aaccbdc0>`_  2021-07-21   ``Fix bool conversion Verify parameter in Tableau Hook (#17125)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `53246ebef <https://github.com/apache/airflow/commit/53246ebef716933f71a28901e19367d84b0daa81>`_  2021-07-15   ``Deprecate Tableau personal token authentication (#16916)``
 `df0746e13 <https://github.com/apache/airflow/commit/df0746e133ca0f54adb93257c119dd550846bb89>`_  2021-07-10   ``Allow disable SSL for TableauHook (#16365)``
-================================================================================================  ===========  =================================================================
+================================================================================================  ===========  =============================================================================
 
 2.0.0
 .....

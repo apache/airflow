@@ -22,6 +22,37 @@ Changelog
 2.0.1
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+* ``BugFix: Using &#39;json&#39; string in template_field causes issue with K8s Operators (#16930)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify &#39;default_args&#39; in Kubernetes example DAGs (#16870)``
+   * ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Updating task dependencies (#16624)``
+   * ``Removes pylint from our toolchain (#16682)``
+
+2.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -32,6 +63,7 @@ Bug Fixes
    * ``Updating task dependencies (#16624)``
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
 
 2.0.0
 .....

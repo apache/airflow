@@ -31,6 +31,7 @@ Features
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove redundant logging in SFTP Hook (#16704)``
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
 
 2.0.0
 .....
