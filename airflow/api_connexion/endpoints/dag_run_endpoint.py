@@ -242,16 +242,23 @@ def post_dag_run(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
+    execution_date = post_body["execution_date"]
     dagrun_instance = (
         session.query(DagRun)
         .filter(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == post_body["run_id"], DagRun.execution_date == post_body["execution_date"]),
+            or_(DagRun.run_id == post_body["run_id"], DagRun.execution_date == execution_date),
         )
         .first()
     )
     if not dagrun_instance:
-        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
+        dag = current_app.dag_bag.get_dag(dag_id)
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_type=DagRunType.MANUAL,
+            data_interval=dag.timetable.infer_data_interval(execution_date),
+            **post_body,
+        )
         session.add(dag_run)
         session.commit()
         return dagrun_schema.dump(dag_run)
