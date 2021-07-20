@@ -1546,11 +1546,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return getattr(self, '_is_dummy', False)
 
 
-def chain(
-    *tasks: Union[
-        BaseOperator, "XComArg", EdgeModifier, Sequence[Union[BaseOperator, "XComArg", EdgeModifier]]
-    ]
-):
+Chainable = Union[BaseOperator, "XComArg", EdgeModifier]
+
+
+def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
