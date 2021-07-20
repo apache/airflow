@@ -21,12 +21,10 @@ import datetime
 import json
 import logging
 import threading
-import unittest
 from unittest.mock import patch
 
 import pytest
 import sqlalchemy
-from parameterized import parameterized
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -56,7 +54,18 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class TestBackfillJob(unittest.TestCase):
+class TestBackfillJob:
+    @staticmethod
+    def clean_db():
+        clear_db_runs()
+        clear_db_pools()
+
+    @pytest.fixture(autouse=True)
+    def set_instance_attrs(self):
+        self.clean_db()
+        self.parser = cli_parser.get_parser()
+        self.dagbag = DagBag(include_examples=True)
+
     def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
 
@@ -72,22 +81,6 @@ class TestBackfillJob(unittest.TestCase):
             if isinstance(args[0][0], class_):
                 count += 1
         return count
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(include_examples=True)
-
-    @staticmethod
-    def clean_db():
-        clear_db_runs()
-        clear_db_pools()
-
-    def setUp(self):
-        self.clean_db()
-        self.parser = cli_parser.get_parser()
-
-    def tearDown(self) -> None:
-        self.clean_db()
 
     def test_unfinished_dag_runs_set_to_failed(self):
         dag = self._get_dummy_dag('dummy_dag')
@@ -210,7 +203,8 @@ class TestBackfillJob(unittest.TestCase):
         session.close()
 
     @pytest.mark.backend("postgres", "mysql")
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_id, expected_execution_order",
         [
             [
                 "example_branch_operator",
@@ -246,7 +240,7 @@ class TestBackfillJob(unittest.TestCase):
                 ),
             ],
             ["latest_only", ("latest_only", "task1")],
-        ]
+        ],
     )
     def test_backfill_examples(self, dag_id, expected_execution_order):
         """
@@ -470,8 +464,6 @@ class TestBackfillJob(unittest.TestCase):
             job.run()
         except AirflowException:
             return
-
-        self.fail()
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_pool_limit(self, mock_log):
@@ -727,7 +719,7 @@ class TestBackfillJob(unittest.TestCase):
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
         )
-        with self.assertRaises(BackfillUnfinished):
+        with pytest.raises(BackfillUnfinished):
             job.run()
 
     def test_backfill_ordered_concurrent_execute(self):
