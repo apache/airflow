@@ -115,9 +115,9 @@ Drivy
 Dsn
 Dynamodb
 EDITMSG
+ETag
 EdgeModifier
 EdgeModifiers
-ETag
 Eg
 EmrAddSteps
 EmrCreateJobFlow
