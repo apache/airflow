@@ -677,7 +677,6 @@ class TestKubernetesJobWatcher(unittest.TestCase):
             resource_version="0",
             scheduler_job_id="123",
             kube_config=mock.MagicMock(),
-            allow_watch_bookmarks=True,
         )
         self.kube_client = mock.MagicMock()
         self.core_annotations = {
