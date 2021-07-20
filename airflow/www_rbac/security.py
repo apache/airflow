@@ -89,7 +89,7 @@ def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
 
 
 class CustomAuthDBView(AuthDBView):
-    login_template = "airflow/login.html"
+    login_template = "login.html"
 
     @expose("/login/", methods=["GET", "POST"])
     def login(self):

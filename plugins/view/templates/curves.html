@@ -1,7 +1,7 @@
 {% extends "appbuilder/base.html" %}
-{% import 'airflow/panel.html' as panel %}
+{% import 'panel.html' as panel %}
 {% import 'appbuilder/general/lib.html' as lib %}
-{% import 'airflow/dialog.html' as dialog %}
+{% import 'dialog.html' as dialog %}
 
 {% block head_css %}
   {{ super() }}
@@ -99,11 +99,11 @@
     {% endcall %}
     <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
 
-    {% include 'airflow/curve_chart.html' %}
+    {% include 'curve_chart.html' %}
 
   </div>
 
-  {% include 'airflow/curve_spc.html' %}
+  {% include 'curve_spc.html' %}
 {% endblock %}
 
 

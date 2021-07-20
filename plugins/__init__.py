@@ -10,7 +10,7 @@ PAGE_SIZE = conf.getint('webserver', 'page_size')
 
 
 class CurveAnalysisListWidget(AirflowModelListWidget):
-    template = 'airflow/curve_analysis_list.html'
+    template = 'curve_analysis_list.html'
 
 
 class AirflowModelView(ModelView):

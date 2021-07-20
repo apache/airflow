@@ -1,4 +1,4 @@
-{% import 'airflow/panel.html' as panel %}
+{% import 'panel.html' as panel %}
 
 {% macro result_panel(name, id, result, info=None) %}
 {% call panel.panel(name, id,'panel-danger base-info-item' if result =='NOK'

@@ -53,8 +53,8 @@ class ErrorTagModelView(AirflowModelView):
     list_columns = ['value', 'label']
     add_columns = edit_columns = ['value', 'label'] + extra_fields
     add_form = edit_form = ErrorTagForm
-    add_template = 'airflow/error_tag_create.html'
-    edit_template = 'airflow/error_tag_edit.html'
+    add_template = 'error_tag_create.html'
+    edit_template = 'error_tag_edit.html'
     label_columns = {
         'value': lazy_gettext('Value'), 'label': lazy_gettext('Label')
 

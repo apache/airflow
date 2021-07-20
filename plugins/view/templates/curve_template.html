@@ -1,6 +1,6 @@
 {% extends "appbuilder/base.html" %}
-{% import 'airflow/panel.html' as panel %}
-{% import 'airflow/dialog.html' as dialog %}
+{% import 'panel.html' as panel %}
+{% import 'dialog.html' as dialog %}
 
 {% block head_css %}
   {{ super() }}
@@ -29,7 +29,7 @@
       </div>
     {% endcall %}
 
-    {% include 'airflow/curve_chart.html' %}
+    {% include 'curve_chart.html' %}
     {% call panel.panel('曲线模板簇', 'cluster-container') %}
       <div id="tree" class="panel-body overflow-auto"></div>
     {% endcall %}

@@ -1,7 +1,7 @@
 {% extends "appbuilder/base.html" %}
-{% import 'airflow/panel.html' as panel %}
-{% import 'airflow/result_panel.html' as result_panel %}
-{% import 'airflow/dialog.html' as dialog %}
+{% import 'panel.html' as panel %}
+{% import 'result_panel.html' as result_panel %}
+{% import 'dialog.html' as dialog %}
 
 {% block head_css %}
   {{ super() }}
@@ -74,7 +74,7 @@
       {% endif %}
     {% endcall %}
 
-    {% include 'airflow/curve_chart.html' %}
+    {% include 'curve_chart.html' %}
 
     {% call panel.panel('详细信息','result-container') %}
       <div class=" overflow-auto p-0">

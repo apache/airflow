@@ -17,19 +17,14 @@ specific language governing permissions and limitations
 under the License.
 #}
 
-{% extends "appbuilder/general/security/login_oauth.html" %}
+{% extends "appbuilder/general/security/login_db.html" %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block body %}
 <img class="loading-task-stats" width="100%" height="100%"
      style="position:fixed; object-fit: contain;pointer-events:none"
-     src='{{ url_for("static", filename="desoutter.jpg") }}'/>
+     src='{{ url_for("static", filename="img/desoutter.jpg") }}'/>
 {{ super() }}
-{#<script type="text/javascript">#}
-{#$(document).ready(function(){#}
-{#    set_openid('/login/SUC', 'SUC');#}
-{#    signin();#}
-{#});#}
-{#</script>#}
+
 {% endblock %}

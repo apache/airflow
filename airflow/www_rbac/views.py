@@ -401,7 +401,7 @@ class Airflow(AirflowBaseView):
 
         ti = get_task_instance_by_entity_id(entity_id)
         if not ti:
-            return self.render_template('airflow/curve.html', task_instance=ti)
+            return self.render_template('curve.html', task_instance=ti)
         try:
             result = get_result(entity_id)
         except Exception as e:
@@ -459,7 +459,7 @@ class Airflow(AirflowBaseView):
                                                            deserialize_json=True,
                                                            default_var={})
 
-        return self.render_template('airflow/curve.html', task_instance=ti, result=result,
+        return self.render_template('curve.html', task_instance=ti, result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
                                     resultKeysTranslationMapping=result_keys_translation_mapping,
@@ -506,7 +506,7 @@ class Airflow(AirflowBaseView):
                 'cur_t': '时间',
                 'cur_s': '转速'
             }
-        return self.render_template('airflow/curve_template.html', can_delete=can_delete,
+        return self.render_template('curve_template.html', can_delete=can_delete,
                                     curve_template=curve_template, bolt_no=bolt_no,
                                     craft_type=craft_type, device_type=device_type, cur_key_map=cur_key_map)
 

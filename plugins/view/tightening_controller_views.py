@@ -11,9 +11,9 @@ from plugins import AirflowModelView
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
 from airflow.models.tightening_controller import TighteningController, DeviceTypeModel
-from airflow.www_rbac.decorators import has_dag_access,action_logging
+from airflow.www_rbac.decorators import has_dag_access, action_logging
 from airflow.www_rbac.forms import TighteningControllerForm
-from airflow.www_rbac.widgets import AirflowControllerListWidget
+from flask_appbuilder.widgets import RenderTemplateWidget
 from flask_wtf.csrf import CSRFProtect
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
@@ -24,6 +24,10 @@ FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
 _logger = logging.getLogger(__name__)
 csrf = CSRFProtect()
+
+
+class AirflowControllerListWidget(RenderTemplateWidget):
+    template = 'tightening_controller_list.html'
 
 
 class TighteningControllerView(AirflowModelView):
@@ -38,8 +42,8 @@ class TighteningControllerView(AirflowModelView):
     add_columns = edit_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code',
                                   'work_center_name', 'device_type'] + extra_fields
     add_form = edit_form = TighteningControllerForm
-    add_template = 'airflow/tightening_controller_create.html'
-    edit_template = 'airflow/tightening_controller_edit.html'
+    add_template = 'tightening_controller_create.html'
+    edit_template = 'tightening_controller_edit.html'
     list_widget = AirflowControllerListWidget
     label_columns = {
         'controller_name': lazy_gettext('Controller Name'),
