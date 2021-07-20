@@ -63,6 +63,16 @@ def clear_db():
     yield
 
 
+@pytest.fixture(scope='class')
+def clear_db_class():
+    yield
+    db.clear_db_dags()
+    db.clear_db_jobs()
+    db.clear_db_runs()
+    db.clear_db_task_fail()
+
+
+@pytest.mark.usefixtures('clear_db_class')
 @pytest.mark.usefixtures('clear_db')
 class TestLocalTaskJob:
     @pytest.fixture(autouse=True)
