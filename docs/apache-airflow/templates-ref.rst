@@ -35,28 +35,23 @@ in all templates
 =====================================   ====================================
 Variable                                Description
 =====================================   ====================================
-``{{ ds }}``                            the execution date as ``YYYY-MM-DD``
-``{{ ds_nodash }}``                     the execution date as ``YYYYMMDD``
-``{{ prev_ds }}``                       the previous execution date as ``YYYY-MM-DD``
-                                        if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
-                                        ``{{ prev_ds }}`` will be ``2018-01-01``
-``{{ prev_ds_nodash }}``                the previous execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD``
-                                        if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
-                                        ``{{ next_ds }}`` will be ``2018-01-08``
-``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ yesterday_ds }}``                  the day before the execution date as ``YYYY-MM-DD``
-``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
-``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
-``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ ts }}``                            same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
+``{{ schedule_date }}``                 the schedule date of the DAG run (logical date) (`pendulum.Pendulum`_)
+``{{ ds }}``                            the schedule date as ``YYYY-MM-DD``
+``{{ ds_nodash }}``                     the schedule date as ``YYYYMMDD``
+``{{ ts }}``                            same as ``schedule_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
 ``{{ ts_nodash }}``                     same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
 ``{{ ts_nodash_with_tz }}``             same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
-``{{ execution_date }}``                the execution_date (logical date) (`pendulum.Pendulum`_)
-``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
-``{{ prev_execution_date_success }}``   execution date from prior successful dag run (if available) (`pendulum.Pendulum`_)
+``{{ next_schedule_date }}``            the next schedule date if exists (`pendulum.Pendulum`_ or ``None``)
+``{{ next_ds }}``                       the next schedule date as ``YYYY-MM-DD``
+                                        if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
+                                        ``{{ next_ds }}`` will be ``2018-01-08``
+``{{ next_ds_nodash }}``                the next schedule date as ``YYYYMMDD`` if exists, else ``None``
+``{{ prev_schedule_date }}``            schedule date of the immediately previous scheduled DAG run
+                                        (`pendulum.Pendulum`_ or ``None``)
+``{{ data_interval_start }}``           start of the data interval (`pendulum.Pendulum`_ or ``None``)
+``{{ data_interval_end }}``             end of the data interval (`pendulum.Pendulum`_ or ``None``)
+``{{ prev_schedule_date_success }}``    schedule date from prior successful DAG run (`pendulum.Pendulum`_ or ``None``)
 ``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (`pendulum.Pendulum`_)
-``{{ next_execution_date }}``           the next execution date (`pendulum.Pendulum`_)
 ``{{ dag }}``                           the DAG object
 ``{{ task }}``                          the Task object
 ``{{ macros }}``                        a reference to the macros package, described below
@@ -81,6 +76,27 @@ Variable                                Description
 ``{{ dag_run }}``                       a reference to the DagRun object
 ``{{ test_mode }}``                     whether the task instance was called using
                                         the CLI's test subcommand
+=====================================   ====================================
+
+The following variables are deprecated. They are kept for backward compatibility,
+but you should convert existing code to use other variables instead.
+
+=====================================   ====================================
+Deprecated Variable                     Description
+=====================================   ====================================
+``{{ execution_date }}``                the execution date (logical date), same as ``schedule_date``
+``{{ prev_ds }}``                       the previous execution date as ``YYYY-MM-DD``
+                                        if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
+                                        ``{{ prev_ds }}`` will be ``2018-01-01``
+``{{ prev_ds_nodash }}``                the previous execution date as ``YYYYMMDD`` if exists, else ``None``
+``{{ yesterday_ds }}``                  the day before the execution date as ``YYYY-MM-DD``
+``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
+``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
+``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
+``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
+``{{ prev_execution_date_success }}``   execution date from prior successful dag run,
+                                        same as ``prev_schedule_date_success``
+``{{ next_execution_date }}``           the next execution date, same as ``next_schedule_date``
 =====================================   ====================================
 
 Note that you can access the object's attributes and methods with simple
