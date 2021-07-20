@@ -75,6 +75,7 @@ from airflow.timetables.schedules import Schedule
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.typing_compat import Literal, RePatternType
 from airflow.utils import timezone
+from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
@@ -1959,6 +1960,8 @@ class DAG(LoggingMixin):
 
     def cli(self):
         """Exposes a CLI specific to this DAG"""
+        check_cycle(self)
+
         from airflow.cli import cli_parser
 
         parser = cli_parser.get_parser(dag_parser=True)
