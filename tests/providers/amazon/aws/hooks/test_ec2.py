@@ -59,18 +59,6 @@ class TestEC2Hook(unittest.TestCase):
         assert created_instance_id == existing_instance.instance_id
 
     @mock_ec2
-    def test_client_type_get_instances(self):
-        ec2_hook = EC2Hook(api_type="client_type")
-        created_instances = ec2_hook.conn.run_instances(
-            MaxCount=1,
-            MinCount=1,
-        )
-        created_instance_id = created_instances['Instances'][0]['InstanceId']
-
-        existing_instance = ec2_hook.get_instances(instance_ids=[created_instance_id])[0]
-        assert created_instance_id == existing_instance['InstanceId']
-
-    @mock_ec2
     def test_get_instance_state(self):
         ec2_hook = EC2Hook()
         created_instances = ec2_hook.conn.create_instances(
@@ -159,14 +147,18 @@ class TestEC2Hook(unittest.TestCase):
         assert response["Reservations"][0]["Instances"][0]["State"]["Name"] == "running"
 
         # With valid filter
-        response = ec2_hook.describe_instances(filters=[{"Name": "instance-id", "Values": [created_instance_id]}])
+        response = ec2_hook.describe_instances(
+            filters=[{"Name": "instance-id", "Values": [created_instance_id]}]
+        )
 
         assert len(response["Reservations"]) == 1
         assert response["Reservations"][0]["Instances"][0]["InstanceId"] == created_instance_id
         assert response["Reservations"][0]["Instances"][0]["State"]["Name"] == "running"
 
         # With invalid filter
-        response = ec2_hook.describe_instances(filters=[{"Name": "instance-id", "Values": ["invalid_instance_id"]}])
+        response = ec2_hook.describe_instances(
+            filters=[{"Name": "instance-id", "Values": ["invalid_instance_id"]}]
+        )
 
         assert len(response["Reservations"]) == 0
 
@@ -189,9 +181,7 @@ class TestEC2Hook(unittest.TestCase):
 
         # With valid filter
         response = ec2_hook.get_instances(
-            filters=[
-                {"Name": "instance-id", "Values": [created_instance_id_1, created_instance_id_2]}
-            ]
+            filters=[{"Name": "instance-id", "Values": [created_instance_id_1, created_instance_id_2]}]
         )
 
         assert len(response) == 2
@@ -200,9 +190,7 @@ class TestEC2Hook(unittest.TestCase):
 
         # With filter and instance ids
         response = ec2_hook.get_instances(
-            filters=[
-                {"Name": "instance-id", "Values": [created_instance_id_1]}
-            ],
+            filters=[{"Name": "instance-id", "Values": [created_instance_id_1]}],
             instance_ids=[created_instance_id_1, created_instance_id_2]
         )
 
@@ -210,7 +198,9 @@ class TestEC2Hook(unittest.TestCase):
         assert response[0]["InstanceId"] == created_instance_id_1
 
         # With invalid filter
-        response = ec2_hook.get_instances(filters=[{"Name": "instance-id", "Values": ["invalid_instance_id"]}])
+        response = ec2_hook.get_instances(
+            filters=[{"Name": "instance-id", "Values": ["invalid_instance_id"]}]
+        )
 
         assert len(response) == 0
 
@@ -240,7 +230,9 @@ class TestEC2Hook(unittest.TestCase):
         assert response[1] == created_instance_id_2
 
         # With invalid filter
-        response = ec2_hook.get_instance_ids(filters=[{"Name": "instance-type", "Values": ["invalid_instance_type"]}])
+        response = ec2_hook.get_instance_ids(
+            filters=[{"Name": "instance-type", "Values": ["invalid_instance_type"]}]
+        )
 
         assert len(response) == 0
 

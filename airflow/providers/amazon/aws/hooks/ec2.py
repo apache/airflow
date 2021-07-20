@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import time
+
 import functools
+import time
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -38,7 +39,7 @@ def only_client_type(func):
 
             Read following for details on client_type and resource_type APIs:
             1. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#client
-            2. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#service-resource
+            2. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#service-resource # noqa
             """
         )
 
