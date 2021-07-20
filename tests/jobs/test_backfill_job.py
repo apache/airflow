@@ -54,6 +54,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
+@pytest.fixture(scope="module")
+def dag_bag():
+    return DagBag(include_examples=True)
+
+
 class TestBackfillJob:
     @staticmethod
     def clean_db():
@@ -61,10 +66,10 @@ class TestBackfillJob:
         clear_db_pools()
 
     @pytest.fixture(autouse=True)
-    def set_instance_attrs(self):
+    def set_instance_attrs(self, dag_bag):
         self.clean_db()
         self.parser = cli_parser.get_parser()
-        self.dagbag = DagBag(include_examples=True)
+        self.dagbag = dag_bag
 
     def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
