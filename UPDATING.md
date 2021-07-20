@@ -385,8 +385,6 @@ It is still possible (but not required) to "register" hooks in plugins. This is 
 
 See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
 
-### Adding Operators and Sensors via plugins is no longer supported
-
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
 The pickle type for XCom messages has been replaced to JSON by default to prevent RCE attacks.
@@ -953,8 +951,6 @@ in `SubDagOperator`.
 #### `airflow.operators.bash.BashOperator`
 
 #### `airflow.providers.docker.operators.docker.DockerOperator`
-
-#### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
@@ -1710,9 +1706,9 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
-#### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
-We changed signature of BigQueryGetDatasetTablesOperator.
+We changed signature of `BigQueryGetDatasetTablesOperator`.
 
 Before:
 
@@ -1936,7 +1932,7 @@ We deprecated a number of extras in 2.0.
 
 For example:
 
-If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+If you want to install integration for Apache Atlas, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
 
@@ -1948,7 +1944,7 @@ If you want to install integration for Microsoft Azure, then instead of
 pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
 
-you should execute `pip install 'apache-airflow[azure]'`
+you should run `pip install 'apache-airflow[microsoft.azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`

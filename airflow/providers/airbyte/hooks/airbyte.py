@@ -44,6 +44,7 @@ class AirbyteHook(HttpHook):
     PENDING = "pending"
     FAILED = "failed"
     ERROR = "error"
+    INCOMPLETE = "incomplete"
 
     def __init__(self, airbyte_conn_id: str = "airbyte_default", api_version: Optional[str] = "v1") -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
@@ -76,7 +77,7 @@ class AirbyteHook(HttpHook):
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
                 continue
 
-            if state in (self.RUNNING, self.PENDING):
+            if state in (self.RUNNING, self.PENDING, self.INCOMPLETE):
                 continue
             if state == self.SUCCEEDED:
                 break

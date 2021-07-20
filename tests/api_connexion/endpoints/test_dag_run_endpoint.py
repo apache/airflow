@@ -90,7 +90,7 @@ class TestDagRunEndpoint:
 
     def teardown_method(self) -> None:
         clear_db_runs()
-        # clear_db_dags()
+        clear_db_dags()
 
     def _create_dag(self, dag_id):
         dag_instance = DagModel(dag_id=dag_id)
@@ -118,6 +118,7 @@ class TestDagRunEndpoint:
             execution_date=timezone.parse(self.default_time_2),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
+            state=state,
         )
         dag_runs.append(dagrun_model_2)
         if extra_dag:
@@ -131,6 +132,7 @@ class TestDagRunEndpoint:
                         execution_date=timezone.parse(self.default_time_2),
                         start_date=timezone.parse(self.default_time),
                         external_trigger=True,
+                        state=state,
                     )
                 )
         if commit:
@@ -193,6 +195,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
+            state='running',
         )
         session.add(dagrun_model)
         session.commit()
@@ -532,7 +535,7 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
             (
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
                 f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}",
-                ["TEST_DAG_RUN_ID_1"],
+                ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
             ),
         ]
     )
@@ -750,6 +753,7 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
             DagRun(
                 dag_id="TEST_DAG_ID",
                 run_id="TEST_DAG_RUN_ID" + str(i),
+                state='running',
                 run_type=DagRunType.MANUAL,
                 execution_date=timezone.parse(self.default_time) + timedelta(minutes=i),
                 start_date=timezone.parse(self.default_time),
@@ -884,7 +888,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
             ),
             (
                 {"end_date_lte": f"{(timezone.utcnow() + timedelta(days=1)).isoformat()}"},
-                ["TEST_DAG_RUN_ID_1"],
+                ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
             ),
         ]
     )
@@ -927,8 +931,8 @@ class TestPostDagRun(TestDagRunEndpoint):
             "end_date": None,
             "execution_date": response.json["execution_date"],
             "external_trigger": True,
-            "start_date": response.json["start_date"],
-            "state": "running",
+            "start_date": None,
+            "state": "queued",
         } == response.json
 
     @parameterized.expand(

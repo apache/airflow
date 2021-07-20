@@ -44,6 +44,7 @@ Prerequisites
 1. Docker Community Edition
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
+4. jq
 
 
 Installing Prerequisites on Ubuntu
@@ -174,6 +175,18 @@ Pyenv and setting up virtual-env
 
   $ pyenv activate airflow-env
 
+
+
+Installing jq
+--------------------------------
+
+``jq`` is a lightweight and flexible command-line JSON processor.
+
+Install ``jq`` with the following command:
+
+.. code-block:: bash
+
+  $ sudo apt install jq
 
 
 
@@ -321,8 +334,6 @@ Using Breeze
    Docker image:           apache/airflow:main-python3.8-ci
    Airflow source version: 2.0.0b2
    Python version:         3.8
-   DockerHub user:         apache
-   DockerHub repo:         airflow
    Backend:                mysql 5.7
 
 

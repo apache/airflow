@@ -978,6 +978,105 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         check_task_group(serialized_dag.task_group)
 
+    def test_deps_sorted(self):
+        """
+        Tests serialize_operator, make sure the deps is in order
+        """
+        from airflow.operators.dummy import DummyOperator
+        from airflow.sensors.external_task import ExternalTaskSensor
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_deps_sorted", start_date=execution_date) as dag:
+            task1 = ExternalTaskSensor(
+                task_id="task1",
+                external_dag_id="external_dag_id",
+                mode="reschedule",
+            )
+            task2 = DummyOperator(task_id="task2")
+            task1 >> task2
+
+        serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
+        deps = serialize_op["deps"]
+        assert deps == [
+            'airflow.ti_deps.deps.not_in_retry_period_dep.NotInRetryPeriodDep',
+            'airflow.ti_deps.deps.not_previously_skipped_dep.NotPreviouslySkippedDep',
+            'airflow.ti_deps.deps.prev_dagrun_dep.PrevDagrunDep',
+            'airflow.ti_deps.deps.ready_to_reschedule.ReadyToRescheduleDep',
+            'airflow.ti_deps.deps.trigger_rule_dep.TriggerRuleDep',
+        ]
+
+    def test_task_group_sorted(self):
+        """
+        Tests serialize_task_group, make sure the list is in order
+        """
+        from airflow.operators.dummy import DummyOperator
+        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.utils.task_group import TaskGroup
+
+        """
+                    start
+                    ╱  ╲
+                  ╱      ╲
+        task_group_up1  task_group_up2
+            (task_up1)  (task_up2)
+                 ╲       ╱
+              task_group_middle
+                (task_middle)
+                  ╱      ╲
+        task_group_down1 task_group_down2
+           (task_down1) (task_down2)
+                 ╲        ╱
+                   ╲    ╱
+                    end
+        """
+        execution_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_task_group_sorted", start_date=execution_date) as dag:
+            start = DummyOperator(task_id="start")
+
+            with TaskGroup("task_group_up1") as task_group_up1:
+                _ = DummyOperator(task_id="task_up1")
+
+            with TaskGroup("task_group_up2") as task_group_up2:
+                _ = DummyOperator(task_id="task_up2")
+
+            with TaskGroup("task_group_middle") as task_group_middle:
+                _ = DummyOperator(task_id="task_middle")
+
+            with TaskGroup("task_group_down1") as task_group_down1:
+                _ = DummyOperator(task_id="task_down1")
+
+            with TaskGroup("task_group_down2") as task_group_down2:
+                _ = DummyOperator(task_id="task_down2")
+
+            end = DummyOperator(task_id='end')
+
+            start >> task_group_up1
+            start >> task_group_up2
+            task_group_up1 >> task_group_middle
+            task_group_up2 >> task_group_middle
+            task_group_middle >> task_group_down1
+            task_group_middle >> task_group_down2
+            task_group_down1 >> end
+            task_group_down2 >> end
+
+        task_group_middle_dict = SerializedTaskGroup.serialize_task_group(
+            dag.task_group.children["task_group_middle"]
+        )
+        upstream_group_ids = task_group_middle_dict["upstream_group_ids"]
+        assert upstream_group_ids == ['task_group_up1', 'task_group_up2']
+
+        upstream_task_ids = task_group_middle_dict["upstream_task_ids"]
+        assert upstream_task_ids == ['task_group_up1.task_up1', 'task_group_up2.task_up2']
+
+        downstream_group_ids = task_group_middle_dict["downstream_group_ids"]
+        assert downstream_group_ids == ['task_group_down1', 'task_group_down2']
+
+        task_group_down1_dict = SerializedTaskGroup.serialize_task_group(
+            dag.task_group.children["task_group_down1"]
+        )
+        downstream_task_ids = task_group_down1_dict["downstream_task_ids"]
+        assert downstream_task_ids == ['end']
+
     def test_edge_info_serialization(self):
         """
         Tests edge_info serialization/deserialization.

@@ -90,6 +90,17 @@ class TestAirbyteHook(unittest.TestCase):
         assert mock_get_job.has_calls(calls)
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
+    def test_wait_for_job_incomplete_succeeded(self, mock_get_job):
+        mock_get_job.side_effect = [
+            self.return_value_get_job(self.hook.INCOMPLETE),
+            self.return_value_get_job(self.hook.SUCCEEDED),
+        ]
+        self.hook.wait_for_job(job_id=self.job_id, wait_seconds=0)
+
+        calls = [mock.call(job_id=self.job_id), mock.call(job_id=self.job_id)]
+        assert mock_get_job.has_calls(calls)
+
+    @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_timeout(self, mock_get_job):
         mock_get_job.side_effect = [
             self.return_value_get_job(self.hook.PENDING),

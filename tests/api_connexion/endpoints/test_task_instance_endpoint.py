@@ -1033,10 +1033,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
 
 class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
-    @mock.patch('airflow.api_connexion.endpoints.task_instance_endpoint.set_state')
-    def test_should_assert_call_mocked_api(self, mock_set_state, session):
+    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
-        mock_set_state.return_value = (
+        mock_set_task_instance_state.return_value = (
             session.query(TaskInstance).filter(TaskInstance.task_id == "print_the_context").all()
         )
         response = self.client.post(
@@ -1065,16 +1065,14 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             ]
         }
 
-        dag = self.app.dag_bag.dags['example_python_operator']
-        task = dag.task_dict['print_the_context']
-        mock_set_state.assert_called_once_with(
+        mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
             execution_date=DEFAULT_DATETIME_1,
             future=True,
             past=True,
             state='failed',
-            tasks=[task],
+            task_id='print_the_context',
             upstream=True,
         )
 

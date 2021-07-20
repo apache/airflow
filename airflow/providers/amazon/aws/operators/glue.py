@@ -56,7 +56,10 @@ class AwsGlueJobOperator(BaseOperator):
 
     template_fields = ('script_args',)
     template_ext = ()
-    template_fields_renderers = {"script_args": "py"}
+    template_fields_renderers = {
+        "script_args": "json",
+        "create_job_kwargs": "json",
+    }
     ui_color = '#ededed'
 
     def __init__(

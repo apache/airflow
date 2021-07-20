@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,7 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-in_container_clear_tmp
+
+import os
+
+from airflow import models
+from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.utils.dates import days_ago
+
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
+S3_KEY = os.environ.get("S3_KEY", "key")
+
+with models.DAG(
+    "example_s3_to_sftp",
+    schedule_interval=None,
+    start_date=days_ago(1),  # Override to match your needs
+) as dag:
+
+    # [START howto_s3_transfer_data_to_sftp]
+    create_s3_to_sftp_job = S3ToSFTPOperator(
+        task_id="create_to_s3_sftp_job",
+        sftp_conn_id="sftp_conn_id",
+        sftp_path="sftp_path",
+        s3_conn_id="s3_conn_id",
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY,
+    )
+    # [END howto_s3_transfer_data_to_sftp]

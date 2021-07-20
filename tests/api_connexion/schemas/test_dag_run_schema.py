@@ -49,6 +49,7 @@ class TestDAGRunSchema(TestDAGRunBase):
     def test_serialize(self, session):
         dagrun_model = DagRun(
             run_id="my-dag-run",
+            state='running',
             run_type=DagRunType.MANUAL.value,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -124,6 +125,7 @@ class TestDagRunCollection(TestDAGRunBase):
     def test_serialize(self, session):
         dagrun_model_1 = DagRun(
             run_id="my-dag-run",
+            state='running',
             execution_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
@@ -131,6 +133,7 @@ class TestDagRunCollection(TestDAGRunBase):
         )
         dagrun_model_2 = DagRun(
             run_id="my-dag-run-2",
+            state='running',
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,

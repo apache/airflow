@@ -168,7 +168,7 @@ def test_mark_task_instance_state(test_app):
     Test that _mark_task_instance_state() does all three things:
     - Marks the given TaskInstance as SUCCESS;
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
-    - Set DagRun to RUNNING.
+    - Set DagRun to QUEUED.
     """
     from airflow.models import DAG, DagBag, TaskInstance
     from airflow.operators.dummy import DummyOperator
@@ -241,5 +241,5 @@ def test_mark_task_instance_state(test_app):
         # task_5 remains as SKIPPED
         assert get_task_instance(session, task_5).state == State.SKIPPED
         dagrun.refresh_from_db(session=session)
-        # dagrun should be set to RUNNING
-        assert dagrun.get_state() == State.RUNNING
+        # dagrun should be set to QUEUED
+        assert dagrun.get_state() == State.QUEUED

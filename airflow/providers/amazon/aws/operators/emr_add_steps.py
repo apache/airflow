@@ -47,6 +47,7 @@ class EmrAddStepsOperator(BaseOperator):
 
     template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
     template_ext = ('.json',)
+    template_fields_renderers = {"steps": "json"}
     ui_color = '#f9c915'
 
     def __init__(

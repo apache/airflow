@@ -28,10 +28,8 @@ export INSTALL_FROM_DOCKER_CONTEXT_FILES="false"
 export INSTALL_PROVIDERS_FROM_SOURCES="false"
 export AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
 export DOCKER_CACHE="local"
-export FORCE_PULL_BASE_PYTHON_IMAGE="true"
+export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="true"
 export DOCKER_TAG=${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}
-# Name the image based on the TAG rather than based on the branch name
-export FORCE_AIRFLOW_PROD_BASE_TAG="${DOCKER_TAG}"
 export AIRFLOW_CONSTRAINTS_REFERENCE="constraints-${INSTALL_AIRFLOW_VERSION}"
 export AIRFLOW_CONSTRAINTS="constraints"
 # shellcheck source=scripts/ci/libraries/_script_init.sh
@@ -44,19 +42,20 @@ rm -rf "${AIRFLOW_SOURCES}/docker-context-files/*"
 build_images::prepare_prod_build
 build_images::build_prod_images
 verify_image::verify_prod_image "${AIRFLOW_PROD_IMAGE}"
+
+export RELEASE_IMAGE="apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
 echo
-echo "Pushing airflow image as apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
+echo "Pushing airflow PROD image as ${RELEASE_IMAGE}"
 echo
 # Re-tag the image to be published in "apache/airflow"
-docker tag "apache/airflow-ci:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-     "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
-docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}"
+docker tag "${AIRFLOW_PROD_IMAGE}" "${RELEASE_IMAGE}"
+docker push "${RELEASE_IMAGE}"
 if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
+    export DEFAULT_VERSION_IMAGE="apache/airflow:${INSTALL_AIRFLOW_VERSION}"
     echo
-    echo "Pushing default airflow image as apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+    echo "Pushing default airflow image as ${DEFAULT_VERSION_IMAGE}"
     echo
     # In case of default Python version we also push ":version" tag
-    docker tag "apache/airflow:${INSTALL_AIRFLOW_VERSION}-python${PYTHON_MAJOR_MINOR_VERSION}" \
-        "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
-    docker push "apache/airflow:${INSTALL_AIRFLOW_VERSION}"
+    docker tag "${RELEASE_IMAGE}" "${DEFAULT_VERSION_IMAGE}"
+    docker push "${DEFAULT_VERSION_IMAGE}"
 fi
