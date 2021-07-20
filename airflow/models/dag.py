@@ -222,7 +222,7 @@ class DAG(LoggingMixin):
         <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
-    :param render_template_as_native_obj: If True, uses a Jinja ```NativeEnvironment``
+    :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :type render_template_as_native_obj: bool
