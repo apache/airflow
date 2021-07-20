@@ -17,7 +17,7 @@ from typing import Dict
 from airflow.operators.python_operator import PythonOperator
 from airflow.entities.redis import ClsRedisConnection, gen_template_key
 from airflow.entities.result_mq import ClsResultMQ
-from airflow.utils.curve import parse_template_name
+from plugins.utils import parse_template_name
 from airflow.utils.db import get_connection
 
 CURVE_TEMPLATE_UPGRADE_TASK = 'curve_template_upgrade'

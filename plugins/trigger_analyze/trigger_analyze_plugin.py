@@ -6,7 +6,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.models import BaseOperator
-from airflow.utils.curve import get_curve_params, get_task_params, generate_bolt_number, \
+from plugins.utils import get_curve_params, get_task_params, generate_bolt_number, \
     get_craft_type
 from airflow.models.tightening_controller import TighteningController
 from typing import Dict

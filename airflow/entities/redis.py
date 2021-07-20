@@ -8,7 +8,7 @@ import os
 import signal
 from redis.client import Pipeline
 import time
-from airflow.utils.curve import gen_template_key, trigger_push_templates_dict_dag
+from plugins.utils import gen_template_key, trigger_push_templates_dict_dag
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 

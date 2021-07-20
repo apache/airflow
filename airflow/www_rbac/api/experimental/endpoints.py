@@ -34,7 +34,7 @@ from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
-from airflow.utils.curve import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq, \
+from plugins.utils import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq, \
     do_save_curve_error_tag, get_results
 from flask import g, Blueprint, jsonify, request, url_for
 import json

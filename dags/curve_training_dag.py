@@ -9,7 +9,7 @@ from airflow.operators.python_operator import PythonOperator
 import datetime as dt
 import pendulum
 from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
-from airflow.utils.curve import do_save_curve_error_tag, get_task_params, get_craft_type, \
+from plugins.utils import do_save_curve_error_tag, get_task_params, get_craft_type, \
     generate_bolt_number, get_curve_params, get_result, get_curve, trigger_push_result_to_mq, get_curve_mode, \
     should_trigger_training
 from airflow.api.common.experimental.mark_tasks import modify_task_instance

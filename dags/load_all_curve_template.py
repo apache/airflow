@@ -8,11 +8,11 @@ from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from typing import Dict
 import logging
-from airflow.utils.curve import get_curve_template_name
+from plugins.utils import get_curve_template_name
 from airflow.models import Variable
 import asyncio
 from airflow.entities.redis import ClsRedisConnection
-from airflow.utils.curve import parse_template_name
+from plugins.utils import parse_template_name
 from airflow.hooks.cas_plugin import CasHook
 
 CURVE_MODE_MAP = {

@@ -3,7 +3,7 @@
 from airflow.models import DAG, DagRun
 from airflow.settings import TIMEZONE
 from airflow.entities.curve_storage import ClsCurveStorage
-from airflow.utils.curve import get_result_args, get_curve_args
+from plugins.utils import get_result_args, get_curve_args
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import TaskInstance

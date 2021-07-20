@@ -17,7 +17,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.error_tag import ErrorTag
 from airflow.www_rbac import utils as wwwutils
-from airflow.utils.curve import get_curve, get_result, get_task_instances_by_entity_ids
+from plugins.utils import get_curve, get_result, get_task_instances_by_entity_ids
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os

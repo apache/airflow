@@ -81,13 +81,13 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.utils.curve import get_curve, get_result
+from plugins.utils import get_curve, get_result
 from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
 
-from airflow.utils.curve import get_task_instance_by_entity_id
+from plugins.utils import get_task_instance_by_entity_id
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 

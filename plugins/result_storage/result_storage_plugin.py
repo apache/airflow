@@ -3,7 +3,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.plugins_manager import AirflowPlugin
 from typing import Dict
-from airflow.utils.curve import get_result_args, get_curve_args
+from plugins.utils import get_result_args, get_curve_args
 import os
 from airflow.models.dagrun import DagRun
 from airflow.entities.curve_storage import ClsCurveStorage

@@ -14,7 +14,7 @@ import datetime as dt
 import pendulum
 from distutils.util import strtobool
 from airflow.utils.db import get_connection
-from airflow.utils.curve import gen_template_key
+from plugins.utils import gen_template_key
 import pika
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
