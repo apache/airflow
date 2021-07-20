@@ -89,7 +89,7 @@ class SalesforceToS3Operator(BaseOperator):
         gzip: bool = False,
         acl_policy: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.salesforce_query = salesforce_query
         self.s3_bucket_name = s3_bucket_name
@@ -106,7 +106,7 @@ class SalesforceToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def execute(self, context: Dict):
+    def execute(self, context: Dict) -> str:
         salesforce_hook = SalesforceHook(conn_id=self.salesforce_conn_id)
         response = salesforce_hook.make_query(
             query=self.salesforce_query,
