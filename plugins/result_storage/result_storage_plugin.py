@@ -46,17 +46,7 @@ class ResultStorageHook(BaseHook, ABC):
             raise e
 
     @staticmethod
-    def is_valid_params(test_mode, **kwargs):
-        dag_run = kwargs.get('dag_run', None)
-        params = None
-        if test_mode:
-            dag_run = kwargs.get('params', None)
-        if not dag_run:
-            raise Exception(u'参数dag_run不存在')
-        if isinstance(dag_run, DagRun):
-            params = getattr(dag_run, 'conf')
-        if isinstance(dag_run, dict):
-            params = dag_run.get('conf', None)
+    def is_valid_params(params):
         if not params:
             raise Exception(u'参数params不存在')
         result = params.get('result', None)
@@ -71,9 +61,9 @@ class ResultStorageHook(BaseHook, ABC):
         return params
 
     @staticmethod
-    def on_curve_receive(test_mode, **kwargs):
-        _logger.debug('start storing with kwargs: {0}'.format(kwargs))
-        params = ResultStorageHook.is_valid_params(test_mode, **kwargs)
+    def on_curve_receive(params):
+        _logger.debug('start storing with params: {0}'.format(repr(params)))
+        params = ResultStorageHook.is_valid_params(params)
         _logger.info('params verify success')
         _logger.debug('dag_run conf param: {0}'.format(params))  # 从接口中获取的参数
         should_store = True

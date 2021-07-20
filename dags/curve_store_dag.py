@@ -14,7 +14,8 @@ _logger = generate_logger(__name__)
 
 def on_curve_receive(**kwargs):
     from airflow.hooks.result_storage_plugin import ResultStorageHook
-    params = ResultStorageHook.on_curve_receive(**kwargs)
+    params = getattr(kwargs.get('dag_run'), 'conf')
+    params = ResultStorageHook.on_curve_receive(params)
     from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
     TriggerAnalyzeHook.trigger_analyze(params)
 
@@ -62,6 +63,7 @@ store_task = PythonOperator(
 # https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
 if __name__ == '__main__':
     from tests.curve_dags.test_trigger import body
+
     dag.clear(reset_dag_runs=True)
     conf = body.get('conf')
     dag.run(conf=conf)
