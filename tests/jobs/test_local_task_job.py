@@ -72,8 +72,7 @@ def clear_db_class():
     db.clear_db_task_fail()
 
 
-@pytest.mark.usefixtures('clear_db_class')
-@pytest.mark.usefixtures('clear_db')
+@pytest.mark.usefixtures('clear_db_class', 'clear_db')
 class TestLocalTaskJob:
     @pytest.fixture(autouse=True)
     def set_instance_attrs(self):
