@@ -123,12 +123,12 @@ class TestAwsS3Hook:
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key='a', Body=b'a')
-        bucket.put_object(Key='dir/b', Body=b'b')
+        bucket.put_object(Key='dir/dir2/b', Body=b'b')
+        bucket.put_object(Key='dir/dir2/c', Body=b'c')
 
         assert [] == hook.list_prefixes(s3_bucket, prefix='non-existent/')
         assert ['dir/'] == hook.list_prefixes(s3_bucket, delimiter='/')
-        assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
-        assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
+        assert ['dir/dir2/'] == hook.list_prefixes(s3_bucket, delimiter='/', prefix='dir/')
 
     def test_list_prefixes_paged(self, s3_bucket):
         hook = S3Hook()
