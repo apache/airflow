@@ -28,7 +28,6 @@ QUERY = "SELECT id, company FROM Lead WHERE company = 'Hello World Inc'"
 SALESFORCE_CONNECTION_ID = "test-salesforce-connection"
 S3_BUCKET = "test-bucket"
 S3_KEY = "path/to/test-file-path/test-file.json"
-EXPECTED_S3_URI = f"s3://{S3_BUCKET}/{S3_KEY}"
 AWS_CONNECTION_ID = "aws_default"
 SALESFORCE_RESPONSE = {
     'records': [
@@ -96,7 +95,13 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
         assert operator.gzip == GZIP
         assert operator.acl_policy == ACL_POLICY
 
-        assert EXPECTED_S3_URI == operator.execute({})
+        expected_op_output = {
+            "s3_uri": f"s3://{S3_BUCKET}/{S3_KEY}",
+            "s3_bucket_name": S3_BUCKET,
+            "s3_key": S3_KEY,
+        }
+
+        assert expected_op_output == operator.execute({})
 
         mock_make_query.assert_called_once_with(
             query=QUERY, include_deleted=INCLUDE_DELETED, query_params=QUERY_PARAMS
