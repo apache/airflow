@@ -57,11 +57,14 @@ class DefaultHelpParser(argparse.ArgumentParser):
 
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command"""
-        executor = conf.get('core', 'EXECUTOR')
-        if value == 'celery' and executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-            message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
-            raise ArgumentError(action, message)
-        if value == 'kubernetes':
+        if action.dest == 'subcommand' and value == 'celery':
+            executor = conf.get('core', 'EXECUTOR')
+            if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
+                message = (
+                    f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
+                )
+                raise ArgumentError(action, message)
+        if action.dest == 'subcommand' and value == 'kubernetes':
             try:
                 import kubernetes.client  # noqa: F401
             except ImportError:

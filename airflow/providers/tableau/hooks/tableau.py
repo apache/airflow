@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import time
 import warnings
 from distutils.util import strtobool
 from enum import Enum
@@ -22,7 +23,12 @@ from typing import Any, Optional
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+
+class TableauJobFailedException(AirflowException):
+    """An exception that indicates that a Job failed to complete."""
 
 
 class TableauJobFinishCode(Enum):
@@ -65,11 +71,12 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get('site_id', '')
         self.server = Server(self.conn.host)
-        verify = self.conn.extra_dejson.get('verify', 'True')
-        try:
-            verify = bool(strtobool(verify))
-        except ValueError:
-            pass
+        verify = self.conn.extra_dejson.get('verify', True)
+        if isinstance(verify, str):
+            try:
+                verify = bool(strtobool(verify))
+            except ValueError:
+                pass
         self.server.add_http_options(
             options_dict={'verify': verify, 'cert': self.conn.extra_dejson.get('cert', None)}
         )
@@ -133,3 +140,38 @@ class TableauHook(BaseHook):
         except AttributeError:
             raise ValueError(f"Resource name {resource_name} is not found.")
         return Pager(resource.get)
+
+    def get_job_status(self, job_id: str) -> TableauJobFinishCode:
+        """
+        Get the current state of a defined Tableau Job.
+        .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
+
+        :param job_id: The id of the job to check.
+        :type job_id: str
+        :return: An Enum that describe the Tableau job’s return code
+        :rtype: TableauJobFinishCode
+        """
+        return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
+
+    def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
+        """
+        Wait until the current state of a defined Tableau Job is equal
+        to target_state or different from PENDING.
+
+        :param job_id: The id of the job to check.
+        :type job_id: str
+        :param target_state: Enum that describe the Tableau job’s target state
+        :type target_state: TableauJobFinishCode
+        :param check_interval: time in seconds that the job should wait in
+            between each instance state checks until operation is completed
+        :type check_interval: float
+        :return: return True if the job is equal to the target_status, False otherwise.
+        :rtype: bool
+        """
+        finish_code = self.get_job_status(job_id=job_id)
+        while finish_code == TableauJobFinishCode.PENDING and finish_code != target_state:
+            self.log.info("job state: %s", finish_code)
+            time.sleep(check_interval)
+            finish_code = self.get_job_status(job_id=job_id)
+
+        return finish_code == target_state

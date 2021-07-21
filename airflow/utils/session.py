@@ -104,4 +104,6 @@ def create_global_lock(session=None, pg_lock_id=1, lock_name='init', mysql_lock_
             session.connection().execute(f"select RELEASE_LOCK('{lock_name}');")
 
         if dialect.name == 'mssql':
-            session.connection().execute(f"sp_releaseapplock @Resource = '{lock_name}';")
+            session.connection().execute(
+                f"sp_releaseapplock @Resource = '{lock_name}', @LockOwner = 'Session';"
+            )

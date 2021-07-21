@@ -26,7 +26,7 @@ warnings.warn(
     airflow.providers.tableau.operators.tableau.TableauOperator instead
     """,
     DeprecationWarning,
-    stacklevel=2,
+    stacklevel=2
 )
 
 
@@ -50,6 +50,9 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         containing the credentials to authenticate to the Tableau Server. Default:
         'tableau_default'.
     :type tableau_conn_id: str
+    :param check_interval: time in seconds that the job should wait in
+        between each instance state checks until operation is completed
+    :type check_interval: float
     """
 
     def __init__(
@@ -59,6 +62,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         site_id: Optional[str] = None,
         blocking: bool = True,
         tableau_conn_id: str = 'tableau_default',
+        check_interval: float = 20,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -66,6 +70,7 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         self.site_id = site_id
         self.blocking = blocking
         self.tableau_conn_id = tableau_conn_id
+        self.check_interval = check_interval
 
     def execute(self, context: dict) -> str:
         """

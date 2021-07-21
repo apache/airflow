@@ -16,15 +16,19 @@
 # under the License.
 """DAG Cycle tester"""
 from collections import defaultdict, deque
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowDagCycleException
+
+if TYPE_CHECKING:
+    from airflow.models import DAG
 
 CYCLE_NEW = 0
 CYCLE_IN_PROGRESS = 1
 CYCLE_DONE = 2
 
 
-def test_cycle(dag):
+def test_cycle(dag: "DAG") -> None:
     """
     A wrapper function of `check_cycle` for backward compatibility purpose.
     New code should use `check_cycle` instead since this function name `test_cycle` starts with 'test_' and
@@ -40,10 +44,10 @@ def test_cycle(dag):
     return check_cycle(dag)
 
 
-def check_cycle(dag):
-    """
-    Check to see if there are any cycles in the DAG. Returns False if no cycle found,
-    otherwise raises exception.
+def check_cycle(dag: "DAG") -> None:
+    """Check to see if there are any cycles in the DAG.
+
+    :raises AirflowDagCycleException: If cycle is found in the DAG.
     """
     # default of int is 0 which corresponds to CYCLE_NEW
     visited = defaultdict(int)
