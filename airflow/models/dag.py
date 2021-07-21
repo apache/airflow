@@ -2807,7 +2807,6 @@ class DagModel(Base):
     def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
-        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
@@ -2819,11 +2818,6 @@ class DagModel(Base):
             if dag_model.fileloc is not None:
                 if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
                     dag_model.is_active = False
-                else:
-                    # If is_active is set as False and the DAG File still exists
-                    # Change is_active=True
-                    if not dag_model.is_active:
-                        dag_model.is_active = True
             else:
                 continue
 
