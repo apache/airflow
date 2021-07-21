@@ -73,6 +73,12 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Dummy trigger rule has been deprecated
+
+`TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.DUMMY` will be removed in next major release.
+
 ### DAG concurrency settings have been renamed
 
 `[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
