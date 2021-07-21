@@ -243,13 +243,13 @@ def post_dag_run(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    execution_date = post_body["execution_date"]
+    logical_date = post_body["execution_date"]
     run_id = post_body["run_id"]
     dagrun_instance = (
         session.query(DagRun)
         .filter(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == run_id, DagRun.execution_date == execution_date),
+            or_(DagRun.run_id == run_id, DagRun.execution_date == logical_date),
         )
         .first()
     )
@@ -257,7 +257,7 @@ def post_dag_run(dag_id, session):
         dag_run = current_app.dag_bag.get_dag(dag_id).create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
-            execution_date=execution_date,
+            execution_date=logical_date,
             state=State.QUEUED,
             conf=post_body.get("conf"),
             external_trigger=True,
@@ -265,12 +265,9 @@ def post_dag_run(dag_id, session):
         )
         return dagrun_schema.dump(dag_run)
 
-    if dagrun_instance.execution_date == execution_date:
+    if dagrun_instance.execution_date == logical_date:
         raise AlreadyExists(
-            detail=f"DAGRun with DAG ID: '{dag_id}' and "
-            f"DAGRun ExecutionDate: '{post_body['execution_date']}' already exists"
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun logical date: '{logical_date}' already exists"
         )
 
-    raise AlreadyExists(
-        detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{post_body['run_id']}' already exists"
-    )
+    raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
