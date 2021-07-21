@@ -74,6 +74,16 @@ class TestTableauHook(unittest.TestCase):
         )
         db.merge_conn(
             models.Connection(
+                conn_id='tableau_test_ssl_bool_param_connection',
+                conn_type='tableau',
+                host='tableau',
+                login='user',
+                password='password',
+                extra='{"verify": false}',
+            )
+        )
+        db.merge_conn(
+            models.Connection(
                 conn_id='tableau_test_ssl_connection_default',
                 conn_type='tableau',
                 host='tableau',
@@ -165,6 +175,25 @@ class TestTableauHook(unittest.TestCase):
         Test get conn with default SSL disabled parameters
         """
         with TableauHook(tableau_conn_id='tableau_test_ssl_false_connection') as tableau_hook:
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
+            mock_server.return_value.add_http_options.assert_called_once_with(
+                options_dict={'verify': False, 'cert': None}
+            )
+            mock_tableau_auth.assert_called_once_with(
+                username=tableau_hook.conn.login,
+                password=tableau_hook.conn.password,
+                site_id='',
+            )
+            mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch('airflow.providers.tableau.hooks.tableau.TableauAuth')
+    @patch('airflow.providers.tableau.hooks.tableau.Server')
+    def test_get_conn_ssl_bool_param(self, mock_server, mock_tableau_auth):
+        """
+        Test get conn with SSL Verify parameter as bool
+        """
+        with TableauHook(tableau_conn_id='tableau_test_ssl_bool_param_connection') as tableau_hook:
             mock_server.assert_called_once_with(tableau_hook.conn.host)
             mock_server.return_value.add_http_options.assert_called_once_with(
                 options_dict={'verify': False, 'cert': None}
