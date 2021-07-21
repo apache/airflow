@@ -775,6 +775,24 @@
             "x-docsSection": "Airflow",
             "default": null
         },
+        "webserverSecretKey": {
+            "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "webserverSecretKeySecretName": {
+            "description": "The Secret name containing Flask secret_key for the Webserver.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
         "kerberos": {
             "description": "Kerberos configurations for airflow",
             "type": "object",

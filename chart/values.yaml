@@ -267,6 +267,10 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
+# Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
+webserverSecretKey: ~
+webserverSecretKeySecretName: ~
+
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
 # name {{ .Release-name }}-<POSTFIX>. In case of the keytab file, the postfix is "kerberos-keytab"
@@ -1059,6 +1063,7 @@ postgresql:
 #
 #    a: '{{ "{{ not a template }}" }}'
 #
+# Do not set config containing secrets via plain text values, use Env Var or k8s secret object
 # yamllint disable rule:line-length
 config:
   core:
