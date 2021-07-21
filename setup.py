@@ -49,7 +49,8 @@ my_dir = dirname(__file__)
 def airflow_test_suite() -> unittest.TestSuite:
     """Test suite for Airflow tests"""
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover(os.path.join(my_dir, 'tests'), pattern='test_*.py')
+    test_suite = test_loader.discover(
+        os.path.join(my_dir, 'tests'), pattern='test_*.py')
     return test_suite
 
 
@@ -148,10 +149,12 @@ def git_version(version_: str) -> str:
         try:
             repo = git.Repo(os.path.join(*[my_dir, '.git']))
         except git.NoSuchPathError:
-            logger.warning('.git directory not found: Cannot compute the git version')
+            logger.warning(
+                '.git directory not found: Cannot compute the git version')
             return ''
         except git.InvalidGitRepositoryError:
-            logger.warning('Invalid .git directory not found: Cannot compute the git version')
+            logger.warning(
+                'Invalid .git directory not found: Cannot compute the git version')
             return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
@@ -226,8 +229,10 @@ cloudant = [
 ]
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
-    'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
+    # dask stopped supporting python 3.6 in 2021.3.1 version
+    'dask<2021.3.1;python_version<"3.7"',
+    # dask 2021.6.1 does not work with `distributed`
+    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
@@ -271,13 +276,14 @@ facebook = [
     'facebook-business>=6.0.2',
 ]
 flask_oauth = [
-    'Flask-OAuthlib>=0.9.1,<0.9.6',  # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
+    # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
+    'Flask-OAuthlib>=0.9.1,<0.9.6',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
     'requests-oauthlib<1.2.0',
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=4.0.0,<8.0.0',
+    'google-ads==12.0.0',
     'google-api-core>=1.25.1,<2.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
@@ -619,7 +625,8 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'async': async_packages,
     'celery': celery,  # also has provider, but it extends the core with the Celery executor
     'cgroups': cgroups,
-    'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
+    # also has provider, but it extends the core with the KubernetesExecutor
+    'cncf.kubernetes': kubernetes,
     'dask': dask,
     'deprecated_api': deprecated_api,
     'github_enterprise': flask_oauth,
@@ -698,7 +705,8 @@ def add_extras_for_all_deprecated_aliases() -> None:
     for alias, extra in EXTRAS_DEPRECATED_ALIASES.items():
         requirements = EXTRAS_REQUIREMENTS.get(extra) if extra != '' else []
         if requirements is None:
-            raise Exception(f"The extra {extra} is missing for deprecated alias {alias}")
+            raise Exception(
+                f"The extra {extra} is missing for deprecated alias {alias}")
         EXTRAS_REQUIREMENTS[alias] = requirements
 
 
@@ -746,11 +754,13 @@ ALL_DB_PROVIDERS = [
 ]
 
 # Special requirements for all database-related providers. They are de-duplicated.
-all_dbs = list({req for db_provider in ALL_DB_PROVIDERS for req in PROVIDERS_REQUIREMENTS[db_provider]})
+all_dbs = list(
+    {req for db_provider in ALL_DB_PROVIDERS for req in PROVIDERS_REQUIREMENTS[db_provider]})
 
 # Requirements for all "user" extras (no devel). They are de-duplicated. Note that we do not need
 # to separately add providers requirements - they have been already added as 'providers' extras above
-_all_requirements = list({req for extras_reqs in EXTRAS_REQUIREMENTS.values() for req in extras_reqs})
+_all_requirements = list(
+    {req for extras_reqs in EXTRAS_REQUIREMENTS.values() for req in extras_reqs})
 
 # All user extras here
 EXTRAS_REQUIREMENTS["all"] = _all_requirements
@@ -794,8 +804,10 @@ devel_ci = devel_all
 # Those are extras that we have to add for development purposes
 # They can be use to install some predefined set of dependencies.
 EXTRAS_REQUIREMENTS["doc"] = doc
-EXTRAS_REQUIREMENTS["devel"] = devel_minreq  # devel_minreq already includes doc
-EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel_minreq
+# devel_minreq already includes doc
+EXTRAS_REQUIREMENTS["devel"] = devel_minreq
+# devel_hadoop already includes devel_minreq
+EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop
 EXTRAS_REQUIREMENTS["devel_all"] = devel_all
 EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
@@ -870,13 +882,16 @@ class AirflowDistribution(Distribution):
             self.install_requires = [
                 req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
             ]
-            provider_yaml_files = glob.glob("airflow/providers/**/provider.yaml", recursive=True)
+            provider_yaml_files = glob.glob(
+                "airflow/providers/**/provider.yaml", recursive=True)
             for provider_yaml_file in provider_yaml_files:
-                provider_relative_path = relpath(provider_yaml_file, os.path.join(my_dir, "airflow"))
+                provider_relative_path = relpath(
+                    provider_yaml_file, os.path.join(my_dir, "airflow"))
                 self.package_data['airflow'].append(provider_relative_path)
         else:
             self.install_requires.extend(
-                [get_provider_package_from_package_id(package_id) for package_id in PREINSTALLED_PROVIDERS]
+                [get_provider_package_from_package_id(
+                    package_id) for package_id in PREINSTALLED_PROVIDERS]
             )
 
 
@@ -925,7 +940,8 @@ def add_provider_packages_to_extra_requirements(extra: str, providers: List[str]
     :param providers: list of provider ids
     """
     EXTRAS_REQUIREMENTS[extra].extend(
-        [get_provider_package_from_package_id(package_name) for package_name in providers]
+        [get_provider_package_from_package_id(
+            package_name) for package_name in providers]
     )
 
 
@@ -955,23 +971,28 @@ class Develop(develop_orig):
     """Forces removal of providers in editable mode."""
 
     def run(self) -> None:
-        self.announce('Installing in editable mode. Uninstalling provider packages!', level=log.INFO)
+        self.announce(
+            'Installing in editable mode. Uninstalling provider packages!', level=log.INFO)
         # We need to run "python3 -m pip" because it might be that older PIP binary is in the path
         # And it results with an error when running pip directly (cannot import pip module)
         # also PIP does not have a stable API so we have to run subprocesses ¯\_(ツ)_/¯
         try:
             installed_packages = (
-                subprocess.check_output(["python3", "-m", "pip", "freeze"]).decode().splitlines()
+                subprocess.check_output(
+                    ["python3", "-m", "pip", "freeze"]).decode().splitlines()
             )
             airflow_provider_packages = [
                 package_line.split("=")[0]
                 for package_line in installed_packages
                 if package_line.startswith("apache-airflow-providers")
             ]
-            self.announce(f'Uninstalling ${airflow_provider_packages}!', level=log.INFO)
-            subprocess.check_call(["python3", "-m", "pip", "uninstall", "--yes", *airflow_provider_packages])
+            self.announce(
+                f'Uninstalling ${airflow_provider_packages}!', level=log.INFO)
+            subprocess.check_call(
+                ["python3", "-m", "pip", "uninstall", "--yes", *airflow_provider_packages])
         except subprocess.CalledProcessError as e:
-            self.announce(f'Error when uninstalling airflow provider packages: {e}!', level=log.WARN)
+            self.announce(
+                f'Error when uninstalling airflow provider packages: {e}!', level=log.WARN)
         super().run()
 
 
@@ -979,7 +1000,8 @@ class Install(install_orig):
     """Forces installation of providers from sources in editable mode."""
 
     def run(self) -> None:
-        self.announce('Standard installation. Providers are installed from packages', level=log.INFO)
+        self.announce(
+            'Standard installation. Providers are installed from packages', level=log.INFO)
         super().run()
 
 
@@ -999,7 +1021,8 @@ def do_setup() -> None:
         The kwargs in setup() call override those that are specified in setup.cfg.
         """
         if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
-            setup_kwargs['packages'] = find_namespace_packages(include=['airflow*'])
+            setup_kwargs['packages'] = find_namespace_packages(include=[
+                                                               'airflow*'])
 
     include_provider_namespace_packages_when_installing_from_sources()
     if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
