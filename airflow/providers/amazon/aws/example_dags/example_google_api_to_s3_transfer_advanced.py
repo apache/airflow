@@ -53,8 +53,8 @@ YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(descript
 
 
 # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-def _check_and_transform_video_ids(xcom_key, task_output):
-    video_ids_response = task_output[xcom_key]
+def _check_and_transform_video_ids(task_output):
+    video_ids_response = task_output
     video_ids = [item['id']['videoId'] for item in video_ids_response['items']]
 
     if video_ids:
@@ -99,7 +99,7 @@ with DAG(
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
     task_check_and_transform_video_ids = BranchPythonOperator(
         python_callable=_check_and_transform_video_ids,
-        op_args=[task_video_ids_to_s3.google_api_response_via_xcom, task_video_ids_to_s3.output],
+        op_args=[task_video_ids_to_s3.output[task_video_ids_to_s3.google_api_response_via_xcom]],
         task_id='check_and_transform_video_ids',
     )
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
