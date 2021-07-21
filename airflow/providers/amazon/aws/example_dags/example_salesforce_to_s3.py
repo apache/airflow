@@ -28,10 +28,6 @@ from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceTo
 
 BASE_PATH = "salesforce/customers"
 FILE_NAME = "customer_daily_extract_{{ ds_nodash }}.csv"
-LANDING_BUCKET = "landing-bucket"
-S3_KEY = f"{BASE_PATH}/{FILE_NAME}"
-
-AWS_CONN_ID = "s3"
 
 
 with DAG(
@@ -39,7 +35,7 @@ with DAG(
     schedule_interval="@daily",
     start_date=datetime(2021, 7, 8),
     catchup=False,
-    default_args={"retries": 1},
+    default_args={"retries": 1, "aws_conn_id": "s3"},
     tags=["example"],
     default_view="graph",
 ) as dag:
@@ -47,11 +43,10 @@ with DAG(
     upload_salesforce_data_to_s3_landing = SalesforceToS3Operator(
         task_id="upload_salesforce_data_to_s3",
         salesforce_query="SELECT Id, Name, Company, Phone, Email, LastModifiedDate, IsActive FROM Customers",
-        s3_bucket_name=LANDING_BUCKET,
-        s3_key=S3_KEY,
+        s3_bucket_name="landing-bucket",
+        s3_key=f"{BASE_PATH}/{FILE_NAME}",
         salesforce_conn_id="salesforce",
         replace=True,
-        aws_conn_id=AWS_CONN_ID,
     )
     # [END howto_operator_salesforce_to_s3_transfer]
 
@@ -59,20 +54,19 @@ with DAG(
 
     store_to_s3_data_lake = S3CopyObjectOperator(
         task_id="store_to_s3_data_lake",
-        source_bucket_key=upload_salesforce_data_to_s3_landing.output,
+        source_bucket_key=upload_salesforce_data_to_s3_landing.output["s3_uri"],
         dest_bucket_name="data_lake",
         dest_bucket_key=f"{BASE_PATH}/{date_prefixes}/{FILE_NAME}",
-        aws_conn_id=AWS_CONN_ID,
     )
 
     delete_data_from_s3_landing = S3DeleteObjectsOperator(
         task_id="delete_data_from_s3_landing",
-        bucket=LANDING_BUCKET,
-        keys=S3_KEY,
-        aws_conn_id=AWS_CONN_ID,
+        bucket=upload_salesforce_data_to_s3_landing.output["s3_bucket_name"],
+        keys=upload_salesforce_data_to_s3_landing.output["s3_key"],
     )
 
     store_to_s3_data_lake >> delete_data_from_s3_landing
 
-    # Task dependency created via `XComArgs`:
-    #   upload_salesforce_data_to_s3_landing >> store_to_s3_data_lake_raw
+    # Task dependencies created via `XComArgs`:
+    #   upload_salesforce_data_to_s3_landing >> store_to_s3_data_lake
+    #   upload_salesforce_data_to_s3_landing >> delete_data_from_s3_landing
