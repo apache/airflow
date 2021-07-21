@@ -191,7 +191,7 @@ class TestEC2Hook(unittest.TestCase):
         # With filter and instance ids
         response = ec2_hook.get_instances(
             filters=[{"Name": "instance-id", "Values": [created_instance_id_1]}],
-            instance_ids=[created_instance_id_1, created_instance_id_2]
+            instance_ids=[created_instance_id_1, created_instance_id_2],
         )
 
         assert len(response) == 1
