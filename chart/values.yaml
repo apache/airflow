@@ -1121,6 +1121,8 @@ config:
     multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
 
+# Whether the KubernetesExecutor can launch workers and pods in multiple namespaces
+# If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
 # `podTemplate` is a string containing the contents of `pod_template_file.yaml` used for KubernetesExecutor
