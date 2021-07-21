@@ -65,11 +65,12 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get('site_id', '')
         self.server = Server(self.conn.host)
-        verify = self.conn.extra_dejson.get('verify', 'True')
-        try:
-            verify = bool(strtobool(verify))
-        except ValueError:
-            pass
+        verify = self.conn.extra_dejson.get('verify', True)
+        if isinstance(verify, str):
+            try:
+                verify = bool(strtobool(verify))
+            except ValueError:
+                pass
         self.server.add_http_options(
             options_dict={'verify': verify, 'cert': self.conn.extra_dejson.get('cert', None)}
         )
