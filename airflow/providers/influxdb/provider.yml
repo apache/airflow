@@ -35,4 +35,4 @@ hooks:
       - airflow.providers.influxdb.hooks.influxdb
 
 hook-class-names:
-  - airflow.providers.influxdb.hooks.influxdb.InfluxdbHook
+  - airflow.providers.influxdb.hooks.influxdb.InfluxDBHook

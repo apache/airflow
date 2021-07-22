@@ -19,7 +19,7 @@ import unittest
 from unittest import mock
 
 from airflow.models import Connection
-from airflow.providers.influxdb.hooks.influxDBHook import InfluxDBHook
+from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 
 
 class TestInfluxDbHookConn(unittest.TestCase):

@@ -18,7 +18,7 @@ import os
 
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.influxdb.hooks.influxDBHook import InfluxDBHook
+from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 from airflow.utils.dates import days_ago
 
 
