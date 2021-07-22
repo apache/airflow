@@ -106,8 +106,8 @@ class SalesforceToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def execute(self, context: Dict) -> Dict:
-        salesforce_hook = SalesforceHook(conn_id=self.salesforce_conn_id)
+    def execute(self, context: Dict) -> str:
+        salesforce_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce_hook.make_query(
             query=self.salesforce_query,
             include_deleted=self.include_deleted,
@@ -138,4 +138,4 @@ class SalesforceToS3Operator(BaseOperator):
             s3_uri = f"s3://{self.s3_bucket_name}/{self.s3_key}"
             self.log.info(f"Salesforce data uploaded to S3 at {s3_uri}.")
 
-            return {"s3_uri": s3_uri, "s3_bucket_name": self.s3_bucket_name, "s3_key": self.s3_key}
+            return s3_uri

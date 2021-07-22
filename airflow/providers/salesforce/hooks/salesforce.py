@@ -101,8 +101,8 @@ class SalesforceHook(BaseHook):
             self.conn = Salesforce(
                 username=connection.login,
                 password=connection.password,
-                security_token=extras['extra__salesforce__security_token'],
-                domain=extras.get('extra__salesforce__domain'),
+                security_token=extras["extra__salesforce__security_token"],
+                domain=extras["extra__salesforce__domain"] or "login",
             )
         return self.conn
 
