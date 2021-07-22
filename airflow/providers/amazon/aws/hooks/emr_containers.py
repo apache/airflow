@@ -53,7 +53,6 @@ class EmrContainersHook(AwsBaseHook):
         """Get job details by job id and virtual cluster id.
 
         If the job is found, returns a response describing the job.
-        Implements https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.describe_job_run
 
         :param job_id: The ID of the job run request
         :type job_id: str
@@ -79,8 +78,6 @@ class EmrContainersHook(AwsBaseHook):
         **kwargs: Any,
     ) -> Dict[str, str]:
         """Starts a spark job using EMR in EKS
-
-        Refer to https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.start_job_run
 
         :param cluster_id: The ID of the virtual cluster for which the job run is submitted
         :type cluster_id: str
@@ -129,7 +126,6 @@ class EmrContainersHook(AwsBaseHook):
         """Terminates a job by job id and virtual cluster id.
 
         If the job is found, returns a response with job id and cluster id.
-        Implements https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr-containers.html#EMRContainers.Client.cancel_job_run
 
         :param job_id: The ID of the job run request
         :type job_id: str
