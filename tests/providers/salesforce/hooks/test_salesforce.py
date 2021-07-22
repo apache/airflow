@@ -45,7 +45,7 @@ class TestSalesforceHook(unittest.TestCase):
         return_value=Connection(
             login="username",
             password="password",
-            extra='{"extra__salesforce__security_token": "token", "extra__salesforce__domain": "login"}'
+            extra='{"extra__salesforce__security_token": "token", "extra__salesforce__domain": "login"}',
         ),
     )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
