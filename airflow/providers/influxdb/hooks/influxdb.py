@@ -28,6 +28,7 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 
+import pandas as pd
 
 class InfluxDBHook(BaseHook):
     """
@@ -107,6 +108,22 @@ class InfluxDBHook(BaseHook):
 
         query_api = client.query_api()
         return query_api.query(query)
+
+    def query(self, query) -> pd.DataFrame:
+        """
+        Function to use the query_api
+        to run the query and return a pandas dataframe
+        Note: The bucket name
+        should be included in the query
+        'from(bucket:"my-bucket") |> range(start: -10m)'
+
+        :param query: InfluxDB query
+        :return: pd.DataFrame
+        """
+        client = self.get_conn()
+
+        query_api = client.query_api()
+        return query_api.query_data_frame(query)
 
     def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value, synchronous=False):
         """
