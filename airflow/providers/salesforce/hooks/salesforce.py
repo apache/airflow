@@ -57,7 +57,7 @@ class SalesforceHook(BaseHook):
     conn_type = "salesforce"
     hook_name = "Salesforce"
 
-    def __init__(self, salesforce_conn_id: str = "salesforce_default") -> None:
+    def __init__(self, salesforce_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = salesforce_conn_id
         self.conn = None
