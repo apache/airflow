@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from typing import Any, Dict, Optional
+
 import botocore.exceptions
 
 from airflow.exceptions import AirflowException
@@ -61,12 +62,8 @@ class EmrContainersHook(AwsBaseHook):
         :return: A dictionary representing the job
         :rtype: dict
         """
-
         try:
-            return self.get_conn().describe_job_run(
-                id=job_id,
-                virtualClusterId=cluster_id
-            )
+            return self.get_conn().describe_job_run(id=job_id, virtualClusterId=cluster_id)
         except botocore.exceptions.ClientError as err:
             error_response = err.response.get("Error", {})
             self.handle_aws_client_error(error_response)
@@ -79,7 +76,7 @@ class EmrContainersHook(AwsBaseHook):
         execution_role_arn: str,
         emr_release_label: str,
         job_driver: Dict[str, Any],
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, str]:
         """Starts a spark job using EMR in EKS
 
@@ -109,13 +106,13 @@ class EmrContainersHook(AwsBaseHook):
             "virtualClusterId": cluster_id,
             "executionRoleArn": execution_role_arn,
             "releaseLabel": emr_release_label,
-            "jobDriver": job_driver
+            "jobDriver": job_driver,
         }
         optional_params = (
             ("configurationOverrides", "configuration_overrides"),
             ("name", "name"),
             ("clientToken", "client_token"),
-            ("tags", "tags")
+            ("tags", "tags"),
         )
         for aws_var_name, airflow_var_name in optional_params:
             if kwargs.get(airflow_var_name):
@@ -141,12 +138,8 @@ class EmrContainersHook(AwsBaseHook):
         :return: A dictionary representing the job
         :rtype: dict
         """
-
         try:
-            return self.get_conn().cancel_job_run(
-                id=job_id,
-                virtualClusterId=cluster_id
-            )
+            return self.get_conn().cancel_job_run(id=job_id, virtualClusterId=cluster_id)
         except botocore.exceptions.ClientError as err:
             error_response = err.response.get("Error", {})
             self.handle_aws_client_error(error_response)

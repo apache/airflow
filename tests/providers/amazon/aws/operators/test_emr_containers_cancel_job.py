@@ -28,7 +28,6 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr_containers_cancel_job import EmrContainersCancelJobOperator
 from airflow.utils import timezone
 
-
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 CLUSTER_ID = "foo_12321"
 EXECUTION_ROLE_ARN = "arn:aws:iam:region:account-id:role/test"

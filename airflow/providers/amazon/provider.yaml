@@ -148,7 +148,7 @@ integrations:
   - integration-name: Amazon EMR on Amazon EKS
     external-doc-url: https://aws.amazon.com/emr/https://aws.amazon.com/emr/features/eks/
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
-    tags: [ aws ]
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -347,8 +347,8 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.step_function
   - integration-name: Amazon EMR on Amazon EKS
-      python-modules:
-        - airflow.providers.amazon.aws.hooks.emr_containers
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.emr_containers
 
 transfers:
   - source-integration-name: Amazon DynamoDB
