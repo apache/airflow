@@ -39,12 +39,10 @@ Domain (optional)
 For security reason we suggest you to use one of the secrets Backend to create this
 connection (Using ENVIRONMENT VARIABLE or Hashicorp Vault, GCP Secrets Manager etc).
 
-.. note::
-  When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
-  following the standard syntax of DB connections - where extras are passed as parameters
-  of the URI.
+When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
+following the standard syntax of DB connections - where extras are passed as parameters of the URI.
 
-  For example:
+For example:
 
   .. code-block:: bash
 

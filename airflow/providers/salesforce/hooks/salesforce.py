@@ -37,21 +37,18 @@ log = logging.getLogger(__name__)
 
 class SalesforceHook(BaseHook):
     """
-    Create new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
+    Creates new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
 
     You can then use that file with other Airflow operators to move the data into another data source.
 
-    :param conn_id: the name of the connection that has the parameters we need to connect to Salesforce.
-        The connection should be type `http` and include a user's security token in the `Extras` field.
+    :param conn_id: The name of the connection that has the parameters needed to connect to Salesforce.
+        The connection should be of type `Salesforce`.
     :type conn_id: str
 
     .. note::
-        For the HTTP connection type, you can include a
-        JSON structure in the `Extras` field.
-        We need a user's security token to connect to Salesforce.
-        So we define it in the `Extras` field as `{"security_token":"YOUR_SECURITY_TOKEN"}`
-
-        For sandbox mode, add `{"domain":"test"}` in the `Extras` field
+        To connect to Salesforce make sure the connection includes a Username, Password, and Security Token.
+        If in sandbox, enter a Domain value of 'test'.  Login methods such as IP filtering and JWT are not
+        supported currently.
 
     """
 
