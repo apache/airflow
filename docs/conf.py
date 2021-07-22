@@ -240,16 +240,16 @@ html_favicon = "../airflow/www/static/pin_32.png"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-if PACKAGE_NAME == 'apache-airflow':
-    html_static_path = ['apache-airflow/static']
+if PACKAGE_NAME in ['apache-airflow', 'helm-chart']:
+    html_static_path = [f'{PACKAGE_NAME}/static']
 else:
     html_static_path = []
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
 # scheme like http://example.org/script.js.
-if PACKAGE_NAME == 'apache-airflow':
-    html_js_files = ['jira-links.js']
+if PACKAGE_NAME in ['apache-airflow', 'helm-chart']:
+    html_js_files = ['gh-jira-links.js']
 else:
     html_js_files = []
 if PACKAGE_NAME == 'apache-airflow':
