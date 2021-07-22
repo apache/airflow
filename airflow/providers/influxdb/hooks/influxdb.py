@@ -20,6 +20,7 @@
 
 from typing import List
 
+import pandas as pd
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
 from influxdb_client.client.write.point import Point
@@ -28,7 +29,6 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 
-import pandas as pd
 
 class InfluxDBHook(BaseHook):
     """
