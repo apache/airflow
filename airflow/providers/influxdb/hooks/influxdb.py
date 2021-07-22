@@ -18,11 +18,11 @@
 
 """This module allows to connect to a InfluxDB database."""
 
+from typing import List
+
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
 from influxdb_client.client.write.point import Point
-from typing import List
-
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from airflow.hooks.base import BaseHook
@@ -54,9 +54,7 @@ class InfluxDBHook(BaseHook):
         self.org_name = None
 
     def get_client(self, uri, token, org_name):
-        return InfluxDBClient(url=uri,
-                              token=token,
-                              org=org_name)
+        return InfluxDBClient(url=uri, token=token, org=org_name)
 
     def get_uri(self, conn: Connection):
         """
@@ -126,33 +124,26 @@ class InfluxDBHook(BaseHook):
         write_api.write(bucket=bucket_name, record=p)
 
     def create_organization(self, name):
-        """
-        Function to create a new organization
-        """
+        """Function to create a new organization"""
         return self.client.organizations_api().create_organization(name=name)
 
     def delete_organization(self, org_id):
-        """
-        Function to delete organization by organization id
-        """
+        """Function to delete organization by organization id"""
         return self.client.organizations_api().delete_organization(org_id=org_id)
 
     def create_bucket(self, bucket_name, description, org_id, retention_rules=None):
-        """
-        Function to create a bucket for an organization
-
-        """
-        return self.client.buckets_api().create_bucket(bucket_name=bucket_name, description=description,
-                                                       org_id=org_id, retention_rules=None)
+        """Function to create a bucket for an organization"""
+        return self.client.buckets_api().create_bucket(
+            bucket_name=bucket_name, description=description, org_id=org_id, retention_rules=None
+        )
 
     def find_bucket_id_by_name(self, bucket_name):
+        """Function to get bucket id by name."""
         bucket = self.client.buckets_api().find_bucket_by_name(bucket_name)
 
         return "" if bucket is None else bucket.id
 
     def delete_bucket(self, bucket_name):
-        """
-        Function to delete bucket by bucket name.
-        """
+        """Function to delete bucket by bucket name."""
         bucket = self.find_bucket_id_by_name(bucket_name)
         return self.client.buckets_api().delete_bucket(bucket)

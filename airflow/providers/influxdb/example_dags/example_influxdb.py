@@ -52,8 +52,6 @@ with DAG(
     max_active_runs=1,
     tags=['example'],
 ) as dag:
-    influxdb_task = PythonOperator(
-        task_id="influxdb_task", python_callable=test_influxdb_hook
-    )
+    influxdb_task = PythonOperator(task_id="influxdb_task", python_callable=test_influxdb_hook)
 
     influxdb_task
