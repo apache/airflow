@@ -1995,6 +1995,60 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.start_date < ti.end_date
         assert ti.duration > 0
 
+    def test_refresh_from_db(self):
+        run_date = timezone.utcnow()
+
+        expected_values = {
+            "task_id": "test_refresh_from_db_task",
+            "dag_id": "test_refresh_from_db_dag",
+            "execution_date": run_date,
+            "start_date": run_date + datetime.timedelta(days=1),
+            "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
+            "duration": 1.234,
+            "state": State.SUCCESS,
+            "_try_number": 1,
+            "max_tries": 1,
+            "hostname": "some_unique_hostname",
+            "unixname": "some_unique_unixname",
+            "job_id": 1234,
+            "pool": "some_fake_pool_id",
+            "pool_slots": 25,
+            "queue": "some_queue_id",
+            "priority_weight": 123,
+            "operator": "some_custom_operator",
+            "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "queued_by_job_id": 321,
+            "pid": 123,
+            "executor_config": {"Some": {"extra": "information"}},
+            "external_executor_id": "some_executor_id",
+        }
+        # Make sure we aren't missing any new value in our expected_values list.
+        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values.keys()}
+        assert {str(c) for c in TI.__table__.columns} == expected_keys, (
+            "Please add all non-foreign values of TaskInstance to this list. "
+            "This prevents refresh_from_db() from missing a field."
+        )
+
+        operator = DummyOperator(task_id=expected_values['task_id'])
+        ti = TI(task=operator, execution_date=expected_values['execution_date'])
+        for key, expected_value in expected_values.items():
+            setattr(ti, key, expected_value)
+        with create_session() as session:
+            session.merge(ti)
+            session.commit()
+
+        mock_task = mock.MagicMock()
+        mock_task.task_id = expected_values["task_id"]
+        mock_task.dag_id = expected_values["dag_id"]
+
+        ti = TI(task=mock_task, execution_date=run_date)
+        ti.refresh_from_db()
+        for key, expected_value in expected_values.items():
+            assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
+            assert (
+                getattr(ti, key) == expected_value
+            ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 def test_refresh_from_task(pool_override):
