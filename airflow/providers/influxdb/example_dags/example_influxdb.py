@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
@@ -41,6 +40,7 @@ def test_influxdb_hook():
             print(record.values)
 
     bucket_id = influxdb_hook.find_bucket_id_by_name(bucket_name)
+    print(bucket_id)
     # Delete bucket takes bucket id.
     influxdb_hook.delete_bucket(bucket_name)
 
