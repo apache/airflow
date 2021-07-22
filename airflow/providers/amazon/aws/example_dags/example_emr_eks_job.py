@@ -39,12 +39,20 @@ JOB_DRIVER_ARG = {
 }
 
 CONFIGURATION_OVERRIDES_ARG = {
+    "applicationConfiguration": [
+        {
+            "classification": "spark-defaults",
+            "properties": {
+                "spark.hadoop.hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+            },
+        }
+    ],
     "monitoringConfiguration": {
         "cloudWatchMonitoringConfiguration": {
             "logGroupName": "/aws/emr-eks-spark",
             "logStreamNamePrefix": "airflow",
         }
-    }
+    },
 }
 # [END howto_operator_emr_eks_config]
 
@@ -60,6 +68,7 @@ with DAG(
     # VIRTUAL_CLUSTER_ID = '{{ conn.emr_eks.extra_dejson["virtual_cluster_id"] }}'
     # JOB_ROLE_ARN = '{{ conn.emr_eks.extra_dejson["job_role_arn"] }}'
 
+    # [START howto_operator_emr_eks_jobrun]
     job_starter = EMRContainerOperator(
         task_id="start_job",
         virtual_cluster_id=VIRTUAL_CLUSTER_ID,
@@ -69,3 +78,4 @@ with DAG(
         configuration_overrides=CONFIGURATION_OVERRIDES_ARG,
         name="pi.py",
     )
+    # [END howto_operator_emr_eks_jobrun]
