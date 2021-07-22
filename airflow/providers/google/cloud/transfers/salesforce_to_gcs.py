@@ -97,7 +97,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.query_params = query_params
 
     def execute(self, context: Dict):
-        salesforce = SalesforceHook(conn_id=self.salesforce_conn_id)
+        salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
         )
