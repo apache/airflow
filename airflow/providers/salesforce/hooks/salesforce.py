@@ -24,10 +24,11 @@ retrieve data from it, and write that data to a file for other uses.
       https://github.com/simple-salesforce/simple-salesforce
 """
 import logging
-import pandas as pd
 import time
-from simple_salesforce import Salesforce, api
 from typing import Any, Dict, Iterable, List, Optional
+
+import pandas as pd
+from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base import BaseHook
 
@@ -75,9 +76,7 @@ class SalesforceHook(BaseHook):
             "extra__salesforce__security_token": PasswordField(
                 lazy_gettext('Security Token'), widget=BS3PasswordFieldWidget()
             ),
-            "extra__salesforce__domain": StringField(
-                lazy_gettext('Domain'), widget=BS3TextFieldWidget()
-            ),
+            "extra__salesforce__domain": StringField(lazy_gettext('Domain'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
