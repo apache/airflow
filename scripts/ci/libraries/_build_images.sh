@@ -418,7 +418,7 @@ function build_images::configure_docker_registry() {
         verbosity::print_info
         verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
         verbosity::print_info
-    elif [[ -n "${token}"  ]]; then
+    elif [[ -n "${token}" ]]; then
         echo "${token}" | docker_v login \
             --username "${GITHUB_USERNAME:-apache}" \
             --password-stdin \
