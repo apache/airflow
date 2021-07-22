@@ -74,9 +74,9 @@ class SalesforceHook(BaseHook):
 
         return {
             "extra__salesforce__security_token": PasswordField(
-                lazy_gettext('Security Token'), widget=BS3PasswordFieldWidget()
+                lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()
             ),
-            "extra__salesforce__domain": StringField(lazy_gettext('Domain'), widget=BS3TextFieldWidget()),
+            "extra__salesforce__domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
