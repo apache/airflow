@@ -75,7 +75,7 @@ In this approach, Airflow will log to an existing ``ReadWriteMany`` PVC. You pas
       --set logs.persistence.enabled=true \
       --set logs.persistence.existingClaim=my-volume-claim
 
-Note that the Airflow user (default uid 50000) needs write permission on the volume.
+Note that the Airflow user (default uid ``50000``) needs write permission on the volume.
 
 Elasticsearch
 -------------
