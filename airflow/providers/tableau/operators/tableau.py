@@ -56,6 +56,9 @@ class TableauOperator(BaseOperator):
     :type site_id: Optional[str]
     :param blocking_refresh: By default the extract refresh will be blocking means it will wait until it has finished.
     :type blocking_refresh: bool
+    :param check_interval: time in seconds that the job should wait in
+        between each instance state checks until operation is completed
+    :type check_interval: float
     :param tableau_conn_id: The :ref:`Tableau Connection id <howto/connection:tableau>`
         containing the credentials to authenticate to the Tableau Server.
     :type tableau_conn_id: str
@@ -70,6 +73,7 @@ class TableauOperator(BaseOperator):
         match_with: str = 'id',
         site_id: Optional[str] = None,
         blocking_refresh: bool = True,
+        check_interval: float = 20,
         tableau_conn_id: str = 'tableau_default',
         **kwargs,
     ) -> None:
@@ -78,6 +82,7 @@ class TableauOperator(BaseOperator):
         self.method = method
         self.find = find
         self.match_with = match_with
+        self.check_interval = check_interval
         self.site_id = site_id
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
