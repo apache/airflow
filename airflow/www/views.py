@@ -35,6 +35,7 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import nvd3
+import pendulum
 import sqlalchemy as sqla
 from flask import (
     Markup,
@@ -96,7 +97,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import DAG, Connection, DagModel, DagTag, EventNote, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun, DagRunType
@@ -117,7 +118,7 @@ from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.decorators import action_logging, gzipped
+from airflow.www.decorators import action_logging, event_noting, gzipped
 from airflow.www.forms import (
     ConnectionForm,
     DagRunEditForm,
@@ -1187,6 +1188,7 @@ class Airflow(AirflowBaseView):
                 num_logs += 1
         logs = [''] * num_logs
         root = request.args.get('root', '')
+
         return self.render_template(
             'airflow/ti_log.html',
             logs=logs,
@@ -1326,6 +1328,74 @@ class Airflow(AirflowBaseView):
             title=title,
         )
 
+    @expose('/ti_note', methods=['POST'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ]
+    )
+    @provide_session
+    def ti_note(self, session=None):
+        """Retrieve and store event notes"""
+        origin = request.form.get("origin")
+        if not request.form.get('note'):
+            flash("A note for the instance was not provided")
+            return redirect(origin)
+        else:
+            dag_id = request.form.get('dag_id')
+            task_id = request.form.get('task_id')
+            execution_date = timezone.parse(request.form.get('execution_date'))
+            timestamp = pendulum.now()
+            event = request.form.get('event')
+            note = request.form.get('note')
+            session.add(
+                EventNote(
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    execution_date=execution_date,
+                    timestamp=timestamp,
+                    event=event,
+                    event_note=note,
+                    owner=g.user.username,
+                )
+            )
+            flash("Note registered successfully")
+            return redirect(origin)
+
+    @expose('/dag_notes')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+        ]
+    )
+    @action_logging
+    @provide_session
+    def dag_notes(self, session=None):
+        """Retrieve and store task notes"""
+        dag_id = request.args.get('dag_id')
+        root = request.args.get('root', '')
+        DM = models.DagModel
+        title = "Dag notes"
+
+        dag = session.query(DM).filter(DM.dag_id == dag_id).first()
+
+        notes = EventNote.get_many(dag_ids=dag_id).order_by(EventNote.timestamp.desc()).all()
+
+        attributes = [
+            (note.owner, note.execution_date, note.event, note.task_id, note.event_note) for note in notes
+        ]
+
+        return self.render_template(
+            'airflow/dag_notes.html',
+            attributes=attributes,
+            root=root,
+            dag=dag,
+            title=title,
+        )
+
     @expose('/xcom')
     @auth.has_access(
         [
@@ -1385,6 +1455,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
+    @event_noting
     @action_logging
     def run(self):
         """Runs Task Instance."""
@@ -1492,6 +1563,7 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
+    @event_noting
     def trigger(self, session=None):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
@@ -1628,6 +1700,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    @event_noting
     def clear(self):
         """Clears the Dag."""
         dag_id = request.form.get('dag_id')
@@ -1672,6 +1745,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    @event_noting
     def dagrun_clear(self):
         """Clears the DagRun"""
         dag_id = request.form.get('dag_id')
@@ -1798,6 +1872,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
+    @event_noting
     def dagrun_failed(self):
         """Mark DagRun failed."""
         dag_id = request.form.get('dag_id')
@@ -1930,6 +2005,7 @@ class Airflow(AirflowBaseView):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
+    @event_noting
     @action_logging
     def failed(self):
         """Mark task as failed."""
@@ -3007,6 +3083,57 @@ class SlaMissModelView(AirflowModelView):
         'timestamp': wwwutils.datetime_f('timestamp'),
         'dag_id': wwwutils.dag_link,
     }
+
+
+class EventNoteView(AirflowModelView):
+    """View to show Event Note table"""
+
+    route_base = '/notes'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(EventNote)  # type: ignore
+
+    class_permission_name = permissions.RESOURCE_EVENT_NOTE
+    method_permission_name = {
+        'add': 'create',
+        'list': 'read',
+        'delete': 'delete',
+        'action_muldelete': 'delete',
+        'edit': 'edit',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    list_columns = ['dag_id', 'task_id', 'execution_date', 'owner', 'event', 'event_note', 'timestamp']
+    add_columns = ['dag_id', 'task_id', 'execution_date', 'owner', 'event', 'event_note', 'timestamp']
+    edit_columns = ['event_note', 'timestamp']
+    search_columns = ['dag_id', 'task_id', 'event_note', 'owner', 'event', 'execution_date']
+    base_order = ('execution_date', 'desc')
+    base_filters = [['dag_id', DagFilter, lambda: []]]
+
+    formatters_columns = {
+        'task_id': wwwutils.task_instance_link,
+        'execution_date': wwwutils.datetime_f('execution_date'),
+        'timestamp': wwwutils.datetime_f('timestamp'),
+        'dag_id': wwwutils.dag_link,
+    }
+
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_EVENT_NOTE),
+        ]
+    )
+    def action_muldelete(self, items):
+        """Multiple delete action."""
+        self.datamodel.delete_all(items)
+        self.update_redirect()
+        return redirect(self.get_redirect())
 
 
 class XComModelView(AirflowModelView):

@@ -35,6 +35,7 @@ from airflow.models import (  # noqa: F401
     DagPickle,
     DagRun,
     DagTag,
+    EventNote,
     Log,
     Pool,
     SkipMixin,

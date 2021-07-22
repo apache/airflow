@@ -24,6 +24,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.errors import ImportError
+from airflow.models.event_note import EventNote
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields

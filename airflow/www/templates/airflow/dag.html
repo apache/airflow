@@ -123,6 +123,9 @@
           <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
+          <li><a href="{{ url_for('Airflow.dag_notes', dag_id=dag.dag_id, root=root, execution_date=execution_date_arg) }}">
+            <span class="material-icons" aria-hidden="true">code</span>
+            Dag Notes</a></li>
         </ul>
       </div>
       <div class="col-md-2">
@@ -350,6 +353,20 @@
               </span>
             </div>
           </form>
+
+          <form method="POST" data-action="{{ url_for('Airflow.ti_note') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="event" value="task_instance">
+                <input type="hidden" name="task_id">
+                <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                <input type="hidden" name="origin" value="{{ request.base_url }}">
+                <input type="hidden" name="execution_date">
+                <div class="form-group">
+                  <label for="note">Add a new note for this task</label>
+                  <textarea class="form-control" name="note" id="text"></textarea>
+                </div>
+                <button type="submit" class="btn">Submit</button>
+              </form>
           <hr>
           <span class="btn-group" id="extra_links"></span>
         </div>
