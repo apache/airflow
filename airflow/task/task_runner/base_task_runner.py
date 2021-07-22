@@ -89,7 +89,10 @@ class BaseTaskRunner(LoggingMixin):
         
         # Avoid executing chown when run_as_user is set to None
         if self.run_as_user:
-            os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
+            try:
+                os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
+            except Exception:
+                pass
   
         self._cfg_path = cfg_path
         self._command = (
