@@ -52,6 +52,7 @@ Bug Fixes
 
 Doc only changes
 """"""""""""""""
+- Chart docs: note uid write permissions for existing pvc (#17170)
 - Chart Docs: Add single-line description for ``multiNamespaceMode`` (#17147)
 - Chart: Update description for Helm chart to include 'official' (#17040)
 - Chart: Better comment and example for ``podTemplate`` (#16859)
