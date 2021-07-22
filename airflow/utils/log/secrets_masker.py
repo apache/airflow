@@ -102,7 +102,12 @@ def _secrets_masker() -> "SecretsMasker":
     for flt in logging.getLogger('airflow.task').filters:
         if isinstance(flt, SecretsMasker):
             return flt
-    raise RuntimeError("No SecretsMasker found!")
+    raise RuntimeError(
+        "Logging Configuration Error! No SecretsMasker found! If you have custom logging, please make "
+        "sure you configure it taking airflow configuration as a base as explained at "
+        "https://airflow.apache.org/docs/apache-airflow/stable/logging-monitoring/logging-tasks.html"
+        "#advanced-configuration"
+    )
 
 
 class SecretsMasker(logging.Filter):

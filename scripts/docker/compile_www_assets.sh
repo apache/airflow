@@ -28,7 +28,12 @@ function compile_www_assets() {
     md5sum_file="static/dist/sum.md5"
     readonly md5sum_file
     local www_dir
-    www_dir="$(python -m site --user-site)/airflow/www"
+    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." ]]; then
+        # In case we are building from sources in production image, we should build the assets
+        www_dir="${AIRFLOW_SOURCES_TO}/airflow/www"
+    else
+        www_dir="$(python -m site --user-site)/airflow/www"
+    fi
     pushd ${www_dir} || exit 1
     yarn install --frozen-lockfile --no-cache
     yarn run prod

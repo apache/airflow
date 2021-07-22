@@ -47,6 +47,7 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ('Secret', 'TEST-RBAC-broker-url'),
     ('Secret', 'TEST-RBAC-fernet-key'),
     ('Secret', 'TEST-RBAC-redis-password'),
+    ('Secret', 'TEST-RBAC-webserver-secret-key'),
     ('Job', 'TEST-RBAC-create-user'),
     ('Job', 'TEST-RBAC-run-airflow-migrations'),
     ('CronJob', 'TEST-RBAC-cleanup'),

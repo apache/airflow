@@ -31,6 +31,8 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``[FIX] Docker provider - retry docker in docker (#17061)``
+
 The ``DockerOperator`` in version 2.0.0 did not work for remote Docker Engine or Docker-In-Docker case.
 That was an unintended side effect of #15843 that has been fixed in #16932. There is a fallback mode
 which will make Docker Operator works with warning and you will be able to remove the warning by
@@ -40,6 +42,7 @@ using the new parameter to disable mounting the folder.
    appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
 
 2.0.0
 .....

@@ -75,7 +75,12 @@ def create_validator(api_version, kind):
 
 def validate_k8s_object(instance):
     # Skip PostgresSQL chart
-    chart = jmespath.search("metadata.labels.chart", instance)
+    labels = jmespath.search("metadata.labels", instance)
+    if "helm.sh/chart" in labels:
+        chart = labels["helm.sh/chart"]
+    else:
+        chart = labels.get("chart")
+
     if chart and 'postgresql' in chart:
         return
 
