@@ -18,17 +18,17 @@
 #
 """Utilities for creating a virtual environment"""
 import os
+import sys
 from collections import deque
 from typing import List, Optional
 
 import jinja2
-import virtualenv
 
 from airflow.utils.process_utils import execute_in_subprocess
 
 
 def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> List[str]:
-    cmd = [tmp_dir]
+    cmd = [sys.executable, '-m', 'virtualenv', tmp_dir]
     if system_site_packages:
         cmd.append('--system-site-packages')
     if python_bin is not None:
@@ -93,7 +93,7 @@ def prepare_virtualenv(
     :rtype: str
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
-    virtualenv.cli_run(virtualenv_cmd)
+    execute_in_subprocess(virtualenv_cmd)
     pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
