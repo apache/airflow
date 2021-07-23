@@ -16,6 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _howto/connection:influxdb:
+
 InfluxDB Connection
 ================
 The InfluxDB connection type provides connection to a InfluxDB database.
