@@ -20,7 +20,7 @@
 apiVersion: v1
 name: airflow
 version: 0.0.5
-appVersion: 1.10.13
+appVersion: 1.10.14
 description: Helm chart to deploy Apache Airflow
 icon: https://www.astronomer.io/static/airflowNewA.png
 keywords:
