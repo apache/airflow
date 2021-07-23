@@ -17,6 +17,7 @@
 # under the License.
 
 import time
+import warnings
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 import requests
@@ -136,11 +137,24 @@ class DruidDbApiHook(DbApiHook):
     For ingestion, please use druidHook.
     """
 
-    conn_name_attr = 'druid_broker_conn_id'
+    conn_name_attr = 'conn_id'
     default_conn_name = 'druid_broker_default'
     conn_type = 'druid'
     hook_name = 'Druid'
     supports_autocommit = False
+
+    def __init__(self, conn_id: str = None, druid_broker_conn_id: str = None, **kwargs) -> None:
+        if druid_broker_conn_id:
+            warnings.warn(
+                'The druid_broker_conn_id is deprecated, use conn_id instead',
+                PendingDeprecationWarning,
+                stacklevel=2,
+            )
+            conn_id = druid_broker_conn_id
+        if not conn_id:
+            conn_id = DruidDbApiHook.default_conn_name
+        self.conn_id = conn_id
+        super().__init__(**kwargs)
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
