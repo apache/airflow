@@ -21,7 +21,7 @@
 Amazon EMR on EKS Operators
 ===========================
 
-`Amazon EMR on EKS <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks.html>`__  provides a deployment option for Amazon EMR that allows you to run open-source big data frameworks on Amazon Elastic Kubernetes Service (Amazon EKS). 
+`Amazon EMR on EKS <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks.html>`__  provides a deployment option for Amazon EMR that allows you to run open-source big data frameworks on Amazon Elastic Kubernetes Service (Amazon EKS).
 
 Airflow provides the :class:`~airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator` to submit Spark jobs to your EMR on EKS virtual cluster.
 
