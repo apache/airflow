@@ -1690,6 +1690,64 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_dagrun_callbacks_commited_before_sent(self):
+        """
+        Tests that before any callbacks are sent to the processor, the session is committed. This ensures
+        that the dagrun details are up to date when the callbacks are run.
+        """
+        dag = DAG(dag_id='test_dagrun_callbacks_commited_before_sent', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.Mock()
+        self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
+        self.scheduler_job._schedule_dag_run = mock.Mock()
+
+        # Sync DAG into DB
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
+            self.scheduler_job.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        # Create DagRun
+        self.scheduler_job._create_dag_runs([orm_dag], session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        ti = dr.get_task_instance('dummy')
+        ti.set_state(State.SUCCESS, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), mock.patch(
+            "airflow.jobs.scheduler_job.prohibit_commit"
+        ) as mock_gaurd:
+            mock_gaurd.return_value.__enter__.return_value.commit.side_effect = session.commit
+
+            def mock_schedule_dag_run(*args, **kwargs):
+                mock_gaurd.reset_mock()
+                return None
+
+            def mock_send_dag_callbacks_to_processor(*args, **kwargs):
+                mock_gaurd.return_value.__enter__.return_value.commit.assert_called_once()
+
+            self.scheduler_job._send_dag_callbacks_to_processor.side_effect = (
+                mock_send_dag_callbacks_to_processor
+            )
+            self.scheduler_job._schedule_dag_run.side_effect = mock_schedule_dag_run
+
+            self.scheduler_job._do_scheduling(session)
+
+        # Verify dag failure callback request is sent to file processor
+        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
+        # and mock_send_dag_callbacks_to_processor has asserted the callback was sent after a commit
+
+        session.rollback()
+        session.close()
+
     @parameterized.expand([(State.SUCCESS,), (State.FAILED,)])
     def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state):
         """
