@@ -43,7 +43,7 @@ CONFIGURATION_OVERRIDES_ARG = {
         {
             "classification": "spark-defaults",
             "properties": {
-                "spark.hadoop.hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+                "spark.hadoop.hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",  # noqa: E501
             },
         }
     ],
