@@ -439,7 +439,7 @@ def import_local_settings():
             raise
     except ImportError as e:
         log.critical("Failed to import airflow_local_settings.", exc_info=True)
-        raise e
+        raise
 
 
 def initialize():
