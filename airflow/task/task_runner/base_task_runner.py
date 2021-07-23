@@ -19,7 +19,6 @@
 import os
 import subprocess
 import threading
-
 from pwd import getpwnam
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
