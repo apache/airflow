@@ -436,7 +436,7 @@ def import_local_settings():
             log.debug("No airflow_local_settings to import.", exc_info=True)
         else:
             log.critical("Failed to import airflow_local_settings due to a transitive module not found error.", exc_info=True)
-            raise e
+            raise
     except ImportError as e:
         log.critical("Failed to import airflow_local_settings.", exc_info=True)
         raise e
