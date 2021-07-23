@@ -285,7 +285,7 @@ class ProvidersManager:
                                 widget.field_class,
                                 ALLOWED_FIELD_CLASSES,
                             )
-                        return
+                            return
                     self._add_widgets(provider_package, hook_class, widgets)
             if 'get_ui_field_behaviour' in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()
