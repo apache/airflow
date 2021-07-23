@@ -431,13 +431,15 @@ def import_local_settings():
             del globals()["policy"]
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
-    except ImportError:
-        log.warning("Failed to import airflow_local_settings.", exc_info=True)
     except ModuleNotFoundError as e:
         if e.name == "airflow_local_settings":
             log.debug("No airflow_local_settings to import.", exc_info=True)
         else:
-            log.warning("Failed to import airflow_local_settings due to a transitive module not found error.", exc_info=True)
+            log.critical("Failed to import airflow_local_settings due to a transitive module not found error.", exc_info=True)
+            raise e
+    except ImportError as e:
+        log.critical("Failed to import airflow_local_settings.", exc_info=True)
+        raise e
 
 
 def initialize():
