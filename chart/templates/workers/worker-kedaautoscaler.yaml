@@ -37,13 +37,17 @@ spec:
   scaleTargetRef:
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
     name: {{ .Release.Name }}-worker
-  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}  # Optional. Default: 30 seconds
-  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}     # Optional. Default: 300 seconds
-  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}                                            # Optional. Default: 0
+  pollingInterval:  {{ .Values.workers.keda.pollingInterval }}   # Optional. Default: 30 seconds
+  cooldownPeriod: {{ .Values.workers.keda.cooldownPeriod }}    # Optional. Default: 300 seconds
+  minReplicaCount: {{ .Values.workers.keda.minReplicaCount }}   # Optional. Default: 0
   maxReplicaCount: {{ .Values.workers.keda.maxReplicaCount }}   # Optional. Default: 100
   triggers:
-    - type: cpu
+    - type: postgresql
       metadata:
-        type: Utilization
-        value: "30"
+        targetQueryValue: "1"
+        connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
+        query: >-
+          SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+          FROM task_instance
+          WHERE state='running' OR state='queued'
 {{- end }}

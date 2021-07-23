@@ -19,6 +19,7 @@
 ## Airflow Webserver NetworkPolicy
 #################################
 {{- if .Values.networkPolicies.enabled }}
+{{- $from := or .Values.webserver.networkPolicy.ingress.from .Values.webserver.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -39,13 +40,17 @@ spec:
       component: webserver
       release: {{ .Release.Name }}
   policyTypes:
-  - Ingress
+    - Ingress
+{{- if $from }}
   ingress:
-  - from:
-{{- if .Values.webserver.extraNetworkPolicies }}
-{{ toYaml .Values.webserver.extraNetworkPolicies | indent 4 }}
+    - from:
+{{ toYaml $from | indent 6 }}
+      ports:
+      {{ range .Values.webserver.networkPolicy.ingress.ports }}
+        -
+          {{- range $key, $val := . }}
+          {{ $key }}: {{ tpl (toString $val) $ }}
+          {{- end }}
+      {{- end }}
 {{- end }}
-    ports:
-    - protocol: TCP
-      port: {{ .Values.ports.airflowUI }}
 {{- end }}

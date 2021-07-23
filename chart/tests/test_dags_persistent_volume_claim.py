@@ -29,7 +29,7 @@ class DagsPersistentVolumeClaimTest(unittest.TestCase):
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        self.assertEqual(0, len(docs))
+        assert 0 == len(docs)
 
     def test_should_not_generate_a_document_when_using_an_existing_claim(self):
         docs = render_chart(
@@ -37,7 +37,7 @@ class DagsPersistentVolumeClaimTest(unittest.TestCase):
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        self.assertEqual(0, len(docs))
+        assert 0 == len(docs)
 
     def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(self):
         docs = render_chart(
@@ -45,7 +45,7 @@ class DagsPersistentVolumeClaimTest(unittest.TestCase):
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        self.assertEqual(1, len(docs))
+        assert 1 == len(docs)
 
     def test_should_set_pvc_details_correctly(self):
         docs = render_chart(
@@ -63,11 +63,8 @@ class DagsPersistentVolumeClaimTest(unittest.TestCase):
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        self.assertEqual(
-            {
-                "accessModes": ["ReadWriteMany"],
-                "resources": {"requests": {"storage": "1G"}},
-                "storageClassName": "MyStorageClass",
-            },
-            jmespath.search("spec", docs[0]),
-        )
+        assert {
+            "accessModes": ["ReadWriteMany"],
+            "resources": {"requests": {"storage": "1G"}},
+            "storageClassName": "MyStorageClass",
+        } == jmespath.search("spec", docs[0])

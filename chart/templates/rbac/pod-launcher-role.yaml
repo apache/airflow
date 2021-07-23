@@ -18,7 +18,7 @@
 ################################
 ## Airflow Pod Launcher Role
 #################################
-{{- if and .Values.rbacEnabled .Values.allowPodLaunching }}
+{{- if and .Values.rbac.create .Values.allowPodLaunching }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRole
 {{- else }}
@@ -63,4 +63,11 @@ rules:
     verbs:
       - "create"
       - "get"
+  - apiGroups:
+      - ""
+    resources:
+      - "events"
+    verbs:
+      - "list"
+
 {{- end }}

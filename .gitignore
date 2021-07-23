@@ -14,10 +14,8 @@ unittests.db
 airflow/git_version
 airflow/www/static/coverage/
 airflow/www/static/dist
-airflow/www_rbac/static/coverage/
-airflow/www_rbac/static/dist/
 
-logs/
+/logs/
 airflow-webserver.pid
 
 # Byte-compiled / optimized / DLL files
@@ -64,7 +62,7 @@ htmlcov/
 .coverage.*
 .cache
 nosetests.xml
-coverage.xml
+coverage*.xml
 *,cover
 .hypothesis/
 .pytest_cache
@@ -87,6 +85,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/rtd-deprecation/_build/
 docs/_doctrees/
 docs/_inventory_cache/
 docs/*/_api/
@@ -151,7 +150,6 @@ tramp
 rat-results.txt
 
 # Git stuff
-.gitattributes
 # Kubernetes generated templated files
 *.generated
 *.tar.gz
@@ -206,9 +204,16 @@ log.txt*
 # Terraform variables
 *.tfvars
 
-Chart.lock
+# Chart dependencies
+**/charts/*.tgz
 
 # Might be generated when you build wheels
 pip-wheel-metadata
 
 .pypirc
+
+/.docs-venv
+
+# Dev files
+/dev/packages.txt
+/dev/Dockerfile.pmc

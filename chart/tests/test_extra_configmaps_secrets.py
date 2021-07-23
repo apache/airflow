@@ -50,7 +50,7 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             ("ConfigMap", f"{RELEASE_NAME}-airflow-variables"),
             ("ConfigMap", f"{RELEASE_NAME}-other-variables"),
         ]
-        self.assertEqual(set(k8s_objects_by_key.keys()), set(all_expected_keys))
+        assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
 
         all_expected_data = [
             {"AIRFLOW_VAR_HELLO_MESSAGE": "Hi!", "AIRFLOW_VAR_KUBERNETES_NAMESPACE": "default"},
@@ -58,7 +58,7 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
         ]
         for expected_key, expected_data in zip(all_expected_keys, all_expected_data):
             configmap_obj = k8s_objects_by_key[expected_key]
-            self.assertEqual(configmap_obj["data"], expected_data)
+            assert configmap_obj["data"] == expected_data
 
     def test_extra_secrets(self):
         values_str = textwrap.dedent(
@@ -88,7 +88,7 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             ("Secret", f"{RELEASE_NAME}-airflow-connections"),
             ("Secret", f"{RELEASE_NAME}-other-secrets"),
         ]
-        self.assertEqual(set(k8s_objects_by_key.keys()), set(all_expected_keys))
+        assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
 
         all_expected_data = [
             {"AIRFLOW_CON_AWS": b64encode(b"aws_connection_string").decode("utf-8")},
@@ -106,5 +106,5 @@ class ExtraConfigMapsSecretsTest(unittest.TestCase):
             all_expected_keys, all_expected_data, all_expected_string_data
         ):
             configmap_obj = k8s_objects_by_key[expected_key]
-            self.assertEqual(configmap_obj["data"], expected_data)
-            self.assertEqual(configmap_obj["stringData"], expected_string_data)
+            assert configmap_obj["data"] == expected_data
+            assert configmap_obj["stringData"] == expected_string_data
