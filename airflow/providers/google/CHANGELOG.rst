@@ -34,7 +34,7 @@ Breaking changes
 
    In order to use the API's new proto-plus format, you can use the `search_proto_plus()` method.
 
-   For more information, please consult google's migration document: https://developers.google.com/google-ads/api/docs/client-libs/python/library-version-10
+   For more information, please consult `google-ads migration document <https://developers.google.com/google-ads/api/docs/client-libs/python/library-version-10>`__: 
 
 
 Features
