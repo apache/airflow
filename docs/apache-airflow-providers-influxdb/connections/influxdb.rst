@@ -41,7 +41,8 @@ Extra (required)
 
       Example "extras" field:
 
-      .. code-block:: json
+      .. code-block:: JSON
+
          {
             "token": "343434343423234234234343434",
             "org_name": "Test"
