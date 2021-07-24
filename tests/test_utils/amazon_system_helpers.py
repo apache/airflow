@@ -23,6 +23,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.credentials_provider import provide_aws_conn_and_credentials
 from airflow.utils import db
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.logging_command_executor import get_executor
@@ -30,17 +31,42 @@ from tests.test_utils.system_tests_class import SystemTest
 
 AWS_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "providers", "amazon", "aws", "example_dags")
 AWS_EKS_KEY = "aws_eks.json"
+S3_KEY_FILE = 's3_credentials'
+
+
+# TODO: This helper was pulled from GSP, a generic version should be put
+# somewhere.
+def resolve_full_aws_key_path(key_file_name: str) -> str:
+    """
+    Returns path full path to provided GCP key.
+
+    :param key_filename: Name of the GCP key, for example ``my_service.json``
+    :type key: str
+    :returns: Full path to the key
+    """
+    path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
+    if not key_file_name:
+        raise ValueError("Please provide a `key_file_name`.")
+    key_file_path = os.path.join(path, key_file_name)
+
+    return key_file_path
 
 
 @contextmanager
-def provide_aws_context(key_file_path: Optional[str] = None):
+def provide_aws_context(
+    key_file_name: Optional[str] = None,
+    # TODO: Maybe just kludge region in here as a parameter? That would really
+    # suck though, since the key file is a nice dynamic source of credentials
+    # but the region would be hardcoded in the source code.
+):
     """
     Authenticates the context to be able use aws resources.
 
     Falls back to awscli default authentication methods via `.aws`` folder.
     """
-    # TODO: Implement more authentication methods
-    yield
+    key_file_path = resolve_full_aws_key_path(key_file_name)  # type: ignore
+    with provide_aws_conn_and_credentials(key_file_path):
+        yield
 
 
 @contextmanager

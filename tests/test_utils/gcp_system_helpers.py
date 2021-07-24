@@ -51,22 +51,22 @@ POSTGRES_LOCAL_EXECUTOR = os.path.join(
 )
 
 
-def resolve_full_gcp_key_path(key: str) -> str:
+def resolve_full_gcp_key_path(key_filename: str) -> str:
     """
     Returns path full path to provided GCP key.
 
-    :param key: Name of the GCP key, for example ``my_service.json``
+    :param key_filename: Filename of the GCP key, for example ``my_service.json``
     :type key: str
     :returns: Full path to the key
     """
     path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
-    key = os.path.join(path, key)
-    return key
+    key_file_path = os.path.join(path, key_filename)
+    return key_file_path
 
 
 @contextmanager
 def provide_gcp_context(
-    key_file_path: Optional[str] = None,
+    key_filename: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
 ):
@@ -81,15 +81,16 @@ def provide_gcp_context(
     Moreover it resolves full path to service keys so user can pass ``myservice.json``
     as ``key_file_path``.
 
-    :param key_file_path: Path to file with GCP credentials .json file.
-    :type key_file_path: str
+    :param key_filename: Filename of a .json key file to be found in the
+        credentials dir.
+    :type key_filename: str
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence
     :param project_id: The id of GCP project for the connection.
         Default: ``os.environ["GCP_PROJECT_ID"]`` or None
     :type project_id: str
     """
-    key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
+    key_file_path = resolve_full_gcp_key_path(key_filename)  # type: ignore
     if project_id is None:
         project_id = os.environ.get("GCP_PROJECT_ID")
     with provide_gcp_conn_and_credentials(
