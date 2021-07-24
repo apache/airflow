@@ -124,7 +124,7 @@ class TestTaskInstance(unittest.TestCase):
     def test_load_error_file_returns_None_for_closed_file(self):
         error_fd = NamedTemporaryFile()
         error_fd.close()
-        assert not load_error_file(error_fd)
+        assert load_error_file(error_fd) is None
 
     def test_load_error_file_loads_correctly(self):
         error_message = "some random error message"
