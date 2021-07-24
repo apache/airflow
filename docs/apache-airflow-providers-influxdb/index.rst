@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/influxdb/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/influxdb/example_dags>
 
 .. toctree::
     :maxdepth: 1
