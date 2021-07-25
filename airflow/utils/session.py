@@ -88,9 +88,8 @@ def create_global_lock(session=None, pg_lock_id=1, lock_name='init', mysql_lock_
             session.connection().execute(f"select GET_LOCK('{lock_name}',{mysql_lock_timeout});")
 
         if dialect.name == 'mssql':
-            session.connection().execute(
-                f"sp_getapplock @Resource = '{lock_name}', @LockMode = 'Exclusive', @LockOwner = 'Session';"
-            )
+            # TODO: make locking works for MSSQL
+            pass
 
         yield None
     finally:
@@ -104,6 +103,5 @@ def create_global_lock(session=None, pg_lock_id=1, lock_name='init', mysql_lock_
             session.connection().execute(f"select RELEASE_LOCK('{lock_name}');")
 
         if dialect.name == 'mssql':
-            session.connection().execute(
-                f"sp_releaseapplock @Resource = '{lock_name}', @LockOwner = 'Session';"
-            )
+            # TODO: make locking works for MSSQL
+            pass
