@@ -125,6 +125,7 @@ class PostgresHook(DbApiHook):
         So if users want to be aware when the input file does not exist,
         they have to check its existence by themselves.
         """
+        self.log.info("Running copy expert: %s, filename: %s", sql, filename)
         if not os.path.isfile(filename):
             with open(filename, 'w'):
                 pass
