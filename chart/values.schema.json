@@ -40,7 +40,6 @@
             "default": "",
             "x-docsSection": null
         },
-
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",
@@ -133,9 +132,9 @@
                             "default": ""
                         },
                         "pathType": {
-                            "description": "The pathType for the web Ingress.",
+                            "description": "The pathType for the web Ingress (required for Kubernetes 1.19 and above).",
                             "type": "string",
-                            "default": ""
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
                             "description": "The hostname for the web Ingress.",
@@ -192,9 +191,9 @@
                             "default": ""
                         },
                         "pathType": {
-                            "description": "The pathType for the flower Ingress.",
+                            "description": "The pathType for the flower Ingress (required for Kubernetes 1.19 and above).",
                             "type": "string",
-                            "default": ""
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
                             "description": "The hostname for the flower Ingress.",

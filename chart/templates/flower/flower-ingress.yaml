@@ -34,8 +34,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-  {{- if .Values.ingress.flower.annotations }}
-  annotations: {{ toYaml .Values.ingress.flower.annotations | nindent 4 }}
+  {{- with .Values.ingress.flower.annotations }}
+  annotations:
+    {{ toYaml . | nindent 4 }}
   {{- end }}
 spec:
   {{- if .Values.ingress.flower.tls.enabled }}
@@ -57,7 +58,6 @@ spec:
               serviceName: {{ .Release.Name }}-flower
               servicePort: flower-ui
               {{- end }}
-
             {{- if .Values.ingress.flower.path }}
             path: {{ .Values.ingress.flower.path }}
             {{- if semverCompare ">= 1.19.x" (include "kubeVersion" .) }}

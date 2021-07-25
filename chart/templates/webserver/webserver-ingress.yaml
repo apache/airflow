@@ -33,12 +33,10 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-{{- if .Values.ingress.web.annotations }}
+  {{- with .Values.ingress.web.annotations }}
   annotations:
-{{- with .Values.ingress.web.annotations }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-{{- end}}
+    {{ toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   {{- if .Values.ingress.web.tls.enabled }}
   tls:
