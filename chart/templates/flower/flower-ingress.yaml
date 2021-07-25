@@ -20,7 +20,11 @@
 #################################
 {{- if .Values.flower.enabled }}
 {{- if and .Values.ingress.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+{{- if semverCompare ">= 1.19.x" (include "kubeVersion" .) }}
+apiVersion: networking.k8s.io/v1
+{{- else }}
 apiVersion: networking.k8s.io/v1beta1
+{{- end }}
 kind: Ingress
 metadata:
   name: {{ .Release.Name }}-flower-ingress
@@ -44,13 +48,27 @@ spec:
     - http:
         paths:
           - backend:
+              {{- if semverCompare ">= 1.19.x" (include "kubeVersion" .) }}
+              service:
+                name: {{ .Release.Name }}-flower
+                port:
+                  name: flower-ui
+              {{- else }}
               serviceName: {{ .Release.Name }}-flower
               servicePort: flower-ui
+              {{- end }}
+
             {{- if .Values.ingress.flower.path }}
             path: {{ .Values.ingress.flower.path }}
+            {{- if semverCompare ">= 1.19.x" (include "kubeVersion" .) }}
+            pathType: {{ .Values.ingress.flower.pathType }}
+            {{- end }}
             {{- end }}
       {{- if .Values.ingress.flower.host }}
       host: {{ .Values.ingress.flower.host }}
       {{- end }}
+  {{- if and .Values.ingress.flower.ingressClassName (semverCompare ">= 1.19.x" (include "kubeVersion" .)) }}
+  ingressClassName: {{ .Values.ingress.flower.ingressClassName }}
+  {{- end }}
 {{- end }}
 {{- end }}
