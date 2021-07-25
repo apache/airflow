@@ -244,7 +244,7 @@ class TestAwsBaseHook(unittest.TestCase):
                 {
                     "role_arn": role_arn,
                 }
-            )
+            ),
         )
         mock_get_connection.return_value = mock_connection
 
