@@ -143,8 +143,9 @@ class ECSOperator(BaseOperator):
         This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
         the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
-    :param number_logs_exception: number of lines from the last Cloudwatch logs to return in the AirflowException if
-        an ECS task is stopped (to receive Airflow alerts with the logs of what failed in the code running in ECS)
+    :param number_logs_exception: number of lines from the last Cloudwatch logs to return in the
+        AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
+        failed in the code running in ECS)
     :type number_logs_exception: int
     """
 
@@ -386,9 +387,9 @@ class ECSOperator(BaseOperator):
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    last_log_messages = "\n".join(self._last_log_messages(self.number_logs_exception))
+                    last_logs = "\n".join(self._last_log_messages(self.number_logs_exception))
                     raise AirflowException(
-                        f"This task is not in success state - last logs from Cloudwatch:\n{last_log_messages}"
+                        f"This task is not in success state - last logs from Cloudwatch:\n{last_logs}"
                     )
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException(f'This task is still pending {task}')
