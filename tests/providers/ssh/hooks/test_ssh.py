@@ -68,6 +68,9 @@ TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 TEST_PKEY_ECDSA = paramiko.ECDSAKey.generate()
 TEST_PRIVATE_KEY_ECDSA = generate_key_string(pkey=TEST_PKEY_ECDSA)
 
+TEST_TIMEOUT = 20
+TEST_CONN_TIMEOUT = 30
+
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
@@ -76,6 +79,8 @@ class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_EXTRA = 'ssh_with_private_key_extra'
     CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA = 'ssh_with_private_key_ecdsa_extra'
     CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA = 'ssh_with_private_key_passphrase_extra'
+    CONN_SSH_WITH_TIMEOUT_EXTRA = 'ssh_with_timeout_extra'
+    CONN_SSH_WITH_CONN_TIMEOUT_EXTRA = 'ssh_with_conn_timeout_extra'
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
     CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = 'ssh_with_extra_false_look_for_keys'
     CONN_SSH_WITH_HOST_KEY_EXTRA = 'ssh_with_host_key_extra'
@@ -91,6 +96,8 @@ class TestSSHHook(unittest.TestCase):
                 cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
                 cls.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
+                cls.CONN_SSH_WITH_TIMEOUT_EXTRA,
+                cls.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
                 cls.CONN_SSH_WITH_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
                 cls.CONN_SSH_WITH_HOST_KEY_EXTRA_WITH_TYPE,
@@ -128,7 +135,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_type='ssh',
                 extra=json.dumps(
                     {
-                        "private_key": TEST_PRIVATE_KEY,
+                        "private_key": TEST_PRIVATE_KEY
                     }
                 ),
             )
@@ -149,6 +156,22 @@ class TestSSHHook(unittest.TestCase):
                 host='localhost',
                 conn_type='ssh',
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY_ECDSA}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_TIMEOUT_EXTRA,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"timeout": TEST_TIMEOUT}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"conn_timeout": TEST_CONN_TIMEOUT}),
             )
         )
         db.merge_conn(
@@ -474,6 +497,98 @@ class TestSSHHook(unittest.TestCase):
         with hook.get_conn():
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_conn_timeout(self, ssh_mock):
+        hook = SSHHook(
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            password='password',
+            conn_timeout=20,
+            key_file='fake.file',
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
+                username='username',
+                password='password',
+                key_filename='fake.file',
+                timeout=20,
+                compress=True,
+                port='port',
+                sock=None,
+                look_for_keys=True,
+            )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_conn_timeout_and_timeout(self, ssh_mock):
+        hook = SSHHook(
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            password='password',
+            timeout=10,
+            conn_timeout=20,
+            key_file='fake.file',
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
+                username='username',
+                password='password',
+                key_filename='fake.file',
+                timeout=20,
+                compress=True,
+                port='port',
+                sock=None,
+                look_for_keys=True,
+            )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_timeout_extra(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_TIMEOUT_EXTRA,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            timeout=10,
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
+                username='username',
+                timeout=20,
+                compress=True,
+                port='port',
+                sock=None,
+                look_for_keys=True,
+            )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_conn_timeout_extra(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_CONN_TIMEOUT_EXTRA,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+            timeout=10,
+            conn_timeout=15
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                hostname='remote_host',
+                username='username',
+                timeout=30,
+                compress=True,
+                port='port',
+                sock=None,
+                look_for_keys=True,
+            )
 
     def test_openssh_private_key(self):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko
