@@ -52,7 +52,7 @@ class TestSSHOperator(unittest.TestCase):
         self.hook = hook
         self.dag = dag
 
-    def test_hook_created_correctly(self):
+    def test_hook_created_correctly_with_timeout(self):
         timeout = 20
         ssh_id = "ssh_default"
         task = SSHOperator(
@@ -61,8 +61,21 @@ class TestSSHOperator(unittest.TestCase):
         assert task is not None
 
         task.execute(None)
+        
+        assert timeout == task.ssh_hook.conn_timeout
+        assert ssh_id == task.ssh_hook.ssh_conn_id
 
-        assert timeout == task.ssh_hook.timeout
+    def test_hook_created_correctly(self):
+        conn_timeout = 20
+        ssh_id = "ssh_default"
+        task = SSHOperator(
+            task_id="test", command=COMMAND, dag=self.dag, conn_timeout=conn_timeout, ssh_conn_id="ssh_default"
+        )
+        assert task is not None
+
+        task.execute(None)
+        
+        assert conn_timeout == task.ssh_hook.conn_timeout
         assert ssh_id == task.ssh_hook.ssh_conn_id
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
@@ -138,7 +151,8 @@ class TestSSHOperator(unittest.TestCase):
     def test_arg_checking(self):
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         with pytest.raises(AirflowException, match="Cannot operate without ssh_hook or ssh_conn_id."):
-            task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=self.dag)
+            #  task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=self.dag)
+            task_0 = SSHOperator(task_id="test", command=COMMAND, conn_timeout=TIMEOUT, cmd_timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)
 
         # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
@@ -147,7 +161,8 @@ class TestSSHOperator(unittest.TestCase):
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            timeout=TIMEOUT,
+            conn_timeout=TIMEOUT,
+            cmd_timeout=TIMEOUT,
             dag=self.dag,
         )
         try:
@@ -160,7 +175,9 @@ class TestSSHOperator(unittest.TestCase):
             task_id="test_2",
             ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
             command=COMMAND,
-            timeout=TIMEOUT,
+            # timeout=TIMEOUT,
+            conn_timeout=TIMEOUT,
+            cmd_timeout=TIMEOUT,
             dag=self.dag,
         )
         try:
@@ -175,7 +192,9 @@ class TestSSHOperator(unittest.TestCase):
             ssh_hook=self.hook,
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            timeout=TIMEOUT,
+            # timeout=TIMEOUT,
+            conn_timeout=TIMEOUT,
+            cmd_timeout=TIMEOUT,
             dag=self.dag,
         )
         try:
@@ -198,7 +217,9 @@ class TestSSHOperator(unittest.TestCase):
             task_id="test",
             ssh_hook=self.hook,
             command=command,
-            timeout=TIMEOUT,
+            # timeout=TIMEOUT,
+            conn_timeout=TIMEOUT,
+            cmd_timeout=TIMEOUT,
             get_pty=get_pty_in,
             dag=self.dag,
         )
