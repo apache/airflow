@@ -28,7 +28,6 @@ import configparser
 import datetime
 import logging
 from functools import wraps
-from slugify import slugify
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import boto3
@@ -38,6 +37,7 @@ import requests
 import tenacity
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from slugify import slugify
 
 try:
     from functools import cached_property
