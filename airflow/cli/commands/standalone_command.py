@@ -159,7 +159,7 @@ class StandaloneCommand:
         """Makes sure all the tables are created."""
         # Set up DB tables
         self.print_output("standalone", "Checking database is initialized")
-        db.initdb()
+        db.initdb_with_session()
         self.print_output("standalone", "Database ready")
         # See if a user needs creating
         # We want a streamlined first-run experience, but we do not want to

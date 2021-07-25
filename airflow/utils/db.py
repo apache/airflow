@@ -573,14 +573,19 @@ def create_default_connections(session=None):
 
 
 @provide_session
-def initdb(session=None):
+def initdb_with_session(session=None):
+    """Initialize Airflow database with session."""
+    initdb(session=session)
+
+
+def initdb(session):
     """Initialize Airflow database."""
     upgradedb(session=session)
 
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
 
-    with create_global_lock(session=session):
+    with create_global_lock(session=session, pg_lock_id=1, lock_name="init"):
 
         dagbag = DagBag()
         # Save DAGs in the ORM
@@ -702,7 +707,12 @@ def auto_migrations_available(session=None):
 
 
 @provide_session
-def upgradedb(session=None):
+def upgradedb_with_session(session=None):
+    """Upgrade the database with session."""
+    upgradedb(session=session)
+
+
+def upgradedb(session):
     """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
     from alembic import command
@@ -723,7 +733,12 @@ def upgradedb(session=None):
 
 
 @provide_session
-def resetdb(session=None):
+def resetdb_with_session(session=None):
+    """Upgrade the database with session."""
+    resetdb(session=session)
+
+
+def resetdb(session):
     """Clear out the database"""
     log.info("Dropping tables that exist")
 
@@ -733,7 +748,7 @@ def resetdb(session=None):
         drop_airflow_models(connection)
         drop_flask_models(connection)
 
-    initdb(session=session)
+        initdb(session=session)
 
 
 def drop_airflow_models(connection):

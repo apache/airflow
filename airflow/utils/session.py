@@ -74,7 +74,7 @@ def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
 
 @provide_session
 @contextlib.contextmanager
-def create_global_lock(session=None, pg_lock_id=1, lock_name='init', mysql_lock_timeout=1800):
+def create_global_lock(session, pg_lock_id, lock_name, mysql_lock_timeout=1800):
     """Contextmanager that will create and teardown a global db lock."""
     dialect = session.connection().dialect
     try:

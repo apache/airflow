@@ -28,7 +28,7 @@ from airflow.utils.process_utils import execute_interactive
 def initdb(args):
     """Initializes the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    db.initdb()
+    db.initdb_with_session()
     print("Initialization done")
 
 
@@ -36,7 +36,7 @@ def resetdb(args):
     """Resets the metadata database"""
     print("DB: " + repr(settings.engine.url))
     if args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y":
-        db.resetdb()
+        db.resetdb_with_session()
     else:
         print("Cancelled")
 
@@ -45,7 +45,7 @@ def resetdb(args):
 def upgradedb(args):
     """Upgrades the metadata database"""
     print("DB: " + repr(settings.engine.url))
-    db.upgradedb()
+    db.upgradedb_with_session()
     print("Upgrades done")
 
 

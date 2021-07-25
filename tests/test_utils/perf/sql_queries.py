@@ -108,9 +108,9 @@ def reset_db():
     """
     Wrapper function that calls the airflow resetdb function.
     """
-    from airflow.utils.db import resetdb
+    from airflow.utils.db import resetdb_with_session
 
-    resetdb()
+    resetdb_with_session()
 
 
 def run_scheduler_job(with_db_reset=False) -> None:

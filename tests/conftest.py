@@ -61,7 +61,7 @@ def reset_db():
 
     from airflow.utils import db
 
-    db.resetdb()
+    db.resetdb_with_session()
     yield
 
 
@@ -170,7 +170,7 @@ def initial_db_init():
     else:
         from airflow.utils import db
 
-        db.resetdb()
+        db.resetdb_with_session()
 
 
 @pytest.fixture(autouse=True, scope="session")
