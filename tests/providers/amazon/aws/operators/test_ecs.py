@@ -217,7 +217,8 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(cluster='c', tasks=['arn'])
         assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
-    def test_check_success_tasks_raises(self):
+    @mock.patch.object(ECSOperator, '_last_log_messages', return_value=["1", "2", "3", "4", "5"])
+    def test_check_success_tasks_raises_cloudwatch_logs(self, mock_last_log_messages):
         client_mock = mock.Mock()
         self.ecs.arn = 'arn'
         self.ecs.client = client_mock
@@ -228,11 +229,11 @@ class TestECSOperator(unittest.TestCase):
         with pytest.raises(Exception) as ctx:
             self.ecs._check_success_task()
 
-        # Ordering of str(dict) is not guaranteed.
-        assert "This task is not in success state " in str(ctx.value)
-        assert "'name': 'foo'" in str(ctx.value)
-        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
-        assert "'exitCode': 1" in str(ctx.value)
+        expected_last_logs = "\n".join(mock_last_log_messages.return_value)
+        assert (
+            str(ctx.value)
+            == f"This task is not in success state - last logs from Cloudwatch:\n{expected_last_logs}"
+        )
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):
@@ -415,17 +416,17 @@ class TestECSOperator(unittest.TestCase):
         xcom_del_mock.assert_called_once()
         assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
 
-    @mock.patch.object(ECSOperator, '_last_log_message', return_value="Log output")
+    @mock.patch.object(ECSOperator, '_last_log_messages', return_value=["Log output"])
     def test_execute_xcom_with_log(self, mock_cloudwatch_log_message):
         self.ecs.do_xcom_push = True
-        assert self.ecs.execute(None) == mock_cloudwatch_log_message.return_value
+        assert self.ecs.execute(None) == mock_cloudwatch_log_message.return_value[-1]
 
-    @mock.patch.object(ECSOperator, '_last_log_message', return_value=None)
+    @mock.patch.object(ECSOperator, '_last_log_messages', return_value=[])
     def test_execute_xcom_with_no_log(self, mock_cloudwatch_log_message):
         self.ecs.do_xcom_push = True
-        assert self.ecs.execute(None) == mock_cloudwatch_log_message.return_value
+        assert self.ecs.execute(None) is None
 
-    @mock.patch.object(ECSOperator, '_last_log_message', return_value="Log output")
+    @mock.patch.object(ECSOperator, '_last_log_messages', return_value=["Log output"])
     def test_execute_xcom_disabled(self, mock_cloudwatch_log_message):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
