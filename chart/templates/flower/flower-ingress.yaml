@@ -36,7 +36,7 @@ metadata:
     heritage: {{ .Release.Service }}
   {{- with .Values.ingress.flower.annotations }}
   annotations:
-    {{ toYaml . | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   {{- if .Values.ingress.flower.tls.enabled }}
