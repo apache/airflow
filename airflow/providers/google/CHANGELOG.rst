@@ -21,6 +21,22 @@ Changelog
 4.1.0
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Updated GoogleAdsHook to support newer API versions after google deprecated v5. Google Ads v8 is the new default API. (#17111)``
+
+.. warning:: The underlying google-ads library had breaking changes.
+   
+   Previously the google ads library returned data as native protobuf messages. Now it returns data as proto-plus objects that behave more like conventional Python objects. 
+
+   To preserve compatibility the hook's `search()` converts the data back to native protobuf before returning it. Your existing operators *should* work as before, but due to the urgency of the v5 API being deprecated it was not tested too thoroughly. Therefore you should carefully evaluate your operator and hook functionality with this new version.
+
+   In order to use the API's new proto-plus format, you can use the `search_proto_plus()` method.
+
+   For more information, please consult `google-ads migration document <https://developers.google.com/google-ads/api/docs/client-libs/python/library-version-10>`__: 
+
+
 Features
 ~~~~~~~~
 

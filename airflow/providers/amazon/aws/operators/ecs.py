@@ -220,7 +220,7 @@ class ECSOperator(BaseOperator):
         self.client = self.get_hook().get_conn()
 
         if self.reattach:
-            self._try_reattach_task()
+            self._try_reattach_task(context)
 
         if not self.arn:
             self._start_task(context)
@@ -301,7 +301,7 @@ class ECSOperator(BaseOperator):
             execution_date=context["ti"].execution_date,
         )
 
-    def _try_reattach_task(self):
+    def _try_reattach_task(self, context):
         task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
@@ -312,6 +312,7 @@ class ECSOperator(BaseOperator):
 
         # Check if the ECS task previously launched is already running
         previous_task_arn = self.xcom_pull(
+            context,
             task_ids=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
             key=self.REATTACH_XCOM_KEY,
         )

@@ -116,6 +116,8 @@ Dsn
 Dynamodb
 EDITMSG
 ETag
+EdgeModifier
+EdgeModifiers
 Eg
 EmrAddSteps
 EmrCreateJobFlow

@@ -191,8 +191,8 @@ class BaseOperatorMeta(abc.ABCMeta):
 
         return cast(T, apply_defaults)
 
-    def __new__(cls, name, bases, namespace):
-        new_cls = super().__new__(cls, name, bases, namespace)
+    def __new__(cls, name, bases, namespace, **kwargs):
+        new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
         return new_cls
 
@@ -1546,13 +1546,16 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         return getattr(self, '_is_dummy', False)
 
 
-def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "XComArg"]]]):
+Chainable = Union[BaseOperator, "XComArg", EdgeModifier]
+
+
+def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
-    This function accepts values of BaseOperator (aka tasks), XComArg, or lists containing
-    either type (or a mix of both in the same list). If you want to chain between two lists you must
-    ensure they have the same length.
+    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists
+    containing any mix of these types (or a mix in the same list). If you want to chain between two lists
+    you must ensure they have the same length.
 
     Using classic operators/sensors:
 
@@ -1603,41 +1606,58 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "X
         x5.set_downstream(x6)
 
 
-    It is also possible to mix between classic operator/sensor and XComArg tasks:
+    It is also possible to mix between classic operator/sensor, EdgeModifiers, and XComArg tasks:
 
     .. code-block:: python
 
-        chain(t1, [x1(), x2()], t2, x3())
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], t2, x3())
 
     is equivalent to::
 
-          / -> x1 \
-        t1         -> t2 -> x3
-          \ -> x2 /
+          / "branch one" -> x1 \
+        t1                      -> t2 -> x3
+          \ "branch two" -> x2 /
 
     .. code-block:: python
 
         x1 = x1()
         x2 = x2()
         x3 = x3()
-        t1.set_downstream(x1)
-        t1.set_downstream(x2)
+        label1 = Label("branch one")
+        label2 = Label("branch two")
+        t1.set_downstream(label1)
+        label1.set_downstream(x1)
+        t2.set_downstream(label2)
+        label2.set_downstream(x2)
         x1.set_downstream(t2)
         x2.set_downstream(t2)
         t2.set_downstream(x3)
 
-    :param tasks: List of tasks or XComArgs to set dependencies
-    :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator, List[airflow.models.XComArg],
+        # or
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        t1.set_downstream(x1, edge_modifier=Label("branch one"))
+        t1.set_downstream(x2, edge_modifier=Label("branch two"))
+        x1.set_downstream(t2)
+        x2.set_downstream(t2)
+        t2.set_downstream(x3)
+
+
+    :param tasks: Individual and/or list of tasks, EdgeModifiers, or XComArgs to set dependencies
+    :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator,
+        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg],
         or XComArg
     """
     from airflow.models.xcom_arg import XComArg
 
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, (BaseOperator, XComArg)):
+        if isinstance(up_task, (BaseOperator, XComArg, EdgeModifier)):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, (BaseOperator, XComArg)):
+        if isinstance(down_task, (BaseOperator, XComArg, EdgeModifier)):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
@@ -1650,8 +1670,8 @@ def chain(*tasks: Union[BaseOperator, "XComArg", Sequence[Union[BaseOperator, "X
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):
             raise AirflowException(
-                f'Chain not supported different length Iterable '
-                f'but get {len(up_task_list)} and {len(down_task_list)}'
+                f'Chain not supported for different length Iterable. '
+                f'Got {len(up_task_list)} and {len(down_task_list)}.'
             )
         for up_t, down_t in zip(up_task_list, down_task_list):
             up_t.set_downstream(down_t)

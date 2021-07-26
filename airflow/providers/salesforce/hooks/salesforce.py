@@ -25,7 +25,7 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
-from typing import Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
 from simple_salesforce import Salesforce, api
@@ -37,28 +37,57 @@ log = logging.getLogger(__name__)
 
 class SalesforceHook(BaseHook):
     """
-    Create new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
+    Creates new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
 
     You can then use that file with other Airflow operators to move the data into another data source.
 
-    :param conn_id: the name of the connection that has the parameters we need to connect to Salesforce.
-        The connection should be type `http` and include a user's security token in the `Extras` field.
+    :param conn_id: The name of the connection that has the parameters needed to connect to Salesforce.
+        The connection should be of type `Salesforce`.
     :type conn_id: str
 
     .. note::
-        For the HTTP connection type, you can include a
-        JSON structure in the `Extras` field.
-        We need a user's security token to connect to Salesforce.
-        So we define it in the `Extras` field as `{"security_token":"YOUR_SECURITY_TOKEN"}`
-
-        For sandbox mode, add `{"domain":"test"}` in the `Extras` field
+        To connect to Salesforce make sure the connection includes a Username, Password, and Security Token.
+        If in sandbox, enter a Domain value of 'test'.  Login methods such as IP filtering and JWT are not
+        supported currently.
 
     """
 
-    def __init__(self, conn_id: str) -> None:
+    conn_name_attr = "salesforce_conn_id"
+    default_conn_name = "salesforce_default"
+    conn_type = "salesforce"
+    hook_name = "Salesforce"
+
+    def __init__(self, salesforce_conn_id: str = default_conn_name) -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = salesforce_conn_id
         self.conn = None
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "extra__salesforce__security_token": PasswordField(
+                lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__salesforce__domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["schema", "port", "extra", "host"],
+            "relabeling": {
+                "login": "Username",
+            },
+            "placeholders": {
+                "extra__salesforce__domain": "(Optional)  Set to 'test' if working in sandbox mode.",
+            },
+        }
 
     def get_conn(self) -> api.Salesforce:
         """Sign into Salesforce, only if we are not already signed in."""
@@ -68,9 +97,8 @@ class SalesforceHook(BaseHook):
             self.conn = Salesforce(
                 username=connection.login,
                 password=connection.password,
-                security_token=extras['security_token'],
-                instance_url=connection.host,
-                domain=extras.get('domain'),
+                security_token=extras["extra__salesforce__security_token"],
+                domain=extras["extra__salesforce__domain"] or "login",
             )
         return self.conn
 

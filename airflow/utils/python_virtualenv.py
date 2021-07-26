@@ -18,6 +18,7 @@
 #
 """Utilities for creating a virtual environment"""
 import os
+import sys
 from collections import deque
 from typing import List, Optional
 
@@ -27,7 +28,7 @@ from airflow.utils.process_utils import execute_in_subprocess
 
 
 def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> List[str]:
-    cmd = ['virtualenv', tmp_dir]
+    cmd = [sys.executable, '-m', 'virtualenv', tmp_dir]
     if system_site_packages:
         cmd.append('--system-site-packages')
     if python_bin is not None:

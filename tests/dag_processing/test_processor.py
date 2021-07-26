@@ -640,6 +640,29 @@ class TestDagFileProcessor(unittest.TestCase):
                 test_mode=conf.getboolean('core', 'unit_test_mode'),
             )
 
+    def test_failure_callbacks_should_not_drop_hostname(self):
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor.UNIT_TEST_MODE = False
+
+        with create_session() as session:
+            dag = dagbag.get_dag('example_branch_operator')
+            task = dag.get_task(task_id='run_this_first')
+
+            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
+            ti.hostname = "test_hostname"
+            session.add(ti)
+
+        with create_session() as session:
+            requests = [
+                TaskCallbackRequest(
+                    full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message"
+                )
+            ]
+            dag_file_processor.execute_callbacks(dagbag, requests)
+            tis = session.query(TaskInstance)
+            assert tis[0].hostname == "test_hostname"
+
     def test_process_file_should_failure_callback(self):
         dag_file = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), '../dags/test_on_failure_callback.py'

@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,30 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 
-# apiVersion v2 is Helm 3
----
-apiVersion: v2
-name: airflow
-version: 1.1.0
-appVersion: 2.1.2
-description: The official Helm chart to deploy Apache Airflow, a platform to
-  programmatically author, schedule, and monitor workflows
-home: https://airflow.apache.org/
-sources:
-  - https://github.com/apache/airflow
-icon: https://airflow.apache.org/docs/apache-airflow/stable/_images/pin_large.png
-keywords:
-  - apache
-  - airflow
-  - workflow
-  - scheduler
-dependencies:
-  - name: postgresql
-    version: 10.5.3
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: postgresql.enabled
-maintainers:
-  - email: dev@airflow.apache.org
-    name: Apache Airflow PMC
-type: application
+import pytest
+
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.system_tests_class import SystemTest
+
+DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "providers", "asana", "example_dags")
+
+
+@pytest.mark.system("asana")
+class AsanaExampleDagsSystemTest(SystemTest):
+    def test_run_example_dag_asana(self):
+        self.run_dag("example_asana", DAG_FOLDER)
