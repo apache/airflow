@@ -31,7 +31,9 @@ from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests_ssh_test_op'
 TEST_CONN_ID = "conn_id_for_testing"
-TIMEOUT = 5
+CONN_TIMEOUT = 5
+CMD_TIMEOUT = 7
+TIMEOUT = 12
 DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
@@ -67,9 +69,10 @@ class TestSSHOperator(unittest.TestCase):
 
     def test_hook_created_correctly(self):
         conn_timeout = 20
+        cmd_timeout = 45
         ssh_id = "ssh_default"
         task = SSHOperator(
-            task_id="test", command=COMMAND, dag=self.dag, conn_timeout=conn_timeout, ssh_conn_id="ssh_default"
+            task_id="test", command=COMMAND, dag=self.dag, conn_timeout=conn_timeout, cmd_timeout=cmd_timeout, ssh_conn_id="ssh_default"
         )
         assert task is not None
 
@@ -151,7 +154,6 @@ class TestSSHOperator(unittest.TestCase):
     def test_arg_checking(self):
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         with pytest.raises(AirflowException, match="Cannot operate without ssh_hook or ssh_conn_id."):
-            #  task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=self.dag)
             task_0 = SSHOperator(task_id="test", command=COMMAND, conn_timeout=TIMEOUT, cmd_timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)
 
@@ -161,8 +163,8 @@ class TestSSHOperator(unittest.TestCase):
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            conn_timeout=TIMEOUT,
-            cmd_timeout=TIMEOUT,
+            conn_timeout=CONN_TIMEOUT,
+            cmd_timeout=CMD_TIMEOUT,
             dag=self.dag,
         )
         try:
@@ -175,9 +177,8 @@ class TestSSHOperator(unittest.TestCase):
             task_id="test_2",
             ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
             command=COMMAND,
-            # timeout=TIMEOUT,
-            conn_timeout=TIMEOUT,
-            cmd_timeout=TIMEOUT,
+            conn_timeout=CONN_TIMEOUT,
+            cmd_timeout=CMD_TIMEOUT,
             dag=self.dag,
         )
         try:
@@ -192,9 +193,8 @@ class TestSSHOperator(unittest.TestCase):
             ssh_hook=self.hook,
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
-            # timeout=TIMEOUT,
-            conn_timeout=TIMEOUT,
-            cmd_timeout=TIMEOUT,
+            conn_timeout=CONN_TIMEOUT,
+            cmd_timeout=CMD_TIMEOUT,
             dag=self.dag,
         )
         try:
@@ -202,6 +202,39 @@ class TestSSHOperator(unittest.TestCase):
         except Exception:
             pass
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
+
+        # if valid conn_timeout, cmd_timeout, and timeout are provided, ignore timeout
+        task_4 = SSHOperator(
+            task_id="test_4",
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
+            timeout=TIMEOUT,
+            conn_timeout=CONN_TIMEOUT,
+            cmd_timeout=CMD_TIMEOUT,
+            dag=self.dag,
+        )
+        try:
+            task_4.execute(None)
+        except Exception:
+            pass
+        assert task_4.conn_timeout == CONN_TIMEOUT
+        assert task_4.cmd_timeout == CMD_TIMEOUT
+        assert task_4.ssh_hook.conn_timeout == CONN_TIMEOUT
+
+        # if valid only timeout is provided, use for both conn_timeout and cmd_timeout
+        task_5 = SSHOperator(
+            task_id="test_5",
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
+            timeout=TIMEOUT,
+            dag=self.dag,
+        )
+        try:
+            task_5.execute(None)
+        except Exception:
+            pass
+        assert task_5.cmd_timeout == TIMEOUT
+        assert task_5.ssh_hook.conn_timeout == TIMEOUT
 
     @parameterized.expand(
         [
