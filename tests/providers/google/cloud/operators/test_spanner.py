@@ -56,7 +56,7 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -81,7 +81,7 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -107,7 +107,7 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -132,7 +132,7 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -158,7 +158,7 @@ class TestCloudSpanner(unittest.TestCase):
             display_name=DISPLAY_NAME,
             task_id="id",
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -251,7 +251,7 @@ class TestCloudSpanner(unittest.TestCase):
             query=INSERT_QUERY,
             task_id="id",
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
@@ -267,7 +267,7 @@ class TestCloudSpanner(unittest.TestCase):
         op = SpannerQueryDatabaseInstanceOperator(
             instance_id=INSTANCE_ID, database_id=DB_ID, query=INSERT_QUERY, task_id="id"
         )
-        result = op.execute(None)  # pylint: disable=assignment-from-no-return
+        result = op.execute(None)
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,

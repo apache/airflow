@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.bash import STDOUT, BashSensor, Popen, TemporaryDirectory, gettempdir  # noqa
 
 warnings.warn(

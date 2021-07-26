@@ -59,7 +59,7 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
         super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def python_task(

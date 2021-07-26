@@ -131,13 +131,15 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
     )
     # [END how_to_create_execution]
 
+    create_execution_id = create_execution.output["execution_id"]
+
     # [START how_to_wait_for_execution]
     wait_for_execution = WorkflowExecutionSensor(
         task_id="wait_for_execution",
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        execution_id='{{ task_instance.xcom_pull("create_execution", key="execution_id") }}',
+        execution_id=create_execution_id,
     )
     # [END how_to_wait_for_execution]
 
@@ -147,7 +149,7 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        execution_id='{{ task_instance.xcom_pull("create_execution", key="execution_id") }}',
+        execution_id=create_execution_id,
     )
     # [END how_to_get_execution]
 
@@ -179,17 +181,22 @@ with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=No
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=SLEEP_WORKFLOW_ID,
-        execution_id='{{ task_instance.xcom_pull("create_execution_for_cancel", key="execution_id") }}',
+        execution_id=create_execution_id,
     )
     # [END how_to_cancel_execution]
 
     create_workflow >> update_workflows >> [get_workflow, list_workflows]
     update_workflows >> [create_execution, create_execution_for_cancel]
 
-    create_execution >> wait_for_execution >> [get_execution, list_executions]
+    wait_for_execution >> [get_execution, list_executions]
     create_workflow_for_cancel >> create_execution_for_cancel >> cancel_execution
 
     [cancel_execution, list_executions] >> delete_workflow
+
+    # Task dependencies created via `XComArgs`:
+    #   create_execution >> wait_for_execution
+    #   create_execution >> get_execution
+    #   create_execution >> cancel_execution
 
 
 if __name__ == '__main__':

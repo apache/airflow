@@ -28,14 +28,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.0
+.....
+
+Latest change: 2021-07-15
+
+================================================================================================  ===========  =============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =============================================================================
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+`caf0a8499 <https://github.com/apache/airflow/commit/caf0a8499f6099c943b0dd5054a9480b2e046bf1>`_  2021-06-25   ``Add support for managed identity in WASB hook (#16628)``
+`ffb1fcacf <https://github.com/apache/airflow/commit/ffb1fcacff21c31d7cacfbd843a84208fca38d1e>`_  2021-06-24   ``Fix multiple issues in Microsoft AzureContainerInstancesOperator (#15634)``
+`a2a58d27e <https://github.com/apache/airflow/commit/a2a58d27efaee515141d5e7cee373020b84acc2f>`_  2021-06-24   ``Reduce log messages for happy path (#16626)``
+================================================================================================  ===========  =============================================================================
+
 3.0.0
 .....
 
-Latest change: 2021-05-22
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ==============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==============================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`0c80a7d41 <https://github.com/apache/airflow/commit/0c80a7d41100bf8d18b661c8286d6056e6d5d2f1>`_  2021-06-11   ``Fixes AzureFileShare connection extras (#16388)``
+`29b7f795d <https://github.com/apache/airflow/commit/29b7f795d6fb9fb8cab14158905c1b141044236d>`_  2021-06-07   ``fix wasb remote logging when blob already exists (#16280)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 `c844ff742 <https://github.com/apache/airflow/commit/c844ff742e786973273c56348a09d073a4928878>`_  2021-05-18   ``Fix colon spacing in ''AzureDataExplorerHook'' docstring (#15841)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``

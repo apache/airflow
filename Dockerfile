@@ -33,8 +33,8 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
-ARG AIRFLOW_VERSION="2.0.2"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_VERSION="2.2.0.dev0"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,google_auth,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,7 +44,7 @@ ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.1.1
+ARG AIRFLOW_PIP_VERSION=21.1.2
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
@@ -232,11 +232,10 @@ ARG INSTALL_FROM_DOCKER_CONTEXT_FILES=""
 ARG INSTALL_FROM_PYPI="true"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * chardet<4 - required to keep snowflake happy
-# * urllib3 - required to keep boto3 happy
+# * certifi<2021.0.0 required to keep snowflake happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="chardet<4 urllib3<1.26 pyjwt<2.0.0 dill<0.3.3"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
 ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
 
 
@@ -249,7 +248,12 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 WORKDIR /opt/airflow
 
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
+        # only compile assets if the prod image is build from sources
+        # otherwise they are already compiled-in
+        bash /scripts/docker/compile_www_assets.sh; \
+    fi; \
+    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \
@@ -259,7 +263,6 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
     fi; \
     find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
     find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
-    bash /scripts/docker/compile_www_assets.sh; \
     # make sure that all directories and files in .local are also group accessible
     find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw

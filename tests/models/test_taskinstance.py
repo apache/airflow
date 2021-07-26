@@ -21,6 +21,7 @@ import os
 import time
 import unittest
 import urllib
+from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
@@ -38,10 +39,9 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
 )
-from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.models import (
     DAG,
-    DagModel,
+    Connection,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -49,6 +49,7 @@ from airflow.models import (
     TaskReschedule,
     Variable,
 )
+from airflow.models.taskinstance import load_error_file, set_error_file
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -61,6 +62,7 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
+from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -69,6 +71,7 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_connections
 
 
 class CallbackWrapper:
@@ -85,7 +88,7 @@ class CallbackWrapper:
         self.task_state_in_callback = ""
         self.callback_ran = False
 
-    def success_handler(self, context):  # pylint: disable=unused-argument
+    def success_handler(self, context):
         self.callback_ran = True
         session = settings.Session()
         temp_instance = (
@@ -117,6 +120,17 @@ class TestTaskInstance(unittest.TestCase):
 
     def tearDown(self):
         self.clean_db()
+
+    def test_load_error_file_returns_None_for_closed_file(self):
+        error_fd = NamedTemporaryFile()
+        error_fd.close()
+        assert load_error_file(error_fd) is None
+
+    def test_load_error_file_loads_correctly(self):
+        error_message = "some random error message"
+        with NamedTemporaryFile() as error_fd:
+            set_error_file(error_fd.name, error=error_message)
+            assert load_error_file(error_fd) == error_message
 
     def test_set_task_dates(self):
         """
@@ -265,7 +279,7 @@ class TestTaskInstance(unittest.TestCase):
             dag_id='test_requeue_over_dag_concurrency',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            concurrency=2,
+            max_active_tasks=2,
         )
         task = DummyOperator(task_id='test_requeue_over_dag_concurrency_op', dag=dag)
 
@@ -282,7 +296,7 @@ class TestTaskInstance(unittest.TestCase):
             dag_id='test_requeue_over_task_concurrency',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            concurrency=2,
+            max_active_tasks=2,
         )
         task = DummyOperator(task_id='test_requeue_over_task_concurrency_op', dag=dag, task_concurrency=0)
 
@@ -299,7 +313,7 @@ class TestTaskInstance(unittest.TestCase):
             dag_id='test_requeue_over_pool_concurrency',
             start_date=DEFAULT_DATE,
             max_active_runs=1,
-            concurrency=2,
+            max_active_tasks=2,
         )
         task = DummyOperator(task_id='test_requeue_over_pool_concurrency_op', dag=dag, task_concurrency=0)
 
@@ -742,7 +756,7 @@ class TestTaskInstance(unittest.TestCase):
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+            trs = TaskReschedule.find_for_task_instance(ti)
             assert len(trs) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
@@ -843,7 +857,7 @@ class TestTaskInstance(unittest.TestCase):
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+            trs = TaskReschedule.find_for_task_instance(ti)
             assert len(trs) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
@@ -857,7 +871,7 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.state == State.NONE
         assert ti._try_number == 0
         # Check that reschedules for ti have also been cleared.
-        trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
+        trs = TaskReschedule.find_for_task_instance(ti)
         assert not trs
 
     def test_depends_on_past(self):
@@ -869,6 +883,12 @@ class TestTaskInstance(unittest.TestCase):
             depends_on_past=True,
         )
         dag.clear()
+
+        dag.create_dagrun(
+            execution_date=DEFAULT_DATE,
+            state=State.FAILED,
+            run_type=DagRunType.SCHEDULED,
+        )
 
         run_date = task.start_date + datetime.timedelta(days=5)
 
@@ -963,7 +983,7 @@ class TestTaskInstance(unittest.TestCase):
         run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = TI(downstream, run_date)
-        dep_results = TriggerRuleDep()._evaluate_trigger_rule(  # pylint: disable=no-value-for-parameter
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             successes=successes,
             skipped=skipped,
@@ -1551,6 +1571,48 @@ class TestTaskInstance(unittest.TestCase):
 
     @parameterized.expand(
         [
+            ('{{ conn.get("a_connection").host }}', 'hostvalue'),
+            ('{{ conn.get("a_connection", "unused_fallback").host }}', 'hostvalue'),
+            ('{{ conn.get("missing_connection", {"host": "fallback_host"}).host }}', 'fallback_host'),
+            ('{{ conn.a_connection.host }}', 'hostvalue'),
+            ('{{ conn.a_connection.login }}', 'loginvalue'),
+            ('{{ conn.a_connection.password }}', 'passwordvalue'),
+            ('{{ conn.a_connection.extra_dejson["extra__asana__workspace"] }}', 'extra1'),
+            ('{{ conn.a_connection.extra_dejson.extra__asana__workspace }}', 'extra1'),
+        ]
+    )
+    def test_template_with_connection(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        with create_session() as session:
+            clear_db_connections(add_default_connections_back=False)
+            merge_conn(
+                Connection(
+                    conn_id="a_connection",
+                    conn_type="a_type",
+                    description="a_conn_description",
+                    host="hostvalue",
+                    login="loginvalue",
+                    password="passwordvalue",
+                    schema="schemavalues",
+                    extra={
+                        "extra__asana__workspace": "extra1",
+                    },
+                ),
+                session,
+            )
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        assert result == expected_output
+
+    @parameterized.expand(
+        [
             ('{{ var.value.a_variable }}', 'a test value'),
             ('{{ var.value.get("a_variable") }}', 'a test value'),
             ('{{ var.value.get("a_variable", "unused_fallback") }}', 'a test value'),
@@ -1853,7 +1915,8 @@ class TestTaskInstance(unittest.TestCase):
             session.query(RenderedTaskInstanceFields).delete()
 
     @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    def test_get_rendered_k8s_spec(self):
+    @mock.patch("airflow.settings.pod_mutation_hook")
+    def test_render_k8s_pod_yaml(self, pod_mutation_hook):
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
 
@@ -1898,124 +1961,38 @@ class TestTaskInstance(unittest.TestCase):
             },
         }
 
-        with create_session() as session:
-            rtif = RenderedTaskInstanceFields(ti)
-            session.add(rtif)
-            assert rtif.k8s_pod_yaml == expected_pod_spec
+        assert ti.render_k8s_pod_yaml() == expected_pod_spec
+        pod_mutation_hook.assert_called_once_with(mock.ANY)
 
+    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
+    @mock.patch.object(RenderedTaskInstanceFields, 'get_k8s_pod_yaml')
+    def test_get_rendered_k8s_spec(self, rtif_get_k8s_pod_yaml):
         # Create new TI for the same Task
         with DAG('test_get_rendered_k8s_spec', start_date=DEFAULT_DATE):
-            new_task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+            task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
 
-        new_ti = TI(task=new_task, execution_date=DEFAULT_DATE)
-        pod_spec = new_ti.get_rendered_k8s_spec()
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
 
-        assert expected_pod_spec == pod_spec
+        patcher = mock.patch.object(ti, 'render_k8s_pod_yaml', autospec=True)
 
-        # CleanUp
-        with create_session() as session:
-            session.query(RenderedTaskInstanceFields).delete()
+        fake_spec = {"ermagawds": "pods"}
 
-    def validate_ti_states(self, dag_run, ti_state_mapping, error_message):
-        for task_id, expected_state in ti_state_mapping.items():
-            task_instance = dag_run.get_task_instance(task_id=task_id)
-            assert task_instance.state == expected_state, error_message
+        session = mock.Mock()
 
-    @parameterized.expand(
-        [
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'True'},
-                {'A': 'B', 'B': 'C'},
-                {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.SCHEDULED, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.SUCCESS, 'C': State.SCHEDULED},
-                "A -> B -> C, with fast-follow ON when A runs, B should be QUEUED. Same for B and C.",
-            ),
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'False'},
-                {'A': 'B', 'B': 'C'},
-                {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE},
-                None,
-                "A -> B -> C, with fast-follow OFF, when A runs, B shouldn't be QUEUED.",
-            ),
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'True'},
-                {'A': 'B', 'C': 'B', 'D': 'C'},
-                {'A': State.QUEUED, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
-                {'A': State.SUCCESS, 'B': State.NONE, 'C': State.NONE, 'D': State.NONE},
-                None,
-                "D -> C -> B & A -> B, when A runs but C isn't QUEUED yet, B shouldn't be QUEUED.",
-            ),
-            (
-                {('scheduler', 'schedule_after_task_execution'): 'True'},
-                {'A': 'C', 'B': 'C'},
-                {'A': State.QUEUED, 'B': State.FAILED, 'C': State.NONE},
-                {'A': State.SUCCESS, 'B': State.FAILED, 'C': State.UPSTREAM_FAILED},
-                None,
-                "A -> C & B -> C, when A is QUEUED but B has FAILED, C is marked UPSTREAM_FAILED.",
-            ),
-        ]
-    )
-    def test_fast_follow(
-        self, conf, dependencies, init_state, first_run_state, second_run_state, error_message
-    ):
-        with conf_vars(conf):
-            session = settings.Session()
+        with patcher as render_k8s_pod_yaml:
+            rtif_get_k8s_pod_yaml.return_value = fake_spec
+            assert ti.get_rendered_k8s_spec(session) == fake_spec
 
-            dag = DAG('test_dagrun_fast_follow', start_date=DEFAULT_DATE)
+            rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
+            render_k8s_pod_yaml.assert_not_called()
 
-            dag_model = DagModel(
-                dag_id=dag.dag_id,
-                next_dagrun=dag.start_date,
-                is_active=True,
-            )
-            session.add(dag_model)
-            session.flush()
+            # Now test that when we _dont_ find it in the DB, it calles render_k8s_pod_yaml
+            rtif_get_k8s_pod_yaml.return_value = None
+            render_k8s_pod_yaml.return_value = fake_spec
 
-            python_callable = lambda: True
-            with dag:
-                task_a = PythonOperator(task_id='A', python_callable=python_callable)
-                task_b = PythonOperator(task_id='B', python_callable=python_callable)
-                task_c = PythonOperator(task_id='C', python_callable=python_callable)
-                if 'D' in init_state:
-                    task_d = PythonOperator(task_id='D', python_callable=python_callable)
-                for upstream, downstream in dependencies.items():
-                    dag.set_dependency(upstream, downstream)
+            assert ti.get_rendered_k8s_spec(session) == fake_spec
 
-            scheduler_job = SchedulerJob(subdir=os.devnull)
-            scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-
-            dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
-
-            task_instance_a = dag_run.get_task_instance(task_id=task_a.task_id)
-            task_instance_a.task = task_a
-            task_instance_a.set_state(init_state['A'])
-
-            task_instance_b = dag_run.get_task_instance(task_id=task_b.task_id)
-            task_instance_b.task = task_b
-            task_instance_b.set_state(init_state['B'])
-
-            task_instance_c = dag_run.get_task_instance(task_id=task_c.task_id)
-            task_instance_c.task = task_c
-            task_instance_c.set_state(init_state['C'])
-
-            if 'D' in init_state:
-                task_instance_d = dag_run.get_task_instance(task_id=task_d.task_id)
-                task_instance_d.task = task_d
-                task_instance_d.state = init_state['D']
-
-            session.commit()
-            task_instance_a.run()
-
-            self.validate_ti_states(dag_run, first_run_state, error_message)
-
-            if second_run_state:
-                scheduler_job._critical_section_execute_task_instances(session=session)
-                task_instance_b.run()
-                self.validate_ti_states(dag_run, second_run_state, error_message)
-            if scheduler_job.processor_agent:
-                scheduler_job.processor_agent.end()
+            render_k8s_pod_yaml.assert_called_once()
 
     def test_set_state_up_for_retry(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
@@ -2030,6 +2007,60 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.start_date == start_date, "Start date should have been left alone"
         assert ti.start_date < ti.end_date
         assert ti.duration > 0
+
+    def test_refresh_from_db(self):
+        run_date = timezone.utcnow()
+
+        expected_values = {
+            "task_id": "test_refresh_from_db_task",
+            "dag_id": "test_refresh_from_db_dag",
+            "execution_date": run_date,
+            "start_date": run_date + datetime.timedelta(days=1),
+            "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
+            "duration": 1.234,
+            "state": State.SUCCESS,
+            "_try_number": 1,
+            "max_tries": 1,
+            "hostname": "some_unique_hostname",
+            "unixname": "some_unique_unixname",
+            "job_id": 1234,
+            "pool": "some_fake_pool_id",
+            "pool_slots": 25,
+            "queue": "some_queue_id",
+            "priority_weight": 123,
+            "operator": "some_custom_operator",
+            "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "queued_by_job_id": 321,
+            "pid": 123,
+            "executor_config": {"Some": {"extra": "information"}},
+            "external_executor_id": "some_executor_id",
+        }
+        # Make sure we aren't missing any new value in our expected_values list.
+        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values.keys()}
+        assert {str(c) for c in TI.__table__.columns} == expected_keys, (
+            "Please add all non-foreign values of TaskInstance to this list. "
+            "This prevents refresh_from_db() from missing a field."
+        )
+
+        operator = DummyOperator(task_id=expected_values['task_id'])
+        ti = TI(task=operator, execution_date=expected_values['execution_date'])
+        for key, expected_value in expected_values.items():
+            setattr(ti, key, expected_value)
+        with create_session() as session:
+            session.merge(ti)
+            session.commit()
+
+        mock_task = mock.MagicMock()
+        mock_task.task_id = expected_values["task_id"]
+        mock_task.dag_id = expected_values["dag_id"]
+
+        ti = TI(task=mock_task, execution_date=run_date)
+        ti.refresh_from_db()
+        for key, expected_value in expected_values.items():
+            assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
+            assert (
+                getattr(ti, key) == expected_value
+            ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

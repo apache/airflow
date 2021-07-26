@@ -24,6 +24,8 @@ import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from typing import List
 
+from pendulum.parsing.exceptions import ParserError
+
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
@@ -32,6 +34,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -42,9 +45,26 @@ from airflow.utils.cli import (
     get_dags,
     suppress_logs_and_warning,
 )
+from airflow.utils.dates import timezone
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
+
+
+def _get_ti(task, exec_date_or_run_id):
+    """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
+    dag_run = task.dag.get_dagrun(run_id=exec_date_or_run_id)
+    if not dag_run:
+        try:
+            execution_date = timezone.parse(exec_date_or_run_id)
+            ti = TaskInstance(task, execution_date)
+            ti.refresh_from_db()
+            return ti
+        except (ParserError, TypeError):
+            raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
+    ti = dag_run.get_task_instance(task.task_id)
+    ti.task = task
+    return ti
 
 
 def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
@@ -80,9 +100,9 @@ def _run_task_by_executor(args, dag, ti):
             with create_session() as session:
                 pickle = DagPickle(dag)
                 session.add(pickle)
-                pickle_id = pickle.id
-                # TODO: This should be written to a log
-                print(f'Pickled dag {dag} as pickle_id: {pickle_id}')
+            pickle_id = pickle.id
+            # TODO: This should be written to a log
+            print(f'Pickled dag {dag} as pickle_id: {pickle_id}')
         except Exception as e:
             print('Could not pickle the DAG')
             print(e)
@@ -146,7 +166,7 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
                 ", ".join(f"--{o}" for o in unsupported_options),
             )
         )
-    ti._run_raw_task(  # pylint: disable=protected-access
+    ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
@@ -221,10 +241,8 @@ def task_run(args, dag=None):
     else:
         # Use DAG from parameter
         pass
-
     task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
-    ti.refresh_from_db()
+    ti = _get_ti(task, args.execution_date_or_run_id)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -252,7 +270,7 @@ def task_failed_deps(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(task, args.execution_date_or_run_id)
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -275,7 +293,7 @@ def task_state(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(task, args.execution_date_or_run_id)
     print(ti.current_state())
 
 
@@ -321,37 +339,40 @@ def _guess_debugger():
 
 @cli_utils.action_logging
 @suppress_logs_and_warning
-def task_states_for_dag_run(args):
+@provide_session
+def task_states_for_dag_run(args, session=None):
     """Get the status of all task instances in a DagRun"""
-    with create_session() as session:
-        tis = (
-            session.query(
-                TaskInstance.dag_id,
-                TaskInstance.execution_date,
-                TaskInstance.task_id,
-                TaskInstance.state,
-                TaskInstance.start_date,
-                TaskInstance.end_date,
+    dag_run = (
+        session.query(DagRun)
+        .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
+        .one_or_none()
+    )
+    if not dag_run:
+        try:
+            execution_date = timezone.parse(args.execution_date_or_run_id)
+            dag_run = (
+                session.query(DagRun)
+                .filter(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
+                .one_or_none()
             )
-            .filter(TaskInstance.dag_id == args.dag_id, TaskInstance.execution_date == args.execution_date)
-            .all()
-        )
+        except (ParserError, TypeError) as err:
+            raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
 
-        if len(tis) == 0:
-            raise AirflowException("DagRun does not exist.")
-
-        AirflowConsole().print_as(
-            data=tis,
-            output=args.output,
-            mapper=lambda ti: {
-                "dag_id": ti.dag_id,
-                "execution_date": ti.execution_date.isoformat(),
-                "task_id": ti.task_id,
-                "state": ti.state,
-                "start_date": ti.start_date.isoformat() if ti.start_date else "",
-                "end_date": ti.end_date.isoformat() if ti.end_date else "",
-            },
-        )
+    if dag_run is None:
+        raise AirflowException("DagRun does not exist.")
+    tis = dag_run.get_task_instances()
+    AirflowConsole().print_as(
+        data=tis,
+        output=args.output,
+        mapper=lambda ti: {
+            "dag_id": ti.dag_id,
+            "execution_date": ti.execution_date.isoformat(),
+            "task_id": ti.task_id,
+            "state": ti.state,
+            "start_date": ti.start_date.isoformat() if ti.start_date else "",
+            "end_date": ti.end_date.isoformat() if ti.end_date else "",
+        },
+    )
 
 
 @cli_utils.action_logging
@@ -384,14 +405,14 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(task, args.execution_date_or_run_id)
 
     try:
         if args.dry_run:
             ti.dry_run()
         else:
             ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         if args.post_mortem:
             debugger = _guess_debugger()
             debugger.post_mortem()
@@ -410,7 +431,7 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
+    ti = _get_ti(task, args.execution_date_or_run_id)
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(
@@ -430,7 +451,7 @@ def task_clear(args):
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
-        dags = get_dag_by_file_location(args.dag_id)
+        dags = [get_dag_by_file_location(args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
         dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)

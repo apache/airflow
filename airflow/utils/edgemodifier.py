@@ -121,6 +121,6 @@ class EdgeModifier(TaskMixin):
 
 
 # Factory functions
-def Label(label: str):  # pylint: disable=C0103
+def Label(label: str):
     """Creates an EdgeModifier that sets a human-readable label on the edge."""
     return EdgeModifier(label=label)

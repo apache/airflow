@@ -209,9 +209,7 @@ with models.DAG(
     # write access to the destination GCS bucket.
     # [START howto_operator_cloudsql_export_gcs_permissions]
     sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
-        entity="user-{{ task_instance.xcom_pull("
-        "'sql_instance_create_task', key='service_account_email') "
-        "}}",
+        entity=f"user-{sql_instance_create_task.output['service_account_email']}",
         role="WRITER",
         bucket=export_url_split[1],  # netloc (bucket)
         task_id='sql_gcp_add_bucket_permission_task',
@@ -236,9 +234,7 @@ with models.DAG(
     # read access to the target GCS object.
     # [START howto_operator_cloudsql_import_gcs_permissions]
     sql_gcp_add_object_permission_task = GCSObjectCreateAclEntryOperator(
-        entity="user-{{ task_instance.xcom_pull("
-        "'sql_instance_create_task2', key='service_account_email')"
-        " }}",
+        entity=f"user-{sql_instance_create_2_task.output['service_account_email']}",
         role="READER",
         bucket=import_url_split[1],  # netloc (bucket)
         object_name=import_url_split[2][1:],  # path (strip first '/')
@@ -248,9 +244,7 @@ with models.DAG(
     # For import to work we also need to add the Cloud SQL instance's Service Account
     # write access to the whole bucket!.
     sql_gcp_add_bucket_permission_2_task = GCSBucketCreateAclEntryOperator(
-        entity="user-{{ task_instance.xcom_pull("
-        "'sql_instance_create_task2', key='service_account_email') "
-        "}}",
+        entity=f"user-{sql_instance_create_2_task.output['service_account_email']}",
         role="WRITER",
         bucket=import_url_split[1],  # netloc
         task_id='sql_gcp_add_bucket_permission_2_task',
@@ -300,35 +294,36 @@ with models.DAG(
         project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME, task_id='sql_instance_delete_task'
     )
     sql_instance_delete_task2 = CloudSQLDeleteInstanceOperator(
-        instance=INSTANCE_NAME2, task_id='sql_instance_delete_task2'
+        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME2, task_id='sql_instance_delete_task2'
     )
     # [END howto_operator_cloudsql_delete]
 
-    sql_instance_delete_2_task = CloudSQLDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME2, task_id='sql_instance_delete_2_task'
+    (
+        sql_instance_create_task
+        >> sql_instance_create_2_task
+        >> sql_instance_read_replica_create
+        >> sql_instance_patch_task
+        >> sql_instance_patch_task2
+        >> sql_db_create_task
+        >> sql_db_create_task2
+        >> sql_db_patch_task
+        >> sql_db_patch_task2
+        >> sql_gcp_add_bucket_permission_task
+        >> sql_export_task
+        >> sql_export_task2
+        >> sql_gcp_add_object_permission_task
+        >> sql_gcp_add_bucket_permission_2_task
+        >> sql_import_task
+        >> sql_import_task2
+        >> sql_db_delete_task
+        >> sql_db_delete_task2
+        >> sql_instance_failover_replica_delete_task
+        >> sql_instance_read_replica_delete_task
+        >> sql_instance_delete_task
+        >> sql_instance_delete_task2
     )
 
-    (
-        sql_instance_create_task  # noqa
-        >> sql_instance_create_2_task  # noqa
-        >> sql_instance_read_replica_create  # noqa
-        >> sql_instance_patch_task  # noqa
-        >> sql_instance_patch_task2  # noqa
-        >> sql_db_create_task  # noqa
-        >> sql_db_create_task2  # noqa
-        >> sql_db_patch_task  # noqa
-        >> sql_db_patch_task2  # noqa
-        >> sql_gcp_add_bucket_permission_task  # noqa
-        >> sql_export_task  # noqa
-        >> sql_export_task2  # noqa
-        >> sql_gcp_add_object_permission_task  # noqa
-        >> sql_gcp_add_bucket_permission_2_task  # noqa
-        >> sql_import_task  # noqa
-        >> sql_import_task2  # noqa
-        >> sql_db_delete_task  # noqa
-        >> sql_db_delete_task2  # noqa
-        >> sql_instance_failover_replica_delete_task  # noqa
-        >> sql_instance_read_replica_delete_task  # noqa
-        >> sql_instance_delete_task  # noqa
-        >> sql_instance_delete_2_task  # noqa
-    )
+    # Task dependencies created via `XComArgs`:
+    #   sql_instance_create_task >> sql_gcp_add_bucket_permission_task
+    #   sql_instance_create_2_task >> sql_gcp_add_object_permission_task
+    #   sql_instance_create_2_task >> sql_gcp_add_bucket_permission_2_task

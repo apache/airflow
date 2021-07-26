@@ -60,6 +60,7 @@ class VerticaToMySqlOperator(BaseOperator):
     template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext = ('.sql',)
     template_fields_renderers = {
+        "sql": "sql",
         "mysql_preoperator": "sql",
         "mysql_postoperator": "sql",
     }
@@ -141,7 +142,7 @@ class VerticaToMySqlOperator(BaseOperator):
                 self.log.info("Inserting rows into MySQL...")
                 mysql.insert_rows(table=self.mysql_table, rows=result, target_fields=selected_columns)
             self.log.info("Inserted rows into MySQL %s", count)
-        except (MySQLdb.Error, MySQLdb.Warning):  # pylint: disable=no-member
+        except (MySQLdb.Error, MySQLdb.Warning):
             self.log.info("Inserted rows into MySQL 0")
             raise
 

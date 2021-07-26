@@ -25,10 +25,11 @@ graft airflow/www
 graft airflow/www/static
 graft airflow/www/templates
 graft scripts/systemd
-graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
+exclude airflow/www/yarn.lock
+exclude airflow/www/*.sh
 include airflow/alembic.ini
 include airflow/api_connexion/openapi/v1.yaml
 include airflow/git_version

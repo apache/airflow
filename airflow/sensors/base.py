@@ -39,7 +39,7 @@ from airflow.utils import timezone
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
-from airflow.utils.decorators import apply_defaults  # pylint: disable=unused-import
+from airflow.utils.decorators import apply_defaults
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -254,9 +254,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
 
             run_hash = int(
-                hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode("utf-8")
-                ).hexdigest(),
+                hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),
                 16,
             )
             modded_hash = min_backoff + run_hash % min_backoff

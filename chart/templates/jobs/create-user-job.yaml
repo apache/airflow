@@ -19,9 +19,9 @@
 ## Airflow Create User Job
 #################################
 {{- if .Values.webserver.defaultUser.enabled }}
-{{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.webserver.affinity .Values.affinity }}
-{{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
+{{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
+{{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -39,6 +39,9 @@ metadata:
     "helm.sh/hook": post-install
     "helm.sh/hook-weight": "2"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- if .Values.createUserJob.jobAnnotations }}
+    {{- toYaml .Values.createUserJob.jobAnnotations | nindent 4 }}
+    {{- end }}
 spec:
   template:
     metadata:

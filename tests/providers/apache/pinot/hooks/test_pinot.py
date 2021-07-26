@@ -263,7 +263,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook().get_pandas_df(statement)
         assert column == df.columns[0]
-        for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
+        for i in range(len(result_sets)):
             assert result_sets[i][0] == df.values.tolist()[i][0]
 
 

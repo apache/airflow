@@ -37,7 +37,7 @@ from os import getenv
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import BranchPythonOperator
+from airflow.operators.python import BranchPythonOperator, get_current_context
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 from airflow.utils.dates import days_ago
 
@@ -52,20 +52,20 @@ YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(descript
 # [END howto_operator_google_api_to_s3_transfer_advanced_env_variables]
 
 
-# pylint: disable=unused-argument
 # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-def _check_and_transform_video_ids(xcom_key, task_ids, task_instance, **kwargs):
-    video_ids_response = task_instance.xcom_pull(task_ids=task_ids, key=xcom_key)
+def _check_and_transform_video_ids(task_output):
+    video_ids_response = task_output
     video_ids = [item['id']['videoId'] for item in video_ids_response['items']]
 
     if video_ids:
-        task_instance.xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
+        context = get_current_context()
+        context["task_instance"].xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
         return 'video_data_to_s3'
     return 'no_video_ids'
 
 
 # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-# pylint: enable=unused-argument
+
 
 s3_directory, s3_file = S3_DESTINATION_KEY.rsplit('/', 1)
 s3_file_name, _ = s3_file.rsplit('.', 1)
@@ -99,7 +99,7 @@ with DAG(
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
     task_check_and_transform_video_ids = BranchPythonOperator(
         python_callable=_check_and_transform_video_ids,
-        op_args=[task_video_ids_to_s3.google_api_response_via_xcom, task_video_ids_to_s3.task_id],
+        op_args=[task_video_ids_to_s3.output[task_video_ids_to_s3.google_api_response_via_xcom]],
         task_id='check_and_transform_video_ids',
     )
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_1_1]
@@ -122,4 +122,7 @@ with DAG(
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
     task_no_video_ids = DummyOperator(task_id='no_video_ids')
     # [END howto_operator_google_api_to_s3_transfer_advanced_task_2_1]
-    task_video_ids_to_s3 >> task_check_and_transform_video_ids >> [task_video_data_to_s3, task_no_video_ids]
+    task_check_and_transform_video_ids >> [task_video_data_to_s3, task_no_video_ids]
+
+    # Task dependency created via `XComArgs`:
+    #   task_video_ids_to_s3 >> task_check_and_transform_video_ids

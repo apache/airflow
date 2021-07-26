@@ -28,6 +28,7 @@ import getMetaValue from './meta_value';
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const treeDataUrl = getMetaValue('tree_data');
+const numRuns = getMetaValue('num_runs');
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -57,7 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const tree = d3.layout.tree().nodeSize([0, 25]);
   let nodes = tree.nodes(data);
   const nodeobj = {};
-  const getActiveRuns = () => data.instances.filter((run) => run.state === 'running').length > 0;
+  const runActiveStates = ['queued', 'running'];
+  const getActiveRuns = () => data.instances
+    .filter((run) => runActiveStates.includes(run.state)).length > 0;
 
   const now = Date.now() / 1000;
   const devicePixelRatio = window.devicePixelRatio || 1;
@@ -71,8 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   treeDepth += 1;
 
-  const innerWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
-  const squareX = innerWidth - (data.instances.length * squareSize) - (treeDepth * 50);
+  const squareX = (treeDepth * 25) + 200;
 
   const squareSpacing = 2;
   const margin = {
@@ -332,7 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .style('stroke-opacity', (d) => (d.external_trigger ? '0' : '1'))
       .on('mouseover', function (d) {
         // Calculate duration if it doesn't exist
-        const tt = tiTooltip({ ...d, duration: d.duration || moment(d.end_date).diff(d.start_date, 'seconds') });
+        const tt = tiTooltip({
+          ...d,
+          // if end_date is undefined then moment will default to now instead of null
+          duration: d.duration || d.end_date ? moment(d.end_date).diff(d.start_date, 'seconds') : null,
+        });
         taskTip.direction('n');
         taskTip.show(tt, this);
         d3.select(this).transition().duration(duration)
@@ -418,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function handleRefresh() {
     $('#loading-dots').css('display', 'inline-block');
-    $.get(`${treeDataUrl}?dag_id=${dagId}`)
+    $.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}`)
       .done(
         (runs) => {
           const newData = {
@@ -451,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (getActiveRuns()) {
           handleRefresh();
         } else {
-          $('#auto_refresh').removeAttr('checked');
+          $('#auto_refresh').prop('checked', false);
         }
       }, 3000); // run refresh every 3 seconds
     } else {
@@ -474,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function initRefresh() {
     // default to auto-refresh if there are any active dag runs
     if (getActiveRuns() && !localStorage.getItem('disableAutoRefresh')) {
-      $('#auto_refresh').attr('checked', true);
+      $('#auto_refresh').prop('checked', true);
     }
     startOrStopRefresh();
     d3.select('#refresh_button').on('click', () => handleRefresh());

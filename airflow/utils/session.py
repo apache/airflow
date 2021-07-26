@@ -37,7 +37,7 @@ def create_session():
         session.close()
 
 
-RT = TypeVar("RT")  # pylint: disable=invalid-name
+RT = TypeVar("RT")
 
 
 def find_session_idx(func: Callable[..., RT]) -> int:
@@ -70,3 +70,38 @@ def provide_session(func: Callable[..., RT]) -> Callable[..., RT]:
                 return func(*args, session=session, **kwargs)
 
     return wrapper
+
+
+@provide_session
+@contextlib.contextmanager
+def create_global_lock(session=None, pg_lock_id=1, lock_name='init', mysql_lock_timeout=1800):
+    """Contextmanager that will create and teardown a global db lock."""
+    dialect = session.connection().dialect
+    try:
+        if dialect.name == 'postgresql':
+            session.connection().execute(f'select PG_ADVISORY_LOCK({pg_lock_id});')
+
+        if dialect.name == 'mysql' and dialect.server_version_info >= (
+            5,
+            6,
+        ):
+            session.connection().execute(f"select GET_LOCK('{lock_name}',{mysql_lock_timeout});")
+
+        if dialect.name == 'mssql':
+            # TODO: make locking works for MSSQL
+            pass
+
+        yield None
+    finally:
+        if dialect.name == 'postgresql':
+            session.connection().execute(f'select PG_ADVISORY_UNLOCK({pg_lock_id});')
+
+        if dialect.name == 'mysql' and dialect.server_version_info >= (
+            5,
+            6,
+        ):
+            session.connection().execute(f"select RELEASE_LOCK('{lock_name}');")
+
+        if dialect.name == 'mssql':
+            # TODO: make locking works for MSSQL
+            pass

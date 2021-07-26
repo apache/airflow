@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.1.1](#airflow-211)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
 - [Airflow 2.0.1](#airflow-201)
@@ -72,6 +73,56 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### DAG concurrency settings have been renamed
+
+`[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
+for better understanding.
+
+It is the maximum number of task instances allowed to run concurrently in each DAG. To calculate
+the number of tasks that is running concurrently for a DAG, add up the number of running
+tasks for all DAG runs of the DAG.
+
+This is configurable at the DAG level with ``max_active_tasks`` and a default can be set in `airflow.cfg` as
+`[core] max_active_tasks_per_dag`.
+
+**Before**:
+
+```ini
+[core]
+dag_concurrency = 16
+```
+
+**Now**:
+
+```ini
+[core]
+max_active_tasks_per_dag = 16
+```
+
+Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
+
+**Before**:
+
+```python
+dag = DAG(
+    dag_id="example_dag",
+    concurrency=3,
+    start_date=days_ago(2),
+)
+```
+
+**Now**:
+
+```python
+dag = DAG(
+    dag_id="example_dag",
+    max_active_tasks=3,
+    start_date=days_ago(2),
+)
+```
+
+If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `concurrency`.
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
@@ -100,9 +151,11 @@ not have any effect in an existing deployment where the ``default_pool`` already
 
 Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
 
+## Airflow 2.1.1
+
 ### `activate_dag_runs` argument of the function `clear_task_instances` is replaced with `dag_run_state`
 
-To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead.
+To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous paramater is still accepted, but is deprecated)
 
 ### `dag.set_dag_runs_state` is deprecated
 
@@ -155,7 +208,7 @@ and the Webserver used the serialized DAGs, there is no need to kill an existing
 worker and create a new one as frequently as `30` seconds.
 
 This setting can be raised to an even higher value, currently it is
-set to `6000` seconds (10 minutes) to
+set to `6000` seconds (100 minutes) to
 serve as a DagBag cache burst time.
 
 ### `default_queue` configuration has been moved to the `operators` section.
@@ -331,8 +384,6 @@ from my_plugin import MyHook
 It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
 
 See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
-
-### Adding Operators and Sensors via plugins is no longer supported
 
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
@@ -900,8 +951,6 @@ in `SubDagOperator`.
 #### `airflow.operators.bash.BashOperator`
 
 #### `airflow.providers.docker.operators.docker.DockerOperator`
-
-#### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
@@ -1657,9 +1706,9 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
-#### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
-We changed signature of BigQueryGetDatasetTablesOperator.
+We changed signature of `BigQueryGetDatasetTablesOperator`.
 
 Before:
 
@@ -1883,7 +1932,7 @@ We deprecated a number of extras in 2.0.
 
 For example:
 
-If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+If you want to install integration for Apache Atlas, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
 
@@ -1895,7 +1944,7 @@ If you want to install integration for Microsoft Azure, then instead of
 pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
 
-you should execute `pip install 'apache-airflow[azure]'`
+you should run `pip install 'apache-airflow[microsoft.azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`

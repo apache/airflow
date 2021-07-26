@@ -364,14 +364,29 @@ function setFocusMap(state) {
 
 const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
+let prevTis;
+
 function handleRefresh() {
   $('#loading-dots').css('display', 'inline-block');
   $.get(getTaskInstanceURL)
     .done(
       (tis) => {
+        // only refresh if the data has changed
+        if (prevTis !== tis) {
         // eslint-disable-next-line no-global-assign
-        taskInstances = JSON.parse(tis);
-        updateNodesStates(taskInstances);
+          taskInstances = JSON.parse(tis);
+          const states = Object.values(taskInstances).map((ti) => ti.state);
+          updateNodesStates(taskInstances);
+
+          // end refresh if all states are final
+          if (!states.some((state) => (
+            ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1))
+          ) {
+            $('#auto_refresh').prop('checked', false);
+            clearInterval(refreshInterval);
+          }
+        }
+        prevTis = tis;
         setTimeout(() => { $('#loading-dots').hide(); }, 500);
         $('#error').hide();
       },
@@ -409,7 +424,7 @@ $('#auto_refresh').change(() => {
 
 function initRefresh() {
   if (localStorage.getItem('disableAutoRefresh')) {
-    $('#auto_refresh').removeAttr('checked');
+    $('#auto_refresh').prop('checked', false);
   }
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
@@ -541,7 +556,6 @@ function focusedGroupKey() {
 function focusGroup(nodeId) {
   if (nodeId != null && zoom != null) {
     const { x } = g.node(nodeId);
-    const { y } = g.node(nodeId);
     // This is the total canvas size.
     const { width, height } = svg.node().getBoundingClientRect();
 
@@ -560,7 +574,8 @@ function focusGroup(nodeId) {
       1.5, // cap zoom level to 1.5 so nodes are not too large
     ) * 0.9;
 
-    const [deltaX, deltaY] = [width / 2 - x * scale, height / 2 - y * scale];
+    // deltaY of 5 keeps the zoom at the top of the view but with a slight margin
+    const [deltaX, deltaY] = [width / 2 - x * scale, 5];
     zoom.translate([deltaX, deltaY]);
     zoom.scale(scale);
     zoom.event(innerSvg.transition().duration(duration));

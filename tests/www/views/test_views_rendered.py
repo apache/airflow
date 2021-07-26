@@ -59,7 +59,7 @@ def task2(dag):
 
 
 @pytest.fixture(autouse=True)
-def reset_db(dag, task1, task2):  # pylint: disable=unused-argument
+def reset_db(dag, task1, task2):
     """Reset DB for each test.
 
     This writes the DAG to the DB, and clears rendered fields so we have a clean

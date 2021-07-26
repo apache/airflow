@@ -148,8 +148,8 @@ class GrpcHook(BaseHook):
                     status code: %s, error details: %s",
                     stub.__class__.__name__,
                     call_func,
-                    ex.code(),  # pylint: disable=no-member
-                    ex.details(),  # pylint: disable=no-member
+                    ex.code(),
+                    ex.details(),
                 )
                 raise ex
 

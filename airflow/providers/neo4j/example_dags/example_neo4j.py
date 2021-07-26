@@ -23,13 +23,8 @@ from airflow import DAG
 from airflow.providers.neo4j.operators.neo4j import Neo4jOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
-
 dag = DAG(
     'example_neo4j',
-    default_args=default_args,
     start_date=days_ago(2),
     tags=['example'],
 )

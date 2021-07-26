@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.hooks.base import BaseHook  # noqa
 
 warnings.warn("This module is deprecated. Please use `airflow.hooks.base`.", DeprecationWarning, stacklevel=2)

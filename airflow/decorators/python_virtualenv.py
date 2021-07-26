@@ -67,7 +67,7 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
         return res
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def _virtualenv_task(

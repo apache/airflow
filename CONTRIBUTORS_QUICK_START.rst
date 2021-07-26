@@ -21,6 +21,22 @@ Contributor's Quick Guide
 
 .. contents:: :local:
 
+Note to Starters
+################
+
+There are two ways you can run the Airflow dev env on your machine:
+  1. With a Docker Container
+  2. With a local virtual environment
+Before deciding which method to choose, there are a couple factors to consider:
+Running Airflow in a container is the most reliable way: it provides a more consistent environment and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.). However it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
+If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
+
+- |Virtual Env Guide|
+
+.. |Virtual Env Guide| raw:: html
+
+   For a comprehensive venv tutorial - visit <a href="https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst"
+   target="_blank">Virtual Env Guide</a>
 
 Prerequisites
 #############
@@ -28,6 +44,7 @@ Prerequisites
 1. Docker Community Edition
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
+4. jq
 
 
 Installing Prerequisites on Ubuntu
@@ -119,7 +136,7 @@ Pyenv and setting up virtual-env
       libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
       xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
 
-  $ sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python-dev openssl \
+  $ sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python3.9-dev python-dev openssl \
        sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql
 
 2. Install pyenv
@@ -158,6 +175,18 @@ Pyenv and setting up virtual-env
 
   $ pyenv activate airflow-env
 
+
+
+Installing jq
+--------------------------------
+
+``jq`` is a lightweight and flexible command-line JSON processor.
+
+Install ``jq`` with the following command:
+
+.. code-block:: bash
+
+  $ sudo apt install jq
 
 
 
@@ -269,9 +298,10 @@ Setting up Breeze
 
   $ ./breeze stop
 
-6. Installing airflow in the local virtual environment ``airflow-env`` with breeze.
+Installing airflow in the local virtual environment ``airflow-env`` with breeze.
+--------------------------------------------------------------------------------
 
-   It may requires some packages to be installed, watch the output of the command to see which ones are missing.
+1. It may require some packages to be installed; watch the output of the command to see which ones are missing.
 
 .. code-block:: bash
 
@@ -279,7 +309,7 @@ Setting up Breeze
   $ ./breeze initialize-local-virtualenv --python 3.8
 
 
-7. Add following line to ~/.bashrc in order to call breeze command from anywhere.
+2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
 
 .. code-block:: bash
 
@@ -304,8 +334,6 @@ Using Breeze
    Docker image:           apache/airflow:main-python3.8-ci
    Airflow source version: 2.0.0b2
    Python version:         3.8
-   DockerHub user:         apache
-   DockerHub repo:         airflow
    Backend:                mysql 5.7
 
 
@@ -615,8 +643,7 @@ All Tests are inside ./tests directory.
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
-      run_ci_tests.sh*                            run_pylint.sh*
+      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
       run_extract_tests.sh*                       stop_tmux_airflow.sh*
@@ -813,8 +840,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
       entrypoint_exec.sh*                         run_install_and_test_provider_packages.sh*
       _in_container_script_init.sh*               run_mypy.sh*
       prod/                                       run_prepare_provider_packages.sh*
-      refresh_pylint_todo.sh*                     run_prepare_provider_documentation.sh*
-      run_ci_tests.sh*                            run_pylint.sh*
+      run_ci_tests.sh*                            run_prepare_provider_documentation.sh*
       run_clear_tmp.sh*                           run_system_tests.sh*
       run_docs_build.sh*                          run_tmux_welcome.sh*
       run_extract_tests.sh*                       stop_tmux_airflow.sh*
@@ -857,14 +883,6 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
    <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pre-commit-hooks" target="_blank">
    Pre-commit Hooks</a>
-
-  - |Pylint Static Code Checks|
-
-  .. |Pylint Static Code Checks| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/STATIC_CODE_CHECKS.rst#pylint-static-code-checks"
-   target="_blank">Pylint Static Code Checks</a>
-
 
   - |Running Static Code Checks via Breeze|
 

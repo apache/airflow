@@ -254,7 +254,7 @@ Enabling Integrations
 ---------------------
 
 Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in the CI. See `<CI.yml>`_ for details about Airflow CI.
+environment with enabled integrations and in the CI. See `<.github/workflows/ci.yml>`_ for details about Airflow CI.
 
 When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
 to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
@@ -625,6 +625,8 @@ Running Kubernetes tests via shell:
 
 .. code-block:: bash
 
+      export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
+
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh                      - runs all kubernetes tests
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh TEST [TEST ...]      - runs selected kubernetes tests (from kubernetes_tests folder)
 
@@ -656,6 +658,10 @@ Where ``KIND_CLUSTER_NAME`` is the name of the cluster and ``HOST_PYTHON_VERSION
 in the host.
 
 You can enter the shell via those scripts
+
+.. code-block:: bash
+
+      export EXECUTOR="KubernetesExecutor" ## can be also CeleryExecutor or CeleryKubernetesExecutor
 
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [-i|--interactive]   - Activates virtual environment ready to run tests and drops you in
       ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh [--help]             - Prints this help message
@@ -720,8 +726,6 @@ The typical session for tests with Kubernetes looks like follows:
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
-       DockerHub user:          apache
-       DockerHub repo:          airflow
        Backend:                 postgres 9.6
 
     No kind clusters found.
@@ -762,8 +766,6 @@ The typical session for tests with Kubernetes looks like follows:
 
        Airflow source version:  2.0.0.dev0
        Python version:          3.7
-       DockerHub user:          apache
-       DockerHub repo:          airflow
        Backend:                 postgres 9.6
 
     airflow-python-3.7-v1.17.0-control-plane

@@ -72,14 +72,14 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_create_entry_group_result]
     create_entry_group_result = BashOperator(
         task_id="create_entry_group_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_entry_group', key='entry_group_id') }}\"",
+        bash_command=f"echo {create_entry_group.output['entry_group_id']}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_group_result]
 
     # [START howto_operator_gcp_datacatalog_create_entry_group_result2]
     create_entry_group_result2 = BashOperator(
         task_id="create_entry_group_result2",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_entry_group') }}\"",
+        bash_command=f"echo {create_entry_group.output}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_group_result2]
 
@@ -100,14 +100,14 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_create_entry_gcs_result]
     create_entry_gcs_result = BashOperator(
         task_id="create_entry_gcs_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_entry_gcs', key='entry_id') }}\"",
+        bash_command=f"echo {create_entry_gcs.output['entry_id']}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_gcs_result]
 
     # [START howto_operator_gcp_datacatalog_create_entry_gcs_result2]
     create_entry_gcs_result2 = BashOperator(
         task_id="create_entry_gcs_result2",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_entry_gcs') }}\"",
+        bash_command=f"echo {create_entry_gcs.output}",
     )
     # [END howto_operator_gcp_datacatalog_create_entry_gcs_result2]
 
@@ -125,14 +125,12 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_create_tag_result]
     create_tag_result = BashOperator(
         task_id="create_tag_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_tag', key='tag_id') }}\"",
+        bash_command=f"echo {create_tag.output['tag_id']}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_result]
 
     # [START howto_operator_gcp_datacatalog_create_tag_result2]
-    create_tag_result2 = BashOperator(
-        task_id="create_tag_result2", bash_command="echo \"{{ task_instance.xcom_pull('create_tag') }}\""
-    )
+    create_tag_result2 = BashOperator(task_id="create_tag_result2", bash_command=f"echo {create_tag.output}")
     # [END howto_operator_gcp_datacatalog_create_tag_result2]
 
     # [START howto_operator_gcp_datacatalog_create_tag_template]
@@ -154,14 +152,14 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_create_tag_template_result]
     create_tag_template_result = BashOperator(
         task_id="create_tag_template_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_tag_template', key='tag_template_id') }}\"",
+        bash_command=f"echo {create_tag_template.output['tag_template_id']}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_result]
 
     # [START howto_operator_gcp_datacatalog_create_tag_template_result2]
     create_tag_template_result2 = BashOperator(
         task_id="create_tag_template_result2",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_tag_template') }}\"",
+        bash_command=f"echo {create_tag_template.output}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_result2]
 
@@ -180,17 +178,14 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_create_tag_template_field_result]
     create_tag_template_field_result = BashOperator(
         task_id="create_tag_template_field_result",
-        bash_command=(
-            "echo \"{{ task_instance.xcom_pull('create_tag_template_field',"
-            + " key='tag_template_field_id') }}\""
-        ),
+        bash_command=f"echo {create_tag_template_field.output['tag_template_field_id']}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field_result]
 
     # [START howto_operator_gcp_datacatalog_create_tag_template_field_result2]
     create_tag_template_field_result2 = BashOperator(
         task_id="create_tag_template_field_result2",
-        bash_command="echo \"{{ task_instance.xcom_pull('create_tag_template_field') }}\"",
+        bash_command=f"echo {create_tag_template_field.output}",
     )
     # [END howto_operator_gcp_datacatalog_create_tag_template_field_result2]
 
@@ -213,7 +208,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
         location=LOCATION,
         entry_group=ENTRY_GROUP_ID,
         entry=ENTRY_ID,
-        tag="{{ task_instance.xcom_pull('create_tag', key='tag_id') }}",
+        tag=create_tag.output["tag_id"],
     )
     # [END howto_operator_gcp_datacatalog_delete_tag]
 
@@ -246,7 +241,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_get_entry_group_result]
     get_entry_group_result = BashOperator(
         task_id="get_entry_group_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('get_entry_group') }}\"",
+        bash_command=f"echo {get_entry_group.output}",
     )
     # [END howto_operator_gcp_datacatalog_get_entry_group_result]
 
@@ -257,9 +252,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [END howto_operator_gcp_datacatalog_get_entry]
 
     # [START howto_operator_gcp_datacatalog_get_entry_result]
-    get_entry_result = BashOperator(
-        task_id="get_entry_result", bash_command="echo \"{{ task_instance.xcom_pull('get_entry') }}\""
-    )
+    get_entry_result = BashOperator(task_id="get_entry_result", bash_command=f"echo {get_entry.output}")
     # [END howto_operator_gcp_datacatalog_get_entry_result]
 
     # [START howto_operator_gcp_datacatalog_get_tag_template]
@@ -271,7 +264,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_get_tag_template_result]
     get_tag_template_result = BashOperator(
         task_id="get_tag_template_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('get_tag_template') }}\"",
+        bash_command=f"{get_tag_template.output}",
     )
     # [END howto_operator_gcp_datacatalog_get_tag_template_result]
 
@@ -283,9 +276,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [END howto_operator_gcp_datacatalog_list_tags]
 
     # [START howto_operator_gcp_datacatalog_list_tags_result]
-    list_tags_result = BashOperator(
-        task_id="list_tags_result", bash_command="echo \"{{ task_instance.xcom_pull('list_tags') }}\""
-    )
+    list_tags_result = BashOperator(task_id="list_tags_result", bash_command=f"echo {list_tags.output}")
     # [END howto_operator_gcp_datacatalog_list_tags_result]
 
     # Lookup
@@ -330,7 +321,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
     # [START howto_operator_gcp_datacatalog_search_catalog_result]
     search_catalog_result = BashOperator(
         task_id="search_catalog_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('search_catalog') }}\"",
+        bash_command=f"echo {search_catalog.output}",
     )
     # [END howto_operator_gcp_datacatalog_search_catalog_result]
 
@@ -354,7 +345,7 @@ with models.DAG("example_gcp_datacatalog", start_date=days_ago(1), schedule_inte
         location=LOCATION,
         entry_group=ENTRY_GROUP_ID,
         entry=ENTRY_ID,
-        tag_id="{{ task_instance.xcom_pull('create_tag', key='tag_id') }}",
+        tag_id=f"{create_tag.output['tag_id']}",
     )
     # [END howto_operator_gcp_datacatalog_update_tag]
 

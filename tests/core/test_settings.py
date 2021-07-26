@@ -115,7 +115,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()
 
             with pytest.raises(AttributeError):
-                settings.not_policy()  # pylint: disable=no-member
+                settings.not_policy()
 
     def test_import_with_dunder_all(self):
         """
@@ -128,7 +128,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()
 
             task_instance = MagicMock()
-            settings.test_policy(task_instance)  # pylint: disable=no-member
+            settings.test_policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
 
@@ -141,7 +141,7 @@ class TestLocalSettings(unittest.TestCase):
         from airflow import settings
 
         settings.import_local_settings()
-        log_mock.assert_called_once_with("Failed to import airflow_local_settings.", exc_info=True)
+        log_mock.assert_called_once_with("No airflow_local_settings to import.", exc_info=True)
 
     def test_policy_function(self):
         """
@@ -154,7 +154,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()
 
             task_instance = MagicMock()
-            settings.test_policy(task_instance)  # pylint: disable=no-member
+            settings.test_policy(task_instance)
 
             assert task_instance.run_as_user == "myself"
 
@@ -182,7 +182,7 @@ class TestLocalSettings(unittest.TestCase):
             task_instance = MagicMock()
             task_instance.owner = 'airflow'
             with pytest.raises(AirflowClusterPolicyViolation):
-                settings.task_must_have_owners(task_instance)  # pylint: disable=no-member
+                settings.task_must_have_owners(task_instance)
 
 
 class TestUpdatedConfigNames(unittest.TestCase):

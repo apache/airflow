@@ -58,8 +58,7 @@ class MongoToS3Operator(BaseOperator):
 
     template_fields = ('s3_bucket', 's3_key', 'mongo_query', 'mongo_collection')
     ui_color = '#589636'
-    template_fields_renderers = {"mongo_query": "py"}
-    # pylint: disable=too-many-instance-attributes
+    template_fields_renderers = {"mongo_query": "json"}
 
     def __init__(
         self,

@@ -36,13 +36,8 @@ from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='POC_winrm_parallel',
-    default_args=default_args,
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),

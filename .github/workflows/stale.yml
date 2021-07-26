@@ -21,12 +21,15 @@ name: 'Close stale PRs & Issues'
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '0 0 * * *'
-
+permissions:
+  # All other permissions are set to none
+  pull-requests: write
+  issues: write
 jobs:
   stale:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/stale@v3
+      - uses: actions/stale@v4
         with:
           stale-pr-message: >
             This pull request has been automatically marked as stale because it has not had

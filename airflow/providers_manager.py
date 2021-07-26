@@ -25,7 +25,7 @@ from collections import OrderedDict
 from typing import Any, Dict, NamedTuple, Set
 
 import jsonschema
-from wtforms import Field
+from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
 
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -34,7 +34,9 @@ try:
     import importlib.resources as importlib_resources
 except ImportError:
     # Try back-ported to PY<37 `importlib_resources`.
-    import importlib_resources  # noqa
+    import importlib_resources
+
+ALLOWED_FIELD_CLASSES = [IntegerField, PasswordField, StringField, BooleanField]
 
 log = logging.getLogger(__name__)
 
@@ -128,10 +130,10 @@ class ProvidersManager:
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
         self._discover_hooks()
-        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))  # noqa
-        self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))  # noqa
-        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))  # noqa
-        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))  # noqa
+        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
+        self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))
+        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
+        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
         self._discover_extra_links()
         self._initialized = True
 
@@ -184,7 +186,7 @@ class ProvidersManager:
         try:
             for path in airflow.providers.__path__:
                 self._add_provider_info_from_local_source_files_on_path(path)
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
@@ -222,7 +224,7 @@ class ProvidersManager:
                     "package name have already been registered",
                     package_name,
                 )
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             log.warning("Error when loading '%s': %s", path, e)
 
     def _discover_hooks(self) -> None:
@@ -274,13 +276,23 @@ class ProvidersManager:
             if 'get_connection_form_widgets' in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
                 if widgets:
+                    for widget in widgets.values():
+                        if widget.field_class not in ALLOWED_FIELD_CLASSES:
+                            log.warning(
+                                "The hook_class '%s' uses field of unsupported class '%s'. "
+                                "Only '%s' field classes are supported",
+                                hook_class_name,
+                                widget.field_class,
+                                ALLOWED_FIELD_CLASSES,
+                            )
+                            return
                     self._add_widgets(provider_package, hook_class, widgets)
             if 'get_ui_field_behaviour' in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(provider_package, hook_class, field_behaviours)
 
-        except ImportError as e:  # noqa pylint: disable=broad-except
+        except ImportError as e:
             # When there is an ImportError we turn it into debug warnings as this is
             # an expected case when only some providers are installed
             log.debug(
@@ -290,7 +302,7 @@ class ProvidersManager:
                 e,
             )
             return
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
                 hook_class_name,
@@ -348,7 +360,7 @@ class ProvidersManager:
                 )
                 return
             self._field_behaviours[connection_type] = customized_fields
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             log.warning(
                 "Error when loading customized fields from package '%s' hook class '%s': %s",
                 package_name,

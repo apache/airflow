@@ -59,6 +59,7 @@ class TestSqoopOperator(unittest.TestCase):
         'properties': {'mapred.map.max.attempts': '1'},
         'extra_import_options': {'hcatalog-storage-stanza': "\"stored as orcfile\"", 'show': ''},
         'extra_export_options': {'update-key': 'id', 'update-mode': 'allowinsert', 'fetch-size': 1},
+        'schema': 'myschema',
     }
 
     def setUp(self):
@@ -94,6 +95,7 @@ class TestSqoopOperator(unittest.TestCase):
         assert self._config['create_hcatalog_table'] == operator.create_hcatalog_table
         assert self._config['extra_import_options'] == operator.extra_import_options
         assert self._config['extra_export_options'] == operator.extra_export_options
+        assert self._config['schema'] == operator.schema
 
         # the following are meant to be more of examples
         SqoopOperator(

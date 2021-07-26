@@ -143,7 +143,7 @@ repos:
         files: \.mermaid$
         exclude: ^airflow/_vendor/
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.0.0
+    rev: v2.0.1
     hooks:
       - id: doctoc
         name: Add TOC for md files
@@ -154,7 +154,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.5b1
+    rev: 21.6b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -164,7 +164,7 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.5b1]
+        additional_dependencies: [black==21.6b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
@@ -196,13 +196,13 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.19.0
+    rev: v2.21.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.8.0
+    rev: v1.9.0
     hooks:
       - id: rst-backticks
         exclude: ^airflow/_vendor/
@@ -218,7 +218,7 @@ repos:
         exclude:
           ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|^airflow/_vendor/
   - repo: https://github.com/timothycrosley/isort
-    rev: 5.8.0
+    rev: 5.9.2
     hooks:
       - id: isort
         name: Run isort to sort imports in Python files
@@ -232,7 +232,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D104,D105,D107,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
@@ -242,6 +242,14 @@ repos:
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
+          ^airflow/_vendor/
+        additional_dependencies: ['toml']
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.2.3
+    hooks:
+      - id: yesqa
+        exclude: |
+          (?x)
           ^airflow/_vendor/
   - repo: local
     hooks:
@@ -282,7 +290,7 @@ repos:
         name: Update output of breeze command in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh
         language: system
-        files: ^BREEZE\.rst$|^breeze$|^breeze-complete$
+        files: ^BREEZE\.rst$|^breeze$|^breeze-complete|^Dockerfile$
         pass_filenames: false
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -299,9 +307,10 @@ repos:
       - id: build-providers-dependencies
         name: Build cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh
-        language: system
+        language: python
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
         pass_filenames: false
+        additional_dependencies: ['setuptools']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
@@ -352,14 +361,7 @@ repos:
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra\.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
           git|
-          ^pylintrc |
           ^CHANGELOG\.txt$
-      - id: consistent-pylint
-        language: pygrep
-        name: Check for inconsistent pylint disable/enable without space
-        entry: "pylint:disable|pylint:enable"
-        pass_filenames: true
-        files: \.py$
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports
@@ -629,6 +631,20 @@ repos:
         additional_dependencies: ['flynt==0.63']
         files: \.py$
         exclude: ^airflow/_vendor/
+      - id: ui-lint
+        name: ESLint against airflow/ui
+        language: node
+        'types_or': [javascript, tsx, ts]
+        files: ^airflow/ui/
+        entry: scripts/ci/static_checks/ui_lint.sh
+        pass_filenames: false
+      - id: www-lint
+        name: ESLint against current UI js files
+        language: node
+        'types_or': [javascript]
+        files: ^airflow/www/static/js/
+        entry: scripts/ci/static_checks/www_lint.sh
+        pass_filenames: false
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
@@ -636,6 +652,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
         language: system
         always_run: true
+        pass_filenames: false
+      - id: bats-in-container-tests
+        name: Run in container bats tests
+        language: system
+        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
+        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
         pass_filenames: false
       - id: mypy
         name: Run mypy
@@ -656,28 +678,6 @@ repos:
         files: ^docs/.*\.py$
         exclude: rtd-deprecation
         require_serial: false
-      - id: pylint
-        name: Run pylint for main code
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^tests|^kubernetes_tests|^airflow/_vendor/
-        pass_filenames: true
-        require_serial: true
-      - id: pylint
-        name: Run pylint for tests
-        language: system
-        entry: env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: ^tests/.*\.py$
-        pass_filenames: true
-        require_serial: true
-      - id: pylint
-        name: Run pylint for helm chart tests
-        language: system
-        entry: env PYLINTRC=pylintrc-tests ./scripts/ci/pre_commit/pre_commit_pylint.sh
-        files: ^chart/.*\.py$
-        pass_filenames: true
-        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
@@ -685,24 +685,4 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-      - id: ui-lint
-        name: ESLint against airflow/ui
-        language: node
-        'types_or': [javascript, tsx, ts]
-        files: ^airflow/ui/
-        entry: scripts/ci/static_checks/ui_lint.sh
-        pass_filenames: false
-      - id: www-lint
-        name: ESLint against current UI js files
-        language: node
-        'types_or': [javascript]
-        files: ^airflow/www/static/js/
-        entry: scripts/ci/static_checks/www_lint.sh
-        pass_filenames: false
-      - id: bats-in-container-tests
-        name: Run in container bats tests
-        language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_in_container_bats_test.sh
-        files: ^tests/bats/in_container/.*\.bats$|^scripts/in_container/.*sh
-        pass_filenames: false
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

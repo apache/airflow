@@ -43,7 +43,7 @@ class TestPostgresHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user='login', password='password', host='host', dbname='schema', port=None
@@ -138,6 +138,33 @@ class TestPostgresHookConn(unittest.TestCase):
         mock_client.return_value.get_cluster_credentials.assert_has_calls(
             [get_cluster_credentials_call, get_cluster_credentials_call]
         )
+
+    def test_get_uri_from_connection_without_schema_override(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="postgres",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
+        assert "postgres://login:password@host:1/schema" == self.db_hook.get_uri()
+
+    def test_get_uri_from_connection_with_schema_override(self):
+        hook = PostgresHook(schema='schema-override')
+        hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="postgres",
+                host="host",
+                login="login",
+                password="password",
+                schema="schema",
+                port=1,
+            )
+        )
+        assert "postgres://login:password@host:1/schema-override" == hook.get_uri()
 
 
 class TestPostgresHook(unittest.TestCase):

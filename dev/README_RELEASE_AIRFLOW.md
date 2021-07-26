@@ -22,9 +22,10 @@
 
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
-  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image)
+  - [Prepare production Docker Image](#prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -37,7 +38,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
-  - [\[Optional\] - Manually prepare production Docker Image](#%5Coptional%5C---manually-prepare-production-docker-image-1)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image-1)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
@@ -56,8 +57,9 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     # Set Version
-    export VERSION=2.0.2rc3
+    export VERSION=2.1.2rc3
     export VERSION_SUFFIX=rc3
+    export VERSION_CONSTRAINT_BRANCH=2-1
     export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -82,13 +84,13 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Clean the checkout: the sdist step below will
 
     ```shell script
-    rm -rf dist/*
     git clean -fxd
     ```
 
 - Tarball the repo
 
     ```shell script
+    mkdir dist
     git archive --format=tar.gz ${VERSION} \
         --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
@@ -105,7 +107,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout constraints-2-0
+    git checkout constraints-${VERSION_CONSTRAINT_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
@@ -126,6 +128,18 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
+
+
+## Manually prepare production Docker Image
+
+
+```shell script
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
+```
+
+This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
+also performs image verification before pushing the images.
+
 
 ## [\Optional\] Create new release branch
 
@@ -154,17 +168,14 @@ Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branc
 ## Prepare PyPI convenience "snapshot" packages
 
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to PyPI for installing via pip. Also those packages
-are used to build the production docker image in DockerHub, so we need to upload the packages
-before we push the tag to GitHub. Pushing the tag to GitHub automatically triggers image building in
-DockerHub.
+publish "snapshots" of the RC builds to PyPI for installing via pip:
 
 To do this we need to
 
 - Build the package:
 
     ```shell script
-    ./breeze prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}"
+    ./breeze prepare-airflow-packages --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
     ```
 
 - Verify the artifacts that would be uploaded:
@@ -201,46 +212,16 @@ is not supposed to be used by and advertised to the end-users who do not read th
     git push origin ${VERSION}
     ```
 
-## \[Optional\] - Manually prepare production Docker Image
+## Prepare production Docker Image
 
-Production Docker images should be automatically built in 2-3 hours after the release tag has been
-pushed. If this did not happen - please login to DockerHub and check the status of builds:
-[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
-
-In case you need, you can also build and push the images manually:
+Production Docker images should be manually prepared and pushed by the release manager.
 
 ```shell script
-export VERSION=<VERSION_HERE>
-export DOCKER_REPO=docker.io/apache/airflow
-export DEFAULT_PYTHON_VERSION=3.6
-for python_version in "3.6" "3.7" "3.8"
-(
-  export DOCKER_TAG=${VERSION}-python${python_version}
-  ./scripts/ci/images/ci_build_dockerhub.sh
-)
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
-
-Once this succeeds you should push the "${VERSION}" image:
-
-```shell script
-docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:${VERSION}
-docker push apache/airflow:${VERSION}
-```
-
-And latest images:
-
-```shell script
-for python_version in "3.6" "3.7" "3.8"
-(
-    docker tag apache/airflow:${VERSION}-python{python_version} apache/airflow:latest-python{python-version}
-    docker push apache/airflow:latest-python{python-version}
-)
-docker tag apache/airflow:${VERSION}-python${DEFAULT_PYTHON_VERSION} apache/airflow:latest
-```
-
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before the images are pushed.
+also performs image verification before pushing the images.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -350,7 +331,7 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check.files.py` script to verify that all expected files are
+Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
@@ -574,9 +555,9 @@ cd "${VERSION}"
 
 # Move the artifacts to svn folder & commit
 for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
-    svn cp "$f" "${$(basename $f)/rc?/}"
+    svn cp "$f" "${$(basename $f)/}"
     # Those will be used to upload to PyPI
-    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/rc?/}"
+    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/}"
 done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
@@ -647,28 +628,22 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     git push origin ${VERSION}
     ```
 
-## \[Optional\] - Manually prepare production Docker Image
+## Manually prepare production Docker Image
 
-Production Docker images should be automatically built in 2-3 hours after the release tag has been
-pushed. If this did not happen - please login to DockerHub and check the status of builds:
-[Build Timeline](https://hub.docker.com/repository/docker/apache/airflow/timeline)
-
-In case you need, you can also build and push the images manually:
-
-### Airflow 2+:
 
 ```shell script
-export VERSION=<VERSION_HERE>
-export DOCKER_REPO=docker.io/apache/airflow
-for python_version in "3.6" "3.7" "3.8"
-(
-  export DOCKER_TAG=${VERSION}-python${python_version}
-  ./scripts/ci/images/ci_build_dockerhub.sh
-)
+./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before the images are pushed.
+also performs image verification before pushing the images.
+
+If this is the newest image released, push the latest image as well.
+
+```shell script
+docker tag "apache/airflow:${VERSION}" "apache/airflow:latest"
+docker push "apache/airflow:latest"
+```
 
 ## Publish documentation
 

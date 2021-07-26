@@ -66,7 +66,6 @@ class OracleToOracleOperator(BaseOperator):
         self.source_sql_params = source_sql_params
         self.rows_chunk = rows_chunk
 
-    # pylint: disable=unused-argument
     def _execute(self, src_hook, dest_hook, context) -> None:
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()

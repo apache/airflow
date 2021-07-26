@@ -29,7 +29,6 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Dict, List, NamedTuple, Optional, Union
 
-from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from tabulate import tabulate
@@ -40,11 +39,12 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
+    AirflowTimetableInvalid,
     SerializedDagNotFound,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_cycle_tester import test_cycle
+from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -190,6 +190,8 @@ class DagBag(LoggingMixin):
             # 1. if time has come to check if DAG is updated (controlled by min_serialized_dag_fetch_secs)
             # 2. check the last_updated column in SerializedDag table to see if Serialized DAG is updated
             # 3. if (2) is yes, fetch the Serialized DAG.
+            # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
+            # if it exists and return None.
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
             if (
                 dag_id in self.dags_last_fetched
@@ -199,7 +201,14 @@ class DagBag(LoggingMixin):
                     dag_id=dag_id,
                     session=session,
                 )
-                if sd_last_updated_datetime and sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                if not sd_last_updated_datetime:
+                    self.log.warning("Serialized DAG %s no longer exists", dag_id)
+                    del self.dags[dag_id]
+                    del self.dags_last_fetched[dag_id]
+                    del self.dags_hash[dag_id]
+                    return None
+
+                if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
@@ -277,7 +286,7 @@ class DagBag(LoggingMixin):
                 and file_last_changed_on_disk == self.file_last_changed[filepath]
             ):
                 return []
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.log.exception(e)
             return []
 
@@ -316,7 +325,7 @@ class DagBag(LoggingMixin):
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
                 return [new_module]
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
                     self.import_errors[filepath] = traceback.format_exc(
@@ -359,7 +368,7 @@ class DagBag(LoggingMixin):
                     sys.path.insert(0, filepath)
                     current_module = importlib.import_module(mod_name)
                     mods.append(current_module)
-                except Exception as e:  # pylint: disable=broad-except
+                except Exception as e:
                     self.log.exception("Failed to import: %s", filepath)
                     if self.dagbag_import_error_tracebacks:
                         self.import_errors[filepath] = traceback.format_exc(
@@ -384,14 +393,13 @@ class DagBag(LoggingMixin):
                     dag.fileloc = filepath
             try:
                 dag.is_subdag = False
-                if isinstance(dag.normalized_schedule_interval, str):
-                    croniter(dag.normalized_schedule_interval)
+                dag.timetable.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
                 found_dags.append(dag)
                 found_dags += dag.subdags
-            except (CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError) as cron_e:
+            except AirflowTimetableInvalid as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = f"Invalid Cron expression: {cron_e}"
+                self.import_errors[dag.full_filepath] = f"Invalid timetable expression: {exception}"
                 self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
             except (
                 AirflowDagCycleException,
@@ -418,7 +426,7 @@ class DagBag(LoggingMixin):
         The only purpose of this is to avoid exposing ``recursive`` in ``bag_dag()``,
         intended to only be used by the ``_bag_dag()`` implementation.
         """
-        test_cycle(dag)  # throws if a task cycle is found
+        check_cycle(dag)  # throws if a task cycle is found
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -511,7 +519,7 @@ class DagBag(LoggingMixin):
                         dags=str([dag.dag_id for dag in found_dags]),
                     )
                 )
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 self.log.exception(e)
 
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
@@ -585,7 +593,7 @@ class DagBag(LoggingMixin):
                 return []
             except OperationalError:
                 raise
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 return [(dag.fileloc, traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth))]
 
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
@@ -618,11 +626,11 @@ class DagBag(LoggingMixin):
         """Sync DAG specific permissions, if necessary"""
         from flask_appbuilder.security.sqla import models as sqla_models
 
-        from airflow.security.permissions import DAG_PERMS, resource_name_for_dag
+        from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
 
         def needs_perm_views(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)
-            for permission_name in DAG_PERMS:
+            for permission_name in DAG_ACTIONS:
                 if not (
                     session.query(sqla_models.PermissionView)
                     .join(sqla_models.Permission)

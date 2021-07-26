@@ -123,7 +123,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
 
     def _sanitize(self, dictionary, remaining_field_spec, current_path):
         field_split = remaining_field_spec.split(".", 1)
-        if len(field_split) == 1:  # pylint: disable=too-many-nested-blocks
+        if len(field_split) == 1:
             field_name = field_split[0]
             if field_name in dictionary:
                 self.log.info("Deleted %s [%s]", field_name, current_path)

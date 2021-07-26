@@ -332,7 +332,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def list_column_specs(  # pylint: disable=too-many-arguments
+    def list_column_specs(
         self,
         dataset_id: str,
         table_spec_id: str,

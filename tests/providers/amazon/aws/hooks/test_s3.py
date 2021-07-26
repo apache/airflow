@@ -26,7 +26,6 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 
@@ -238,13 +237,13 @@ class TestAwsS3Hook:
     def test_load_string(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
-        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
         assert resource.get()['Body'].read() == b'Cont\xC3\xA9nt'
 
     def test_load_string_compress(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, compression='gzip')
-        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
         data = gz.decompress(resource.get()['Body'].read())
         assert data == b'Cont\xC3\xA9nt'
 
@@ -264,7 +263,7 @@ class TestAwsS3Hook:
     def test_load_bytes(self, s3_bucket):
         hook = S3Hook()
         hook.load_bytes(b"Content", "my_key", s3_bucket)
-        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
         assert resource.get()['Body'].read() == b'Content'
 
     def test_load_bytes_acl(self, s3_bucket):
@@ -281,7 +280,7 @@ class TestAwsS3Hook:
             temp_file.write(b"Content")
             temp_file.seek(0)
             hook.load_file_obj(temp_file, "my_key", s3_bucket)
-            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
             assert resource.get()['Body'].read() == b'Content'
 
     def test_load_fileobj_acl(self, s3_bucket):
@@ -292,7 +291,7 @@ class TestAwsS3Hook:
             hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
             response = boto3.client('s3').get_object_acl(
                 Bucket=s3_bucket, Key="my_key", RequestPayer='requester'
-            )  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            )
             assert (response['Grants'][1]['Permission'] == 'READ') and (
                 response['Grants'][0]['Permission'] == 'FULL_CONTROL'
             )
@@ -303,7 +302,7 @@ class TestAwsS3Hook:
             temp_file.write(b"Content")
             temp_file.seek(0)
             hook.load_file(temp_file.name, "my_key", s3_bucket, gzip=True)
-            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
             assert gz.decompress(resource.get()['Body'].read()) == b'Content'
             os.unlink(temp_file.name)
 
@@ -315,7 +314,7 @@ class TestAwsS3Hook:
             hook.load_file(temp_file.name, "my_key", s3_bucket, gzip=True, acl_policy='public-read')
             response = boto3.client('s3').get_object_acl(
                 Bucket=s3_bucket, Key="my_key", RequestPayer='requester'
-            )  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            )
             assert (response['Grants'][1]['Permission'] == 'READ') and (
                 response['Grants'][0]['Permission'] == 'FULL_CONTROL'
             )
@@ -330,7 +329,7 @@ class TestAwsS3Hook:
             hook.copy_object("my_key", "my_key", s3_bucket, s3_bucket)
             response = boto3.client('s3').get_object_acl(
                 Bucket=s3_bucket, Key="my_key", RequestPayer='requester'
-            )  # pylint: disable=no-member # noqa: E501 # pylint: disable=C0301
+            )
             assert (response['Grants'][0]['Permission'] == 'FULL_CONTROL') and (len(response['Grants']) == 1)
 
     @mock_s3
@@ -366,12 +365,10 @@ class TestAwsS3Hook:
         assert test_bucket_name == 'bucket'
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
+        # The behaviour of delete changed in recent version of s3 mock libraries.
+        # It will succeed idempotently
         hook = S3Hook()
-        with pytest.raises(AirflowException) as ctx:
-            hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
-
-        assert isinstance(ctx.value, AirflowException)
-        assert str(ctx.value) == "Errors when deleting: ['key-1']"
+        hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
         key = 'key-1'
@@ -465,7 +462,7 @@ class TestAwsS3Hook:
             temp_file.write(b"Content")
             temp_file.seek(0)
             hook.load_file_obj(temp_file, "my_key", s3_bucket, acl_policy='public-read')
-            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+            resource = boto3.resource('s3').Object(s3_bucket, 'my_key')
             assert resource.get()['ContentLanguage'] == "value"
 
     @mock_s3

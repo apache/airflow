@@ -51,7 +51,7 @@ Package apache-airflow-providers-sftp
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -62,19 +62,21 @@ are in ``airflow.providers.sftp`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.* installation via
+You can install this package on top of an existing airflow 2.1+ installation via
 ``pip install apache-airflow-providers-sftp``
 
 PIP requirements
 ----------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``paramiko``   ``>=2.6.0``
-``pysftp``     ``>=0.2.9``
-``sshtunnel``  ``>=0.1.4,<0.2``
-=============  ==================
+================================  ==================
+PIP package                       Version required
+================================  ==================
+``apache-airflow``                ``>=2.1.0``
+``apache-airflow-providers-ssh``  ``>=2.1.0``
+``paramiko``                      ``>=2.6.0``
+``pysftp``                        ``>=0.2.9``
+``sshtunnel``                     ``>=0.1.4,<0.2``
+================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -101,71 +103,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-sftp 2.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-sftp 2.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-sftp 2.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-2.1.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-sftp 2.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-2.1.0-py3-none-any.whl.sha512>`__)
 
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
- ..   http://www.apache.org/licenses/LICENSE-2.0
-
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
-
-Changelog
----------
-
-2.0.0
-.....
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-* ``Auto-apply apply_default decorator (#15667)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
-1.2.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Undeprecate private_key option in SFTPHook (#15348)``
-* ``Add logs to show last modified in SFTP, FTP and Filesystem sensor (#15134)``
-
-1.1.1
-.....
-
-Bug fixes
-~~~~~~~~~
-
-* ``Corrections in docs and tools after releasing provider RCs (#14082)``
-
-
-1.1.0
-.....
-
-Updated documentation and readme files.
-
-Features
-~~~~~~~~
-
-* ``Add retryer to SFTP hook connection (#13065)``
-
-
-1.0.0
-.....
-
-Initial version of the provider.
+.. include:: ../../airflow/providers/sftp/CHANGELOG.rst

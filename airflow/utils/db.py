@@ -23,8 +23,8 @@ from sqlalchemy import Table, exc, func
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob  # noqa: F401 # pylint: disable=unused-import
-from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
+from airflow.jobs.base_job import BaseJob  # noqa: F401
+from airflow.models import (  # noqa: F401
     DAG,
     XCOM_RETURN_KEY,
     BaseOperator,
@@ -47,10 +47,11 @@ from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
 )
 
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
+    create_global_lock,
     create_session,
     provide_session,
 )
@@ -166,6 +167,16 @@ def create_default_connections(session=None):
             conn_type="http",
             host="",
             password="",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="drill_default",
+            conn_type="drill",
+            host="localhost",
+            port=8047,
+            extra='{"dialect_driver": "drill+sadrill", "storage_plugin": "dfs"}',
         ),
         session,
     )
@@ -561,23 +572,26 @@ def create_default_connections(session=None):
     )
 
 
-def initdb():
+@provide_session
+def initdb(session=None):
     """Initialize Airflow database."""
-    upgradedb()
+    upgradedb(session=session)
 
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
-        create_default_connections()
+        create_default_connections(session=session)
 
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db()
+    with create_global_lock(session=session):
 
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys())
+        dagbag = DagBag()
+        # Save DAGs in the ORM
+        dagbag.sync_to_db(session=session)
 
-    from flask_appbuilder.models.sqla import Base
+        # Deactivate the unknown ones
+        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
-    Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
+        from flask_appbuilder.models.sqla import Base
+
+        Base.metadata.create_all(settings.engine)
 
 
 def _get_alembic_config():
@@ -687,7 +701,8 @@ def auto_migrations_available(session=None):
     return errors_
 
 
-def upgradedb():
+@provide_session
+def upgradedb(session=None):
     """Upgrade the database."""
     # alembic adds significant import time, so we import it lazily
     from alembic import command
@@ -702,20 +717,23 @@ def upgradedb():
         for err in errs:
             log.error("Automatic migration is not available\n%s", err)
         return
-    command.upgrade(config, 'heads')
+    with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
+        command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
 
 
-def resetdb():
+@provide_session
+def resetdb(session=None):
     """Clear out the database"""
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
 
-    drop_airflow_models(connection)
-    drop_flask_models(connection)
+    with create_global_lock(session=session, pg_lock_id=4, lock_name="reset"):
+        drop_airflow_models(connection)
+        drop_flask_models(connection)
 
-    initdb()
+    initdb(session=session)
 
 
 def drop_airflow_models(connection):
@@ -745,10 +763,10 @@ def drop_airflow_models(connection):
     Base.metadata.remove(user)
     Base.metadata.remove(chart)
     # alembic adds significant import time, so we import it lazily
-    from alembic.migration import MigrationContext  # noqa
+    from alembic.migration import MigrationContext
 
     migration_ctx = MigrationContext.configure(connection)
-    version = migration_ctx._version  # noqa pylint: disable=protected-access
+    version = migration_ctx._version
     if version.exists(connection):
         version.drop(connection)
 
@@ -762,7 +780,7 @@ def drop_flask_models(connection):
     """
     from flask_appbuilder.models.sqla import Base
 
-    Base.metadata.drop_all(connection)  # pylint: disable=no-member
+    Base.metadata.drop_all(connection)
 
 
 @provide_session

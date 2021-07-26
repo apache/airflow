@@ -53,7 +53,7 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         ],
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore  # pylint: disable=no-member
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "test-dag-id-1",
         access_control={'TestGranularDag': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
     )

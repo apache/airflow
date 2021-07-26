@@ -19,7 +19,6 @@
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.external_task import (  # noqa
     ExternalTaskMarker,
     ExternalTaskSensor,

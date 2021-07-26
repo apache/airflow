@@ -44,6 +44,8 @@ Helm Chart for Apache Airflow
     :caption: References
 
     Parameters <parameters-ref>
+    changelog
+    Updating <updating>
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
@@ -54,7 +56,7 @@ Requirements
 ------------
 
 -  Kubernetes 1.14+ cluster
--  Helm 2.11+ or Helm 3.0+
+-  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features

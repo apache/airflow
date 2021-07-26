@@ -100,7 +100,7 @@ class CloudBuildHook(GoogleBaseHook):
 
         # Create build
         response = (
-            service.projects()  # pylint: disable=no-member
+            service.projects()
             .builds()
             .create(projectId=project_id, body=body)
             .execute(num_retries=self.num_retries)
@@ -114,7 +114,7 @@ class CloudBuildHook(GoogleBaseHook):
         build_id = response["metadata"]["build"]["id"]
 
         result = (
-            service.projects()  # pylint: disable=no-member
+            service.projects()
             .builds()
             .get(projectId=project_id, id=build_id)
             .execute(num_retries=self.num_retries)
@@ -136,10 +136,7 @@ class CloudBuildHook(GoogleBaseHook):
         service = self.get_conn()
         while True:
             operation_response = (
-                # pylint: disable=no-member
-                service.operations()
-                .get(name=operation_name)
-                .execute(num_retries=self.num_retries)
+                service.operations().get(name=operation_name).execute(num_retries=self.num_retries)
             )
             if operation_response.get("done"):
                 response = operation_response.get("response")

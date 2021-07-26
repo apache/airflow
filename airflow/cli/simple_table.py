@@ -73,7 +73,6 @@ class AirflowConsole(Console):
         output = tabulate(rows, tablefmt="plain", headers=data[0].keys())
         print(output)
 
-    # pylint: disable=too-many-return-statements
     def _normalize_data(self, value: Any, output: str) -> Optional[Union[list, str, dict]]:
         if isinstance(value, (tuple, list)):
             if output == "table":
@@ -125,7 +124,7 @@ class SimpleTable(Table):
         self.title_justify = kwargs.get("title_justify", "left")
         self.caption = kwargs.get("caption", " ")
 
-    def add_column(self, *args, **kwargs) -> None:  # pylint: disable=signature-differs
+    def add_column(self, *args, **kwargs) -> None:
         """Add a column to the table. We use different default"""
         kwargs["overflow"] = kwargs.get("overflow")  # to avoid truncating
         super().add_column(*args, **kwargs)

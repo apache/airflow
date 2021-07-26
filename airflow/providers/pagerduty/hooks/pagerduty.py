@@ -66,7 +66,6 @@ class PagerdutyHook(BaseHook):
         self._session = pdpyras.APISession(self.token)
         return self._session
 
-    # pylint: disable=too-many-arguments
     def create_event(
         self,
         summary: str,

@@ -31,6 +31,7 @@
   - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi)
   - [Add tags in git](#add-tags-in-git)
   - [Prepare documentation](#prepare-documentation)
+  - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
   - [Verify the release by PMC members](#verify-the-release-by-pmc-members)
   - [Verify by Contributors](#verify-by-contributors)
@@ -106,10 +107,20 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-NO_INTERACTIVE="true"
-./breeze prepare-provider-documentation [packages]
+./breeze --non-interactive prepare-provider-documentation [packages]
 ```
 
+When you run the command and documentation generation is successful you will get a command that you can run to
+create GitHub issue where you will be tracking status of tests for the providers you release.
+
+You can also trigger automated execution of the issue by running:
+
+```shell script
+./breeze --non-interactive --generate-providers-issue prepare-provider-documentation [packages]
+```
+
+Once you release packages, you should create the issue with the content specified and link to it in
+the email sent to the devlist.
 
 ## Build provider packages for SVN apache upload
 
@@ -339,6 +350,11 @@ git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
 git push --set-upstream origin "${branch}"
 ```
 
+## Prepare issue in GitHub to keep status of testing
+
+Create GitHub issue with the content generated via prepare-provider-documentation or manual
+execution of the script above. You will use link to that issue in the next step.
+
 ## Prepare voting email for Providers release candidate
 
 Make sure the packages are in https://dist.apache.org/repos/dist/dev/airflow/providers/
@@ -351,7 +367,7 @@ subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Airflow Providers - release prepared $(date "+%Y-%m-%d%n")
+[VOTE] Airflow Providers prepared on $(date "+%B %d, %Y")
 EOF
 ```
 
@@ -363,6 +379,8 @@ I have just cut the new wave Airflow Providers packages. This email is calling a
 which will last for 72 hours - which means that it will end on $(date -d '+3 days').
 
 Consider this my (binding) +1.
+
+<ADD ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
 
 Airflow Providers are available at:
 https://dist.apache.org/repos/dist/dev/airflow/providers/
@@ -398,15 +416,10 @@ Please note that the version number excludes the 'rcX' string.
 This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
+The status of testing the providers by the community is kept here:
+<TODO COPY LINK TO THE ISSUE CREATED>
 
-Each of the packages contains a link to the detailed changelog. The changelogs are moved to the official airflow documentation:
-https://github.com/apache/airflow-site/<TODO COPY LINK TO BRANCH>
-
-<PASTE ANY HIGH-LEVEL DESCRIPTION OF THE CHANGES HERE!>
-
-
-Note the links to documentation from PyPI packages are not working until we merge
-the changes to airflow site after releasing the packages officially.
+You can find packages as well as detailed changelog following the below links:
 
 <PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
 
@@ -448,7 +461,7 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check.files.py` script to verify that all expected files are
+Optionally you can use `check_files.py` script to verify that all expected files are
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script

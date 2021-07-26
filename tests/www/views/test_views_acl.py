@@ -80,36 +80,36 @@ def acl_app(app):
             security_manager.add_user(
                 role=role,
                 username=username,
-                **kwargs,  # pylint: disable=not-a-mapping
+                **kwargs,
             )
 
     # FIXME: Clean up this block of code.....
 
-    website_permission = security_manager.find_permission_view_menu(
+    website_permission = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE
     )
 
     dag_tester_role = security_manager.find_role('dag_acl_tester')
-    edit_perm_on_dag = security_manager.find_permission_view_menu(
+    edit_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'
     )
     security_manager.add_permission_role(dag_tester_role, edit_perm_on_dag)
-    read_perm_on_dag = security_manager.find_permission_view_menu(
+    read_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
     security_manager.add_permission_role(dag_tester_role, read_perm_on_dag)
     security_manager.add_permission_role(dag_tester_role, website_permission)
 
     all_dag_role = security_manager.find_role('all_dag_role')
-    edit_perm_on_all_dag = security_manager.find_permission_view_menu(
+    edit_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
     )
     security_manager.add_permission_role(all_dag_role, edit_perm_on_all_dag)
-    read_perm_on_all_dag = security_manager.find_permission_view_menu(
+    read_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
     )
     security_manager.add_permission_role(all_dag_role, read_perm_on_all_dag)
-    read_perm_on_task_instance = security_manager.find_permission_view_menu(
+    read_perm_on_task_instance = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
     )
     security_manager.add_permission_role(all_dag_role, read_perm_on_task_instance)
@@ -120,7 +120,7 @@ def acl_app(app):
     security_manager.add_permission_role(role_user, edit_perm_on_all_dag)
     security_manager.add_permission_role(role_user, website_permission)
 
-    read_only_perm_on_dag = security_manager.find_permission_view_menu(
+    read_only_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
     dag_read_only_role = security_manager.find_role('dag_acl_read_only')
@@ -145,7 +145,7 @@ def reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(acl_app, reset_dagruns):  # pylint: disable=unused-argument
+def init_dagruns(acl_app, reset_dagruns):
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -228,7 +228,7 @@ def user_all_dags(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags(acl_app, user_all_dags):  # pylint: disable=unused-argument
+def client_all_dags(acl_app, user_all_dags):
     return client_with_login(
         acl_app,
         username="user_all_dags",
@@ -290,7 +290,7 @@ def user_all_dags_dagruns(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):  # pylint: disable=unused-argument
+def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):
     return client_with_login(
         acl_app,
         username="user_all_dags_dagruns",
@@ -331,7 +331,7 @@ def user_all_dags_dagruns_tis(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags_dagruns_tis(acl_app, user_all_dags_dagruns_tis):  # pylint: disable=unused-argument
+def client_all_dags_dagruns_tis(acl_app, user_all_dags_dagruns_tis):
     return client_with_login(
         acl_app,
         username="user_all_dags_dagruns_tis",
@@ -390,7 +390,7 @@ def user_all_dags_codes(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags_codes(acl_app, user_all_dags_codes):  # pylint: disable=unused-argument
+def client_all_dags_codes(acl_app, user_all_dags_codes):
     return client_with_login(
         acl_app,
         username="user_all_dags_codes",
@@ -458,7 +458,7 @@ def user_all_dags_tis(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags_tis(acl_app, user_all_dags_tis):  # pylint: disable=unused-argument
+def client_all_dags_tis(acl_app, user_all_dags_tis):
     return client_with_login(
         acl_app,
         username="user_all_dags_tis",
@@ -482,7 +482,7 @@ def user_all_dags_tis_xcom(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags_tis_xcom(acl_app, user_all_dags_tis_xcom):  # pylint: disable=unused-argument
+def client_all_dags_tis_xcom(acl_app, user_all_dags_tis_xcom):
     return client_with_login(
         acl_app,
         username="user_all_dags_tis_xcom",
@@ -506,7 +506,7 @@ def user_dags_tis_logs(acl_app):
 
 
 @pytest.fixture()
-def client_dags_tis_logs(acl_app, user_dags_tis_logs):  # pylint: disable=unused-argument
+def client_dags_tis_logs(acl_app, user_dags_tis_logs):
     return client_with_login(
         acl_app,
         username="user_dags_tis_logs",
@@ -672,7 +672,7 @@ def user_all_dags_edit_tis(acl_app):
 
 
 @pytest.fixture()
-def client_all_dags_edit_tis(acl_app, user_all_dags_edit_tis):  # pylint: disable=unused-argument
+def client_all_dags_edit_tis(acl_app, user_all_dags_edit_tis):
     return client_with_login(
         acl_app,
         username="user_all_dags_edit_tis",
@@ -690,8 +690,8 @@ def test_failed_success(client_all_dags_edit_tis):
         future="false",
         past="false",
     )
-    resp = client_all_dags_edit_tis.post('failed', data=form)
-    check_content_in_response('example_bash_operator', resp)
+    resp = client_all_dags_edit_tis.post('failed', data=form, follow_redirects=True)
+    check_content_in_response('Marked failed on 1 task instances', resp)
 
 
 @pytest.mark.parametrize(
@@ -725,7 +725,7 @@ def user_only_dags_tis(acl_app):
 
 
 @pytest.fixture()
-def client_only_dags_tis(acl_app, user_only_dags_tis):  # pylint: disable=unused-argument
+def client_only_dags_tis(acl_app, user_only_dags_tis):
     return client_with_login(
         acl_app,
         username="user_only_dags_tis",

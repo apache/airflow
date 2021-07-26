@@ -24,6 +24,7 @@
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('codemirror.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('lint.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('switch.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -34,13 +35,26 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">
     <input type="hidden" name="origin" value="{{ origin }}">
-    <div class="form-group">
-      <label for="conf">Configuration JSON (Optional)</label>
+  <div class="form-group">
+      <label class="sr-only" for="execution_date">Execution date</label>
+      <div class="input-group">
+        {{ form.execution_date(class_="form-control", disabled=False) }}
+      </div>
+    </div>
+
+    <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
       <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
     </div>
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
     </p>
+    <div class="form-group">
+      <label class="switch-label">
+        <input class="switch-input" name="unpause" id="unpause" type="checkbox" checked>
+        <span class="switch" aria-hidden="true"></span>
+        Unpause DAG when triggered
+      </label>
+    </div>
     <button type="submit" class="btn btn-primary">Trigger</button>
     <button type="button" class="btn" onclick="location.href = '{{ origin }}'; return false">Cancel</button>
   </form>

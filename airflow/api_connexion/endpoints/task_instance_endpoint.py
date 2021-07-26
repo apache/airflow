@@ -20,7 +20,6 @@ from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
 
-from airflow.api.common.experimental.mark_tasks import set_state
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
@@ -126,7 +125,7 @@ def get_task_instances(
     queue: Optional[List[str]] = None,
     offset: Optional[int] = None,
     session=None,
-):  # pylint: disable=too-many-arguments
+):
     """Get list of task instances."""
     base_query = session.query(TI)
 
@@ -248,8 +247,10 @@ def post_clear_task_instances(dag_id: str, session=None):
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
-    task_instances = dag.clear(get_tis=True, **data)
-    if not data["dry_run"]:
+    dry_run = data.pop('dry_run')
+    # We always pass dry_run here, otherwise this would try to confirm on the terminal!
+    task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
+    if not dry_run:
         clear_task_instances(
             task_instances, session, dag=dag, dag_run_state=State.RUNNING if reset_dag_runs else False
         )
@@ -293,14 +294,14 @@ def post_set_task_instances_state(dag_id, session):
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
-    tis = set_state(
-        tasks=[task],
+    tis = dag.set_task_instance_state(
+        task_id=task_id,
         execution_date=data["execution_date"],
+        state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],
         future=data["include_future"],
         past=data["include_past"],
-        state=data["new_state"],
         commit=not data["dry_run"],
     )
     execution_dates = {ti.execution_date for ti in tis}

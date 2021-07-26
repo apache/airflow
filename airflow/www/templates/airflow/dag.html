@@ -96,14 +96,14 @@
         <ul class="nav nav-pills">
           <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">nature</span>
-            Tree View
+            Tree
           </a></li>
           <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
-            Graph View</a></li>
+            Graph</a></li>
           <li><a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}">
             <span class="material-icons" aria-hidden="true">event</span>
-            Calendar View
+            Calendar
           </a></li>
           <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">hourglass_bottom</span>
@@ -136,6 +136,7 @@
                 <form method="POST" action="{{ url_for('Airflow.trigger') }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                  <input type="hidden" name="unpause" value="True">
                   <input type="hidden" name="origin" value="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id) }}">
                   <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
                 </form>
@@ -284,28 +285,28 @@
             </div>
           </form>
           <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.failed') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
+            <input type="hidden" name="state" value="failed">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="failed_past" autocomplete="off">
+                  <input type="checkbox" value="true" name="past" autocomplete="off">
                   Past
                 </label>
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="failed_future" autocomplete="off">
+                  <input type="checkbox" value="true" name="future" autocomplete="off">
                   Future
                 </label>
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="failed_upstream" autocomplete="off">
+                  <input type="checkbox" value="true" name="upstream" autocomplete="off">
                   Upstream
                 </label>
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="failed_downstream" autocomplete="off">
+                  <input type="checkbox" value="true" name="downstream" autocomplete="off">
                   Downstream
                 </label>
               </span>
@@ -317,28 +318,28 @@
             </div>
           </form>
           <hr style="margin-bottom: 8px;">
-          <form method="POST" data-action="{{ url_for('Airflow.success') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
             <input type="hidden" name="execution_date">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
+            <input type="hidden" name="state" value="success">
             <div class="row">
               <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="success_past" autocomplete="off">
+                  <input type="checkbox" value="true" name="past" autocomplete="off">
                   Past
                 </label>
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="success_future" autocomplete="off">
+                  <input type="checkbox" value="true" name="future" autocomplete="off">
                   Future
                 </label>
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="success_upstream" autocomplete="off">
+                  <input type="checkbox" value="true" name="upstream" autocomplete="off">
                   Upstream
                 </label>
                 <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="success_downstream" autocomplete="off">
+                  <input type="checkbox" value="true" name="downstream" autocomplete="off">
                   Downstream
                 </label>
               </span>
@@ -390,7 +391,7 @@
             <span class="col-md-4 text-right">
               <a id="btn_dag_graph_view" class="btn" data-base-url="{{ url_for('Airflow.graph') }}" role="button">
                 <span class="material-icons" aria-hidden="true">account_tree</span>
-                Graph View
+                Graph
               </a>
             </span>
           </div>

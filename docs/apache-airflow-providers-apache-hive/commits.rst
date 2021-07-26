@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.0.0
+2.0.1
 .....
 
-Latest change: 2021-05-22
+Latest change: 2021-07-15
 
 ================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =================================================================
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+`ce44b6289 <https://github.com/apache/airflow/commit/ce44b628904e4f7480a2c208b5d5e087526408b6>`_  2021-06-25   ``Add Python 3.9 support (#15515)``
+================================================================================================  ===========  =================================================================
+
+2.0.0
+.....
+
+Latest change: 2021-06-18
+
+================================================================================================  ===========  =================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `476d0f6e3 <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 `736a62f82 <https://github.com/apache/airflow/commit/736a62f824d9062b52983633528e58c445d8cc56>`_  2021-05-08   ``Remove duplicate key from Python dictionary (#15735)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``

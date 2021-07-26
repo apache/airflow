@@ -28,17 +28,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-07-18
+
+================================================================================================  ===========  ===============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================
+`b076ac592 <https://github.com/apache/airflow/commit/b076ac5925e1a316dd6e9ad8ee4d1a2223e376ca>`_  2021-07-18   ``[FIX] Docker provider - retry docker in docker (#17061)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`bc004151e <https://github.com/apache/airflow/commit/bc004151ed6924ee7bec5d9d047aedb4873806da>`_  2021-07-15   ``Adds option to disable mounting temporary folder in DockerOperator (#16932)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ===============================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-05-17
+Latest change: 2021-06-18
 
-================================================================================================  ===========  ================================================================
+================================================================================================  ===========  =================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ================================================================
+================================================================================================  ===========  =================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`8a9c33783 <https://github.com/apache/airflow/commit/8a9c3378385454f16560d82e885ebc00c5ec069c>`_  2021-06-15   ``Remove class references in changelogs (#16454)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `12995cfb9 <https://github.com/apache/airflow/commit/12995cfb9a90d1f93511a4a4ab692323e62cc318>`_  2021-05-17   ``Replace DockerOperator's 'volumes' arg for 'mounts' (#15843)``
 `37681bca0 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
-================================================================================================  ===========  ================================================================
+================================================================================================  ===========  =================================================================
 
 1.2.0
 .....

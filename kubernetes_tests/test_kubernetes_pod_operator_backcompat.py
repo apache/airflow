@@ -1,4 +1,3 @@
-# pylint: disable=unused-argument
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -70,7 +69,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         return "_" + unittest.TestCase.id(self).replace(".", "_")[::-1]
 
     def setUp(self):
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
         self.api_client = ApiClient()
         self.expected_pod = {
             'apiVersion': 'v1',
@@ -137,7 +136,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image_pull_secrets=fake_pull_secrets,
             cluster_context='default',
         )
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context=context)
         assert start_mock.call_args[0][0].spec.image_pull_secrets == [
@@ -444,7 +443,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         volume_mount = self.api_client.sanitize_for_serialization(PodDefaults.VOLUME_MOUNT)
         container = self.api_client.sanitize_for_serialization(PodDefaults.SIDECAR_CONTAINER)
         self.expected_pod['spec']['containers'][0]['args'] = args
-        self.expected_pod['spec']['containers'][0]['volumeMounts'].insert(0, volume_mount)  # noqa
+        self.expected_pod['spec']['containers'][0]['volumeMounts'].insert(0, volume_mount)
         self.expected_pod['spec']['volumes'].insert(0, volume)
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
@@ -469,7 +468,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             configmaps=[configmap],
         )
         # THEN
-        mock_monitor.return_value = (State.SUCCESS, None)
+        mock_monitor.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context)
         assert mock_start.call_args[0][0].spec.containers[0].env_from == [
@@ -497,7 +496,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        monitor_mock.return_value = (State.SUCCESS, None)
+        monitor_mock.return_value = (State.SUCCESS, None, None)
         context = create_context(k)
         k.execute(context)
         assert start_mock.call_args[0][0].spec.containers[0].env_from == [
@@ -615,6 +614,3 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
         ]
         assert self.expected_pod == actual_pod
-
-
-# pylint: enable=unused-argument

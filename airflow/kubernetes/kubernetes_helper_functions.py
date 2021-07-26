@@ -19,6 +19,7 @@ import logging
 from typing import Dict, Optional
 
 from dateutil import parser
+from slugify import slugify
 
 from airflow.models.taskinstance import TaskInstanceKey
 
@@ -37,7 +38,7 @@ def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
     :param string: The requested Pod name
     :return: Pod name stripped of any unsafe characters
     """
-    return ''.join(ch.lower() for ch in list(string) if ch.isalnum())
+    return slugify(string, separator='', lowercase=True)
 
 
 def create_pod_id(dag_id: str, task_id: str) -> str:

@@ -19,7 +19,7 @@
 import json
 import warnings
 from json import JSONDecodeError
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
@@ -57,7 +57,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attributes
+class Connection(Base, LoggingMixin):
     """
     Placeholder to store information about different database instances
     connection information. The idea here is that scripts use references to
@@ -107,7 +107,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', Text())
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         conn_id: Optional[str] = None,
         conn_type: Optional[str] = None,
@@ -117,15 +117,15 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
         password: Optional[str] = None,
         schema: Optional[str] = None,
         port: Optional[int] = None,
-        extra: Optional[str] = None,
+        extra: Optional[Union[str, dict]] = None,
         uri: Optional[str] = None,
     ):
         super().__init__()
         self.conn_id = conn_id
         self.description = description
-        if uri and (  # pylint: disable=too-many-boolean-expressions
-            conn_type or host or login or password or schema or port or extra
-        ):
+        if extra and not isinstance(extra, str):
+            extra = json.dumps(extra)
+        if uri and (conn_type or host or login or password or schema or port or extra):
             raise AirflowException(
                 "You must create an object using the URI or individual values "
                 "(conn_type, host, login, password, schema, port or extra)."
@@ -146,7 +146,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             mask_secret(self.password)
 
     @reconstructor
-    def on_db_load(self):  # pylint: disable=missing-function-docstring
+    def on_db_load(self):
         if self.password:
             mask_secret(self.password)
 
@@ -244,7 +244,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
-    def password(cls):  # pylint: disable=no-self-argument
+    def password(cls):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_password', descriptor=property(cls.get_password, cls.set_password))
 
@@ -274,7 +274,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
             self.is_extra_encrypted = False
 
     @declared_attr
-    def extra(cls):  # pylint: disable=no-self-argument
+    def extra(cls):
         """Extra data. The value is decrypted/encrypted when reading/setting the value."""
         return synonym('_extra', descriptor=property(cls.get_extra, cls.set_extra))
 
@@ -359,7 +359,7 @@ class Connection(Base, LoggingMixin):  # pylint: disable=too-many-instance-attri
                 message = (
                     f"Hook {hook.__class__.__name__} doesn't implement or inherit test_connection method"
                 )
-        except Exception as e:  # noqa pylint: disable=broad-except
+        except Exception as e:
             message = str(e)
 
         return status, message

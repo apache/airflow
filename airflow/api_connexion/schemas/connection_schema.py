@@ -40,7 +40,7 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
     port = auto_field()
 
 
-class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-many-ancestors
+class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema"""
 
     password = auto_field(load_only=True)

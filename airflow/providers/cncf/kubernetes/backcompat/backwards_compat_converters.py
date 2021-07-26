@@ -42,7 +42,7 @@ def _convert_from_dict(obj, new_class):
         return obj
     elif isinstance(obj, dict):
         api_client = ApiClient()
-        return api_client._ApiClient__deserialize_model(obj, new_class)  # pylint: disable=W0212
+        return api_client._ApiClient__deserialize_model(obj, new_class)
     else:
         raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")
 

@@ -19,6 +19,34 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adds option to disable mounting temporary folder in DockerOperator (#16932)``
+* if ``xcom_all`` is set to ``False``, only the last line of the log (separated by ``\n``) will be
+  included in the XCom value
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[FIX] Docker provider - retry docker in docker (#17061)``
+
+The ``DockerOperator`` in version 2.0.0 did not work for remote Docker Engine or Docker-In-Docker case.
+That was an unintended side effect of #15843 that has been fixed in #16932. There is a fallback mode
+which will make Docker Operator works with warning and you will be able to remove the warning by
+using the new parameter to disable mounting the folder.
+
+* the return value of XCom is of type ``str`` (as opposed to ``bytes``)
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+
 2.0.0
 .....
 
@@ -26,16 +54,26 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Auto-apply apply_default decorator (#15667)``
+
+.. warning:: Due to apply_default decorator removal, this version of the provider requires Airflow 2.1.0+.
+   If your Airflow version is < 2.1.0, and you want to install this provider version, first upgrade
+   Airflow to at least version 2.1.0. Otherwise your Airflow package version will be upgraded
+   automatically and you will have to manually run ``airflow upgrade db`` to complete the migration.
+
 * ``Replace DockerOperator's 'volumes' arg for 'mounts' (#15843)``
 
 The ``volumes`` parameter in
-:class:`~airflow.providers.docker.operators.docker.DockerOperator` and
-:class:`~airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator`
+``airflow.providers.docker.operators.docker.DockerOperator`` and
+``airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator``
 was replaced by the ``mounts`` parameter, which uses the newer
 `mount syntax <https://docs.docker.com/storage/>`__ instead of ``--bind``.
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
+   * ``Remove class references in changelogs (#16454)``
+   * ``Synchronizes updated changelog after buggfix release (#16464)``
 
 1.2.0
 .....

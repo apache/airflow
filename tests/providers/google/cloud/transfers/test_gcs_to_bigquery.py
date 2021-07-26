@@ -31,7 +31,7 @@ LABELS = {'k1': 'v1'}
 DESCRIPTION = "Test Description"
 
 
-class TestGoogleCloudStorageToBigQueryOperator(unittest.TestCase):
+class TestGCSToBigQueryOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_bigquery.BigQueryHook')
     def test_execute_explicit_project_legacy(self, bq_hook):
         operator = GCSToBigQueryOperator(

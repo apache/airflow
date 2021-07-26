@@ -298,10 +298,15 @@ class TestCliDags(unittest.TestCase):
 
         # The details below is determined by the schedule_interval of example DAGs
         now = DEFAULT_DATE
-        expected_output = [str(now + timedelta(days=1)), str(now + timedelta(hours=4)), "None", "None"]
+        expected_output = [
+            (now + timedelta(days=1)).isoformat(),
+            (now + timedelta(hours=4)).isoformat(),
+            "None",
+            "None",
+        ]
         expected_output_2 = [
-            str(now + timedelta(days=1)) + os.linesep + str(now + timedelta(days=2)),
-            str(now + timedelta(hours=4)) + os.linesep + str(now + timedelta(hours=8)),
+            (now + timedelta(days=1)).isoformat() + os.linesep + (now + timedelta(days=2)).isoformat(),
+            (now + timedelta(hours=4)).isoformat() + os.linesep + (now + timedelta(hours=8)).isoformat(),
             "None",
             "None",
         ]

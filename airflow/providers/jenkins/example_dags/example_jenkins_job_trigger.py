@@ -17,25 +17,25 @@
 # under the License.
 from datetime import datetime, timedelta
 
-from six.moves.urllib.request import Request
+from requests import Request
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
-default_args = {
-    "owner": "airflow",
-    "retries": 1,
-    "retry_delay": timedelta(minutes=5),
-    "depends_on_past": False,
-    "concurrency": 8,
-    "max_active_runs": 8,
-}
-
-
 with DAG(
-    "test_jenkins", default_args=default_args, start_date=datetime(2017, 6, 1), schedule_interval=None
+    "test_jenkins",
+    default_args={
+        "owner": "airflow",
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
+        "depends_on_past": False,
+        "concurrency": 8,
+        "max_active_runs": 8,
+    },
+    start_date=datetime(2017, 6, 1),
+    schedule_interval=None,
 ) as dag:
     job_trigger = JenkinsJobTriggerOperator(
         task_id="trigger_job",
@@ -45,7 +45,7 @@ with DAG(
         jenkins_connection_id="your_jenkins_connection",  # T he connection must be configured first
     )
 
-    def grab_artifact_from_jenkins(**context):
+    def grab_artifact_from_jenkins(url):
         """
         Grab an artifact from the previous job
         The python-jenkins library doesn't expose a method for that
@@ -53,15 +53,19 @@ with DAG(
         """
         hook = JenkinsHook("your_jenkins_connection")
         jenkins_server = hook.get_jenkins_server()
-        url = context['task_instance'].xcom_pull(task_ids='trigger_job')
         # The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
         # You can then use it to access things or to get the job number
         # This url looks like : http://jenkins_url/job/job_name/job_number/
         url += "artifact/myartifact.xml"  # Or any other artifact name
-        request = Request(url)
+        request = Request(method='GET', url=url)
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use
 
-    artifact_grabber = PythonOperator(task_id='artifact_grabber', python_callable=grab_artifact_from_jenkins)
+    artifact_grabber = PythonOperator(
+        task_id='artifact_grabber',
+        python_callable=grab_artifact_from_jenkins,
+        op_kwargs=dict(url=job_trigger.output),
+    )
 
-    job_trigger >> artifact_grabber
+    # Task dependency created via `XComArgs`:
+    #   job_trigger >> artifact_grabber

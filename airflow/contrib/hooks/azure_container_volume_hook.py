@@ -22,7 +22,6 @@ Please use :mod:`airflow.providers.microsoft.azure.hooks.azure_container_volume`
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook  # noqa
 
 warnings.warn(

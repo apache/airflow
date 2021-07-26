@@ -24,11 +24,13 @@ import jinja2
 import pytest
 from parameterized import parameterized
 
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.edgemodifier import Label
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -61,7 +63,7 @@ setattr(object1, 'ref', object2)
 
 # Essentially similar to airflow.models.baseoperator.BaseOperator
 class DummyClass(metaclass=BaseOperatorMeta):
-    def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
+    def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
 
     def set_xcomargs_dependencies(self):
@@ -84,11 +86,11 @@ class TestBaseOperator(unittest.TestCase):
 
     def test_default_args(self):
         default_args = {'test_param': True}
-        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        dummy_class = DummyClass(default_args=default_args)
         assert dummy_class.test_param
 
         default_args = {'test_param': True, 'test_sub_param': True}
-        dummy_subclass = DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        dummy_subclass = DummySubClass(default_args=default_args)
         assert dummy_class.test_param
         assert dummy_subclass.test_sub_param
 
@@ -98,16 +100,21 @@ class TestBaseOperator(unittest.TestCase):
         assert dummy_subclass.test_sub_param
 
         with pytest.raises(AirflowException, match='Argument.*test_sub_param.*required'):
-            DummySubClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+            DummySubClass(default_args=default_args)
 
     def test_incorrect_default_args(self):
         default_args = {'test_param': True, 'extra_param': True}
-        dummy_class = DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+        dummy_class = DummyClass(default_args=default_args)
         assert dummy_class.test_param
 
         default_args = {'random_params': True}
         with pytest.raises(AirflowException, match='Argument.*test_param.*required'):
-            DummyClass(default_args=default_args)  # pylint: disable=no-value-for-parameter
+            DummyClass(default_args=default_args)
+
+    def test_incorrect_priority_weight(self):
+        error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
+        with pytest.raises(AirflowException, match=error_msg):
+            DummyOperator(task_id="test_op", priority_weight="2")
 
     @parameterized.expand(
         [
@@ -378,27 +385,103 @@ class TestBaseOperatorMethods(unittest.TestCase):
         for start_task in start_tasks:
             assert set(start_task.get_direct_relatives(upstream=False)) == set(end_tasks)
 
+        # Begin test for `XComArgs`
+        xstart_tasks = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 4)
+        ]
+        xend_tasks = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(4, 7)
+        ]
+        cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
+
+        for xstart_task in xstart_tasks:
+            assert set(xstart_task.operator.get_direct_relatives(upstream=False)) == {
+                xend_task.operator for xend_task in xend_tasks
+            }
+
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
+
+        # Begin test for classic operators
+        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
-        chain(op1, [op2, op3], [op4, op5], op6)
+        chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
 
         assert {op2, op3} == set(op1.get_direct_relatives(upstream=False))
         assert [op4] == op2.get_direct_relatives(upstream=False)
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
+        assert {"label": "label1"} == dag.get_edge_info(
+            upstream_task_id=op1.task_id, downstream_task_id=op2.task_id
+        )
+        assert {"label": "label2"} == dag.get_edge_info(
+            upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
+        )
+
+        # Begin test for `XComArgs`
+        [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
+        [xop1, xop2, xop3, xop4, xop5, xop6] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 7)
+        ]
+        chain(xop1, [xlabel1, xlabel2], [xop2, xop3], [xop4, xop5], xop6)
+
+        assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
+        assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
+        assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
+        assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
+
+        assert {"label": "xcomarg_label1"} == dag.get_edge_info(
+            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
+        )
+        assert {"label": "xcomarg_label2"} == dag.get_edge_info(
+            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
+        )
+
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 3)]
         with pytest.raises(TypeError):
-            chain([op1, op2], 1)  # noqa
+            chain([op1, op2], 1)
+
+        # Begin test for `XComArgs`
+        [xop1, xop2] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 3)
+        ]
+
+        with pytest.raises(TypeError):
+            chain([xop1, xop2], 1)
+
+        with pytest.raises(TypeError):
+            chain([Label("labe1"), Label("label2")], 1)
 
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 6)]
+
         with pytest.raises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
+
+        with pytest.raises(AirflowException):
+            chain([op1, op2, op3], [label1, label2])
+
+        # Begin test for `XComArgs`
+        [label3, label4] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
+        [xop1, xop2, xop3, xop4, xop5] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 6)
+        ]
+
+        with pytest.raises(AirflowException):
+            chain([xop1, xop2], [xop3, xop4, xop5])
+
+        with pytest.raises(AirflowException):
+            chain([xop1, xop2, xop3], [label1, label2])
 
     def test_lineage_composition(self):
         """
@@ -511,3 +594,29 @@ class TestXComArgsRelationsAreResolved:
         with pytest.raises(AirflowException):
             op1 = DummyOperator(task_id="op1")
             CustomOp(task_id="op2", field=op1.output)
+
+
+class InitSubclassOp(DummyOperator):
+    def __init_subclass__(cls, class_arg=None, **kwargs) -> None:
+        cls._class_arg = class_arg
+        super().__init_subclass__(**kwargs)
+
+    def execute(self, context):
+        self.context_arg = context
+
+
+class TestInitSubclassOperator:
+    def test_init_subclass_args(self):
+        class_arg = "foo"
+        context = {"key": "value"}
+
+        class ConcreteSubclassOp(InitSubclassOp, class_arg=class_arg):
+            pass
+
+        task = ConcreteSubclassOp(task_id="op1")
+        task_copy = task.prepare_for_execution()
+
+        task_copy.execute(context)
+
+        assert task_copy._class_arg == class_arg
+        assert task_copy.context_arg == context

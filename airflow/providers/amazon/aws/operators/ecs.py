@@ -24,11 +24,12 @@ from typing import Dict, Generator, Optional
 from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
+from airflow.utils.session import provide_session
 
 
 def should_retry(exception: Exception):
@@ -54,7 +55,6 @@ class ECSProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    # pylint: disable=C0103, line-too-long
     def run_task(self, **kwargs) -> Dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
@@ -79,10 +79,8 @@ class ECSProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
 
-    # pylint: enable=C0103, line-too-long
 
-
-class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
+class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
@@ -106,6 +104,11 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
     :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
     :type launch_type: str
+    :param capacity_provider_strategy: the capacity provider strategy to use for the task.
+        When capacity_provider_strategy is specified, the launch_type parameter is omitted.
+        If no capacity_provider_strategy or launch_type is specified,
+        the default capacity provider strategy for the cluster is used.
+    :type capacity_provider_strategy: list
     :param group: the name of the task group associated with the task
     :type group: str
     :param placement_constraints: an array of placement constraint objects to use for
@@ -133,8 +136,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
-    :param reattach: If set to True, will check if a task from the same family is already running.
-        If so, the operator will attach to it instead of starting a new task.
+    :param reattach: If set to True, will check if the task previously launched by the task_instance
+        is already running. If so, the operator will attach to it instead of starting a new task.
+        This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
+        the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
     :param quota_retry: Config if and how to retry _start_task() for transient errors.
     :type quota_retry: dict
@@ -142,17 +147,25 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
     ui_color = '#f0ede4'
     template_fields = ('overrides',)
-    template_fields_renderers = {"overrides": "py"}
+    template_fields_renderers = {
+        "overrides": "json",
+        "network_configuration": "json",
+        "tags": "json",
+        "quota_retry": "json",
+    }
+    REATTACH_XCOM_KEY = "ecs_task_arn"
+    REATTACH_XCOM_TASK_ID_TEMPLATE = "{task_id}_task_arn"
 
     def __init__(
         self,
         *,
         task_definition: str,
         cluster: str,
-        overrides: dict,  # pylint: disable=too-many-arguments
+        overrides: dict,
         aws_conn_id: Optional[str] = None,
         region_name: Optional[str] = None,
         launch_type: str = 'EC2',
+        capacity_provider_strategy: Optional[list] = None,
         group: Optional[str] = None,
         placement_constraints: Optional[list] = None,
         placement_strategy: Optional[list] = None,
@@ -175,6 +188,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.cluster = cluster
         self.overrides = overrides
         self.launch_type = launch_type
+        self.capacity_provider_strategy = capacity_provider_strategy
         self.group = group
         self.placement_constraints = placement_constraints
         self.placement_strategy = placement_strategy
@@ -196,7 +210,8 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.arn: Optional[str] = None
         self.retry_args = quota_retry
 
-    def execute(self, context):
+    @provide_session
+    def execute(self, context, session=None):
         self.log.info(
             'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
@@ -205,10 +220,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.client = self.get_hook().get_conn()
 
         if self.reattach:
-            self._try_reattach_task()
+            self._try_reattach_task(context)
 
         if not self.arn:
-            self._start_task()
+            self._start_task(context)
 
         self._wait_for_task_ended()
 
@@ -216,12 +231,20 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
 
         self.log.info('ECS Task has been successfully executed')
 
+        if self.reattach:
+            # Clear the XCom value storing the ECS task ARN if the task has completed
+            # as we can't reattach it anymore
+            self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
+
         if self.do_xcom_push:
             return self._last_log_message()
 
         return None
 
-    def _start_task(self):
+    def _xcom_del(self, session, task_id):
+        session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()
+
+    def _start_task(self, context):
         run_opts = {
             'cluster': self.cluster,
             'taskDefinition': self.task_definition,
@@ -229,7 +252,10 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             'startedBy': self.owner,
         }
 
-        if self.launch_type:
+        if self.capacity_provider_strategy:
+            run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
+            run_opts['platformVersion'] = self.platform_version
+        elif self.launch_type:
             run_opts['launchType'] = self.launch_type
             if self.launch_type == 'FARGATE':
                 run_opts['platformVersion'] = self.platform_version
@@ -254,25 +280,47 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
+        ecs_task_id = self.arn.split("/")[-1]
+        self.log.info(f"ECS task ID is: {ecs_task_id}")
 
-    def _try_reattach_task(self):
-        task_def_resp = self.client.describe_task_definition(self.task_definition)
+        if self.reattach:
+            # Save the task ARN in XCom to be able to reattach it if needed
+            self._xcom_set(
+                context,
+                key=self.REATTACH_XCOM_KEY,
+                value=self.arn,
+                task_id=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
+            )
+
+    def _xcom_set(self, context, key, value, task_id):
+        XCom.set(
+            key=key,
+            value=value,
+            task_id=task_id,
+            dag_id=self.dag_id,
+            execution_date=context["ti"].execution_date,
+        )
+
+    def _try_reattach_task(self, context):
+        task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, launchType=self.launch_type, desiredStatus='RUNNING', family=ecs_task_family
+            cluster=self.cluster, desiredStatus='RUNNING', family=ecs_task_family
         )
         running_tasks = list_tasks_resp['taskArns']
 
-        running_tasks_count = len(running_tasks)
-        if running_tasks_count > 1:
-            self.arn = running_tasks[0]
-            self.log.warning('More than 1 ECS Task found. Reattaching to %s', self.arn)
-        elif running_tasks_count == 1:
-            self.arn = running_tasks[0]
-            self.log.info('Reattaching task: %s', self.arn)
+        # Check if the ECS task previously launched is already running
+        previous_task_arn = self.xcom_pull(
+            context,
+            task_ids=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
+            key=self.REATTACH_XCOM_KEY,
+        )
+        if previous_task_arn in running_tasks:
+            self.arn = previous_task_arn
+            self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
-            self.log.info('No active tasks found to reattach')
+            self.log.info("No active previously launched task found to reattach")
 
     def _wait_for_task_ended(self) -> None:
         if not self.client or not self.arn:

@@ -23,7 +23,6 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 
 
-# pylint: disable=too-many-instance-attributes
 class SparkJDBCHook(SparkSubmitHook):
     """
     This hook extends the SparkSubmitHook specifically for performing data
@@ -118,7 +117,6 @@ class SparkJDBCHook(SparkSubmitHook):
     conn_type = 'spark_jdbc'
     hook_name = 'Spark JDBC'
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         spark_app_name: str = 'airflow-spark-jdbc',

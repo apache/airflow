@@ -84,6 +84,7 @@ function initialization::create_directories() {
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
     # Default port numbers for forwarded ports
+    export SSH_PORT=${SSH_PORT:="12322"}
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
     export POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:="25433"}
     export MYSQL_HOST_PORT=${MYSQL_HOST_PORT:="23306"}
@@ -102,11 +103,11 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("2.7" "3.5" "3.6" "3.7" "3.8")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
@@ -186,17 +187,6 @@ function initialization::initialize_branch_variables() {
     # Default branch name for triggered builds is the one configured in default branch
     # We need to read it here as it comes from _common_values.sh
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
-}
-
-# Determine dockerhub user/repo used for push/pull
-function initialization::initialize_dockerhub_variables() {
-    # You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-    # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-
-    # You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
-    # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
 }
 
 # Determine available integrations
@@ -297,7 +287,7 @@ function initialization::initialize_force_variables() {
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
     # CI main and when we manually refresh the images to latest versions
-    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
+    export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
@@ -510,7 +500,7 @@ function initialization::initialize_kubernetes_variables() {
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.10.0")
+    CURRENT_KIND_VERSIONS+=("v0.11.1")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.2.4")
@@ -565,9 +555,8 @@ function initialization::initialize_git_variables() {
 
 function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
-    export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
+    export GITHUB_REGISTRY="ghcr.io"
     export GITHUB_REGISTRY_IMAGE_SUFFIX=${GITHUB_REGISTRY_IMAGE_SUFFIX:="-v2"}
-    export GITHUB_REGISTRY=${GITHUB_REGISTRY:="docker.pkg.github.com"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
     export GITHUB_REGISTRY_PUSH_IMAGE_TAG=${GITHUB_REGISTRY_PUSH_IMAGE_TAG:="latest"}
@@ -622,7 +611,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_branch_variables
     initialization::initialize_available_integrations
     initialization::initialize_files_for_rebuild_check
-    initialization::initialize_dockerhub_variables
     initialization::initialize_mount_variables
     initialization::initialize_force_variables
     initialization::initialize_host_variables
@@ -655,11 +643,6 @@ Basic variables:
     PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}
     DB_RESET: ${DB_RESET}
     START_AIRFLOW: ${START_AIRFLOW}
-
-DockerHub variables:
-
-    DOCKERHUB_USER=${DOCKERHUB_USER}
-    DOCKERHUB_REPO=${DOCKERHUB_REPO}
 
 Mount variables:
 
@@ -728,11 +711,8 @@ Production image build variables:
 
 Detected GitHub environment:
 
-    USE_GITHUB_REGISTRY: '${USE_GITHUB_REGISTRY}'
-    GITHUB_REGISTRY: '${GITHUB_REGISTRY}'
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
-    GITHUB_TOKEN: '${GITHUB_TOKEN}'
     GITHUB_REGISTRY_WAIT_FOR_IMAGE: '${GITHUB_REGISTRY_WAIT_FOR_IMAGE}'
     GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
     GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
@@ -813,7 +793,6 @@ function initialization::make_constants_read_only() {
     readonly KIND_VERSION
     readonly HELM_VERSION
     readonly KUBECTL_VERSION
-    readonly EXECUTOR
     readonly POSTGRES_VERSION
     readonly MYSQL_VERSION
 
@@ -871,11 +850,8 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_RUNTIME_APT_DEPS
     readonly ADDITIONAL_RUNTIME_APT_ENV
 
-    readonly DOCKERHUB_USER
-    readonly DOCKERHUB_REPO
     readonly DOCKER_CACHE
 
-    readonly USE_GITHUB_REGISTRY
     readonly GITHUB_REGISTRY
     readonly GITHUB_REGISTRY_WAIT_FOR_IMAGE
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
@@ -886,7 +862,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_USERNAME
 
     readonly FORWARD_CREDENTIALS
-    readonly USE_GITHUB_REGISTRY
 
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
@@ -894,15 +869,9 @@ function initialization::make_constants_read_only() {
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
-    readonly AIRFLOW_PYTHON_BASE_IMAGE
     readonly AIRFLOW_CI_BASE_TAG
-    readonly AIRFLOW_CI_IMAGE
-    readonly AIRFLOW_CI_IMAGE_DEFAULT
     readonly AIRFLOW_PROD_BASE_TAG
-    readonly AIRFLOW_PROD_IMAGE
-    readonly AIRFLOW_PROD_BUILD_IMAGE
     readonly AIRFLOW_PROD_IMAGE_KUBERNETES
-    readonly AIRFLOW_PROD_IMAGE_DEFAULT
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 

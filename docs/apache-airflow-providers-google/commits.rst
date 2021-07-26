@@ -35,14 +35,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2021-07-15
+
+================================================================================================  ===========  =================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`a3f5c9380 <https://github.com/apache/airflow/commit/a3f5c93806258b5ad396a638ba0169eca7f9d065>`_  2021-07-13   ``Update alias for field_mask in Google Memmcache (#16975)``
+`b0f7f91fe <https://github.com/apache/airflow/commit/b0f7f91fe29d1314b71c76de0f11d2dbe81c5c4a>`_  2021-07-07   ``Standardise dataproc location param to region (#16034)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  =================================================================
+
 4.0.0
 .....
 
-Latest change: 2021-06-01
+Latest change: 2021-06-18
 
-================================================================================================  ===========  ==============================================================================
+================================================================================================  ===========  =========================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ==============================================================================
+================================================================================================  ===========  =========================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
+`8a9c33783 <https://github.com/apache/airflow/commit/8a9c3378385454f16560d82e885ebc00c5ec069c>`_  2021-06-15   ``Remove class references in changelogs (#16454)``
+`1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
+`3c5cc42e1 <https://github.com/apache/airflow/commit/3c5cc42e13322e9b2bc35be73bd04a8d59aa2447>`_  2021-06-14   ``Fix deprecation warnings location in google provider (#16403)``
+`b272f9cec <https://github.com/apache/airflow/commit/b272f9cec99fd0e3373d23b706f33892cbcb9626>`_  2021-06-13   ``fix: ensure datetime-related values fully compatible with MySQL and BigQuery (#15026)``
+`7f8f75eb8 <https://github.com/apache/airflow/commit/7f8f75eb80790d4be3167f5e1ffccc669a281d55>`_  2021-06-12   ``Add BigQueryToMsSqlOperator (#15422)``
+`0c80a7d41 <https://github.com/apache/airflow/commit/0c80a7d41100bf8d18b661c8286d6056e6d5d2f1>`_  2021-06-11   ``Fixes AzureFileShare connection extras (#16388)``
+`9c94b72d4 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `1e647029e <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
 `99d153528 <https://github.com/apache/airflow/commit/99d1535287df7f8cfced39baff7a08f6fcfdf8ca>`_  2021-05-31   ``Fix: GCS To BigQuery source_object (#16160)``
 `e1137523d <https://github.com/apache/airflow/commit/e1137523d4e9cb5d5cfe8584963620677a4ad789>`_  2021-05-30   ``Fix: Unnecessary downloads in ''GCSToLocalFilesystemOperator'' (#16171)``
@@ -62,7 +85,7 @@ Commit                                                                          
 `3b4fdd0a7 <https://github.com/apache/airflow/commit/3b4fdd0a7a176bfb2e9a17d4627b1d4ed40f1c86>`_  2021-05-06   ``add oracle  connection link (#15632)``
 `cf6324e43 <https://github.com/apache/airflow/commit/cf6324e43b2f7c183c3872704733b69d1498cda1>`_  2021-05-04   ``Implement BigQuery Table Schema Update Operator (#15367)``
 `0f97a3970 <https://github.com/apache/airflow/commit/0f97a3970d2c652beedbf2fbaa33e2b2bfd69bce>`_  2021-05-04   ``Rename example bucket names to use INVALID BUCKET NAME by default (#15651)``
-================================================================================================  ===========  ==============================================================================
+================================================================================================  ===========  =========================================================================================
 
 3.0.0
 .....

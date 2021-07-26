@@ -170,6 +170,8 @@ $(document).ready(() => {
     $.each(inArray, function () {
       if (this.name === 'conn_id') {
         outObj.connection_id = this.value;
+      } else if (this.value !== '' && this.name === 'port') {
+        outObj[this.name] = Number(this.value);
       } else if (this.value !== '' && this.name !== 'csrf_token') {
         outObj[this.name] = this.value;
       }

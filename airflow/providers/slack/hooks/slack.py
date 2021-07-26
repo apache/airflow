@@ -24,15 +24,13 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 
-class SlackHook(BaseHook):  # noqa
+class SlackHook(BaseHook):
     """
     Creates a Slack connection to be used for calls.
 
     Takes both Slack API token directly and connection that has Slack API token. If both are
     supplied, Slack API token will be used. Also exposes the rest of slack.WebClient args.
-
     Examples:
-
     .. code-block:: python
 
         # Create hook

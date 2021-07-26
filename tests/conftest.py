@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import subprocess
 import sys
@@ -33,7 +32,7 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
 
-from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip # pylint: disable=wrong-import-position
+from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
 )
@@ -96,9 +95,9 @@ def trace_sql(request):
         if columns == ['num']:
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
-            exit_stack.enter_context(count_queries(print_fn=pytest_print))  # pylint: disable=no-member
+            exit_stack.enter_context(count_queries(print_fn=pytest_print))
         elif any(c for c in ['time', 'trace', 'sql', 'parameters']):
-            exit_stack.enter_context(  # pylint: disable=no-member
+            exit_stack.enter_context(
                 trace_queries(
                     display_num='num' in columns,
                     display_time='time' in columns,
@@ -425,3 +424,53 @@ def app():
     from airflow.www import app
 
     return app.create_app(testing=True)
+
+
+@pytest.fixture
+def dag_maker(request):
+    from airflow.models import DAG
+    from airflow.utils import timezone
+    from airflow.utils.state import State
+
+    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+    class DagFactory:
+        def __enter__(self):
+            self.dag.__enter__()
+            return self.dag
+
+        def __exit__(self, type, value, traceback):
+            dag = self.dag
+            dag.__exit__(type, value, traceback)
+            if type is None:
+                dag.clear()
+                self.dag_run = dag.create_dagrun(
+                    run_id=self.kwargs.get("run_id", "test"),
+                    state=self.kwargs.get('state', State.RUNNING),
+                    execution_date=self.kwargs.get('execution_date', self.kwargs['start_date']),
+                    start_date=self.kwargs['start_date'],
+                )
+
+        def __call__(self, dag_id='test_dag', **kwargs):
+            self.kwargs = kwargs
+            if "start_date" not in kwargs:
+                if hasattr(request.module, 'DEFAULT_DATE'):
+                    kwargs['start_date'] = getattr(request.module, 'DEFAULT_DATE')
+                else:
+                    kwargs['start_date'] = DEFAULT_DATE
+            dagrun_fields_not_in_dag = [
+                'state',
+                'execution_date',
+                'run_type',
+                'queued_at',
+                "run_id",
+                "creating_job_id",
+                "external_trigger",
+                "last_scheduling_decision",
+                "dag_hash",
+            ]
+            kwargs = {k: v for k, v in kwargs.items() if k not in dagrun_fields_not_in_dag}
+            self.dag = DAG(dag_id, **kwargs)
+            return self
+
+    return DagFactory()

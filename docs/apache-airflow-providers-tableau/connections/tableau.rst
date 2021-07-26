@@ -34,7 +34,13 @@ There are two ways to connect to Tableau using Airflow.
    i.e. add a ``password`` and ``login`` to the Airflow connection.
 2. Use a `Token Authentication
    <https://tableau.github.io/server-client-python/docs/api-ref#personalaccesstokenauth-class>`_
-   i.e. add a ``token_name`` and ``personal_access_token`` to the Airflow connection.
+   i.e. add a ``token_name`` and ``personal_access_token`` to the Airflow connection (deprecated).
+
+Authentication by personal token was deprecated as Tableau automatically invalidates opened
+personal token connection if one or more parallel connections with the same token are opened.
+So, in the environments with multiple parallel tasks this authentication method can lead to numerous bugs
+and all the jobs will not run as they intended. Therefore, personal token auth option
+is considered harmful until the logic of Tableau server client changes.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -71,6 +77,9 @@ Extra (optional)
       This is used with token authentication.
     * ``personal_access_token``: The personal access token value.
       This is used with token authentication.
+    * ``verify``: Either a boolean, in which case it controls whether we verify the server’s TLS certificate, or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
+    * ``cert``: if String, path to ssl client cert file (.pem). If Tuple, (‘cert’, ‘key’) pair.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

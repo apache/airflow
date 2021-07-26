@@ -20,6 +20,7 @@ import glob
 import logging
 import os
 import subprocess
+import sys
 import unittest
 from copy import deepcopy
 from distutils import log
@@ -36,6 +37,7 @@ from setuptools.command.install import install as install_orig
 # And it is particularly useful when you add a new provider and there is no
 # PyPI version to install the provider package from
 INSTALL_PROVIDERS_FROM_SOURCES = 'INSTALL_PROVIDERS_FROM_SOURCES'
+PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
@@ -60,22 +62,22 @@ class CleanCommand(Command):
     description = "Tidy up the project root"
     user_options: List[str] = []
 
-    def initialize_options(self):
+    def initialize_options(self) -> None:
         """Set default values for options."""
 
-    def finalize_options(self):
+    def finalize_options(self) -> None:
         """Set final values for options."""
 
     @staticmethod
-    def rm_all_files(files: List[str]):
+    def rm_all_files(files: List[str]) -> None:
         """Remove all files from the list"""
         for file in files:
             try:
                 os.remove(file)
-            except Exception as e:  # noqa pylint: disable=broad-except
+            except Exception as e:
                 logger.warning("Error when removing %s: %s", file, e)
 
-    def run(self):
+    def run(self) -> None:
         """Remove temporary files and directories."""
         os.chdir(my_dir)
         self.rm_all_files(glob.glob('./build/*'))
@@ -96,13 +98,13 @@ class CompileAssets(Command):
     description = "Compile and build the frontend assets"
     user_options: List[str] = []
 
-    def initialize_options(self):
+    def initialize_options(self) -> None:
         """Set default values for options."""
 
-    def finalize_options(self):
+    def finalize_options(self) -> None:
         """Set final values for options."""
 
-    def run(self):  # noqa
+    def run(self) -> None:
         """Run a command to compile and build assets."""
         subprocess.check_call('./airflow/www/compile_assets.sh')
 
@@ -116,13 +118,13 @@ class ListExtras(Command):
     description = "List available extras"
     user_options: List[str] = []
 
-    def initialize_options(self):
+    def initialize_options(self) -> None:
         """Set default values for options."""
 
-    def finalize_options(self):
+    def finalize_options(self) -> None:
         """Set final values for options."""
 
-    def run(self):  # noqa
+    def run(self) -> None:
         """List extras."""
         print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
@@ -163,7 +165,7 @@ def git_version(version_: str) -> str:
     return 'no_git_version'
 
 
-def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version"])):
+def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version"])) -> None:
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 
@@ -174,28 +176,12 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
-def get_sphinx_theme_version() -> str:
-    """
-    Return sphinx theme version. If USE_THEME_FROM_GIT env variable is set, the theme is used from
-    GitHub to allow dynamically update it during development. However for regular PIP release
-    you cannot use @ package specification, so the latest available released theme package from
-    PIP is used.
-    :return: Version of sphinx theme to use.
-    """
-    if os.environ.get('USE_THEME_FROM_GIT'):
-        return (
-            "@ https://github.com/apache/airflow-site/releases/download/0.0.4/"
-            + "sphinx_airflow_theme-0.0.4-py3-none-any.whl"
-        )
-    return ''
-
-
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 amazon = [
     'boto3>=1.15.0,<1.18.0',
-    'watchtower~=0.7.3',
+    'watchtower~=1.0.6',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
@@ -241,22 +227,22 @@ cloudant = [
 dask = [
     'cloudpickle>=1.4.1, <1.5.0',
     'dask<2021.3.1;python_version<"3.7"',  # dask stopped supporting python 3.6 in 2021.3.1 version
-    'dask>=2.9.0;python_version>="3.7"',
+    'dask>=2.9.0, <2021.6.1;python_version>="3.7"',  # dask 2021.6.1 does not work with `distributed`
     'distributed>=2.11.1, <2.20',
 ]
 databricks = [
-    'requests>=2.20.0, <3',
+    'requests>=2.26.0, <3',
 ]
 datadog = [
     'datadog>=0.14.0',
 ]
 deprecated_api = [
-    'requests>=2.20.0',
+    'requests>=2.26.0',
 ]
 doc = [
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
     'sphinx>=2.1.2, <3.5.0',
-    f'sphinx-airflow-theme{get_sphinx_theme_version()}',
+    'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-copybutton',
@@ -264,17 +250,18 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
-    'sphinxcontrib-spelling==5.2.1',
+    'sphinxcontrib-spelling==7.2.1',
 ]
 docker = [
     'docker',
 ]
+drill = ['sqlalchemy-drill>=1.1.0', 'sqlparse>=0.4.1']
 druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>7, <7.6.0',
-    'elasticsearch-dbapi==0.1.0',
+    'elasticsearch>7',
+    'elasticsearch-dbapi',
     'elasticsearch-dsl>=5.0.0',
 ]
 exasol = [
@@ -290,7 +277,7 @@ flask_oauth = [
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=4.0.0,<8.0.0',
+    'google-ads>=12.0.0',
     'google-api-core>=1.25.1,<2.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
@@ -305,7 +292,9 @@ google = [
     'google-cloud-kms>=2.0.0,<3.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
     'google-cloud-logging>=2.1.1,<3.0.0',
-    'google-cloud-memcache>=0.2.0',
+    # 1.1.0 removed field_mask and broke import for released providers
+    # We can remove the <1.1.0 limitation after we release new Google Provider
+    'google-cloud-memcache>=0.2.0,<1.1.0',
     'google-cloud-monitoring>=2.0.0,<3.0.0',
     'google-cloud-os-login>=2.0.0,<3.0.0',
     'google-cloud-pubsub>=2.0.0,<3.0.0',
@@ -340,11 +329,13 @@ hdfs = [
 ]
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive[hive]>=0.6.0',
+    'pyhive[hive]>=0.6.0;python_version<"3.9"',
     'thrift>=0.9.2',
 ]
 http = [
-    'requests>=2.20.0',
+    # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
+    # release it as a requirement for airflow
+    'requests>=2.26.0',
 ]
 http_provider = [
     # NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
@@ -382,7 +373,7 @@ ldap = [
 ]
 leveldb = ['plyvel']
 mongo = [
-    'dnspython>=1.13.0,<2.0.0',
+    'dnspython>=1.13.0,<3.0.0',
     'pymongo>=3.6.0',
 ]
 mssql = [
@@ -500,7 +491,7 @@ devel = [
     'black',
     'blinker',
     'bowler',
-    'click~=7.1',
+    'click>=7.1,<9',
     'coverage',
     'filelock',
     'flake8>=3.6.0',
@@ -512,7 +503,6 @@ devel = [
     'importlib-resources~=1.4',
     'ipdb',
     'jira',
-    'jsonpath-ng',
     'jsondiff',
     'mongomock',
     'moto~=2.0',
@@ -521,7 +511,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
-    'pylint~=2.8.1',
+    'pygithub',
     'pysftp',
     'pytest~=6.0',
     'pytest-cov',
@@ -547,6 +537,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
+    'apache.drill': drill,
     'apache.druid': druid,
     'apache.hdfs': hdfs,
     'apache.hive': hive,
@@ -643,7 +634,6 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'virtualenv': virtualenv,
 }
 
-
 EXTRAS_REQUIREMENTS: Dict[str, List[str]] = deepcopy(CORE_EXTRAS_REQUIREMENTS)
 
 
@@ -738,6 +728,7 @@ ALL_PROVIDERS = list(PROVIDERS_REQUIREMENTS.keys())
 
 ALL_DB_PROVIDERS = [
     'apache.cassandra',
+    'apache.drill',
     'apache.druid',
     'apache.hdfs',
     'apache.hive',
@@ -780,7 +771,7 @@ PACKAGES_EXCLUDED_FOR_ALL.extend(
 )
 
 
-def is_package_excluded(package: str, exclusion_list: List[str]):
+def is_package_excluded(package: str, exclusion_list: List[str]) -> bool:
     """
     Checks if package should be excluded.
 
@@ -815,7 +806,7 @@ def sort_extras_requirements() -> Dict[str, List[str]]:
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
-    sorted_requirements = dict(sorted(EXTRAS_REQUIREMENTS.items()))  # noqa
+    sorted_requirements = dict(sorted(EXTRAS_REQUIREMENTS.items()))
     for extra_list in sorted_requirements.values():
         extra_list.sort()
     return sorted_requirements
@@ -826,18 +817,15 @@ EXTRAS_REQUIREMENTS = sort_extras_requirements()
 # Those providers are pre-installed always when airflow is installed.
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
-# NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
-#        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
-#        we cannot make it mandatory dependency. See https://github.com/psf/requests/pull/5797
 PREINSTALLED_PROVIDERS = [
     'ftp',
-    # 'http',
+    'http',
     'imap',
     'sqlite',
 ]
 
 
-def get_provider_package_from_package_id(package_id: str):
+def get_provider_package_from_package_id(package_id: str) -> str:
     """
     Builds the name of provider package out of the package id provided/
 
@@ -848,21 +836,29 @@ def get_provider_package_from_package_id(package_id: str):
     return f"apache-airflow-providers-{package_suffix}"
 
 
-def get_all_provider_packages():
+def get_excluded_providers() -> List[str]:
+    """
+    Returns packages excluded for the current python version.
+    Currently the only excluded provider is apache hive for Python 3.9.
+    Until https://github.com/dropbox/PyHive/issues/380 is fixed.
+    """
+    return ['apache.hive'] if PY39 else []
+
+
+def get_all_provider_packages() -> str:
     """Returns all provider packages configured in setup.py"""
-    return " ".join(get_provider_package_from_package_id(package) for package in PROVIDERS_REQUIREMENTS)
+    excluded_providers = get_excluded_providers()
+    return " ".join(
+        get_provider_package_from_package_id(package)
+        for package in PROVIDERS_REQUIREMENTS
+        if package not in excluded_providers
+    )
 
 
 class AirflowDistribution(Distribution):
-    """
-    The setuptools.Distribution subclass with Airflow specific behaviour
+    """The setuptools.Distribution subclass with Airflow specific behaviour"""
 
-    The reason for pylint: disable=signature-differs of parse_config_files is explained here:
-    https://github.com/PyCQA/pylint/issues/3737
-
-    """
-
-    def parse_config_files(self, *args, **kwargs):  # pylint: disable=signature-differs
+    def parse_config_files(self, *args, **kwargs) -> None:
         """
         Ensure that when we have been asked to install providers from sources
         that we don't *also* try to install those providers from PyPI.
@@ -871,7 +867,7 @@ class AirflowDistribution(Distribution):
         """
         super().parse_config_files(*args, **kwargs)
         if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
-            self.install_requires = [  # noqa  pylint: disable=attribute-defined-outside-init
+            self.install_requires = [
                 req for req in self.install_requires if not req.startswith('apache-airflow-providers-')
             ]
             provider_yaml_files = glob.glob("airflow/providers/**/provider.yaml", recursive=True)
@@ -958,7 +954,7 @@ def add_all_provider_packages() -> None:
 class Develop(develop_orig):
     """Forces removal of providers in editable mode."""
 
-    def run(self):
+    def run(self) -> None:
         self.announce('Installing in editable mode. Uninstalling provider packages!', level=log.INFO)
         # We need to run "python3 -m pip" because it might be that older PIP binary is in the path
         # And it results with an error when running pip directly (cannot import pip module)
@@ -982,7 +978,7 @@ class Develop(develop_orig):
 class Install(install_orig):
     """Forces installation of providers from sources in editable mode."""
 
-    def run(self):
+    def run(self) -> None:
         self.announce('Standard installation. Providers are installed from packages', level=log.INFO)
         super().run()
 

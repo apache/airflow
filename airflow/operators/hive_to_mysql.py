@@ -22,7 +22,6 @@ Please use `airflow.providers.apache.hive.transfers.hive_to_mysql`.
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
 
 warnings.warn(

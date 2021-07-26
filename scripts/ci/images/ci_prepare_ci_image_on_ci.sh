@@ -19,7 +19,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 # Builds or waits for the CI image in the CI environment
-# Depending on "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
+# Depending on "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_ci_image_on_ci() {
     build_images::prepare_ci_build
     start_end::group_start "Prepare CI image ${AIRFLOW_CI_IMAGE}"
@@ -27,7 +27,7 @@ function build_ci_image_on_ci() {
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
+    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
         # Pretend that the image was build. We already have image with the right sources baked in!
         md5sum::calculate_md5sum_for_all_files
 
@@ -40,12 +40,12 @@ function build_ci_image_on_ci() {
         fi
         # first we pull base python image. We will need it to re-push it after main build
         # Becoming the new "latest" image for other builds
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
-            "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"
+        build_images::wait_for_image_tag "${AIRFLOW_PYTHON_BASE_IMAGE}" \
+            "${python_tag_suffix}"
 
         # And then the actual image
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}" \
-            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_CI_IMAGE}"
+        build_images::wait_for_image_tag "${AIRFLOW_CI_IMAGE}" \
+            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
 
         md5sum::update_all_md5_with_group
     else

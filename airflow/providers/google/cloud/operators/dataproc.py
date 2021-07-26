@@ -30,7 +30,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1beta2 import Cluster  # pylint: disable=no-name-in-module
+from google.cloud.dataproc_v1beta2 import Cluster
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -86,7 +86,6 @@ class DataprocClusterLink(BaseOperatorLink):
         )
 
 
-# pylint: disable=too-many-instance-attributes
 class ClusterGenerator:
     """
     Create a new Dataproc Cluster.
@@ -191,11 +190,10 @@ class ClusterGenerator:
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :type auto_delete_ttl: int
     :param customer_managed_key: The customer-managed key used for disk encryption
-        ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa # pylint: disable=line-too-long
+        ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
     :type customer_managed_key: str
     """
 
-    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         project_id: str,
@@ -447,7 +445,6 @@ class ClusterGenerator:
         return self._build_cluster_data()
 
 
-# pylint: disable=too-many-instance-attributes
 class DataprocCreateClusterOperator(BaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
@@ -524,7 +521,7 @@ class DataprocCreateClusterOperator(BaseOperator):
 
     operator_extra_links = (DataprocClusterLink(),)
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         cluster_name: str,
@@ -841,7 +838,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         )
         operation = hook.update_cluster(
             project_id=self.project_id,
-            location=self.region,
+            region=self.region,
             cluster_name=self.cluster_name,
             cluster=scaling_cluster_data,
             graceful_decommission_timeout=self._graceful_decommission_timeout_object,
@@ -1067,7 +1064,7 @@ class DataprocJobBaseOperator(BaseOperator):
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
-                project_id=self.project_id, job=self.job["job"], location=self.region
+                project_id=self.project_id, job=self.job["job"], region=self.region
             )
             job_id = job_object.reference.job_id
             self.log.info('Job %s submitted successfully.', job_id)
@@ -1080,7 +1077,7 @@ class DataprocJobBaseOperator(BaseOperator):
 
             if not self.asynchronous:
                 self.log.info('Waiting for job %s to complete', job_id)
-                self.hook.wait_for_job(job_id=job_id, location=self.region, project_id=self.project_id)
+                self.hook.wait_for_job(job_id=job_id, region=self.region, project_id=self.project_id)
                 self.log.info('Job %s completed successfully.', job_id)
             return job_id
         else:
@@ -1092,9 +1089,7 @@ class DataprocJobBaseOperator(BaseOperator):
         Cancel any running job.
         """
         if self.dataproc_job_id:
-            self.hook.cancel_job(
-                project_id=self.project_id, job_id=self.dataproc_job_id, location=self.region
-            )
+            self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
 
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
@@ -1601,7 +1596,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = f"gs://{bucket}/{self.main}"
@@ -1618,7 +1613,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = self._upload_file_temp(bucket, self.main)
@@ -1638,7 +1633,9 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :type location: str
     :param template: The Dataproc workflow template to create. If a dict is provided,
         it must be of the same form as the protobuf message WorkflowTemplate.
@@ -1653,15 +1650,16 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "template")
+    template_fields = ("region", "template")
     template_fields_renderers = {"template": "json"}
 
     def __init__(
         self,
         *,
-        location: str,
         template: Dict,
         project_id: str,
+        region: str = None,
+        location: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -1669,8 +1667,19 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
+        if region is None:
+            if location is not None:
+                warnings.warn(
+                    "Parameter `location` will be deprecated. "
+                    "Please provide value through `region` parameter instead.",
+                    DeprecationWarning,
+                    stacklevel=1,
+                )
+                region = location
+            else:
+                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
-        self.location = location
+        self.region = region
         self.template = template
         self.project_id = project_id
         self.retry = retry
@@ -1684,7 +1693,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self.log.info("Creating template")
         try:
             workflow = hook.create_workflow_template(
-                location=self.location,
+                region=self.region,
                 template=self.template,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1747,7 +1756,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     template_fields = ['template_id', 'impersonation_chain', 'request_id', 'parameters']
     template_fields_renderers = {"parameters": "json"}
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         template_id: str,
@@ -1782,7 +1791,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.log.info('Instantiating template %s', self.template_id)
         operation = hook.instantiate_workflow_template(
             project_id=self.project_id,
-            location=self.region,
+            region=self.region,
             template_name=self.template_id,
             version=self.version,
             request_id=self.request_id,
@@ -1863,7 +1872,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         super().__init__(**kwargs)
         self.template = template
         self.project_id = project_id
-        self.location = region
+        self.region = region
         self.template = template
         self.request_id = request_id
         self.retry = retry
@@ -1878,7 +1887,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=self.project_id,
-            location=self.location,
+            region=self.region,
             request_id=self.request_id,
             retry=self.retry,
             timeout=self.timeout,
@@ -1894,7 +1903,9 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the job belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :type location: str
     :param job: Required. The job resource.
         If a dict is provided, it must be of the same form as the protobuf message
@@ -1934,7 +1945,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type wait_timeout: int
     """
 
-    template_fields = ('project_id', 'location', 'job', 'impersonation_chain', 'request_id')
+    template_fields = ('project_id', 'region', 'job', 'impersonation_chain', 'request_id')
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
@@ -1943,8 +1954,9 @@ class DataprocSubmitJobOperator(BaseOperator):
         self,
         *,
         project_id: str,
-        location: str,
         job: Dict,
+        region: str = None,
+        location: Optional[str] = None,
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -1956,9 +1968,20 @@ class DataprocSubmitJobOperator(BaseOperator):
         wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
+        if region is None:
+            if location is not None:
+                warnings.warn(
+                    "Parameter `location` will be deprecated. "
+                    "Please provide value through `region` parameter instead.",
+                    DeprecationWarning,
+                    stacklevel=1,
+                )
+                region = location
+            else:
+                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
-        self.location = location
+        self.region = region
         self.job = job
         self.request_id = request_id
         self.retry = retry
@@ -1977,7 +2000,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_object = self.hook.submit_job(
             project_id=self.project_id,
-            location=self.location,
+            region=self.region,
             job=self.job,
             request_id=self.request_id,
             retry=self.retry,
@@ -1992,7 +2015,7 @@ class DataprocSubmitJobOperator(BaseOperator):
             key="job_conf",
             value={
                 "job_id": job_id,
-                "region": self.location,
+                "region": self.region,
                 "project_id": self.project_id,
             },
         )
@@ -2000,7 +2023,7 @@ class DataprocSubmitJobOperator(BaseOperator):
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', job_id)
             self.hook.wait_for_job(
-                job_id=job_id, location=self.location, project_id=self.project_id, timeout=self.wait_timeout
+                job_id=job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
             )
             self.log.info('Job %s completed successfully.', job_id)
 
@@ -2009,7 +2032,7 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, region=self.region)
 
 
 class DataprocUpdateClusterOperator(BaseOperator):
@@ -2018,7 +2041,9 @@ class DataprocUpdateClusterOperator(BaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :type project_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :param region: Required. The Cloud Dataproc region in which to handle the request.
+    :type region: str
+    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :type location: str
     :param cluster_name: Required. The cluster name.
     :type cluster_name: str
@@ -2067,14 +2092,15 @@ class DataprocUpdateClusterOperator(BaseOperator):
     template_fields = ('impersonation_chain', 'cluster_name')
     operator_extra_links = (DataprocClusterLink(),)
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
-        location: str,
         cluster_name: str,
         cluster: Union[Dict, Cluster],
         update_mask: Union[Dict, FieldMask],
         graceful_decommission_timeout: Union[Dict, Duration],
+        region: str = None,
+        location: Optional[str] = None,
         request_id: Optional[str] = None,
         project_id: Optional[str] = None,
         retry: Retry = None,
@@ -2084,9 +2110,20 @@ class DataprocUpdateClusterOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
+        if region is None:
+            if location is not None:
+                warnings.warn(
+                    "Parameter `location` will be deprecated. "
+                    "Please provide value through `region` parameter instead.",
+                    DeprecationWarning,
+                    stacklevel=1,
+                )
+                region = location
+            else:
+                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
-        self.location = location
+        self.region = region
         self.cluster_name = cluster_name
         self.cluster = cluster
         self.update_mask = update_mask
@@ -2106,14 +2143,14 @@ class DataprocUpdateClusterOperator(BaseOperator):
             key="cluster_conf",
             value={
                 "cluster_name": self.cluster_name,
-                "region": self.location,
+                "region": self.region,
                 "project_id": self.project_id,
             },
         )
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
             project_id=self.project_id,
-            location=self.location,
+            region=self.region,
             cluster_name=self.cluster_name,
             cluster=self.cluster,
             update_mask=self.update_mask,
