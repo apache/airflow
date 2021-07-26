@@ -165,11 +165,6 @@ class SSHHook(BaseHook):
                 if "conn_timeout" in extra_options:
                     self.conn_timeout = int(extra_options.get('conn_timeout'))
 
-                # TODO Rework this - I don't like that just having conn.extra set will override 
-                # self.conn_timeout = int(extra_options.get('conn_timeout',
-                    # extra_options.get('timeout', 10))
-                #)
-
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
 
