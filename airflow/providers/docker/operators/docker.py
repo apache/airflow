@@ -299,10 +299,10 @@ class DockerOperator(BaseOperator):
             line = ''
             res_lines = []
             for line in lines:
-                line = line.strip()
                 if hasattr(line, 'decode'):
                     # Note that lines returned can also be byte sequences so we have to handle decode here
                     line = line.decode('utf-8')
+                line = line.strip()
                 res_lines.append(line)
                 self.log.info(line)
 
@@ -310,11 +310,8 @@ class DockerOperator(BaseOperator):
             if result['StatusCode'] != 0:
                 res_lines = "\n".join(res_lines)
                 raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
-
-            ret = None
             if self.do_xcom_push:
-                ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
-            return ret
+                return res_lines if self.xcom_all else line
         finally:
             if self.auto_remove:
                 self.cli.remove_container(self.container['Id'])

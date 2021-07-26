@@ -26,7 +26,8 @@ Features
 ~~~~~~~~
 
 * ``Adds option to disable mounting temporary folder in DockerOperator (#16932)``
-
+* if ``xcom_all`` is set to ``False``, only the last line of the log (separated by ``\n``) will be
+  included in the XCom value
 
 Bug Fixes
 ~~~~~~~~~
@@ -37,6 +38,8 @@ The ``DockerOperator`` in version 2.0.0 did not work for remote Docker Engine or
 That was an unintended side effect of #15843 that has been fixed in #16932. There is a fallback mode
 which will make Docker Operator works with warning and you will be able to remove the warning by
 using the new parameter to disable mounting the folder.
+
+* the return value of XCom is of type ``str`` (as opposed to ``bytes``)
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

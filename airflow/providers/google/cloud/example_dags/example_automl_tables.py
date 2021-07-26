@@ -101,7 +101,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
+    dataset_id = create_dataset_task.output['dataset_id']
     # [END howto_operator_automl_create_dataset]
 
     MODEL["dataset_id"] = dataset_id
@@ -156,7 +156,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    model_id = "{{ task_instance.xcom_pull('create_model_task', key='model_id') }}"
+    model_id = create_model_task.output['model_id']
     # [END howto_operator_automl_create_model]
 
     # [START howto_operator_automl_delete_model]
@@ -176,15 +176,21 @@ with models.DAG(
     )
 
     (
-        create_dataset_task
-        >> import_dataset_task
+        import_dataset_task
         >> list_tables_spec_task
         >> list_columns_spec_task
         >> update_dataset_task
         >> create_model_task
-        >> delete_model_task
-        >> delete_datasets_task
     )
+    delete_model_task >> delete_datasets_task
+
+    # Task dependencies created via `XComArgs`:
+    #   create_dataset_task >> import_dataset_task
+    #   create_dataset_task >> list_tables_spec_task
+    #   create_dataset_task >> list_columns_spec_task
+    #   create_dataset_task >> create_model_task
+    #   create_model_task >> delete_model_task
+    #   create_dataset_task >> delete_datasets_task
 
 
 # Example DAG for AutoML datasets operations
@@ -201,7 +207,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
+    dataset_id = create_dataset_task.output['dataset_id']
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -243,13 +249,18 @@ with models.DAG(
     # [END howto_operator_delete_dataset]
 
     (
-        create_dataset_task
-        >> import_dataset_task
+        import_dataset_task
         >> list_tables_spec_task
         >> list_columns_spec_task
         >> list_datasets_task
         >> delete_datasets_task
     )
+
+    # Task dependencies created via `XComArgs`:
+    # create_dataset_task >> import_dataset_task
+    # create_dataset_task >> list_tables_spec_task
+    # create_dataset_task >> list_columns_spec_task
+
 
 with models.DAG(
     "example_gcp_get_deploy",

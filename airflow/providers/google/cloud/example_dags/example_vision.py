@@ -130,10 +130,12 @@ with models.DAG(
     )
     # [END howto_operator_vision_product_set_create]
 
+    product_set_create_output = product_set_create.output
+
     # [START howto_operator_vision_product_set_get]
     product_set_get = CloudVisionGetProductSetOperator(
         location=GCP_VISION_LOCATION,
-        product_set_id="{{ task_instance.xcom_pull('product_set_create') }}",
+        product_set_id=product_set_create_output,
         task_id='product_set_get',
     )
     # [END howto_operator_vision_product_set_get]
@@ -141,7 +143,7 @@ with models.DAG(
     # [START howto_operator_vision_product_set_update]
     product_set_update = CloudVisionUpdateProductSetOperator(
         location=GCP_VISION_LOCATION,
-        product_set_id="{{ task_instance.xcom_pull('product_set_create') }}",
+        product_set_id=product_set_create_output,
         product_set=ProductSet(display_name='My Product Set 2'),
         task_id='product_set_update',
     )
@@ -150,7 +152,7 @@ with models.DAG(
     # [START howto_operator_vision_product_set_delete]
     product_set_delete = CloudVisionDeleteProductSetOperator(
         location=GCP_VISION_LOCATION,
-        product_set_id="{{ task_instance.xcom_pull('product_set_create') }}",
+        product_set_id=product_set_create_output,
         task_id='product_set_delete',
     )
     # [END howto_operator_vision_product_set_delete]
@@ -165,10 +167,12 @@ with models.DAG(
     )
     # [END howto_operator_vision_product_create]
 
+    product_create_output = product_create.output
+
     # [START howto_operator_vision_product_get]
     product_get = CloudVisionGetProductOperator(
         location=GCP_VISION_LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create_output,
         task_id='product_get',
     )
     # [END howto_operator_vision_product_get]
@@ -176,7 +180,7 @@ with models.DAG(
     # [START howto_operator_vision_product_update]
     product_update = CloudVisionUpdateProductOperator(
         location=GCP_VISION_LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create_output,
         product=Product(display_name='My Product 2', description='My updated description'),
         task_id='product_update',
     )
@@ -185,7 +189,7 @@ with models.DAG(
     # [START howto_operator_vision_product_delete]
     product_delete = CloudVisionDeleteProductOperator(
         location=GCP_VISION_LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create_output,
         task_id='product_delete',
     )
     # [END howto_operator_vision_product_delete]
@@ -194,7 +198,7 @@ with models.DAG(
     reference_image_create = CloudVisionCreateReferenceImageOperator(
         location=GCP_VISION_LOCATION,
         reference_image=reference_image,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create_output,
         reference_image_id=GCP_VISION_REFERENCE_IMAGE_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
@@ -205,7 +209,7 @@ with models.DAG(
     # [START howto_operator_vision_reference_image_delete]
     reference_image_delete = CloudVisionDeleteReferenceImageOperator(
         location=GCP_VISION_LOCATION,
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_id=product_create_output,
         reference_image_id=GCP_VISION_REFERENCE_IMAGE_ID,
         retry=Retry(maximum=10.0),
         timeout=5,
@@ -216,8 +220,8 @@ with models.DAG(
     # [START howto_operator_vision_add_product_to_product_set]
     add_product_to_product_set = CloudVisionAddProductToProductSetOperator(
         location=GCP_VISION_LOCATION,
-        product_set_id="{{ task_instance.xcom_pull('product_set_create') }}",
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_set_id=product_set_create_output,
+        product_id=product_create_output,
         retry=Retry(maximum=10.0),
         timeout=5,
         task_id='add_product_to_product_set',
@@ -227,8 +231,8 @@ with models.DAG(
     # [START howto_operator_vision_remove_product_from_product_set]
     remove_product_from_product_set = CloudVisionRemoveProductFromProductSetOperator(
         location=GCP_VISION_LOCATION,
-        product_set_id="{{ task_instance.xcom_pull('product_set_create') }}",
-        product_id="{{ task_instance.xcom_pull('product_create') }}",
+        product_set_id=product_set_create_output,
+        product_id=product_create_output,
         retry=Retry(maximum=10.0),
         timeout=5,
         task_id='remove_product_from_product_set',
@@ -239,17 +243,30 @@ with models.DAG(
     product_create >> product_get >> product_update >> product_delete
 
     # ProductSet path
-    product_set_create >> product_set_get >> product_set_update >> product_set_delete
+    product_set_get >> product_set_update >> product_set_delete
 
     # ReferenceImage path
-    product_create >> reference_image_create >> reference_image_delete >> product_delete
+    reference_image_create >> reference_image_delete >> product_delete
 
     # Product/ProductSet path
     product_create >> add_product_to_product_set
-    product_set_create >> add_product_to_product_set
     add_product_to_product_set >> remove_product_from_product_set
     remove_product_from_product_set >> product_delete
     remove_product_from_product_set >> product_set_delete
+
+    # Task dependencies created via `XComArgs`:
+    #   product_set_create >> product_set_get
+    #   product_set_create >> product_set_update
+    #   product_set_create >> product_set_delete
+    #   product_create >> product_get
+    #   product_create >> product_delete
+    #   product_create >> reference_image_create
+    #   product_create >> reference_image_delete
+    #   product_set_create >> add_product_to_product_set
+    #   product_create >> add_product_to_product_set
+    #   product_set_create >> remove_product_from_product_set
+    #   product_create >> remove_product_from_product_set
+
 
 with models.DAG(
     'example_gcp_vision_explicit_id', start_date=days_ago(1), schedule_interval=None
@@ -489,7 +506,7 @@ with models.DAG(
 
     # [START howto_operator_vision_detect_safe_search_result]
     detect_safe_search_result = BashOperator(
-        bash_command="echo {{ task_instance.xcom_pull('detect_safe_search') }}",
+        bash_command=f"echo {detect_safe_search.output}",
         task_id="detect_safe_search_result",
     )
     # [END howto_operator_vision_detect_safe_search_result]

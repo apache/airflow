@@ -47,13 +47,9 @@ SNOWFLAKE_SLACK_MESSAGE = (
     "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
 )
 
-default_args = {
-    'owner': 'airflow',
-}
 
 dag = DAG(
     'example_snowflake',
-    default_args=default_args,
     start_date=days_ago(2),
     tags=['example'],
 )
