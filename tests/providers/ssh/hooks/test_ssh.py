@@ -133,11 +133,7 @@ class TestSSHHook(unittest.TestCase):
                 conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 host='localhost',
                 conn_type='ssh',
-                extra=json.dumps(
-                    {
-                        "private_key": TEST_PRIVATE_KEY
-                    }
-                ),
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY}),
             )
         )
         db.merge_conn(
@@ -576,7 +572,7 @@ class TestSSHHook(unittest.TestCase):
             port='port',
             username='username',
             timeout=10,
-            conn_timeout=15
+            conn_timeout=15,
         )
 
         with hook.get_conn():
