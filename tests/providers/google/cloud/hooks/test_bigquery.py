@@ -1761,7 +1761,15 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         allow_jagged_rows = False
         encoding = "UTF-8"
         labels = {'label1': 'test1', 'label2': 'test2'}
-        schema_fields = [{'mode': 'REQUIRED', 'name': 'id', 'type': 'STRING', 'description': None}]
+        schema_fields = [
+            {
+                'mode': 'REQUIRED',
+                'name': 'id',
+                'type': 'STRING',
+                'description': None,
+                'policyTags': {'names': []},
+            }
+        ]
         encryption_configuration = {"kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"}
 
         self.hook.create_external_table(

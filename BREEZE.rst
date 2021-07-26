@@ -1830,9 +1830,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  9.6 10 11 12 13
 
   --mysql-version MYSQL_VERSION
-          Mysql version used. One of:
+          MySql version used. One of:
 
                  5.7 8
+
+  --mssql-version MSSQL_VERSION
+          MSSql version used. One of:
+
+                 2017-latest 2019-latest
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2299,9 +2304,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  9.6 10 11 12 13
 
   --mysql-version MYSQL_VERSION
-          Mysql version used. One of:
+          MySql version used. One of:
 
                  5.7 8
+
+  --mssql-version MSSQL_VERSION
+          MSSql version used. One of:
+
+                 2017-latest 2019-latest
 
   ****************************************************************************************************
    Enable production image

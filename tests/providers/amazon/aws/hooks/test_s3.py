@@ -26,7 +26,6 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 
@@ -366,12 +365,10 @@ class TestAwsS3Hook:
         assert test_bucket_name == 'bucket'
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
+        # The behaviour of delete changed in recent version of s3 mock libraries.
+        # It will succeed idempotently
         hook = S3Hook()
-        with pytest.raises(AirflowException) as ctx:
-            hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
-
-        assert isinstance(ctx.value, AirflowException)
-        assert str(ctx.value) == "Errors when deleting: ['key-1']"
+        hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
         key = 'key-1'
