@@ -239,7 +239,7 @@ class GoogleAdsHook(BaseHook):
             request = self._get_client.get_type("SearchGoogleAdsRequest")
             request.customer_id = client_id
             request.query = query
-            request.page_size = 10000
+            request.page_size = page_size
 
             iterator = service.search(request=request)
             iterators.append(iterator)
