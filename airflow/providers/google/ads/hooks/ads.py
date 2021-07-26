@@ -164,7 +164,6 @@ class GoogleAdsHook(BaseHook):
     @cached_property
     def _get_service(self) -> Resource:
         """Connects and authenticates with the Google Ads API using a service account"""
-
         client = self._get_client
         return client.get_service("GoogleAdsService", version=self.api_version)
 
