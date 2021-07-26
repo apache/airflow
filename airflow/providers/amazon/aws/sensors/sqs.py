@@ -20,6 +20,7 @@ import json
 from typing import Any, Optional
 
 from jsonpath_ng import parse
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
@@ -47,16 +48,16 @@ class SQSSensor(BaseSensorOperator):
         `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
         (message Body filtered using a JSONPath expression).
         You may add further methods by overriding the relevant class methods.
-    :type message_filtering: Optional[str]
+    :type message_filtering: Optional[Literal["literal", "jsonpath"]]
     :param message_filtering_match_values: Optional value/s for the message filter to match on.
         For example, with literal matching, if a message body matches any of the specified values
         then it is included. For JSONPath matching, the result of the JSONPath expression is used
         and may match any of the specified values.
-    :type message_filtering_match_values: Optional[Any]
+    :type message_filtering_match_values: Any
     :param message_filtering_config: Additional configuration to pass to the message filter.
         For example with JSONPath filtering you can pass a JSONPath expression string here,
         such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
-    :type message_filtering_config: Optional[Any]
+    :type message_filtering_config: Any
     """
 
     template_fields = ('sqs_queue', 'max_messages', 'message_filtering_config')
@@ -69,9 +70,9 @@ class SQSSensor(BaseSensorOperator):
         max_messages: int = 5,
         wait_time_seconds: int = 1,
         visibility_timeout: Optional[int] = None,
-        message_filtering: Optional[str] = None,
-        message_filtering_match_values: Optional[Any] = None,
-        message_filtering_config: Optional[Any] = None,
+        message_filtering: Optional[Literal["literal", "jsonpath"]] = None,
+        message_filtering_match_values: Any = None,
+        message_filtering_config: Any = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -82,10 +83,16 @@ class SQSSensor(BaseSensorOperator):
         self.visibility_timeout = visibility_timeout
 
         self.message_filtering = message_filtering
+
         if message_filtering_match_values is not None:
-            if not isinstance(message_filtering_match_values, list):
-                message_filtering_match_values = [message_filtering_match_values]
+            if not isinstance(message_filtering_match_values, set):
+                message_filtering_match_values = set(message_filtering_match_values)
         self.message_filtering_match_values = message_filtering_match_values
+
+        if self.message_filtering == 'literal':
+            if self.message_filtering_match_values is None:
+                raise TypeError('message_filtering_match_values must be specified for literal matching')
+
         self.message_filtering_config = message_filtering_config
 
         self.hook: Optional[SQSHook] = None
@@ -163,8 +170,6 @@ class SQSSensor(BaseSensorOperator):
 
     def filter_messages_literal(self, messages):
         filtered_messages = []
-        if self.message_filtering_match_values is None:
-            raise Exception('message_filtering_match_values must be specified for literal matching')
         for message in messages:
             if message['Body'] in self.message_filtering_match_values:
                 filtered_messages.append(message)
