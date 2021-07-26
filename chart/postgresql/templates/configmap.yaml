@@ -1,0 +1,31 @@
+{{ if and (or (.Files.Glob "files/postgresql.conf") (.Files.Glob "files/pg_hba.conf") .Values.postgresqlConfiguration .Values.pgHbaConfiguration) (not .Values.configurationConfigMap) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "common.names.fullname" . }}-configuration
+  labels:
+  {{- include "common.labels.standard" . | nindent 4 }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+  namespace: {{ .Release.Namespace }}
+data:
+{{- if (.Files.Glob "files/postgresql.conf") }}
+{{ (.Files.Glob "files/postgresql.conf").AsConfig | indent 2 }}
+{{- else if .Values.postgresqlConfiguration }}
+  postgresql.conf: |
+{{- range $key, $value := default dict .Values.postgresqlConfiguration }}
+    {{- if kindIs "string" $value }}
+    {{ $key | snakecase }} = '{{ $value }}'
+    {{- else }}
+    {{ $key | snakecase }} = {{ $value }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- if (.Files.Glob "files/pg_hba.conf") }}
+{{ (.Files.Glob "files/pg_hba.conf").AsConfig | indent 2 }}
+{{- else if .Values.pgHbaConfiguration }}
+  pg_hba.conf: |
+{{ .Values.pgHbaConfiguration | indent 4 }}
+{{- end }}
+{{ end }}

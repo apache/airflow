@@ -1,0 +1,23 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ template "common.names.fullname" . }}
+{{- with .Values.metrics.prometheusRule.namespace }}
+  namespace: {{ . }}
+{{- end }}
+  labels:
+  {{- include "common.labels.standard" . | nindent 4 }}
+  {{- with .Values.metrics.prometheusRule.additionalLabels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+spec:
+{{- with .Values.metrics.prometheusRule.rules }}
+  groups:
+    - name: {{ template "postgresql.name" $ }}
+      rules: {{ tpl (toYaml .) $ | nindent 8 }}
+{{- end }}
+{{- end }}

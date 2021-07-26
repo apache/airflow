@@ -1,0 +1,39 @@
+{{- if .Values.networkPolicy.enabled }}
+kind: NetworkPolicy
+apiVersion: {{ template "postgresql.networkPolicy.apiVersion" . }}
+metadata:
+  name: {{ template "common.names.fullname" . }}
+  labels:
+  {{- include "common.labels.standard" . | nindent 4 }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+    {{- include "common.labels.matchLabels" . | nindent 6 }}
+  ingress:
+    # Allow inbound connections
+    - ports:
+        - port: {{ template "postgresql.port" . }}
+      {{- if not .Values.networkPolicy.allowExternal }}
+      from:
+        - podSelector:
+            matchLabels:
+              {{ template "common.names.fullname" . }}-client: "true"
+          {{- if .Values.networkPolicy.explicitNamespacesSelector }}
+          namespaceSelector:
+{{ toYaml .Values.networkPolicy.explicitNamespacesSelector | indent 12 }}
+          {{- end }}
+        - podSelector:
+            matchLabels:
+            {{- include "common.labels.matchLabels" . | nindent 14 }}
+              role: read
+      {{- end }}
+    {{- if .Values.metrics.enabled }}
+    # Allow prometheus scrapes
+    - ports:
+        - port: 9187
+    {{- end }}
+{{- end }}

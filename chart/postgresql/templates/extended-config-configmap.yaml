@@ -1,0 +1,26 @@
+{{- if and (or (.Files.Glob "files/conf.d/*.conf") .Values.postgresqlExtendedConf) (not .Values.extendedConfConfigMap)}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "common.names.fullname" . }}-extended-configuration
+  labels:
+  {{- include "common.labels.standard" . | nindent 4 }}
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+  namespace: {{ .Release.Namespace }}
+data:
+{{- with .Files.Glob "files/conf.d/*.conf" }}
+{{ .AsConfig | indent 2 }}
+{{- end }}
+{{ with .Values.postgresqlExtendedConf }}
+  override.conf: |
+{{- range $key, $value := . }}
+    {{- if kindIs "string" $value }}
+    {{ $key | snakecase }} = '{{ $value }}'
+    {{- else }}
+    {{ $key | snakecase }} = {{ $value }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

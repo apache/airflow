@@ -82,6 +82,8 @@ spec:
           {{- else }}
           args: ["bash", "-c", "airflow upgradedb"]
           {{- end }}
+          resources:
+{{ toYaml .Values.runAirflowMigrations.resources | indent 12 }} 
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:

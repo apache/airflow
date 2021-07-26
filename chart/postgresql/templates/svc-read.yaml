@@ -1,0 +1,43 @@
+{{- if .Values.replication.enabled }}
+{{- $serviceAnnotations := coalesce .Values.readReplicas.service.annotations .Values.service.annotations -}}
+{{- $serviceType := coalesce .Values.readReplicas.service.type .Values.service.type -}}
+{{- $serviceLoadBalancerIP := coalesce .Values.readReplicas.service.loadBalancerIP .Values.service.loadBalancerIP -}}
+{{- $serviceLoadBalancerSourceRanges := coalesce .Values.readReplicas.service.loadBalancerSourceRanges .Values.service.loadBalancerSourceRanges -}}
+{{- $serviceClusterIP := coalesce .Values.readReplicas.service.clusterIP .Values.service.clusterIP -}}
+{{- $serviceNodePort := coalesce .Values.readReplicas.service.nodePort .Values.service.nodePort -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "common.names.fullname" . }}-read
+  labels:
+  {{- include "common.labels.standard" . | nindent 4 }}
+  annotations:
+  {{- if .Values.commonAnnotations }}
+  {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+  {{- if $serviceAnnotations }}
+  {{- include "common.tplvalues.render" (dict "value" $serviceAnnotations "context" $) | nindent 4 }}
+  {{- end }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ $serviceType }}
+  {{- if and $serviceLoadBalancerIP (eq $serviceType "LoadBalancer") }}
+  loadBalancerIP: {{ $serviceLoadBalancerIP }}
+  {{- end }}
+  {{- if and (eq $serviceType "LoadBalancer") $serviceLoadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- include "common.tplvalues.render" (dict "value" $serviceLoadBalancerSourceRanges "context" $) | nindent 4 }}
+  {{- end }}
+  {{- if and (eq $serviceType "ClusterIP") $serviceClusterIP }}
+  clusterIP: {{ $serviceClusterIP }}
+  {{- end }}
+  ports:
+    - name: tcp-postgresql
+      port:  {{ template "postgresql.port" . }}
+      targetPort: tcp-postgresql
+      {{- if $serviceNodePort }}
+      nodePort: {{ $serviceNodePort }}
+      {{- end }}
+  selector:
+  {{- include "common.labels.matchLabels" . | nindent 4 }}
+    role: read
+{{- end }}

@@ -1,0 +1,3 @@
+commonAnnotations:
+  helm.sh/hook: "\"pre-install, pre-upgrade\""
+  helm.sh/hook-weight: "-1"

@@ -146,13 +146,6 @@ spec:
                 - health
             initialDelaySeconds: 10
             periodSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-                - pgbouncer_exporter
-                - health
-            initialDelaySeconds: 10
-            periodSeconds: 10
       volumes:
         - name: pgbouncer-config
           secret:

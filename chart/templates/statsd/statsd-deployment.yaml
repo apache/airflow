@@ -73,6 +73,13 @@ spec:
       containers:
         - name: statsd
           image: {{ template "statsd_image" . }}
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
           args:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
