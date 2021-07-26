@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
     - cron: '28 0 * * *'
   pull_request_target:
   push:
-    branches: ['main', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['main', 'v[0-9]+-[0-9]+-test']
 permissions:
   # all other permissions are set to none
   contents: read
@@ -47,6 +47,7 @@ env:
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}

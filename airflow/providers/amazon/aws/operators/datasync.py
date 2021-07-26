@@ -118,11 +118,11 @@ class AWSDataSyncOperator(BaseOperator):
         "task_execution_kwargs",
     )
     template_fields_renderers = {
-        "create_task_kwargs": "py",
-        "create_source_location_kwargs": "py",
-        "create_destination_location_kwargs": "py",
-        "update_task_kwargs": "py",
-        "task_execution_kwargs": "py",
+        "create_task_kwargs": "json",
+        "create_source_location_kwargs": "json",
+        "create_destination_location_kwargs": "json",
+        "update_task_kwargs": "json",
+        "task_execution_kwargs": "json",
     }
     ui_color = "#44b5e2"
 

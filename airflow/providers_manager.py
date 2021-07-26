@@ -25,7 +25,7 @@ from collections import OrderedDict
 from typing import Any, Dict, NamedTuple, Set
 
 import jsonschema
-from wtforms import Field
+from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
 
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -35,6 +35,8 @@ try:
 except ImportError:
     # Try back-ported to PY<37 `importlib_resources`.
     import importlib_resources
+
+ALLOWED_FIELD_CLASSES = [IntegerField, PasswordField, StringField, BooleanField]
 
 log = logging.getLogger(__name__)
 
@@ -274,6 +276,16 @@ class ProvidersManager:
             if 'get_connection_form_widgets' in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
                 if widgets:
+                    for widget in widgets.values():
+                        if widget.field_class not in ALLOWED_FIELD_CLASSES:
+                            log.warning(
+                                "The hook_class '%s' uses field of unsupported class '%s'. "
+                                "Only '%s' field classes are supported",
+                                hook_class_name,
+                                widget.field_class,
+                                ALLOWED_FIELD_CLASSES,
+                            )
+                            return
                     self._add_widgets(provider_package, hook_class, widgets)
             if 'get_ui_field_behaviour' in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()

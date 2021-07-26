@@ -174,10 +174,10 @@ official Apache releases must not include the rcN suffix.
 
   # Replace the URLs from "https://downloads.apache.org" to "https://archive.apache.org"
   # as the downloads.apache.org only contains latest releases.
-  sed 's|https://downloads.apache.org/airflow/helm-chart/|https://archive.apache.org/dist/airflow/helm-chart/|' index.yaml
+  sed -i 's|https://downloads.apache.org/airflow/helm-chart/|https://archive.apache.org/dist/airflow/helm-chart/|' index.yaml
 
   # Generate / Merge the new version with existing index.yaml
-  helm repo index --merge ./index.yaml . --url https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}
+  helm repo index --merge ./index.yaml . --url "https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}"
 
   ###### Generate index.yaml file - End
 
@@ -186,9 +186,19 @@ official Apache releases must not include the rcN suffix.
   svn commit -m "Add artifacts for Helm Chart ${VERSION}"
   ```
 
+- Remove old Helm Chart versions from the dev repo
+
+  ```shell
+  cd ..
+  export PREVIOUS_VERSION=1.0.0rc1
+  svn rm ${PREVIOUS_VERSION}
+  svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
+  ```
+
 - Push Tag for the release candidate
 
   ```shell
+  cd ${AIRFLOW_REPO_ROOT}
   git push origin helm-chart/${VERSION}
   ```
 
@@ -537,7 +547,7 @@ We upload `index.yaml` to the Airflow website to allow: `helm repo add https://a
   cd "${AIRFLOW_SITE_DIRECTORY}"
   curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${RC}/index.yaml -o index.yaml
   https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}
-  sed "s|https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC|https://downloads.apache.org/airflow/helm-chart/$VERSION|" index.yaml
+  sed -i "s|https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC|https://downloads.apache.org/airflow/helm-chart/$VERSION|" index.yaml
 
   git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
   git push

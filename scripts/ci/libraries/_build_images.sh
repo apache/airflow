@@ -410,12 +410,15 @@ function build_images::get_docker_image_names() {
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
     local token="${GITHUB_TOKEN}"
-    if [[ -z "${token}" ]] ; then
+    if [[ -z "${token}" ]]; then
         verbosity::print_info
         verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
         verbosity::print_info
-    fi
-    if [[ -n "${token}" ]]; then
+    elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+        verbosity::print_info
+    elif [[ -n "${token}" ]]; then
         echo "${token}" | docker_v login \
             --username "${GITHUB_USERNAME:-apache}" \
             --password-stdin \

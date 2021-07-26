@@ -18,7 +18,7 @@
  */
 
 /*
-  global d3, localStorage, dagreD3, nodes, edges, arrange, document,
+  global d3, localStorage, dagreD3, dagNodes, edges, arrange, document,
 */
 
 const highlightColor = '#000000';
@@ -28,8 +28,12 @@ const initialStrokeWidth = '3px';
 const highlightStrokeWidth = '5px';
 const duration = 500;
 
+let nodes = dagNodes;
+const fullNodes = nodes;
+const filteredNodes = nodes.filter((n) => edges.some((e) => e.u === n.id || e.v === n.id));
+
 // Preparation of DagreD3 data structures
-const g = new dagreD3.graphlib.Graph()
+let g = new dagreD3.graphlib.Graph()
   .setGraph({
     nodesep: 15,
     ranksep: 15,
@@ -37,21 +41,9 @@ const g = new dagreD3.graphlib.Graph()
   })
   .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
 
-// Set all nodes and styles
-nodes.forEach((node) => {
-  g.setNode(node.id, node.value);
-});
-
-// Set edges
-edges.forEach((edge) => {
-  g.setEdge(edge.u, edge.v);
-});
-
 const render = dagreD3.render();
 const svg = d3.select('#graph-svg');
 const innerSvg = d3.select('#graph-svg g');
-
-innerSvg.call(render, g);
 
 // Returns true if a node's id or its children's id matches search_text
 function nodeMatches(nodeId, searchText) {
@@ -59,8 +51,8 @@ function nodeMatches(nodeId, searchText) {
   return false;
 }
 
-function highlightNodes(nodes, color, strokeWidth) {
-  nodes.forEach((nodeid) => {
+function highlightNodes(nodesToHighlight, color, strokeWidth) {
+  nodesToHighlight.forEach((nodeid) => {
     const myNode = g.node(nodeid).elem;
     d3.select(myNode)
       .selectAll('rect,circle')
@@ -187,10 +179,50 @@ function searchboxHighlighting(s) {
   }
 }
 
-setUpNodeHighlighting();
-setUpZoomSupport();
-
 d3.select('#searchbox').on('keyup', () => {
   const s = document.getElementById('searchbox').value;
   searchboxHighlighting(s);
 });
+
+const renderGraph = () => {
+  g = new dagreD3.graphlib.Graph()
+    .setGraph({
+      nodesep: 15,
+      ranksep: 15,
+      rankdir: arrange,
+    })
+    .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
+
+  // set nodes
+  nodes.forEach((node) => {
+    g.setNode(node.id, node.value);
+  });
+
+  // Set edges
+  edges.forEach((edge) => {
+    g.setEdge(edge.u, edge.v);
+  });
+
+  innerSvg.call(render, g);
+  setUpNodeHighlighting();
+  setUpZoomSupport();
+};
+
+// rerender graph when filtering dags with dependencies or not
+document.getElementById('deps-filter').addEventListener('change', function onChange() {
+  // reset searchbox
+  document.getElementById('searchbox').value = '';
+  if (this.checked) {
+    nodes = filteredNodes;
+  } else {
+    nodes = fullNodes;
+  }
+  renderGraph();
+});
+
+// initial filter check and render
+if (document.getElementById('deps-filter').checked) {
+  nodes = filteredNodes;
+}
+
+renderGraph();

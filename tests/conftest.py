@@ -424,3 +424,53 @@ def app():
     from airflow.www import app
 
     return app.create_app(testing=True)
+
+
+@pytest.fixture
+def dag_maker(request):
+    from airflow.models import DAG
+    from airflow.utils import timezone
+    from airflow.utils.state import State
+
+    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+    class DagFactory:
+        def __enter__(self):
+            self.dag.__enter__()
+            return self.dag
+
+        def __exit__(self, type, value, traceback):
+            dag = self.dag
+            dag.__exit__(type, value, traceback)
+            if type is None:
+                dag.clear()
+                self.dag_run = dag.create_dagrun(
+                    run_id=self.kwargs.get("run_id", "test"),
+                    state=self.kwargs.get('state', State.RUNNING),
+                    execution_date=self.kwargs.get('execution_date', self.kwargs['start_date']),
+                    start_date=self.kwargs['start_date'],
+                )
+
+        def __call__(self, dag_id='test_dag', **kwargs):
+            self.kwargs = kwargs
+            if "start_date" not in kwargs:
+                if hasattr(request.module, 'DEFAULT_DATE'):
+                    kwargs['start_date'] = getattr(request.module, 'DEFAULT_DATE')
+                else:
+                    kwargs['start_date'] = DEFAULT_DATE
+            dagrun_fields_not_in_dag = [
+                'state',
+                'execution_date',
+                'run_type',
+                'queued_at',
+                "run_id",
+                "creating_job_id",
+                "external_trigger",
+                "last_scheduling_decision",
+                "dag_hash",
+            ]
+            kwargs = {k: v for k, v in kwargs.items() if k not in dagrun_fields_not_in_dag}
+            self.dag = DAG(dag_id, **kwargs)
+            return self
+
+    return DagFactory()

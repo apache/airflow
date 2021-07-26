@@ -80,6 +80,7 @@ class TestECSOperator(unittest.TestCase):
 
     def setUp(self):
         self.set_up_operator()
+        self.mock_context = mock.MagicMock()
 
     def test_init(self):
         assert self.ecs.region_name == 'eu-west-1'
@@ -340,7 +341,7 @@ class TestECSOperator(unittest.TestCase):
         }
 
         self.ecs.reattach = True
-        self.ecs.execute(None)
+        self.ecs.execute(self.mock_context)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
@@ -357,6 +358,7 @@ class TestECSOperator(unittest.TestCase):
 
         start_mock.assert_not_called()
         xcom_pull_mock.assert_called_once_with(
+            self.mock_context,
             key=self.ecs.REATTACH_XCOM_KEY,
             task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
         )
@@ -389,7 +391,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.reattach = True
-        self.ecs.execute(None)
+        self.ecs.execute(self.mock_context)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
@@ -403,7 +405,7 @@ class TestECSOperator(unittest.TestCase):
         reattach_mock.assert_called_once()
         client_mock.run_task.assert_called_once()
         xcom_set_mock.assert_called_once_with(
-            None,
+            self.mock_context,
             key=self.ecs.REATTACH_XCOM_KEY,
             task_id=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
             value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",

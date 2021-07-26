@@ -86,6 +86,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
     """
 
     template_fields = ("bucket_name",)
+    template_fields_renderers = {"tag_set": "json"}
 
     def __init__(
         self,

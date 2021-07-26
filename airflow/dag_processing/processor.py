@@ -567,15 +567,11 @@ class DagFileProcessor(LoggingMixin):
             dag = dagbag.dags[simple_ti.dag_id]
             if simple_ti.task_id in dag.task_ids:
                 task = dag.get_task(simple_ti.task_id)
-                ti = TI(task, simple_ti.execution_date)
-                # Get properties needed for failure handling from SimpleTaskInstance.
-                ti.start_date = simple_ti.start_date
-                ti.end_date = simple_ti.end_date
-                ti.try_number = simple_ti.try_number
-                ti.state = simple_ti.state
-                ti.test_mode = self.UNIT_TEST_MODE
                 if request.is_failure_callback:
-                    ti.handle_failure_with_callback(error=request.msg, test_mode=ti.test_mode)
+                    ti = TI(task, simple_ti.execution_date)
+                    # TODO: Use simple_ti to improve performance here in the future
+                    ti.refresh_from_db()
+                    ti.handle_failure_with_callback(error=request.msg, test_mode=self.UNIT_TEST_MODE)
                     self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
 
     @provide_session

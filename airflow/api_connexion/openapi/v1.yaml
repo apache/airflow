@@ -1606,6 +1606,31 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
+    post:
+      summary: Create a user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: post_user
+      tags: [User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
   /users/{username}:
     parameters:
       - $ref: '#/components/parameters/Username'
@@ -1621,6 +1646,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserCollectionItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update a user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: patch_user
+      tags: [User]
+      parameters:
+        - $ref: '#/components/parameters/UpdateMask'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete a user
+      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      operationId: delete_user
+      tags: [User]
+      responses:
+        '204':
+          description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -1679,7 +1750,6 @@ components:
               name:
                 type: string
             nullable: true
-          readOnly: true
         created_on:
           type: string
           format: datetime

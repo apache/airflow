@@ -512,6 +512,30 @@ class Airflow(AirflowBaseView):
     )
     def index(self):
         """Home view."""
+        unit_test_mode: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
+
+        if not unit_test_mode and "sqlite" in conf.get("core", "sql_alchemy_conn"):
+            db_doc_page = get_docs_url("howto/set-up-database.html")
+            flash(
+                Markup(
+                    "Usage of <b>SQLite</b> detected. It should only be used for dev/testing. "
+                    "Do not use <b>SQLite</b> as metadata DB in production. "
+                    "We recommend using Postgres or MySQL. "
+                    f"<a href='{db_doc_page}'><b>Click here</b></a> for more information."
+                ),
+                category="warning",
+            )
+
+        if not unit_test_mode and conf.get("core", "executor") == "SequentialExecutor":
+            exec_doc_page = get_docs_url("executor/index.html")
+            flash(
+                Markup(
+                    "Usage of <b>SequentialExecutor</b> detected. "
+                    "Do not use <b>SequentialExecutor</b> in production. "
+                    f"<a href='{exec_doc_page}'><b>Click here</b></a> for more information."
+                ),
+                category="warning",
+            )
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
 
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
@@ -970,6 +994,8 @@ class Airflow(AirflowBaseView):
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
+                if isinstance(content, (dict, list)):
+                    content = json.dumps(content, sort_keys=True, indent=4)
                 html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
@@ -1227,8 +1253,6 @@ class Airflow(AirflowBaseView):
         """Retrieve task."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
-        # Carrying execution_date through, even though it's irrelevant for
-        # this context
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
@@ -1472,6 +1496,7 @@ class Airflow(AirflowBaseView):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
 
@@ -1536,6 +1561,10 @@ class Airflow(AirflowBaseView):
                 )
 
         dag = current_app.dag_bag.get_dag(dag_id)
+
+        if unpause and dag.is_paused:
+            models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
+
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,

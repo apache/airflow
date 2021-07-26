@@ -18,6 +18,7 @@
 
 import unittest
 from contextlib import closing
+from unittest import mock
 
 import pytest
 from parameterized import parameterized
@@ -73,6 +74,27 @@ class TestMySql(unittest.TestCase):
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @mock.patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
+    def test_mysql_to_mysql_replace(self, mock_insert):
+        sql = "SELECT * FROM connection LIMIT 10;"
+        op = GenericTransfer(
+            task_id='test_m2m',
+            preoperator=[
+                "DROP TABLE IF EXISTS test_mysql_to_mysql",
+                "CREATE TABLE IF NOT EXISTS test_mysql_to_mysql LIKE connection",
+            ],
+            source_conn_id='airflow_db',
+            destination_conn_id='airflow_db',
+            destination_table="test_mysql_to_mysql",
+            sql=sql,
+            dag=self.dag,
+            insert_args={'replace': True},
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert mock_insert.called
+        _, kwargs = mock_insert.call_args
+        assert 'replace' in kwargs
+
 
 @pytest.mark.backend("postgres")
 class TestPostgres(unittest.TestCase):
@@ -103,3 +125,28 @@ class TestPostgres(unittest.TestCase):
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    @mock.patch('airflow.hooks.dbapi.DbApiHook.insert_rows')
+    def test_postgres_to_postgres_replace(self, mock_insert):
+        sql = "SELECT id, conn_id, conn_type FROM connection LIMIT 10;"
+        op = GenericTransfer(
+            task_id='test_p2p',
+            preoperator=[
+                "DROP TABLE IF EXISTS test_postgres_to_postgres",
+                "CREATE TABLE IF NOT EXISTS test_postgres_to_postgres (LIKE connection INCLUDING INDEXES)",
+            ],
+            source_conn_id='postgres_default',
+            destination_conn_id='postgres_default',
+            destination_table="test_postgres_to_postgres",
+            sql=sql,
+            dag=self.dag,
+            insert_args={
+                'replace': True,
+                'target_fields': ('id', 'conn_id', 'conn_type'),
+                'replace_index': 'id',
+            },
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert mock_insert.called
+        _, kwargs = mock_insert.call_args
+        assert 'replace' in kwargs

@@ -39,7 +39,8 @@ class SQSPublishOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
+    template_fields = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
+    template_fields_renderers = {'message_attributes': 'json'}
     ui_color = '#6ad3fa'
 
     def __init__(

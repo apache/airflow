@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 36
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -56,6 +56,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Secret', 'TEST-BASIC-airflow-result-backend'),
             ('Secret', 'TEST-BASIC-broker-url'),
             ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Secret', 'TEST-BASIC-webserver-secret-key'),
             ('Secret', 'TEST-BASIC-postgresql'),
             ('Secret', 'TEST-BASIC-redis-password'),
             ('ConfigMap', 'TEST-BASIC-airflow-config'),
@@ -83,7 +84,11 @@ class TestBaseChartTest(unittest.TestCase):
         assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search('metadata.labels', k8s_object) or {}
-            if 'postgresql' in labels.get('chart'):
+            if 'helm.sh/chart' in labels:
+                chart_name = labels.get('helm.sh/chart')
+            else:
+                chart_name = labels.get('chart')
+            if chart_name and 'postgresql' in chart_name:
                 continue
             k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
             assert 'TEST-VALUE' == labels.get(
@@ -186,6 +191,7 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-statsd", "Service", "statsd"),
             (f"{release_name}-statsd-policy", "NetworkPolicy", "statsd-policy"),
             (f"{release_name}-webserver", "Deployment", "webserver"),
+            (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-webserver", "Service", "webserver"),
             (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
             (f"{release_name}-worker", "Service", "worker"),

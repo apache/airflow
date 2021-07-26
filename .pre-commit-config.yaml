@@ -290,7 +290,7 @@ repos:
         name: Update output of breeze command in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.sh
         language: system
-        files: ^BREEZE\.rst$|^breeze$|^breeze-complete$
+        files: ^BREEZE\.rst$|^breeze$|^breeze-complete|^Dockerfile$
         pass_filenames: false
       - id: update-local-yml-file
         name: Update mounts in the local yml file
