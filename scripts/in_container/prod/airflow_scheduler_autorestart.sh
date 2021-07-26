@@ -18,11 +18,7 @@
 
 while echo "Running"; do
     airflow scheduler -n 5
-    return_code=$?
-    if (( return_code != 0 )); then
-        echo "Scheduler crashed with exit code $return_code. Respawning.." >&2
-        date >> /tmp/airflow_scheduler_errors.txt
-    fi
-
+    echo "Scheduler crashed with exit code $?.  Respawning.." >&2
+    date >> /tmp/airflow_scheduler_errors.txt
     sleep 1
 done
