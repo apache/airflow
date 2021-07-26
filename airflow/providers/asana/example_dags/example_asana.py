@@ -29,7 +29,6 @@ from airflow.providers.asana.operators.asana_tasks import (
 )
 from airflow.utils.dates import days_ago
 
-
 ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
 ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
 # This example assumes a default project ID has been specified in the connection. If you
