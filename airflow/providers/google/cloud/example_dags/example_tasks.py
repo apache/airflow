@@ -114,8 +114,9 @@ with models.DAG(
 
     get_queue_result = BashOperator(
         task_id="get_queue_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('get_queue') }}\"",
+        bash_command=f"echo {get_queue.output}",
     )
+
     get_queue >> get_queue_result
 
     update_queue = CloudTasksQueueUpdateOperator(
