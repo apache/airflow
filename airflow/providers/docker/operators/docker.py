@@ -248,33 +248,25 @@ class DockerOperator(BaseOperator):
             raise Exception("The 'cli' should be initialized before!")
         if self.mount_tmp_dir:
             with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir_generated:
-                tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
-                try:
-                    return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
-                except APIError as e:
-                    if host_tmp_dir_generated in str(e):
-                        self.log.warning(
-                            "Using remote engine or docker-in-docker and mounting temporary "
-                            "volume from host is not supported. Falling back to "
-                            "`mount_tmp_dir=False` mode. You can set `mount_tmp_dir` parameter"
-                            " to False to disable mounting and remove the warning"
-                        )
-                        return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
-                    raise
+                return self._run_image_with_mounts(self.mounts, add_tmp_variable=False,
+                                                   tmp_mount_dir=host_tmp_dir_generated)
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> Optional[str]:
+    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool,
+                               tmp_mount_dir: Optional[str] = None) -> Optional[str]:
         if add_tmp_variable:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
             self.environment.pop('AIRFLOW_TMP_DIR', None)
+        volumes = [f"{tmp_mount_dir}:{self.tmp_dir}"] if tmp_mount_dir else []
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
             environment={**self.environment, **self._private_environment},
             host_config=self.cli.create_host_config(
                 auto_remove=False,
+                volumes=volumes,
                 mounts=target_mounts,
                 network_mode=self.network_mode,
                 shm_size=self.shm_size,
