@@ -2396,6 +2396,7 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.quarantined
     def test_verify_integrity_if_dag_changed(self):
         # CleanUp
         with create_session() as session:
