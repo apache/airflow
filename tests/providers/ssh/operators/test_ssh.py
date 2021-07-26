@@ -63,7 +63,7 @@ class TestSSHOperator(unittest.TestCase):
         assert task is not None
 
         task.execute(None)
-        
+
         assert timeout == task.ssh_hook.conn_timeout
         assert ssh_id == task.ssh_hook.ssh_conn_id
 
@@ -72,12 +72,17 @@ class TestSSHOperator(unittest.TestCase):
         cmd_timeout = 45
         ssh_id = "ssh_default"
         task = SSHOperator(
-            task_id="test", command=COMMAND, dag=self.dag, conn_timeout=conn_timeout, cmd_timeout=cmd_timeout, ssh_conn_id="ssh_default"
+            task_id="test",
+            command=COMMAND,
+            dag=self.dag,
+            conn_timeout=conn_timeout,
+            cmd_timeout=cmd_timeout,
+            ssh_conn_id="ssh_default",
         )
         assert task is not None
 
         task.execute(None)
-        
+
         assert conn_timeout == task.ssh_hook.conn_timeout
         assert ssh_id == task.ssh_hook.ssh_conn_id
 
@@ -154,7 +159,9 @@ class TestSSHOperator(unittest.TestCase):
     def test_arg_checking(self):
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         with pytest.raises(AirflowException, match="Cannot operate without ssh_hook or ssh_conn_id."):
-            task_0 = SSHOperator(task_id="test", command=COMMAND, conn_timeout=TIMEOUT, cmd_timeout=TIMEOUT, dag=self.dag)
+            task_0 = SSHOperator(
+                task_id="test", command=COMMAND, conn_timeout=TIMEOUT, cmd_timeout=TIMEOUT, dag=self.dag
+            )
             task_0.execute(None)
 
         # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
