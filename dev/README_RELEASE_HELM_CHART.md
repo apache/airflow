@@ -486,7 +486,7 @@ svn mkdir ${VERSION}
 cd ${VERSION}
 
 # Move the artifacts to svn folder & commit (don't copy or copy & remove - index.yaml)
-for f in ../../../airflow-dev/helm-chart/$RC/*; do svn cp $f ${$(basename $f)/rc?/}; done
+for f in ../../../airflow-dev/helm-chart/$RC/*; do svn cp $f ${$(basename $f)/}; done
 svn rm index.yaml
 svn commit -m "Release Airflow Helm Chart Check ${VERSION} from ${RC}"
 
