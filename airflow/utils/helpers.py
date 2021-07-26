@@ -21,7 +21,19 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 from urllib import parse
 
 from flask import url_for
@@ -219,3 +231,56 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     view = conf.get('webserver', 'dag_default_view').lower()
     url = url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+def flatten_iterable(enum: Union[dict, list]) -> dict:
+    """
+    Flatten a dict or list to a single level dictionary where keys are either dict-keys or list-indices
+    (seperated by . in nested dicts/lists)
+    Single level List:
+    ['a', 'b' 'c'] to {'0' : 'a', '1' : 'b', '2' : 'c'}
+    Multi Level List:
+    ['a', 'b', ['c', 'd']] to {'0' : 'a', '1' : 'b', '2.0' : 'c', '2.1' : 'd'}
+    Single Level Dict (unchanged):
+    {
+        'item1' : 'value1',
+        'item2' : 'value2'
+    } >
+    {
+        'item1' : 'value1',
+        'item2' : 'value2'
+    }
+    Multi Level Dict:
+    {
+        'item1' : 'value1',
+        'subdict1' : {
+                        'subkey1' : 'subvalue1'
+                    }
+    } >
+    {
+            'item1' : 'value1',
+            'subdict1.subkey1' : 'subvalue1'
+    }
+    Mixed Dict and List:
+    {
+        'item1' : 'value1',
+        'sublist1' : ['subvalue1']
+    } >
+    {
+        'item1' : 'value1',
+        'sublist.0' : 'subvalue1'
+    }
+    """
+
+    def expand_items():
+        for key, value in enum.items():
+            if isinstance(value, (dict, list)):
+                for subkey, subvalue in flatten_iterable(value).items():
+                    yield ".".join([str(key), str(subkey)]), subvalue
+            else:
+                yield str(key), value
+
+    if isinstance(enum, list):
+        enum = {v: k for v, k in enumerate(enum)}
+
+    return dict(expand_items())

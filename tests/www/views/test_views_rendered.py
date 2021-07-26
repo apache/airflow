@@ -58,8 +58,38 @@ def task2(dag):
     )
 
 
+@pytest.fixture()
+def task3(dag):
+    return BashOperator(
+        task_id='task3',
+        bash_command={
+            'item1': '{{ task_instance_key_str }}',
+            'item2': {'subitem1': '{{ task_instance_key_str }}'},
+        },
+        dag=dag,
+    )
+
+
+@pytest.fixture()
+def task4(dag):
+    return BashOperator(
+        task_id='task4',
+        bash_command=['{{ task_instance_key_str }}', ['{{ task_instance_key_str }}']],
+        dag=dag,
+    )
+
+
+@pytest.fixture()
+def task5(dag):
+    return BashOperator(
+        task_id='task5',
+        bash_command={'item1': '{{ task_instance_key_str }}', 'item2': ['{{ task_instance_key_str }}']},
+        dag=dag,
+    )
+
+
 @pytest.fixture(autouse=True)
-def reset_db(dag, task1, task2):
+def reset_db(dag, task1, task2, task3, task4, task5):
     """Reset DB for each test.
 
     This writes the DAG to the DB, and clears rendered fields so we have a clean
@@ -100,6 +130,71 @@ def test_rendered_template_view(admin_client, task1):
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
+
+
+@pytest.mark.usefixtures("patch_app")
+def test_rendered_template_view_dict(admin_client, task3):
+    """
+    Test that the Rendered View contains the values from RenderedTaskInstanceFields
+    Dictionary should be expanded with dictionary key as attribute e.g. bash_command.item1
+    """
+    assert task3.bash_command == {
+        'item1': '{{ task_instance_key_str }}',
+        'item2': {'subitem1': '{{ task_instance_key_str }}'},
+    }
+    ti = TaskInstance(task3, DEFAULT_DATE)
+
+    with create_session() as session:
+        session.add(RenderedTaskInstanceFields(ti))
+
+    url = f'rendered-templates?task_id=task3&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response(
+        ["testdag__task3__20200301", "bash_command.item1", "bash_command.item2.subitem1"], resp
+    )
+
+
+@pytest.mark.usefixtures("patch_app")
+def test_rendered_template_view_list(admin_client, task4):
+    """
+    Test that the Rendered View contains the values from RenderedTaskInstanceFields
+    List should be expanded with list index as the key e.g. bash_command.0
+    """
+    assert task4.bash_command == ['{{ task_instance_key_str }}', ['{{ task_instance_key_str }}']]
+    ti = TaskInstance(task4, DEFAULT_DATE)
+
+    with create_session() as session:
+        session.add(RenderedTaskInstanceFields(ti))
+
+    url = f'rendered-templates?task_id=task4&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+
+    resp = admin_client.get(url, follow_redirects=True)
+    print(resp)
+    check_content_in_response(["testdag__task4__20200301", "bash_command.0", "bash_command.1.0"], resp)
+
+
+@pytest.mark.usefixtures("patch_app")
+def test_rendered_template_view_mixed(admin_client, task5):
+    """
+    Test that the Rendered View contains the values from RenderedTaskInstanceFields
+    """
+    assert task5.bash_command == {
+        'item1': '{{ task_instance_key_str }}',
+        'item2': ['{{ task_instance_key_str }}'],
+    }
+    ti = TaskInstance(task5, DEFAULT_DATE)
+
+    with create_session() as session:
+        session.add(RenderedTaskInstanceFields(ti))
+
+    url = f'rendered-templates?task_id=task5&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+
+    resp = admin_client.get(url, follow_redirects=True)
+    print(resp)
+    check_content_in_response(
+        ["testdag__task5__20200301", "bash_command.item1", "bash_command.item2.0"], resp
+    )
 
 
 @pytest.mark.usefixtures("patch_app")
