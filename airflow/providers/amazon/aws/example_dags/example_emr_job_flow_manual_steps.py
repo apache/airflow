@@ -30,14 +30,6 @@ from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTer
 from airflow.providers.amazon.aws.sensors.emr_step import EmrStepSensor
 from airflow.utils.dates import days_ago
 
-DEFAULT_ARGS = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
-
 SPARK_STEPS = [
     {
         'Name': 'calculate_pi',
@@ -71,7 +63,13 @@ JOB_FLOW_OVERRIDES = {
 
 with DAG(
     dag_id='emr_job_flow_manual_steps_dag',
-    default_args=DEFAULT_ARGS,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+    },
     dagrun_timeout=timedelta(hours=2),
     start_date=days_ago(2),
     schedule_interval='0 3 * * *',
@@ -88,23 +86,28 @@ with DAG(
 
     step_adder = EmrAddStepsOperator(
         task_id='add_steps',
-        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+        job_flow_id=cluster_creator.output,
         aws_conn_id='aws_default',
         steps=SPARK_STEPS,
     )
 
     step_checker = EmrStepSensor(
         task_id='watch_step',
-        job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
+        job_flow_id=cluster_creator.output,
         step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}",
         aws_conn_id='aws_default',
     )
 
     cluster_remover = EmrTerminateJobFlowOperator(
         task_id='remove_cluster',
-        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+        job_flow_id=cluster_creator.output,
         aws_conn_id='aws_default',
     )
 
-    cluster_creator >> step_adder >> step_checker >> cluster_remover
+    step_adder >> step_checker >> cluster_remover
     # [END howto_operator_emr_manual_steps_tasks]
+
+    # Task dependencies created via `XComArgs`:
+    #   cluster_creator >> step_adder
+    #   cluster_creator >> step_checker
+    #   cluster_creator >> cluster_remover

@@ -23,19 +23,12 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.providers.singularity.operators.singularity import SingularityOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
-
 with DAG(
     'singularity_sample',
-    default_args=default_args,
+    default_args={
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5),
+    },
     schedule_interval=timedelta(minutes=10),
     start_date=days_ago(0),
 ) as dag:

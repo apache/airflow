@@ -27,17 +27,8 @@ from airflow.providers.tableau.operators.tableau_refresh_workbook import Tableau
 from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
 from airflow.utils.dates import days_ago
 
-DEFAULT_ARGS = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
-
 with DAG(
     dag_id='example_tableau_refresh_workbook',
-    default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
     schedule_interval=None,
     start_date=days_ago(2),

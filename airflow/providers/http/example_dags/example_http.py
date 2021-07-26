@@ -26,17 +26,15 @@ from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
-
-dag = DAG('example_http_operator', default_args=default_args, tags=['example'], start_date=days_ago(2))
+dag = DAG(
+    'example_http_operator',
+    default_args={
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5),
+    },
+    tags=['example'],
+    start_date=days_ago(2),
+)
 
 dag.doc_md = __doc__
 

@@ -25,13 +25,8 @@ from airflow.operators.dummy import DummyOperator
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_jdbc_operator',
-    default_args=args,
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
