@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
 
 import requests
-
+import datetime
 body = {
   "replace_microseconds": 'false',
   "conf": {
-    "entity_id": "3002/0000002062/1585767133",
+    "entity_id": "3002/0000002062/".format(datetime.datetime.now().timestamp()),
     "should_analyze": True, # 是否触发分析
     "result": {
       "device_type": "tightening", # tightening or servo_press
