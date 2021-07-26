@@ -864,6 +864,12 @@ function breeze::parse_arguments() {
             echo
             shift 2
             ;;
+        --mssql-version)
+            export MSSQL_VERSION="${2}"
+            echo "MSSQL version: ${MSSQL_VERSION}"
+            echo
+            shift 2
+            ;;
         -l | --skip-mounting-local-sources)
             MOUNT_SELECTED_LOCAL_SOURCES="false"
             MOUNT_ALL_LOCAL_SOURCES="false"
@@ -1581,6 +1587,10 @@ function breeze::prepare_formatted_versions() {
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_MYSQL_VERSIONS
 
+    FORMATTED_MSSQL_VERSIONS=$(echo "${_breeze_allowed_mssql_versions=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_MSSQL_VERSIONS
+
     FORMATTED_DEFAULT_CI_EXTRAS=$(echo "${DEFAULT_CI_EXTRAS=}" |
         tr ',' ' ' | fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
     readonly FORMATTED_DEFAULT_CI_EXTRAS
@@ -2258,9 +2268,15 @@ ${FORMATTED_BACKENDS}
 ${FORMATTED_POSTGRES_VERSIONS}
 
 --mysql-version MYSQL_VERSION
-        Mysql version used. One of:
+        MySql version used. One of:
 
 ${FORMATTED_MYSQL_VERSIONS}
+
+--mssql-version MSSQL_VERSION
+        MSSql version used. One of:
+
+${FORMATTED_MSSQL_VERSIONS}
+
 "
 }
 
