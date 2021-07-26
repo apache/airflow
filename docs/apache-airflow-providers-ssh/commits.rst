@@ -36,6 +36,7 @@ Latest change: 2021-07-15
 ================================================================================================  ===========  =========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `a2dc01b34 <https://github.com/apache/airflow/commit/a2dc01b34590fc7830bdb76fea653e1a0ebecbd3>`_  2021-07-03   ``SSHHook: Using correct hostname for host_key when using non-default ssh port (#15964)``
 `7777d4f2f <https://github.com/apache/airflow/commit/7777d4f2fd0a63758c34769f8aa0438c8b4c6d83>`_  2021-07-01   ``Correctly load openssh-gerenated private keys in SSHHook (#16756)``

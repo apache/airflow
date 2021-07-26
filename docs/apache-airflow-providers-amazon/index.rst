@@ -108,6 +108,7 @@ Dependent package                                                               
 `apache-airflow-providers-mongo <https://airflow.apache.org/docs/apache-airflow-providers-mongo>`_              ``mongo``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_              ``mysql``
 `apache-airflow-providers-postgres <https://airflow.apache.org/docs/apache-airflow-providers-postgres>`_        ``postgres``
+`apache-airflow-providers-salesforce <https://airflow.apache.org/docs/apache-airflow-providers-salesforce>`_    ``salesforce``
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                  ``ssh``
 ==============================================================================================================  ===============
 

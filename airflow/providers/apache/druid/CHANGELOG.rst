@@ -19,6 +19,28 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix error in Druid connection attribute retrieval (#17095)``
+* ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+
 2.0.0
 .....
 
