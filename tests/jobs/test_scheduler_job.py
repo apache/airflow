@@ -2066,6 +2066,7 @@ class TestSchedulerJob:
         with create_session() as session:
             assert session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count() == 0
 
+    @pytest.mark.quarantined
     def test_scheduler_verify_pool_full(self):
         """
         Test task instances not queued when pool is full
