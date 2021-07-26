@@ -115,6 +115,10 @@ class TestDagFileProcessor(unittest.TestCase):
         non_serialized_dagbag.sync_to_db()
         cls.dagbag = DagBag(read_dags_from_db=True)
 
+    @staticmethod
+    def assert_scheduled_ti_count(session, count):
+        assert count == session.query(TaskInstance).filter_by(state=State.SCHEDULED).count()
+
     def test_dag_file_processor_sla_miss_callback(self):
         """
         Test that the dag file processor calls the sla miss callback
@@ -388,6 +392,7 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.end_date = end_date
 
             self.scheduler_job._schedule_dag_run(dr, session)
+            self.assert_scheduled_ti_count(session, 1)
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -444,6 +449,7 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.end_date = end_date
 
             self.scheduler_job._schedule_dag_run(dr, session)
+            self.assert_scheduled_ti_count(session, 1)
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -503,6 +509,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.end_date = end_date
 
             self.scheduler_job._schedule_dag_run(dr, session)
+            self.assert_scheduled_ti_count(session, 2)
 
             session.refresh(tis[0])
             session.refresh(tis[1])
@@ -545,6 +552,7 @@ class TestDagFileProcessor(unittest.TestCase):
         SerializedDagModel.write_dag(dag=dag)
 
         self.scheduler_job._schedule_dag_run(dr, session)
+        self.assert_scheduled_ti_count(session, 2)
         session.flush()
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
