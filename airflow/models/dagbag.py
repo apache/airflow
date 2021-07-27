@@ -594,6 +594,7 @@ class DagBag(LoggingMixin):
             except OperationalError:
                 raise
             except Exception:
+                self.log.exception("Failed to write serialized DAG: %s", dag.full_filepath)
                 return [(dag.fileloc, traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth))]
 
         # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
