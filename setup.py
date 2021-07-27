@@ -425,7 +425,7 @@ salesforce = [
     'tableauserverclient',
 ]
 samba = [
-    'pysmbclient>=0.1.3',
+    'smbprotocol>=1.5.0',
 ]
 segment = [
     'analytics-python>=1.2.9',
