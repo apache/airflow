@@ -211,7 +211,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             self.api_params = {
                 'channels': self.channel,
                 'content': self.content,
-                'initial_comment': self.initial_comment
+                'initial_comment': self.initial_comment,
             }
         elif self.filename is not None:
             self.api_params = {
@@ -220,9 +220,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
                 'filetype': self.filetype,
                 'initial_comment': self.initial_comment,
             }
-            self.file_params = {
-                'file': self.filename
-            }
+            self.file_params = {'file': self.filename}
 
     def execute(self, **kwargs):
         """
@@ -233,4 +231,3 @@ class SlackAPIFileOperator(SlackAPIOperator):
             self.construct_api_call_params()
         slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
         slack.call(self.method, data=self.api_params, files=self.file_params)
-

@@ -192,9 +192,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack',
-            slack_conn_id=test_slack_conn_id,
-            content='test-content'
+            task_id='slack', slack_conn_id=test_slack_conn_id, content='test-content'
         )
 
         slack_api_post_operator.execute()
@@ -211,10 +209,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack',
-            slack_conn_id=test_slack_conn_id,
-            filename='test.csv',
-            filetype='csv'
+            task_id='slack', slack_conn_id=test_slack_conn_id, filename='test.csv', filetype='csv'
         )
 
         slack_api_post_operator.execute()
@@ -223,11 +218,9 @@ class TestSlackAPIFileOperator(unittest.TestCase):
             'channels': '#general',
             'initial_comment': 'No message has been set!',
             'filename': 'test.csv',
-            'filetype': 'csv'
+            'filetype': 'csv',
         }
 
-        expected_file_params = {
-            'file': 'test.csv'
-        }
+        expected_file_params = {'file': 'test.csv'}
         assert expected_api_params == slack_api_post_operator.api_params
         assert expected_file_params == slack_api_post_operator.file_params
