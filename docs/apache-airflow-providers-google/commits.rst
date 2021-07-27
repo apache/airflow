@@ -35,19 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-4.1.0
+5.0.0
 .....
 
-Latest change: 2021-07-15
+Latest change: 2021-07-26
 
-================================================================================================  ===========  =================================================================
+================================================================================================  ===========  =======================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =================================================================
+================================================================================================  ===========  =======================================================================================
+`448e50bd2 <https://github.com/apache/airflow/commit/448e50bd23b4493980a41a5d4241ad3ecef087fb>`_  2021-07-26   ``Updating Google Cloud example DAGs to use XComArgs (#16875)``
+`aaf44ccac <https://github.com/apache/airflow/commit/aaf44ccace2336d00240e7e093094a9b808402d9>`_  2021-07-26   ``Updating miscellaneous Google example DAGs to use XComArgs (#16876)``
+`d01cc945d <https://github.com/apache/airflow/commit/d01cc945ddb03620216159335729a36c1a20f9f2>`_  2021-07-26   ``Fixes several failing tests after broken main (#17222)``
+`babc4250f <https://github.com/apache/airflow/commit/babc4250f3c5420e8d8059d500ba8d0e95d70873>`_  2021-07-26   ``Fixes statich check failures (#17218)``
+`5d2224795 <https://github.com/apache/airflow/commit/5d2224795b3548516311025d5549094a9b168f3b>`_  2021-07-25   ``Google Ads Hook: Support newer versions of the google-ads library (#17160)``
+`966b25019 <https://github.com/apache/airflow/commit/966b2501995279b7b5f2e1d0bf1c63a511dd382e>`_  2021-07-25   ``Fix GCStoGCS operator with replace diabled and existing destination object (#16991)``
+`763919d41 <https://github.com/apache/airflow/commit/763919d4152ffa13433e2489fec85ed286b7b196>`_  2021-07-25   ``Adding custom Salesforce connection type + SalesforceToS3Operator updates (#17162)``
+`81bd40933 <https://github.com/apache/airflow/commit/81bd40933ea85a0d7807cf7f9a841157ec885cdf>`_  2021-07-23   ``[CASSANDRA-16814] Fix cassandra to gcs type inconsistency. (#17183)``
+`026ffe65d <https://github.com/apache/airflow/commit/026ffe65d4738674512f691a56b922e82d0a2309>`_  2021-07-19   ``fix: dataprocpysparkjob project_id as self.project_id (#17075)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `a3f5c9380 <https://github.com/apache/airflow/commit/a3f5c93806258b5ad396a638ba0169eca7f9d065>`_  2021-07-13   ``Update alias for field_mask in Google Memmcache (#16975)``
 `b0f7f91fe <https://github.com/apache/airflow/commit/b0f7f91fe29d1314b71c76de0f11d2dbe81c5c4a>`_  2021-07-07   ``Standardise dataproc location param to region (#16034)``
 `866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
-================================================================================================  ===========  =================================================================
+================================================================================================  ===========  =======================================================================================
 
 4.0.0
 .....
