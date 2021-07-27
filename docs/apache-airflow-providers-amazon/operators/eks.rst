@@ -56,40 +56,6 @@ Note: An AWS IAM role with the following permissions is required:
     :start-after: [START howto_operator_eks_create_cluster]
     :end-before: [END howto_operator_eks_create_cluster]
 
-.. _howto/operator:EKSDescribeClusterOperator:
-
-Describe an Amazon EKS Cluster
-""""""""""""""""""""""""""""""
-
-To get details of an existing Amazon EKS Cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.eks.EKSDescribeClusterOperator`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_cluster.py
-    :language: python
-    :start-after: [START howto_operator_eks_describe_cluster]
-    :end-before: [END howto_operator_eks_describe_cluster]
-
-.. _howto/operator:EKSDescribeAllClustersOperator:
-
-Describe all Amazon EKS Clusters
-""""""""""""""""""""""""""""""""
-
-To get details of all existing Amazon EKS Cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.eks.EKSDescribeAllClustersOperator`.
-
-.. _howto/operator:EKSListClustersOperator:
-
-List all Amazon EKS Clusters
-""""""""""""""""""""""""""""
-
-To get a list of the names of existing Amazon EKS Clusters you can use
-:class:`~airflow.providers.amazon.aws.operators.eks.EKSListClustersOperator`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_cluster.py
-    :language: python
-    :start-after: [START howto_operator_eks_list_clusters]
-    :end-before: [END howto_operator_eks_list_clusters]
-
 .. _howto/operator:EKSDeleteClusterOperator:
 
 Delete an Amazon EKS Cluster
@@ -125,40 +91,6 @@ Note:  An AWS IAM role with the following permissions is required:
     :language: python
     :start-after: [START howto_operator_eks_create_nodegroup]
     :end-before: [END howto_operator_eks_create_nodegroup]
-
-.. _howto/operator:EKSDescribeNodegroupOperator:
-
-Describe an Amazon EKS Managed Nodegroup
-""""""""""""""""""""""""""""""""""""""""
-
-To get details of an existing Amazon EKS Managed Nodegroup you can use
-:class:`~airflow.providers.amazon.aws.operators.eks.EKSDescribeNodegroupOperator`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_nodegroup.py
-    :language: python
-    :start-after: [START howto_operator_eks_describe_nodegroup]
-    :end-before: [END howto_operator_eks_describe_nodegroup]
-
-.. _howto/operator:EKSDescribeAllNodegroupsOperator:
-
-Describe all Amazon EKS Managed Nodegroups
-""""""""""""""""""""""""""""""""""""""""""
-
-To get details of all existing Amazon EKS Managed Nodegroups on a provided cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.eks.EKSDescribeAllNodegroupsOperator`.
-
-.. _howto/operator:EKSListNodegroupsOperator:
-
-List all Amazon EKS Managed Nodegroups
-""""""""""""""""""""""""""""""""""""""""""
-
-To get a list of the names of existing Amazon EKS Managed Nodegroups on a provided cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.eks.EKSListNodegroupsOperator`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_nodegroup.py
-    :language: python
-    :start-after: [START howto_operator_eks_list_nodegroup]
-    :end-before: [END howto_operator_eks_list_nodegroup]
 
 .. _howto/operator:EKSDeleteNodegroupOperator:
 

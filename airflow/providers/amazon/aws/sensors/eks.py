@@ -21,7 +21,6 @@ from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.eks import EKSHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 DEFAULT_CONN_ID = "aws_default"
 TARGET_STATE = 'ACTIVE'
@@ -42,7 +41,6 @@ class EKSClusterStateSensor(BaseSensorOperator):
     ui_fgcolor = "#232F3E"
     valid_states = ["CREATING", "ACTIVE", "DELETING", "FAILED", "UPDATING"]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -96,7 +94,6 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         "DEGRADED",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -16,10 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from typing import List
 from unittest import mock
-
-from moto.eks.responses import DEFAULT_NEXT_TOKEN
 
 from airflow.providers.amazon.aws.hooks.eks import EKSHook
 from airflow.providers.amazon.aws.operators.eks import (
@@ -27,12 +24,6 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSCreateNodegroupOperator,
     EKSDeleteClusterOperator,
     EKSDeleteNodegroupOperator,
-    EKSDescribeAllClustersOperator,
-    EKSDescribeAllNodegroupsOperator,
-    EKSDescribeClusterOperator,
-    EKSDescribeNodegroupOperator,
-    EKSListClustersOperator,
-    EKSListNodegroupsOperator,
 )
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -147,7 +138,7 @@ class TestEKSDeleteClusterOperator(unittest.TestCase):
     @mock.patch.object(EKSHook, "list_nodegroups")
     @mock.patch.object(EKSHook, "delete_cluster")
     def test_existing_cluster_not_in_use(self, mock_delete_cluster, mock_list_nodegroups):
-        mock_list_nodegroups.return_value = dict(nodegroups=list())
+        mock_list_nodegroups.return_value = []
 
         self.delete_cluster_operator.execute({})
 
@@ -171,136 +162,3 @@ class TestEKSDeleteNodegroupOperator(unittest.TestCase):
         mock_delete_nodegroup.assert_called_once_with(
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
-
-
-class TestEKSDescribeAllClustersOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.describe_all_clusters_operator = EKSDescribeAllClustersOperator(task_id=TASK_ID)
-
-    @mock.patch.object(EKSHook, "list_clusters")
-    @mock.patch.object(EKSHook, "describe_cluster")
-    def test_clusters_exist_returns_all_cluster_details(self, mock_describe_cluster, mock_list_clusters):
-        cluster_names: List[str] = NAME_LIST
-        response = dict(clusters=cluster_names, nextToken=DEFAULT_NEXT_TOKEN)
-        mock_describe_cluster.return_value = EMPTY_CLUSTER
-        mock_list_clusters.return_value = response
-
-        self.describe_all_clusters_operator.execute({})
-
-        mock_list_clusters.assert_called_once()
-        assert mock_describe_cluster.call_count == len(cluster_names)
-
-    @mock.patch.object(EKSHook, "list_clusters")
-    @mock.patch.object(EKSHook, "describe_cluster")
-    def test_no_clusters_exist(self, mock_describe_cluster, mock_list_clusters):
-        mock_list_clusters.return_value = dict(clusters=list(), token=DEFAULT_NEXT_TOKEN)
-
-        self.describe_all_clusters_operator.execute({})
-
-        mock_list_clusters.assert_called_once()
-        mock_describe_cluster.assert_not_called()
-
-
-class TestEKSDescribeAllNodegroupsOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.cluster_name: str = CLUSTER_NAME
-
-        self.describe_all_nodegroups_operator = EKSDescribeAllNodegroupsOperator(
-            task_id=TASK_ID, cluster_name=self.cluster_name
-        )
-
-    @mock.patch.object(EKSHook, "list_nodegroups")
-    @mock.patch.object(EKSHook, "describe_nodegroup")
-    def test_nodegroups_exist_returns_all_nodegroup_details(
-        self, mock_describe_nodegroup, mock_list_nodegroups
-    ):
-        nodegroup_names: List[str] = NAME_LIST
-        cluster_name: str = CLUSTER_NAME
-        response = dict(cluster=cluster_name, nodegroups=nodegroup_names, nextToken=DEFAULT_NEXT_TOKEN)
-        mock_describe_nodegroup.return_value = EMPTY_NODEGROUP
-        mock_list_nodegroups.return_value = response
-
-        self.describe_all_nodegroups_operator.execute({})
-
-        mock_list_nodegroups.assert_called_once()
-        assert mock_describe_nodegroup.call_count == len(nodegroup_names)
-
-    @mock.patch.object(EKSHook, "list_nodegroups")
-    @mock.patch.object(EKSHook, "describe_nodegroup")
-    def test_no_nodegroups_exist(self, mock_describe_nodegroup, mock_list_nodegroups):
-        mock_list_nodegroups.return_value = dict(nodegroups=list(), token="")
-
-        self.describe_all_nodegroups_operator.execute({})
-
-        mock_list_nodegroups.assert_called_once()
-        mock_describe_nodegroup.assert_not_called()
-
-
-class TestEKSDescribeClusterOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.cluster_name: str = CLUSTER_NAME
-
-        self.describe_cluster_operator = EKSDescribeClusterOperator(
-            task_id=TASK_ID, cluster_name=self.cluster_name
-        )
-
-    @mock.patch.object(EKSHook, "describe_cluster")
-    def test_describe_cluster(self, mock_describe_cluster):
-        mock_describe_cluster.return_value = DESCRIBE_CLUSTER_RESULT
-
-        self.describe_cluster_operator.execute({})
-
-        mock_describe_cluster.assert_called_once_with(name=self.cluster_name, verbose=False)
-
-
-class TestEKSDescribeNodegroupOperator(unittest.TestCase):
-    def setUp(self):
-        self.cluster_name = CLUSTER_NAME
-        self.nodegroup_name = NODEGROUP_NAME
-
-        self.describe_nodegroup_operator = EKSDescribeNodegroupOperator(
-            task_id=TASK_ID, cluster_name=self.cluster_name, nodegroup_name=self.nodegroup_name
-        )
-
-    @mock.patch.object(EKSHook, "describe_nodegroup")
-    def test_describe_nodegroup(self, mock_describe_nodegroup):
-        mock_describe_nodegroup.return_value = DESCRIBE_NODEGROUP_RESULT
-
-        self.describe_nodegroup_operator.execute({})
-
-        mock_describe_nodegroup.assert_called_once_with(
-            clusterName=self.cluster_name, nodegroupName=self.nodegroup_name, verbose=False
-        )
-
-
-class TestEKSListClustersOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.cluster_names: List[str] = NAME_LIST
-
-        self.list_clusters_operator = EKSListClustersOperator(task_id=TASK_ID)
-
-    @mock.patch.object(EKSHook, "list_clusters")
-    def test_list_clusters(self, mock_list_clusters):
-        mock_list_clusters.return_value = self.cluster_names
-
-        self.list_clusters_operator.execute({})
-
-        mock_list_clusters.assert_called_once()
-
-
-class TestEKSListNodegroupsOperator(unittest.TestCase):
-    def setUp(self) -> None:
-        self.cluster_name: str = CLUSTER_NAME
-        self.nodegroup_names: List[str] = NAME_LIST
-
-        self.list_nodegroups_operator = EKSListNodegroupsOperator(
-            task_id=TASK_ID, cluster_name=self.cluster_name
-        )
-
-    @mock.patch.object(EKSHook, "list_nodegroups")
-    def test_list_nodegroups(self, mock_list_nodegroups):
-        mock_list_nodegroups.return_value = self.nodegroup_names
-
-        self.list_nodegroups_operator.execute({})
-
-        mock_list_nodegroups.assert_called_once()

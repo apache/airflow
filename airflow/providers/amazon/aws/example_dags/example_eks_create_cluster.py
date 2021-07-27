@@ -17,12 +17,7 @@
 import os
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.eks import (
-    EKSCreateClusterOperator,
-    EKSDeleteClusterOperator,
-    EKSDescribeClusterOperator,
-    EKSListClustersOperator,
-)
+from airflow.providers.amazon.aws.operators.eks import EKSCreateClusterOperator, EKSDeleteClusterOperator
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor
 from airflow.utils.dates import days_ago
 
@@ -43,7 +38,6 @@ with DAG(
 ) as dag:
 
     # [START howto_operator_eks_create_cluster]
-
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EKSCreateClusterOperator(
         task_id='create_eks_cluster',
@@ -54,20 +48,12 @@ with DAG(
     )
     # [END howto_operator_eks_create_cluster]
 
-    # [START howto_operator_eks_list_clusters]
-    list_clusters = EKSListClustersOperator(task_id='list_eks_clusters', verbose=True)
-    # [END howto_operator_eks_list_clusters]
-
     wait = EKSClusterStateSensor(
         task_id='wait_for_provisioning', cluster_name=CLUSTER_NAME, target_state='ACTIVE'
     )
-
-    # [START howto_operator_eks_describe_cluster]
-    describe_cluster = EKSDescribeClusterOperator(task_id='describe_eks_cluster', cluster_name=CLUSTER_NAME)
-    # [END howto_operator_eks_describe_cluster]
 
     # [START howto_operator_eks_delete_cluster]
     delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster', cluster_name=CLUSTER_NAME)
     # [END howto_operator_eks_delete_cluster]
 
-    create_cluster >> list_clusters >> wait >> describe_cluster >> delete_cluster
+    create_cluster >> wait >> delete_cluster

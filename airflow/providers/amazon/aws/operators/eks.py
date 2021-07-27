@@ -16,7 +16,6 @@
 # under the License.
 
 """This module contains Amazon EKS operators."""
-import json
 from datetime import datetime
 from time import sleep
 from typing import Dict, List, Optional
@@ -80,11 +79,11 @@ class EKSCreateClusterOperator(BaseOperator):
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
-        "nodegroup_name",
-        "nodegroup_role_arn",
+        # "nodegroup_name",
+        # "nodegroup_role_arn",
         "compute",
-        "aws_conn_id",
-        "region",
+        # "aws_conn_id",
+        # "region",
     )
 
     def __init__(
@@ -221,7 +220,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
             region_name=self.region,
         )
 
-        return eks_hook.create_nodegroup(
+        eks_hook.create_nodegroup(
             clusterName=self.cluster_name,
             nodegroupName=self.nodegroup_name,
             subnets=self.nodegroup_subnets,
@@ -275,7 +274,7 @@ class EKSDeleteClusterOperator(BaseOperator):
             region_name=self.region,
         )
 
-        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name).get('nodegroups')
+        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
         nodegroup_count = len(nodegroups)
         if nodegroup_count > 0:
             self.log.info(
@@ -288,7 +287,7 @@ class EKSDeleteClusterOperator(BaseOperator):
             # Scaling up the timeout based on the number of nodegroups that are being processed.
             additional_seconds = 5 * 60
             countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
-            while eks_hook.list_nodegroups(clusterName=self.cluster_name).get('nodegroups'):
+            while eks_hook.list_nodegroups(clusterName=self.cluster_name):
                 if countdown >= CHECK_INTERVAL_SECONDS:
                     countdown -= CHECK_INTERVAL_SECONDS
                     sleep(CHECK_INTERVAL_SECONDS)
@@ -303,7 +302,7 @@ class EKSDeleteClusterOperator(BaseOperator):
                     raise RuntimeError(message)
 
         self.log.info("No nodegroups remain, deleting cluster.")
-        return eks_hook.delete_cluster(name=self.cluster_name)
+        eks_hook.delete_cluster(name=self.cluster_name)
 
 
 class EKSDeleteNodegroupOperator(BaseOperator):
@@ -357,353 +356,7 @@ class EKSDeleteNodegroupOperator(BaseOperator):
             region_name=self.region,
         )
 
-        return eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
-
-
-class EKSDescribeAllClustersOperator(BaseOperator):
-    """
-    Describes all Amazon EKS Clusters in your AWS account.
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
-        If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
-    :param verbose: Provides additional logging if set to True.  Defaults to False.
-    :type verbose: bool
-
-    """
-
-    template_fields = (
-        "verbose",
-        "aws_conn_id",
-        "region",
-    )
-
-    def __init__(
-        self,
-        verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.verbose = verbose
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def execute(self, context):
-        eks_hook = EKSHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        response = eks_hook.list_clusters(verbose=self.verbose)
-        cluster_list = response.get('clusters')
-        next_token = response.get('nextToken')
-
-        result = []
-        for cluster in cluster_list:
-            full_describe = json.loads(eks_hook.describe_cluster(name=cluster))
-            cluster_details = json.dumps(full_describe.get('cluster'))
-            result.append(cluster_details)
-
-        if self.verbose is True:
-            self.log.info("\n\t".join(["Cluster Details:"] + result))
-
-        return {'nextToken': next_token, 'clusters': result}
-
-
-class EKSDescribeAllNodegroupsOperator(BaseOperator):
-    """
-    Describes all Amazon EKS Nodegroups associated with the specified EKS Cluster.
-
-    :param cluster_name: The name of the Amazon EKS Cluster to check..
-    :type cluster_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
-        If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
-    :param verbose: Provides additional logging if set to True.  Defaults to False.
-    :type verbose: bool
-
-    """
-
-    template_fields = (
-        "cluster_name",
-        "verbose",
-        "aws_conn_id",
-        "region",
-    )
-
-    def __init__(
-        self,
-        cluster_name: str,
-        verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.cluster_name = cluster_name
-        self.verbose = verbose
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def execute(self, context):
-        eks_hook = EKSHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        response = eks_hook.list_nodegroups(clusterName=self.cluster_name, verbose=self.verbose)
-        nodegroup_list = response.get('nodegroups')
-        next_token = response.get('nextToken')
-
-        result = []
-        for nodegroup in nodegroup_list:
-            full_describe = json.loads(
-                eks_hook.describe_nodegroup(clusterName=self.cluster_name, nodegroupName=nodegroup)
-            )
-            nodegroup_details = json.dumps(full_describe.get('nodegroup'))
-            result.append(nodegroup_details)
-
-        if self.verbose is True:
-            self.log.info("\n\t".join(["Nodegroup Details:"] + result))
-
-        return {'nextToken': next_token, 'nodegroups': result}
-
-
-class EKSDescribeClusterOperator(BaseOperator):
-    """
-    Returns descriptive information about an Amazon EKS Cluster.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSDescribeClusterOperator`
-
-    :param cluster_name: The name of the Amazon EKS Cluster to describe.
-    :type cluster_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
-        If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
-    :param verbose: Provides additional logging if set to True.  Defaults to False.
-    :type verbose: bool
-
-    """
-
-    template_fields = (
-        "cluster_name",
-        "verbose",
-        "aws_conn_id",
-        "region",
-    )
-
-    def __init__(
-        self,
-        cluster_name: str,
-        verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.cluster_name = cluster_name
-        self.verbose = verbose
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def execute(self, context):
-        eks_hook = EKSHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        response = eks_hook.describe_cluster(name=self.cluster_name, verbose=self.verbose)
-        response_json = json.loads(response)
-        # Extract the cluster data, drop the request metadata
-        cluster_data = response_json.get('cluster')
-        return json.dumps(cluster_data)
-
-
-class EKSDescribeNodegroupOperator(BaseOperator):
-    """
-    Returns descriptive information about the Amazon EKS Nodegroup.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSDescribeNodegroupOperator`
-
-    :param cluster_name: The name of the Amazon EKS Cluster associated with the nodegroup.
-    :type cluster_name: str
-    :param nodegroup_name: The name of the Amazon EKS Nodegroup to describe.
-    :type nodegroup_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
-        If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
-    :param verbose: Provides additional logging if set to True.  Defaults to False.
-    :type verbose: bool
-
-    """
-
-    template_fields = (
-        "cluster_name",
-        "nodegroup_name",
-        "verbose",
-        "aws_conn_id",
-        "region",
-    )
-
-    def __init__(
-        self,
-        cluster_name: str,
-        nodegroup_name: str,
-        verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.cluster_name = cluster_name
-        self.nodegroup_name = nodegroup_name
-        self.verbose = verbose
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def execute(self, context):
-        eks_hook = EKSHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        response = eks_hook.describe_nodegroup(
-            clusterName=self.cluster_name, nodegroupName=self.nodegroup_name, verbose=self.verbose
-        )
-        response_json = json.loads(response)
-        # Extract the nodegroup data, drop the request metadata
-        nodegroup_data = response_json.get('nodegroup')
-        return json.dumps(nodegroup_data)
-
-
-class EKSListClustersOperator(BaseOperator):
-    """
-    Lists all Amazon EKS Clusters in your AWS account.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSListClustersOperator`
-
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
-    :param verbose: Provides additional logging if set to True.  Defaults to False.
-    :type verbose: bool
-
-    """
-
-    template_fields = (
-        "verbose",
-        "aws_conn_id",
-        "region",
-    )
-
-    def __init__(
-        self,
-        verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.verbose = verbose
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def execute(self, context):
-        eks_hook = EKSHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        return eks_hook.list_clusters(verbose=self.verbose)
-
-
-class EKSListNodegroupsOperator(BaseOperator):
-    """
-    Lists all Amazon EKS Nodegroups associated with the specified EKS Cluster.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EKSListNodegroupsOperator`
-
-    :param cluster_name: The name of the Amazon EKS Cluster to check..
-    :type cluster_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
-         running Airflow in a distributed manner and aws_conn_id is None or
-         empty, then the default boto3 configuration would be used (and must be
-         maintained on each worker node).
-    :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
-        If this is None or empty then the default boto3 behaviour is used.
-    :type region: str
-    :param verbose: Provides additional logging if set to True.  Defaults to False.
-    :type verbose: bool
-
-    """
-
-    template_fields = (
-        "cluster_name",
-        "verbose",
-        "aws_conn_id",
-        "region",
-    )
-
-    def __init__(
-        self,
-        cluster_name: str,
-        verbose: Optional[bool] = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.cluster_name = cluster_name
-        self.verbose = verbose
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def execute(self, context):
-        eks_hook = EKSHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        return eks_hook.list_nodegroups(clusterName=self.cluster_name, verbose=self.verbose)
+        eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
 
 
 class EKSPodOperator(KubernetesPodOperator):
@@ -794,4 +447,4 @@ class EKSPodOperator(KubernetesPodOperator):
             pod_username=self.pod_username,
             pod_context=self.pod_context,
         ) as self.config_file:
-            return super().execute(context)
+            super().execute(context)

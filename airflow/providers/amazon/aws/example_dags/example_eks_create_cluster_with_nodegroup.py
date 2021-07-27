@@ -17,12 +17,7 @@
 import os
 
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.eks import (
-    EKSCreateClusterOperator,
-    EKSDeleteClusterOperator,
-    EKSDescribeClusterOperator,
-    EKSDescribeNodegroupOperator,
-)
+from airflow.providers.amazon.aws.operators.eks import EKSCreateClusterOperator, EKSDeleteClusterOperator
 from airflow.providers.amazon.aws.sensors.eks import EKSNodegroupStateSensor
 from airflow.utils.dates import days_ago
 
@@ -67,12 +62,6 @@ with DAG(
         target_state='ACTIVE',
     )
 
-    describe_cluster = EKSDescribeClusterOperator(task_id='describe_eks_cluster', cluster_name=CLUSTER_NAME)
-
-    describe_nodegroup = EKSDescribeNodegroupOperator(
-        task_id='describe_eks_nodegroup', cluster_name=CLUSTER_NAME, nodegroup_name=NODEGROUP_NAME
-    )
-
     delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster', cluster_name=CLUSTER_NAME)
 
-    create_cluster >> describe_cluster >> wait >> describe_nodegroup >> delete_cluster
+    create_cluster >> wait >> delete_cluster
