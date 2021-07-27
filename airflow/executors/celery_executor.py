@@ -260,7 +260,7 @@ class CeleryExecutor(BaseExecutor):
             self._process_tasks(task_tuples_to_send)
 
     def _process_tasks(self, task_tuples_to_send: List[TaskInstanceInCelery]) -> None:
-        first_task = next(t[4] for t in task_tuples_to_send)
+        first_task = next(t[3] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend
         # for all tasks.
