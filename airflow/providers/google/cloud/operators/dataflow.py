@@ -690,7 +690,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             environment=self.environment,
         )
 
-        return job
+        return {"job_id": self.job_id}
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
@@ -809,7 +809,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             on_new_job_id_callback=set_current_job_id,
         )
 
-        return job
+        return {"job_id": self.job_id}
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
@@ -912,7 +912,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
             on_new_job_id_callback=set_current_job_id,
         )
 
-        return job
+        return {"job_id": self.job_id}
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
