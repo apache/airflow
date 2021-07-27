@@ -109,6 +109,7 @@
       </div>
       <div class="col-md-2">
         <div class="btn-group pull-right">
+        <li style="display: none;">
           <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}" title="Trigger DAG" aria-label="Trigger DAG" class="btn btn-default btn-icon-only">
             <span class="material-icons" aria-hidden="true">play_arrow</span>
           </a>
