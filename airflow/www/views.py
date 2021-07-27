@@ -3226,6 +3226,11 @@ class ConnectionModelView(AirflowModelView):
             for key in self.extra_fields
             if key in form.data and key.startswith(f"extra__{conn_type}__")
         }
+
+        # If values are added to the classic `Extra` field, include these values along with custom-field extras.
+        if form.data.get("extra"):
+            extra.update(json.loads(form.data.get("extra")))
+
         if extra.keys():
             form.extra.data = json.dumps(extra)
 
