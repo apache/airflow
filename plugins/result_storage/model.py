@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Float, Integer, String, Text
+from sqlalchemy import Boolean, Column, Float, Integer, String, Text
 
 from plugins.result_storage.base import Base
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class ResultModel(Base):
@@ -48,6 +49,21 @@ class ResultModel(Base):
     user_id = Column(Integer)
     workorder_id = Column(Integer)
     vin = Column(String(256))
+    task_id = Column(String(250))
+    dag_id = Column(String(250))
+    execution_date = Column(UtcDateTime)
+    line_code = Column(String(100))  # 产线代码
+    factory_code = Column(String(100))  # 工厂代码
+    error_tag = Column(String(1000))
+    result = Column(String(20))  # 分析结果, OK/NOK
+    verify_error = Column(Integer)
+    final_state = Column(String(20))  # 最终状态牵涉2次检验
+    # controller_name = Column(String(100))  # 控制器名称@工位编号/工位名称
+    bolt_number = Column(String(1000))  # 螺栓编号
+    craft_type = Column(Integer)  # 工艺类型
+    car_code = Column(String(1000))  # 车辆编号
+    type = Column(String(100), default="normal")  # 任务实例类型，normal/rework,正常/返修
+    should_analyze = Column(Boolean(), default=True)
 
     def as_dict(self):
         v: dict = self.__dict__
