@@ -93,7 +93,7 @@ class ClsCurveStorage(ClsEntity):
     def convertCSVData(self, curve: Dict):
         data = Dataset()
         data.headers = [self._headersMap[k] for k in curve.keys()]
-        datamap = [curve.get(key, []) for key in curve.keys()]
+        datamap = [arr if arr is not None else [] for arr in [curve.get(key, []) for key in curve.keys()]]
         zipData = zip(*datamap)
         for d in zipData:
             data.append(d)
