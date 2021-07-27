@@ -302,7 +302,7 @@ class EKSHook(AwsBaseHook):
         name_collection = []
         token = DEFAULT_PAGINATION_TOKEN
 
-        while token != "null":
+        while token is not None:
             response = api_call(nextToken=token)
             # If response list is not empty, append it to the running list.
             name_collection += filter(None, response.get(response_key))
