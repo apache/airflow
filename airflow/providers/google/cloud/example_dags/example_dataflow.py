@@ -166,7 +166,7 @@ with models.DAG(
     # [START howto_sensor_wait_for_job_status]
     wait_for_python_job_async_done = DataflowJobStatusSensor(
         task_id="wait-for-python-job-async-done",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         location='europe-west3',
     )
