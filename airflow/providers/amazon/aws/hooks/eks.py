@@ -377,7 +377,6 @@ class EKSHook(AwsBaseHook):
 
         config_text = yaml.dump(cluster_config, default_flow_style=False)
 
-        # Set the filename to something which can be found later if needed.
         with tempfile.NamedTemporaryFile(mode='w') as config_file:
             config_file.write(config_text)
             config_file.flush()

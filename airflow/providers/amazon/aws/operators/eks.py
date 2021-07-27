@@ -107,13 +107,12 @@ class EKSCreateClusterOperator(BaseOperator):
         self.region = region
 
         if self.compute == 'nodegroup':
+            if not nodegroup_role_arn:
+                raise ValueError(
+                    "Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in."
+                )
             self.nodegroup_name = nodegroup_name or self.cluster_name + DEFAULT_NODEGROUP_NAME_SUFFIX
-            if nodegroup_role_arn:
-                self.nodegroup_role_arn = nodegroup_role_arn
-            else:
-                message = "Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in."
-                self.log.error(message)
-                raise AttributeError(message)
+            self.nodegroup_role_arn = nodegroup_role_arn
 
     def execute(self, context):
         eks_hook = EKSHook(
@@ -127,26 +126,28 @@ class EKSCreateClusterOperator(BaseOperator):
             resourcesVpcConfig=self.resources_vpc_config,
         )
 
-        if self.compute is not None:
-            self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
+        if not self.compute:
+            return None
 
-            countdown = TIMEOUT_SECONDS
-            while eks_hook.get_cluster_state(clusterName=self.cluster_name) != "ACTIVE":
-                if countdown >= CHECK_INTERVAL_SECONDS:
-                    countdown -= CHECK_INTERVAL_SECONDS
-                    self.log.info(
-                        "Waiting for cluster to start.  Checking again in %d seconds", CHECK_INTERVAL_SECONDS
-                    )
-                    sleep(CHECK_INTERVAL_SECONDS)
-                else:
-                    message = (
-                        "Cluster is still inactive after the allocated time limit.  "
-                        "Failed cluster will be torn down."
-                    )
-                    self.log.error(message)
-                    # If there is something preventing the cluster for activating, tear it down and abort.
-                    eks_hook.delete_cluster(name=self.cluster_name)
-                    raise RuntimeError(message)
+        self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
+
+        countdown = TIMEOUT_SECONDS
+        while eks_hook.get_cluster_state(clusterName=self.cluster_name) != "ACTIVE":
+            if countdown >= CHECK_INTERVAL_SECONDS:
+                countdown -= CHECK_INTERVAL_SECONDS
+                self.log.info(
+                    "Waiting for cluster to start.  Checking again in %d seconds", CHECK_INTERVAL_SECONDS
+                )
+                sleep(CHECK_INTERVAL_SECONDS)
+            else:
+                message = (
+                    "Cluster is still inactive after the allocated time limit.  "
+                    "Failed cluster will be torn down."
+                )
+                self.log.error(message)
+                # If there is something preventing the cluster for activating, tear it down and abort.
+                eks_hook.delete_cluster(name=self.cluster_name)
+                raise RuntimeError(message)
 
         if self.compute == 'nodegroup':
             eks_hook.create_nodegroup(
@@ -276,7 +277,7 @@ class EKSDeleteClusterOperator(BaseOperator):
 
         nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
         nodegroup_count = len(nodegroups)
-        if nodegroup_count > 0:
+        if nodegroup_count:
             self.log.info(
                 "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
                 nodegroup_count,
@@ -298,7 +299,6 @@ class EKSDeleteClusterOperator(BaseOperator):
                     )
                 else:
                     message = "Nodegroups are still inactive after the allocated time limit.  Aborting."
-                    self.log.error(message)
                     raise RuntimeError(message)
 
         self.log.info("No nodegroups remain, deleting cluster.")
