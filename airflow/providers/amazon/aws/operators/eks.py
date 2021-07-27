@@ -239,6 +239,8 @@ class EKSDeleteClusterOperator(BaseOperator):
 
     :param cluster_name: The name of the Amazon EKS Cluster to delete.
     :type cluster_name: str
+    :param force_delete_compute: If True, will delete any attached resources.  Defaults to False.
+    :type force_delete_compute: bool
     :param aws_conn_id: The Airflow connection used for AWS credentials.
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -253,6 +255,7 @@ class EKSDeleteClusterOperator(BaseOperator):
 
     template_fields = (
         "cluster_name",
+        "force_delete_compute",
         "aws_conn_id",
         "region",
     )
@@ -260,12 +263,14 @@ class EKSDeleteClusterOperator(BaseOperator):
     def __init__(
         self,
         cluster_name: str,
+        force_delete_compute: bool = False,
         aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
+        self.force_delete_compute = force_delete_compute
         self.aws_conn_id = aws_conn_id
         self.region = region
 
@@ -275,33 +280,36 @@ class EKSDeleteClusterOperator(BaseOperator):
             region_name=self.region,
         )
 
-        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
-        nodegroup_count = len(nodegroups)
-        if nodegroup_count:
-            self.log.info(
-                "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
-                nodegroup_count,
-            )
-            for group in nodegroups:
-                eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+        if self.force_delete_compute:
+            nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
+            nodegroup_count = len(nodegroups)
+            if nodegroup_count:
+                self.log.info(
+                    "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
+                    nodegroup_count,
+                )
+                for group in nodegroups:
+                    eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
 
-            # Scaling up the timeout based on the number of nodegroups that are being processed.
-            additional_seconds = 5 * 60
-            countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
-            while eks_hook.list_nodegroups(clusterName=self.cluster_name):
-                if countdown >= CHECK_INTERVAL_SECONDS:
-                    countdown -= CHECK_INTERVAL_SECONDS
-                    sleep(CHECK_INTERVAL_SECONDS)
-                    self.log.info(
-                        "Waiting for the remaining %s nodegroups to delete.  Checking again in %d seconds.",
-                        nodegroup_count,
-                        CHECK_INTERVAL_SECONDS,
-                    )
-                else:
-                    message = "Nodegroups are still inactive after the allocated time limit.  Aborting."
-                    raise RuntimeError(message)
+                # Scaling up the timeout based on the number of nodegroups that are being processed.
+                additional_seconds = 5 * 60
+                countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
+                while eks_hook.list_nodegroups(clusterName=self.cluster_name):
+                    if countdown >= CHECK_INTERVAL_SECONDS:
+                        countdown -= CHECK_INTERVAL_SECONDS
+                        sleep(CHECK_INTERVAL_SECONDS)
+                        self.log.info(
+                            "Waiting for the remaining %s nodegroups to delete.  "
+                            "Checking again in %d seconds.",
+                            nodegroup_count,
+                            CHECK_INTERVAL_SECONDS,
+                        )
+                    else:
+                        raise RuntimeError(
+                            "Nodegroups are still inactive after the allocated time limit.  Aborting."
+                        )
+            self.log.info("No nodegroups remain, deleting cluster.")
 
-        self.log.info("No nodegroups remain, deleting cluster.")
         eks_hook.delete_cluster(name=self.cluster_name)
 
 
