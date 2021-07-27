@@ -137,7 +137,7 @@ g.node.queued rect {
 }
 
 g.node.scheduled rect{
-  stroke: lightgreen;
+  stroke: tan;
 }
 
 g.node.running rect {
