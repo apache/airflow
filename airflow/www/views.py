@@ -26,6 +26,7 @@ import re
 import socket
 import sys
 import traceback
+import warnings
 from collections import defaultdict
 from datetime import timedelta
 from json import JSONDecodeError
@@ -2627,6 +2628,10 @@ class Airflow(AirflowBaseView):
     @provide_session
     def refresh(self, session=None):
         """Refresh DAG."""
+        warnings.warn(
+            "The /refresh endpoint is deprecated. Refreshing DAGs manually is no longer necessary.",
+            DeprecationWarning,
+        )
         dag_id = request.values.get('dag_id')
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
 
@@ -2651,6 +2656,10 @@ class Airflow(AirflowBaseView):
     @action_logging
     def refresh_all(self):
         """Refresh everything"""
+        warnings.warn(
+            "The /refresh_all endpoint is deprecated. Refreshing DAGs manually is no longer necessary.",
+            DeprecationWarning,
+        )
         current_app.dag_bag.collect_dags_from_db()
 
         # sync permissions for all dags
