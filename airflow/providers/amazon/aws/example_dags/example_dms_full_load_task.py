@@ -47,17 +47,16 @@ TABLE_MAPPINGS = {
     ]
 }
 
-DEFAULT_ARGS = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
 
 with DAG(
     dag_id='dms_full_load_task_run_dag',
-    default_args=DEFAULT_ARGS,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+    },
     dagrun_timeout=timedelta(hours=2),
     start_date=days_ago(2),
     schedule_interval='0 3 * * *',
@@ -78,22 +77,27 @@ with DAG(
     # [START howto_dms_start_task_operator]
     start_task = DmsStartTaskOperator(
         task_id='start_task',
-        replication_task_arn='{{ task_instance.xcom_pull(task_ids="create_task", key="return_value") }}',
+        replication_task_arn=create_task.output,
     )
     # [END howto_dms_start_task_operator]
 
     # [START howto_dms_task_completed_sensor]
     wait_for_completion = DmsTaskCompletedSensor(
         task_id='wait_for_completion',
-        replication_task_arn='{{ task_instance.xcom_pull(task_ids="create_task", key="return_value") }}',
+        replication_task_arn=create_task.output,
     )
     # [END howto_dms_task_completed_sensor]
 
     # [START howto_dms_delete_task_operator]
     delete_task = DmsDeleteTaskOperator(
         task_id='delete_task',
-        replication_task_arn='{{ task_instance.xcom_pull(task_ids="create_task", key="return_value") }}',
+        replication_task_arn=create_task.output,
     )
     # [END howto_dms_delete_task_operator]
 
-    create_task >> start_task >> wait_for_completion >> delete_task
+    start_task >> wait_for_completion >> delete_task
+
+    # Task dependencies created via `XComArgs`:
+    #   create_task >> start_task
+    #   create_task >> wait_for_completion
+    #   create_task >> delete_task
