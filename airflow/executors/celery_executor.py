@@ -46,7 +46,7 @@ from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -154,15 +154,15 @@ class ExceptionWithTraceback:
 
 
 # Task instance that is sent over Celery queues
-# TaskInstanceKey, SimpleTaskInstance, Command, queue_name, CallableTask
-TaskInstanceInCelery = Tuple[TaskInstanceKey, SimpleTaskInstance, CommandType, Optional[str], Task]
+# TaskInstanceKey, Command, queue_name, CallableTask
+TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 
 def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> Tuple[TaskInstanceKey, CommandType, Union[AsyncResult, ExceptionWithTraceback]]:
     """Sends task to executor."""
-    key, _, command, queue, task_to_run = task_tuple
+    key, command, queue, task_to_run = task_tuple
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
@@ -250,8 +250,8 @@ class CeleryExecutor(BaseExecutor):
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
         for _ in range(min(open_slots, len(self.queued_tasks))):
-            key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuple = (key, simple_ti, command, queue, execute_command)
+            key, (command, _, queue, _) = sorted_queue.pop(0)
+            task_tuple = (key, command, queue, execute_command)
             task_tuples_to_send.append(task_tuple)
             if key not in self.task_publish_retries:
                 self.task_publish_retries[key] = 1
@@ -260,7 +260,7 @@ class CeleryExecutor(BaseExecutor):
             self._process_tasks(task_tuples_to_send)
 
     def _process_tasks(self, task_tuples_to_send: List[TaskInstanceInCelery]) -> None:
-        first_task = next(t[4] for t in task_tuples_to_send)
+        first_task = next(t[3] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend
         # for all tasks.
