@@ -140,15 +140,12 @@ def get_curve_args(connection_key='qcos_minio'):
     }
 
 
-def form_analysis_result_trigger(result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
+def form_analysis_result_trigger(result, entity_id, verify_error, curve_mode):
     return {
         'result': result,
         'entity_id': entity_id,
-        'execution_date': execution_date,
-        'task_id': task_id,
         'verify_error': verify_error,
         'curve_mode': curve_mode,
-        'dag_id': dag_id,
     }
 
 
@@ -163,7 +160,7 @@ def get_analysis_tasks(bolt_number=None, craft_type=None):
     return tasks
 
 
-def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
+def trigger_push_result_to_mq(data_type, result, entity_id, verify_error, curve_mode):
     if isinstance(curve_mode, str):
         curve_mode = json.loads(curve_mode)
     if isinstance(curve_mode, int):
@@ -173,9 +170,6 @@ def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task
     analysis_result = form_analysis_result_trigger(
         result,
         entity_id,
-        execution_date,
-        task_id,
-        dag_id,
         verify_error,
         curve_mode
     )
@@ -187,12 +181,10 @@ def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task
     trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
 
 
-def trigger_training_dag(dag_id, task_id, execution_date, final_state, error_tags):
+def trigger_training_dag(entity_id, final_state, error_tags):
     trigger_training_dag_id = 'curve_training_dag'
     conf = {
-        'dag_id': dag_id,
-        'task_id': task_id,
-        'execution_date': execution_date,
+        'entity_id': entity_id,
         'final_state': final_state,
         'error_tags': error_tags
     }
@@ -257,20 +249,6 @@ def trigger_push_templates_dict_dag(templates_dict):
     }
     trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
 
-
-def do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags=None):
-    try:
-        execution_date = timezone.parse(execution_date)
-    except ValueError:
-        error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
-        raise AirflowException(error_message)
-    if error_tags is None:
-        error_tags = []
-    task = get_task_instance(dag_id, task_id, execution_date)
-    task.set_error_tag(json.dumps(error_tags))
 
 
 def should_trigger_training(result, final_state, analysis_mode, train_mode):

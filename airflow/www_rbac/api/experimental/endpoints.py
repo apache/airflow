@@ -35,7 +35,7 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 from plugins.utils import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq, \
-    do_save_curve_error_tag, get_results
+    get_result
 from flask import g, Blueprint, jsonify, request, url_for
 import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
@@ -186,7 +186,8 @@ def _save_curve_error_tag(dag_id, task_id, execution_date):
     try:
         params = request.get_json(force=True)  # success failed
         error_tags = params.get('error_tags', [])
-        do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags)
+        # fixme
+        # do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags)
         return jsonify(response='ok')
     except Exception as e:
         _log.info(repr(e))
@@ -321,38 +322,24 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-@api_experimental.route(
-    '/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/confirm',
-    methods=['POST'])
+@api_experimental.route('/double-confirm/<string:entity_id>', methods=['POST'])
 @requires_authentication
-def double_confirm_task(dag_id, task_id, execution_date):
+def double_confirm_task(entity_id):
     try:
         msg = CUSTOM_LOG_FORMAT.format(datetime.datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DOUBLE_CONFIRM'], CUSTOM_PAGE_NAME_MAP['CURVE'], '曲线二次确认')
         logging.info(msg)
-        date = timezone.parse(execution_date)
-    except ValueError:
-        error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
-        _log.info(error_message)
-        response = jsonify({'error': error_message})
-        response.status_code = 400
-
-        return response
-    try:
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
         error_tags = params.get('error_tags', [])
-
-        task = get_task_instance(dag_id, task_id, execution_date=date)
-        if not task.result:
+        entity_id = entity_id.replace('@', '/')
+        result = get_result(entity_id)
+        if not result.get('result'):
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
         if not final_state or final_state not in ['OK', 'NOK']:
             raise AirflowException("二次确认参数未定义或数值不正确!")
-        trigger_training_dag(dag_id, task_id, execution_date, final_state, error_tags)
+        trigger_training_dag(entity_id, final_state, error_tags)
         return jsonify({'response': 'ok'})
     except AirflowException as err:
         _log.info(err)

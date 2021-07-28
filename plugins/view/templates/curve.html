@@ -46,8 +46,8 @@
 
             {% if result.final_state %}
               <h2
-                class="double-check-result {{ 'text-danger' if result.final_state =='NOK' else ('text-success' if result.final_state =='OK' else '') }}"
-                style="font-weight: bolder">{{ result.final_state }}</h2>
+                      class="double-check-result {{ 'text-danger' if result.final_state =='NOK' else ('text-success' if result.final_state =='OK' else '') }}"
+                      style="font-weight: bolder">{{ result.final_state }}</h2>
             {% elif can_verify %}
               <h2 class="double-check-result">
                 <button id="btn_double_check_success" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
@@ -290,9 +290,10 @@
 
     function submitDoubleCheck(finalState, finalErrorTags) {
       const errorTagsArr = (finalErrorTags || []).map(t => JSON.parse(t));
+      const entity_id = '{{ result.entity_id }}'.replaceAll('/', '@')
       $.ajax({
         type: 'POST',
-        url: "{{ url_for('api_experimental.double_confirm_task',dag_id=result.dag_id, task_id=result.task_id, execution_date=result.execution_date ) }}",
+        url: "{{ url_for('api_experimental.double_confirm_task',entity_id='ENTITY_ID' ) }}".replace('ENTITY_ID', entity_id),
         data: JSON.stringify({
           csrf_token: '{{ csrf_token() }}',
           final_state: finalState,
@@ -306,25 +307,25 @@
         const resultClass = finalState === 'OK' ? 'panel-success' : 'panel-danger';
         $('#double-check-card').addClass(resultClass);
         $('.double-check-result').html(`${finalState}`)
-          .addClass(finalState === 'OK' ? 'text-success' : 'text-danger')
-          .css({'font-weight': 'bolder'});
+                .addClass(finalState === 'OK' ? 'text-success' : 'text-danger')
+                .css({'font-weight': 'bolder'});
         $('#doubleCheckModal').modal('hide');
         if (resp && resp.response === 'ok') {
           $('#error-tags').html((errorTagsArr || []).map(t => `${t}`).map(getErrorTagText).filter(t => !!t).map(t => t.label)
-            .join(','));
+                  .join(','));
         }
       });
     }
 
     function tagsSelector() {
       $errorTagsSelector = $(
-        '<label for="error-tag-select" id="error-tag-label-container" class="my-0">'
-        + '          <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple>'
-        + '            {% for err in errorTags %}'
-          + '            <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>'
-          + '            {% endfor %}'
-        + '          </select>'
-        + '        </label>',
+              '<label for="error-tag-select" id="error-tag-label-container" class="my-0">'
+              + '          <select class="error-tag-select-input" id="error-tag-select" name="error_tags[]" multiple>'
+              + '            {% for err in errorTags %}'
+                + '            <option value="{{err.value}}" data-value="{{err.value}}">{{err.label}}</option>'
+                + '            {% endfor %}'
+              + '          </select>'
+              + '        </label>',
       );
       $errorTagInput = $errorTagsSelector.find('.error-tag-select-input');
       $errorTagInput.select2({
@@ -337,7 +338,7 @@
 
     function confirmDoubleCheck(status) {
       const message = status === 'OK' ? `二次确认曲线结果为：${status}，曲线的标签将被清除。`
-        : `二次确认曲线结果为：${status}，请选择曲线标签：`;
+              : `二次确认曲线结果为：${status}，请选择曲线标签：`;
       const $content = $('<div/>');
       const $message = $(`<h4 style="font-weight: normal">${message}</h4>`);
       $content.append($message);
@@ -362,7 +363,7 @@
 
     function renderBaseInfoRow(label, value) {
       return $(
-        `<tr>
+              `<tr>
         <td><h4 class="m-0 p-1" style="font-weight: normal">${label}</h4></td>
         <td><h4 class="m-0 p-1" style="font-weight: normal">${value}</h4></td>
       </tr>`
