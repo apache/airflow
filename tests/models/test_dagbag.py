@@ -703,7 +703,9 @@ class TestDagBag(unittest.TestCase):
             )
             assert dagbag.import_errors == {}
 
-            dagbag.sync_to_db(session=session)
+            with self.assertLogs(level="ERROR") as cm:
+                dagbag.sync_to_db(session=session)
+            self.assertIn("SerializationError", "\n".join(cm.output))
 
             assert path in dagbag.import_errors
             err = dagbag.import_errors[path]
