@@ -17,7 +17,6 @@
 # under the License.
 
 from functools import wraps
-from logging import getLogger
 from shutil import copyfileobj
 from typing import Optional
 
@@ -51,8 +50,6 @@ from smbclient import (
 
 from airflow.hooks.base import BaseHook
 
-LOGGER = getLogger(__name__)
-
 
 class SambaHook(BaseHook):
     """Allows for interaction with an samba server."""
@@ -67,10 +64,10 @@ class SambaHook(BaseHook):
         conn = self.get_connection(samba_conn_id)
 
         if not conn.login:
-            LOGGER.info("Login not provided")
+            self.log.info("Login not provided")
 
         if not conn.password:
-            LOGGER.info("Password not provided")
+            self.log.info("Password not provided")
 
         self._host = conn.host
         self._share = share or conn.schema
@@ -92,7 +89,7 @@ class SambaHook(BaseHook):
 
     def __exit__(self, exc_type, exc_value, traceback):
         for host, connection in self._connection_cache.items():
-            LOGGER.info("Disconnecting from %s", host)
+            self.log.info("Disconnecting from %s", host)
             connection.disconnect()
         self._connection_cache.clear()
 
