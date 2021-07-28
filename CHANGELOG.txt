@@ -1,3 +1,10 @@
+Improvements
+""""""""""""
+
+- The Samba hook now uses the `smbprotocol` library, exposing a much
+  bigger set of functionality and supporting SMB2/3 protocols.
+
+
 Airflow 2.1.2, 2021-07-14
 -------------------------
 
