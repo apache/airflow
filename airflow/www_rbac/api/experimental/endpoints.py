@@ -41,7 +41,6 @@ import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
 import os
 from airflow.utils.db import provide_session
-from airflow.models import TaskInstance
 import datetime
 from random import choices
 import pendulum
@@ -81,19 +80,16 @@ def is_mismatch(measure_result, curve_mode):
 
 
 @provide_session
-def get_recent_mismatch_rate(dag_id, task_id, session=None):
+def get_recent_mismatch_rate(session=None):
     delta = datetime.timedelta(days=2)
     min_date = timezone.utcnow() - delta
-    total = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.task_id == task_id,
-        TaskInstance.execution_date > min_date
+    from plugins.result_storage.model import ResultModel
+    total = session.query(ResultModel).filter(
+        ResultModel.execution_date > min_date
     ).count()
-    mismatches = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.task_id == task_id,
-        TaskInstance.execution_date > min_date,
-        TaskInstance.measure_result != TaskInstance.result
+    mismatches = session.query(ResultModel).filter(
+        ResultModel.execution_date > min_date,
+        ResultModel.measure_result != ResultModel.result
     ).count()
     _log.info('total:{},mismatches:{}'.format(total, mismatches))
     return mismatches / (total + 1), total
@@ -108,12 +104,12 @@ def mismatch_relaxation(mismatch_rate, count) -> bool:
     return choices([True, False], weights=[weight, 1])[0]
 
 
-def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date):
+def filter_mismatches(measure_result, curve_mode):
     if not is_mismatch(measure_result, curve_mode):
         _log.info('not mismatch')
         return curve_mode
     _log.info('is mismatch')
-    mismatch_rate, count = get_recent_mismatch_rate(dag_id, task_id)
+    mismatch_rate, count = get_recent_mismatch_rate()
     _log.info('mismatch_rate:{}, count:{}'.format(mismatch_rate, count))
     if mismatch_relaxation(mismatch_rate, count):
         return [0] if measure_result == 'OK' else [1]
@@ -126,42 +122,39 @@ def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_dat
 def put_anaylysis_result():
     try:
         data = request.get_json(force=True)
-        dag_id = data.get('dag_id')
-        task_id = data.get('task_id')
-        execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
         measure_result = data.get('measure_result')
         curve_mode = list(map(int, data.get('result')))  # List[int]
 
         if FILTER_MISMATCHES:
-            curve_mode = filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date)
+            curve_mode = filter_mismatches(measure_result, curve_mode, dag_id, task_id)
 
-        verify_error = int(data.get('verify_error'))  # OK, NOK
-        rresult = 'OK' if curve_mode[0] is 0 else 'NOK'
-
+        result = 'OK' if curve_mode[0] is 0 else 'NOK'
         if (not ANALYSIS_NOK_RESULTS) and measure_result == 'NOK':
-            rresult = 'NOK'
+            result = 'NOK'
 
-        def modifier(ti):
-            ti.result = rresult
-            ti.measure_result = measure_result
-            ti.entity_id = entity_id
-            if curve_mode[0] is not 0:
-                ti.error_tag = json.dumps(curve_mode)
-            else:
-                ti.error_tag = json.dumps([])
-            ti.verify_error = verify_error
+        extra={}
+        if curve_mode[0] is not 0:
+            extra['error_tag'] = json.dumps(curve_mode)
+        else:
+            extra['error_tag'] = json.dumps([])
+        extra['verify_error'] = int(data.get('verify_error')) # OK, NOK
 
-        date = timezone.parse(execution_date)
-        modify_task_instance(dag_id, task_id, execution_date=date, modifier=modifier)
+        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        ResultStorageHook.save_analyze_result(
+            entity_id,
+            result,
+            **extra
+        )
+
         trigger_push_result_to_mq(
             'analysis_result',
-            rresult,
+            result,
             entity_id,
-            execution_date,
-            task_id,
-            dag_id,
-            verify_error,
+            None, #fixme: execution_date
+            None, #fixme: task_id
+            None, #fixme: dag_id
+            extra['verify_error'],
             curve_mode
         )
         resp = jsonify({'response': 'ok'})

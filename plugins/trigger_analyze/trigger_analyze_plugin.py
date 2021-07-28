@@ -8,7 +8,6 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.models import BaseOperator
 from plugins.utils import get_curve_params, get_task_params, generate_bolt_number, \
     get_craft_type
-from airflow.models.tightening_controller import TighteningController
 from typing import Dict
 from airflow.api.common.experimental import trigger_dag as trigger
 from distutils.util import strtobool
@@ -67,29 +66,20 @@ class TriggerAnalyzeHook(BaseHook, ABC):
         return False
 
     @staticmethod
-    def prepare_trigger_params(params, task_instance):
+    def prepare_trigger_params(params):
         result_body = params.get('result', None)
         entity_id = params.get('entity_id', None)
+        bolt_number = params.get('bolt_number', None)
+        craft_type = params.get('craft_type', None)
+        assert result_body is not None, '触发分析的数据中拧紧结果为空'
+        assert entity_id is not None, '触发分析的数据中entity_id为空'
+        assert bolt_number is not None, '触发分析的数据中bolt_number为空'
+        assert craft_type is not None, '触发分析的数据中craft_type为空'
         new_param = params.copy()
         # 螺栓编码生成规则：控制器名称-job号-批次号
-        controller_name = result_body.get('controller_name', None)
-        job = result_body.get('job', None)
-        batch_count = result_body.get('batch_count', None)
-        pset = result_body.get('pset', None)
-        bolt_number = generate_bolt_number(controller_name, job, batch_count, pset)
-        from airflow.hooks.result_storage_plugin import ResultStorageHook
-        line_code, full_name = ResultStorageHook.get_line_code_by_controller_name(controller_name)
         result_type = TriggerAnalyzeHook.get_result_type(new_param)
-        _logger.info("type: {}, entity_id: {}, line_code: {}, bolt_number: {}"
-                     .format(result_type, entity_id, line_code, bolt_number))
-
-        try:
-            craft_type = get_craft_type(bolt_number)
-            _logger.info("craft_type: {}".format(craft_type))
-        except Exception as e:
-            _logger.error(e)
-            craft_type = 1
-            _logger.info('使用默认工艺类型：{}'.format(craft_type))
+        _logger.info("type: {}, entity_id: {} bolt_number: {}"
+                     .format(result_type, entity_id, bolt_number))
 
         try:
             curve_params = get_curve_params(bolt_number)
@@ -98,10 +88,7 @@ class TriggerAnalyzeHook(BaseHook, ABC):
             curve_params = {}
             _logger.error('无法获取曲线参数（{}/{}）'.format(bolt_number, craft_type))
 
-        task_params = get_task_params(task_instance, entity_id)
         new_param.update(curve_params)
-        new_param.update(task_params)
-        new_param.update({'craft_type': craft_type})
         return new_param
 
     @staticmethod
@@ -109,7 +96,15 @@ class TriggerAnalyzeHook(BaseHook, ABC):
         should_skip_analysis = TriggerAnalyzeHook.should_skip_analysis(params)
         if should_skip_analysis:
             return
-        new_param = TriggerAnalyzeHook.prepare_trigger_params(params, task_instance)
+        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        entity_id = params.get('entity_id', None)
+        ResultStorageHook.bind_analyze_task(
+            entity_id,
+            task_instance.dag_id,
+            task_instance.task_id,
+            task_instance.execution_date
+        )
+        new_param = TriggerAnalyzeHook.prepare_trigger_params(params)
         TriggerAnalyzeHook.trigger_push_result_dag(new_param)
         from airflow.hooks.cas_plugin import CasHook
         cas = CasHook(role='analysis')

@@ -88,29 +88,31 @@ class ResultStorageHook(BaseHook, ABC):
         _logger.info('params verify success')
         _logger.debug('dag_run conf param: {0}'.format(params))  # 从接口中获取的参数
         should_store = True
+
+        # 螺栓编码生成规则：控制器名称-job号-批次号
+        result = params.get('result')
+        controller_name = result.get('controller_name', None)
+        job = result.get('job', None)
+        batch_count = result.get('batch_count', None)
+        pset = result.get('pset', None)
+        bolt_number = generate_bolt_number(controller_name, job, batch_count, pset)
+
+        try:
+            craft_type = get_craft_type(bolt_number)
+            _logger.info("craft_type: {}".format(craft_type))
+        except Exception as e:
+            _logger.error(e)
+            craft_type = 1
+            _logger.info('使用默认工艺类型：{}'.format(craft_type))
+
         if should_store:
             entity_id = params.get('entity_id')
-            result = params.get('result')
-            controller_name = result.get('controller_name', None)
             try:
                 line_code, full_name = ResultStorageHook.get_line_code_by_controller_name(controller_name)
             except Exception as e:
                 _logger.error(e)
                 line_code = None
 
-            # 螺栓编码生成规则：控制器名称-job号-批次号
-            controller_name = result.get('controller_name', None)
-            job = result.get('job', None)
-            batch_count = result.get('batch_count', None)
-            pset = result.get('pset', None)
-            bolt_number = generate_bolt_number(controller_name, job, batch_count, pset)
-            try:
-                craft_type = get_craft_type(bolt_number)
-                _logger.info("craft_type: {}".format(craft_type))
-            except Exception as e:
-                _logger.error(e)
-                craft_type = 1
-                _logger.info('使用默认工艺类型：{}'.format(craft_type))
             from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
             ResultStorageHook.save_result(
                 entity_id,
@@ -126,7 +128,26 @@ class ResultStorageHook(BaseHook, ABC):
 
             ResultStorageHook.save_curve(params)
         _logger.info(params)
+        params.update({
+            'bolt_number': bolt_number,
+            'craft_type': craft_type
+        })
         return params
+
+    # todo:根据entity_id更新分析结果
+    @staticmethod
+    def save_analyze_result(entity_id, analyze_result, **extra):
+        pass
+
+    # todo:根据entity_id更新分析二次确认结果
+    @staticmethod
+    def save_final_state(entity_id, final_state, **extra):
+        pass
+
+    # todo:在结果中保存task相关信息
+    @staticmethod
+    def bind_analyze_task(entity_id, dag_id, task_id, execution_date):
+        pass
 
 
 # Defining the plugin class
