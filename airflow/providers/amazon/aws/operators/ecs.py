@@ -169,7 +169,7 @@ class ECSOperator(BaseOperator):
         group: Optional[str] = None,
         placement_constraints: Optional[list] = None,
         placement_strategy: Optional[list] = None,
-        platform_version: str = 'LATEST',
+        platform_version: Optional[str] = None,
         network_configuration: Optional[dict] = None,
         tags: Optional[dict] = None,
         awslogs_group: Optional[str] = None,
@@ -254,11 +254,10 @@ class ECSOperator(BaseOperator):
 
         if self.capacity_provider_strategy:
             run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
-            run_opts['platformVersion'] = self.platform_version
         elif self.launch_type:
             run_opts['launchType'] = self.launch_type
-            if self.launch_type == 'FARGATE':
-                run_opts['platformVersion'] = self.platform_version
+        if self.platform_version is not None:
+            run_opts['platformVersion'] = self.platform_version
         if self.group is not None:
             run_opts['group'] = self.group
         if self.placement_constraints is not None:

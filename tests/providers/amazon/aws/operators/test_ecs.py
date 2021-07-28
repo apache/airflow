@@ -97,10 +97,23 @@ class TestECSOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ['EC2', None, None, {'launchType': 'EC2'}],
-            ['FARGATE', None, None, {'launchType': 'FARGATE', 'platformVersion': 'LATEST'}],
             [
                 'EC2',
+                None,
+                None,
+                None,
+                {'launchType': 'EC2'},
+            ],
+            [
+                'FARGATE',
+                None,
+                'LATEST',
+                None,
+                {'launchType': 'FARGATE', 'platformVersion': 'LATEST'},
+            ],
+            [
+                'EC2',
+                None,
                 None,
                 {'testTagKey': 'testTagValue'},
                 {'launchType': 'EC2', 'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
@@ -108,12 +121,14 @@ class TestECSOperator(unittest.TestCase):
             [
                 '',
                 None,
+                None,
                 {'testTagKey': 'testTagValue'},
                 {'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
             ],
             [
                 None,
                 {'capacityProvider': 'FARGATE_SPOT'},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
@@ -123,6 +138,7 @@ class TestECSOperator(unittest.TestCase):
             [
                 'FARGATE',
                 {'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {
@@ -136,6 +152,7 @@ class TestECSOperator(unittest.TestCase):
             [
                 'EC2',
                 {'capacityProvider': 'FARGATE_SPOT'},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
@@ -147,11 +164,21 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
     def test_execute_without_failures(
-        self, launch_type, capacity_provider_strategy, tags, expected_args, check_mock, wait_mock
+        self,
+        launch_type,
+        capacity_provider_strategy,
+        platform_version,
+        tags,
+        expected_args,
+        check_mock,
+        wait_mock,
     ):
 
         self.set_up_operator(
-            launch_type=launch_type, capacity_provider_strategy=capacity_provider_strategy, tags=tags
+            launch_type=launch_type,
+            capacity_provider_strategy=capacity_provider_strategy,
+            platform_version=platform_version,
+            tags=tags,
         )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
