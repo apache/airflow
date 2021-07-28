@@ -988,6 +988,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
+      fail-fast: false
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres
@@ -1043,7 +1044,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, prod-images]
-
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       BACKEND: postgres

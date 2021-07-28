@@ -18,6 +18,7 @@
 
 import datetime
 import os
+import signal
 import time
 import unittest
 import urllib
@@ -529,6 +530,37 @@ class TestTaskInstance(unittest.TestCase):
         )
         ti.run()
         assert State.SKIPPED == ti.state
+
+    def test_task_sigterm_works_with_retries(self):
+        """
+        Test that ensures that tasks are retried when they receive sigterm
+        """
+        dag = DAG(dag_id='test_mark_failure_2', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+
+        def task_function(ti):
+            # pylint: disable=unused-argument
+            os.kill(ti.pid, signal.SIGTERM)
+
+        task = PythonOperator(
+            task_id='test_on_failure',
+            python_callable=task_function,
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=2),
+            dag=dag,
+        )
+
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        with self.assertRaises(AirflowException):
+            ti.run()
+        ti.refresh_from_db()
+        assert ti.state == State.UP_FOR_RETRY
 
     def test_retry_delay(self):
         """

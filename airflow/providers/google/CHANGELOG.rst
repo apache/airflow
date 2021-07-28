@@ -18,39 +18,49 @@
 Changelog
 ---------
 
-4.1.0
+5.0.0
 .....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * ``Updated GoogleAdsHook to support newer API versions after google deprecated v5. Google Ads v8 is the new default API. (#17111)``
+* ``Google Ads Hook: Support newer versions of the google-ads library (#17160)``
 
 .. warning:: The underlying google-ads library had breaking changes.
-   
-   Previously the google ads library returned data as native protobuf messages. Now it returns data as proto-plus objects that behave more like conventional Python objects. 
 
-   To preserve compatibility the hook's `search()` converts the data back to native protobuf before returning it. Your existing operators *should* work as before, but due to the urgency of the v5 API being deprecated it was not tested too thoroughly. Therefore you should carefully evaluate your operator and hook functionality with this new version.
+   Previously the google ads library returned data as native protobuf messages. Now it returns data as proto-plus objects that behave more like conventional Python objects.
 
-   In order to use the API's new proto-plus format, you can use the `search_proto_plus()` method.
+   To preserve compatibility the hook's ``search()`` converts the data back to native protobuf before returning it. Your existing operators *should* work as before, but due to the urgency of the v5 API being deprecated it was not tested too thoroughly. Therefore you should carefully evaluate your operator and hook functionality with this new version.
 
-   For more information, please consult `google-ads migration document <https://developers.google.com/google-ads/api/docs/client-libs/python/library-version-10>`__: 
+   In order to use the API's new proto-plus format, you can use the ``search_proto_plus()`` method.
+
+   For more information, please consult `google-ads migration document <https://developers.google.com/google-ads/api/docs/client-libs/python/library-version-10>`__:
 
 
 Features
 ~~~~~~~~
 
 * ``Standardise dataproc location param to region (#16034)``
+* ``Adding custom Salesforce connection type + SalesforceToS3Operator updates (#17162)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Update alias for field_mask in Google Memmcache (#16975)``
+* ``fix: dataprocpysparkjob project_id as self.project_id (#17075)``
+* ``Fix GCStoGCS operator with replace diabled and existing destination object (#16991)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Fixes several failing tests after broken main (#17222)``
+   * ``Fixes statich check failures (#17218)``
+   * ``[CASSANDRA-16814] Fix cassandra to gcs type inconsistency. (#17183)``
+   * ``Updating Google Cloud example DAGs to use XComArgs (#16875)``
+   * ``Updating miscellaneous Google example DAGs to use XComArgs (#16876)``
 
 4.0.0
 .....

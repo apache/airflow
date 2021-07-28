@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.0.1
 .....
 
-Latest change: 2021-07-15
+Latest change: 2021-07-21
 
 ================================================================================================  ===========  ==========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==========================================================================================
+`d48b4e0ca <https://github.com/apache/airflow/commit/d48b4e0caf6218558378c7c3349b22adfc5c0785>`_  2021-07-21   ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
+`3939e8416 <https://github.com/apache/airflow/commit/3939e841616d70ea2d930f55e6a5f73a2a99be07>`_  2021-07-20   ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `b2c66e45b <https://github.com/apache/airflow/commit/b2c66e45b7c27d187491ec6a1dd5cc92ac7a1e32>`_  2021-07-11   ``BugFix: Using 'json' string in template_field causes issue with K8s Operators (#16930)``
 `9d6ae609b <https://github.com/apache/airflow/commit/9d6ae609b60449bd274c2f96e72486d73ad2b8f9>`_  2021-06-28   ``Updating task dependencies (#16624)``

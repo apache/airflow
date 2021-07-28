@@ -31,16 +31,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-07-15
+Latest change: 2021-07-26
 
-================================================================================================  ===========  ==================================================================
+================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ==================================================================
+================================================================================================  ===========  =============================================================================
+`0dbd0f420 <https://github.com/apache/airflow/commit/0dbd0f420cc08e011317e2a9f21f92fff4a64c1b>`_  2021-07-26   ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
+`a1d3b271e <https://github.com/apache/airflow/commit/a1d3b271edb2e938a7e76c10c5617425d0f48591>`_  2021-07-19   ``Parse template parameters field for MySQL operator (#17080)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
 `6ab00bfcf <https://github.com/apache/airflow/commit/6ab00bfcfdfe1213928281527f32ca31b77cce1b>`_  2021-07-14   ``Extended template_fields_renderers for MySQL provider (#16987)``
 `c3b8212b6 <https://github.com/apache/airflow/commit/c3b8212b6e82145f96d17e51cc462db8e2506220>`_  2021-07-10   ``Added template_fields_renderers for MySQL Operator (#16914)``
 `866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
-================================================================================================  ===========  ==================================================================
+================================================================================================  ===========  =============================================================================
 
 2.0.0
 .....
