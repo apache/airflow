@@ -60,7 +60,7 @@ class FTPHook(BaseHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            encoding = params.extra_dejson.get("encoding", "latin-1")
+            encoding = params.extra_dejson.get("encoding", "utf-8")
             self.conn = ftplib.FTP(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
             self.conn.encoding = encoding
@@ -284,7 +284,7 @@ class FTPSHook(FTPHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            encoding = params.extra_dejson.get("encoding", "latin-1")
+            encoding = params.extra_dejson.get("encoding", "utf-8")
 
             if params.port:
                 ftplib.FTP_TLS.port = params.port
