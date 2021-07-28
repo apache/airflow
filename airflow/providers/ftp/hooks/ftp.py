@@ -285,7 +285,7 @@ class FTPSHook(FTPHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            
+
             if params.port:
                 ftplib.FTP_TLS.port = params.port
 
