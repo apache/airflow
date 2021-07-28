@@ -1113,6 +1113,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
+        self.pid = None
         self.end_date = None
         if not test_mode:
             session.merge(self)
