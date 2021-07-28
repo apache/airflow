@@ -26,7 +26,6 @@ import re
 import socket
 import sys
 import traceback
-import warnings
 from collections import defaultdict
 from datetime import timedelta
 from json import JSONDecodeError
@@ -2617,56 +2616,6 @@ class Airflow(AirflowBaseView):
         is_paused = request.args.get('is_paused') == 'false'
         models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=is_paused)
         return "OK"
-
-    @expose('/refresh', methods=['POST'])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
-    @action_logging
-    @provide_session
-    def refresh(self, session=None):
-        """Refresh DAG."""
-        warnings.warn(
-            "The /refresh endpoint is deprecated. Refreshing DAGs manually is no longer necessary.",
-            DeprecationWarning,
-        )
-        dag_id = request.values.get('dag_id')
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
-
-        if orm_dag:
-            orm_dag.last_expired = timezone.utcnow()
-            session.merge(orm_dag)
-        session.commit()
-
-        dag = current_app.dag_bag.get_dag(dag_id)
-        # sync dag permission
-        current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
-
-        flash(f"DAG [{dag_id}] is now fresh as a daisy")
-        return redirect(request.referrer)
-
-    @expose('/refresh_all', methods=['POST'])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
-    @action_logging
-    def refresh_all(self):
-        """Refresh everything"""
-        warnings.warn(
-            "The /refresh_all endpoint is deprecated. Refreshing DAGs manually is no longer necessary.",
-            DeprecationWarning,
-        )
-        current_app.dag_bag.collect_dags_from_db()
-
-        # sync permissions for all dags
-        for dag_id, dag in current_app.dag_bag.dags.items():
-            current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
-        flash("All DAGs are now up to date")
-        return redirect(url_for('Airflow.index'))
 
     @expose('/gantt')
     @auth.has_access(

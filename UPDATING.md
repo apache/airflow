@@ -151,11 +151,11 @@ not have any effect in an existing deployment where the ``default_pool`` already
 
 Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
 
-### Webserver DAG refresh buttons removed and endpoints deprecated
+### Webserver DAG refresh buttons removed
 
 Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
 
-In addition, the `/refresh` and `/refresh_all` webserver endpoints are deprecated and will be removed in Airflow 3.0.
+In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
 
 ## Airflow 2.1.1
 
