@@ -20,39 +20,21 @@ from functools import wraps
 from shutil import copyfileobj
 from typing import Optional
 
-from smbclient import (
-    getxattr,
-    link,
-    listdir,
-    listxattr,
-    lstat,
-    makedirs,
-    mkdir,
-    open_file,
-    readlink,
-    register_session,
-    remove,
-    removedirs,
-    removexattr,
-    rename,
-    replace,
-    rmdir,
-    scandir,
-    setxattr,
-    stat,
-    stat_volume,
-    symlink,
-    truncate,
-    unlink,
-    utime,
-    walk,
-)
+import smbclient
 
 from airflow.hooks.base import BaseHook
 
 
 class SambaHook(BaseHook):
-    """Allows for interaction with an samba server."""
+    """Allows for interaction with a Samba server.
+
+    :param samba_conn_id: The connection id reference.
+    :type samba_conn_id: str
+    :param share:
+        An optional share name. If this is unset then the "schema" field of
+        the connection is used in its place.
+    :type share: str
+    """
 
     conn_name_attr = 'samba_conn_id'
     default_conn_name = 'samba_default'
@@ -84,7 +66,7 @@ class SambaHook(BaseHook):
         # perceived as a benefit), but also help work around an issue:
         #
         # https://github.com/jborean93/smbprotocol/issues/109.
-        register_session(self._host, **self._conn_kwargs)
+        smbclient.register_session(self._host, **self._conn_kwargs)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -97,32 +79,32 @@ class SambaHook(BaseHook):
     def _base_url(self):
         return f"//{self._host}/{self._share}"
 
-    @wraps(link)
+    @wraps(smbclient.link)
     def link(self, src, dst, follow_symlinks=True):
-        return link(
+        return smbclient.link(
             self._base_url + "/" + src,
             self._base_url + "/" + dst,
             follow_symlinks=follow_symlinks,
             **self._conn_kwargs,
         )
 
-    @wraps(listdir)
+    @wraps(smbclient.listdir)
     def listdir(self, path):
-        return listdir(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.listdir(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(lstat)
+    @wraps(smbclient.lstat)
     def lstat(self, path):
-        return lstat(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.lstat(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(makedirs)
+    @wraps(smbclient.makedirs)
     def makedirs(self, path, exist_ok=False):
-        return makedirs(self._base_url + "/" + path, exist_ok=exist_ok, **self._conn_kwargs)
+        return smbclient.makedirs(self._base_url + "/" + path, exist_ok=exist_ok, **self._conn_kwargs)
 
-    @wraps(mkdir)
+    @wraps(smbclient.mkdir)
     def mkdir(self, path):
-        return mkdir(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.mkdir(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(open_file)
+    @wraps(smbclient.open_file)
     def open_file(
         self,
         path,
@@ -136,7 +118,7 @@ class SambaHook(BaseHook):
         file_attributes=None,
         file_type="file",
     ):
-        return open_file(
+        return smbclient.open_file(
             self._base_url + "/" + path,
             mode=mode,
             buffering=buffering,
@@ -150,66 +132,68 @@ class SambaHook(BaseHook):
             **self._conn_kwargs,
         )
 
-    @wraps(readlink)
+    @wraps(smbclient.readlink)
     def readlink(self, path):
-        return readlink(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.readlink(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(remove)
+    @wraps(smbclient.remove)
     def remove(self, path):
-        return remove(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.remove(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(removedirs)
+    @wraps(smbclient.removedirs)
     def removedirs(self, path):
-        return removedirs(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.removedirs(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(rename)
+    @wraps(smbclient.rename)
     def rename(self, src, dst):
-        return rename(self._base_url + "/" + src, self._base_url + "/" + dst, **self._conn_kwargs)
+        return smbclient.rename(self._base_url + "/" + src, self._base_url + "/" + dst, **self._conn_kwargs)
 
-    @wraps(replace)
+    @wraps(smbclient.replace)
     def replace(self, src, dst):
-        return replace(self._base_url + "/" + src, self._base_url + "/" + dst, **self._conn_kwargs)
+        return smbclient.replace(self._base_url + "/" + src, self._base_url + "/" + dst, **self._conn_kwargs)
 
-    @wraps(rmdir)
+    @wraps(smbclient.rmdir)
     def rmdir(self, path):
-        return rmdir(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.rmdir(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(scandir)
+    @wraps(smbclient.scandir)
     def scandir(self, path, search_pattern="*"):
-        return scandir(
+        return smbclient.scandir(
             self._base_url + "/" + path,
             search_pattern=search_pattern,
             **self._conn_kwargs,
         )
 
-    @wraps(stat)
+    @wraps(smbclient.stat)
     def stat(self, path, follow_symlinks=True):
-        return stat(self._base_url + "/" + path, follow_symlinks=follow_symlinks, **self._conn_kwargs)
+        return smbclient.stat(
+            self._base_url + "/" + path, follow_symlinks=follow_symlinks, **self._conn_kwargs
+        )
 
-    @wraps(stat_volume)
+    @wraps(smbclient.stat_volume)
     def stat_volume(self, path):
-        return stat_volume(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.stat_volume(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(symlink)
+    @wraps(smbclient.symlink)
     def symlink(self, src, dst, target_is_directory=False):
-        return symlink(
+        return smbclient.symlink(
             self._base_url + "/" + src,
             self._base_url + "/" + dst,
             target_is_directory=target_is_directory,
             **self._conn_kwargs,
         )
 
-    @wraps(truncate)
+    @wraps(smbclient.truncate)
     def truncate(self, path, length):
-        return truncate(self._base_url + "/" + path, length, **self._conn_kwargs)
+        return smbclient.truncate(self._base_url + "/" + path, length, **self._conn_kwargs)
 
-    @wraps(unlink)
+    @wraps(smbclient.unlink)
     def unlink(self, path):
-        return unlink(self._base_url + "/" + path, **self._conn_kwargs)
+        return smbclient.unlink(self._base_url + "/" + path, **self._conn_kwargs)
 
-    @wraps(utime)
+    @wraps(smbclient.utime)
     def utime(self, path, times=None, ns=None, follow_symlinks=True):
-        return utime(
+        return smbclient.utime(
             self._base_url + "/" + path,
             times=times,
             ns=ns,
@@ -217,9 +201,9 @@ class SambaHook(BaseHook):
             **self._conn_kwargs,
         )
 
-    @wraps(walk)
+    @wraps(smbclient.walk)
     def walk(self, path, topdown=True, onerror=None, follow_symlinks=False):
-        return walk(
+        return smbclient.walk(
             self._base_url + "/" + path,
             topdown=topdown,
             onerror=onerror,
@@ -227,25 +211,27 @@ class SambaHook(BaseHook):
             **self._conn_kwargs,
         )
 
-    @wraps(getxattr)
+    @wraps(smbclient.getxattr)
     def getxattr(self, path, attribute, follow_symlinks=True):
-        return getxattr(
+        return smbclient.getxattr(
             self._base_url + "/" + path, attribute, follow_symlinks=follow_symlinks, **self._conn_kwargs
         )
 
-    @wraps(listxattr)
+    @wraps(smbclient.listxattr)
     def listxattr(self, path, follow_symlinks=True):
-        return listxattr(self._base_url + "/" + path, follow_symlinks=follow_symlinks, **self._conn_kwargs)
+        return smbclient.listxattr(
+            self._base_url + "/" + path, follow_symlinks=follow_symlinks, **self._conn_kwargs
+        )
 
-    @wraps(removexattr)
+    @wraps(smbclient.removexattr)
     def removexattr(self, path, attribute, follow_symlinks=True):
-        return removexattr(
+        return smbclient.removexattr(
             self._base_url + "/" + path, attribute, follow_symlinks=follow_symlinks, **self._conn_kwargs
         )
 
-    @wraps(setxattr)
+    @wraps(smbclient.setxattr)
     def setxattr(self, path, attribute, value, flags=0, follow_symlinks=True):
-        return setxattr(
+        return smbclient.setxattr(
             self._base_url + "/" + path,
             attribute,
             value,

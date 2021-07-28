@@ -42,7 +42,7 @@ class TestSambaHook(unittest.TestCase):
         with pytest.raises(AirflowException):
             SambaHook('conn')
 
-    @mock.patch('airflow.providers.samba.hooks.samba.register_session')
+    @mock.patch('smbclient.register_session')
     @mock.patch('airflow.hooks.base.BaseHook.get_connection')
     def test_context_manager(self, get_conn_mock, register_session):
         get_conn_mock.return_value = CONNECTION
@@ -101,7 +101,7 @@ class TestSambaHook(unittest.TestCase):
             'password': CONNECTION.password,
             'port': 445,
         }
-        with mock.patch('airflow.providers.samba.hooks.samba.' + name) as p:
+        with mock.patch('smbclient.' + name) as p:
             kwargs = {}
             method = getattr(hook, name)
             spec = getfullargspec(method)
