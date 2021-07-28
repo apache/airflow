@@ -25,29 +25,29 @@
       </div>
     {% endcall %}
     {% call panel.panel('','result-check-container','flex-row') %}
-      {% if task_instance.device_type == 'tightening' %}
+      {% if result.device_type == 'tightening' %}
 
         {{ result_panel.result_panel('拧紧结果', 'measure-result-card',result.measure_result) }}
       {% else %}
         {{ result_panel.result_panel('结果', 'measure-result-card',result.measure_result) }}
       {% endif %}
-      {% if task_instance.should_analyze != False %}
-        {{ result_panel.result_panel('分析结果', 'analysis-result-card',task_instance.result,
-  verify_error_map.get('{}'.format(task_instance.verify_error),task_instance.verify_error)) }}
+      {% if result.should_analyze != False %}
+        {{ result_panel.result_panel('分析结果', 'analysis-result-card',result.result,
+  verify_error_map.get('{}'.format(result.verify_error),result.verify_error)) }}
 
       {% endif %}
-      {% if task_instance.should_analyze != False %}
+      {% if result.should_analyze != False %}
 
-        {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if task_instance.final_state =='NOK'
-  else ('panel-success base-info-item' if task_instance.final_state =='OK' else 'panel-default base-info-item')) %}
+        {% call panel.panel('二次确认', 'double-check-card','panel-danger base-info-item' if result.final_state =='NOK'
+  else ('panel-success base-info-item' if result.final_state =='OK' else 'panel-default base-info-item')) %}
           <div class="panel-body d-flex flex-column justify-content-center align-items-center"
                style="flex:1">
             <!--      <button id="error-tag-button" class="btn btn-primary px-4 py-1">编辑</button>-->
 
-            {% if task_instance.final_state %}
+            {% if result.final_state %}
               <h2
-                class="double-check-result {{ 'text-danger' if task_instance.final_state =='NOK' else ('text-success' if task_instance.final_state =='OK' else '') }}"
-                style="font-weight: bolder">{{ task_instance.final_state }}</h2>
+                class="double-check-result {{ 'text-danger' if result.final_state =='NOK' else ('text-success' if result.final_state =='OK' else '') }}"
+                style="font-weight: bolder">{{ result.final_state }}</h2>
             {% elif can_verify %}
               <h2 class="double-check-result">
                 <button id="btn_double_check_success" style="width:110px;padding-top: 5px;padding-bottom: 5px;"
@@ -89,7 +89,7 @@
         </table>
       </div>
       <button onclick="downloadCurveAndResult()"
-              class="btn btn-primary  m-2">{{ '下载结果和曲线' if task_instance.device_type == 'servo_press' else '下载拧紧结果和曲线' }}</button>
+              class="btn btn-primary  m-2">{{ '下载结果和曲线' if result.device_type == 'servo_press' else '下载拧紧结果和曲线' }}</button>
     {% endcall %}
 
   </div>
@@ -111,7 +111,7 @@
     const displayKeys = JSON.parse('{{ display_keys|tojson|safe }}');
     const resultErrs = JSON.parse('{{ resultErrorMessageMapping|tojson|safe }}');
     const resultKeys = JSON.parse('{{ resultKeysTranslationMapping|tojson|safe }}');
-    const shouldAnalyze = {{ 'false' if task_instance.should_analyze == False else 'true' }};
+    const shouldAnalyze = {{ 'false' if result.should_analyze == False else 'true' }};
     let $errorTagsSelector = null;
     let $errorTagInput = null;
 
@@ -373,14 +373,14 @@
       const baseInfo = {
         entity_id: {
           label: '曲线编号',
-          value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=task_instance.bolt_number,craft_type=task_instance.craft_type,curves=task_instance.entity_id.replace('/','@'))}}" + '">{{task_instance.entity_id}}</a>'
+          value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=result.bolt_number,craft_type=result.craft_type,curves=result.entity_id.replace('/','@'))}}" + '">{{result.entity_id}}</a>'
         },
         bolt_number: {
-          label: "{{ '编号' if task_instance.device_type == 'servo_press' else '螺栓编号'}}",
-          value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=task_instance.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{task_instance.bolt_number}}</a>'
+          label: "{{ '编号' if result.device_type == 'servo_press' else '螺栓编号'}}",
+          value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=result.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{result.bolt_number}}</a>'
         },
         execution_date: {
-          label: "{{ '时间' if task_instance.device_type == 'servo_press' else '拧紧时间'}}",
+          label: "{{ '时间' if result.device_type == 'servo_press' else '拧紧时间'}}",
           value: new Date('{{task_instance.execution_date}}').toLocaleString()
         },
         controller_name: {label: '控制器', value: '{{controller.controller_name}}'},
@@ -399,7 +399,7 @@
 
     function getTaskErrorTags() {
       try {
-        return JSON.parse('{{task_instance.error_tag if task_instance.error_tag else []}}').map(t => `${t}`);
+        return JSON.parse('{{result.error_tag if result.error_tag else []}}').map(t => `${t}`);
       } catch (e) {
         console.error(e);
         return [];
@@ -461,9 +461,9 @@
 
     function downloadCurveAndResult() {
       const curveContent = formatCurveFileContent();
-      doDownLoad(curveContent, '{{task_instance.entity_id}}.csv'.replace('/', '@'), 'text/plain');
+      doDownLoad(curveContent, '{{result.entity_id}}.csv'.replace('/', '@'), 'text/plain');
       const resultContent = JSON.stringify(result);
-      doDownLoad(resultContent, '{{task_instance.entity_id}}.json'.replace('/', '@'), 'text/plain');
+      doDownLoad(resultContent, '{{result.entity_id}}.json'.replace('/', '@'), 'text/plain');
 
     }
 
