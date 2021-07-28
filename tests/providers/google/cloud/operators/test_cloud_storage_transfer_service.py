@@ -40,6 +40,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     HTTP_DATA_SOURCE,
     LIST_URL,
     NAME,
+    PATH,
     SCHEDULE,
     SCHEDULE_END_DATE,
     SCHEDULE_START_DATE,
@@ -77,6 +78,7 @@ JOB_NAME = "job-name"
 OPERATION_NAME = "operation-name"
 AWS_BUCKET_NAME = "aws-bucket-name"
 GCS_BUCKET_NAME = "gcp-bucket-name"
+GCS_PATH = None
 DESCRIPTION = "description"
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -112,7 +114,8 @@ VALID_TRANSFER_JOB_BASE = {
     DESCRIPTION: DESCRIPTION,
     STATUS: 'ENABLED',
     SCHEDULE: SCHEDULE_DICT,
-    TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME}},
+    TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME,
+                                    PATH: GCS_PATH}},
 }  # type: Dict
 VALID_TRANSFER_JOB_GCS = deepcopy(VALID_TRANSFER_JOB_BASE)
 VALID_TRANSFER_JOB_GCS[TRANSFER_SPEC].update(deepcopy(SOURCE_GCS))
@@ -126,7 +129,8 @@ VALID_TRANSFER_JOB_GCS = {
     SCHEDULE: SCHEDULE_NATIVE,
     TRANSFER_SPEC: {
         GCS_DATA_SOURCE: {BUCKET_NAME: GCS_BUCKET_NAME},
-        GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME},
+        GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME,
+                        PATH: GCS_PATH},
     },
 }
 
@@ -134,7 +138,8 @@ VALID_TRANSFER_JOB_RAW = {
     DESCRIPTION: DESCRIPTION,
     STATUS: 'ENABLED',
     SCHEDULE: SCHEDULE_DICT,
-    TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME}},
+    TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME,
+                                    PATH: GCS_PATH}},
 }  # type: Dict
 
 VALID_TRANSFER_JOB_GCS_RAW = deepcopy(VALID_TRANSFER_JOB_RAW)
