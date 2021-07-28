@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     MONTH,
     NAME,
     OBJECT_CONDITIONS,
+    PATH,
     PROJECT_ID,
     SCHEDULE,
     SCHEDULE_END_DATE,
@@ -763,6 +764,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     :param gcs_bucket: The destination Google Cloud Storage bucket
         where you want to store the files. (templated)
     :type gcs_bucket: str
+    :param gcs_path: Optional root path/prefix to transfer objects. (templated)
+    :type: gcs_path: str
     :param project_id: Optional ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
@@ -815,6 +818,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         'gcp_conn_id',
         's3_bucket',
         'gcs_bucket',
+        'gcs_path',
         'description',
         'object_conditions',
         'google_impersonation_chain',
@@ -826,6 +830,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         *,
         s3_bucket: str,
         gcs_bucket: str,
+        gcs_path: Optional[str] = None,
         project_id: Optional[str] = None,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
@@ -844,6 +849,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
+        self.gcs_path = gcs_path
         self.project_id = project_id
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -857,6 +863,16 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         self.google_impersonation_chain = google_impersonation_chain
         self.delete_job_after_completion = delete_job_after_completion
         self._validate_inputs()
+
+        if self.gcs_path and not self.gcs_path.endswith('/'):
+            self.log.info(
+                'Destination Google Cloud Storage path is not a valid '
+                '"directory", define a path that ends with a slash "/" or '
+                'leave it empty for the root of the bucket.'
+            )
+            raise AirflowException(
+                'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
+            )
 
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
@@ -885,7 +901,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
                 AWS_S3_DATA_SOURCE: {BUCKET_NAME: self.s3_bucket},
-                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket},
+                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket,
+                                PATH: self.gcs_path},
             },
         }
 
@@ -935,6 +952,8 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
     :type destination_bucket: str
+    :param destination_path: Optional root path/prefix to transfer objects. (templated)
+    :type: destination_path: str
     :param project_id: The ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
@@ -985,6 +1004,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         'gcp_conn_id',
         'source_bucket',
         'destination_bucket',
+        'destination_path',
         'description',
         'object_conditions',
         'google_impersonation_chain',
@@ -996,6 +1016,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         *,
         source_bucket: str,
         destination_bucket: str,
+        destination_path: Optional[str] = None,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -1013,6 +1034,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
+        self.destination_path = destination_path
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -1025,6 +1047,16 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         self.google_impersonation_chain = google_impersonation_chain
         self.delete_job_after_completion = delete_job_after_completion
         self._validate_inputs()
+
+        if self.destination_path and not self.destination_path.endswith('/'):
+            self.log.info(
+                'Destination Google Cloud Storage path is not a valid '
+                '"directory", define a path that ends with a slash "/" or '
+                'leave it empty for the root of the bucket.'
+            )
+            raise AirflowException(
+                'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
+            )
 
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
@@ -1054,7 +1086,8 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
                 GCS_DATA_SOURCE: {BUCKET_NAME: self.source_bucket},
-                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket},
+                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket,
+                                PATH: self.destination_path},
             },
         }
 
