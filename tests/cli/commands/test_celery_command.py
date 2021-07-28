@@ -20,6 +20,7 @@ from argparse import Namespace
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import os
 import pytest
 import sqlalchemy
 
@@ -141,6 +142,44 @@ class TestCeleryStopCommand(unittest.TestCase):
         stop_args = self.parser.parse_args(['celery', 'stop'])
         celery_command.stop_worker(stop_args)
         mock_read_pid_from_pidfile.assert_called_once_with(pid_file)
+
+    @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
+    @mock.patch("airflow.cli.commands.celery_command.worker_bin.worker")
+    @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
+    def test_custom_pid_file_is_used_in_start_and_stop(
+        self, mock_celery_worker, mock_read_pid_from_pidfile, mock_process
+    ):
+        pid_file = "custom_test_pid_file"
+
+        # Call worker
+        worker_args = self.parser.parse_args(['celery', 'worker', '--skip-serve-logs', '--pid', pid_file])
+        celery_command.worker(worker_args)
+        run_mock = mock_celery_worker.return_value.run
+        assert run_mock.call_args
+        args, kwargs = run_mock.call_args
+        assert 'pidfile' in kwargs
+        assert kwargs['pidfile'] == pid_file
+        assert not args
+        assert os.path.exists(pid_file)
+
+        with open(pid_file) as pid_fd:
+            pid = "".join(pid_fd.readlines())
+
+            # Call stop
+            stop_args = self.parser.parse_args(['celery', 'stop', '--pid', pid_file])
+            celery_command.stop_worker(stop_args)
+            run_mock = mock_celery_worker.return_value.run
+            assert run_mock.call_args
+            args, kwargs = run_mock.call_args
+            assert 'pidfile' in kwargs
+            assert kwargs['pidfile'] == pid_file
+            assert not args
+
+            mock_read_pid_from_pidfile.assert_called_once_with(pid_file)
+            mock_process.assert_called_once_with(int(pid))
+            mock_process.return_value.terminate.assert_called_once_with()
+            assert not os.path.exists(pid_file)
 
 
 @pytest.mark.backend("mysql", "postgres")
