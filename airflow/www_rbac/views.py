@@ -399,9 +399,6 @@ class Airflow(AirflowBaseView):
 
         _has_access = self.appbuilder.sm.has_access
 
-        ti = get_task_instance_by_entity_id(entity_id)
-        if not ti:
-            return self.render_template('curve.html', task_instance=ti)
         try:
             result = get_result(entity_id)
         except Exception as e:
@@ -422,7 +419,7 @@ class Airflow(AirflowBaseView):
         result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
                                                     default_var={})
 
-        controller_name = ti.controller_name.split('@')[0] if ti.controller_name else ''
+        controller_name = result.get('controller_name','').split('@')[0] if result.get('controller_name') else ''
         controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
         ENV_CURVE_GRAPH_SHOW_RANGE = os.environ.get('CURVE_GRAPH_SHOW_RANGE')
@@ -435,7 +432,7 @@ class Airflow(AirflowBaseView):
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
         logging.info(msg)
 
-        if ti.device_type == 'servo_press':
+        if result.get('device_type') == 'servo_press':
             cur_key_map = {
                 'cur_w': '位移',
                 'cur_m': '压力',
@@ -459,7 +456,7 @@ class Airflow(AirflowBaseView):
                                                            deserialize_json=True,
                                                            default_var={})
 
-        return self.render_template('curve.html', task_instance=ti, result=result,
+        return self.render_template('curve.html', result=result,
                                     curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
                                     resultErrorMessageMapping=result_error_message_mapping,
                                     resultKeysTranslationMapping=result_keys_translation_mapping,
