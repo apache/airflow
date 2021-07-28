@@ -46,7 +46,7 @@ class _TaskDecorator:
     def __getattr__(self, name):
         if self.store.get(name, None):
             return self.store[name]
-        connections = [e for e in metadata.entry_points()['task_decorator_connections'] if e.name == name]
+        connections = [e for e in metadata.entry_points()['airflow.task_decorators'] if e.name == name]
         mod = connections[0].load()
         self.store[name] = mod
         return mod
