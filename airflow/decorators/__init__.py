@@ -21,6 +21,7 @@ import importlib_metadata as metadata
 
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import _virtualenv_task
+from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
 
 
