@@ -181,6 +181,54 @@ and even a different python version to run your function.
 This option should allow for far greater flexibility for users who wish to keep their workflows more simple
 and pythonic.
 
+Creating Custom TaskFlow Decorators
+-----------------------------------
+
+As of Airflow 2.3, users can now integrate custom decorators into their provider packages and have those decorators
+appear natively as part of the ``@task.____`` design.
+
+For an example. Let's say you were trying to create a "foo" decorator. To create ``@task.foo``, follow the following
+steps:
+
+1. Create a ``DecoratedFooOperator``
+
+In this case, we are assuming that you have a ``FooOperator`` that takes a python function as an argument.
+By creating a ``FooDecoratedOperator`` that inherits from ``FooOperator`` and
+``airflow.decorators.base.DecoratedOperator``, Airflow will supply much of the needed functionality required to treat
+your new class as a taskflow native class.
+
+2. Create a ``foo_task`` function
+
+Once you have your decorated class, create a function that takes arguments ``python_callable``, ``multiple_outputs``,
+and ``kwargs``. This function will use the ``airflow.decorators.base.task_decorator_factory`` function to convert
+the new ``FooDecoratedOperator`` into a TaskFlow function decorator!
+.. code-block:: python
+    def foo_task(
+        python_callable: Optional[Callable] = None,
+        multiple_outputs: Optional[bool] = None,
+        **kwargs
+    ):
+        return task_decorator_factory(
+            python_callable=python_callable,
+            multiple_outputs=multiple_outputs,
+            decorated_operator_class=FooDecoratedOperator,
+            **kwargs,
+        )
+
+3. Register your new decorator in the entrypoints of your setup.cfg
+
+Finally, use the ``options.entrypoints`` section of your ``setup.cfg`` to allow Airflow to detect your new decorator.
+To allow airflow to see this endpoint, give the function URL <name>=<path>:<function> under the
+``airflow.task_decorators`` tag.
+
+.. code-block:: bash
+    [options.entry_points]
+    airflow.task_decorators=
+        foo=my.class.path.foo:foo_task
+
+Now when you install your provider, you should be able to use the ``@task.foo`` decorator and turn any python operator
+into a foo task!
+
 Multiple outputs inference
 --------------------------
 Tasks can also infer multiple outputs by using dict python typing.
