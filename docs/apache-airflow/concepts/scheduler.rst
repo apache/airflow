@@ -124,7 +124,7 @@ The following databases are fully supported and provide an "optimal" experience:
 .. warning::
 
   MariaDB did not implement the ``SKIP LOCKED`` or ``NOWAIT`` SQL clauses until version
-  `10.6.0 <https://jira.mariadb.org/browse/MDEV-25433?jql=project%20%3D%20MDEV%20AND%20fixVersion%20%3D%2010.6.0>`_.
+  `10.6.0 <https://jira.mariadb.org/browse/MDEV-25433>`_.
   Without these features, running multiple schedulers is not supported and deadlock errors have been reported. MariaDB
   10.6.0 and following may work appropriately with multiple schedulers, but this has not been tested.
 
