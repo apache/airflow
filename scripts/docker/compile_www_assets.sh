@@ -35,7 +35,7 @@ function compile_www_assets() {
         www_dir="$(python -m site --user-site)/airflow/www"
     fi
     pushd ${www_dir} || exit 1
-    yarn install --frozen-lockfile --no-cache
+    yarn install --frozen-lockfile --no-cache --network-concurrency=1
     yarn run prod
     find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum > "${md5sum_file}"
     rm -rf "${www_dir}/node_modules"
