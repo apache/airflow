@@ -19,12 +19,14 @@ from typing import Callable, Optional
 
 import importlib_metadata as metadata
 
+from airflow.decorators.python import python_task
+from airflow.decorators.python_virtualenv import _virtualenv_task
 from airflow.models.dag import dag  # noqa
 
 
 class _TaskDecorator:
     def __init__(self):
-        self.store = {}
+        self.store = {"python": python_task, "virtualenv": _virtualenv_task}
 
     def __call__(
         self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
