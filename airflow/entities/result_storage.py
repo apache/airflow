@@ -45,6 +45,15 @@ class ClsResultStorage(ClsEntity):
         except Exception as e:
             _logger.error("Error: {}".format(e))
 
+    def update(self, **data):
+        try:
+            with create_session() as session:
+                session.query(ResultModel) \
+                    .filter(ResultModel.entity_id == self.entity_id) \
+                    .update(data)
+        except Exception as e:
+            _logger.error("Error: {}".format(e))
+
     def _filter(self, params) -> list:
         try:
             with create_session() as session:

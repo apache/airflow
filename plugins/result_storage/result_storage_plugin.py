@@ -134,20 +134,43 @@ class ResultStorageHook(BaseHook, ABC):
         })
         return params
 
-    # todo:根据entity_id更新分析结果
+    # 根据entity_id更新分析结果
     @staticmethod
     def save_analyze_result(entity_id, analyze_result, **extra):
+        st = ClsResultStorage()
+        st.metadata = {
+            'entity_id': entity_id
+        }
+        st.update(
+            result=analyze_result,
+            **extra
+        )
         pass
 
-    # todo:根据entity_id更新分析二次确认结果
+    # 根据entity_id更新分析二次确认结果
     @staticmethod
     def save_final_state(entity_id, final_state, **extra):
-        pass
+        st = ClsResultStorage()
+        st.metadata = {
+            'entity_id': entity_id
+        }
+        st.update(
+            final_state=final_state,
+            **extra
+        )
 
-    # todo:在结果中保存task相关信息
+    # 在结果中保存task相关信息
     @staticmethod
     def bind_analyze_task(entity_id, dag_id, task_id, execution_date):
-        pass
+        st = ClsResultStorage()
+        st.metadata = {
+            'entity_id': entity_id
+        }
+        st.update(
+            dag_id=dag_id,
+            task_id=task_id,
+            execution_date=execution_date
+        )
 
 
 # Defining the plugin class
