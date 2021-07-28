@@ -36,6 +36,8 @@ assists users migrating to a new version.
 Airflow Helm Chart 1.1.0
 ------------------------
 
+Run ``helm repo update`` before upgrading the chart to the latest version.
+
 Default Airflow version is updated to ``2.1.2``
 """""""""""""""""""""""""""""""""""""""""""""""
 
