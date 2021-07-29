@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
+TIMEOUT_DEFAULT = 10
+
 
 class SSHOperator(BaseOperator):
     """
@@ -44,12 +46,12 @@ class SSHOperator(BaseOperator):
     :type remote_host: str
     :param command: command to execute on remote host. (templated)
     :type command: str
-    :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
-    :type timeout: int
     :param conn_timeout: timeout (in seconds) for maintaining the connection. The default is 10 seconds.
     :type conn_timeout: int
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
     :type cmd_timeout: int
+    :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
+    :type timeout: int
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.
     :type environment: dict
@@ -71,7 +73,7 @@ class SSHOperator(BaseOperator):
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
         command: Optional[str] = None,
-        timeout: Optional[int] = 10,
+        timeout: Optional[int] = None,
         conn_timeout: Optional[int] = None,
         cmd_timeout: Optional[int] = None,
         environment: Optional[dict] = None,
@@ -87,9 +89,9 @@ class SSHOperator(BaseOperator):
         self.conn_timeout = conn_timeout
         self.cmd_timeout = cmd_timeout
         if self.conn_timeout is None:
-            self.conn_timeout = self.timeout
+            self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
         if self.cmd_timeout is None:
-            self.cmd_timeout = self.timeout
+            self.cmd_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
         self.environment = environment
         self.get_pty = (self.command.startswith('sudo') or get_pty) if self.command else get_pty
 
