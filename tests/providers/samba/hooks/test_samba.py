@@ -48,14 +48,15 @@ class TestSambaHook(unittest.TestCase):
         get_conn_mock.return_value = CONNECTION
         register_session.return_value = None
         with SambaHook('samba_default'):
-            assert register_session.mock_calls[0].args == (CONNECTION.host,)
-            assert register_session.mock_calls[0].kwargs == {
+            args, kwargs = tuple(register_session.call_args_list[0])
+            assert args == (CONNECTION.host,)
+            assert kwargs == {
                 "username": CONNECTION.login,
                 "password": CONNECTION.password,
                 "port": 445,
                 "connection_cache": {},
             }
-            cache = register_session.mock_calls[0].kwargs.get("connection_cache")
+            cache = kwargs.get("connection_cache")
             mock_connection = mock.Mock()
             mock_connection.disconnect.return_value = None
             cache["foo"] = mock_connection
@@ -119,7 +120,8 @@ class TestSambaHook(unittest.TestCase):
 
             # Verify positional arguments. If the argument is a path parameter, then we expect
             # the hook implementation to fully qualify the path.
-            for arg, provided in zip(args, p.mock_calls[0].args):
+            p_args, p_kwargs = tuple(p.call_args_list[0])
+            for arg, provided in zip(args, p_args):
                 if arg in PATH_PARAMETER_NAMES:
                     expected = "//" + CONNECTION.host + "/" + CONNECTION.schema + "/" + arg
                 else:
@@ -127,4 +129,4 @@ class TestSambaHook(unittest.TestCase):
                 assert expected == provided
 
             # We expect keyword arguments to include the connection settings.
-            assert dict(kwargs, **connection_settings) == p.mock_calls[0].kwargs
+            assert dict(kwargs, **connection_settings) == p_kwargs
