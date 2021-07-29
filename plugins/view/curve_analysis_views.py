@@ -2,7 +2,6 @@
 
 from plugins.view.tightening_controller_views import TighteningControllerView
 from plugins import PAGE_SIZE, AirflowModelView
-from airflow.models import TaskInstance
 from airflow.www_rbac.widgets import AirflowModelListWidget
 from flask_babel import lazy_gettext, gettext
 from airflow.www_rbac import utils as wwwutils
@@ -17,15 +16,15 @@ class CurveAnalysisListWidget(AirflowModelListWidget):
 
 class TrackNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
-        ti = self.model
-        ret = query.filter(ti.car_code.isnot(None)).distinct(ti.car_code).group_by(ti)
+        result = self.model
+        ret = query.filter(result.car_code.isnot(None)).distinct(result.car_code).group_by(result)
         return ret
 
 
 class BoltNoNotNullFilter(BaseFilter):
     def apply(self, query, func):  # noqa
-        ti = self.model
-        return query.filter(ti.bolt_number.isnot(None)).distinct(ti.bolt_number).group_by(ti)
+        result = self.model
+        return query.filter(result.bolt_number.isnot(None)).distinct(result.bolt_number).group_by(result)
 
 
 class CurveAnalysisControllerView(TighteningControllerView):
@@ -40,8 +39,8 @@ class CurveAnalysisControllerView(TighteningControllerView):
 
 class CurveAnalysisTrackNoView(AirflowModelView):
     route_base = '/curves_analysis_track'
-
-    datamodel = wwwutils.DistinctSQLAInterface(TaskInstance)
+    from plugins.result_storage.model import ResultModel
+    datamodel = wwwutils.DistinctSQLAInterface(ResultModel)
 
     page_size = PAGE_SIZE
 
