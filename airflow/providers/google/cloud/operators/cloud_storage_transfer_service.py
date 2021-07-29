@@ -868,7 +868,9 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         if self.delete_job_after_completion and not self.wait:
             raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
         if self.gcs_path and not self.gcs_path.endswith("/"):
-            raise AirflowException("The destination Google Cloud Storage path must end with a slash '/' or be empty.")
+            raise AirflowException(
+                "The destination Google Cloud Storage path must end with a slash '/' or be empty."
+            )
 
     def execute(self, context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -893,8 +895,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
                 AWS_S3_DATA_SOURCE: {BUCKET_NAME: self.s3_bucket},
-                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket,
-                                PATH: self.gcs_path},
+                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket, PATH: self.gcs_path},
             },
         }
 
@@ -1044,7 +1045,9 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         if self.delete_job_after_completion and not self.wait:
             raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
         if self.destination_path and not self.destination_path.endswith("/"):
-            raise AirflowException("The destination Google Cloud Storage path must end with a slash '/' or be empty.")
+            raise AirflowException(
+                "The destination Google Cloud Storage path must end with a slash '/' or be empty."
+            )
 
     def execute(self, context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -1070,8 +1073,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
                 GCS_DATA_SOURCE: {BUCKET_NAME: self.source_bucket},
-                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket,
-                                PATH: self.destination_path},
+                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket, PATH: self.destination_path},
             },
         }
 
