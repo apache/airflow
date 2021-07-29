@@ -116,13 +116,13 @@ def get_result_args():
     }
 
 
-def get_kafka_consumer_args(connection_key: str ='qcos_kafka_consumer'):
+def get_kafka_consumer_args(connection_key: str = 'qcos_kafka_consumer'):
     kafka_conn = get_connection(connection_key)
     extra = kafka_conn.extra_dejson if kafka_conn else {}
     return {
         "bootstrap_servers": extra.get('bootstrap_servers', 'localhost:9092'),
         'security_protocol': extra.get('security_protocol'),
-        'auth_type':  extra.get('auth_type'),
+        'auth_type': extra.get('auth_type'),
         "user": kafka_conn.login or '',
         "password": kafka_conn.get_password() if kafka_conn else ''
     }
@@ -200,7 +200,7 @@ def get_result(entity_id):
 
 def get_results(entity_ids):
     st = ClsResultStorage(**get_result_args())
-    if not isinstance(entity_ids, list):
+    if not isinstance(entity_ids, list) or len(entity_ids) == 0:
         return []
     st.metadata = {'entity_id': entity_ids}
     result = st.query_results()  # 查询多条记录
@@ -229,6 +229,7 @@ def get_task_instance_by_entity_id(entity_id, session=None):
     ).first()
     return ti
 
+
 def trigger_push_template_dag(template_name, template_data):
     push_result_dag_id = 'publish_result_dag'
     conf = {
@@ -248,7 +249,6 @@ def trigger_push_templates_dict_dag(templates_dict):
         'data_type': 'curve_templates_dict'
     }
     trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
-
 
 
 def should_trigger_training(result, final_state, analysis_mode, train_mode):
