@@ -115,6 +115,10 @@ class TestDagFileProcessor(unittest.TestCase):
         non_serialized_dagbag.sync_to_db()
         cls.dagbag = DagBag(read_dags_from_db=True)
 
+    @staticmethod
+    def assert_scheduled_ti_count(session, count):
+        assert count == session.query(TaskInstance).filter_by(state=State.SCHEDULED).count()
+
     def test_dag_file_processor_sla_miss_callback(self):
         """
         Test that the dag file processor calls the sla miss callback
@@ -387,8 +391,8 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.start_date = start_date
             ti.end_date = end_date
 
-            count = self.scheduler_job._schedule_dag_run(dr, session)
-            assert count == 1
+            self.scheduler_job._schedule_dag_run(dr, session)
+            self.assert_scheduled_ti_count(session, 1)
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -444,8 +448,8 @@ class TestDagFileProcessor(unittest.TestCase):
             ti.start_date = start_date
             ti.end_date = end_date
 
-            count = self.scheduler_job._schedule_dag_run(dr, session)
-            assert count == 1
+            self.scheduler_job._schedule_dag_run(dr, session)
+            self.assert_scheduled_ti_count(session, 1)
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -504,8 +508,8 @@ class TestDagFileProcessor(unittest.TestCase):
                 ti.start_date = start_date
                 ti.end_date = end_date
 
-            count = self.scheduler_job._schedule_dag_run(dr, session)
-            assert count == 2
+            self.scheduler_job._schedule_dag_run(dr, session)
+            self.assert_scheduled_ti_count(session, 2)
 
             session.refresh(tis[0])
             session.refresh(tis[1])
@@ -547,9 +551,9 @@ class TestDagFileProcessor(unittest.TestCase):
         BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo test')
         SerializedDagModel.write_dag(dag=dag)
 
-        scheduled_tis = self.scheduler_job._schedule_dag_run(dr, session)
+        self.scheduler_job._schedule_dag_run(dr, session)
+        self.assert_scheduled_ti_count(session, 2)
         session.flush()
-        assert scheduled_tis == 2
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
