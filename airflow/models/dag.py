@@ -2501,7 +2501,7 @@ class DagModel(Base):
         return f"<DAG: {self.dag_id}>"
 
     @property
-    def data_interval(self) -> Optional[Tuple[datetime, datetime]]:
+    def next_data_interval(self) -> Optional[Tuple[datetime, datetime]]:
         if self.next_dagrun_data_interval_start is None:
             if self.next_dagrun_data_interval_end is not None:
                 raise AirflowException(
@@ -2511,8 +2511,8 @@ class DagModel(Base):
             return None
         return (self.next_dagrun_data_interval_start, self.next_dagrun_data_interval_end)
 
-    @data_interval.setter
-    def data_interval(self, value: Optional[Tuple[datetime, datetime]]) -> None:
+    @next_data_interval.setter
+    def next_data_interval(self, value: Optional[Tuple[datetime, datetime]]) -> None:
         if value is None:
             self.next_dagrun_data_interval_start = self.next_dagrun_data_interval_end = None
         else:
@@ -2663,9 +2663,9 @@ class DagModel(Base):
         """
         next_dagrun_info = dag.next_dagrun_info(most_recent_dag_run)
         if next_dagrun_info is None:
-            self.data_interval = self.next_dagrun, self.next_dagrun_create_after = None
+            self.next_data_interval = self.next_dagrun, self.next_dagrun_create_after = None
         else:
-            self.data_interval = next_dagrun_info.data_interval
+            self.next_data_interval = next_dagrun_info.data_interval
             self.next_dagrun = next_dagrun_info.schedule_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
 
