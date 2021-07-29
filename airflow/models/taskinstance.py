@@ -23,7 +23,7 @@ import os
 import pickle
 import signal
 import warnings
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
@@ -47,12 +47,14 @@ from sqlalchemy import (
     func,
     inspect,
     or_,
+    tuple_,
 )
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import reconstructor, relationship
-from sqlalchemy.orm.attributes import NO_VALUE
+from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
+from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
@@ -67,6 +69,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowSmartSensorException,
     AirflowTaskTimeout,
+    DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
 )
@@ -90,7 +93,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
-from airflow.utils.session import provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State
 from airflow.utils.timeout import timeout
@@ -111,7 +114,7 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dag import DAG, DagModel, DagRun
 
 
 @contextlib.contextmanager
@@ -202,14 +205,14 @@ def clear_task_instances(
             ti.external_executor_id = None
             session.merge(ti)
 
-        task_id_by_key[ti.dag_id][ti.execution_date][ti.try_number].add(ti.task_id)
+        task_id_by_key[ti.dag_id][ti.run_id][ti.try_number].add(ti.task_id)
 
     if task_id_by_key:
         # Clear all reschedules related to the ti to clear
 
         # This is an optimization for the common case where all tis are for a small number
-        # of dag_id, execution_date and try_number. Use a nested dict of dag_id,
-        # execution_date, try_number and task_id to construct the where clause in a
+        # of dag_id, run_id and try_number. Use a nested dict of dag_id,
+        # run_id, try_number and task_id to construct the where clause in a
         # hierarchical manner. This speeds up the delete statement by more than 40x for
         # large number of tis (50k+).
         conditions = or_(
@@ -217,16 +220,16 @@ def clear_task_instances(
                 TR.dag_id == dag_id,
                 or_(
                     and_(
-                        TR.execution_date == execution_date,
+                        TR.run_id == run_id,
                         or_(
                             and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
                             for try_number, task_ids in task_tries.items()
                         ),
                     )
-                    for execution_date, task_tries in dates.items()
+                    for run_id, task_tries in run_ids.items()
                 ),
             )
-            for dag_id, dates in task_id_by_key.items()
+            for dag_id, run_ids in task_id_by_key.items()
         )
 
         delete_qry = TR.__table__.delete().where(conditions)
@@ -277,22 +280,22 @@ class TaskInstanceKey(NamedTuple):
 
     dag_id: str
     task_id: str
-    execution_date: datetime
+    run_id: str
     try_number: int = 1
 
     @property
-    def primary(self) -> Tuple[str, str, datetime]:
+    def primary(self) -> Tuple[str, str, str]:
         """Return task instance primary key part of the key"""
-        return self.dag_id, self.task_id, self.execution_date
+        return self.dag_id, self.task_id, self.run_id
 
     @property
     def reduced(self) -> 'TaskInstanceKey':
         """Remake the key by subtracting 1 from try number to match in memory information"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, max(1, self.try_number - 1))
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1))
 
     def with_try_number(self, try_number: int) -> 'TaskInstanceKey':
         """Returns TaskInstanceKey with provided ``try_number``"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number)
 
     @property
     def key(self) -> "TaskInstanceKey":
@@ -321,7 +324,7 @@ class TaskInstance(Base, LoggingMixin):
 
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Float)
@@ -359,9 +362,9 @@ class TaskInstance(Base, LoggingMixin):
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
-        Index('ti_dag_date', dag_id, execution_date),
+        Index('ti_dag_run', dag_id, run_id),
         Index('ti_state', state),
-        Index('ti_state_lkp', dag_id, task_id, execution_date, state),
+        Index('ti_state_lkp', dag_id, task_id, run_id, state),
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
@@ -371,6 +374,12 @@ class TaskInstance(Base, LoggingMixin):
             name='task_instance_trigger_id_fkey',
             ondelete='CASCADE',
         ),
+        ForeignKeyConstraint(
+            [dag_id, run_id],
+            ["dag_run.dag_id", "dag_run.run_id"],
+            name='task_instance_dag_run_fkey',
+            ondelete="CASCADE",
+        ),
     )
 
     dag_model = relationship(
@@ -379,6 +388,7 @@ class TaskInstance(Base, LoggingMixin):
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,
+        viewonly=True,
     )
 
     trigger = relationship(
@@ -389,27 +399,52 @@ class TaskInstance(Base, LoggingMixin):
         innerjoin=True,
     )
 
-    def __init__(self, task, execution_date: datetime, state: Optional[str] = None):
+    dag_run = relationship("DagRun", back_populates="task_instances")
+
+    execution_date = association_proxy("dag_run", "execution_date")
+
+    def __init__(
+        self, task, execution_date: Optional[datetime] = None, run_id: str = None, state: Optional[str] = None
+    ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
-        # make sure we have a localized execution_date stored in UTC
-        if execution_date and not timezone.is_localized(execution_date):
-            self.log.warning(
-                "execution date %s has no timezone information. Using default from dag or system",
-                execution_date,
+        if execution_date:
+            from airflow.models.dagrun import DagRun  # Avoid circular import
+
+            warnings.warn(
+                "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
+                DeprecationWarning,
+                stacklevel=2,
             )
-            if self.task.has_dag():
-                execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
-            else:
-                execution_date = timezone.make_aware(execution_date)
+            # make sure we have a localized execution_date stored in UTC
+            if execution_date and not timezone.is_localized(execution_date):
+                self.log.warning(
+                    "execution date %s has no timezone information. Using default from dag or system",
+                    execution_date,
+                )
+                if self.task.has_dag():
+                    execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
+                else:
+                    execution_date = timezone.make_aware(execution_date)
 
-            execution_date = timezone.convert_to_utc(execution_date)
+                execution_date = timezone.convert_to_utc(execution_date)
+            with create_session() as session:
+                try:
+                    (run_id,) = (
+                        session.query(DagRun.run_id)
+                        .filter_by(dag_id=self.dag_id, execution_date=execution_date)
+                        .one()
+                    )
+                except NoResultFound:
+                    raise DagRunNotFound(
+                        f"DagRun for {self.dag_id!r} with date {execution_date} not found"
+                    ) from None
 
-        self.execution_date = execution_date
+        self.run_id = run_id
 
         self.try_number = 0
         self.unixname = getuser()
@@ -466,22 +501,6 @@ class TaskInstance(Base, LoggingMixin):
         """Setting Next Try Number"""
         return self._try_number + 1
 
-    @property
-    def run_id(self):
-        """Fetches the run_id from the associated DagRun"""
-        # TODO: Remove this once run_id is added as a column in TaskInstance
-
-        # IF we have pre-loaded it, just use that
-        info = inspect(self)
-        if info.attrs.dag_run.loaded_value is not NO_VALUE:
-            return self.dag_un.run_id
-        # _Don't_ use provide/create_session here, as we do not want to commit on this session (as this is
-        # called from the scheduler critical section)!
-        dag_run = self.get_dagrun(session=settings.Session())
-
-        if dag_run:
-            return dag_run.run_id
-
     def command_as_list(
         self,
         mark_success=False,
@@ -525,7 +544,6 @@ class TaskInstance(Base, LoggingMixin):
             self.dag_id,
             self.task_id,
             run_id=self.run_id,
-            execution_date=self.execution_date,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
@@ -545,7 +563,6 @@ class TaskInstance(Base, LoggingMixin):
         dag_id: str,
         task_id: str,
         run_id: str = None,
-        execution_date: datetime = None,
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -561,8 +578,6 @@ class TaskInstance(Base, LoggingMixin):
     ) -> List[str]:
         """
         Generates the shell command required to execute this task instance.
-
-        One of run_id or execution_date must be passed
 
         :param dag_id: DAG ID
         :type dag_id: str
@@ -601,13 +616,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         :rtype: list[str]
         """
-        cmd = ["airflow", "tasks", "run", dag_id, task_id]
-        if run_id:
-            cmd.append(run_id)
-        elif execution_date:
-            cmd.append(execution_date.isoformat())
-        else:
-            raise ValueError("One of run_id and execution_date must be provided")
+        cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
             cmd.extend(["--mark-success"])
         if pickle_id:
@@ -711,7 +720,7 @@ class TaskInstance(Base, LoggingMixin):
         qry = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
-            TaskInstance.execution_date == self.execution_date,
+            TaskInstance.run_id == self.run_id,
         )
 
         if lock_for_update:
@@ -788,7 +797,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely"""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.execution_date, self.try_number)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number)
 
     @provide_session
     def set_state(self, state: str, session=None):
@@ -1043,7 +1052,7 @@ class TaskInstance(Base, LoggingMixin):
                     yield dep_status
 
     def __repr__(self):
-        return f"<TaskInstance: {self.dag_id}.{self.task_id} {self.execution_date} [{self.state}]>"
+        return f"<TaskInstance: {self.dag_id}.{self.task_id} {self.run_id} [{self.state}]>"
 
     def next_retry_datetime(self):
         """
@@ -1093,13 +1102,16 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: DagRun
         """
+        info = inspect(self)
+        if info.attrs.dag_run.loaded_value is not NO_VALUE:
+            return self.dag_run
+
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
-        dr = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == self.execution_date)
-            .first()
-        )
+        dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
+
+        # Record it in the instance for next timme. This means that `self.execution_date` will work correctly
+        set_committed_value(self, 'dag_run', dr)
 
         return dr
 
@@ -1732,22 +1744,12 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        dag_run = self.get_dagrun()
-
-        # FIXME: Many tests don't create a DagRun. We should fix the tests.
-        if dag_run is None:
-            FakeDagRun = namedtuple(
-                "FakeDagRun",
-                # A minimal set of attributes to keep things working.
-                "conf data_interval_start data_interval_end external_trigger run_id",
-            )
-            dag_run = FakeDagRun(
-                conf=None,
-                data_interval_start=None,
-                data_interval_end=None,
-                external_trigger=False,
-                run_id="",
-            )
+        params = {}  # type: Dict[str, Any]
+        # Ensure that the dag_run is loaded -- otherwise `self.execution_date` may not work
+        dag_run = self.get_dagrun(session)
+        if hasattr(task, 'dag'):
+            if task.dag.params:
+                params.update(task.dag.params)
 
         params = {}  # type: Dict[str, Any]
         with contextlib.suppress(AttributeError):
@@ -1985,7 +1987,7 @@ class TaskInstance(Base, LoggingMixin):
                 replacement='prev_data_interval_start_success',
             ),
             'prev_start_date_success': lazy_object_proxy.Proxy(get_prev_start_date_success),
-            'run_id': dag_run.run_id,
+            'run_id': self.run_id,
             'task': task,
             'task_instance': self,
             'task_instance_key_str': f"{task.dag_id}__{task.task_id}__{ds_nodash}",
@@ -2242,8 +2244,10 @@ class TaskInstance(Base, LoggingMixin):
         if dag_id is None:
             dag_id = self.dag_id
 
+        execution_date = self.get_dagrun(session).execution_date
+
         query = XCom.get_many(
-            execution_date=self.execution_date,
+            execution_date=execution_date,
             key=key,
             dag_ids=dag_id,
             task_ids=task_ids,
@@ -2299,20 +2303,20 @@ class TaskInstance(Base, LoggingMixin):
         first = tis[0]
 
         dag_id = first.dag_id
-        execution_date = first.execution_date
+        run_id = first.run_id
         first_task_id = first.task_id
-        # Common path optimisations: when all TIs are for the same dag_id and execution_date, or same dag_id
+        # Common path optimisations: when all TIs are for the same dag_id and run_id, or same dag_id
         # and task_id -- this can be over 150x for huge numbers of TIs (20k+)
-        if all(t.dag_id == dag_id and t.execution_date == execution_date for t in tis):
+        if all(t.dag_id == dag_id and t.run_id == run_id for t in tis):
             return and_(
                 TaskInstance.dag_id == dag_id,
-                TaskInstance.execution_date == execution_date,
+                TaskInstance.run_id == run_id,
                 TaskInstance.task_id.in_(t.task_id for t in tis),
             )
         if all(t.dag_id == dag_id and t.task_id == first_task_id for t in tis):
             return and_(
                 TaskInstance.dag_id == dag_id,
-                TaskInstance.execution_date.in_(t.execution_date for t in tis),
+                TaskInstance.run_id.in_(t.run_id for t in tis),
                 TaskInstance.task_id == first_task_id,
             )
 
@@ -2321,12 +2325,12 @@ class TaskInstance(Base, LoggingMixin):
                 and_(
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.task_id == ti.task_id,
-                    TaskInstance.execution_date == ti.execution_date,
+                    TaskInstance.run_id == ti.run_id,
                 )
                 for ti in tis
             )
         else:
-            return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.execution_date).in_(
+            return tuple_(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id).in_(
                 [ti.key.primary for ti in tis]
             )
 
@@ -2437,9 +2441,6 @@ class SimpleTaskInstance:
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
+    from airflow.job.base_job import BaseJob
 
-    from airflow.jobs.base_job import BaseJob
-    from airflow.models.dagrun import DagRun
-
-    TaskInstance.dag_run = relationship(DagRun)
     TaskInstance.queued_by_job = relationship(BaseJob)

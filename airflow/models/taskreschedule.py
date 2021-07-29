@@ -31,7 +31,7 @@ class TaskReschedule(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
@@ -39,11 +39,11 @@ class TaskReschedule(Base):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index('idx_task_reschedule_dag_task_date', dag_id, task_id, execution_date, unique=False),
+        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, unique=False),
         ForeignKeyConstraint(
-            [task_id, dag_id, execution_date],
-            ['task_instance.task_id', 'task_instance.dag_id', 'task_instance.execution_date'],
-            name='task_reschedule_dag_task_date_fkey',
+            [task_id, dag_id, run_id],
+            ['task_instance.task_id', 'task_instance.dag_id', 'task_instance.run_id'],
+            name='task_reschedule_ti_fkey',
             ondelete='CASCADE',
         ),
     )

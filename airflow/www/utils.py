@@ -18,6 +18,7 @@
 import json
 import textwrap
 import time
+from typing import Any
 from urllib.parse import urlencode
 
 import markdown
@@ -482,6 +483,12 @@ class CustomSQLAInterface(SQLAInterface):
                 and isinstance(obj.impl, ExtendedJSON)
             )
         return False
+
+    def get_col_default(self, col_name: str) -> Any:
+        if col_name not in self.list_columns:
+            # Handle AssociationProxy etc, or anything that isn't a "real" column
+            return None
+        return super().get_col_default(col_name)
 
     filter_converter_class = AirflowFilterConverter
 

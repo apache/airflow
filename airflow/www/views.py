@@ -4013,6 +4013,7 @@ class TaskInstanceModelView(AirflowModelView):
         'state',
         'dag_id',
         'task_id',
+        'run_id',
         'execution_date',
         'operator',
         'start_date',
@@ -4039,6 +4040,7 @@ class TaskInstanceModelView(AirflowModelView):
         'state',
         'dag_id',
         'task_id',
+        'run_id',
         'execution_date',
         'hostname',
         'queue',
@@ -4051,9 +4053,6 @@ class TaskInstanceModelView(AirflowModelView):
 
     edit_columns = [
         'state',
-        'dag_id',
-        'task_id',
-        'execution_date',
         'start_date',
         'end_date',
     ]

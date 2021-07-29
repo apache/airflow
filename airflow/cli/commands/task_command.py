@@ -51,15 +51,17 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_ti(task, exec_date_or_run_id):
+@provide_session
+def _get_ti(task, exec_date_or_run_id, session):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
-    dag_run = task.dag.get_dagrun(run_id=exec_date_or_run_id)
+    dag_run = task.dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
     if not dag_run:
         try:
             execution_date = timezone.parse(exec_date_or_run_id)
-            ti = TaskInstance(task, execution_date)
-            ti.refresh_from_db()
-            return ti
+            dag_run.session.query(DagRun).filter(
+                DagRun.dag_id == task.dag_id,
+                DagRun.execution_date == execution_date,
+            ).one()
         except (ParserError, TypeError):
             raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
     ti = dag_run.get_task_instance(task.task_id)

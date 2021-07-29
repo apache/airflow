@@ -1094,10 +1094,12 @@ class TestDag(unittest.TestCase):
         when = TEST_DATE
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=when))
 
-        dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL)
-        # should not raise any exception
-        dag.handle_callback(dag_run, success=False)
-        dag.handle_callback(dag_run, success=True)
+        with create_session() as session:
+            dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL, session=session)
+
+            # should not raise any exception
+            dag.handle_callback(dag_run, success=False)
+            dag.handle_callback(dag_run, success=True)
 
         mock_stats.incr.assert_called_with("dag.callback_exceptions")
 

@@ -949,7 +949,7 @@ class DAG(LoggingMixin):
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
             self.log.info('Executing dag callback function: %s', callback)
-            tis = dagrun.get_task_instances()
+            tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -1163,6 +1163,7 @@ class DAG(LoggingMixin):
                 task_ids=None,
                 start_date=start_date,
                 end_date=end_date,
+                run_id=None,
                 state=state,
                 include_subdags=False,
                 include_parentdag=False,
@@ -1182,6 +1183,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: None,
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1203,6 +1205,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: Optional[str],
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1223,6 +1226,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: Optional[str],
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1247,7 +1251,7 @@ class DAG(LoggingMixin):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = session.query(TI.dag_id, TI.task_id, TI.execution_date)
+            tis = session.query(TI.dag_id, TI.task_id, TI.run_id)
         else:
             tis = session.query(TaskInstance)
 
@@ -1301,6 +1305,7 @@ class DAG(LoggingMixin):
                     task_ids=task_ids,
                     start_date=start_date,
                     end_date=end_date,
+                    run_id=None,
                     state=state,
                     include_subdags=include_subdags,
                     include_parentdag=False,
@@ -1373,8 +1378,9 @@ class DAG(LoggingMixin):
                     result.update(
                         downstream._get_task_instances(
                             task_ids=None,
-                            start_date=tii.execution_date,
-                            end_date=tii.execution_date,
+                            run_id=tii.run_id,
+                            start_date=None,
+                            end_date=None,
                             state=state,
                             include_subdags=include_subdags,
                             include_dependent_dags=include_dependent_dags,
@@ -1408,7 +1414,7 @@ class DAG(LoggingMixin):
             return result
         elif result:
             # We've been asked for objects, lets combine it all back in to a result set
-            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.execution_date)
+            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.run_id)
 
             tis = session.query(TI).filter(TI.filter_for_tis(result))
         elif exclude_task_ids:
@@ -1667,6 +1673,7 @@ class DAG(LoggingMixin):
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
+            run_id=None,
             state=state,
             include_subdags=include_subdags,
             include_parentdag=include_parentdag,

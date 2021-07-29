@@ -558,7 +558,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(execution_date=request.execution_date, session=session)
+        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
         dag.handle_callback(
             dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
         )

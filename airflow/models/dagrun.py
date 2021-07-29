@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import Boolean, Column, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import backref, relationship, synonym
+from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import expression
 
@@ -92,12 +93,7 @@ class DagRun(Base, LoggingMixin):
         Index('idx_last_scheduling_decision', last_scheduling_decision),
     )
 
-    task_instances = relationship(
-        TI,
-        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),
-        foreign_keys=(dag_id, execution_date),
-        backref=backref('dag_run', uselist=False),
-    )
+    task_instances = relationship(TI, back_populates="dag_run")
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         'scheduler',
@@ -305,7 +301,7 @@ class DagRun(Base, LoggingMixin):
         """Returns the task instances for this dag run"""
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
-            TI.execution_date == self.execution_date,
+            TI.run_id == self.run_id,
         )
 
         if state:
@@ -338,8 +334,8 @@ class DagRun(Base, LoggingMixin):
         """
         return (
             session.query(TI)
-            .filter(TI.dag_id == self.dag_id, TI.execution_date == self.execution_date, TI.task_id == task_id)
-            .first()
+            .filter(TI.dag_id == self.dag_id, TI.run_id == self.run_id, TI.task_id == task_id)
+            .one_or_none()
         )
 
     def get_dag(self) -> "DAG":
@@ -436,7 +432,7 @@ class DagRun(Base, LoggingMixin):
                 callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
-                    execution_date=self.execution_date,
+                    run_id=self.run_id,
                     is_failure_callback=True,
                     msg='task_failure',
                 )
@@ -451,7 +447,7 @@ class DagRun(Base, LoggingMixin):
                 callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
-                    execution_date=self.execution_date,
+                    run_id=self.run_id,
                     is_failure_callback=False,
                     msg='success',
                 )
@@ -472,7 +468,7 @@ class DagRun(Base, LoggingMixin):
                 callback = callback_requests.DagCallbackRequest(
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
-                    execution_date=self.execution_date,
+                    run_id=self.run_id,
                     is_failure_callback=True,
                     msg='all_tasks_deadlocked',
                 )
@@ -675,7 +671,7 @@ class DagRun(Base, LoggingMixin):
 
             if task.task_id not in task_ids:
                 Stats.incr(f"task_instance_created-{task.task_type}", 1, 1)
-                ti = TI(task, self.execution_date)
+                ti = TI(task, execution_date=None, run_id=self.run_id)
                 task_instance_mutation_hook(ti)
                 session.add(ti)
 
@@ -683,9 +679,7 @@ class DagRun(Base, LoggingMixin):
             session.flush()
         except IntegrityError as err:
             self.log.info(str(err))
-            self.log.info(
-                'Hit IntegrityError while creating the TIs for ' f'{dag.dag_id} - {self.execution_date}.'
-            )
+            self.log.info('Hit IntegrityError while creating the TIs for ' f'{dag.dag_id} - {self.run_id}.')
             self.log.info('Doing session rollback.')
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
@@ -695,6 +689,7 @@ class DagRun(Base, LoggingMixin):
         """
         Get a single DAG Run
 
+        :meta private:
         :param session: Sqlalchemy ORM Session
         :type session: Session
         :param dag_id: DAG ID
@@ -705,6 +700,11 @@ class DagRun(Base, LoggingMixin):
             if one exists. None otherwise.
         :rtype: airflow.models.DagRun
         """
+        warnings.warn(
+            "This method is deprecated. Please use SQLAlchemy directly",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return (
             session.query(DagRun)
             .filter(
@@ -770,7 +770,7 @@ class DagRun(Base, LoggingMixin):
                 session.query(TI)
                 .filter(
                     TI.dag_id == self.dag_id,
-                    TI.execution_date == self.execution_date,
+                    TI.run_id == self.run_id,
                     TI.task_id.in_(schedulable_ti_ids),
                 )
                 .update({TI.state: State.SCHEDULED}, synchronize_session=False)
@@ -782,7 +782,7 @@ class DagRun(Base, LoggingMixin):
                 session.query(TI)
                 .filter(
                     TI.dag_id == self.dag_id,
-                    TI.execution_date == self.execution_date,
+                    TI.run_id == self.run_id,
                     TI.task_id.in_(dummy_ti_ids),
                 )
                 .update(

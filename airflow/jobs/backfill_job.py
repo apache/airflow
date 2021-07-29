@@ -22,7 +22,6 @@ from collections import OrderedDict
 from typing import Optional, Set
 
 import pendulum
-from sqlalchemy import and_
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -335,7 +334,6 @@ class BackfillJob(BaseJob):
 
         # explicitly mark as backfill and running
         run.state = State.RUNNING
-        run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
         run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
         return run
@@ -434,15 +432,15 @@ class BackfillJob(BaseJob):
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
             @provide_session
-            def _per_task_process(key, ti, session=None):
+            def _per_task_process(key, ti: TaskInstance, session=None):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
                 ti.task = task
 
-                ignore_depends_on_past = self.ignore_first_depends_on_past and ti.execution_date == (
-                    start_date or ti.start_date
-                )
+                ignore_depends_on_past = self.ignore_first_depends_on_past and ti.get_dagrun(
+                    session
+                ).execution_date == (start_date or ti.start_date)
                 self.log.debug("Task instance to run %s state %s", ti, ti.state)
 
                 # The task was already marked successful or skipped by a
@@ -580,6 +578,7 @@ class BackfillJob(BaseJob):
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(
                             self.dag_id,
                             states=self.STATES_COUNT_AS_RUNNING,
+                            session=session,
                         )
 
                         if num_running_task_instances_in_dag >= self.dag.max_active_tasks:
@@ -592,6 +591,7 @@ class BackfillJob(BaseJob):
                                 dag_id=self.dag_id,
                                 task_ids=[task.task_id],
                                 states=self.STATES_COUNT_AS_RUNNING,
+                                session=session,
                             )
 
                             if num_running_task_instances_in_task >= task.max_active_tis_per_dag:
@@ -645,16 +645,14 @@ class BackfillJob(BaseJob):
             # Sorting by execution date first
             sorted_ti_keys = sorted(
                 set_ti_keys,
-                key=lambda ti_key: (ti_key.execution_date, ti_key.dag_id, ti_key.task_id, ti_key.try_number),
+                key=lambda ti_key: (ti_key.run_id, ti_key.dag_id, ti_key.task_id, ti_key.try_number),
             )
             return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
 
         def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:
             # Sorting by execution date first
-            sorted_tis = sorted(
-                set_tis, key=lambda ti: (ti.execution_date, ti.dag_id, ti.task_id, ti.try_number)
-            )
-            tis_values = ((ti.dag_id, ti.task_id, ti.execution_date, ti.try_number) for ti in sorted_tis)
+            sorted_tis = sorted(set_tis, key=lambda ti: (ti.run_id, ti.dag_id, ti.task_id, ti.try_number))
+            tis_values = ((ti.dag_id, ti.task_id, ti.run_id, ti.try_number) for ti in sorted_tis)
             return tabulate(tis_values, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
 
         err = ''
@@ -865,13 +863,7 @@ class BackfillJob(BaseJob):
         if filter_by_dag_run is None:
             resettable_tis = (
                 session.query(TaskInstance)
-                .join(
-                    DagRun,
-                    and_(
-                        TaskInstance.dag_id == DagRun.dag_id,
-                        TaskInstance.execution_date == DagRun.execution_date,
-                    ),
-                )
+                .join(TaskInstance.dag_run)
                 .filter(
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,

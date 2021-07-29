@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from typing import Iterable, Union
 
 from airflow.models.taskinstance import TaskInstance
@@ -37,36 +38,23 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances"""
 
-    def _set_state_to_skipped(self, dag_run, execution_date, tasks, session):
+    def _set_state_to_skipped(self, dag_run, tasks, session):
         """Used internally to set state of task instances to skipped from the same dag run."""
         task_ids = [d.task_id for d in tasks]
         now = timezone.utcnow()
 
-        if dag_run:
-            session.query(TaskInstance).filter(
-                TaskInstance.dag_id == dag_run.dag_id,
-                TaskInstance.execution_date == dag_run.execution_date,
-                TaskInstance.task_id.in_(task_ids),
-            ).update(
-                {
-                    TaskInstance.state: State.SKIPPED,
-                    TaskInstance.start_date: now,
-                    TaskInstance.end_date: now,
-                },
-                synchronize_session=False,
-            )
-        else:
-            if execution_date is None:
-                raise ValueError("Execution date is None and no dag run")
-
-            self.log.warning("No DAG RUN present this should not happen")
-            # this is defensive against dag runs that are not complete
-            for task in tasks:
-                ti = TaskInstance(task, execution_date=execution_date)
-                ti.state = State.SKIPPED
-                ti.start_date = now
-                ti.end_date = now
-                session.merge(ti)
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag_run.dag_id,
+            TaskInstance.run_id == dag_run.run_id,
+            TaskInstance.task_id.in_(task_ids),
+        ).update(
+            {
+                TaskInstance.state: State.SKIPPED,
+                TaskInstance.start_date: now,
+                TaskInstance.end_date: now,
+            },
+            synchronize_session=False,
+        )
 
     @provide_session
     def skip(
@@ -91,7 +79,28 @@ class SkipMixin(LoggingMixin):
         if not tasks:
             return
 
-        self._set_state_to_skipped(dag_run, execution_date, tasks, session)
+        if execution_date and not dag_run:
+            from airflow.models.dagrun import DagRun
+
+            warnings.warn(
+                "Passing an execution_date to `skip()` is deprecated in favour of passing a dag_run",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+            dag_run = (
+                session.query(DagRun)
+                .filter(
+                    DagRun.dag_id == tasks[0].dag_id,
+                    DagRun.execution_date == execution_date,
+                )
+                .one()
+            )
+
+        if dag_run is None:
+            raise ValueError("dag_run is required")
+
+        self._set_state_to_skipped(dag_run, tasks, session)
         session.commit()
 
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
@@ -154,7 +163,7 @@ class SkipMixin(LoggingMixin):
 
             self.log.info("Skipping tasks %s", [t.task_id for t in skip_tasks])
             with create_session() as session:
-                self._set_state_to_skipped(dag_run, ti.execution_date, skip_tasks, session=session)
+                self._set_state_to_skipped(dag_run, skip_tasks, session=session)
                 # For some reason, session.commit() needs to happen before xcom_push.
                 # Otherwise the session is not committed.
                 session.commit()
