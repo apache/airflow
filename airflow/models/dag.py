@@ -662,7 +662,7 @@ class DAG(LoggingMixin):
         :rtype: list
         """
         warnings.warn(
-            "`DAG.get_run_dates()` is deprecated. " "Please use `DAG.iter_dagrun_infos_between()` instead.",
+            "`DAG.get_run_dates()` is deprecated. Please use `DAG.iter_dagrun_infos_between()` instead.",
             category=DeprecationWarning,
             stacklevel=2,
         )
