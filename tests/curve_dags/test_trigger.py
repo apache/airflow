@@ -2112,12 +2112,6 @@ body = {
         344
       ]
     },
-    "task": {
-      "dag_id": "",
-      "task_id": "",
-      "real_task_id": "",
-      "exec_date": ""
-    },
     "curve_param": {
       "torque_up_limit_min": 0,
       "torque_up_limit_max": 0,

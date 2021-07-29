@@ -50,6 +50,8 @@ trigger_anay_task = TriggerAnalyzeOperator(
 # https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
 if __name__ == '__main__':
     from tests.curve_dags.test_trigger import body
+    from airflow.hooks.result_storage_plugin import ResultStorageHook
+
+    params = ResultStorageHook.on_curve_receive(body.get('conf'))
     dag.clear(reset_dag_runs=True)
-    conf = body.get('conf')
-    dag.run(conf=conf)
+    dag.run(conf=params)

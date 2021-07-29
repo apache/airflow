@@ -1,13 +1,11 @@
 import os
 import asyncio
 from abc import ABC
-
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.models import BaseOperator
-from plugins.utils import get_curve_params, get_task_params, generate_bolt_number, \
-    get_craft_type
+from plugins.utils import get_curve_params
 from typing import Dict
 from airflow.api.common.experimental import trigger_dag as trigger
 from distutils.util import strtobool
@@ -26,13 +24,8 @@ class TriggerAnalyzeHook(BaseHook, ABC):
     @staticmethod
     def trigger_push_result_dag(params):
         _logger.info('pushing result to mq...')
-        push_result_dat_id = 'publish_result_dag'
-        conf = {
-            'data': params,
-            'data_type': 'tightening_result'
-        }
-        trigger.trigger_dag(push_result_dat_id, conf=conf,
-                            replace_microseconds=False)
+        from airflow.hooks.publish_result_plugin import PublishResultHook
+        PublishResultHook.trigger_publish('tightening_result', params)
 
     @staticmethod
     def is_rework_result(params: Dict) -> bool:
