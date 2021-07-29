@@ -252,15 +252,11 @@ def post_dag_run(dag_id, session):
         .first()
     )
     if not dagrun_instance:
-        dag = current_app.dag_bag.get_dag(dag_id)
-        dag_run = DagRun(
-            dag_id=dag_id,
+        dag_run = current_app.dag_bag.get_dag(dag_id).create_dagrun(
             run_type=DagRunType.MANUAL,
-            data_interval=dag.timetable.infer_data_interval(execution_date),
+            external_trigger=True,
             **post_body,
         )
-        session.add(dag_run)
-        session.commit()
         return dagrun_schema.dump(dag_run)
 
     if dagrun_instance.execution_date == post_body["execution_date"]:

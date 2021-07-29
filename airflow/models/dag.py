@@ -2155,6 +2155,9 @@ class DAG(LoggingMixin):
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
 
+        if data_interval is None and execution_date is not None:
+            data_interval = self.timetable.infer_data_interval(execution_date)
+
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,
