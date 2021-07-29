@@ -2461,14 +2461,13 @@ class DagModel(Base):
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
 
-    # Kept for backwards compatibility. New code should use data_interval columns.
-    next_dagrun = Column(UtcDateTime)  # The execution_date of the next dag run
+    next_dagrun = Column(UtcDateTime)  # The schedule_date of the next dag run.
 
     # Must be either both NULL or both datetime.
     next_dagrun_data_interval_start = Column(UtcDateTime)
     next_dagrun_data_interval_end = Column(UtcDateTime)
 
-    # Earliest time at which this ``next_dagrun`` can be created
+    # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after = Column(UtcDateTime)
 
     __table_args__ = (
