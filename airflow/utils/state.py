@@ -107,7 +107,7 @@ class State:
         TaskInstanceState.RUNNING: 'lime',
         TaskInstanceState.SUCCESS: 'green',
         TaskInstanceState.SHUTDOWN: 'blue',
-        TaskInstanceState.RESTARTING: 'goldenrod',
+        TaskInstanceState.RESTARTING: 'violet',
         TaskInstanceState.FAILED: 'red',
         TaskInstanceState.UP_FOR_RETRY: 'gold',
         TaskInstanceState.UP_FOR_RESCHEDULE: 'turquoise',

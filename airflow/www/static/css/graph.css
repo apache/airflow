@@ -149,7 +149,7 @@ g.node.shutdown rect {
 }
 
 g.node.restarting rect {
-  stroke: goldenrod;
+  stroke: violet;
 }
 
 g.node.upstream_failed rect {

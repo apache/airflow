@@ -68,7 +68,7 @@ rect.shutdown {
 }
 
 rect.restarting {
-  fill: goldenrod;
+  fill: violet;
 }
 
 rect.upstream_failed {
