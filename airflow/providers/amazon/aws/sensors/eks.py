@@ -28,13 +28,22 @@ class EKSClusterStateSensor(BaseSensorOperator):
     """
     Check the state of an Amazon EKS Cluster until the state of the Cluster equals the target state.
 
-    :param cluster_name: The name of the Cluster to watch.
+    :param cluster_name: The name of the Cluster to watch. (templated)
     :type cluster_name: str
-    :param target_state: Target state of the Cluster.
+    :param target_state: Target state of the Cluster. (templated)
     :type target_state: ClusterStates
+    :param region: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "aws_conn_id", "region")
+    template_fields = ("cluster_name", "target_state", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -47,15 +56,15 @@ class EKSClusterStateSensor(BaseSensorOperator):
         region: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        self.cluster_name = cluster_name
         self.target_state = (
             target_state
             if isinstance(target_state, ClusterStates)
             else ClusterStates(str(target_state).upper())
         )
-        self.cluster_name = cluster_name
         self.aws_conn_id = aws_conn_id
         self.region = region
+        super().__init__(**kwargs)
 
     def poke(self, context):
         eks_hook = EKSHook(
@@ -72,15 +81,24 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
     """
     Check the state of an Amazon EKS Nodegroup until the state of the Nodegroup equals the target state.
 
-    :param cluster_name: The name of the Cluster which the Nodegroup is attached to.
+    :param cluster_name: The name of the Cluster which the Nodegroup is attached to. (templated)
     :type cluster_name: str
-    :param nodegroup_name: The name of the Nodegroup to watch.
+    :param nodegroup_name: The name of the Nodegroup to watch. (templated)
     :type nodegroup_name: str
-    :param target_state: Target state of the Nodegroup.
+    :param target_state: Target state of the Nodegroup. (templated)
     :type target_state: NodegroupStates
+    :param region: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :type aws_conn_id: str
     """
 
-    template_fields = ("cluster_name", "nodegroup_name", "aws_conn_id", "region")
+    template_fields = ("cluster_name", "nodegroup_name", "target_state", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -94,16 +112,16 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         region: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        self.cluster_name = cluster_name
+        self.nodegroup_name = nodegroup_name
         self.target_state = (
             target_state
             if isinstance(target_state, NodegroupStates)
             else NodegroupStates(str(target_state).upper())
         )
-        self.cluster_name = cluster_name
-        self.nodegroup_name = nodegroup_name
         self.aws_conn_id = aws_conn_id
         self.region = region
+        super().__init__(**kwargs)
 
     def poke(self, context):
         eks_hook = EKSHook(

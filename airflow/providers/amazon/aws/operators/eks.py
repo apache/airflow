@@ -18,7 +18,7 @@
 """This module contains Amazon EKS operators."""
 from datetime import datetime
 from time import sleep
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import (
@@ -50,45 +50,45 @@ class EKSCreateClusterOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSCreateClusterOperator`
 
-    :param cluster_name: The unique name to give to your Amazon EKS Cluster.
+    :param cluster_name: The unique name to give to your Amazon EKS Cluster. (templated)
     :type cluster_name: str
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions for the
-       Kubernetes control plane to make calls to AWS API operations on your behalf.
+       Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :type cluster_role_arn: str
-    :param resources_vpc_config: The VPC configuration used by the cluster control plane.
+    :param resources_vpc_config: The VPC configuration used by the cluster control plane. (templated)
     :type resources_vpc_config: Dict
-    :param compute: The type of compute architecture to generate along with the cluster.
+    :param compute: The type of compute architecture to generate along with the cluster. (templated)
         Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :type compute: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
+    :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
     If compute is assigned the value of ``nodegroup``, the following are required:
 
-    :param nodegroup_name: The unique name to give your EKS Managed Nodegroup.
+    :param nodegroup_name: The unique name to give your EKS Managed Nodegroup. (templated)
     :type nodegroup_name: str
     :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate
-         with the EKS Managed Nodegroup.
+         with the EKS Managed Nodegroup. (templated)
     :type nodegroup_role_arn: str
 
     """
 
-    template_fields = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
-        # "nodegroup_name",
-        # "nodegroup_role_arn",
+        "nodegroup_name",
+        "nodegroup_role_arn",
         "compute",
-        # "aws_conn_id",
-        # "region",
+        "aws_conn_id",
+        "region",
     )
 
     def __init__(
@@ -103,21 +103,17 @@ class EKSCreateClusterOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        self.compute = compute
+        if (self.compute == 'nodegroup') and not nodegroup_role_arn:
+            raise ValueError("Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in.")
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
         self.resources_vpc_config = resources_vpc_config
-        self.compute = compute
+        self.nodegroup_name = nodegroup_name or self.cluster_name + DEFAULT_NODEGROUP_NAME_SUFFIX
+        self.nodegroup_role_arn = nodegroup_role_arn
         self.aws_conn_id = aws_conn_id
         self.region = region
-
-        if self.compute == 'nodegroup':
-            if not nodegroup_role_arn:
-                raise ValueError(
-                    "Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in."
-                )
-            self.nodegroup_name = nodegroup_name or self.cluster_name + DEFAULT_NODEGROUP_NAME_SUFFIX
-            self.nodegroup_role_arn = nodegroup_role_arn
+        super().__init__(**kwargs)
 
     def execute(self, context):
         eks_hook = EKSHook(
@@ -171,29 +167,29 @@ class EKSCreateNodegroupOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSCreateNodegroupOperator`
 
-    :param cluster_name: The name of the Amazon EKS Cluster to create the managed nodegroup in.
+    :param cluster_name: The name of the Amazon EKS Cluster to create the managed nodegroup in. (templated)
     :type cluster_name: str
-    :param nodegroup_name: The unique name to give your managed nodegroup.
+    :param nodegroup_name: The unique name to give your managed nodegroup. (templated)
     :type nodegroup_name: str
     :param nodegroup_subnets:
-        The subnets to use for the Auto Scaling group that is created for the managed nodegroup.
+        The subnets to use for the Auto Scaling group that is created for the managed nodegroup. (templated)
     :type nodegroup_subnets: List[str]
     :param nodegroup_role_arn:
-        The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup.
+        The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :type nodegroup_role_arn: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
-        :param region: Which AWS region the connection should use.
+        :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
     """
 
-    template_fields = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "nodegroup_subnets",
         "nodegroup_role_arn",
@@ -212,13 +208,13 @@ class EKSCreateNodegroupOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.nodegroup_subnets = nodegroup_subnets
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name or cluster_name + datetime.now().strftime("%Y%m%d_%H%M%S")
         self.aws_conn_id = aws_conn_id
         self.region = region
+        super().__init__(**kwargs)
 
     def execute(self, context):
         eks_hook = EKSHook(
@@ -242,23 +238,24 @@ class EKSDeleteClusterOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSDeleteClusterOperator`
 
-    :param cluster_name: The name of the Amazon EKS Cluster to delete.
+    :param cluster_name: The name of the Amazon EKS Cluster to delete. (templated)
     :type cluster_name: str
-    :param force_delete_compute: If True, will delete any attached resources.  Defaults to False.
+    :param force_delete_compute: If True, will delete any attached resources. (templated)
+         Defaults to False.
     :type force_delete_compute: bool
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
-        :param region: Which AWS region the connection should use.
+    :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
     """
 
-    template_fields = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "force_delete_compute",
         "aws_conn_id",
@@ -273,11 +270,11 @@ class EKSDeleteClusterOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
         self.aws_conn_id = aws_conn_id
         self.region = region
+        super().__init__(**kwargs)
 
     def execute(self, context):
         eks_hook = EKSHook(
@@ -326,23 +323,23 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSDeleteNodegroupOperator`
 
-    :param cluster_name: The name of the Amazon EKS Cluster that is associated with your nodegroup.
+    :param cluster_name: The name of the Amazon EKS Cluster associated with your nodegroup. (templated)
     :type cluster_name: str
-    :param nodegroup_name: The name of the nodegroup to delete.
+    :param nodegroup_name: The name of the nodegroup to delete. (templated)
     :type nodegroup_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used.  If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :type aws_conn_id: str
-    :param region: Which AWS region the connection should use.
+    :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
     """
 
-    template_fields = (
+    template_fields: Iterable[str] = (
         "cluster_name",
         "nodegroup_name",
         "aws_conn_id",
@@ -357,11 +354,11 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.nodegroup_name = nodegroup_name
         self.aws_conn_id = aws_conn_id
         self.region = region
+        super().__init__(**kwargs)
 
     def execute(self, context):
         eks_hook = EKSHook(
@@ -380,27 +377,27 @@ class EKSPodOperator(KubernetesPodOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSPodOperator`
 
-    :param cluster_name: The name of the Amazon EKS Cluster to execute the task on.
+    :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
     :type cluster_name: str
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
-       for the Kubernetes control plane to make calls to AWS API operations on your behalf.
+       for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :type cluster_role_arn: str
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
     :type in_cluster: bool
-    :param namespace: The namespace in which to execute the pod.
+    :param namespace: The namespace in which to execute the pod. (templated)
     :type namespace: str
-    :param pod_context: The security context to use while executing the pod.
+    :param pod_context: The security context to use while executing the pod. (templated)
     :type pod_context: str
-    :param pod_name: The unique name to give the pod.
+    :param pod_name: The unique name to give the pod. (templated)
     :type pod_name: str
-    :param pod_username: The username to use while executing the pod.
+    :param pod_username: The username to use while executing the pod. (templated)
     :type pod_username: str
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
     :param aws_profile: str
-    :param region: Which AWS region the connection should use.
+    :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
@@ -408,21 +405,20 @@ class EKSPodOperator(KubernetesPodOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = (
-        "role_arn",
+    template_fields: Iterable[str] = {
         "cluster_name",
+        "in_cluster",
+        "namespace",
+        "pod_context",
         "pod_name",
         "pod_username",
-        "pod_context",
-        "region",
         "aws_conn_id",
-        "namespace",
-    )
+        "region",
+    } | set(KubernetesPodOperator.template_fields)
 
     def __init__(
         self,
         cluster_name: str,
-        cluster_role_arn: Optional[str] = None,
         # Setting in_cluster to False tells the pod that the config
         # file is stored locally in the worker and not in the cluster.
         in_cluster: Optional[bool] = False,
@@ -430,23 +426,24 @@ class EKSPodOperator(KubernetesPodOperator):
         pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
         pod_name: Optional[str] = DEFAULT_POD_NAME,
         pod_username: Optional[str] = DEFAULT_POD_USERNAME,
-        region: Optional[str] = None,
         aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(
-            in_cluster=in_cluster,
-            namespace=namespace,
-            name=pod_name,
-            **kwargs,
-        )
-        self.role_arn = cluster_role_arn
         self.cluster_name = cluster_name
+        self.in_cluster = in_cluster
+        self.namespace = namespace
+        self.pod_context = pod_context
         self.pod_name = pod_name
         self.pod_username = pod_username
-        self.pod_context = pod_context
-        self.region = region
         self.aws_conn_id = aws_conn_id
+        self.region = region
+        super().__init__(
+            in_cluster=self.in_cluster,
+            namespace=self.namespace,
+            name=self.pod_name,
+            **kwargs,
+        )
 
     def execute(self, context):
         eks_hook = EKSHook(
