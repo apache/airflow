@@ -19,6 +19,7 @@ from typing import NamedTuple, Optional
 
 from pendulum import DateTime
 
+from airflow.compat.functools import cached_property
 from airflow.typing_compat import Protocol
 
 
@@ -74,7 +75,7 @@ class DagRunInfo(NamedTuple):
         """
         return cls(run_after=end, data_interval=DataInterval(start, end))
 
-    @property
+    @cached_property
     def schedule_date(self) -> DateTime:
         """Infer the schedule date to use for the actual DagRun.
 

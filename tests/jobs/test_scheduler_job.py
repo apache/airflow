@@ -1572,9 +1572,12 @@ class TestSchedulerJob:
             run_kwargs = {}
 
         dag = self.dagbag.get_dag(dag_id)
+        dagrun_info = dag.next_dagrun_info(None)
+        assert dagrun_info is not None
+
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=dag.next_dagrun_info(None)[0],
+            execution_date=dagrun_info.schedule_date,
             state=State.RUNNING,
         )
 

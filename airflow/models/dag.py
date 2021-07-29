@@ -37,7 +37,6 @@ from typing import (
     FrozenSet,
     Iterable,
     List,
-    NamedTuple,
     Optional,
     Set,
     Tuple,
@@ -71,7 +70,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.schedules import Schedule
 from airflow.timetables.simple import NullTimetable, OnceTimetable
@@ -112,51 +111,6 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
         query = query.filter(DR.external_trigger == expression.false())
     query = query.order_by(DR.execution_date.desc())
     return query.first()
-
-
-class _NextDagRunInfoLegacy(NamedTuple):
-    """Legacy return format for ``DAG.next_dagrun_info()``.
-
-    In the pre-AIP-39 implementation, ``DAG.next_dagrun_info()`` returns a
-    2-tuple ``(execution_date, run_after)``.
-    """
-
-    execution_date: Optional[pendulum.DateTime]
-    run_after: Optional[pendulum.DateTime]
-
-
-class _NextDagRunInfoCompat(_NextDagRunInfoLegacy):
-    """Compatibility shim for ``DAG.next_dagrun_info()``.
-
-    This acts both as the pre-AIP-39 2-tuple ``(execution_date, run_after)``
-    value, and a proxy class to access things on the underlying ``DagRunInfo``
-    returned by the DAG's timetable in the AIP-39 implementation. Attribute
-    ``dagrun_info`` holds the original ``DagRunInfo``.
-    """
-
-    def __new__(cls, dagrun_info: Optional[DagRunInfo]) -> "_NextDagRunInfoCompat":
-        if dagrun_info is None:
-            # This needs to evaluate to (None, None) for compatibility.
-            execution_date = run_after = None
-        else:
-            execution_date = dagrun_info.schedule_date
-            run_after = dagrun_info.run_after
-
-        self = super().__new__(cls, execution_date, run_after)
-        self.dagrun_info = dagrun_info
-        return self
-
-    @property
-    def data_interval(self) -> DataInterval:
-        if self.dagrun_info is None:
-            return None
-        return self.dagrun_info.data_interval
-
-    @property
-    def schedule_date(self) -> pendulum.DateTime:
-        if self.dagrun_info is None:
-            return None
-        return self.dagrun_info.schedule_date
 
 
 @functools.total_ordering
@@ -573,7 +527,7 @@ class DAG(LoggingMixin):
     def next_dagrun_info(
         self,
         date_last_automated_dagrun: Optional[pendulum.DateTime],
-    ) -> _NextDagRunInfoCompat:
+    ) -> Optional[DagRunInfo]:
         """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
         This calculates what time interval the next DagRun should operate on
@@ -583,28 +537,23 @@ class DAG(LoggingMixin):
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        For compatibility reasons, the return type can be evaluated in two ways:
-
-        * Legacy form: A 2-tuple containing the DagRun's execution date, and the
-          earliest it could be scheduled.
-        * Modern form (AIP-39): A type with two attributes ``run_after`` and
-          ``data_interval`` mirroring ``airflow.timetables.base.DagRunInfo``.
-
         :param date_last_automated_dagrun: The ``max(execution_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
+        :returns: DagRunInfo of the next dagrun, or None if a dagrun is not
+            going to be scheduled.
         """
-        # XXX: The timezone.coerce_datetime calls in this function should not
-        # be necessary since the function annotation suggests it only accepts
-        # pendulum.DateTime, and someone is passing datetime.datetime into this
-        # function. We should fix whatever is doing that.
+        # Never schedule a subdag. It will be scheduled by its parent dag.
         if self.is_subdag:
-            return _NextDagRunInfoCompat(None)
-        next_info = self.timetable.next_dagrun_info(
+            return None
+        # XXX: The timezone.coerce_datetime calls should not be necessary since
+        # the function annotation suggests it only accepts pendulum.DateTime,
+        # and someone is passing datetime.datetime into this function. We should
+        # fix whatever is doing that.
+        return self.timetable.next_dagrun_info(
             timezone.coerce_datetime(date_last_automated_dagrun),
             self._time_restriction,
         )
-        return _NextDagRunInfoCompat(next_info)
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         warnings.warn(
@@ -2714,8 +2663,12 @@ class DagModel(Base):
         :param active_runs_of_dag: Number of currently active runs of this dag
         """
         next_dagrun_info = dag.next_dagrun_info(most_recent_dag_run)
-        self.data_interval = next_dagrun_info.data_interval
-        self.next_dagrun, self.next_dagrun_create_after = next_dagrun_info
+        if next_dagrun_info is None:
+            self.data_interval = self.next_dagrun, self.next_dagrun_create_after = None
+        else:
+            self.data_interval = next_dagrun_info.data_interval
+            self.next_dagrun = next_dagrun_info.schedule_date
+            self.next_dagrun_create_after = next_dagrun_info.run_after
 
         if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
             # Since this happens every time the dag is parsed it would be quite spammy at info

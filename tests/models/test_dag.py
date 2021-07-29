@@ -1483,12 +1483,11 @@ class TestDag(unittest.TestCase):
             'test_scheduler_dagrun_once', start_date=timezone.datetime(2015, 1, 1), schedule_interval="@once"
         )
 
-        next_date, _ = dag.next_dagrun_info(None)
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.schedule_date == timezone.datetime(2015, 1, 1)
 
-        assert next_date == timezone.datetime(2015, 1, 1)
-
-        next_date, _ = dag.next_dagrun_info(next_date)
-        assert next_date is None
+        next_info = dag.next_dagrun_info(next_info.schedule_date)
+        assert next_info is None
 
     def test_next_dagrun_info_start_end_dates(self):
         """
@@ -1507,15 +1506,15 @@ class TestDag(unittest.TestCase):
         dates = []
         date = None
         for _ in range(runs):
-            date, _ = dag.next_dagrun_info(date)
-            dates.append(date)
+            next_info = dag.next_dagrun_info(date)
+            if next_info is None:
+                dates.append(None)
+            else:
+                dates.append(next_info.schedule_date)
 
-        for date in dates:
-            assert date is not None
-
+        assert all(date is not None for date in dates)
         assert dates[-1] == end_date
-
-        assert dag.next_dagrun_info(date)[0] is None
+        assert dag.next_dagrun_info(date) is None
 
     def test_next_dagrun_info_catchup(self):
         """
@@ -1597,12 +1596,12 @@ class TestDag(unittest.TestCase):
             catchup=False,
         )
 
-        next_date, _ = dag.next_dagrun_info(None)
-        assert next_date == timezone.datetime(2020, 1, 4)
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.schedule_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_date, _ = dag.next_dagrun_info(next_date)
-        assert next_date == timezone.datetime(2020, 1, 5)
+        next_info = dag.next_dagrun_info(next_info.schedule_date)
+        assert next_info and next_info.schedule_date == timezone.datetime(2020, 1, 5)
 
     @freeze_time(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
@@ -1617,18 +1616,18 @@ class TestDag(unittest.TestCase):
             catchup=True,
         )
 
-        next_date, _ = dag.next_dagrun_info(None)
-        assert next_date == timezone.datetime(2020, 5, 1)
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.schedule_date == timezone.datetime(2020, 5, 1)
 
-        next_date, _ = dag.next_dagrun_info(next_date)
-        assert next_date == timezone.datetime(2020, 5, 2)
+        next_info = dag.next_dagrun_info(next_info.schedule_date)
+        assert next_info and next_info.schedule_date == timezone.datetime(2020, 5, 2)
 
-        next_date, _ = dag.next_dagrun_info(next_date)
-        assert next_date == timezone.datetime(2020, 5, 3)
+        next_info = dag.next_dagrun_info(next_info.schedule_date)
+        assert next_info and next_info.schedule_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_date, _ = dag.next_dagrun_info(next_date)
-        assert next_date == timezone.datetime(2020, 5, 4)
+        next_info = dag.next_dagrun_info(next_info.schedule_date)
+        assert next_info and next_info.schedule_date == timezone.datetime(2020, 5, 4)
 
     def test_next_dagrun_after_auto_align(self):
         """
@@ -1644,8 +1643,8 @@ class TestDag(unittest.TestCase):
         )
         DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
-        next_date, _ = dag.next_dagrun_info(None)
-        assert next_date == timezone.datetime(2016, 1, 2, 5, 4)
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.schedule_date == timezone.datetime(2016, 1, 2, 5, 4)
 
         dag = DAG(
             dag_id='test_scheduler_auto_align_2',
@@ -1654,8 +1653,8 @@ class TestDag(unittest.TestCase):
         )
         DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
-        next_date, _ = dag.next_dagrun_info(None)
-        assert next_date == timezone.datetime(2016, 1, 1, 10, 10)
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.schedule_date == timezone.datetime(2016, 1, 1, 10, 10)
 
     def test_next_dagrun_after_not_for_subdags(self):
         """
@@ -1694,11 +1693,11 @@ class TestDag(unittest.TestCase):
         subdag.parent_dag = dag
         subdag.is_subdag = True
 
-        next_date, _ = dag.next_dagrun_info(None)
-        assert next_date == timezone.datetime(2019, 1, 1, 0, 0)
+        next_parent_info = dag.next_dagrun_info(None)
+        assert next_parent_info.schedule_date == timezone.datetime(2019, 1, 1, 0, 0)
 
-        next_subdag_date, _ = subdag.next_dagrun_info(None)
-        assert next_subdag_date is None, "SubDags should never have DagRuns created by the scheduler"
+        next_subdag_info = subdag.next_dagrun_info(None)
+        assert next_subdag_info is None, "SubDags should never have DagRuns created by the scheduler"
 
     def test_replace_outdated_access_control_actions(self):
         outdated_permissions = {
