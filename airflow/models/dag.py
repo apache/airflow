@@ -615,6 +615,9 @@ class DAG(LoggingMixin):
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
+        earliest = timezone.coerce_datetime(earliest)
+        latest = timezone.coerce_datetime(latest)
+
         restriction = TimeRestriction(earliest, latest, catchup=True)
 
         # HACK: Sub-DAGs are currently scheduled differently. For example, say
@@ -2105,7 +2108,7 @@ class DAG(LoggingMixin):
             )
 
         if run_type == DagRunType.MANUAL and data_interval is None and execution_date is not None:
-            data_interval = self.timetable.infer_data_interval(execution_date)
+            data_interval = self.timetable.infer_data_interval(timezone.coerce_datetime(execution_date))
 
         run = DagRun(
             dag_id=self.dag_id,

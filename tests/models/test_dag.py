@@ -1510,7 +1510,8 @@ class TestDag(unittest.TestCase):
             if next_info is None:
                 dates.append(None)
             else:
-                dates.append(next_info.schedule_date)
+                date = next_info.schedule_date
+                dates.append(date)
 
         assert all(date is not None for date in dates)
         assert dates[-1] == end_date

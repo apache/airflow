@@ -955,8 +955,8 @@ class TestBackfillJob:
                 # reached, so it is waiting
                 dag_run_created_cond.wait(timeout=1.5)
                 dagruns = DagRun.find(dag_id=dag_id)
-                dr = dagruns[0]
                 assert 1 == len(dagruns)
+                dr = dagruns[0]
                 assert dr.run_id == run_id
 
                 # allow the backfill to execute
@@ -1351,10 +1351,13 @@ class TestBackfillJob:
             DEFAULT_DATE - datetime.timedelta(hours=2),
             DEFAULT_DATE - datetime.timedelta(hours=1),
             DEFAULT_DATE,
-        ] == test_dag.iter_dagruns_infos_between(
-            earliest=DEFAULT_DATE - datetime.timedelta(hours=3),
-            latest=DEFAULT_DATE,
-        )
+        ] == [
+            info.schedule_date
+            for info in test_dag.iter_dagrun_infos_between(
+                earliest=DEFAULT_DATE - datetime.timedelta(hours=3),
+                latest=DEFAULT_DATE,
+            )
+        ]
 
     def test_backfill_run_backwards(self):
         dag = self.dagbag.get_dag("test_start_date_scheduling")
