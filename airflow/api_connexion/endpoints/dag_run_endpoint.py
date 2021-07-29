@@ -244,21 +244,22 @@ def post_dag_run(dag_id, session):
         raise BadRequest(detail=str(err))
 
     execution_date = post_body["execution_date"]
+    run_id = post_body["run_id"]
     dagrun_instance = (
         session.query(DagRun)
         .filter(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == post_body["run_id"], DagRun.execution_date == execution_date),
+            or_(DagRun.run_id == run_id, DagRun.execution_date == execution_date),
         )
         .first()
     )
     if not dagrun_instance:
         dag_run = current_app.dag_bag.get_dag(dag_id).create_dagrun(
             run_type=DagRunType.MANUAL,
-            run_id=post_body["run_id"],
+            run_id=run_id,
             execution_date=execution_date,
             state=State.QUEUED,
-            conf=post_body["conf"],
+            conf=post_body.get("conf"),
             external_trigger=True,
             dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
         )
