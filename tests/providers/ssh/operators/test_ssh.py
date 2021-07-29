@@ -228,7 +228,7 @@ class TestSSHOperator(unittest.TestCase):
         assert task_4.cmd_timeout == CMD_TIMEOUT
         assert task_4.ssh_hook.conn_timeout == CONN_TIMEOUT
 
-        # if valid only timeout is provided, use for both conn_timeout and cmd_timeout
+        # if only timeout is provided, use for both conn_timeout and cmd_timeout
         task_5 = SSHOperator(
             task_id="test_5",
             ssh_conn_id=TEST_CONN_ID,

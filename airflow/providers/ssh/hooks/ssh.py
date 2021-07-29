@@ -34,6 +34,8 @@ try:
 except ImportError:
     from getpass import getuser
 
+TIMEOUT_DEFAULT = 10
+
 
 class SSHHook(BaseHook):
     """
@@ -56,10 +58,10 @@ class SSHHook(BaseHook):
     :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
-    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
-    :type timeout: int
     :param conn_timeout: timeout for the attempt to connect to the remote_host.
     :type conn_timeout: int
+    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
+    :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :type keepalive_interval: int
@@ -103,7 +105,7 @@ class SSHHook(BaseHook):
         password: Optional[str] = None,
         key_file: Optional[str] = None,
         port: Optional[int] = None,
-        timeout: Optional[int] = 10,
+        timeout: Optional[int] = None,
         conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
     ) -> None:
@@ -210,7 +212,7 @@ class SSHHook(BaseHook):
             )
 
         if self.conn_timeout is None:
-            self.conn_timeout = self.timeout
+            self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
 
         if self.pkey and self.key_file:
             raise AirflowException(
