@@ -258,15 +258,20 @@ function kind::check_cluster_ready_for_airflow() {
 
 function kind::build_image_for_kubernetes_tests() {
     cd "${AIRFLOW_SOURCES}" || exit 1
+    local image_tag="latest"
+    if [[ -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
+        image_tag="${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+    fi
+    echo "Building ${AIRFLOW_PROD_IMAGE_KUBERNETES}:latest from ${AIRFLOW_PROD_IMAGE}:${image_tag}"
     docker_v build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}:latest" . -f - <<EOF
-FROM ${AIRFLOW_PROD_IMAGE}
+FROM ${AIRFLOW_PROD_IMAGE}:${image_tag}
 
 COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
 COPY airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
 
 EOF
-    echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES}:latest is prepared for test kubernetes deployment."
+    echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES}:${image_tag} is prepared for test kubernetes deployment."
 }
 
 function kind::load_image_to_kind_cluster() {
