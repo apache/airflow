@@ -6,11 +6,11 @@
 {% block head_css %}
   {{ super() }}
   <link rel="stylesheet" type="text/css"
-        href="{{ url_for('static', filename='css/bootstrap3-extend.css') }}">
+        href="{{ url_for('static', filename='plugin/css/bootstrap3-extend.css') }}">
   <link rel="stylesheet" type="text/css"
-        href="{{ url_for('static', filename='css/curve.css') }}">
+        href="{{ url_for('static', filename='plugin/css/curve.css') }}">
   <link rel="stylesheet" type="text/css"
-        href="{{ url_for('static', filename='css/select2.min.css') }}">
+        href="{{ url_for('static', filename='plugin/css/select2.min.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -101,8 +101,8 @@
 
 {% block tail_js %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='js/echarts.min.js') }}" type="text/javascript"></script>
-  <script src="{{ url_for('static', filename='js/select2.min.js') }}" type="text/javascript"></script>
+  <script src="{{ url_for('static', filename='plugin/js/echarts.min.js') }}" type="text/javascript"></script>
+  <script src="{{ url_for('static', filename='plugin/js/select2.min.js') }}" type="text/javascript"></script>
   <script type="text/javascript">
     const result = JSON.parse('{{ result|tojson|safe }}');
     const showRange = JSON.parse('{{ show_range|tojson|safe }}');
