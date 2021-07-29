@@ -165,6 +165,7 @@ def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict
         current_modules = {str(i) for r in resource_data for i in r.get('python-modules', [])}
         check_if_objects_belongs_to_package(current_modules, provider_package, yaml_file_path, resource_type)
         try:
+            print("Expected {sensors, hooks, operators} modules(Left): Current {sensors, hooks, operators} Modules(Right)")
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), '  ')
@@ -201,6 +202,7 @@ def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
         current_modules = {r.get('python-module') for r in resource_data}
         check_if_objects_belongs_to_package(current_modules, provider_package, yaml_file_path, resource_type)
         try:
+            print("Expected transfers modules(Left): Current transfers Modules(Right)")
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), '  ')
@@ -309,7 +311,10 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
     }
 
     try:
+        print("Checking document urls: expected(left), current(right)")
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
+
+        print("Checking logo urls: expected(left), current(right)")
         assert_sets_equal(set(expected_logo_urls), set(current_logo_urls))
     except AssertionError as ex:
         print(ex)
