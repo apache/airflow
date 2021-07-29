@@ -228,7 +228,7 @@ class BackfillJob(BaseJob):
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == State.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti.key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
