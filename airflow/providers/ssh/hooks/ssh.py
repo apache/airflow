@@ -162,10 +162,10 @@ class SSHHook(BaseHook):
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                    self.timeout = int(extra_options.get('timeout', 10))
+                    self.timeout = int(extra_options['timeout'])
 
                 if "conn_timeout" in extra_options:
-                    self.conn_timeout = int(extra_options.get('conn_timeout'))
+                    self.conn_timeout = int(extra_options['conn_timeout'])
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
