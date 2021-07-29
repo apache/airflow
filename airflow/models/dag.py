@@ -2663,7 +2663,7 @@ class DagModel(Base):
         """
         next_dagrun_info = dag.next_dagrun_info(most_recent_dag_run)
         if next_dagrun_info is None:
-            self.next_data_interval = self.next_dagrun, self.next_dagrun_create_after = None
+            self.next_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
             self.next_data_interval = next_dagrun_info.data_interval
             self.next_dagrun = next_dagrun_info.schedule_date
