@@ -119,13 +119,13 @@ def assert_sets_equal(set1, set2):
 
     lines = []
     if difference1:
-        lines.append('Items in the first set but not the second:')
+        lines.append('    -- Items in the left set but not the right:')
         for item in sorted(difference1):
-            lines.append(repr(item))
+            lines.append('       ' + repr(item))
     if difference2:
-        lines.append('Items in the second set but not the first:')
+        lines.append('    -- Items in the right set but not the left:')
         for item in sorted(difference2):
-            lines.append(repr(item))
+            lines.append('       ' + repr(item))
 
     standard_msg = '\n'.join(lines)
     raise AssertionError(standard_msg)
@@ -155,6 +155,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 
 def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of {sensors, hooks, operators}")
+    print(" -- Expected {sensors, hooks, operators} modules(Left): Current {sensors, hooks, operators} Modules(Right)")
     for (yaml_file_path, provider_data), resource_type in product(
         yaml_files.items(), ["sensors", "operators", "hooks"]
     ):
@@ -165,7 +166,6 @@ def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict
         current_modules = {str(i) for r in resource_data for i in r.get('python-modules', [])}
         check_if_objects_belongs_to_package(current_modules, provider_package, yaml_file_path, resource_type)
         try:
-            print("Expected {sensors, hooks, operators} modules(Left): Current {sensors, hooks, operators} Modules(Right)")
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), '  ')
@@ -194,6 +194,8 @@ def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files
 def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of transfers")
     resource_type = 'transfers'
+
+    print(" -- Expected transfers modules(Left): Current transfers Modules(Right)")
     for yaml_file_path, provider_data in yaml_files.items():
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -202,7 +204,6 @@ def check_completeness_of_list_of_transfers(yaml_files: Dict[str, Dict]):
         current_modules = {r.get('python-module') for r in resource_data}
         check_if_objects_belongs_to_package(current_modules, provider_package, yaml_file_path, resource_type)
         try:
-            print("Expected transfers modules(Left): Current transfers Modules(Right)")
             assert_sets_equal(set(expected_modules), set(current_modules))
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), '  ')
@@ -311,10 +312,10 @@ def check_doc_files(yaml_files: Dict[str, Dict]):
     }
 
     try:
-        print("Checking document urls: expected(left), current(right)")
+        print(" -- Checking document urls: expected(left), current(right)")
         assert_sets_equal(set(expected_doc_urls), set(current_doc_urls))
 
-        print("Checking logo urls: expected(left), current(right)")
+        print(" -- Checking logo urls: expected(left), current(right)")
         assert_sets_equal(set(expected_logo_urls), set(current_logo_urls))
     except AssertionError as ex:
         print(ex)
