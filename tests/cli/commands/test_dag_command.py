@@ -412,8 +412,34 @@ class TestCliDags(unittest.TestCase):
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
-            self.parser.parse_args(['dags', 'trigger', 'example_bash_operator', '--conf', '{"foo": "bar"}'])
+            self.parser.parse_args(
+                [
+                    'dags',
+                    'trigger',
+                    'example_bash_operator',
+                    '--run-id=test_trigger_dag',
+                    '--exec-date=2021-06-04T09:00:00+08:00',
+                    '--conf={"foo": "bar"}',
+                ],
+            ),
         )
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag").one()
+
+        assert dagrun, "DagRun not created"
+        assert dagrun.run_type == DagRunType.MANUAL
+        assert dagrun.external_trigger
+        assert dagrun.conf == {"foo": "bar"}
+
+        # Coerced to UTC.
+        assert dagrun.execution_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
+
+        # example_bash_operator runs every day at midnight, so the data interval
+        # should be aligned to the previous day.
+        assert dagrun.data_interval_start.isoformat(timespec="seconds") == "2021-06-03T00:00:00+00:00"
+        assert dagrun.data_interval_end.isoformat(timespec="seconds") == "2021-06-04T00:00:00+00:00"
+
+    def test_trigger_dag_invalid_conf(self):
         with pytest.raises(ValueError):
             dag_command.dag_trigger(
                 self.parser.parse_args(
