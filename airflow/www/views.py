@@ -1610,8 +1610,7 @@ class Airflow(AirflowBaseView):
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
-            data_interval=dag.timetable.infer_data_interval(execution_date),
-            state=State.RUNNING,
+            state=State.QUEUED,
             conf=run_conf,
             external_trigger=True,
             dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
