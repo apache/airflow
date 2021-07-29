@@ -200,23 +200,6 @@ def get_curve(entity_id):
     return st.query_curve()
 
 
-@provide_session
-def get_task_instances_by_entity_ids(entity_ids, session=None):
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.entity_id.in_(entity_ids),
-        TaskInstance.task_id == 'trigger_anay_task'
-    ).all()
-    return tis
-
-
-@provide_session
-def get_task_instance_by_entity_id(entity_id, session=None):
-    ti = session.query(TaskInstance).filter(
-        TaskInstance.entity_id == entity_id
-    ).first()
-    return ti
-
-
 def should_trigger_training(result, final_state, analysis_mode, train_mode):
     ENV_TRIGGER_TRAINING_MODE = os.environ.get('TRIGGER_TRAINING_MODE', 'ANALYSIS_ERROR')
     # ANALYSIS_ERROR, ALWAYS, DIFFERENT_MODE

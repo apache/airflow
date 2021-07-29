@@ -87,8 +87,6 @@ from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MA
 import logging
 import os
 
-from plugins.utils import get_task_instance_by_entity_id
-
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
 _logger = logging.getLogger(__name__)
