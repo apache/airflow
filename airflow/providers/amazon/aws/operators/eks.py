@@ -21,7 +21,12 @@ from time import sleep
 from typing import Dict, List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import DEFAULT_CONTEXT_NAME, DEFAULT_POD_USERNAME, EKSHook
+from airflow.providers.amazon.aws.hooks.eks import (
+    DEFAULT_CONTEXT_NAME,
+    DEFAULT_POD_USERNAME,
+    ClusterStates,
+    EKSHook,
+)
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 CHECK_INTERVAL_SECONDS = 15
@@ -132,7 +137,7 @@ class EKSCreateClusterOperator(BaseOperator):
         self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
 
         countdown = TIMEOUT_SECONDS
-        while eks_hook.get_cluster_state(clusterName=self.cluster_name) != "ACTIVE":
+        while eks_hook.get_cluster_state(clusterName=self.cluster_name) != ClusterStates.ACTIVE:
             if countdown >= CHECK_INTERVAL_SECONDS:
                 countdown -= CHECK_INTERVAL_SECONDS
                 self.log.info(

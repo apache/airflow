@@ -21,10 +21,12 @@ import json
 import re
 import tempfile
 from contextlib import contextmanager
+from enum import Enum
 from functools import partial
 from typing import Callable, Dict, List, Optional
 
 import yaml
+from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -34,6 +36,30 @@ DEFAULT_CONTEXT_NAME = 'aws'
 DEFAULT_PAGINATION_TOKEN = ''
 DEFAULT_POD_USERNAME = 'aws'
 STS_TOKEN_EXPIRES_IN = 60
+
+
+class ClusterStates(Enum):
+    """Contains the possible State values of an EKS Cluster."""
+
+    CREATING = "CREATING"
+    ACTIVE = "ACTIVE"
+    DELETING = "DELETING"
+    FAILED = "FAILED"
+    UPDATING = "UPDATING"
+    NONEXISTENT = "NONEXISTENT"
+
+
+class NodegroupStates(Enum):
+    """Contains the possible State values of an EKS Managed Nodegroup."""
+
+    CREATING = "CREATING"
+    ACTIVE = "ACTIVE"
+    UPDATING = "UPDATING"
+    DELETING = "DELETING"
+    CREATE_FAILED = "CREATE_FAILED"
+    DELETE_FAILED = "DELETE_FAILED"
+    DEGRADED = "DEGRADED"
+    NONEXISTENT = "NONEXISTENT"
 
 
 class EKSHook(AwsBaseHook):
@@ -212,7 +238,7 @@ class EKSHook(AwsBaseHook):
             self.log.info("Nodegroup Details: %s", json.dumps(nodegroup_data, cls=AirflowJsonEncoder))
         return response
 
-    def get_cluster_state(self, clusterName: str) -> str:
+    def get_cluster_state(self, clusterName: str) -> ClusterStates:
         """
         Returns the current status of a given Amazon EKS Cluster.
 
@@ -220,13 +246,17 @@ class EKSHook(AwsBaseHook):
         :type clusterName: str
 
         :return: Returns the current status of a given Amazon EKS Cluster.
-        :rtype: str
+        :rtype: ClusterStates
         """
         eks_client = self.conn
 
-        return eks_client.describe_cluster(name=clusterName).get('cluster').get('status')
+        try:
+            return ClusterStates(eks_client.describe_cluster(name=clusterName).get('cluster').get('status'))
+        except ClientError as ex:
+            if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
+                return ClusterStates.NONEXISTENT
 
-    def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> str:
+    def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
         Returns the current status of a given Amazon EKS Nodegroup.
 
@@ -236,15 +266,19 @@ class EKSHook(AwsBaseHook):
         :type nodegroupName: str
 
         :return: Returns the current status of a given Amazon EKS Nodegroup.
-        :rtype: str
+        :rtype: NodegroupStates
         """
         eks_client = self.conn
 
-        return (
-            eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
-            .get('nodegroup')
-            .get('status')
-        )
+        try:
+            return NodegroupStates(
+                eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
+                .get('nodegroup')
+                .get('status')
+            )
+        except ClientError as ex:
+            if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
+                return NodegroupStates.NONEXISTENT
 
     def list_clusters(
         self,

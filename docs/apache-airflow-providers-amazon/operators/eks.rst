@@ -51,7 +51,7 @@ Note: An AWS IAM role with the following permissions is required:
   ``eks.amazonaws.com`` must be added to the Trusted Relationships
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_cluster.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
     :start-after: [START howto_operator_eks_create_cluster]
     :end-before: [END howto_operator_eks_create_cluster]
@@ -64,12 +64,19 @@ Delete an Amazon EKS Cluster
 To delete an existing Amazon EKS Cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EKSDeleteClusterOperator`.
 
-Note: If the cluster has any attached nodegroups, those will be deleted as well.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_cluster.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
     :start-after: [START howto_operator_eks_delete_cluster]
     :end-before: [END howto_operator_eks_delete_cluster]
+
+Note: If the cluster has any attached resources, such as a nodegroup, the cluster can not be deleted.
+Using the ``force`` parameter will attempt to delete any attached resources first.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_using_defaults.py
+    :language: python
+    :start-after: [START howto_operator_eks_force_delete_cluster]
+    :end-before: [END howto_operator_eks_force_delete_cluster]
+
 
 Manage Amazon EKS Managed Nodegroups
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -87,7 +94,7 @@ Note:  An AWS IAM role with the following permissions is required:
   ``AmazonEC2ContainerRegistryReadOnly`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_nodegroup.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
     :start-after: [START howto_operator_eks_create_nodegroup]
     :end-before: [END howto_operator_eks_create_nodegroup]
@@ -100,7 +107,7 @@ Delete an Amazon EKS Managed Nodegroup
 To delete an existing Amazon EKS Managed Nodegroup you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EKSDeleteNodegroupOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_nodegroup.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
     :start-after: [START howto_operator_eks_delete_nodegroup]
     :end-before: [END howto_operator_eks_delete_nodegroup]
@@ -119,10 +126,10 @@ Note: An AWS IAM role with the following permissions is required:
   ``AmazonEKSClusterPolicy`` IAM Policy must be attached
   ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_create_cluster_with_nodegroup.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_using_defaults.py
     :language: python
-    :start-after: [START howto_operator_eks_create_cluster_with_compute]
-    :end-before: [END howto_operator_eks_create_cluster_with_compute]
+    :start-after: [START howto_operator_eks_create_cluster_with_nodegroup]
+    :end-before: [END howto_operator_eks_create_cluster_with_nodegroup]
 
 .. _howto/operator:EKSPodOperator:
 
@@ -134,7 +141,7 @@ To run a pod on an existing Amazon EKS Cluster, you can use
 
 Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_pod_operation.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
     :start-after: [START howto_operator_eks_pod_operator]
     :end-before: [END howto_operator_eks_pod_operator]

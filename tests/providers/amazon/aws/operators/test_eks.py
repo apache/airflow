@@ -18,7 +18,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.eks import EKSHook
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook
 from airflow.providers.amazon.aws.operators.eks import (
     EKSCreateClusterOperator,
     EKSCreateNodegroupOperator,
@@ -29,7 +29,6 @@ from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
     RESOURCES_VPC_CONFIG,
     ROLE_ARN,
-    STATUS,
     SUBNET_IDS,
     TASK_ID,
 )
@@ -94,8 +93,7 @@ class TestEKSCreateClusterOperator(unittest.TestCase):
     def test_execute_when_called_with_nodegroup_creates_both(
         self, mock_create_nodegroup, mock_create_cluster, mock_cluster_state
     ):
-        _, status = STATUS
-        mock_cluster_state.return_value = status
+        mock_cluster_state.return_value = ClusterStates.ACTIVE
 
         self.create_cluster_operator_with_nodegroup.execute({})
 

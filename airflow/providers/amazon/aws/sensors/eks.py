@@ -16,14 +16,12 @@
 # under the License.
 #
 """Tracking the state of EKS Clusters and Nodegroups."""
-
 from typing import Optional
 
-from airflow.providers.amazon.aws.hooks.eks import EKSHook
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook, NodegroupStates
 from airflow.sensors.base import BaseSensorOperator
 
 DEFAULT_CONN_ID = "aws_default"
-TARGET_STATE = 'ACTIVE'
 
 
 class EKSClusterStateSensor(BaseSensorOperator):
@@ -33,27 +31,28 @@ class EKSClusterStateSensor(BaseSensorOperator):
     :param cluster_name: The name of the Cluster to watch.
     :type cluster_name: str
     :param target_state: Target state of the Cluster.
-    :type target_state: str
+    :type target_state: ClusterStates
     """
 
-    template_fields = ("target_state", "cluster_name", "aws_conn_id", "region")
+    template_fields = ("cluster_name", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
-    valid_states = ["CREATING", "ACTIVE", "DELETING", "FAILED", "UPDATING"]
 
     def __init__(
         self,
         *,
         cluster_name: str,
-        target_state: Optional[str] = TARGET_STATE,
+        target_state: ClusterStates = ClusterStates.ACTIVE,
         aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ):
-        if target_state not in self.valid_states:
-            raise ValueError(f"Invalid target_state: {target_state}")
         super().__init__(**kwargs)
-        self.target_state = target_state.upper()
+        self.target_state = (
+            target_state
+            if isinstance(target_state, ClusterStates)
+            else ClusterStates(str(target_state).upper())
+        )
         self.cluster_name = cluster_name
         self.aws_conn_id = aws_conn_id
         self.region = region
@@ -78,36 +77,29 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
     :param nodegroup_name: The name of the Nodegroup to watch.
     :type nodegroup_name: str
     :param target_state: Target state of the Nodegroup.
-    :type target_state: str
+    :type target_state: NodegroupStates
     """
 
-    template_fields = ("target_state", "cluster_name", "nodegroup_name", "aws_conn_id", "region")
+    template_fields = ("cluster_name", "nodegroup_name", "aws_conn_id", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
-    valid_states = [
-        "CREATING",
-        "ACTIVE",
-        "UPDATING",
-        "DELETING",
-        "CREATE_FAILED",
-        "DELETE_FAILED",
-        "DEGRADED",
-    ]
 
     def __init__(
         self,
         *,
         cluster_name: str,
         nodegroup_name: str,
-        target_state: Optional[str] = TARGET_STATE,
+        target_state: NodegroupStates = NodegroupStates.ACTIVE,
         aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ):
-        if target_state.upper() not in self.valid_states:
-            raise ValueError(f"Invalid target_state: {target_state}")
         super().__init__(**kwargs)
-        self.target_state = target_state.upper()
+        self.target_state = (
+            target_state
+            if isinstance(target_state, NodegroupStates)
+            else NodegroupStates(str(target_state).upper())
+        )
         self.cluster_name = cluster_name
         self.nodegroup_name = nodegroup_name
         self.aws_conn_id = aws_conn_id
