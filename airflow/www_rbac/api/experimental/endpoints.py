@@ -151,9 +151,6 @@ def put_anaylysis_result():
             'analysis_result',
             result,
             entity_id,
-            None, #fixme: execution_date
-            None, #fixme: task_id
-            None, #fixme: dag_id
             extra['verify_error'],
             curve_mode
         )
