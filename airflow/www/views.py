@@ -1026,12 +1026,22 @@ class Airflow(AirflowBaseView):
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
 
             if isinstance(content, dict):
-                for dict_keys in get_key_paths(content):
-                    template_path = '.'.join((template_field, dict_keys))
-                    renderer = task.template_fields_renderers.get(template_path, template_path)
-                    if renderer in renderers:
-                        content_value = get_value_from_path(dict_keys, content)
-                        html_dict[template_path] = renderers[renderer](content_value)
+                if template_field == 'op_kwargs':
+                    for key, value in content.items():
+                        renderer = task.template_fields_renderers.get(key, key)
+                        if renderer in renderers:
+                            html_dict['.'.join([template_field, key])] = renderers[renderer](value)
+                        else:
+                            html_dict['.'.join([template_field, key])] = Markup(
+                                "<pre><code>{}</pre></code>"
+                            ).format(pformat(value))
+                else:
+                    for dict_keys in get_key_paths(content):
+                        template_path = '.'.join((template_field, dict_keys))
+                        renderer = task.template_fields_renderers.get(template_path, template_path)
+                        if renderer in renderers:
+                            content_value = get_value_from_path(dict_keys, content)
+                            html_dict[template_path] = renderers[renderer](content_value)
 
         return self.render_template(
             'airflow/ti_code.html',
