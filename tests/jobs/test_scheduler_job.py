@@ -2465,6 +2465,7 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.quarantined
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried

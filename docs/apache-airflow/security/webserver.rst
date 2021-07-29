@@ -90,7 +90,7 @@ Other Methods
 '''''''''''''
 
 Since the Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
-it's automatically generated and can be used to configure the Airflow to support authentication
+is automatically generated and can be used to configure the Airflow to support authentication
 methods like OAuth, OpenID, LDAP, REMOTE_USER.
 
 For previous versions from Airflow, the ``$AIRFLOW_HOME/airflow.cfg`` following entry needs to be set to enable
@@ -107,7 +107,7 @@ with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
 
     AUTH_TYPE = AUTH_DB
 
-Another way to create users it's in the UI login page, allowing user self registration through a "Register" button.
+Another way to create users is in the UI login page, allowing user self registration through a "Register" button.
 The following entries in the ``$AIRFLOW_HOME/webserver_config.py`` can be edited to make it possible:
 
 .. code-block:: ini
