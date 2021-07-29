@@ -156,7 +156,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 def check_completeness_of_list_of_hooks_sensors_hooks(yaml_files: Dict[str, Dict]):
     print("Checking completeness of list of {sensors, hooks, operators}")
     print(
-        " -- Expected {sensors, hooks, operators} modules(Left): Current {sensors, hooks, operators} Modules(Right)"
+        " -- {sensors, hooks, operators} - Expected modules(Left): Current Modules(Right)"
     )
     for (yaml_file_path, provider_data), resource_type in product(
         yaml_files.items(), ["sensors", "operators", "hooks"]
