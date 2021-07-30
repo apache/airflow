@@ -193,7 +193,7 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the images bu running
+   Make sure you build the images by running:
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
 
