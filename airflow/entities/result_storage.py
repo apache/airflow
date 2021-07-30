@@ -1,11 +1,10 @@
 # -*- coding:utf-8 -*-
+import datetime
 import os
 import json
 import threading
 from typing import Dict, Optional
-from dateutil.parser import parse
 from distutils.util import strtobool
-from sqlalchemy.engine.base import Engine
 from sqlalchemy import text
 from airflow.utils.db import create_session
 from airflow.utils.logger import generate_logger
@@ -43,7 +42,8 @@ class ClsResultStorage(ClsEntity):
             if not ENV_TIMESCALE_ENABLE:
                 return
             with self.engine.connect().execution_options(autocommit=True) as conn:
-                conn.execute(text(f'''SELECT create_hypertable('{ResultModel.__tablename__}', 'update_time','tool_sn', 4, chunk_time_interval => INTERVAL '1 month', migrate_data => TRUE);'''))
+                conn.execute(text(
+                    f'''SELECT create_hypertable('{ResultModel.__tablename__}', 'update_time','tool_sn', 4, chunk_time_interval => INTERVAL '1 month', migrate_data => TRUE);'''))
 
     def _write(self, data: Optional[Dict]):
         try:
@@ -84,7 +84,15 @@ class ClsResultStorage(ClsEntity):
             step_results = data.get("step_results")
             if step_results and (isinstance(step_results, list) or isinstance(step_results, dict)):
                 step_results = json.dumps(step_results, ensure_ascii=False)
-            result_body.update({"entity_id": entity_id, "step_results": step_results})
+            update_time = data.get("update_time")
+            if update_time and isinstance(update_time, str):
+                update_time = update_time.replace('Z', '+00:00')
+                update_time = datetime.datetime.fromisoformat(update_time)
+            result_body.update({
+                "entity_id": entity_id,
+                "step_results": step_results,
+                "update_time": update_time
+            })
             return self._write(result_body)
         except Exception as err:
             raise Exception(u"写入结果失败: {}, result: {}".format(repr(err), repr(data)))
