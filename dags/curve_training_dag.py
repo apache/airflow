@@ -1,3 +1,5 @@
+import json
+
 from airflow.utils.logger import generate_logger
 import os
 from airflow.models import DAG, DagRun
@@ -136,7 +138,7 @@ def trigger_training_task(task_instance, **kwargs):
         _logger.info('training skipped, saving error tag')
 
     from airflow.hooks.result_storage_plugin import ResultStorageHook
-    ResultStorageHook.save_final_state(entity_id, final_state, error_tag=error_tags)
+    ResultStorageHook.save_final_state(entity_id, final_state, error_tag=json.dumps(error_tags))
     _logger.info('publishing result')
     trigger_push_result_to_mq(
         'final_result',
