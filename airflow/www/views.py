@@ -992,15 +992,20 @@ class Airflow(AirflowBaseView):
 
         for template_field in task.template_fields:
             content = getattr(task, template_field)
-            renderer = task.template_fields_renderers.get(template_field, template_field)
-            if renderer in renderers:
-                if isinstance(content, (dict, list)):
-                    for key, value in flatten_iterable(content).items():
-                        html_dict['.'.join([template_field, key])] = renderers[renderer](value)
-                else:
-                    html_dict[template_field] = renderers[renderer](content)
+
+            if isinstance(content, (dict, list)) and content:
+                template_fields_expanded = flatten_iterable(template_field, content)
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
+                template_fields_expanded = {template_field: content}
+
+            for template_field_exp, content_exp in template_fields_expanded.items():
+                renderer = task.template_fields_renderers.get(template_field_exp, template_field)
+                if renderer in renderers:
+                    html_dict[template_field_exp] = renderers[renderer](content_exp)
+                else:
+                    html_dict[template_field_exp] = Markup("<pre><code>{}</pre></code>").format(
+                        pformat(content_exp)
+                    )
 
         return self.render_template(
             'airflow/ti_code.html',

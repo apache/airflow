@@ -159,7 +159,7 @@ def test_rendered_template_view_dict(admin_client, task3):
 def test_rendered_template_view_list(admin_client, task4):
     """
     Test that the Rendered View contains the values from RenderedTaskInstanceFields
-    List should be expanded with list index as the key e.g. bash_command.0
+    List should be expanded with list index as the key e.g. bash_command[0]
     """
     assert task4.bash_command == ['{{ task_instance_key_str }}', ['{{ task_instance_key_str }}']]
     ti = TaskInstance(task4, DEFAULT_DATE)
@@ -171,7 +171,7 @@ def test_rendered_template_view_list(admin_client, task4):
 
     resp = admin_client.get(url, follow_redirects=True)
     print(resp)
-    check_content_in_response(["testdag__task4__20200301", "bash_command.0", "bash_command.1.0"], resp)
+    check_content_in_response(["testdag__task4__20200301", "bash_command[0]", "bash_command[1][0]"], resp)
 
 
 @pytest.mark.usefixtures("patch_app")
@@ -193,7 +193,7 @@ def test_rendered_template_view_mixed(admin_client, task5):
     resp = admin_client.get(url, follow_redirects=True)
     print(resp)
     check_content_in_response(
-        ["testdag__task5__20200301", "bash_command.item1", "bash_command.item2.0"], resp
+        ["testdag__task5__20200301", "bash_command.item1", "bash_command.item2[0]"], resp
     )
 
 

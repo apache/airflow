@@ -233,54 +233,21 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     return f"{url}?{parse.urlencode(query)}"
 
 
-def flatten_iterable(enum: Union[dict, list]) -> dict:
+def flatten_iterable(name: str, iterable: Union[dict, list]) -> dict:
     """
     Flatten a dict or list to a single level dictionary where keys are either dict-keys or list-indices
-    (seperated by . in nested dicts/lists)
-    Single level List:
-    ['a', 'b' 'c'] to {'0' : 'a', '1' : 'b', '2' : 'c'}
-    Multi Level List:
-    ['a', 'b', ['c', 'd']] to {'0' : 'a', '1' : 'b', '2.0' : 'c', '2.1' : 'd'}
-    Single Level Dict (unchanged):
-    {
-        'item1' : 'value1',
-        'item2' : 'value2'
-    } >
-    {
-        'item1' : 'value1',
-        'item2' : 'value2'
-    }
-    Multi Level Dict:
-    {
-        'item1' : 'value1',
-        'subdict1' : {
-                        'subkey1' : 'subvalue1'
-                    }
-    } >
-    {
-            'item1' : 'value1',
-            'subdict1.subkey1' : 'subvalue1'
-    }
-    Mixed Dict and List:
-    {
-        'item1' : 'value1',
-        'sublist1' : ['subvalue1']
-    } >
-    {
-        'item1' : 'value1',
-        'sublist.0' : 'subvalue1'
-    }
+    (seperated by . or identified by [index])
     """
 
-    def expand_items():
-        for key, value in enum.items():
-            if isinstance(value, (dict, list)):
-                for subkey, subvalue in flatten_iterable(value).items():
-                    yield ".".join([str(key), str(subkey)]), subvalue
-            else:
-                yield str(key), value
+    def expand_items(key, value):
 
-    if isinstance(enum, list):
-        enum = {v: k for v, k in enumerate(enum)}
+        if isinstance(value, list):
+            for subkey, subvalue in enumerate(value):
+                yield from expand_items("".join([str(key), f'[{str(subkey)}]']), subvalue)
+        elif isinstance(value, dict):
+            for subkey, subvalue in value.items():
+                yield from expand_items(".".join([str(key), str(subkey)]), subvalue)
+        else:
+            yield key, value
 
-    return dict(expand_items())
+    return dict(expand_items(name, iterable))
