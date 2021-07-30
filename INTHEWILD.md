@@ -24,6 +24,7 @@ the platform. Please send a PR with your company name and @githubhandle.
 
 Currently, **officially** using Airflow:
 
+1. [2RP Net](https://www.2rpnet.com.br/en)
 1. [4G Capital](http://www.4g-capital.com/) [[@posei](https://github.com/posei)]
 1. [6play](https://www.6play.fr) [[@lemourA](https://github.com/lemoura), [@achaussende](https://github.com/achaussende), [@d-nguyen](https://github.com/d-nguyen), [@julien-gm](https://github.com/julien-gm)]
 1. [8fit](https://8fit.com/) [[@nicor88](https://github.com/nicor88), [@frnzska](https://github.com/frnzska)]
