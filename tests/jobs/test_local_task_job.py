@@ -522,11 +522,12 @@ class TestLocalTaskJob:
         def success_callback(context):
             with shared_mem_lock:
                 success_callback_called.value += 1
+
             assert context['dag_run'].dag_id == 'test_mark_success'
 
         def task_function(ti):
-
             time.sleep(60)
+
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
                 task_terminated_externally.value = 0
@@ -558,7 +559,7 @@ class TestLocalTaskJob:
         ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
-
+        ti.refresh_from_db()
         process.join()
         assert success_callback_called.value == 1
         assert task_terminated_externally.value == 1
