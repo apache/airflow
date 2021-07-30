@@ -161,26 +161,26 @@ class SlackAPIFileOperator(SlackAPIOperator):
 
     .. code-block:: python
 
-       # Send file with filename and filetype
-       slack = SlackAPIFileOperator(
-          task_id="slack_file_upload",
-          dag=dag,
-          slack_conn_id="slack",
-          channel="#general",
-          initial_comment="Hello World!",
-          filename="hello_world.csv",
-          filetype="csv"
-       )
+        # Send file with filename and filetype
+        slack = SlackAPIFileOperator(
+            task_id="slack_file_upload",
+            dag=dag,
+            slack_conn_id="slack",
+            channel="#general",
+            initial_comment="Hello World!",
+            filename="hello_world.csv",
+            filetype="csv"
+        )
 
-       # Send file content
-       slack = SlackAPIFileOperator(
-          task_id="slack_file_upload",
-          dag=dag,
-          slack_conn_id="slack",
-          channel="#general",
-          initial_comment="Hello World!",
-          content="file content in txt",
-       )
+        # Send file content
+        slack = SlackAPIFileOperator(
+            task_id="slack_file_upload",
+            dag=dag,
+            slack_conn_id="slack",
+            channel="#general",
+            initial_comment="Hello World!",
+            content="file content in txt",
+        )
 
     :param channel: channel in which to sent file on slack name (templated)
     :type channel: str
