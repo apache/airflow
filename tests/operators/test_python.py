@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 import copy
 import logging
+import os
 import sys
 import unittest.mock
 from collections import namedtuple
@@ -44,8 +44,8 @@ from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_runs
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -59,9 +59,7 @@ TI_CONTEXT_ENV_VARS = [
     'AIRFLOW_CTX_DAG_RUN_ID',
 ]
 
-TEMPLATE_SEARCHPATH = os.path.join(
-    AIRFLOW_MAIN_FOLDER, 'tests', 'config_templates'
-)
+TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, 'tests', 'config_templates')
 
 
 class Call:
@@ -841,15 +839,14 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_templated_requirements_file(self):
         def f():
             import pkg_resources
-            assert(pkg_resources.get_distribution('funcsigs').version == '1.0.2')
+
+            assert pkg_resources.get_distribution('funcsigs').version == '1.0.2'
 
         self._run_as_operator(
             f,
             requirements='requirements.txt',
-            params={
-                'environ': 'templated_unit_test'
-            },
-            system_site_packages=False
+            params={'environ': 'templated_unit_test'},
+            system_site_packages=False,
         )
 
     def test_fail(self):
