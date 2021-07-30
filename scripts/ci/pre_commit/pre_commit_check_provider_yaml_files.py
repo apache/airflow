@@ -125,7 +125,7 @@ def assert_sets_equal(set1, set2):
     if difference2:
         lines.append('    -- Items in the right set but not the left:')
         for item in sorted(difference2):
-            lines.append('       ' + repr(item))
+            lines.append(f'       {item!r}')
 
     standard_msg = '\n'.join(lines)
     raise AssertionError(standard_msg)
