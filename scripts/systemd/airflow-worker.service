@@ -27,6 +27,7 @@ User=airflow
 Group=airflow
 Type=simple
 ExecStart=/bin/airflow celery worker
+ExecStop=/bin/airflow celery stop
 Restart=on-failure
 RestartSec=10s
 
