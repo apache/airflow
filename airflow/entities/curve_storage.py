@@ -123,6 +123,8 @@ class ClsCurveStorage(ClsEntity):
         if not curve:
             raise Exception(u"未传入曲线!")
         try:
+            if not self._client:
+                raise Exception(u'OSS客户端未创建!!!')
             self.ensure_bucket(self._bucket)
             data = self.convertCSVData(curve)
             f = io.BytesIO(data)  # 必须转换成rawIO数据

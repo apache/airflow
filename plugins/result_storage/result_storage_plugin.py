@@ -5,6 +5,7 @@ from airflow.plugins_manager import AirflowPlugin
 from typing import Dict
 from plugins.utils import get_result_args, get_curve_args
 import os
+from pprint import pformat
 from airflow.models.dagrun import DagRun
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.entities.result_storage import ClsResultStorage
@@ -20,29 +21,29 @@ class ResultStorageHook(BaseHook, ABC):
 
     @staticmethod
     def do_push_to_storage(params: Dict):
-        _logger.debug('start pushing result & curve...')
-        curve_args = get_curve_args()
-        if MINIO_ROOT_URL:
-            curve_args.update({'endpoint': MINIO_ROOT_URL})
-        ct = ClsCurveStorage(**curve_args)
-        ct.metadata = params  # 必须在设置curvefile前赋值
+        _logger.info('start pushing result & curve...')
         result_args = get_result_args()
         st = ClsResultStorage(**result_args)
         st.metadata = params
-        params.update({'curveFile': ct.ObjectName})
         if not st:
             raise Exception('result storage not ready!')
-        _logger.debug('pushing result...')
         st.write_result(params)
+        _logger.info('pushing result success!!!')
+        curve_args = get_curve_args()
+        if MINIO_ROOT_URL:
+            _logger.debug(f'override OSS URL： {MINIO_ROOT_URL}')
+            curve_args.update({'endpoint': MINIO_ROOT_URL})
+        ct = ClsCurveStorage(**curve_args)
+        params.update({'curveFile': ct.ObjectName})
+        ct.metadata = params  # 必须在设置curvefile前赋值
         if not ct:
             raise Exception('curve storage not ready!')
-        _logger.debug('pushing curve...')
         try:
+            _logger.debug(f'write curve params： {pformat(params, indent=4)}')
             ct.write_curve(params)
+            _logger.info('pushing curve success')
         except Exception as e:
-            _logger.info('writing curve error')
-            _logger.info(repr(e))
-            _logger.info(repr(params))
+            _logger.error(f'writing curve error: {repr(e)}')
             raise e
 
     @staticmethod
