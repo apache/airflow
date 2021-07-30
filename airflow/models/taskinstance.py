@@ -1844,10 +1844,10 @@ class TaskInstance(Base, LoggingMixin):
 
         def get_prev_execution_date():
             if dag_run.external_trigger:
-                dt = self.execution_date
-            else:
-                dt = task.dag.previous_schedule(self.execution_date)
-            return timezone.coerce_datetime(dt)
+                return timezone.coerce_datetime(self.execution_date)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return task.dag.previous_schedule(self.execution_date)
 
         def get_prev_ds() -> Optional[str]:
             execution_date = get_prev_execution_date()

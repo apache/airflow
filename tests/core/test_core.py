@@ -295,6 +295,25 @@ class TestCore:
         assert context['data_interval_start'].isoformat() == '2015-01-01T00:00:00+00:00'
         assert context['data_interval_end'].isoformat() == '2015-01-02T00:00:00+00:00'
 
+        # Test deprecated fields.
+        expected_deprecated_fields = [
+            ("prev_ds", "2014-12-31"),
+            ("prev_ds_nodash", "20141231"),
+            ("yesterday_ds", "2014-12-31"),
+            ("yesterday_ds_nodash", "20141231"),
+            ("tomorrow_ds", "2015-01-02"),
+            ("tomorrow_ds_nodash", "20150102"),
+        ]
+        for key, expected_value in expected_deprecated_fields:
+            message = (
+                f"Accessing {key!r} from the template is deprecated and "
+                f"will be removed in a future version."
+            )
+            with pytest.deprecated_call() as recorder:
+                value = str(context[key])  # Simulate template evaluation to trigger warning.
+            assert value == expected_value
+            assert [str(m.message) for m in recorder] == [message]
+
     def test_local_task_job(self):
         TI = TaskInstance
         ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
