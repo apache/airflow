@@ -54,6 +54,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
+from airflow.providers.google.cloud.hooks.gcs import _normalize_directory_path
 
 
 class TransferJobPreprocessor:
@@ -849,7 +850,7 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
-        self.gcs_path = gcs_path
+        self.gcs_path = _normalize_directory_path(gcs_path)
         self.project_id = project_id
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -867,10 +868,6 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
             raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
-        if self.gcs_path and not self.gcs_path.endswith("/"):
-            raise AirflowException(
-                "The destination Google Cloud Storage path must end with a slash '/' or be empty."
-            )
 
     def execute(self, context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -1027,7 +1024,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
-        self.destination_path = destination_path
+        self.destination_path = _normalize_directory_path(destination_path)
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -1044,10 +1041,6 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     def _validate_inputs(self) -> None:
         if self.delete_job_after_completion and not self.wait:
             raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
-        if self.destination_path and not self.destination_path.endswith("/"):
-            raise AirflowException(
-                "The destination Google Cloud Storage path must end with a slash '/' or be empty."
-            )
 
     def execute(self, context) -> None:
         hook = CloudDataTransferServiceHook(
