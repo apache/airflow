@@ -2508,8 +2508,10 @@ class DagModel(Base):
         if self.next_dagrun_data_interval_start is None:
             if self.next_dagrun_data_interval_end is not None:
                 raise AirflowException(
-                    "Inconsistent DagModel: next_dagrun_data_interval_start and "
-                    "next_dagrun_data_interval_end must be either both None or both datetime"
+                    f"Inconsistent DagModel: "
+                    f"next_dagrun_data_interval_start={self.next_dagrun_data_interval_start!r}, "
+                    f"next_dagrun_data_interval_end={self.next_dagrun_data_interval_end!r}; "
+                    f"they must be either both None or both datetime"
                 )
             return None
         return (self.next_dagrun_data_interval_start, self.next_dagrun_data_interval_end)
