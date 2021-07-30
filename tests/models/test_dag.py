@@ -2065,11 +2065,7 @@ def test_set_task_instance_state():
 )
 def test_iter_dagrun_infos_between(start_date, expected_infos):
     dag = DAG(dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly")
-    DummyOperator(
-        task_id='dummy',
-        dag=dag,
-        owner='airflow',
-    )
+    DummyOperator(task_id='dummy', dag=dag)
 
     iterator = dag.iter_dagrun_infos_between(
         earliest=pendulum.instance(start_date),
