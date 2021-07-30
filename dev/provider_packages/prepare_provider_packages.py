@@ -1697,6 +1697,7 @@ def replace_content(file_path, old_text, new_text, provider_package_id):
 AUTOMATICALLY_GENERATED_MARKER = "AUTOMATICALLY GENERATED"
 AUTOMATICALLY_GENERATED_CONTENT = f".. THE REMAINDER OF THE FILE IS {AUTOMATICALLY_GENERATED_MARKER}. IT WILL BE OVERWRITTEN AT RELEASE TIME!"
 
+
 def update_index_rst(
     context,
     provider_package_id,
