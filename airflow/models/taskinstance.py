@@ -1837,7 +1837,7 @@ class TaskInstance(Base, LoggingMixin):
             return lazy_object_proxy.Proxy(deprecated_func)
 
         def get_previous_schedule_date() -> Optional[pendulum.DateTime]:
-            ti = self.get_previous_ti(None)
+            ti = self.get_previous_ti(session=session)
             if ti is None:
                 return None
             return timezone.coerce_datetime(ti.execution_date)
