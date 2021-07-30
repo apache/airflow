@@ -1831,36 +1831,30 @@
       default: "True"
     - name: max_dagruns_to_create_per_loop
       description: |
-        Max number of DAGs to create DagRuns for per scheduler loop
-
-        Default: 10
+        Max number of DAGs to create DagRuns for per scheduler loop.
       example: ~
       version_added: 2.0.0
       type: string
-      default: ~
+      default: "10"
       see_also: ":ref:`scheduler:ha:tunables`"
     - name: max_dagruns_per_loop_to_schedule
       description: |
         How many DagRuns should a scheduler examine (and lock) when scheduling
         and queuing tasks.
-
-        Default: 20
       example: ~
       version_added: 2.0.0
       type: string
-      default: ~
+      default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
     - name: schedule_after_task_execution
       description: |
         Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of the
         same DAG. Leaving this on will mean tasks in the same DAG execute quicker, but might starve out other
         dags in some circumstances
-
-        Default: True
       example: ~
       version_added: 2.0.0
       type: boolean
-      default: ~
+      default: "True"
     - name: parsing_processes
       description: |
         The scheduler can run multiple processes in parallel to parse dags.

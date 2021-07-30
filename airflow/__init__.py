@@ -74,11 +74,13 @@ if not settings.LAZY_LOAD_PLUGINS:
 if not settings.LAZY_LOAD_PROVIDERS:
     from airflow import providers_manager
 
-    providers_manager.ProvidersManager().initialize_providers_manager()
+    manager = providers_manager.ProvidersManager()
+    manager.initialize_providers_list()
+    manager.initialize_providers_hooks()
+    manager.initialize_providers_extra_links()
 
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,)
-# into knowing the types of these symbols, and what
 # they contain.
 STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False

@@ -348,7 +348,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | none_failed | none_failed_or_skipped | none_skipped | dummy}``
+        one_failed | none_failed | none_failed_or_skipped | none_skipped | always}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -541,6 +541,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.end_date = end_date
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
+
+        if trigger_rule == "dummy":
+            warnings.warn(
+                "dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            trigger_rule = TriggerRule.ALWAYS
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
