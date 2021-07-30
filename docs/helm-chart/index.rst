@@ -103,6 +103,9 @@ To upgrade the chart with the release name ``airflow``:
 
     helm upgrade airflow apache-airflow/airflow --namespace airflow
 
+.. note::
+  To upgrade to a new version of the chart, run ``helm repo update`` first.
+
 Uninstalling the Chart
 ----------------------
 

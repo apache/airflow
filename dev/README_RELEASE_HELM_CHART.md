@@ -37,6 +37,7 @@
   - [Update `index.yaml` to Airflow Website](#update-indexyaml-to-airflow-website)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Remove old releases](#remove-old-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -490,12 +491,6 @@ for f in ../../../airflow-dev/helm-chart/$RC/*; do svn cp $f ${$(basename $f)/};
 svn rm index.yaml
 svn commit -m "Release Airflow Helm Chart Check ${VERSION} from ${RC}"
 
-# Remove old release
-# http://www.apache.org/legal/release-policy.html#when-to-archive
-cd ..
-export PREVIOUS_VERSION=1.0.0
-svn rm ${PREVIOUS_VERSION}
-svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
 ```
 
 Verify that the packages appear in [Airflow Helm Chart](https://dist.apache.org/repos/dist/release/airflow/helm-chart/).
@@ -590,3 +585,18 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Remove old releases
+
+We should keep the old version a little longer than a day or at least until the updated
+``index.yaml`` is published. This is to avoid errors for users who haven't run ``helm repo update``.
+
+It is probably ok if we leave last 2 versions on release svn repo too.
+
+```shell
+# http://www.apache.org/legal/release-policy.html#when-to-archive
+cd airflow-release/helm-chart
+export PREVIOUS_VERSION=1.0.0
+svn rm ${PREVIOUS_VERSION}
+svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
+```
