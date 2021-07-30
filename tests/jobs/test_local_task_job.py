@@ -296,6 +296,7 @@ class TestLocalTaskJob:
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        settings.engine.dispose()
         process = multiprocessing.Process(target=job1.run)
         process.start()
         for _ in range(0, 50):
@@ -308,7 +309,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        process.join(timeout=10)
+        process.join()
         assert not process.is_alive()
         ti.refresh_from_db()
         assert State.SUCCESS == ti.state
@@ -521,11 +522,12 @@ class TestLocalTaskJob:
         def success_callback(context):
             with shared_mem_lock:
                 success_callback_called.value += 1
+
             assert context['dag_run'].dag_id == 'test_mark_success'
 
         def task_function(ti):
-
             time.sleep(60)
+
             # This should not happen -- the state change should be noticed and the task should get killed
             with shared_mem_lock:
                 task_terminated_externally.value = 0
@@ -557,8 +559,8 @@ class TestLocalTaskJob:
         ti.state = State.SUCCESS
         session.merge(ti)
         session.commit()
-
-        process.join(timeout=10)
+        ti.refresh_from_db()
+        process.join()
         assert success_callback_called.value == 1
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
@@ -599,7 +601,7 @@ class TestLocalTaskJob:
         process = multiprocessing.Process(target=job1.run)
         process.start()
         time.sleep(0.3)
-        process.join(timeout=10)
+        process.join()
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
@@ -645,7 +647,7 @@ class TestLocalTaskJob:
             time.sleep(0.2)
         os.kill(process.pid, signal.SIGTERM)
         ti.refresh_from_db()
-        process.join(timeout=10)
+        process.join()
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
         assert not process.is_alive()

@@ -1670,10 +1670,11 @@ class TestSchedulerJob:
         ti = dr.get_task_instance('dummy')
         ti.set_state(state, session)
 
-        self.scheduler_job._schedule_dag_run(dr, session)
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.scheduler_job._do_scheduling(session)
 
         expected_callback = DagCallbackRequest(
-            full_filepath=dr.dag.fileloc,
+            full_filepath=dag.fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=bool(state == State.FAILED),
             execution_date=dr.execution_date,
@@ -1685,6 +1686,64 @@ class TestSchedulerJob:
         # This is already tested separately
         # In this test we just want to verify that this function is called
         self.scheduler_job._send_sla_callbacks_to_processor.assert_called_once_with(dag)
+
+        session.rollback()
+        session.close()
+
+    def test_dagrun_callbacks_commited_before_sent(self):
+        """
+        Tests that before any callbacks are sent to the processor, the session is committed. This ensures
+        that the dagrun details are up to date when the callbacks are run.
+        """
+        dag = DAG(dag_id='test_dagrun_callbacks_commited_before_sent', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.Mock()
+        self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
+        self.scheduler_job._schedule_dag_run = mock.Mock()
+
+        # Sync DAG into DB
+        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+            self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
+            self.scheduler_job.dagbag.sync_to_db()
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+
+        # Create DagRun
+        self.scheduler_job._create_dag_runs([orm_dag], session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+
+        ti = dr.get_task_instance('dummy')
+        ti.set_state(State.SUCCESS, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), mock.patch(
+            "airflow.jobs.scheduler_job.prohibit_commit"
+        ) as mock_gaurd:
+            mock_gaurd.return_value.__enter__.return_value.commit.side_effect = session.commit
+
+            def mock_schedule_dag_run(*args, **kwargs):
+                mock_gaurd.reset_mock()
+                return None
+
+            def mock_send_dag_callbacks_to_processor(*args, **kwargs):
+                mock_gaurd.return_value.__enter__.return_value.commit.assert_called_once()
+
+            self.scheduler_job._send_dag_callbacks_to_processor.side_effect = (
+                mock_send_dag_callbacks_to_processor
+            )
+            self.scheduler_job._schedule_dag_run.side_effect = mock_schedule_dag_run
+
+            self.scheduler_job._do_scheduling(session)
+
+        # Verify dag failure callback request is sent to file processor
+        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
+        # and mock_send_dag_callbacks_to_processor has asserted the callback was sent after a commit
 
         session.rollback()
         session.close()
@@ -1725,10 +1784,15 @@ class TestSchedulerJob:
         ti = dr.get_task_instance('test_task')
         ti.set_state(state, session)
 
-        self.scheduler_job._schedule_dag_run(dr, session)
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.scheduler_job._do_scheduling(session)
 
         # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
-        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once_with(dr, None)
+        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
+        call_args = self.scheduler_job._send_dag_callbacks_to_processor.call_args[0]
+        assert call_args[0].dag_id == dr.dag_id
+        assert call_args[0].execution_date == dr.execution_date
+        assert call_args[1] is None
 
         session.rollback()
         session.close()
@@ -2372,11 +2436,9 @@ class TestSchedulerJob:
 
         # Verify that DagRun.verify_integrity is not called
         with mock.patch('airflow.jobs.scheduler_job.DagRun.verify_integrity') as mock_verify_integrity:
-            scheduled_tis = self.scheduler_job._schedule_dag_run(dr, session)
+            self.scheduler_job._schedule_dag_run(dr, session)
             mock_verify_integrity.assert_not_called()
         session.flush()
-
-        assert scheduled_tis == 1
 
         tis_count = (
             session.query(func.count(TaskInstance.task_id))
@@ -2436,10 +2498,8 @@ class TestSchedulerJob:
         dag_version_2 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
 
-        scheduled_tis = self.scheduler_job._schedule_dag_run(dr, session)
+        self.scheduler_job._schedule_dag_run(dr, session)
         session.flush()
-
-        assert scheduled_tis == 2
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1

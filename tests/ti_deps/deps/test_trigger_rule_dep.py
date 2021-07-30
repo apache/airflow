@@ -48,11 +48,11 @@ class TestTriggerRuleDep(unittest.TestCase):
         ti = self._get_task_instance(TriggerRule.ALL_DONE, State.UP_FOR_RETRY)
         assert TriggerRuleDep().is_met(ti=ti)
 
-    def test_dummy_tr(self):
+    def test_always_tr(self):
         """
-        The dummy trigger rule should always pass this dep
+        The always trigger rule should always pass this dep
         """
-        ti = self._get_task_instance(TriggerRule.DUMMY, State.UP_FOR_RETRY)
+        ti = self._get_task_instance(TriggerRule.ALWAYS, State.UP_FOR_RETRY)
         assert TriggerRuleDep().is_met(ti=ti)
 
     def test_one_success_tr_success(self):

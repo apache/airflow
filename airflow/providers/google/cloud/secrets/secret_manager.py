@@ -16,6 +16,7 @@
 # under the License.
 
 """Objects relating to sourcing connections from Google Cloud Secrets Manager"""
+import logging
 from typing import Optional
 
 try:
@@ -23,11 +24,15 @@ try:
 except ImportError:
     from cached_property import cached_property
 
+from google.auth.exceptions import DefaultCredentialsError
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
@@ -101,9 +106,17 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
                     "`connections_prefix`, `variables_prefix` and `sep` should "
                     f"follows that pattern {SECRET_ID_PATTERN}"
                 )
-        self.credentials, self.project_id = get_credentials_and_project_id(
-            keyfile_dict=gcp_keyfile_dict, key_path=gcp_key_path, scopes=gcp_scopes
-        )
+        try:
+            self.credentials, self.project_id = get_credentials_and_project_id(
+                keyfile_dict=gcp_keyfile_dict, key_path=gcp_key_path, scopes=gcp_scopes
+            )
+        except (DefaultCredentialsError, FileNotFoundError):
+            log.exception(
+                'Unable to load credentials for GCP Secret Manager. '
+                'Make sure that the keyfile path, dictionary, or GOOGLE_APPLICATION_CREDENTIALS '
+                'environment variable is correct and properly configured.'
+            )
+
         # In case project id provided
         if project_id:
             self.project_id = project_id

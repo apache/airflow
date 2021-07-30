@@ -73,6 +73,12 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Dummy trigger rule has been deprecated
+
+`TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.DUMMY` will be removed in next major release.
+
 ### DAG concurrency settings have been renamed
 
 `[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
@@ -150,6 +156,12 @@ For new deployments, you can use `default_pool_task_slot_count` setting in `[cor
 not have any effect in an existing deployment where the ``default_pool`` already exists.
 
 Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
+
+### Webserver DAG refresh buttons removed
+
+Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
+
+In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
 
 ## Airflow 2.1.1
 
