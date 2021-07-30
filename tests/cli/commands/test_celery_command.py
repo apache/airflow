@@ -15,12 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
 from argparse import Namespace
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
-import os
 import pytest
 import sqlalchemy
 
