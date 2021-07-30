@@ -169,7 +169,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             channel="#general",
             initial_comment="Hello World!",
             filename="hello_world.csv",
-            filetype="csv"
+            filetype="csv",
         )
 
         # Send file content
