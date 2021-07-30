@@ -1,8 +1,6 @@
 # -*- coding:utf-8 -*-
 import os
 import json
-import pytz
-import datetime
 import threading
 from typing import Dict, Optional
 from dateutil.parser import parse
@@ -11,11 +9,11 @@ from sqlalchemy.engine.base import Engine
 from sqlalchemy import text
 from airflow.utils.db import create_session
 from airflow.utils.logger import generate_logger
-
+from airflow import settings
 from .entity import ClsEntity
 from plugins.result_storage.base import Base
 from plugins.result_storage.model import ResultModel
-
+from airflow.utils.db import provide_session
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
@@ -34,7 +32,7 @@ class ClsResultStorage(ClsEntity):
                     ClsResultStorage._instance = object.__new__(cls)
         return ClsResultStorage._instance
 
-    def __init__(self, engine: Engine):
+    def __init__(self, engine=settings.engine):
         super(ClsResultStorage, self).__init__()
         self.engine = engine
         self.create_table_if_existed()
@@ -55,6 +53,15 @@ class ClsResultStorage(ClsEntity):
         except Exception as e:
             _logger.error("Error: {}".format(e))
 
+    def update(self, **data):
+        try:
+            with create_session() as session:
+                session.query(ResultModel) \
+                    .filter(ResultModel.entity_id == self.entity_id) \
+                    .update(data)
+        except Exception as e:
+            _logger.error("Error: {}".format(e))
+
     def _filter(self, params) -> list:
         try:
             with create_session() as session:
@@ -65,17 +72,7 @@ class ClsResultStorage(ClsEntity):
     @staticmethod
     def result_pkg_validator(data: Optional[Dict]):
         if not data:
-            raise Exception('empty result package data')
-        result_body: Optional[Dict] = data.get('result', None)
-        curveFile: str = data.get('curveFile', None)
-        if curveFile and result_body:
-            return
-        msg = ''
-        if not curveFile:
-            msg += 'empty curve data;'
-        if not result_body:
-            msg += 'empty result data;'
-        raise Exception(msg)
+            raise Exception('empty result data')
 
     def write_result(self, data: Optional[Dict]):
         try:
@@ -83,7 +80,7 @@ class ClsResultStorage(ClsEntity):
             entity_id = self.entity_id
             if not entity_id:
                 raise Exception("entity id Is Required!")
-            result_body: Optional[Dict] = data.get('result')  # 之前验证过了 无需再验证有效性
+            result_body: Optional[Dict] = data  # 之前验证过了 无需再验证有效性
             step_results = data.get("step_results")
             if step_results and (isinstance(step_results, list) or isinstance(step_results, dict)):
                 step_results = json.dumps(step_results, ensure_ascii=False)
@@ -117,3 +114,15 @@ class ClsResultStorage(ClsEntity):
                 ret['step_results'] = json.loads(ret['step_results'])
             return ret
         return None
+
+    @staticmethod
+    @provide_session
+    def modify_result(entity_id, modifier=None, session=None):
+        if not modifier:
+            return
+        results = session.query(ResultModel).filter(
+            ResultModel.entity_id == entity_id)
+        result_altered = results.with_for_update().first()
+        if not result_altered:
+            return
+        modifier(result_altered)

@@ -17,7 +17,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.error_tag import ErrorTag
 from airflow.www_rbac import utils as wwwutils
-from plugins.utils import get_curve, get_result, get_task_instances_by_entity_ids
+from plugins.utils import get_curve, get_result, get_results
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
@@ -36,7 +36,8 @@ class CurvesView(AirflowModelView):
     list_template = "curves.html"
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
     route_base = '/curves'
-    datamodel = CustomSQLAInterface(models.TaskInstance)
+    from plugins.result_storage.model import ResultModel
+    datamodel = CustomSQLAInterface(ResultModel)
     search_columns = ['execution_date', 'car_code', 'error_tag', 'measure_result', 'result', 'final_state']
     label_columns = {
         'error_tag': lazy_gettext('Error Tags'),
@@ -101,14 +102,14 @@ class CurvesView(AirflowModelView):
                 t.view_error_tags = ','.join(ret)
             t.view_error_tags = ','.join(ret)
 
-        selected_tasks = {}
-        tasks = list(get_task_instances_by_entity_ids(curves_list))
+        selected_results = {}
+        results=list(get_results(curves_list))
 
-        for ti in tasks:
-            selected_tasks[ti.entity_id] = {
-                'carCode': ti.car_code,
-                'value': ti.entity_id,
-                'date': str(ti.execution_date)
+        for result in results:
+            selected_results[result.get('entity_id')] = {
+                'carCode': result.get('car_code'),
+                'value': result.get('entity_id'),
+                'date': str(result.get('execution_date'))
             }
         widgets = self._list()
 
@@ -131,10 +132,10 @@ class CurvesView(AirflowModelView):
                 'cur_s': '转速'
             }
 
-        return self.render_template('curves.html', tasks=lst, page=page, page_size=page_size, count=count,
+        return self.render_template('curves.html', results=lst, page=page, page_size=page_size, count=count,
                                     modelview_name=view_name,
                                     selected_curves=curves_list,
-                                    selected_tasks=selected_tasks,
+                                    selected_results=selected_results,
                                     cur_key_map=cur_key_map,
                                     widgets=widgets)
 
@@ -183,7 +184,7 @@ class CurvesView(AirflowModelView):
                 curve = get_curve(entity_id)
                 f = f'{entity_id}.csv'.replace('/', '@')
                 f = os.path.join(base_path, f)
-                dd = pd.DataFrame.from_dict(curve)
+                dd = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in curve.items() ]))
                 dd.to_csv(f, index=False, header=True)
                 files.append(f)
             except Exception as e:
@@ -211,7 +212,7 @@ class CurvesView(AirflowModelView):
 
     @expose('/download/<string:entity_ids>')
     @has_access
-    def download_curves(self, entity_ids: str):
+    def download(self, entity_ids: str):
         if not entity_ids or entity_ids == 'None':
             return Response(status=http.HTTPStatus.OK)
 

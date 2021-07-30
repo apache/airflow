@@ -8,7 +8,6 @@ import datetime as dt
 from datetime import timedelta
 import pendulum
 import logging
-from pika import BlockingConnection
 import pika
 from typing import Optional
 from airflow.models import DAG
@@ -18,7 +17,6 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.entities.redis import ClsRedisConnection, gen_template_key
 from airflow.entities.result_mq import ClsResultMQ
 from plugins.utils import parse_template_name
-from airflow.utils.db import get_connection
 
 CURVE_TEMPLATE_UPGRADE_TASK = 'curve_template_upgrade'
 
@@ -116,22 +114,10 @@ def template_upgrade_handler(ch, method: pika.spec.Basic.Deliver, properties: pi
         _logger.error('store curve template to redis error: {}'.format(repr(e)))
 
 
-def get_result_mq_args():
-    mq = get_connection('qcos_rabbitmq')
-    data = {
-        "host": mq.host if mq else None,
-        "port": mq.port if mq else None,
-        "username": mq.login if mq else None,
-        "password": mq.get_password() if mq else None
-    }
-    data.update(mq.extra_dejson)
-    return data
-
-
 def curve_template_upgrade_task(**kwargs):
     global mq_connection, redis_connection
     _logger.debug("{} context: {}".format('curve_template_upgrade_task', kwargs))
-    mq_connection = ClsResultMQ(**get_result_mq_args())
+    mq_connection = ClsResultMQ(**ClsResultMQ.get_result_mq_args(key='qcos_rabbitmq'))
     redis_connection = ClsRedisConnection()
     queue = os.environ.get('MQ_TEMPLATE_QUEUE', 'qcos_templates_airflow')
     exchange = os.environ.get('MQ_TEMPLATE_EXCHANGE', 'qcos_templates')
@@ -148,7 +134,7 @@ dag = DAG(
     description=u'上汽拧紧曲线分析-曲线模板更新',
     start_date=dt.datetime(2020, 1, 1, tzinfo=local_tz),
     max_active_runs=1,
-    schedule_interval='*/1 * * * *',
+    schedule_interval=timedelta(seconds=1),
     catchup=True
 )
 

@@ -35,13 +35,12 @@ from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 from plugins.utils import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq, \
-    do_save_curve_error_tag, get_results
+    get_result
 from flask import g, Blueprint, jsonify, request, url_for
 import json
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
 import os
 from airflow.utils.db import provide_session
-from airflow.models import TaskInstance
 import datetime
 from random import choices
 import pendulum
@@ -81,19 +80,16 @@ def is_mismatch(measure_result, curve_mode):
 
 
 @provide_session
-def get_recent_mismatch_rate(dag_id, task_id, session=None):
+def get_recent_mismatch_rate(session=None):
     delta = datetime.timedelta(days=2)
     min_date = timezone.utcnow() - delta
-    total = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.task_id == task_id,
-        TaskInstance.execution_date > min_date
+    from plugins.result_storage.model import ResultModel
+    total = session.query(ResultModel).filter(
+        ResultModel.execution_date > min_date
     ).count()
-    mismatches = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.task_id == task_id,
-        TaskInstance.execution_date > min_date,
-        TaskInstance.measure_result != TaskInstance.result
+    mismatches = session.query(ResultModel).filter(
+        ResultModel.execution_date > min_date,
+        ResultModel.measure_result != ResultModel.result
     ).count()
     _log.info('total:{},mismatches:{}'.format(total, mismatches))
     return mismatches / (total + 1), total
@@ -108,12 +104,12 @@ def mismatch_relaxation(mismatch_rate, count) -> bool:
     return choices([True, False], weights=[weight, 1])[0]
 
 
-def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date):
+def filter_mismatches(measure_result, curve_mode):
     if not is_mismatch(measure_result, curve_mode):
         _log.info('not mismatch')
         return curve_mode
     _log.info('is mismatch')
-    mismatch_rate, count = get_recent_mismatch_rate(dag_id, task_id)
+    mismatch_rate, count = get_recent_mismatch_rate()
     _log.info('mismatch_rate:{}, count:{}'.format(mismatch_rate, count))
     if mismatch_relaxation(mismatch_rate, count):
         return [0] if measure_result == 'OK' else [1]
@@ -126,42 +122,36 @@ def filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_dat
 def put_anaylysis_result():
     try:
         data = request.get_json(force=True)
-        dag_id = data.get('dag_id')
-        task_id = data.get('task_id')
-        execution_date = data.get('exec_date')
         entity_id = data.get('entity_id')
         measure_result = data.get('measure_result')
         curve_mode = list(map(int, data.get('result')))  # List[int]
 
         if FILTER_MISMATCHES:
-            curve_mode = filter_mismatches(measure_result, curve_mode, dag_id, task_id, execution_date)
+            curve_mode = filter_mismatches(measure_result, curve_mode)
 
-        verify_error = int(data.get('verify_error'))  # OK, NOK
-        rresult = 'OK' if curve_mode[0] is 0 else 'NOK'
-
+        result = 'OK' if curve_mode[0] is 0 else 'NOK'
         if (not ANALYSIS_NOK_RESULTS) and measure_result == 'NOK':
-            rresult = 'NOK'
+            result = 'NOK'
 
-        def modifier(ti):
-            ti.result = rresult
-            ti.measure_result = measure_result
-            ti.entity_id = entity_id
-            if curve_mode[0] is not 0:
-                ti.error_tag = json.dumps(curve_mode)
-            else:
-                ti.error_tag = json.dumps([])
-            ti.verify_error = verify_error
+        extra = {}
+        if curve_mode[0] is not 0:
+            extra['error_tag'] = json.dumps(curve_mode)
+        else:
+            extra['error_tag'] = json.dumps([])
+        extra['verify_error'] = int(data.get('verify_error'))  # OK, NOK
 
-        date = timezone.parse(execution_date)
-        modify_task_instance(dag_id, task_id, execution_date=date, modifier=modifier)
+        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        ResultStorageHook.save_analyze_result(
+            entity_id,
+            result,
+            **extra
+        )
+
         trigger_push_result_to_mq(
             'analysis_result',
-            rresult,
+            result,
             entity_id,
-            execution_date,
-            task_id,
-            dag_id,
-            verify_error,
+            extra['verify_error'],
             curve_mode
         )
         resp = jsonify({'response': 'ok'})
@@ -193,7 +183,8 @@ def _save_curve_error_tag(dag_id, task_id, execution_date):
     try:
         params = request.get_json(force=True)  # success failed
         error_tags = params.get('error_tags', [])
-        do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags)
+        # fixme
+        # do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags)
         return jsonify(response='ok')
     except Exception as e:
         _log.info(repr(e))
@@ -328,38 +319,24 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-@api_experimental.route(
-    '/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/confirm',
-    methods=['POST'])
+@api_experimental.route('/double-confirm/<string:entity_id>', methods=['POST'])
 @requires_authentication
-def double_confirm_task(dag_id, task_id, execution_date):
+def double_confirm_task(entity_id):
     try:
         msg = CUSTOM_LOG_FORMAT.format(datetime.datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['DOUBLE_CONFIRM'], CUSTOM_PAGE_NAME_MAP['CURVE'], '曲线二次确认')
         logging.info(msg)
-        date = timezone.parse(execution_date)
-    except ValueError:
-        error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
-        _log.info(error_message)
-        response = jsonify({'error': error_message})
-        response.status_code = 400
-
-        return response
-    try:
         params = request.get_json(force=True)  # success failed
         final_state = params.get('final_state', None)
         error_tags = params.get('error_tags', [])
-
-        task = get_task_instance(dag_id, task_id, execution_date=date)
-        if not task.result:
+        entity_id = entity_id.replace('@', '/')
+        result = get_result(entity_id)
+        if not result.get('result'):
             raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
         if not final_state or final_state not in ['OK', 'NOK']:
             raise AirflowException("二次确认参数未定义或数值不正确!")
-        trigger_training_dag(dag_id, task_id, execution_date, final_state, error_tags)
+        trigger_training_dag(entity_id, final_state, error_tags)
         return jsonify({'response': 'ok'})
     except AirflowException as err:
         _log.info(err)
@@ -433,7 +410,8 @@ def get_spc_by_entity_id():
             xr_r_part = rbar(data, SPC_SIZE)
             xs_xbar_part = xbar_sbar(data, SPC_SIZE, None)
             xs_s_part = sbar(data, SPC_SIZE, None)
-            cpk_data = cpk(entry, get_first_valid_data(results, mm_max.get(key)), get_first_valid_data(results,mm_min.get(key)))
+            cpk_data = cpk(entry, get_first_valid_data(results, mm_max.get(key)),
+                           get_first_valid_data(results, mm_min.get(key)))
             # todo: SPC包
             # xbar-r chart
             xr_ee: dict = x_r_entry.get(key)
@@ -466,8 +444,8 @@ def get_spc_by_entity_id():
             #     _target = (first_result.get(tType+"_min") + first_result.get(tType+"_max")) / 2
             # usl = _target * (1+0.03)
             # lsl = _target * (1-0.03)
-            usl = first_result.get(tType+"_max")
-            lsl = first_result.get(tType+"_min")
+            usl = first_result.get(tType + "_max")
+            lsl = first_result.get(tType + "_min")
             spc_step = 1
             his = histogram(nd_data, usl, lsl, spc_step)
             nor = normal(nd_data, usl, lsl, spc_step)

@@ -3,6 +3,7 @@ import pika
 from .entity import ClsEntity
 import threading
 from airflow.utils.logger import generate_logger
+from airflow.utils.db import get_connection
 
 _logger = generate_logger(__name__)
 
@@ -24,6 +25,25 @@ class ClsResultMQ(ClsEntity):
             return
         self._disconnect()
         self._kwargs = kwargs
+
+    @staticmethod
+    def get_result_mq_args(key='qcos_rabbitmq'):
+        mq = get_connection(key)
+        if mq is None:
+            _logger.error('连接"{}"未配置'.format(key))
+            return {
+                "host": None,
+                "port": None,
+                "username": None,
+                "password": None
+            }
+        data = {
+            "host": mq.host,
+            "port": mq.port,
+            "username": mq.login,
+            "password": mq.get_password()
+        }
+        return data
 
     def is_config_changed(self, **kwargs):
         try:
@@ -49,23 +69,32 @@ class ClsResultMQ(ClsEntity):
             'host': host,
             'port': port,
             'credentials': credentials,
-            'virtual_host': self._kwargs.get('vhost')
+            'virtual_host': self._kwargs.get('vhost', '/')
         }
         self._connection = pika.BlockingConnection(
             pika.ConnectionParameters(**connection_config)
         )
 
-    def get_channel(self, queue, **kwargs) -> pika.adapters.blocking_connection.BlockingChannel:
+    def get_channel(
+        self,
+        queue,
+        passive=False,
+        durable=False,
+        exclusive=False,
+        auto_delete=False,
+        arguments=None,
+        exchange=None,
+        exchange_type='fanout',
+        routing_key='#',
+        exchange_durable=None,
+        **kwargs
+    ) -> pika.adapters.blocking_connection.BlockingChannel:
+        _logger.debug('get extra args: {}'.format(repr(kwargs)))
         if queue in self.channels.keys():
             return self.channels.get(queue)
         self._connect()
         channel = self._connection.channel()
         channel.confirm_delivery()
-        passive = kwargs.get('passive', False)
-        durable = kwargs.get('durable', False)
-        exclusive = kwargs.get('exclusive', False)
-        auto_delete = kwargs.get('auto_delete', False)
-        arguments = kwargs.get('arguments', None)
         channel.queue_declare(
             queue,
             passive=passive,
@@ -74,13 +103,11 @@ class ClsResultMQ(ClsEntity):
             auto_delete=auto_delete,
             arguments=arguments
         )
-        exchange = kwargs.get('exchange', None)
-        exchange_type = kwargs.get('exchange_type', 'fanout')
         if exchange and exchange_type:
-            channel.exchange_declare(exchange=exchange, exchange_type=exchange_type)
+            channel.exchange_declare(exchange=exchange, exchange_type=exchange_type, durable=exchange_durable)
             channel.queue_bind(exchange=exchange,
                                queue=queue,
-                               routing_key=kwargs.get('routing_key', '#'))  # 匹配python.后所有单词
+                               routing_key=routing_key)  # 匹配python.后所有单词
         self.channels[queue] = channel  # 将channel加入到字典对象中
         return channel
 
@@ -109,5 +136,5 @@ class ClsResultMQ(ClsEntity):
         if queue is None:
             raise AirflowNotFoundException(u'mq queue 未指定')
         channel = self.get_channel(queue, **kwargs)
-        exchange = self._kwargs.get('exchange', None)
+        exchange = self._kwargs.get('exchange', '')
         channel.basic_publish(exchange=exchange, routing_key=queue, body=body)

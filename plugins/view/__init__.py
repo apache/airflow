@@ -10,19 +10,19 @@ bp = Blueprint(
 bp_css = Blueprint(
     "test_plugin_css", __name__,
     static_folder='static/css',
-    static_url_path='/static/css'
+    static_url_path='/static/plugin/css'
 )
 
 bp_js = Blueprint(
     "test_plugin_js", __name__,
     static_folder='static/js',
-    static_url_path='/static/js'
+    static_url_path='/static/plugin/js'
 )
 
 bp_img = Blueprint(
     "test_plugin_img", __name__,
     static_folder='static/img',
-    static_url_path='/static/img'
+    static_url_path='/static/plugin/img'
 )
 
 

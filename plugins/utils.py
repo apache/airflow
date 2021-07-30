@@ -1,7 +1,5 @@
-from airflow import models
 from airflow import settings
 from airflow.utils.db import get_connection
-from airflow.utils.db import create_session, get_connection
 from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
@@ -12,9 +10,7 @@ from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.api.common.experimental import trigger_dag as trigger
 import json
 from typing import Optional
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowConfigException
-from airflow.utils import timezone
-from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.exceptions import AirflowNotFoundException, AirflowConfigException
 from airflow.utils.db import provide_session
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
@@ -116,13 +112,13 @@ def get_result_args():
     }
 
 
-def get_kafka_consumer_args(connection_key: str ='qcos_kafka_consumer'):
+def get_kafka_consumer_args(connection_key: str = 'qcos_kafka_consumer'):
     kafka_conn = get_connection(connection_key)
     extra = kafka_conn.extra_dejson if kafka_conn else {}
     return {
         "bootstrap_servers": extra.get('bootstrap_servers', 'localhost:9092'),
         'security_protocol': extra.get('security_protocol'),
-        'auth_type':  extra.get('auth_type'),
+        'auth_type': extra.get('auth_type'),
         "user": kafka_conn.login or '',
         "password": kafka_conn.get_password() if kafka_conn else ''
     }
@@ -140,18 +136,6 @@ def get_curve_args(connection_key='qcos_minio'):
     }
 
 
-def form_analysis_result_trigger(result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
-    return {
-        'result': result,
-        'entity_id': entity_id,
-        'execution_date': execution_date,
-        'task_id': task_id,
-        'verify_error': verify_error,
-        'curve_mode': curve_mode,
-        'dag_id': dag_id,
-    }
-
-
 def get_curve_entity_ids(bolt_number=None, craft_type=None):
     tasks = TaskInstance.list_tasks(craft_type, bolt_number)
     tasks.sort(key=lambda t: t.execution_date, reverse=True)
@@ -163,36 +147,31 @@ def get_analysis_tasks(bolt_number=None, craft_type=None):
     return tasks
 
 
-def trigger_push_result_to_mq(data_type, result, entity_id, execution_date, task_id, dag_id, verify_error, curve_mode):
+def trigger_push_result_to_mq(data_type, result, entity_id, verify_error, curve_mode):
     if isinstance(curve_mode, str):
         curve_mode = json.loads(curve_mode)
     if isinstance(curve_mode, int):
         curve_mode = [curve_mode]
     if curve_mode is None:
         curve_mode = []
-    analysis_result = form_analysis_result_trigger(
-        result,
-        entity_id,
-        execution_date,
-        task_id,
-        dag_id,
-        verify_error,
-        curve_mode
-    )
-    push_result_dag_id = 'publish_result_dag'
-    conf = {
-        'data': analysis_result,
-        'data_type': data_type
+
+    result_body = get_result(entity_id)
+
+    push_result = {
+        **result_body,
+        'result': result,
+        'entity_id': entity_id,
+        'verify_error': verify_error,
+        'curve_mode': curve_mode,
     }
-    trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
+    from airflow.hooks.publish_result_plugin import PublishResultHook
+    PublishResultHook.trigger_publish(data_type, push_result)
 
 
-def trigger_training_dag(dag_id, task_id, execution_date, final_state, error_tags):
+def trigger_training_dag(entity_id, final_state, error_tags):
     trigger_training_dag_id = 'curve_training_dag'
     conf = {
-        'dag_id': dag_id,
-        'task_id': task_id,
-        'execution_date': execution_date,
+        'entity_id': entity_id,
         'final_state': final_state,
         'error_tags': error_tags
     }
@@ -208,7 +187,7 @@ def get_result(entity_id):
 
 def get_results(entity_ids):
     st = ClsResultStorage(**get_result_args())
-    if not isinstance(entity_ids, list):
+    if not isinstance(entity_ids, list) or len(entity_ids) == 0:
         return []
     st.metadata = {'entity_id': entity_ids}
     result = st.query_results()  # 查询多条记录
@@ -219,58 +198,6 @@ def get_curve(entity_id):
     st = ClsCurveStorage(**get_curve_args())
     st.metadata = {'entity_id': entity_id}
     return st.query_curve()
-
-
-@provide_session
-def get_task_instances_by_entity_ids(entity_ids, session=None):
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.entity_id.in_(entity_ids),
-        TaskInstance.task_id == 'trigger_anay_task'
-    ).all()
-    return tis
-
-
-@provide_session
-def get_task_instance_by_entity_id(entity_id, session=None):
-    ti = session.query(TaskInstance).filter(
-        TaskInstance.entity_id == entity_id
-    ).first()
-    return ti
-
-def trigger_push_template_dag(template_name, template_data):
-    push_result_dag_id = 'publish_result_dag'
-    conf = {
-        'data': {
-            'template_name': template_name,
-            'template_data': template_data
-        },
-        'data_type': 'curve_template'
-    }
-    trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
-
-
-def trigger_push_templates_dict_dag(templates_dict):
-    push_result_dag_id = 'publish_result_dag'
-    conf = {
-        'data': templates_dict,
-        'data_type': 'curve_templates_dict'
-    }
-    trigger.trigger_dag(push_result_dag_id, conf=conf, replace_microseconds=False)
-
-
-def do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags=None):
-    try:
-        execution_date = timezone.parse(execution_date)
-    except ValueError:
-        error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
-        raise AirflowException(error_message)
-    if error_tags is None:
-        error_tags = []
-    task = get_task_instance(dag_id, task_id, execution_date)
-    task.set_error_tag(json.dumps(error_tags))
 
 
 def should_trigger_training(result, final_state, analysis_mode, train_mode):

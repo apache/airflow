@@ -1,15 +1,14 @@
+import json
+
 from airflow.utils.logger import generate_logger
 import os
-from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.utils import timezone
 from airflow.models import DAG, DagRun
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from datetime import timedelta
 from airflow.operators.python_operator import PythonOperator
 import datetime as dt
 import pendulum
-from airflow.api.common.experimental.mark_tasks import set_dag_run_final_state
-from plugins.utils import do_save_curve_error_tag, get_task_params, get_craft_type, \
+from plugins.utils import get_craft_type, \
     generate_bolt_number, get_curve_params, get_result, get_curve, trigger_push_result_to_mq, get_curve_mode, \
     should_trigger_training
 from airflow.api.common.experimental.mark_tasks import modify_task_instance
@@ -56,8 +55,9 @@ desoutter_default_args = {
 }
 
 
-def update_confirm_data(task_data, verify_error, curve_mode):
-    data = task_data.get('task', {})
+def update_confirm_data(verify_error, curve_mode):
+    # data = task_data.get('task', {})
+    data = {}
     data.update({
         "curve_mode": curve_mode,
         "verify_error": verify_error
@@ -67,24 +67,24 @@ def update_confirm_data(task_data, verify_error, curve_mode):
     }
 
 
-def do_trigger_training(task_instance, final_state):
-    entity_id = task_instance.entity_id
-    _logger.info('getting result...')
-    result = get_result(entity_id)
+def do_trigger_training(result, final_state):
+    entity_id = result.get('entity_id')
     _logger.info('getting curve...')
     curve = get_curve(entity_id)
-    task_data = get_task_params(task_instance, entity_id)
-    curve_mode = get_curve_mode(final_state, task_instance.error_tag)
-    task_param = update_confirm_data(task_data,
-                                     task_instance.verify_error,
-                                     curve_mode
-                                     )
+    curve_mode = get_curve_mode(final_state, result.get('error_tag'))
+    task_param = update_confirm_data(
+        result.get('verify_error'),
+        curve_mode
+    )
     controller_name = result.get('controller_name', None)
     job = result.get('job', None)
     batch_count = result.get('batch_count', None)
     pset = result.get('pset', None)
     bolt_number = generate_bolt_number(controller_name, job, batch_count, pset)
     curve_params = get_curve_params(bolt_number)
+    result.update({
+        'execution_date': result.get('execution_date').strftime("%Y-%m-%d %H:%M:%S")
+    })
     data = {
         'entity_id': entity_id,
         'result': result,
@@ -93,6 +93,7 @@ def do_trigger_training(task_instance, final_state):
     }
     data.update(task_param)
     data.update(curve_params)
+    from airflow.hooks.cas_plugin import CasHook
     cas = CasHook(role='training')
     cas.trigger_training(data)
 
@@ -106,27 +107,22 @@ def verify_params(**kwargs):
         params = dag_run.get('conf', None)
     if params is None:
         raise Exception(u'参数conf不存在')
-    dag_id = params.get('dag_id')
-    task_id = params.get('task_id')
-    execution_date = params.get('execution_date')
     final_state = params.get('final_state')
+    entity_id = params.get('entity_id')
     error_tags = params.get('error_tags', [])
-    if not dag_id or not task_id or not execution_date or not final_state:
-        raise Exception('empty dag_id, task_id, execution_date or final_state')
-    return dag_id, task_id, execution_date, final_state, error_tags
+    if not final_state:
+        raise Exception('empty final_state')
+    return entity_id, final_state, error_tags
 
 
 def trigger_training_task(task_instance, **kwargs):
     """触发训练任务"""
-    dag_id, task_id, execution_date, final_state, error_tags = verify_params(**kwargs)
-    date = timezone.parse(execution_date)
-    _logger.info('locating task instance.')
-    ana_ti = get_task_instance(dag_id, task_id, execution_date=date)
-    _logger.info('task instance located.')
+    entity_id, final_state, error_tags = verify_params(**kwargs)
+    result = get_result(entity_id)
 
     def modifier(ti):
-        ti.entity_id = ana_ti.entity_id
-        ti.line_code = ana_ti.line_code
+        ti.entity_id = entity_id
+        ti.line_code = result.get('line_code')
 
     modify_task_instance(
         task_instance.dag_id,
@@ -134,35 +130,22 @@ def trigger_training_task(task_instance, **kwargs):
         task_instance.execution_date,
         modifier=modifier
     )
-    date = timezone.parse(execution_date)
-    task = get_task_instance(dag_id, task_id, date)
-    if should_trigger_training(task.result, final_state, task.error_tag, error_tags):
+    if should_trigger_training(result.get('result'), final_state, result.get('error_tag'), error_tags):
         _logger.info('trigger training...')
-        do_trigger_training(ana_ti, final_state)
+        do_trigger_training(result, final_state)
         _logger.info('training finished, saving error tag')
     else:
         _logger.info('training skipped, saving error tag')
-    do_save_curve_error_tag(
-        task_id=task_id,
-        dag_id=dag_id,
-        execution_date=execution_date,
-        error_tags=error_tags)
-    _logger.info('updating final state...')
-    set_dag_run_final_state(
-        task_id=task_id,
-        dag_id=dag_id,
-        execution_date=date,
-        final_state=final_state)
+
+    from airflow.hooks.result_storage_plugin import ResultStorageHook
+    ResultStorageHook.save_final_state(entity_id, final_state, error_tag=json.dumps(error_tags))
     _logger.info('publishing result')
     trigger_push_result_to_mq(
         'final_result',
         final_state,
-        ana_ti.entity_id,
-        execution_date,
-        task_id,
-        dag_id,
-        verify_error=ana_ti.verify_error,
-        curve_mode=ana_ti.error_tag
+        entity_id,
+        verify_error=result.get('verify_error'),
+        curve_mode=result.get('error_tag')
     )
     _logger.info('all done.')
 
@@ -177,3 +160,14 @@ dag = DAG(
 store_task = PythonOperator(provide_context=True,
                             task_id=TASK_ID, dag=dag,
                             python_callable=trigger_training_task)
+
+# test
+# https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
+if __name__ == '__main__':
+    dag.clear(reset_dag_runs=True)
+    conf = {
+        'entity_id': '3002/0000002062/1627459189',
+        'final_state': 'OK',
+        'error_tags': []
+    }
+    dag.run(conf=conf)

@@ -1,4 +1,3 @@
-import json
 from redis import Redis
 from airflow.contrib.hooks.redis_hook import RedisHook
 from typing import Dict
@@ -8,7 +7,7 @@ import os
 import signal
 from redis.client import Pipeline
 import time
-from plugins.utils import gen_template_key, trigger_push_templates_dict_dag
+from plugins.utils import gen_template_key
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -67,7 +66,8 @@ class ClsRedisConnection(ClsEntity):
         _logger.debug("storing templates...")
         # _logger.info("Template Data: {}".format(pprint.pformat(templates, indent=4)))
         # 触发模板推送到rabbit mq
-        trigger_push_templates_dict_dag(templates)
+        from airflow.hooks.publish_result_plugin import PublishResultHook
+        PublishResultHook.trigger_publish('curve_templates_dict', templates)
         with self.pipeline as p:
             for key, val in templates.items():
                 _logger.debug("storing template, key: {} ...".format(key))

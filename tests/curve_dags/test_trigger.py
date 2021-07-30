@@ -5,7 +5,7 @@ import datetime
 body = {
   "replace_microseconds": 'false',
   "conf": {
-    "entity_id": "3002/0000002062/".format(datetime.datetime.now().timestamp()),
+    "entity_id": "3002/0000002062/{}".format(datetime.datetime.now().timestamp()).split('.')[0],
     "should_analyze": True, # 是否触发分析
     "result": {
       "device_type": "tightening", # tightening or servo_press
@@ -2111,12 +2111,6 @@ body = {
         343.5,
         344
       ]
-    },
-    "task": {
-      "dag_id": "",
-      "task_id": "",
-      "real_task_id": "",
-      "exec_date": ""
     },
     "curve_param": {
       "torque_up_limit_min": 0,
