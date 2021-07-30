@@ -127,18 +127,18 @@ def put_anaylysis_result():
         curve_mode = list(map(int, data.get('result')))  # List[int]
 
         if FILTER_MISMATCHES:
-            curve_mode = filter_mismatches(measure_result, curve_mode, dag_id, task_id)
+            curve_mode = filter_mismatches(measure_result, curve_mode)
 
         result = 'OK' if curve_mode[0] is 0 else 'NOK'
         if (not ANALYSIS_NOK_RESULTS) and measure_result == 'NOK':
             result = 'NOK'
 
-        extra={}
+        extra = {}
         if curve_mode[0] is not 0:
             extra['error_tag'] = json.dumps(curve_mode)
         else:
             extra['error_tag'] = json.dumps([])
-        extra['verify_error'] = int(data.get('verify_error')) # OK, NOK
+        extra['verify_error'] = int(data.get('verify_error'))  # OK, NOK
 
         from airflow.hooks.result_storage_plugin import ResultStorageHook
         ResultStorageHook.save_analyze_result(
@@ -410,7 +410,8 @@ def get_spc_by_entity_id():
             xr_r_part = rbar(data, SPC_SIZE)
             xs_xbar_part = xbar_sbar(data, SPC_SIZE, None)
             xs_s_part = sbar(data, SPC_SIZE, None)
-            cpk_data = cpk(entry, get_first_valid_data(results, mm_max.get(key)), get_first_valid_data(results,mm_min.get(key)))
+            cpk_data = cpk(entry, get_first_valid_data(results, mm_max.get(key)),
+                           get_first_valid_data(results, mm_min.get(key)))
             # todo: SPC包
             # xbar-r chart
             xr_ee: dict = x_r_entry.get(key)
@@ -443,8 +444,8 @@ def get_spc_by_entity_id():
             #     _target = (first_result.get(tType+"_min") + first_result.get(tType+"_max")) / 2
             # usl = _target * (1+0.03)
             # lsl = _target * (1-0.03)
-            usl = first_result.get(tType+"_max")
-            lsl = first_result.get(tType+"_min")
+            usl = first_result.get(tType + "_max")
+            lsl = first_result.get(tType + "_min")
             spc_step = 1
             his = histogram(nd_data, usl, lsl, spc_step)
             nor = normal(nd_data, usl, lsl, spc_step)
