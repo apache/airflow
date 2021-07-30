@@ -1450,9 +1450,10 @@ class TestTaskInstance:
 
         template_context = ti.get_template_context()
 
-        assert isinstance(template_context["execution_date"], pendulum.DateTime)
-        assert isinstance(template_context["next_execution_date"], pendulum.DateTime)
-        assert isinstance(template_context["prev_execution_date"], pendulum.DateTime)
+        assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
+        assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
+        assert isinstance(template_context["schedule_date"], pendulum.DateTime)
+        assert isinstance(template_context["next_schedule_date"], pendulum.DateTime)
 
     @pytest.mark.parametrize(
         "content, expected_output",
