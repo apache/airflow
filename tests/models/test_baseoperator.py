@@ -31,6 +31,7 @@ from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.edgemodifier import Label
+from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -594,6 +595,25 @@ class TestXComArgsRelationsAreResolved:
         with pytest.raises(AirflowException):
             op1 = DummyOperator(task_id="op1")
             CustomOp(task_id="op2", field=op1.output)
+
+    def test_invalid_trigger_rule(self):
+        with pytest.raises(
+            AirflowException,
+            match=(
+                f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
+                "'.op1'; received 'some_rule'."
+            ),
+        ):
+            DummyOperator(task_id="op1", trigger_rule="some_rule")
+
+    @parameterized.expand((("string", "dummy"), ("enum", TriggerRule.DUMMY)))
+    def test_replace_dummy_trigger_rule(self, name, rule):
+        with pytest.warns(
+            DeprecationWarning, match="dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`."
+        ):
+            op1 = DummyOperator(task_id="op1", trigger_rule=rule)
+
+            assert op1.trigger_rule == TriggerRule.ALWAYS
 
 
 class InitSubclassOp(DummyOperator):

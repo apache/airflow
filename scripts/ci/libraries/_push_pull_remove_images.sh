@@ -145,7 +145,10 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
     python_image_hash=$(docker images -q "${AIRFLOW_PYTHON_BASE_IMAGE}" 2> /dev/null || true)
     if [[ -z "${python_image_hash=}" || "${FORCE_PULL_IMAGES}" == "true" || \
             ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" ]]; then
-        push_pull_remove_images::pull_base_python_image
+        if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} == "latest" ]]; then
+            # Pull base python image when building latest image
+            push_pull_remove_images::pull_base_python_image
+        fi
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         push_pull_remove_images::pull_image_if_not_present_or_forced \
@@ -160,7 +163,10 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
     python_image_hash=$(docker images -q "${AIRFLOW_PYTHON_BASE_IMAGE}" 2> /dev/null || true)
     if [[ -z "${python_image_hash=}" || "${FORCE_PULL_IMAGES}" == "true"  || \
             ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" ]]; then
-        push_pull_remove_images::pull_base_python_image
+        if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} == "latest" ]]; then
+            # Pull base python image when building latest image
+            push_pull_remove_images::pull_base_python_image
+        fi
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         # "Build" segment of production image
