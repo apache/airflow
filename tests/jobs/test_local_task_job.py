@@ -309,7 +309,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        process.join(timeout=10)
+        process.join()
         assert not process.is_alive()
         ti.refresh_from_db()
         assert State.SUCCESS == ti.state
@@ -559,7 +559,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        process.join(timeout=10)
+        process.join()
         assert success_callback_called.value == 1
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
@@ -600,7 +600,7 @@ class TestLocalTaskJob:
         process = multiprocessing.Process(target=job1.run)
         process.start()
         time.sleep(0.3)
-        process.join(timeout=10)
+        process.join()
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
@@ -646,7 +646,7 @@ class TestLocalTaskJob:
             time.sleep(0.2)
         os.kill(process.pid, signal.SIGTERM)
         ti.refresh_from_db()
-        process.join(timeout=10)
+        process.join()
         assert failure_callback_called.value == 1
         assert task_terminated_externally.value == 1
         assert not process.is_alive()
