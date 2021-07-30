@@ -70,6 +70,9 @@ class ResultModel(Base):
     car_code = Column(String(1000))  # 车辆编号
     type = Column(String(100), default="normal")  # 任务实例类型，normal/rework,正常/返修
     should_analyze = Column(Boolean(), default=True)
+    training_task_id = Column(String(250))
+    training_dag_id = Column(String(250))
+    training_execution_date = Column(UtcDateTime)
 
     def as_dict(self):
         v: dict = self.__dict__

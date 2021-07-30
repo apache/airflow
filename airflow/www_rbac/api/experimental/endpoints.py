@@ -38,12 +38,10 @@ from plugins.utils import trigger_training_dag, get_curve_entity_ids, get_curve,
     get_result
 from flask import g, Blueprint, jsonify, request, url_for
 import json
-from airflow.api.common.experimental.mark_tasks import modify_task_instance
 import os
 from airflow.utils.db import provide_session
 import datetime
 from random import choices
-import pendulum
 from airflow.utils.spc.lexen_spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar, cpk
 from airflow.utils.spc.lexen_spc.plot import histogram, normal
 import math

@@ -11,7 +11,6 @@ import pendulum
 from plugins.utils import get_craft_type, \
     generate_bolt_number, get_curve_params, get_result, get_curve, trigger_push_result_to_mq, get_curve_mode, \
     should_trigger_training
-from airflow.api.common.experimental.mark_tasks import modify_task_instance
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 MAX_ACTIVE_TRAINING = os.environ.get('MAX_ACTIVE_TRAINING', 100)
@@ -120,16 +119,6 @@ def trigger_training_task(task_instance, **kwargs):
     entity_id, final_state, error_tags = verify_params(**kwargs)
     result = get_result(entity_id)
 
-    def modifier(ti):
-        ti.entity_id = entity_id
-        ti.line_code = result.get('line_code')
-
-    modify_task_instance(
-        task_instance.dag_id,
-        task_instance.task_id,
-        task_instance.execution_date,
-        modifier=modifier
-    )
     if should_trigger_training(result.get('result'), final_state, result.get('error_tag'), error_tags):
         _logger.info('trigger training...')
         do_trigger_training(result, final_state)
@@ -138,7 +127,14 @@ def trigger_training_task(task_instance, **kwargs):
         _logger.info('training skipped, saving error tag')
 
     from airflow.hooks.result_storage_plugin import ResultStorageHook
-    ResultStorageHook.save_final_state(entity_id, final_state, error_tag=json.dumps(error_tags))
+    ResultStorageHook.save_final_state(
+        entity_id,
+        final_state,
+        error_tag=json.dumps(error_tags),
+        training_dag_id=task_instance.dag_id,
+        training_task_id=task_instance.task_id,
+        training_execution_date=task_instance.execution_date
+    )
     _logger.info('publishing result')
     trigger_push_result_to_mq(
         'final_result',

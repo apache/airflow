@@ -377,33 +377,6 @@ def set_dag_run_final_state(dag_id, task_id, execution_date, final_state=None, s
 
 
 @provide_session
-def modify_task_instance(dag_id, task_id, execution_date, modifier=None, session=None):
-    if not modifier:
-        return
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.execution_date == execution_date,
-        TaskInstance.task_id == task_id)
-    tis_altered = tis.with_for_update().all()
-    if not tis_altered or len(tis_altered) == 0:
-        raise Exception('task instance not found')
-    for task_instance in tis_altered:
-        modifier(task_instance)
-        print(session.dirty)
-
-
-@provide_session
-def set_task_instance_entity_id(dag_id, task_id, execution_date, entity_id='', session=None):
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag_id,
-        TaskInstance.execution_date == execution_date,
-        TaskInstance.task_id == task_id)
-    tis_altered = tis.with_for_update().all()
-    for task_instance in tis_altered:
-        task_instance.entity_id = entity_id
-
-
-@provide_session
 def set_dag_run_state_to_running(dag, execution_date, commit=False, session=None):
     """
     Set the dag run for a specific execution date to running.

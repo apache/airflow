@@ -108,6 +108,8 @@ class ClsResultStorage(ClsEntity):
         if not self.entity_id:
             raise BaseException(u'entity_id未指定')
         data = self._filter(ResultModel.entity_id == self.entity_id)
+        if not data:
+            return None
         for table in data:
             ret = table.as_dict()
             if ret.get('step_results'):
