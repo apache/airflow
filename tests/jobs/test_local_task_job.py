@@ -71,10 +71,19 @@ def clear_db_class():
     db.clear_db_task_fail()
 
 
+@pytest.fixture(scope='module')
+def dagbag():
+    return DagBag(
+        dag_folder=TEST_DAG_FOLDER,
+        include_examples=False,
+    )
+
+
 @pytest.mark.usefixtures('clear_db_class', 'clear_db')
 class TestLocalTaskJob:
     @pytest.fixture(autouse=True)
-    def set_instance_attrs(self):
+    def set_instance_attrs(self, dagbag):
+        self.dagbag = dagbag
         with patch('airflow.jobs.base_job.sleep') as self.mock_base_job_sleep:
             yield
 
@@ -230,13 +239,10 @@ class TestLocalTaskJob:
         dag_id = 'test_heartbeat_failed_fast'
         task_id = 'test_heartbeat_failed_fast_op'
         with create_session() as session:
-            dagbag = DagBag(
-                dag_folder=TEST_DAG_FOLDER,
-                include_examples=False,
-            )
+
             dag_id = 'test_heartbeat_failed_fast'
             task_id = 'test_heartbeat_failed_fast_op'
-            dag = dagbag.get_dag(dag_id)
+            dag = self.dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 
             dag.create_dagrun(
@@ -272,11 +278,7 @@ class TestLocalTaskJob:
         Test that ensures that mark_success in the UI doesn't cause
         the task to fail, and that the task exits
         """
-        dagbag = DagBag(
-            dag_folder=TEST_DAG_FOLDER,
-            include_examples=False,
-        )
-        dag = dagbag.dags.get('test_mark_success')
+        dag = self.dagbag.dags.get('test_mark_success')
         task = dag.get_task('task1')
 
         session = settings.Session()
@@ -312,11 +314,7 @@ class TestLocalTaskJob:
 
     def test_localtaskjob_double_trigger(self):
 
-        dagbag = DagBag(
-            dag_folder=TEST_DAG_FOLDER,
-            include_examples=False,
-        )
-        dag = dagbag.dags.get('test_localtaskjob_double_trigger')
+        dag = self.dagbag.dags.get('test_localtaskjob_double_trigger')
         task = dag.get_task('test_localtaskjob_double_trigger_task')
 
         session = settings.Session()
@@ -352,11 +350,8 @@ class TestLocalTaskJob:
 
     @pytest.mark.quarantined
     def test_localtaskjob_maintain_heart_rate(self):
-        dagbag = DagBag(
-            dag_folder=TEST_DAG_FOLDER,
-            include_examples=False,
-        )
-        dag = dagbag.dags.get('test_localtaskjob_double_trigger')
+
+        dag = self.dagbag.dags.get('test_localtaskjob_double_trigger')
         task = dag.get_task('test_localtaskjob_double_trigger_task')
 
         session = settings.Session()
