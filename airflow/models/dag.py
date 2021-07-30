@@ -612,6 +612,11 @@ class DAG(LoggingMixin):
         ``earliest``, even if it does not fall on the logical timetable schedule.
         The default is ``True``, but subdags will ignore this value and always
         behave as if this is set to ``False`` for backward compatibility.
+
+        Example: A DAG is scheduled to run every midnight (``0 0 * * *``). If
+        ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
+        ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
+        if ``align=True``.
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
@@ -656,11 +661,6 @@ class DAG(LoggingMixin):
         :type start_date: datetime
         :param end_date: The end date of the interval. Defaults to ``timezone.utcnow()``.
         :type end_date: datetime
-        :param align: Whether the first run should be delayed to "align" with
-            the schedule, or can happen immediately at start_date. The default is
-            ``True``, but subdags will ignore this value and always behave as if
-            this is set to ``False`` for backward compatibility.
-        :type align: bool
         :return: A list of dates within the interval following the dag's schedule.
         :rtype: list
         """
