@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Float, Integer, String, Text
-
+from sqlalchemy import Column, Float, Integer, String, Text, TIMESTAMP
+from airflow.utils.sqlalchemy import UtcDateTime
 from plugins.result_storage.base import Base
+from airflow.utils import helpers, timezone
 
 
 class ResultModel(Base):
@@ -10,6 +11,10 @@ class ResultModel(Base):
 
     def __repr__(self):
         return self.entity_id
+
+    def __init__(self,*args, **kwargs):
+        self.update_time = timezone.utcnow()
+        super(ResultModel, self).__init__(*args, **kwargs)
 
     __tablename__ = "result"
 
@@ -44,7 +49,9 @@ class ResultModel(Base):
     torque_min = Column(Integer)
     torque_target = Column(Integer)
     torque_threshold = Column(Integer)
-    update_time = Column(String(256))
+    #TODO: 将时间类型类型改为TIMESTAMP
+    # update_time = Column(String(256))
+    update_time = Column(UtcDateTime())
     user_id = Column(Integer)
     workorder_id = Column(Integer)
     vin = Column(String(256))

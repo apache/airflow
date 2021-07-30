@@ -27,12 +27,17 @@ from functools import wraps
 import os
 import contextlib
 import json
+from distutils.util import strtobool
+from sqlalchemy import text
+
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.create_default_user import create_default_users
 
 log = LoggingMixin().log
+
+ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
 
 
 @contextlib.contextmanager
@@ -333,6 +338,10 @@ def initdb(rbac=False):
     session = settings.Session()
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS', fallback=True):
         create_default_connections()
+
+    if ENV_TIMESCALE_ENABLE:
+        session.execute(text('CREATE EXTENSION IF NOT EXISTS timescaledb;'))
+        session.commit()
 
     merge_conn(
         Connection(

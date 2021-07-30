@@ -16,7 +16,6 @@ SUPPORT_DEVICE_TYPE = ['tightening', 'servo_press']
 MINIO_ROOT_URL = os.environ.get('MINIO_ROOT_URL', None)
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
-
 class ResultStorageHook(BaseHook, ABC):
 
     @staticmethod
