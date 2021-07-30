@@ -296,6 +296,7 @@ class TestLocalTaskJob:
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        settings.engine.dispose()
         process = multiprocessing.Process(target=job1.run)
         process.start()
         for _ in range(0, 50):
