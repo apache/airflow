@@ -1743,6 +1743,32 @@ class TestTaskInstance(unittest.TestCase):
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_success_callback_handles_and_logs_exception(self):
+        called = completed = False
+
+        def on_success_callable(context):
+            nonlocal called, completed
+            called = True
+            raise KeyError
+            completed = True
+
+        dag = DAG(
+            'test_success_callback_handles_exception',
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        )
+        task = DummyOperator(
+            task_id='op', email='test@test.test', on_success_callback=on_success_callable, dag=dag
+        )
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti._log = mock.Mock()
+        ti.state = State.SUCCESS
+        ti._run_finished_callback()
+
+        assert called
+        assert not completed
+        ti.log.exception.assert_called_once_with("Error when executing on_success_callback")
+
     def test_handle_failure(self):
         start_date = timezone.datetime(2016, 6, 1)
         dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)

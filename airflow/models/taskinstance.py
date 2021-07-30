@@ -1363,7 +1363,7 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     task.on_failure_callback(context)
                 except Exception:
-                    log.exception("Failed when executing execute on_failure_callback:")
+                    self.log.exception("Error when executing on_failure_callback")
         elif self.state == State.SUCCESS:
             task = self.task
             if task.on_success_callback is not None:
@@ -1371,7 +1371,7 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     task.on_success_callback(context)
                 except Exception:
-                    log.exception("Failed when executing execute on_success_callback:")
+                    self.log.exception("Error when executing on_success_callback")
         elif self.state == State.UP_FOR_RETRY:
             task = self.task
             if task.on_retry_callback is not None:
@@ -1380,7 +1380,7 @@ class TaskInstance(Base, LoggingMixin):
                 try:
                     task.on_retry_callback(context)
                 except Exception:
-                    log.exception("Failed when executing execute on_retry_callback:")
+                    self.log.exception("Error when executing on_retry_callback")
 
     @provide_session
     def run(
