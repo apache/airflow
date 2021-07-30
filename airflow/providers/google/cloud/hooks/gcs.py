@@ -1065,8 +1065,8 @@ class GCSHook(GoogleBaseHook):
         source_bucket_obj = client.bucket(source_bucket)
         destination_bucket_obj = client.bucket(destination_bucket)
         # Normalize parameters when they are passed
-        source_object = self._normalize_directory_path(source_object)
-        destination_object = self._normalize_directory_path(destination_object)
+        source_object = _normalize_directory_path(source_object)
+        destination_object = _normalize_directory_path(destination_object)
         # Calculate the number of characters that remove from the name, because they contain information
         # about the parent's path
         source_object_prefix_len = len(source_object) if source_object else 0
@@ -1137,9 +1137,6 @@ class GCSHook(GoogleBaseHook):
             else blob.name[source_object_prefix_len:]
         )
 
-    def _normalize_directory_path(self, source_object: Optional[str]) -> Optional[str]:
-        return source_object + "/" if source_object and not source_object.endswith("/") else source_object
-
     @staticmethod
     def _prepare_sync_plan(
         source_bucket: storage.Bucket,
@@ -1207,3 +1204,7 @@ def _parse_gcs_url(gsurl: str) -> Tuple[str, str]:
     # Remove leading '/' but NOT trailing one
     blob = parsed_url.path.lstrip('/')
     return bucket, blob
+
+
+def _normalize_directory_path(source_object: Optional[str]) -> Optional[str]:
+    return source_object + "/" if source_object and not source_object.endswith("/") else source_object
