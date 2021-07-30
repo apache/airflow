@@ -64,7 +64,7 @@ class ClsSendResultHMI(object):
         if queue_config is None:
             raise Exception('config for queue "{}" missing'.format(queue))
         channel = mq.get_channel(mq, **queue_config)
-        exchange = queue_config.get('exchange', None)
+        exchange = queue_config.get('exchange', '')
         channel.basic_publish(exchange=exchange, routing_key=queue_config.get('routing_key', ''),
                               body=json.dumps([data]),
                               properties=pika.BasicProperties(
@@ -77,7 +77,7 @@ class PublishResultHook(BaseHook, ABC):
     @staticmethod
     def format_analysis_result(entity_id: str = '', factory_code: str = '', result: str = '', verify_error: int = 0,
                                curve_mode: list = None, **kwargs) -> Dict:
-        _logger.debug(**kwargs)
+        _logger.debug('get extra args: {}'.format(repr(kwargs)))
         if curve_mode is None:
             curve_mode = []
         return {
@@ -92,7 +92,7 @@ class PublishResultHook(BaseHook, ABC):
     @staticmethod
     def format_final_result(entity_id: str = '', factory_code: str = '', result: str = '', verify_error: int = 0,
                             curve_mode: list = None, **kwargs):
-        _logger.debug(kwargs)
+        _logger.debug('get extra args: {}'.format(repr(kwargs)))
         if curve_mode is None:
             curve_mode = []
         return {
@@ -108,7 +108,7 @@ class PublishResultHook(BaseHook, ABC):
     def format_tightening_result(entity_id=None, factory_code='', result=None, curve=None, craft_type=None,
                                  curve_param=None, nut_no=None, template_cluster=None, task=None,
                                  version=None, **kwargs) -> Dict:
-        _logger.debug(kwargs)
+        _logger.debug('get extra args: {}'.format(repr(kwargs)))
         return {
             'entity_id': entity_id,
             'factory_code': factory_code,
@@ -129,7 +129,9 @@ class PublishResultHook(BaseHook, ABC):
         result=None,
         entity_id='',
         factory_code='',
+        **kwargs
     ):
+        _logger.debug('get extra args: {}'.format(repr(kwargs)))
         return {
             'bolt_number': '{}/{}'.format(bolt_number, craft_type),
             'entity_id': entity_id,
@@ -269,7 +271,7 @@ class PublishResultHook(BaseHook, ABC):
     @staticmethod
     def send_curve_template_to_mq(template_name=None, template_data=None, **kwargs):
         try:
-            _logger.debug(kwargs)
+            _logger.debug('get extra args: {}'.format(repr(kwargs)))
             if not template_name or not template_data:
                 raise Exception('empty template name or template data')
             _logger.info('pushing curve_template: {}...'.format(template_name))

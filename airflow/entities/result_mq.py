@@ -29,13 +29,20 @@ class ClsResultMQ(ClsEntity):
     @staticmethod
     def get_result_mq_args(key='qcos_rabbitmq'):
         mq = get_connection(key)
+        if mq is None:
+            _logger.error('连接"{}"未配置'.format(key))
+            return {
+                "host": None,
+                "port": None,
+                "username": None,
+                "password": None
+            }
         data = {
-            "host": mq.host if mq else None,
-            "port": mq.port if mq else None,
-            "username": mq.login if mq else None,
-            "password": mq.get_password() if mq else None
+            "host": mq.host,
+            "port": mq.port,
+            "username": mq.login,
+            "password": mq.get_password()
         }
-        data.update(mq.extra_dejson)
         return data
 
     def is_config_changed(self, **kwargs):
@@ -62,7 +69,7 @@ class ClsResultMQ(ClsEntity):
             'host': host,
             'port': port,
             'credentials': credentials,
-            'virtual_host': self._kwargs.get('vhost')
+            'virtual_host': self._kwargs.get('vhost', '/')
         }
         self._connection = pika.BlockingConnection(
             pika.ConnectionParameters(**connection_config)
@@ -82,6 +89,7 @@ class ClsResultMQ(ClsEntity):
         exchange_durable=None,
         **kwargs
     ) -> pika.adapters.blocking_connection.BlockingChannel:
+        _logger.debug('get extra args: {}'.format(repr(kwargs)))
         if queue in self.channels.keys():
             return self.channels.get(queue)
         self._connect()
@@ -128,5 +136,5 @@ class ClsResultMQ(ClsEntity):
         if queue is None:
             raise AirflowNotFoundException(u'mq queue 未指定')
         channel = self.get_channel(queue, **kwargs)
-        exchange = self._kwargs.get('exchange', None)
+        exchange = self._kwargs.get('exchange', '')
         channel.basic_publish(exchange=exchange, routing_key=queue, body=body)
