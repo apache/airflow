@@ -1,5 +1,4 @@
 from airflow import settings
-from airflow.utils.db import get_connection
 from airflow.utils.logger import generate_logger
 import os
 from airflow.models.variable import Variable
@@ -113,6 +112,7 @@ def get_result_args():
 
 
 def get_kafka_consumer_args(connection_key: str = 'qcos_kafka_consumer'):
+    from airflow.utils.db import get_connection
     kafka_conn = get_connection(connection_key)
     extra = kafka_conn.extra_dejson if kafka_conn else {}
     return {
@@ -125,6 +125,7 @@ def get_kafka_consumer_args(connection_key: str = 'qcos_kafka_consumer'):
 
 
 def get_curve_args(connection_key='qcos_minio'):
+    from airflow.utils.db import get_connection
     oss = get_connection(connection_key)
     extra = oss.extra_dejson if oss else {}
     return {

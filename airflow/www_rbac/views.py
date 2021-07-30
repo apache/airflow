@@ -2911,31 +2911,19 @@ class TaskInstanceModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['state', 'dag_id', 'task_id', 'line_code', 'entity_id', 'execution_date', 'measure_result',
-                    'result', 'error_tag', 'type',
-                    'final_state',
-                    'start_date', 'end_date', 'duration', 'job_id',
-                    'priority_weight', 'try_number',
-                    # 'unixname', 'hostname', 'queue', 'queued_dttm', 'operator',
+    list_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'operator',
+                    'start_date', 'end_date', 'duration', 'job_id', 'hostname',
+                    'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
                     'pool', 'log_url']
 
-    search_columns = ['state', 'type', 'dag_id', 'entity_id', 'measure_result', 'result', 'final_state',
-                      'task_id', 'error_tag',
-                      'execution_date', 'hostname',
+    search_columns = ['state', 'dag_id', 'task_id', 'execution_date', 'hostname',
                       'queue', 'pool', 'operator', 'start_date', 'end_date']
 
     label_columns = {
         'state': lazy_gettext('State'),
-        'error_tag': lazy_gettext('Error Tags'),
         'dag_id': lazy_gettext('Dag Id'),
         'task_id': lazy_gettext('Task Id'),
-        'line_code': lazy_gettext('Line Code'),
-        'entity_id': lazy_gettext('Entity Id'),
-        'type': lazy_gettext('Task Instance Type'),
         'execution_date': lazy_gettext('Execution Date'),
-        'measure_result': lazy_gettext('Measure Result'),
-        'result': lazy_gettext('Result'),
-        'final_state': lazy_gettext('Final State'),
         'start_date': lazy_gettext('Start Date'),
         'end_date': lazy_gettext('End Date'),
         'duration': lazy_gettext('Duration'),
@@ -2990,14 +2978,12 @@ class TaskInstanceModelView(AirflowModelView):
         'task_id': wwwutils.task_instance_link,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
-        'error_tag': error_tag_f,
         'execution_date': wwwutils.datetime_f('execution_date'),
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
         'queued_dttm': wwwutils.datetime_f('queued_dttm'),
         'dag_id': wwwutils.dag_link,
         'duration': duration_f,
-        'type': type_f,
     }
 
     @provide_session
@@ -3037,18 +3023,6 @@ class TaskInstanceModelView(AirflowModelView):
         except Exception:
             flash('Failed to set state', 'error')
 
-    @provide_session
-    def set_task_instance_final_state(self, tis, target_state, session=None):
-        try:
-            count = len(tis)
-            for ti in tis:
-                ti.set_final_state(target_state, session=session)
-            session.commit()
-            flash("{count} task instances final state were set to '{target_state}'".format(
-                count=count, target_state=target_state))
-        except Exception:
-            flash('Failed to set final state', 'error')
-
     @action('set_running', "Set state to 'running'", '', single=False)
     @has_dag_access(can_dag_edit=True)
     def action_set_running(self, tis):
@@ -3060,20 +3034,6 @@ class TaskInstanceModelView(AirflowModelView):
     @has_dag_access(can_dag_edit=True)
     def action_set_failed(self, tis):
         self.set_task_instance_state(tis, State.FAILED)
-        self.update_redirect()
-        return redirect(self.get_redirect())
-
-    @action('set_final_state_nok', "Set Final State to 'failed'", '', single=False, multiple=False)
-    @has_dag_access(can_dag_edit=True)
-    def action_set_final_state_nok(self, tis):
-        self.set_task_instance_final_state(tis, State.FINALNOK)
-        self.update_redirect()
-        return redirect(self.get_redirect())
-
-    @action('set_final_state_ok', "Set Final State to 'success'", '', single=False, multiple=False)
-    @has_dag_access(can_dag_edit=True)
-    def action_set_final_state_ok(self, tis):
-        self.set_task_instance_final_state(tis, State.FINALOK)
         self.update_redirect()
         return redirect(self.get_redirect())
 
