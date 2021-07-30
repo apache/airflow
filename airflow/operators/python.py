@@ -267,6 +267,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_exts: list[str]
     """
 
+    template_fields = ('requirements',)
+    template_ext = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds_nodash',
         'inlets',
@@ -300,7 +302,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Optional[Iterable[str]] = None,
+        requirements: Union[Iterable[str], str, None] = None,
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
@@ -336,23 +338,31 @@ class PythonVirtualenvOperator(PythonOperator):
             templates_exts=templates_exts,
             **kwargs,
         )
-        self.requirements = list(requirements or [])
+        if not isinstance(requirements, str):
+            self.requirements = list(requirements or [])
+        else:
+            self.requirements = requirements
         self.string_args = string_args or []
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
-        if not self.system_site_packages:
-            if 'lazy-object-proxy' not in self.requirements:
-                self.requirements.append('lazy-object-proxy')
-            if self.use_dill and 'dill' not in self.requirements:
-                self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
+
+    def pre_execute(self, context: Any):
+        if isinstance(self.requirements, list):
+            return
+
+        import pkg_resources
+        self.requirements = [str(req) for req in pkg_resources.parse_requirements(self.requirements)]
 
     def execute(self, context: Dict):
         serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
         return super().execute(context=serializable_context)
 
     def execute_callable(self):
+        if not self.system_site_packages and self.use_dill and 'dill' not in self.requirements:
+            self.requirements.append('dill')
+
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             if self.templates_dict:
                 self.op_kwargs['templates_dict'] = self.templates_dict
