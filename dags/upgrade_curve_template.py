@@ -134,7 +134,7 @@ dag = DAG(
     description=u'上汽拧紧曲线分析-曲线模板更新',
     start_date=dt.datetime(2020, 1, 1, tzinfo=local_tz),
     max_active_runs=1,
-    schedule_interval='*/1 * * * *',
+    schedule_interval=timedelta(seconds=1),
     catchup=True
 )
 
