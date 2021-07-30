@@ -609,7 +609,7 @@ class DAG(LoggingMixin):
         by their ``schedule_date`` from earliest to latest.
 
         If ``align`` is ``False``, the first run will happen immediately on
-        ``ealiest``, even if it does not fall on the logical timetable schedule.
+        ``earliest``, even if it does not fall on the logical timetable schedule.
         The default is ``True``, but subdags will ignore this value and always
         behave as if this is set to ``False`` for backward compatibility.
         """
@@ -638,7 +638,7 @@ class DAG(LoggingMixin):
             return
 
         # If align=False and earliest is not a logical schedule date, "invent"
-        # a data interval betwwen it and the first schedule date.
+        # a data interval between it and the first schedule date.
         if not align and info.schedule_date != earliest:
             yield DagRunInfo.interval(earliest, info.schedule_date)
 
