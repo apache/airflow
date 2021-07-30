@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add data_interval_[start|end] to DagRun.
+"""Add data_interval_[start|end] to DagModel and DagRun.
 
 Revision ID: 142555e44c17
 Revises: e9304a3141f0
@@ -25,10 +25,8 @@ Create Date: 2021-06-09 08:28:02.089817
 """
 
 from alembic import op
-from sqlalchemy import Column
-from sqlalchemy.dialects import mssql
-
-from airflow.utils.sqlalchemy import UtcDateTime
+from sqlalchemy import TIMESTAMP, Column
+from sqlalchemy.dialects import mssql, mysql
 
 # Revision identifiers, used by Alembic.
 revision = "142555e44c17"
@@ -37,12 +35,30 @@ branch_labels = None
 depends_on = None
 
 
+def _use_date_time2(conn):
+    result = conn.execute(
+        """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
+        like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
+        like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
+    ).fetchone()
+    mssql_version = result[0]
+    return mssql_version not in ("2000", "2005")
+
+
+def _get_timestamp(conn):
+    dialect_name = conn.dialect.name
+    if dialect_name == "mysql":
+        return mysql.TIMESTAMP(fsp=6, timezone=True)
+    if dialect_name != "mssql":
+        return TIMESTAMP(timezone=True)
+    if _use_date_time2(conn):
+        return mssql.DATETIME2(precision=6)
+    return mssql.DATETIME
+
+
 def upgrade():
     """Apply data_interval fields to DagModel and DagRun."""
-    if op.get_bind().dialect.name == "mssql":
-        column_type = mssql.DATETIME2(precision=6)
-    else:
-        column_type = UtcDateTime
+    column_type = _get_timestamp(op.get_bind())
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.add_column(Column("data_interval_start", column_type))
         batch_op.add_column(Column("data_interval_end", column_type))
