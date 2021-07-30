@@ -11,7 +11,6 @@ import os
 from airflow.models import Variable
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from distutils.util import strtobool
-from airflow.utils.db import get_connection
 from plugins.utils import gen_template_key
 import pika
 from airflow.models import BaseOperator
@@ -22,8 +21,9 @@ _logger = LoggingMixin().log
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 try:
     ENV_PUSH_HMI_ENABLE = strtobool(os.getenv('ENV_PUSH_HMI_ENABLE', 'true'))
-except:
+except Exception as err:
     ENV_PUSH_HMI_ENABLE = False
+    _logger.debug('ENV_PUSH_HMI_ENABLE 解析失败({})，使用默认值{}'.format(err, ENV_PUSH_HMI_ENABLE))
 
 if RUNTIME_ENV == 'prod':
     schedule_interval = None
@@ -37,67 +37,33 @@ _logger = generate_logger(__name__)
 PUSH_ANALYSIS_RESULT_MODE = os.environ.get('PUSH_ANALYSIS_RESULT_MODE', 'ALL')  # 'OK', 'NOK', 'ALL'
 
 
-class SendResultHMIMixin(object):
+class ClsSendResultHMI(object):
+
     @staticmethod
-    def get_channel(mq, queue, **kwargs) -> pika.adapters.blocking_connection.BlockingChannel:
-        if queue in mq.channels.keys():
-            return mq.channels.get(queue)
-        mq._connect()
-        channel = mq._connection.channel()
-        channel.confirm_delivery()
-        passive = kwargs.get('passive', False)
-        durable = kwargs.get('durable', False)
-        exclusive = kwargs.get('exclusive', False)
-        auto_delete = kwargs.get('auto_delete', False)
-        arguments = kwargs.get('arguments', None)
-        channel.queue_declare(
-            queue,
-            passive=passive,
-            durable=durable,
-            exclusive=exclusive,
-            auto_delete=auto_delete,
-            arguments=arguments
-        )
-        exchange = kwargs.get('exchange', None)
-        exchange_type = kwargs.get('exchange_type', 'fanout')
-        exchange_durable = kwargs.get('exchange_durable', None)
+    def get_mq_connection_key(factory_code):
+        return 'qcos_rabbitmq_{}'.format(factory_code)
 
-        if exchange and exchange_type:
-            channel.exchange_declare(exchange=exchange, exchange_type=exchange_type, durable=exchange_durable)
-            channel.queue_bind(exchange=exchange,
-                               queue=queue,
-                               routing_key=kwargs.get('routing_key', '#'))  # 匹配python.后所有单词
-        mq.channels[queue] = channel  # 将channel加入到字典对象中
-        return channel
+    @staticmethod
+    def get_mq_queue_name(factory_code, result_type):
+        return '{}_mq_queue_{}'.format(result_type, factory_code)
 
     @classmethod
-    def do_send_tightening_result_to_hmi_nd(cls, tightening_result: Dict, queue: str = 'tightening_result_mq_queue_nd'):
-        md = cls.get_nd_mq_args()
+    def send_result_to_hmi(cls, result_type, factory_code, data: Dict):
+        _logger.info("Sending {} to hmi".format(result_type, data))
+        _logger.debug("data: {}".format(data))
+        if not factory_code:
+            _logger.error("Can Not Found Factory Code To Push To HMI")
+            return
+        if not result_type:
+            _logger.error("Can Not Found Factory Code To Push To HMI")
+            return
+        md = ClsResultMQ.get_result_mq_args(key=ClsSendResultHMI.get_mq_connection_key(factory_code))
         mq = ClsResultMQ(**md)
-        if not queue:
-            queue = 'tightening_result_mq_queue_nd'
+        queue = ClsSendResultHMI.get_mq_queue_name(factory_code, result_type)
         queue_config = Variable.get(queue, deserialize_json=True)
         if queue_config is None:
             raise Exception('config for queue "{}" missing'.format(queue))
-        channel = SendResultHMIMixin.get_channel(mq, **queue_config)
-        exchange = queue_config.get('exchange', None)
-        channel.basic_publish(exchange=exchange, routing_key=queue_config.get('routing_key', ''),
-                              body=json.dumps([tightening_result]),
-                              properties=pika.BasicProperties(
-                                  headers={'msgType': queue_config.get('msgType', '')},
-                                  content_type="application/json"
-                              ))
-
-    @classmethod
-    def do_send_analysis_result_to_hmi_nd(cls, data: Dict, queue: str = 'analysis_result_mq_queue_nd'):
-        md = cls.get_nd_mq_args()
-        mq = ClsResultMQ(**md)
-        if not queue:
-            queue = 'analysis_result_mq_queue_nd'
-        queue_config = Variable.get(queue, deserialize_json=True)
-        if queue_config is None:
-            raise Exception('config for queue "{}" missing'.format(queue))
-        channel = SendResultHMIMixin.get_channel(mq, **queue_config)
+        channel = mq.get_channel(mq, **queue_config)
         exchange = queue_config.get('exchange', None)
         channel.basic_publish(exchange=exchange, routing_key=queue_config.get('routing_key', ''),
                               body=json.dumps([data]),
@@ -106,23 +72,12 @@ class SendResultHMIMixin(object):
                                   content_type="application/json"
                               ))
 
-    @classmethod
-    def get_nd_mq_args(cls):
-        mq = get_connection('qcos_rabbitmq_nd')
-        data = {
-            "host": mq.host if mq else None,
-            "port": mq.port if mq else None,
-            "username": mq.login if mq else None,
-            "password": mq.get_password() if mq else None
-        }
-        data.update(mq.extra_dejson)
-        return data
-
 
 class PublishResultHook(BaseHook, ABC):
     @staticmethod
     def format_analysis_result(entity_id: str = '', factory_code: str = '', result: str = '', verify_error: int = 0,
                                curve_mode: list = None, **kwargs) -> Dict:
+        _logger.debug(**kwargs)
         if curve_mode is None:
             curve_mode = []
         return {
@@ -137,6 +92,7 @@ class PublishResultHook(BaseHook, ABC):
     @staticmethod
     def format_final_result(entity_id: str = '', factory_code: str = '', result: str = '', verify_error: int = 0,
                             curve_mode: list = None, **kwargs):
+        _logger.debug(kwargs)
         if curve_mode is None:
             curve_mode = []
         return {
@@ -152,6 +108,7 @@ class PublishResultHook(BaseHook, ABC):
     def format_tightening_result(entity_id=None, factory_code='', result=None, curve=None, craft_type=None,
                                  curve_param=None, nut_no=None, template_cluster=None, task=None,
                                  version=None, **kwargs) -> Dict:
+        _logger.debug(kwargs)
         return {
             'entity_id': entity_id,
             'factory_code': factory_code,
@@ -209,8 +166,8 @@ class PublishResultHook(BaseHook, ABC):
         if isinstance(template_data, str):
             try:
                 data = json.loads(template_data)
-            except Exception:
-                _logger.log('cannot decode template data as json string, sending original data...')
+            except Exception as e:
+                _logger.info('cannot decode template data as json string ({}), sending original data...'.format(e))
         data.update({
             'curve_param': json.dumps(data.get('curve_param', {})),
             'template_cluster': json.dumps(data.get('template_cluster', {}))
@@ -221,20 +178,8 @@ class PublishResultHook(BaseHook, ABC):
         }
 
     @staticmethod
-    def get_result_mq_args():
-        mq = get_connection('qcos_rabbitmq')
-        data = {
-            "host": mq.host if mq else None,
-            "port": mq.port if mq else None,
-            "username": mq.login if mq else None,
-            "password": mq.get_password() if mq else None
-        }
-        data.update(mq.extra_dejson)
-        return data
-
-    @staticmethod
     def do_push(data, queue):
-        mq = ClsResultMQ(**PublishResultHook.get_result_mq_args())
+        mq = ClsResultMQ(**ClsResultMQ.get_result_mq_args(key='qcos_rabbitmq'))
         queue_config = Variable.get(queue, deserialize_json=True)
         if queue_config is None:
             raise Exception('config for queue "{}" missing'.format(queue))
@@ -271,6 +216,7 @@ class PublishResultHook(BaseHook, ABC):
     ):
         try:
             _logger.info('pushing final result to mq...')
+            _logger.debug(kwargs)
             data = PublishResultHook.format_final_result(
                 entity_id=entity_id,
                 factory_code=factory_code,
@@ -285,10 +231,9 @@ class PublishResultHook(BaseHook, ABC):
             raise e
 
     @staticmethod
-    def send_tightening_result_to_mq(tightening_result):
+    def send_tightening_result_to_mq(data):
         try:
             _logger.info('pushing tightening result to mq...')
-            data = tightening_result
             PublishResultHook.do_push(data, 'tightening_result_mq_queue')
             _logger.info('pushing tightening result to mq success')
         except Exception as e:
@@ -296,56 +241,35 @@ class PublishResultHook(BaseHook, ABC):
             raise e
 
     @staticmethod
-    def send_tightening_result_to_hmi(tightening_result: Dict):
-        _logger.info("Sending tightening result to hmi, data: {}".format(tightening_result))
-        factory_code: str = tightening_result.get('factory_code', '')
-        if not factory_code:
-            _logger.error("Can Not Found Factory Code To Push To HMI")
-            return
-        method = 'do_send_tightening_result_to_hmi_{}'.format(factory_code.lower())
-        try:
-            has_method = hasattr(SendResultHMIMixin, method)
-            if has_method:
-                m = getattr(SendResultHMIMixin, method)
-                m(tightening_result)
-        except Exception as e:
-            _logger.error("Get Push Result To Hmi Method Error", e)
-
-    @staticmethod
-    def send_analysis_result_to_hmi(data: Dict):
-        _logger.info("Sending analysis result to hmi, data: {}".format(data))
-        factory_code: str = data.get('factory_code', '')
-        if not factory_code:
-            _logger.error("Can Not Found Factory Code To Push To HMI")
-            return
-        method = 'do_send_analysis_result_to_hmi_{}'.format(factory_code.lower())
-        try:
-            has_method = hasattr(SendResultHMIMixin, method)
-            if has_method:
-                m = getattr(SendResultHMIMixin, method)
-                m(data)
-        except Exception as e:
-            _logger.error("Get Push Result To Hmi Method Error", e)
-
-    @staticmethod
-    def publish_tightening_result(**data):
-        result = PublishResultHook.format_tightening_result(**data)
+    def publish_tightening_result(factory_code='', **data):
+        result = PublishResultHook.format_tightening_result(factory_code=factory_code, **data)
         PublishResultHook.send_tightening_result_to_mq(result)
         if ENV_PUSH_HMI_ENABLE:
-            PublishResultHook.send_tightening_result_to_hmi(PublishResultHook.format_tightening_result_for_hmi(data))
+            formatted_data = PublishResultHook.format_tightening_result_for_hmi(factory_code=factory_code, **data)
+            ClsSendResultHMI.send_result_to_hmi(
+                'tightening_result',
+                factory_code,
+                formatted_data
+            )
 
     @staticmethod
-    def publish_analysis_result(**data):
-        format_data = PublishResultHook.format_analysis_result(**data)
-        if not format_data:
+    def publish_analysis_result(factory_code='', **data):
+        result = PublishResultHook.format_analysis_result(factory_code=factory_code, **data)
+        if not result:
             return
-        PublishResultHook.send_analysis_result_to_mq(format_data)
+        PublishResultHook.send_analysis_result_to_mq(result)
         if ENV_PUSH_HMI_ENABLE:
-            PublishResultHook.send_analysis_result_to_hmi(PublishResultHook.format_analysis_result_for_hmi(**data))
+            formatted_data = PublishResultHook.format_analysis_result_for_hmi(factory_code=factory_code, **data)
+            ClsSendResultHMI.send_result_to_hmi(
+                'analysis_result',
+                factory_code,
+                formatted_data
+            )
 
     @staticmethod
     def send_curve_template_to_mq(template_name=None, template_data=None, **kwargs):
         try:
+            _logger.debug(kwargs)
             if not template_name or not template_data:
                 raise Exception('empty template name or template data')
             _logger.info('pushing curve_template: {}...'.format(template_name))
