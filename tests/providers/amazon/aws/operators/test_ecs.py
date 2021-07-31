@@ -230,7 +230,7 @@ class TestECSOperator(unittest.TestCase):
             self.ecs._check_success_task()
 
         assert str(ctx.value) == (
-            f"This task is not in success state - last logs from Cloudwatch:\n1\n2\n3\n4\n5"
+            f"This task is not in success state - last 10 logs from Cloudwatch:\n1\n2\n3\n4\n5"
         )
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
