@@ -217,6 +217,14 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(cluster='c', tasks=['arn'])
         assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
+    @mock.patch.object(ECSOperator, '_cloudwatch_log_events', return_value=({"message": str(i)} for i in range(10)))
+    def test_last_log_messages(self, mock_cloudwatch_log_events):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        assert self.ecs._last_log_messages(5) == ["5", "6", "7", "8", "9"]
+
     @mock.patch.object(ECSOperator, '_last_log_messages', return_value=["1", "2", "3", "4", "5"])
     def test_check_success_tasks_raises_cloudwatch_logs(self, mock_last_log_messages):
         client_mock = mock.Mock()
