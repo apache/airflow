@@ -229,10 +229,8 @@ class TestECSOperator(unittest.TestCase):
         with pytest.raises(Exception) as ctx:
             self.ecs._check_success_task()
 
-        expected_last_logs = "\n".join(mock_last_log_messages.return_value)
-        assert (
-            str(ctx.value)
-            == f"This task is not in success state - last logs from Cloudwatch:\n{expected_last_logs}"
+        assert str(ctx.value) == (
+            f"This task is not in success state - last logs from Cloudwatch:\n1\n2\n3\n4\n5"
         )
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
