@@ -136,7 +136,8 @@ class ECSOperator(BaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
-    :param quota_retry: Config if and how to retry _start_task() for transient errors.
+    :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
+        transient errors.
     :type quota_retry: dict
     :param reattach: If set to True, will check if the task previously launched by the task_instance
         is already running. If so, the operator will attach to it instead of starting a new task.
