@@ -389,7 +389,8 @@ class ECSOperator(BaseOperator):
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
                     last_logs = "\n".join(self._last_log_messages(self.number_logs_exception))
                     raise AirflowException(
-                        f"This task is not in success state - last logs from Cloudwatch:\n{last_logs}"
+                        f"This task is not in success state - last {self.number_logs_exception} "
+                        f"logs from Cloudwatch:\n{last_logs}"
                     )
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException(f'This task is still pending {task}')
