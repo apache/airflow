@@ -95,7 +95,7 @@ as Variables create a connection to metadata DB of Airflow to fetch the value, w
 place extra load on the DB.
 
 Airflow parses all the DAGs in the background at a specific period.
-The default period is set using ``processor_poll_interval`` config, which is by default 1 second.
+The default period is set using the ``processor_poll_interval`` config, which is 1 second by default.
 During parsing, Airflow creates a new connection to the metadata DB for each DAG.
 This can result in a lot of open connections.
 
