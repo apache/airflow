@@ -116,6 +116,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.cassandra    | ``pip install 'apache-airflow[apache.cassandra]'``  | Cassandra related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.drill        | ``pip install 'apache-airflow[apache.drill]'``      | Drill related operators & hooks                |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.druid        | ``pip install 'apache-airflow[apache.druid]'``      | Druid related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.hdfs         | ``pip install 'apache-airflow[apache.hdfs]'``       | HDFS hooks and operators                       |
@@ -258,7 +260,7 @@ Those are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | grpc                | ``pip install 'apache-airflow[grpc]'``              | Grpc hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |              |
+| http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | imap                | ``pip install 'apache-airflow[imap]'``              | IMAP hooks and sensors               |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

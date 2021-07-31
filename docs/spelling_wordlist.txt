@@ -110,11 +110,14 @@ Dockerise
 Docstring
 Docstrings
 Dont
+Drillbit
 Drivy
 Dsn
 Dynamodb
 EDITMSG
 ETag
+EdgeModifier
+EdgeModifiers
 Eg
 EmrAddSteps
 EmrCreateJobFlow
@@ -371,6 +374,8 @@ Webhook
 Webserver
 Werkzeug
 XCom
+XComArg
+XComArgs
 XComs
 Xcom
 Xero

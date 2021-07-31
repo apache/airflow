@@ -73,7 +73,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.timeout import timeout
 
 try:
@@ -112,6 +112,8 @@ def set_current_context(context: Context):
 
 def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
     """Load and return error from error file"""
+    if fd.closed:
+        return None
     fd.seek(0, os.SEEK_SET)
     data = fd.read()
     if not data:
@@ -138,7 +140,7 @@ def clear_task_instances(
     session,
     activate_dag_runs=None,
     dag=None,
-    dag_run_state: Union[str, Literal[False]] = State.QUEUED,
+    dag_run_state: Union[DagRunState, Literal[False]] = DagRunState.QUEUED,
 ):
     """
     Clears a set of task instances, but makes sure the running ones
@@ -156,7 +158,9 @@ def clear_task_instances(
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
-                ti.state = State.SHUTDOWN
+                # If a task is cleared when running, set its state to RESTARTING so that
+                # the task is terminated and becomes eligible for retry.
+                ti.state = State.RESTARTING
                 job_ids.append(ti.job_id)
         else:
             task_id = ti.task_id
@@ -209,7 +213,7 @@ def clear_task_instances(
         from airflow.jobs.base_job import BaseJob
 
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
-            job.state = State.SHUTDOWN
+            job.state = State.RESTARTING
 
     if activate_dag_runs is not None:
         warnings.warn(
@@ -649,7 +653,10 @@ class TaskInstance(Base, LoggingMixin):
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
+            self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
+            self.executor_config = ti.executor_config
+            self.external_executor_id = ti.external_executor_id
         else:
             self.state = None
 
@@ -1379,7 +1386,6 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
         if not res:
-            self.log.info("CHECK AND CHANGE")
             return
 
         try:
@@ -1515,6 +1521,11 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
+        if self.state == State.RESTARTING:
+            # If a task is cleared when running, it goes into RESTARTING state and is always
+            # eligible for retry
+            return True
+
         return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session

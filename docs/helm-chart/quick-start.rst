@@ -43,16 +43,30 @@ Add Airflow Helm Stable Repo
    helm repo add apache-airflow https://airflow.apache.org
    helm repo update
 
-Create namespace and Install the chart
---------------------------------------
+Create namespace
+----------------
+
+.. code-block:: bash
+
+  export NAMESPACE=example-namespace
+  kubectl create namespace $NAMESPACE
+
+Install the chart
+-----------------
 
 .. code-block:: bash
 
   export RELEASE_NAME=example-release
-  export NAMESPACE=example-namespace
-
-  kubectl create namespace $NAMESPACE
   helm install $RELEASE_NAME apache-airflow/airflow --namespace $NAMESPACE
+
+Use the following code to install the chart with Example DAGs:
+
+.. code-block:: bash
+
+  export NAMESPACE=example-namespace
+  helm install $RELEASE_NAME apache-airflow/airflow \
+    --namespace $NAMESPACE \
+    --set 'env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES,env[0].value=True'
 
 It may take a few minutes. Confirm the pods are up:
 
@@ -61,9 +75,13 @@ It may take a few minutes. Confirm the pods are up:
    kubectl get pods --namespace $NAMESPACE
    helm list --namespace $NAMESPACE
 
-Run ``kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow``
+Run the following command
 to port-forward the Airflow UI to http://localhost:8080/ to confirm
 Airflow is working.
+
+.. code-block:: bash
+
+   kubectl port-forward svc/$RELEASE_NAME-webserver 8080:8080 --namespace $NAMESPACE
 
 Extending Airflow Image
 -----------------------

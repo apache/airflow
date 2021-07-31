@@ -36,7 +36,6 @@ from sqlalchemy.orm.session import Session, make_transient
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.exceptions import SerializedDagNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
@@ -49,12 +48,12 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
+from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 TI = models.TaskInstance
@@ -192,7 +191,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def _change_state_for_tis_without_dagrun(
-        self, old_states: List[str], new_state: str, session: Session = None
+        self, old_states: List[TaskInstanceState], new_state: TaskInstanceState, session: Session = None
     ) -> None:
         """
         For all DAG IDs in the DagBag, look for task instances in the
@@ -266,7 +265,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def __get_concurrency_maps(
-        self, states: List[str], session: Session = None
+        self, states: List[TaskInstanceState], session: Session = None
     ) -> Tuple[DefaultDict[str, int], DefaultDict[Tuple[str, str], int]]:
         """
         Get the concurrency maps.
@@ -634,7 +633,6 @@ class SchedulerJob(BaseJob):
         self.processor_agent = DagFileProcessorAgent(
             dag_directory=self.subdir,
             max_runs=self.num_times_parse_dags,
-            processor_factory=type(self)._create_dag_file_processor,
             processor_timeout=processor_timeout,
             dag_ids=[],
             pickle_dags=pickle_dags,
@@ -679,18 +677,6 @@ class SchedulerJob(BaseJob):
             except Exception:
                 self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
-
-    @staticmethod
-    def _create_dag_file_processor(
-        file_path: str,
-        callback_requests: List[CallbackRequest],
-        dag_ids: Optional[List[str]],
-        pickle_dags: bool,
-    ) -> DagFileProcessorProcess:
-        """Creates DagFileProcessorProcess instance."""
-        return DagFileProcessorProcess(
-            file_path=file_path, pickle_dags=pickle_dags, dag_ids=dag_ids, callback_requests=callback_requests
-        )
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -848,6 +834,7 @@ class SchedulerJob(BaseJob):
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
 
+            callback_tuples = []
             for dag_run in dag_runs:
                 # Use try_except to not stop the Scheduler when a Serialized DAG is not found
                 # This takes care of Dynamic DAGs especially
@@ -856,12 +843,17 @@ class SchedulerJob(BaseJob):
                 # But this would take care of the scenario when the Scheduler is restarted after DagRun is
                 # created and the DAG is deleted / renamed
                 try:
-                    self._schedule_dag_run(dag_run, session)
+                    callback_to_run = self._schedule_dag_run(dag_run, session)
+                    callback_tuples.append((dag_run, callback_to_run))
                 except SerializedDagNotFound:
                     self.log.exception("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                     continue
 
             guard.commit()
+
+            # Send the callbacks after we commit to ensure the context is up to date when it gets run
+            for dag_run, callback_to_run in callback_tuples:
+                self._send_dag_callbacks_to_processor(dag_run, callback_to_run)
 
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
@@ -896,7 +888,7 @@ class SchedulerJob(BaseJob):
             return num_queued_tis
 
     @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state, session):
+    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
         """Get Next DagRuns to Examine with retries"""
         return DagRun.next_dagruns_to_examine(state, session)
 
@@ -1024,12 +1016,12 @@ class SchedulerJob(BaseJob):
         self,
         dag_run: DagRun,
         session: Session,
-    ) -> int:
+    ) -> Optional[DagCallbackRequest]:
         """
         Make scheduling decisions about an individual dag run
 
         :param dag_run: The DagRun to schedule
-        :return: Number of tasks scheduled
+        :return: Callback that needs to be executed
         """
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
 
@@ -1076,13 +1068,13 @@ class SchedulerJob(BaseJob):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
-        self._send_dag_callbacks_to_processor(dag_run, callback_to_run)
-
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
         # see #11147/commit ee90807ac for more details
-        return dag_run.schedule_tis(schedulable_tis, session)
+        dag_run.schedule_tis(schedulable_tis, session)
+
+        return callback_to_run
 
     @provide_session
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session=None):

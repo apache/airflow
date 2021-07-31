@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Minor Bugs in Apache Sqoop Hook and Operator (#16350)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+
 2.0.0
 .....
 

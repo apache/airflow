@@ -28,14 +28,45 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-07-26
+
+================================================================================================  ===========  =================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =================================================================================================
+`569659db3 <https://github.com/apache/airflow/commit/569659db38de8d708200b909e0cb410abc8772fa>`_  2021-07-26   ``Updating Amazon-AWS example DAGs to use XComArgs (#16868)``
+`763919d41 <https://github.com/apache/airflow/commit/763919d4152ffa13433e2489fec85ed286b7b196>`_  2021-07-25   ``Adding custom Salesforce connection type + SalesforceToS3Operator updates (#17162)``
+`8b100fcb4 <https://github.com/apache/airflow/commit/8b100fcb427dc8e6f511e6ce2deddb2e04909291>`_  2021-07-21   ``ECSOperator / pass context to self.xcom_pull as it was missing (when using reattach) (#17141)``
+`f44d7bd9c <https://github.com/apache/airflow/commit/f44d7bd9cfe00b1409db78c2a644516b0ab003e9>`_  2021-07-21   ``Made S3ToRedshiftOperator transaction safe (#17117)``
+`32582b5bf <https://github.com/apache/airflow/commit/32582b5bf1432e7c7603b959a675cf7edd76c9e6>`_  2021-07-21   ``Adding SalesforceToS3Operator to Amazon Provider (#17094)``
+`bb1d79cb8 <https://github.com/apache/airflow/commit/bb1d79cb81c5a5a80f97ab4fecfa7db7a52c7b4b>`_  2021-07-19   ``Fixed template_fields_renderers for Amazon provider (#17087)``
+`8f77a54b5 <https://github.com/apache/airflow/commit/8f77a54b53664c3b6dbcf2c955975ad121463550>`_  2021-07-19   ``removing try-catch block (#17081)``
+`cda78333b <https://github.com/apache/airflow/commit/cda78333b4ce9304abe315ab1afe41efe17fd2da>`_  2021-07-18   ``Added docs & doc ref's for AWS transfer operators between SFTP & S3 (#16964)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`fc0250f1d <https://github.com/apache/airflow/commit/fc0250f1d5c43784f353dbdf4a34089aa96c28e5>`_  2021-07-15   ``Allow attaching to previously launched task in ECSOperator (#16685)``
+`d3f300fba <https://github.com/apache/airflow/commit/d3f300fba8c252cac79a1654fddb91532f44c656>`_  2021-07-11   ``Fix wrong template_fields_renderers for AWS operators (#16820)``
+`f0df184e4 <https://github.com/apache/airflow/commit/f0df184e4db940f7e1b9248b5f5843d494034112>`_  2021-07-07   ``Update AWS Base hook to use refreshable credentials (#16770) (#16771)``
+`ffe8fab65 <https://github.com/apache/airflow/commit/ffe8fab6536ac4eec076d48548d7b2e814a55b1f>`_  2021-07-03   ``Added select_query to the templated fields in RedshiftToS3Operator (#16767)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+`0d80383bd <https://github.com/apache/airflow/commit/0d80383bdd506c2eff8ef29d0ff461620a966f86>`_  2021-06-28   ``AWS Hook - allow IDP HTTP retry (#12639) (#16612)``
+`3a57d9fc6 <https://github.com/apache/airflow/commit/3a57d9fc604f4478fd51e20287494d0d7a33f0e4>`_  2021-06-26   ``Bump ''sphinxcontrib-spelling'' and minor improvements (#16675)``
+`2543c74c1 <https://github.com/apache/airflow/commit/2543c74c1927b751e7492df81d762e61d2a4d5f6>`_  2021-06-24   ``AWS DataSync cancel task on exception (#11011) (#16589)``
+`2ab2cbf93 <https://github.com/apache/airflow/commit/2ab2cbf93df9eddfb527fcfd9d7b442678a57662>`_  2021-06-23   ``Update Boto3 API calls in ECSOperator (#16050)``
+================================================================================================  ===========  =================================================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-18
+Latest change: 2021-06-21
 
 ================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================================
+`19ed074e9 <https://github.com/apache/airflow/commit/19ed074e9c696eb4aff25f3a833e7f359f2b1c38>`_  2021-06-21   ``Use safe get with AWS DMS describe replication tasks (#16540)``
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `db10c6841 <https://github.com/apache/airflow/commit/db10c6841b6295ab2b116c03025856084885c6a3>`_  2021-06-18   ``Add AWS DMS replication task operators (#15850)``
 `1c82b4d01 <https://github.com/apache/airflow/commit/1c82b4d015a1785a881bb916ffa0265249c2cde7>`_  2021-06-17   ``Fix S3ToFTPOperator (#13796)``
 `36dc6a810 <https://github.com/apache/airflow/commit/36dc6a8100c0261270f7f6fa20928508f90bac96>`_  2021-06-16   ``Make job name check optional in SageMakerTrainingOperator (#16327)``

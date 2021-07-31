@@ -34,6 +34,7 @@ class SqoopOperator(BaseOperator):
 
     :param conn_id: str
     :param cmd_type: str specify command to execute "export" or "import"
+    :param schema: Schema name
     :param table: Table to read
     :param query: Import result of arbitrary SQL query. Instead of using the table,
         columns and where arguments, you can specify a SQL statement with the query
@@ -104,6 +105,7 @@ class SqoopOperator(BaseOperator):
         'extra_export_options',
         'hcatalog_database',
         'hcatalog_table',
+        'schema',
     )
     ui_color = '#7D8CA4'
 
@@ -142,6 +144,7 @@ class SqoopOperator(BaseOperator):
         create_hcatalog_table: bool = False,
         extra_import_options: Optional[Dict[str, Any]] = None,
         extra_export_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -178,6 +181,7 @@ class SqoopOperator(BaseOperator):
         self.extra_import_options = extra_import_options or {}
         self.extra_export_options = extra_export_options or {}
         self.hook: Optional[SqoopHook] = None
+        self.schema = schema
 
     def execute(self, context: Dict[str, Any]) -> None:
         """Execute sqoop job"""
@@ -200,6 +204,7 @@ class SqoopOperator(BaseOperator):
                 batch=self.batch,
                 relaxed_isolation=self.relaxed_isolation,
                 extra_export_options=self.extra_export_options,
+                schema=self.schema,
             )
         elif self.cmd_type == 'import':
             # add create hcatalog table to extra import options if option passed
@@ -223,6 +228,7 @@ class SqoopOperator(BaseOperator):
                     direct=self.direct,
                     driver=self.driver,
                     extra_import_options=self.extra_import_options,
+                    schema=self.schema,
                 )
             elif self.query:
                 self.hook.import_query(

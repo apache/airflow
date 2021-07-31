@@ -101,7 +101,7 @@ class TestBashOperator(unittest.TestCase):
     def test_raise_exception_on_non_zero_exit_code(self):
         bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 42\\."
         ):
             bash_operator.execute(context={})
 
@@ -119,7 +119,7 @@ class TestBashOperator(unittest.TestCase):
 
     def test_command_not_found(self):
         with pytest.raises(
-            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code\\."
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
             BashOperator(task_id='abc', bash_command='set -e; something-that-isnt-on-path').execute({})
 

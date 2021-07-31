@@ -73,6 +73,12 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Dummy trigger rule has been deprecated
+
+`TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.DUMMY` will be removed in next major release.
+
 ### DAG concurrency settings have been renamed
 
 `[core] dag_concurrency` setting in `airflow.cfg` has been renamed to `[core] max_active_tasks_per_dag`
@@ -127,6 +133,10 @@ If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `c
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
 
+### Clearing a running task sets its state to `RESTARTING`
+
+Previously, clearing a running task sets its state to `SHUTDOWN`. The task gets killed and goes into `FAILED` state. After [#16681](https://github.com/apache/airflow/pull/16681), clearing a running task sets its state to `RESTARTING`. The task is eligible for retry without going into `FAILED` state.
+
 ### Remove `TaskInstance.log_filepath` attribute
 
 This method returned incorrect values for a long time, because it did not take into account the different
@@ -150,6 +160,12 @@ For new deployments, you can use `default_pool_task_slot_count` setting in `[cor
 not have any effect in an existing deployment where the ``default_pool`` already exists.
 
 Previously this was controlled by `non_pooled_task_slot_count` in `[core]` section, which was not documented.
+
+### Webserver DAG refresh buttons removed
+
+Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
+
+In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
 
 ## Airflow 2.1.1
 
@@ -384,8 +400,6 @@ from my_plugin import MyHook
 It is still possible (but not required) to "register" hooks in plugins. This is to allow future support for dynamically populating the Connections form in the UI.
 
 See https://airflow.apache.org/docs/apache-airflow/stable/howto/custom-operator.html for more info.
-
-### Adding Operators and Sensors via plugins is no longer supported
 
 ### The default value for `[core] enable_xcom_pickling` has been changed to `False`
 
@@ -953,8 +967,6 @@ in `SubDagOperator`.
 #### `airflow.operators.bash.BashOperator`
 
 #### `airflow.providers.docker.operators.docker.DockerOperator`
-
-#### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
 #### `airflow.providers.http.operators.http.SimpleHttpOperator`
 
@@ -1710,9 +1722,9 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
-#### `<airflow class="providers google c"></airflow>loud.operators.bigquery.BigQueryGetDatasetTablesOperator`
+#### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
-We changed signature of BigQueryGetDatasetTablesOperator.
+We changed signature of `BigQueryGetDatasetTablesOperator`.
 
 Before:
 
@@ -1936,7 +1948,7 @@ We deprecated a number of extras in 2.0.
 
 For example:
 
-If you want to install integration for Microsoft Azure, then instead of `pip install apache-airflow[atlas]`
+If you want to install integration for Apache Atlas, then instead of `pip install apache-airflow[atlas]`
 you should use `pip install apache-airflow[apache.atlas]`.
 
 
@@ -1948,7 +1960,7 @@ If you want to install integration for Microsoft Azure, then instead of
 pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
 
-you should execute `pip install 'apache-airflow[azure]'`
+you should run `pip install 'apache-airflow[microsoft.azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
 `pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`

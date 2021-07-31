@@ -364,14 +364,29 @@ function setFocusMap(state) {
 
 const stateIsSet = () => !!Object.keys(stateFocusMap).find((key) => stateFocusMap[key]);
 
+let prevTis;
+
 function handleRefresh() {
   $('#loading-dots').css('display', 'inline-block');
   $.get(getTaskInstanceURL)
     .done(
       (tis) => {
+        // only refresh if the data has changed
+        if (prevTis !== tis) {
         // eslint-disable-next-line no-global-assign
-        taskInstances = JSON.parse(tis);
-        updateNodesStates(taskInstances);
+          taskInstances = JSON.parse(tis);
+          const states = Object.values(taskInstances).map((ti) => ti.state);
+          updateNodesStates(taskInstances);
+
+          // end refresh if all states are final
+          if (!states.some((state) => (
+            ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1))
+          ) {
+            $('#auto_refresh').prop('checked', false);
+            clearInterval(refreshInterval);
+          }
+        }
+        prevTis = tis;
         setTimeout(() => { $('#loading-dots').hide(); }, 500);
         $('#error').hide();
       },
@@ -409,7 +424,7 @@ $('#auto_refresh').change(() => {
 
 function initRefresh() {
   if (localStorage.getItem('disableAutoRefresh')) {
-    $('#auto_refresh').removeAttr('checked');
+    $('#auto_refresh').prop('checked', false);
   }
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
@@ -521,7 +536,7 @@ function getNodeState(nodeId, tis) {
   // In this order, if any of these states appeared in childrenStates, return it as
   // the group state.
   const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
-    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'removed',
+    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'restarting', 'removed',
     'no_status', 'success', 'skipped'];
 
   return priority.find((state) => childrenStates.has(state)) || 'no_status';

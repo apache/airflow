@@ -28,17 +28,15 @@ import os
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import ECSOperator
 
-DEFAULT_ARGS = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "email": ["airflow@example.com"],
-    "email_on_failure": False,
-    "email_on_retry": False,
-}
-
 dag = DAG(
     dag_id="ecs_fargate_dag",
-    default_args=DEFAULT_ARGS,
+    default_args={
+        "owner": "airflow",
+        "depends_on_past": False,
+        "email": ["airflow@example.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+    },
     default_view="graph",
     schedule_interval=None,
     start_date=datetime.datetime(2020, 1, 1),

@@ -189,17 +189,6 @@ function initialization::initialize_branch_variables() {
     export BRANCH_NAME=${BRANCH_NAME:=${DEFAULT_BRANCH}}
 }
 
-# Determine dockerhub user/repo used for push/pull
-function initialization::initialize_dockerhub_variables() {
-    # You can override DOCKERHUB_USER to use your own DockerHub account and play with your
-    # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-
-    # You can override DOCKERHUB_REPO to use your own DockerHub repository and play with your
-    # own docker images. In this case you can build images locally and push them
-    export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow-ci"}
-}
-
 # Determine available integrations
 function initialization::initialize_available_integrations() {
     export AVAILABLE_INTEGRATIONS="cassandra kerberos mongo openldap pinot rabbitmq redis statsd trino"
@@ -298,7 +287,7 @@ function initialization::initialize_force_variables() {
 
     # By default we do not pull python base image. We should do that only when we run upgrade check in
     # CI main and when we manually refresh the images to latest versions
-    export FORCE_PULL_BASE_PYTHON_IMAGE="false"
+    export CHECK_IF_BASE_PYTHON_IMAGE_UPDATED="false"
 
     # Determines whether to force build without checking if it is needed
     # Can be overridden by '--force-build-images' flag.
@@ -567,7 +556,6 @@ function initialization::initialize_git_variables() {
 function initialization::initialize_github_variables() {
     # Defaults for interacting with GitHub
     export GITHUB_REGISTRY="ghcr.io"
-    export USE_GITHUB_REGISTRY=${USE_GITHUB_REGISTRY:="false"}
     export GITHUB_REGISTRY_IMAGE_SUFFIX=${GITHUB_REGISTRY_IMAGE_SUFFIX:="-v2"}
     export GITHUB_REGISTRY_WAIT_FOR_IMAGE=${GITHUB_REGISTRY_WAIT_FOR_IMAGE:="false"}
     export GITHUB_REGISTRY_PULL_IMAGE_TAG=${GITHUB_REGISTRY_PULL_IMAGE_TAG:="latest"}
@@ -623,7 +611,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_branch_variables
     initialization::initialize_available_integrations
     initialization::initialize_files_for_rebuild_check
-    initialization::initialize_dockerhub_variables
     initialization::initialize_mount_variables
     initialization::initialize_force_variables
     initialization::initialize_host_variables
@@ -656,11 +643,6 @@ Basic variables:
     PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}
     DB_RESET: ${DB_RESET}
     START_AIRFLOW: ${START_AIRFLOW}
-
-DockerHub variables:
-
-    DOCKERHUB_USER=${DOCKERHUB_USER}
-    DOCKERHUB_REPO=${DOCKERHUB_REPO}
 
 Mount variables:
 
@@ -729,10 +711,8 @@ Production image build variables:
 
 Detected GitHub environment:
 
-    USE_GITHUB_REGISTRY: '${USE_GITHUB_REGISTRY}'
     GITHUB_REPOSITORY: '${GITHUB_REPOSITORY}'
     GITHUB_USERNAME: '${GITHUB_USERNAME}'
-    GITHUB_TOKEN: '${GITHUB_TOKEN}'
     GITHUB_REGISTRY_WAIT_FOR_IMAGE: '${GITHUB_REGISTRY_WAIT_FOR_IMAGE}'
     GITHUB_REGISTRY_PULL_IMAGE_TAG: '${GITHUB_REGISTRY_PULL_IMAGE_TAG}'
     GITHUB_REGISTRY_PUSH_IMAGE_TAG: '${GITHUB_REGISTRY_PUSH_IMAGE_TAG}'
@@ -870,11 +850,8 @@ function initialization::make_constants_read_only() {
     readonly ADDITIONAL_RUNTIME_APT_DEPS
     readonly ADDITIONAL_RUNTIME_APT_ENV
 
-    readonly DOCKERHUB_USER
-    readonly DOCKERHUB_REPO
     readonly DOCKER_CACHE
 
-    readonly USE_GITHUB_REGISTRY
     readonly GITHUB_REGISTRY
     readonly GITHUB_REGISTRY_WAIT_FOR_IMAGE
     readonly GITHUB_REGISTRY_PULL_IMAGE_TAG
@@ -885,7 +862,6 @@ function initialization::make_constants_read_only() {
     readonly GITHUB_USERNAME
 
     readonly FORWARD_CREDENTIALS
-    readonly USE_GITHUB_REGISTRY
 
     readonly EXTRA_STATIC_CHECK_OPTIONS
 
@@ -893,15 +869,9 @@ function initialization::make_constants_read_only() {
 
     readonly PYTHON_BASE_IMAGE_VERSION
     readonly PYTHON_BASE_IMAGE
-    readonly AIRFLOW_PYTHON_BASE_IMAGE
     readonly AIRFLOW_CI_BASE_TAG
-    readonly AIRFLOW_CI_IMAGE
-    readonly AIRFLOW_CI_IMAGE_DEFAULT
     readonly AIRFLOW_PROD_BASE_TAG
-    readonly AIRFLOW_PROD_IMAGE
-    readonly AIRFLOW_PROD_BUILD_IMAGE
     readonly AIRFLOW_PROD_IMAGE_KUBERNETES
-    readonly AIRFLOW_PROD_IMAGE_DEFAULT
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
 

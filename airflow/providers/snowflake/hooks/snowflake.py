@@ -99,6 +99,7 @@ class SnowflakeHook(DbApiHook):
             "extra__snowflake__aws_secret_access_key": PasswordField(
                 lazy_gettext('AWS Secret Key'), widget=BS3PasswordFieldWidget()
             ),
+            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -112,7 +113,6 @@ class SnowflakeHook(DbApiHook):
             "placeholders": {
                 'extra': json.dumps(
                     {
-                        "role": "snowflake role",
                         "authenticator": "snowflake oauth",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
@@ -129,6 +129,7 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__region': 'snowflake hosted region',
                 'extra__snowflake__aws_access_key_id': 'aws access key id (S3ToSnowflakeOperator)',
                 'extra__snowflake__aws_secret_access_key': 'aws secret access key (S3ToSnowflakeOperator)',
+                'extra__snowflake__role': 'snowflake role',
             },
         }
 
@@ -160,7 +161,7 @@ class SnowflakeHook(DbApiHook):
             'database', ''
         )
         region = conn.extra_dejson.get('extra__snowflake__region', '') or conn.extra_dejson.get('region', '')
-        role = conn.extra_dejson.get('role', '')
+        role = conn.extra_dejson.get('extra__snowflake__role', '') or conn.extra_dejson.get('role', '')
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')

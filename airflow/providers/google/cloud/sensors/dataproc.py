@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Dataproc Job sensor."""
-
+# pylint: disable=C0302
+import warnings
+from typing import Optional
 
 from google.cloud.dataproc_v1beta2.types import JobStatus
 
@@ -34,13 +36,15 @@ class DataprocJobSensor(BaseSensorOperator):
     :type project_id: str
     :param dataproc_job_id: The Dataproc job ID to poll. (templated)
     :type dataproc_job_id: str
-    :param location: Required. The Cloud Dataproc region in which to handle the request. (templated)
+    :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
+    :type region: str
+    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request. (templated)
     :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
     """
 
-    template_fields = ('project_id', 'location', 'dataproc_job_id')
+    template_fields = ('project_id', 'region', 'dataproc_job_id')
     ui_color = '#f0eee4'
 
     def __init__(
@@ -48,19 +52,31 @@ class DataprocJobSensor(BaseSensorOperator):
         *,
         project_id: str,
         dataproc_job_id: str,
-        location: str,
+        region: str = None,
+        location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         **kwargs,
     ) -> None:
+        if region is None:
+            if location is not None:
+                warnings.warn(
+                    "Parameter `location` will be deprecated. "
+                    "Please provide value through `region` parameter instead.",
+                    DeprecationWarning,
+                    stacklevel=1,
+                )
+                region = location
+            else:
+                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.dataproc_job_id = dataproc_job_id
-        self.location = location
+        self.region = region
 
     def poke(self, context: dict) -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
-        job = hook.get_job(job_id=self.dataproc_job_id, location=self.location, project_id=self.project_id)
+        job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)
         state = job.status.state
 
         if state == JobStatus.State.ERROR:

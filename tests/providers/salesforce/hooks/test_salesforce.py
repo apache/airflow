@@ -31,7 +31,7 @@ from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
 class TestSalesforceHook(unittest.TestCase):
     def setUp(self):
-        self.salesforce_hook = SalesforceHook(conn_id="conn_id")
+        self.salesforce_hook = SalesforceHook(salesforce_conn_id="conn_id")
 
     def test_get_conn_exists(self):
         self.salesforce_hook.conn = Mock(spec=Salesforce)
@@ -43,7 +43,9 @@ class TestSalesforceHook(unittest.TestCase):
     @patch(
         "airflow.providers.salesforce.hooks.salesforce.SalesforceHook.get_connection",
         return_value=Connection(
-            login="username", password="password", extra='{"security_token": "token", "domain": "test"}'
+            login="username",
+            password="password",
+            extra='{"extra__salesforce__security_token": "token", "extra__salesforce__domain": "login"}',
         ),
     )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -54,9 +56,8 @@ class TestSalesforceHook(unittest.TestCase):
         mock_salesforce.assert_called_once_with(
             username=mock_get_connection.return_value.login,
             password=mock_get_connection.return_value.password,
-            security_token=mock_get_connection.return_value.extra_dejson["security_token"],
-            instance_url=mock_get_connection.return_value.host,
-            domain=mock_get_connection.return_value.extra_dejson.get("domain"),
+            security_token=mock_get_connection.return_value.extra_dejson["extra__salesforce__security_token"],
+            domain=mock_get_connection.return_value.extra_dejson.get("extra__salesforce__domain"),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")

@@ -72,7 +72,8 @@ class RedshiftToS3Operator(BaseOperator):
     """
 
     template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options', 'select_query')
-    template_ext = ()
+    template_ext = ('.sql',)
+    template_fields_renderers = {'select_query': 'sql'}
     ui_color = '#ededed'
 
     def __init__(

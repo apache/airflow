@@ -62,7 +62,9 @@ Some of the ways you can avoid producing a different result -
 .. tip::
 
     You should define repetitive parameters such as ``connection_id`` or S3 paths in ``default_args`` rather than declaring them for each task.
-    The ``default_args`` help to avoid mistakes such as typographical errors.
+    The ``default_args`` help to avoid mistakes such as typographical errors. Also, most connection types have unique parameter names in
+    tasks, so you can declare a connection only once in ``default_args`` (for example ``gcp_conn_id``) and it is automatically
+    used by all operators that use this connection type.
 
 Deleting a task
 ----------------
@@ -108,6 +110,8 @@ or if you need to deserialize a json object from the variable :
 .. code-block::
 
     {{ var.json.<variable_name> }}
+
+An alternative option is to use environment variables in the top-level python code or use Environment Variables to create and manage Airflow variables. to manage Airflow Variables. This will avoid new connections to Airflow metadata DB every time Airflow parses the python file. For more information, see: :ref:`managing_variables`.
 
 
 Top level Python Code

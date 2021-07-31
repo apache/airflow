@@ -16,77 +16,101 @@
 %% under the License.
 
 sequenceDiagram
-    Fork -->> Airflow Repo: Start Pull Request
+    Note over Airflow Repo: pull request
     Note over CI Build: pull_request<br>[Read Token]
     Note over Build Images: pull_request_target<br>[Write Token]
     activate Airflow Repo
-    Airflow Repo -->> CI Build: Trigger 'pull_request' event
+    Airflow Repo -->> CI Build: Trigger 'pull_request'
     activate CI Build
+    CI Build -->> Build Images: Trigger 'pull_request_target'
     activate Build Images
-    Airflow Repo -->> Build Images: Trigger 'pull_request_target' event
-    opt Failed builds
-        Note right of Build Images: Find failed<br>[CI Build]
-        Build Images -->> CI Build: Cancel
-    end
     Note over Build Images: Build info
-    par 3.6, 3.7, 3.8
-        Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
-    and
+    par 3.6, [3.7, 3.8, 3.9]
+        activate GitHub Registry
+        GitHub Registry ->> Build Images: Pull CI Images from Cache
+        deactivate GitHub Registry
         Note over Build Images: Build CI Images<br>[COMMIT_SHA]
     end
     par No CI image
-        Note over CI Build: Build info
-    and
-        Note over CI Build: Should trigger tests?
-    and
-        Note over CI Build: Helm tests
+        Note over CI Build: Build info<br>Which tests?<br>Which Python?
     and
         Note over CI Build: OpenAPI client gen
-    end
-    par 3.6, 3.7, 3.8
-        Build Images ->> GitHub Registry: Push CI Images
-        activate GitHub Registry
     and
-        Build Images ->> GitHub Registry: Push PROD Images
+        Note over CI Build: Test UI
+    and
+        Note over CI Build: Test examples<br>PROD image building
     end
-    opt If any step failed
-        Build Images -->> CI Build: Cancel associated run
+    par 3.6, [3.7, 3.8, 3.9]
+        activate GitHub Registry
+        Build Images ->> GitHub Registry: Push CI Images
+        Note over GitHub Registry: Tagged CI Images<br>[COMMIT_SHA]
     end
-    deactivate Build Images
-    Note over GitHub Registry: Tagged Images<br>[COMMIT_SHA]
-    loop Wait for images
-        par 3.6, 3.7, 3.8
-            CI Build ->> CI Build: Pull CI Images
-            Note over CI Build: Wait for<br>[COMMIT_SHA]
-        and
-            CI Build ->> CI Build: Pull PROD Images
+    par 3.6, [3.7, 3.8, 3.9]
+        GitHub Registry ->> Build Images: Pull PROD Images from Cache
+        Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
+    end
+    loop Wait for CI images
+        par 3.6, [3.7, 3.8, 3.9]
+            CI Build ->> CI Build: Check CI Images
             Note over CI Build: Wait for<br>[COMMIT_SHA]
         end
     end
-    par 3.6, 3.7, 3.8
-        GitHub Registry ->> CI Build: Pull CI Images
-    and
-        GitHub Registry ->> CI Build: Pull PROD Images
+    par 3.6, [3.7, 3.8, 3.9]
+        GitHub Registry ->> CI Build: Pull CI Image
+        Note over CI Build: Verify CI Image
     end
     deactivate GitHub Registry
-    par 3.6, 3.7, 3.8
-        Note over CI Build: Run static checks
+    par 3.6, [3.7, 3.8, 3.9]
+        opt Needed?
+            Note over CI Build: Run static checks
+        end
     and
-        Note over CI Build: Build docs
+        opt Needed?
+            Note over CI Build: Run basic <br>static checks
+        end
     and
-        Note over CI Build: Spell check docs
+        opt Needed?
+            Note over CI Build: Build docs
+        end
     and
-        opt Triggered?
+        opt Needed?
             Note over CI Build: Tests
         end
     and
-        opt Triggered?
-            Note over CI Build: Kubernetes  Tests
+        opt Needed?
+            Note over CI Build: Test provider <br>packages build
+        end
+    and
+        opt Needed?
+            Note over CI Build: Helm tests
         end
     end
-    Note over CI Build: Quarantined tests
-    Note over CI Build: Merge Coverage
-    CI Build -->> Coverage.io: Upload Coverage
-    CI Build -->> Airflow Repo: Status Check for CI Build
+    par 3.6, [3.7, 3.8, 3.9]
+        Build Images ->> GitHub Registry: Push PROD Images
+        activate GitHub Registry
+    end
+    deactivate Build Images
+    Note over GitHub Registry: Tagged PROD Images<br>[COMMIT_SHA]
+    loop Wait for PROD images
+        par 3.6, [3.7, 3.8, 3.9]
+            CI Build ->> CI Build: Check PROD Images
+            Note over CI Build: Wait for<br>[COMMIT_SHA]
+        end
+    end
+    par 3.6, [3.7, 3.8, 3.9]
+        GitHub Registry ->> CI Build: Pull PROD Image
+        Note over CI Build: Verify PROD Image
+    end
+    deactivate GitHub Registry
+    par 3.6, [3.7, 3.8, 3.9]
+        opt Needed?
+            Note over CI Build: Run Kubernetes <br>tests
+        end
+    and
+        opt Needed?
+            Note over CI Build: Run Kubernetes <br>upgrade tests
+        end
+    end
+    CI Build -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate CI Build

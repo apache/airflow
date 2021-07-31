@@ -18,9 +18,11 @@
 
 import datetime
 import os
+import signal
 import time
 import unittest
 import urllib
+from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
@@ -48,6 +50,7 @@ from airflow.models import (
     TaskReschedule,
     Variable,
 )
+from airflow.models.taskinstance import load_error_file, set_error_file
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -118,6 +121,17 @@ class TestTaskInstance(unittest.TestCase):
 
     def tearDown(self):
         self.clean_db()
+
+    def test_load_error_file_returns_None_for_closed_file(self):
+        error_fd = NamedTemporaryFile()
+        error_fd.close()
+        assert load_error_file(error_fd) is None
+
+    def test_load_error_file_loads_correctly(self):
+        error_message = "some random error message"
+        with NamedTemporaryFile() as error_fd:
+            set_error_file(error_fd.name, error=error_message)
+            assert load_error_file(error_fd) == error_message
 
     def test_set_task_dates(self):
         """
@@ -516,6 +530,37 @@ class TestTaskInstance(unittest.TestCase):
         )
         ti.run()
         assert State.SKIPPED == ti.state
+
+    def test_task_sigterm_works_with_retries(self):
+        """
+        Test that ensures that tasks are retried when they receive sigterm
+        """
+        dag = DAG(dag_id='test_mark_failure_2', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+
+        def task_function(ti):
+            # pylint: disable=unused-argument
+            os.kill(ti.pid, signal.SIGTERM)
+
+        task = PythonOperator(
+            task_id='test_on_failure',
+            python_callable=task_function,
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=2),
+            dag=dag,
+        )
+
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        with self.assertRaises(AirflowException):
+            ti.run()
+        ti.refresh_from_db()
+        assert ti.state == State.UP_FOR_RETRY
 
     def test_retry_delay(self):
         """
@@ -1994,6 +2039,60 @@ class TestTaskInstance(unittest.TestCase):
         assert ti.start_date == start_date, "Start date should have been left alone"
         assert ti.start_date < ti.end_date
         assert ti.duration > 0
+
+    def test_refresh_from_db(self):
+        run_date = timezone.utcnow()
+
+        expected_values = {
+            "task_id": "test_refresh_from_db_task",
+            "dag_id": "test_refresh_from_db_dag",
+            "execution_date": run_date,
+            "start_date": run_date + datetime.timedelta(days=1),
+            "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
+            "duration": 1.234,
+            "state": State.SUCCESS,
+            "_try_number": 1,
+            "max_tries": 1,
+            "hostname": "some_unique_hostname",
+            "unixname": "some_unique_unixname",
+            "job_id": 1234,
+            "pool": "some_fake_pool_id",
+            "pool_slots": 25,
+            "queue": "some_queue_id",
+            "priority_weight": 123,
+            "operator": "some_custom_operator",
+            "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "queued_by_job_id": 321,
+            "pid": 123,
+            "executor_config": {"Some": {"extra": "information"}},
+            "external_executor_id": "some_executor_id",
+        }
+        # Make sure we aren't missing any new value in our expected_values list.
+        expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values.keys()}
+        assert {str(c) for c in TI.__table__.columns} == expected_keys, (
+            "Please add all non-foreign values of TaskInstance to this list. "
+            "This prevents refresh_from_db() from missing a field."
+        )
+
+        operator = DummyOperator(task_id=expected_values['task_id'])
+        ti = TI(task=operator, execution_date=expected_values['execution_date'])
+        for key, expected_value in expected_values.items():
+            setattr(ti, key, expected_value)
+        with create_session() as session:
+            session.merge(ti)
+            session.commit()
+
+        mock_task = mock.MagicMock()
+        mock_task.task_id = expected_values["task_id"]
+        mock_task.dag_id = expected_values["dag_id"]
+
+        ti = TI(task=mock_task, execution_date=run_date)
+        ti.refresh_from_db()
+        for key, expected_value in expected_values.items():
+            assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
+            assert (
+                getattr(ti, key) == expected_value
+            ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

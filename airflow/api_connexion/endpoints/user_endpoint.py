@@ -14,17 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from flask import current_app
+from flask import current_app, request
 from flask_appbuilder.security.sqla.models import User
+from marshmallow import ValidationError
 from sqlalchemy import func
+from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
     user_collection_item_schema,
     user_collection_schema,
+    user_schema,
 )
 from airflow.security import permissions
 
@@ -62,3 +65,120 @@ def get_users(limit, order_by='id', offset=None):
     users = query.offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
+
+
+@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
+def post_user():
+    """Create a new user"""
+    try:
+        data = user_schema.load(request.json)
+    except ValidationError as e:
+        raise BadRequest(detail=str(e.messages))
+
+    security_manager = current_app.appbuilder.sm
+
+    user = security_manager.find_user(username=data["username"])
+    if user is not None:
+        detail = f"Username `{user.username}` already exists. Use PATCH to update."
+        raise AlreadyExists(detail=detail)
+
+    roles_to_add = []
+    missing_role_names = []
+    for role_data in data.pop("roles", ()):
+        role_name = role_data["name"]
+        role = security_manager.find_role(role_name)
+        if role is None:
+            missing_role_names.append(role_name)
+        else:
+            roles_to_add.append(role)
+    if missing_role_names:
+        detail = f"Unknown roles: {', '.join(repr(n) for n in missing_role_names)}"
+        raise BadRequest(detail=detail)
+
+    if roles_to_add:
+        default_role = roles_to_add.pop()
+    else:  # No roles provided, use the F.A.B's default registered user role.
+        default_role = security_manager.find_role(security_manager.auth_user_registration_role)
+
+    user = security_manager.add_user(role=default_role, **data)
+    if roles_to_add:
+        user.roles.extend(roles_to_add)
+        security_manager.update_user(user)
+    return user_schema.dump(user)
+
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)])
+def patch_user(username, update_mask=None):
+    """Update a role"""
+    try:
+        data = user_schema.load(request.json)
+    except ValidationError as e:
+        raise BadRequest(detail=str(e.messages))
+
+    security_manager = current_app.appbuilder.sm
+
+    user = security_manager.find_user(username=username)
+    if user is None:
+        detail = f"The User with username `{username}` was not found"
+        raise NotFound(title="User not found", detail=detail)
+
+    # Get fields to update. 'username' is always excluded (and it's an error to
+    # include it in update_maek).
+    if update_mask is not None:
+        masked_data = {}
+        missing_mask_names = []
+        for field in update_mask:
+            field = field.strip()
+            try:
+                masked_data[field] = data[field]
+            except KeyError:
+                missing_mask_names.append(field)
+        if missing_mask_names:
+            detail = f"Unknown update masks: {', '.join(repr(n) for n in missing_mask_names)}"
+            raise BadRequest(detail=detail)
+        if "username" in masked_data:
+            raise BadRequest("Cannot update fields: 'username'")
+        data = masked_data
+    else:
+        data.pop("username", None)
+
+    if "roles" in data:
+        roles_to_update = []
+        missing_role_names = []
+        for role_data in data.pop("roles", ()):
+            role_name = role_data["name"]
+            role = security_manager.find_role(role_name)
+            if role is None:
+                missing_role_names.append(role_name)
+            else:
+                roles_to_update.append(role)
+        if missing_role_names:
+            detail = f"Unknown roles: {', '.join(repr(n) for n in missing_role_names)}"
+            raise BadRequest(detail=detail)
+    else:
+        roles_to_update = None  # Don't change existing value.
+
+    if "password" in data:
+        user.password = generate_password_hash(data.pop("password"))
+    if roles_to_update is not None:
+        user.roles = roles_to_update
+    for key, value in data.items():
+        setattr(user, key, value)
+    security_manager.update_user(user)
+
+    return user_schema.dump(user)
+
+
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
+def delete_user(username):
+    """Delete a user"""
+    security_manager = current_app.appbuilder.sm
+
+    user = security_manager.find_user(username=username)
+    if user is None:
+        detail = f"The User with username `{username}` was not found"
+        raise NotFound(title="User not found", detail=detail)
+
+    user.roles = []  # Clear foreign keys on this user first.
+    security_manager.get_session.delete(user)
+    security_manager.get_session.commit()

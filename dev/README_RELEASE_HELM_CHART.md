@@ -37,6 +37,7 @@
   - [Update `index.yaml` to Airflow Website](#update-indexyaml-to-airflow-website)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Remove old releases](#remove-old-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -174,10 +175,10 @@ official Apache releases must not include the rcN suffix.
 
   # Replace the URLs from "https://downloads.apache.org" to "https://archive.apache.org"
   # as the downloads.apache.org only contains latest releases.
-  sed 's|https://downloads.apache.org/airflow/helm-chart/|https://archive.apache.org/dist/airflow/helm-chart/|' index.yaml
+  sed -i 's|https://downloads.apache.org/airflow/helm-chart/|https://archive.apache.org/dist/airflow/helm-chart/|' index.yaml
 
   # Generate / Merge the new version with existing index.yaml
-  helm repo index --merge ./index.yaml . --url https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}
+  helm repo index --merge ./index.yaml . --url "https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}"
 
   ###### Generate index.yaml file - End
 
@@ -186,9 +187,19 @@ official Apache releases must not include the rcN suffix.
   svn commit -m "Add artifacts for Helm Chart ${VERSION}"
   ```
 
+- Remove old Helm Chart versions from the dev repo
+
+  ```shell
+  cd ..
+  export PREVIOUS_VERSION=1.0.0rc1
+  svn rm ${PREVIOUS_VERSION}
+  svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
+  ```
+
 - Push Tag for the release candidate
 
   ```shell
+  cd ${AIRFLOW_REPO_ROOT}
   git push origin helm-chart/${VERSION}
   ```
 
@@ -476,16 +487,10 @@ svn mkdir ${VERSION}
 cd ${VERSION}
 
 # Move the artifacts to svn folder & commit (don't copy or copy & remove - index.yaml)
-for f in ../../../airflow-dev/helm-chart/$RC/*; do svn cp $f ${$(basename $f)/rc?/}; done
+for f in ../../../airflow-dev/helm-chart/$RC/*; do svn cp $f ${$(basename $f)/}; done
 svn rm index.yaml
 svn commit -m "Release Airflow Helm Chart Check ${VERSION} from ${RC}"
 
-# Remove old release
-# http://www.apache.org/legal/release-policy.html#when-to-archive
-cd ..
-export PREVIOUS_VERSION=1.0.0
-svn rm ${PREVIOUS_VERSION}
-svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
 ```
 
 Verify that the packages appear in [Airflow Helm Chart](https://dist.apache.org/repos/dist/release/airflow/helm-chart/).
@@ -537,7 +542,7 @@ We upload `index.yaml` to the Airflow website to allow: `helm repo add https://a
   cd "${AIRFLOW_SITE_DIRECTORY}"
   curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${RC}/index.yaml -o index.yaml
   https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}
-  sed "s|https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC|https://downloads.apache.org/airflow/helm-chart/$VERSION|" index.yaml
+  sed -i "s|https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC|https://downloads.apache.org/airflow/helm-chart/$VERSION|" index.yaml
 
   git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
   git push
@@ -580,3 +585,18 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Remove old releases
+
+We should keep the old version a little longer than a day or at least until the updated
+``index.yaml`` is published. This is to avoid errors for users who haven't run ``helm repo update``.
+
+It is probably ok if we leave last 2 versions on release svn repo too.
+
+```shell
+# http://www.apache.org/legal/release-policy.html#when-to-archive
+cd airflow-release/helm-chart
+export PREVIOUS_VERSION=1.0.0
+svn rm ${PREVIOUS_VERSION}
+svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
+```

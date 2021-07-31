@@ -60,13 +60,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.1",
+            "default": "2.1.2",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.1",
+            "default": "2.1.2",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -768,6 +768,24 @@
         },
         "fernetKeySecretName": {
             "description": "The Fernet key secret name.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Airflow",
+            "default": null
+        },
+        "webserverSecretKey": {
+            "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "x-docsSection": "Common",
+            "default": null
+        },
+        "webserverSecretKeySecretName": {
+            "description": "The Secret name containing Flask secret_key for the Webserver.",
             "type": [
                 "string",
                 "null"
@@ -2733,19 +2751,22 @@
             }
         },
         "multiNamespaceMode": {
-            "description": "Whether the KubernetesExecutor can launch workers and pods in multiple namespaces",
+            "description": "Whether the KubernetesExecutor can launch workers and pods in multiple namespaces. If true, it creates ``ClusterRole``/``ClusterRolebinding`` (with access to entire cluster)",
             "x-docsSection": "Airflow",
             "type": "boolean",
             "default": false
         },
         "podTemplate": {
-            "description": "The full text value to mount as the ``pod_template_file.yaml`` used for KubernetesExecutor workers",
+            "description": "The contents of ``pod_template_file.yaml`` used for KubernetesExecutor workers. The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [
                 "string",
                 "null"
             ],
             "x-docsSection": "Airflow",
-            "default": null
+            "default": null,
+            "examples": [
+                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: dummy-name\n  labels:\n    tier: airflow\n    component: worker\n    release: my-release\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
+            ]
         },
         "dags": {
             "description": "DAGs settings.",

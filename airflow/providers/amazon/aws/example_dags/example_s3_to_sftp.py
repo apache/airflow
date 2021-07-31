@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-# Fixes ownership for files created inside container (files owned by root will be owned by host user)
-#
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-declare -a EXTRA_DOCKER_FLAGS
 
-sanity_checks::sanitize_mounted_files
+import os
 
-read -r -a EXTRA_DOCKER_FLAGS <<<"$(local_mounts::convert_local_mounts_to_docker_params)"
+from airflow import models
+from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.utils.dates import days_ago
 
-docker_v run --entrypoint /bin/bash "${EXTRA_DOCKER_FLAGS[@]}" \
-    --rm \
-    --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
-    "${AIRFLOW_CI_IMAGE}" \
-    -c /opt/airflow/scripts/in_container/run_clear_tmp.sh
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
+S3_KEY = os.environ.get("S3_KEY", "key")
+
+with models.DAG(
+    "example_s3_to_sftp",
+    schedule_interval=None,
+    start_date=days_ago(1),  # Override to match your needs
+) as dag:
+
+    # [START howto_s3_transfer_data_to_sftp]
+    create_s3_to_sftp_job = S3ToSFTPOperator(
+        task_id="create_to_s3_sftp_job",
+        sftp_conn_id="sftp_conn_id",
+        sftp_path="sftp_path",
+        s3_conn_id="s3_conn_id",
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY,
+    )
+    # [END howto_s3_transfer_data_to_sftp]
