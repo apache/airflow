@@ -154,9 +154,11 @@ transfers:
     python-module: airflow.providers.microsoft.azure.transfers.local_to_adls
   - source-integration-name: Oracle
     target-integration-name: Microsoft Azure Data Lake Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/oracle_to_adl.rst
     python-module: airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/blob_upload_file.rst
     python-module: airflow.providers.microsoft.azure.transfers.file_to_wasb
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Blob Storage
