@@ -401,13 +401,21 @@ class TestSFTPOperator(unittest.TestCase):
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_many_files_to_local(self):
-        test_txt_file_content = b"is txt file"
-        test_csv_file_content = b"is csv file"
-        os.mkdir(self.test_remote_dir)
-        with open(f'{self.test_remote_dir}/{self.test_txt_file}', 'wb') as f:
-            f.write(test_txt_file_content)
-        with open(f'{self.test_remote_dir}/{self.test_csv_file}', 'wb') as f:
-            f.write(test_csv_file_content)
+        test_txt_file_content = "is txt file"
+        test_csv_file_content = "is csv file"
+        create_file_task = SSHOperator(
+            task_id="test_create_file",
+            ssh_hook=self.hook,
+            command=f"mkdir -p {self.test_remote_dir} |"
+                    f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
+                    f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
+            do_xcom_push=False,
+            dag=self.dag,
+        )
+        assert create_file_task is not None
+        ti0 = TaskInstance(task=create_file_task, execution_date=timezone.utcnow())
+        ti0.run()
+
         get_files = SFTPOperator(
             task_id="get_files",
             ssh_hook=self.hook,
@@ -438,13 +446,22 @@ class TestSFTPOperator(unittest.TestCase):
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_all_files_to_local(self):
-        test_txt_file_content = b"is txt file"
-        test_csv_file_content = b"is csv file"
-        os.mkdir(self.test_remote_dir)
-        with open(f'{self.test_remote_dir}/{self.test_txt_file}', 'wb') as f:
-            f.write(test_txt_file_content)
-        with open(f'{self.test_remote_dir}/{self.test_csv_file}', 'wb') as f:
-            f.write(test_csv_file_content)
+        test_txt_file_content = "is txt file"
+        test_csv_file_content = "is csv file"
+
+        create_file_task = SSHOperator(
+            task_id="test_create_file",
+            ssh_hook=self.hook,
+            command=f"mkdir -p {self.test_remote_dir} |"
+                    f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
+                    f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
+            do_xcom_push=False,
+            dag=self.dag,
+        )
+        assert create_file_task is not None
+        ti0 = TaskInstance(task=create_file_task, execution_date=timezone.utcnow())
+        ti0.run()
+
         get_files = SFTPOperator(
             task_id="get_files",
             ssh_hook=self.hook,
