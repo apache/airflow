@@ -180,30 +180,37 @@ class SFTPOperator(BaseOperator):
                     if isinstance(self.local_filepath, list) and isinstance(self.remote_filepath, str):
                         for file_path in self.local_filepath:
                             local_folder = os.path.dirname(file_path)
-                            remote_folder = os.path.dirname(self.remote_filepath)
                             local_file = os.path.basename(file_path)
-                            self._transfer(sftp_client, local_folder, local_file, remote_folder)
+                            file_msg = file_path
+                            self._transfer(sftp_client, local_folder, local_file, self.remote_filepath)
                     elif isinstance(self.remote_filepath, list) and isinstance(self.local_filepath, str):
                         for file_path in self.remote_filepath:
                             remote_folder = os.path.dirname(file_path)
                             remote_file = os.path.basename(file_path)
+                            file_msg = file_path
                             self._transfer(sftp_client, self.local_filepath, remote_file, remote_folder)
                     elif isinstance(self.remote_filepath, str) and isinstance(self.local_filepath, str):
                         local_folder = os.path.dirname(self.local_filepath)
-                        remote_folder = os.path.dirname(self.remote_filepath)
-                        local_file = os.path.basename(self.local_filepath)
-                        self._transfer(sftp_client, local_folder, local_file, remote_folder)
+                        file_msg = self.local_filepath
+                        self._transfer(
+                            sftp_client,
+                            local_folder,
+                            self.local_filepath,
+                            self.remote_filepath,
+                            only_file=True,
+                        )
                 elif self.local_folder and self.remote_folder:
                     if self.operation.lower() == SFTPOperation.PUT:
                         files_list = self._search_files(os.listdir(self.local_folder))
                         for file in files_list:
                             local_file = os.path.basename(file)
+                            file_msg = file
                             self._transfer(sftp_client, self.local_folder, local_file, self.remote_folder)
                     elif self.operation.lower() == SFTPOperation.GET:
                         files_list = self._search_files(sftp_client.listdir(self.remote_folder))
-
                         for file in files_list:
                             remote_file = ntpath.basename(file)
+                            file_msg = file
                             self._transfer(sftp_client, self.local_folder, remote_file, self.remote_folder)
                 else:
                     raise AirflowException(f"Argument mismatch, please read docs \n {SFTPOperator.__doc__}")
@@ -219,7 +226,7 @@ class SFTPOperator(BaseOperator):
         self.log.info("File for transfer: \n %s", files)
         return files
 
-    def _transfer(self, sftp_client: SFTPClient, local_folder, file, remote_path) -> None:
+    def _transfer(self, sftp_client: SFTPClient, local_folder, file, remote_path, only_file=False) -> None:
         local_full_path = os.path.join(local_folder, file)
         remote_full_path = os.path.join(remote_path, file)
         if self.operation.lower() == SFTPOperation.GET:
@@ -227,16 +234,22 @@ class SFTPOperator(BaseOperator):
                 Path(local_folder).mkdir(parents=True, exist_ok=True)
             file_msg = f"from {remote_full_path} to {local_full_path}"
             self.log.info("Starting to transfer %s", file_msg)
-            sftp_client.get(remote_full_path, local_full_path)
+            if only_file:
+                sftp_client.get(remote_path, file)
+            else:
+                sftp_client.get(remote_full_path, local_full_path)
         else:
             if self.create_intermediate_dirs:
                 _make_intermediate_dirs(
                     sftp_client=sftp_client,
-                    remote_directory=remote_path,
+                    remote_directory=os.path.dirname(remote_path) if only_file else remote_path,
                 )
             file_msg = f"from {local_full_path} to {remote_full_path}"
             self.log.info("Starting to transfer file %s", file_msg)
-            sftp_client.put(local_full_path, remote_full_path, confirm=self.confirm)
+            if only_file:
+                sftp_client.put(file, remote_path, confirm=self.confirm)
+            else:
+                sftp_client.put(local_full_path, remote_full_path, confirm=self.confirm)
 
 
 def _make_intermediate_dirs(sftp_client, remote_directory) -> None:
