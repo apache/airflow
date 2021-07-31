@@ -182,7 +182,7 @@ class ECSOperator(BaseOperator):
         propagate_tags: Optional[str] = None,
         quota_retry: Optional[dict] = None,
         reattach: bool = False,
-        number_logs_exception=10,
+        number_logs_exception: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
