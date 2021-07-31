@@ -227,6 +227,14 @@ class TestECSOperator(unittest.TestCase):
 
         assert self.ecs._last_log_messages(5) == ["5", "6", "7", "8", "9"]
 
+    @mock.patch.object(ECSOperator, '_cloudwatch_log_events', return_value=())
+    def test_last_log_messages_empty(self, mock_cloudwatch_log_events):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        assert self.ecs._last_log_messages(10) == []
+
     @mock.patch.object(ECSOperator, '_last_log_messages', return_value=["1", "2", "3", "4", "5"])
     def test_check_success_tasks_raises_cloudwatch_logs(self, mock_last_log_messages):
         client_mock = mock.Mock()
@@ -242,6 +250,21 @@ class TestECSOperator(unittest.TestCase):
         assert str(ctx.value) == (
             f"This task is not in success state - last 10 logs from Cloudwatch:\n1\n2\n3\n4\n5"
         )
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    @mock.patch.object(ECSOperator, '_last_log_messages', return_value=[])
+    def test_check_success_tasks_raises_cloudwatch_logs_empty(self, mock_last_log_messages):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED', 'exitCode': 1}]}]
+        }
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        assert str(ctx.value) == (f"This task is not in success state - last 10 logs from Cloudwatch:\n")
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):
