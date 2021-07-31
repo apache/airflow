@@ -143,9 +143,9 @@ class ECSOperator(BaseOperator):
         This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
         the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
-    :param number_logs_exception: number of lines from the last Cloudwatch logs to return in the
+    :param number_logs_exception: Number of lines from the last Cloudwatch logs to return in the
         AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
-        failed in the code running in ECS)
+        failed in the code running in ECS).
     :type number_logs_exception: int
     """
 
