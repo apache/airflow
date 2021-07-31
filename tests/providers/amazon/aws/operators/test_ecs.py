@@ -417,7 +417,7 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_last_log_messages', return_value=["Log output"])
     def test_execute_xcom_with_log(self, mock_cloudwatch_log_message):
         self.ecs.do_xcom_push = True
-        assert self.ecs.execute(None) == mock_cloudwatch_log_message.return_value[-1]
+        assert self.ecs.execute(None) == "Log output"
 
     @mock.patch.object(ECSOperator, '_last_log_messages', return_value=[])
     def test_execute_xcom_with_no_log(self, mock_cloudwatch_log_message):
