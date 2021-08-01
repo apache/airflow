@@ -75,8 +75,8 @@ class DagRunInfo(NamedTuple):
         return cls(run_after=end, data_interval=DataInterval(start, end))
 
     @property
-    def schedule_date(self) -> DateTime:
-        """Infer the schedule date to use for the actual DagRun.
+    def logical_date(self) -> DateTime:
+        """Infer the logical date to use for the actual DagRun.
 
         For backward compatibility, this needs to match how ``execution_date``
         is calculated before AIP-39. If there is a data interval, this is the

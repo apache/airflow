@@ -481,7 +481,7 @@ class DAG(LoggingMixin):
         else:
             message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
             result = [
-                info.schedule_date
+                info.logical_date
                 for info in self.iter_dagrun_infos_between(start_date, end_date, align=False)
             ]
         warnings.warn(message, category=DeprecationWarning, stacklevel=2)
@@ -604,9 +604,9 @@ class DAG(LoggingMixin):
     ) -> Iterable[DagRunInfo]:
         """Yield DagRunInfo using this DAG's timetable between given interval.
 
-        DagRunInfo instances yielded if their ``schedule_date`` is not earlier
+        DagRunInfo instances yielded if their ``logical_date`` is not earlier
         than ``earliest``, nor later than ``latest``. The instances are ordered
-        by their ``schedule_date`` from earliest to latest.
+        by their ``logical_date`` from earliest to latest.
 
         If ``align`` is ``False``, the first run will happen immediately on
         ``earliest``, even if it does not fall on the logical timetable schedule.
@@ -642,15 +642,15 @@ class DAG(LoggingMixin):
                 yield DagRunInfo.interval(earliest, latest)
             return
 
-        # If align=False and earliest is not a logical schedule date, "invent"
-        # a data interval between it and the first schedule date.
-        if not align and info.schedule_date != earliest:
-            yield DagRunInfo.interval(earliest, info.schedule_date)
+        # If align=False and earliest does not fall on the timetable's logical
+        # schedule, "invent" a data interval between it and the logical date.
+        if not align and info.logical_date != earliest:
+            yield DagRunInfo.interval(earliest, info.logical_date)
 
         # Generate naturally according to schedule.
         while info is not None:
             yield info
-            info = self.timetable.next_dagrun_info(info.schedule_date, restriction)
+            info = self.timetable.next_dagrun_info(info.logical_date, restriction)
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -674,7 +674,7 @@ class DAG(LoggingMixin):
             latest = pendulum.now(timezone.utc)
         else:
             latest = pendulum.instance(end_date)
-        return [info.schedule_date for info in self.iter_dagrun_infos_between(earliest, latest)]
+        return [info.logical_date for info in self.iter_dagrun_infos_between(earliest, latest)]
 
     def normalize_schedule(self, dttm):
         warnings.warn(
@@ -2464,7 +2464,7 @@ class DagModel(Base):
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
 
-    next_dagrun = Column(UtcDateTime)  # The schedule_date of the next dag run.
+    next_dagrun = Column(UtcDateTime)  # The logical_date of the next dag run.
 
     # Must be either both NULL or both datetime.
     next_dagrun_data_interval_start = Column(UtcDateTime)
@@ -2671,7 +2671,7 @@ class DagModel(Base):
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
-            self.next_dagrun = next_dagrun_info.schedule_date
+            self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
 
         if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:

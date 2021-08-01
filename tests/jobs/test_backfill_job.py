@@ -1340,7 +1340,7 @@ class TestBackfillJob:
             )
 
         assert [DEFAULT_DATE] == [
-            info.schedule_date
+            info.logical_date
             for info in test_dag.iter_dagrun_infos_between(
                 earliest=DEFAULT_DATE,
                 latest=DEFAULT_DATE,
@@ -1352,7 +1352,7 @@ class TestBackfillJob:
             DEFAULT_DATE - datetime.timedelta(hours=1),
             DEFAULT_DATE,
         ] == [
-            info.schedule_date
+            info.logical_date
             for info in test_dag.iter_dagrun_infos_between(
                 earliest=DEFAULT_DATE - datetime.timedelta(hours=3),
                 latest=DEFAULT_DATE,

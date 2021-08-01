@@ -1584,7 +1584,7 @@ class TestSchedulerJob:
 
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=dagrun_info.schedule_date,
+            execution_date=dagrun_info.logical_date,
             state=State.RUNNING,
         )
 
@@ -2906,7 +2906,7 @@ class TestSchedulerJob:
         # Test that this does not raise any error
         self.scheduler_job._create_dag_runs([dag_model], session)
 
-        # Assert the next dagrun fields are set correctly to next schedule date
+        # Assert the next dagrun fields are set correctly to next execution date
         assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(days=1)
         assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(days=2)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)

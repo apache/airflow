@@ -295,7 +295,7 @@ class BackfillJob(BaseJob):
         :param session: the database session object
         :return: a DagRun in state RUNNING or None
         """
-        run_date = dagrun_info.schedule_date
+        run_date = dagrun_info.logical_date
 
         # consider max_active_runs but ignore when running subdags
         respect_dag_max_active_limit = bool(dag.schedule_interval and not dag.is_subdag)
@@ -806,7 +806,7 @@ class BackfillJob(BaseJob):
                 dagrun_infos_to_process = [
                     dagrun_info
                     for dagrun_info in dagrun_infos
-                    if dagrun_info.schedule_date not in ti_status.executed_dag_run_dates
+                    if dagrun_info.logical_date not in ti_status.executed_dag_run_dates
                 ]
                 self._execute_dagruns(
                     dagrun_infos=dagrun_infos_to_process,

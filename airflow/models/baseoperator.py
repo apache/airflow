@@ -1260,8 +1260,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         end_date = end_date or self.end_date or timezone.utcnow()
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
-            ignore_depends_on_past = info.schedule_date == start_date and ignore_first_depends_on_past
-            TaskInstance(self, info.schedule_date).run(
+            ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
+            TaskInstance(self, info.logical_date).run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_ti_state=ignore_ti_state,

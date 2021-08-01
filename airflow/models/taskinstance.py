@@ -1714,7 +1714,7 @@ class TaskInstance(Base, LoggingMixin):
         tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
 
         # For manually triggered dagruns that aren't run on a schedule, next/previous
-        # schedule dates don't make sense, and should be set to execution date for
+        # execution dates don't make sense, and should be set to execution date for
         # consistency with how execution_date is set for manually triggered tasks, i.e.
         # triggered_date == execution_date.
         if dag_run.external_trigger:
@@ -1872,7 +1872,7 @@ class TaskInstance(Base, LoggingMixin):
             'execution_date': deprecated_proxy(
                 lambda: timezone.coerce_datetime(self.execution_date),
                 key='execution_date',
-                replacement='schedule_date',
+                replacement='logical_date',
             ),
             'inlets': task.inlets,
             'macros': macros,
@@ -1881,9 +1881,9 @@ class TaskInstance(Base, LoggingMixin):
             'next_execution_date': deprecated_proxy(
                 lambda: next_execution_date,
                 key='next_execution_date',
-                replacement='next_schedule_date',
+                replacement='next_logical_date',
             ),
-            'next_schedule_date': next_execution_date,
+            'next_logical_date': next_execution_date,
             'outlets': task.outlets,
             'params': params,
             'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),
@@ -1891,22 +1891,22 @@ class TaskInstance(Base, LoggingMixin):
             'prev_execution_date': deprecated_proxy(
                 get_prev_execution_date,
                 key='prev_execution_date',
-                replacement='prev_schedule_date',
+                replacement='prev_logical_date',
             ),
             'prev_execution_date_success': deprecated_proxy(
                 lambda: self.get_previous_execution_date(state=State.SUCCESS),
                 key='prev_execution_date_success',
-                replacement='prev_schedule_date_success',
+                replacement='prev_logical_date_success',
             ),
-            'prev_schedule_date': lazy_object_proxy.Proxy(get_previous_schedule_date),
-            'prev_schedule_date_success': lazy_object_proxy.Proxy(
+            'prev_logical_date': lazy_object_proxy.Proxy(get_previous_schedule_date),
+            'prev_logical_date_success': lazy_object_proxy.Proxy(
                 lambda: self.get_previous_execution_date(state=State.SUCCESS)
             ),
             'prev_start_date_success': lazy_object_proxy.Proxy(
                 lambda: self.get_previous_start_date(state=State.SUCCESS)
             ),
             'run_id': dag_run.run_id,
-            'schedule_date': timezone.coerce_datetime(self.execution_date),
+            'logical_date': timezone.coerce_datetime(self.execution_date),
             'task': task,
             'task_instance': self,
             'task_instance_key_str': ti_key_str,

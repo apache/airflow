@@ -258,7 +258,7 @@ def get_execution_dates(dag, execution_date, future, past):
         dates = sorted({d.execution_date for d in dag_runs})
     else:
         dates = [
-            info.schedule_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
+            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
         ]
     return dates
 

@@ -422,7 +422,7 @@ class TestBaseSensor(unittest.TestCase):
         date1 = timezone.utcnow()
         with freeze_time(date1):
             for info in self.dag.iter_dagrun_infos_between(DEFAULT_DATE, DEFAULT_DATE):
-                TaskInstance(sensor, info.schedule_date).run(ignore_ti_state=True, test_mode=True)
+                TaskInstance(sensor, info.logical_date).run(ignore_ti_state=True, test_mode=True)
         tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
