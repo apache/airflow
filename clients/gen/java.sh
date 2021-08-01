@@ -33,13 +33,28 @@ readonly VERSION
 java_config=(
      "groupId=com.apache.airflow"
      "artifactId=airflow-client"
-     "artifactVersion=1.0.0-SNAPSHOT"
+     "artifactVersion=${VERSION}"
+     "artifactUrl=https://github.com/apache/airflow-client-java"
+     "artifactDescription=Apache Airflow - OpenApi Client for Java"
+
      "basePackage=com.apache.airflow.client"
      "configPackage=com.apache.airflow.client.config"
      "apiPackage=com.apache.airflow.client.api"
      "modelPackage=com.apache.airflow.client.model"
      "dateLibrary=java8"
      "java8=true"
+     "hideGenerationTimestamp=true"
+
+     "developerEmail=dev@airflow.apache.org"
+     "developerName=Apache Airflow Developers"
+     "developerOrganization=Apache Software Foundation"
+     "developerOrganizationUrl=https://airflow.apache.org"
+     "scmConnection=scm:git:git@github.com:apache/apache-client-java.git"
+     "scmDeveloperConnection=scm:git:git@github.com:apache/apache-client-java.git"
+     "scmUrl=https://github.com/apache/airflow-client-java"
+
+     "licenseName=Apache License 2.0"
+     "licenseUrl=https://github.com/apache/airflow-client-java/blob/master/LICENSE"
 )
 
 validate_input "$@"
