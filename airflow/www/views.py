@@ -120,6 +120,7 @@ from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
+    DagRunEditForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
@@ -3576,10 +3577,13 @@ class DagRunModelView(AirflowModelView):
         'end_date',
         'external_trigger',
     ]
+    edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
+
+    edit_form = DagRunEditForm
 
     formatters_columns = {
         'execution_date': wwwutils.datetime_f('execution_date'),

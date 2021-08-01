@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 from datetime import datetime as dt
 
 import pendulum
@@ -34,9 +35,11 @@ from wtforms.validators import InputRequired, Optional
 
 from airflow.configuration import conf
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 from airflow.www.widgets import (
     AirflowDateTimePickerROWidget,
     AirflowDateTimePickerWidget,
+    BS3TextAreaROWidget,
     BS3TextFieldROWidget,
 )
 
@@ -116,6 +119,31 @@ class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
     """Date time and number of runs and dag runs form for graph and gantt view"""
 
     execution_date = SelectField("DAG run")
+
+
+class DagRunEditForm(DynamicForm):
+    """Form for editing DAG Run.
+
+    We don't actually want to allow editing, so everything is read-only here.
+    """
+
+    dag_id = StringField(lazy_gettext('Dag Id'), widget=BS3TextFieldROWidget())
+    start_date = DateTimeWithTimezoneField(lazy_gettext('Start Date'), widget=AirflowDateTimePickerROWidget())
+    end_date = DateTimeWithTimezoneField(lazy_gettext('End Date'), widget=AirflowDateTimePickerROWidget())
+    run_id = StringField(lazy_gettext('Run Id'), widget=BS3TextFieldROWidget())
+    state = StringField(lazy_gettext('State'), widget=BS3TextFieldROWidget())
+    execution_date = DateTimeWithTimezoneField(
+        lazy_gettext('Execution Date'),
+        widget=AirflowDateTimePickerROWidget(),
+    )
+    conf = TextAreaField(lazy_gettext('Conf'), widget=BS3TextAreaROWidget())
+
+    def populate_obj(self, item):
+        """Populates the attributes of the passed obj with data from the form’s fields."""
+        super().populate_obj(item)
+        item.run_type = DagRunType.from_run_id(item.run_id)
+        if item.conf:
+            item.conf = json.loads(item.conf)
 
 
 class TaskInstanceEditForm(DynamicForm):
