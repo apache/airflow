@@ -42,6 +42,10 @@ integrations:
     external-doc-url: https://docs.docker.com/engine/swarm/
     logo: /integration-logos/docker/Docker-Swarm.png
     tags: [software]
+  - integration-name: Docker Client
+    external-doc-url: https://docker-py.readthedocs.io/en/stable/api.html
+    logo: /integration-logos/docker/Docker.png
+    tags: [software]
 
 operators:
   - integration-name: Docker
@@ -51,10 +55,19 @@ operators:
     python-modules:
       - airflow.providers.docker.operators.docker_swarm
 
+sensors:
+  - integration-name: Docker
+    python-modules:
+      - airflow.providers.docker.sensors.docker
+
 hooks:
   - integration-name: Docker
     python-modules:
       - airflow.providers.docker.hooks.docker
+  - integration-name: Docker Client
+    python-modules:
+      - airflow.providers.docker.hooks.docker_client
 
 hook-class-names:
   - airflow.providers.docker.hooks.docker.DockerHook
+  - airflow.providers.docker.hooks.docker.DockerClientHook

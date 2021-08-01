@@ -26,7 +26,7 @@ from airflow.models import Connection
 from airflow.utils import db
 
 try:
-    from airflow.providers.docker.hooks.docker import DockerHook
+    from airflow.providers.docker.hooks.docker import DockerHook, get_client
 except ImportError:
     pass
 
@@ -148,3 +148,18 @@ class TestDockerHook(unittest.TestCase):
             DockerHook(
                 docker_conn_id='docker_without_host', base_url='unix://var/run/docker.sock', version='auto'
             )
+
+    @mock.patch('airflow.providers.docker.hooks.docker.DockerHook')
+    def test_get_client_no_conn_id(self, hook_class_mock, docker_client_mock):
+        get_client(docker_url='unix://var/run/docker.sock', api_version='1.19')
+        docker_client_mock.assert_called_once_with(
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+        )
+        assert hook_class_mock.call_count == 0
+
+    @mock.patch('airflow.providers.docker.hooks.docker.DockerHook')
+    def test_get_client_with_conn_id(self, hook_class_mock, _):
+        get_client(docker_conn_id='some_conn_id')
+        hook = hook_class_mock.return_value
+        assert hook_class_mock.call_count == 1
+        assert hook.get_conn.call_count == 1

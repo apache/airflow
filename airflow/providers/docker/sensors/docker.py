@@ -15,41 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Implements Docker operator"""
 from typing import Dict, Iterable, List, Optional, Union
 
 from docker.types import Mount
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import get_client
 from airflow.providers.docker.hooks.docker_client import DockerClientHook
+from airflow.sensors.base import BaseSensorOperator
 
 
-class DockerOperator(BaseOperator):
+class DockerSensor(BaseSensorOperator):
     """
-    Execute a command inside a docker container.
+    A sensor that runs a command in a docker container and detects if the container exited successfully
 
-    By default, a temporary directory is
-    created on the host and mounted into a container to allow storing files
-    that together exceed the default disk size of 10GB in a container.
-    In this case The path to the mounted directory can be accessed
-    via the environment variable ``AIRFLOW_TMP_DIR``.
-
-    If the volume cannot be mounted, warning is printed and an attempt is made to execute the docker
-    command without the temporary folder mounted. This is to make it works by default with remote docker
-    engine or when you run docker-in-docker solution and temporary directory is not shared with the
-    docker engine. Warning is printed in logs in this case.
-
-    If you know you run DockerOperator with remote engine or via docker-in-docker
-    you should set ``mount_tmp_dir`` parameter to False. In this case, you can still use
-    ``mounts`` parameter to mount already existing named volumes in your Docker Engine
-    to achieve similar capability where you can store files exceeding default disk size
-    of the container,
-
-    If a login to a private registry is required prior to pulling the image, a
-    Docker connection needs to be configured in Airflow and the connection ID
-    be provided with the parameter ``docker_conn_id``.
+    See DockerOperator for limitations and considerations
 
     :param image: Docker image from which to create the container.
         If image tag is omitted, "latest" will be used.
@@ -115,9 +95,6 @@ class DockerOperator(BaseOperator):
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
-    :param xcom_all: Push all the stdout or just the last line.
-        The default is False (last line).
-    :type xcom_all: bool
     :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :type docker_conn_id: str
     :param dns: Docker custom DNS servers
@@ -172,7 +149,6 @@ class DockerOperator(BaseOperator):
         mounts: Optional[List[Mount]] = None,
         entrypoint: Optional[Union[str, List[str]]] = None,
         working_dir: Optional[str] = None,
-        xcom_all: bool = False,
         docker_conn_id: Optional[str] = None,
         dns: Optional[List[str]] = None,
         dns_search: Optional[List[str]] = None,
@@ -212,20 +188,17 @@ class DockerOperator(BaseOperator):
         self.mounts = mounts or []
         self.entrypoint = entrypoint
         self.working_dir = working_dir
-        self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
         self.tty = tty
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.cli_hook = None
 
-    def execute(self, context) -> Optional[str]:
+    def poke(self, context) -> Optional[str]:
         self.cli = get_client(
             self.docker_conn_id,
             self.docker_url,
@@ -266,13 +239,11 @@ class DockerOperator(BaseOperator):
             self.extra_hosts,
         )
 
-        (res_lines, line) = self.cli_hook.run_image()
-        if self.do_xcom_push:
-            return res_lines if self.xcom_all else line
-
-    @staticmethod
-    def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
-        return DockerClientHook.format_command(command)
+        try:
+            self.cli_hook.run_image()
+        except AirflowException:
+            return False
+        return True
 
     def on_kill(self) -> None:
         if self.cli_hook is not None:
