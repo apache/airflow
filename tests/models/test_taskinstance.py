@@ -1446,7 +1446,15 @@ class TestTaskInstance:
             schedule_interval='0 12 * * *',
         )
 
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        execution_date = timezone.utcnow()
+
+        dag.create_dagrun(
+            execution_date=execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.MANUAL,
+        )
+
+        ti = TI(task=task, execution_date=execution_date)
 
         template_context = ti.get_template_context()
 
