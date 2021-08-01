@@ -51,6 +51,7 @@ class SSHOperator(BaseOperator):
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
     :type cmd_timeout: int
     :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
+        Use conn_timeout and cmd_timeout parameters instead.
     :type timeout: int
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.
