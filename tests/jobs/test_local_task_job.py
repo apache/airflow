@@ -508,6 +508,7 @@ class TestLocalTaskJob:
         assert ti.state == State.FAILED  # task exits with failure state
         assert failure_callback_called.value == 1
 
+    @pytest.mark.quarantined
     def test_mark_success_on_success_callback(self, dag_maker):
         """
         Test that ensures that where a task is marked success in the UI
