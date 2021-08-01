@@ -953,7 +953,7 @@ class SchedulerJob(BaseJob):
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
                     state=State.QUEUED,
-                    data_interval=dag_model.next_data_interval,
+                    data_interval=dag_model.next_dagrun_data_interval,
                     external_trigger=False,
                     session=session,
                     dag_hash=dag_hash,
