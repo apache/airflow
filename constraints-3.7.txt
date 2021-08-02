@@ -9,7 +9,6 @@ Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
-Flask-OAuthlib==0.9.5
 Flask-OpenID==1.2.5
 Flask-SQLAlchemy==2.5.1
 Flask-WTF==0.14.3
@@ -49,6 +48,7 @@ apache-airflow-providers-airbyte==2.1.0
 apache-airflow-providers-amazon==2.1.0
 apache-airflow-providers-apache-beam==3.0.0
 apache-airflow-providers-apache-cassandra==2.0.0
+apache-airflow-providers-apache-drill==1.0.0
 apache-airflow-providers-apache-druid==2.0.1
 apache-airflow-providers-apache-hdfs==2.0.0
 apache-airflow-providers-apache-hive==2.0.1
@@ -274,6 +274,7 @@ humanize==3.11.0
 hvac==0.11.0
 identify==2.2.11
 idna==3.2
+ijson==3.1.4
 imagesize==1.2.0
 importlib-metadata==4.6.3
 importlib-resources==1.5.0
@@ -335,7 +336,7 @@ nox==2020.12.31
 ntlm-auth==1.5.0
 numpy==1.20.3
 oauth2client==4.1.3
-oauthlib==2.1.0
+oauthlib==3.1.1
 openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.1
 oscrypto==1.2.1
@@ -423,7 +424,7 @@ regex==2021.7.6
 requests-kerberos==0.12.0
 requests-mock==1.9.3
 requests-ntlm==1.1.0
-requests-oauthlib==1.1.0
+requests-oauthlib==1.3.0
 requests-toolbelt==0.9.1
 requests==2.26.0
 responses==0.13.3
@@ -467,6 +468,8 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==5.2.1
 spython==0.1.15
+sqlalchemy-drill==1.1.0
+sqlparse==0.4.1
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.1
 statsd==3.3.0
