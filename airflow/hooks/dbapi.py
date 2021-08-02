@@ -17,9 +17,10 @@
 # under the License.
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 from urllib.parse import quote_plus, urlunsplit
 
+import sqlparse
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
@@ -173,7 +174,7 @@ class DbApiHook(BaseHook):
                     cur.execute(sql)
                 return cur.fetchone()
 
-    def run(self, sql, autocommit=False, parameters=None, handler=None):
+    def run(self, sql, autocommit=False, parameters=None, handler=None, split_statements=True):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -190,10 +191,16 @@ class DbApiHook(BaseHook):
         :param handler: The result handler which is called with the result of each statement.
         :type handler: callable
         :return: query results if handler was provided.
+        :param split_statements: If true, split sql statements
+        :type split_statements: bool
         """
-        scalar = isinstance(sql, str)
-        if scalar:
+        if isinstance(sql, str):
             sql = [sql]
+
+        if split_statements:
+            sql_statements = self._split_sql_statements(sql)
+        else:
+            sql_statements = sql
 
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
@@ -201,7 +208,7 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 results = []
-                for sql_statement in sql:
+                for sql_statement in sql_statements:
                     self._run_command(cur, sql_statement, parameters)
                     if handler is not None:
                         result = handler(cur)
@@ -215,7 +222,7 @@ class DbApiHook(BaseHook):
         if handler is None:
             return None
 
-        if scalar:
+        if len(sql_statements) == 1:
             return results[0]
 
         return results
@@ -258,6 +265,30 @@ class DbApiHook(BaseHook):
     def get_cursor(self):
         """Returns a cursor"""
         return self.get_conn().cursor()
+
+    @staticmethod
+    def _split_sql_statements(
+        sql: List[str], strip_comments: bool = True, strip_semicolon: bool = True, **kwargs
+    ) -> List[str]:
+        """
+        Split multiple sql statements in a list of strings
+
+        :param sql: sql statements.
+        :type sql: List[str].
+        :param strip_comments: If True strip comments on every statement.
+        :type strip_comments: bool.
+        :param strip_semicolon: If True strip semicolon at the end on every statement.
+        :type strip_semicolon: bool.
+        :return: splitted sql statements.
+        :rtype: List[str].
+        """
+        return [
+            s.rstrip(';') if strip_semicolon else s
+            for q in sql
+            for s in sqlparse.split(
+                sqlparse.format(q, strip_comments=strip_comments, reindent=False, indent_tabs=False, **kwargs)
+            )
+        ]
 
     @staticmethod
     def _generate_insert_sql(table, values, target_fields, replace, **kwargs):

@@ -145,7 +145,7 @@ class TrinoHook(DbApiHook):
         parameters: Optional[dict] = None,
     ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters)
+        return super().run(sql=hql, parameters=parameters)
 
     def insert_rows(
         self,

@@ -19,8 +19,10 @@
 
 import unittest
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from parameterized import parameterized
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
@@ -232,3 +234,62 @@ class TestDbApiHook(unittest.TestCase):
         assert called == 2
         assert self.conn.commit.called
         assert result == [obj, obj]
+
+    @parameterized.expand(
+        [
+            (['SQL1; SQL2;', 'SQL3'], 3),
+            (['SQL1; SQL2;', 'SQL3;'], 3),
+            (['SQL1; SQL2; SQL3;'], 3),
+            ('SQL1; SQL2; SQL3;', 3),
+            (['--this is a comment', 'SQL1; SQL2;'], 2),
+            (['SQL1;', 'SQL2'], 2),
+            (['SQL1;', 'SQL2;'], 2),
+            (['SQL1; SQL2;'], 2),
+            ('SQL1; SQL2;', 2),
+            (['SQL1'], 1),
+            (['SQL1;'], 1),
+            ('SQL1;', 1),
+            ('SQL1', 1),
+        ]
+    )
+    @patch('airflow.hooks.dbapi.DbApiHook._run_command')
+    def test_run_with_multiple_statements_and_split(self, sql, run_count, _run_command):
+        self.db_hook.run(sql, split_statements=True)
+        assert _run_command.call_count == run_count
+
+    @parameterized.expand([(['SQL1; SQL2;', 'SQL3'], ['SQL1;', 'SQL2;', 'SQL3'])])
+    def test_split_statement_with_no_semicolon_strip(self, sql, expected_splitted_sql):
+        assert self.db_hook._split_sql_statements(sql, strip_semicolon=False) == expected_splitted_sql
+
+    @parameterized.expand(
+        [(['--this is a comment', 'SQL2;', 'SQL3'], ['--this is a comment', 'SQL2', 'SQL3'])]
+    )
+    def test_split_statement_with_no_comment_strip(self, sql, expected_splitted_sql):
+        assert self.db_hook._split_sql_statements(sql, strip_comments=False) == expected_splitted_sql
+
+    @parameterized.expand(
+        [
+            (['SQL1; SQL2;', 'SQL3'], ['SQL1', 'SQL2', 'SQL3']),
+            (['SELECT 1;SELECT 2;SELECT 3;--SELECT 4 commented'], ['SELECT 1', 'SELECT 2', 'SELECT 3']),
+            (
+                [
+                    """
+                SELECT 1;
+                SELECT 2;
+                SELECT COUNT(1) FROM tbl WHERE 1 = 1 AND tbl.country = "Chile";
+                SELECT COUNT(1) FROM tbl WHERE 1 = 1 AND tbl.char = ";";
+                SELECT A.*, B.id2 FROM tbl A LEFT JOIN tbl2 B ON A.id = B.id2 b WHERE 1
+                """
+                ],
+                [
+                    'SELECT 1',
+                    'SELECT 2',
+                    'SELECT COUNT(1) FROM tbl WHERE 1 = 1 AND tbl.country = "Chile"',
+                    'SELECT COUNT(1) FROM tbl WHERE 1 = 1 AND tbl.char = ";"',
+                    'SELECT A.*, B.id2 FROM tbl A LEFT JOIN tbl2 B ON A.id = B.id2 b WHERE 1',
+                ],
+            ),
+        ]
+    )
+    def test_split_statement(self, sql, expected_splitted_sql):
+        assert self.db_hook._split_sql_statements(sql) == expected_splitted_sql
