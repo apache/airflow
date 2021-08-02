@@ -17,8 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG to submit Apache Spark applications using
-`SparkSubmitOperator`, `SparkJDBCOperator` and `SparkSqlOperator`.
+Example Airflow DAG to execute SQL in an Apache Drill environment using the `DrillOperator`.
 """
 from airflow.models import DAG
 from airflow.providers.apache.drill.operators.drill import DrillOperator
