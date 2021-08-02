@@ -165,7 +165,7 @@ class SSHHook(BaseHook):
                     )
                     self.timeout = int(extra_options['timeout'])
 
-                if "conn_timeout" in extra_options:
+                if "conn_timeout" in extra_options and self.conn_timeout is None:
                     self.conn_timeout = int(extra_options['conn_timeout'])
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':

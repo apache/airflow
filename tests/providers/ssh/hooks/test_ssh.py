@@ -585,11 +585,12 @@ class TestSSHHook(unittest.TestCase):
             conn_timeout=15,
         )
 
+        # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
                 hostname='remote_host',
                 username='username',
-                timeout=30,
+                timeout=15,
                 compress=True,
                 port='port',
                 sock=None,
@@ -607,11 +608,12 @@ class TestSSHHook(unittest.TestCase):
             conn_timeout=15,
         )
 
+        # conn_timeout parameter wins over extra options
         with hook.get_conn():
             ssh_mock.return_value.connect.assert_called_once_with(
                 hostname='remote_host',
                 username='username',
-                timeout=30,
+                timeout=15,
                 compress=True,
                 port='port',
                 sock=None,
