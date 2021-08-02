@@ -212,6 +212,7 @@ In the situation where ``template_field`` is itself a dictionary, it is also pos
 dot-separated key path to extract and render individual elements appropriately.  For example:
 
 .. code-block:: python
+
         class MyConfigOperator(BaseOperator):
             template_fields = ["configuration"]
             template_fields_renderers = {
@@ -222,9 +223,11 @@ dot-separated key path to extract and render individual elements appropriately. 
             def __init__(self, configuration: dict, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.configuration = configuration
+
 Then using this template as follows:
 
 .. code-block:: python
+
         with dag:
             config_task = MyConfigOperator(
                 task_id="task_id_1",
