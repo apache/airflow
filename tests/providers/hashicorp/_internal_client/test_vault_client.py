@@ -1003,3 +1003,30 @@ class TestVaultClient(TestCase):
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
             mount_point='secret', secret_path='path', secret={'key': 'value'}, method="post"
         )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_cached_property_invalidates_on_auth_failure(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+        )
+
+        # Assert that the original mock_client is returned
+        assert vault_client.client == mock_client
+
+        # Prove that the mock_client is cached by changing the return
+        # value, but still receive the original mock client
+        mock_client_2 = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client_2
+        assert vault_client.client == mock_client
+        mock_client.is_authenticated.return_value = False
+        # assert that when the client is not authenticated the cache
+        # is invalidated, therefore returning the second client
+        assert vault_client.client == mock_client_2
