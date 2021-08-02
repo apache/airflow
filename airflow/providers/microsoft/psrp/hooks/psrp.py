@@ -61,10 +61,10 @@ class PSRPHook(BaseHook):
         finally:
             self._client = None
 
-    def invoke_powershell(self, command: str):
+    def invoke_powershell(self, script: str) -> PowerShell:
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
-            ps.add_script(command)
+            ps.add_script(script)
             ps.begin_invoke()
             streams = [
                 (ps.output, self._log_output),
