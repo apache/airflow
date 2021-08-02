@@ -37,6 +37,13 @@ DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
 
+class SSHClientSideEffect:
+    def __init__(self, hook):
+        self.ssh_client = hook.get_conn()
+
+    def __call__(self):
+        self.return_value = self.ssh_client
+        return self.return_value
 
 class TestSSHOperator:
     def setup_method(self):
@@ -176,6 +183,22 @@ class TestSSHOperator:
         )
         task_3.execute(None)
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
+        # If remote_host was specified, ensure it is used
+        task_4 = SSHOperator(
+            task_id="test_4",
+            ssh_hook=self.hook,
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
+            timeout=TIMEOUT,
+            dag=self.dag,
+            remote_host='operator_remote_host',
+        )
+        try:
+            task_4.execute(None)
+        except Exception:
+            pass
+        assert task_4.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
+        assert task_4.ssh_hook.remote_host == 'operator_remote_host'
 
     @pytest.mark.parametrize(
         "command, get_pty_in, get_pty_out",
@@ -205,3 +228,77 @@ class TestSSHOperator:
         else:
             task.execute(None)
         assert task.get_pty == get_pty_out
+
+    def test_ssh_client_managed_correctly(self):
+        # Ensure ssh_client gets created once
+        # Ensure connection gets closed once
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command="ls",
+            dag=self.dag,
+        )
+
+        se = SSHClientSideEffect(self.hook)
+        with unittest.mock.patch.object(task, 'get_ssh_client') as mock_get, unittest.mock.patch.object(
+            task, 'close_ssh_client'
+        ) as mock_close:
+            mock_get.side_effect = se
+            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
+            ti.run()
+            mock_get.assert_called_once()
+            mock_close.assert_called_once_with(se.return_value)
+
+    def test_one_ssh_client_many_commands(self):
+        # Ensure we can run multiple commands with one client
+        many_commands = ['ls', 'date', 'pwd']
+
+        class CustomSSHOperator(SSHOperator):
+            def execute(self, context=None):
+                ssh_client = self.get_ssh_client()
+                success = False
+                try:
+                    for c in many_commands:
+                        self.run_ssh_client_command(ssh_client, c)
+                    success = True
+                finally:
+                    self.close_ssh_client(ssh_client)
+                return success
+
+        task = CustomSSHOperator(task_id="test", ssh_hook=self.hook, dag=self.dag)
+        se = SSHClientSideEffect(self.hook)
+        with unittest.mock.patch.object(task, 'get_ssh_client') as mock_get, unittest.mock.patch.object(
+            task, 'run_ssh_client_command'
+        ) as mock_run_cmd, unittest.mock.patch.object(task, 'close_ssh_client') as mock_close:
+            mock_get.side_effect = se
+            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
+            ti.run()
+            mock_get.assert_called_once()
+            mock_close.assert_called_once_with(se.return_value)
+
+            ssh_client = se.return_value
+            calls = [unittest.mock.call(ssh_client, c) for c in many_commands]
+            mock_run_cmd.assert_has_calls(calls)
+
+    def test_fail_with_no_command(self):
+        # Test that run_ssh_client_command fails on no command
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            # command="ls",
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowException, match="SSH command not specified. Aborting."):
+            task.execute(None)
+
+    def test_command_errored(self):
+        # Test that run_ssh_client_command works on invalid commands
+        command = "not_a_real_command"
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command=command,
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowException, match=f"error running cmd: {command}, error: .*"):
+            task.execute(None)
