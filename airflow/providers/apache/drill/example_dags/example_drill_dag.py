@@ -23,13 +23,9 @@ from airflow.models import DAG
 from airflow.providers.apache.drill.operators.drill import DrillOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'Airflow',
-}
 
 with DAG(
     dag_id='example_drill_dag',
-    default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],
