@@ -60,7 +60,8 @@ class SSHHook(BaseHook):
     :type port: int
     :param conn_timeout: timeout for the attempt to connect to the remote_host.
     :type conn_timeout: int
-    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host. Use conn_timeout instead.
+    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
+        Use conn_timeout instead.
     :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
