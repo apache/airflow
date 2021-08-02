@@ -182,6 +182,7 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 amazon = [
     'boto3>=1.15.0,<1.18.0',
     'watchtower~=1.0.6',
+    'jsonpath_ng>=1.5.3',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
