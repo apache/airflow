@@ -27,6 +27,7 @@ from subprocess import CalledProcessError
 from typing import List
 
 import pytest
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -45,6 +46,7 @@ from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
@@ -587,147 +589,164 @@ class TestBranchOperator(unittest.TestCase):
 class TestShortCircuitOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def tearDown(self):
-        super().tearDown()
-
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-
-    def test_with_dag_run(self):
-        value = False
-        dag = DAG(
-            'shortcircuit_operator_test_with_dag_run',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+    def setUp(self):
+        self.dag = DAG(
+            "short_circuit_op_test",
+            start_date=DEFAULT_DATE,
             schedule_interval=INTERVAL,
         )
-        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: value)
-        branch_1 = DummyOperator(task_id='branch_1', dag=dag)
-        branch_1.set_upstream(short_op)
-        branch_2 = DummyOperator(task_id='branch_2', dag=dag)
-        branch_2.set_upstream(branch_1)
-        upstream = DummyOperator(task_id='upstream', dag=dag)
-        upstream.set_downstream(short_op)
-        dag.clear()
 
-        logging.error("Tasks %s", dag.tasks)
-        dr = dag.create_dagrun(
+        with self.dag:
+            self.op1 = DummyOperator(task_id="op1")
+            self.op2 = DummyOperator(task_id="op2")
+            self.op1.set_downstream(self.op2)
+
+    def tearDown(self):
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
+
+    def _assert_expected_task_states(self, dagrun, expected_states):
+        """Helper function that asserts `TaskInstances` of a given `task_id` are in a given state."""
+
+        tis = dagrun.get_task_instances()
+        for ti in tis:
+            try:
+                expected_state = expected_states[ti.task_id]
+            except KeyError:
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
+            else:
+                assert ti.state == expected_state
+
+    all_downstream_skipped_states = {
+        "short_circuit": State.SUCCESS,
+        "op1": State.SKIPPED,
+        "op2": State.SKIPPED,
+    }
+    all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
+
+    @parameterized.expand(
+        [
+            # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
+            # tasks
+            (False, True, TriggerRule.ALL_SUCCESS, all_downstream_skipped_states),
+            # Skip downstream tasks, do not respect trigger rules, non-default trigger rule on a downstream
+            # task
+            (False, True, TriggerRule.ALL_DONE, all_downstream_skipped_states),
+            # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
+            (
+                False,
+                False,
+                TriggerRule.ALL_SUCCESS,
+                {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
+            ),
+            # Skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream task
+            (
+                False,
+                False,
+                TriggerRule.ALL_DONE,
+                {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
+            ),
+            # Do not skip downstream tasks, do not respect trigger rules, default trigger rule on all
+            # downstream tasks
+            (True, True, TriggerRule.ALL_SUCCESS, all_success_states),
+            # Do not skip downstream tasks, do not respect trigger rules, non-default trigger rule on a
+            # downstream task
+            (True, True, TriggerRule.ALL_DONE, all_success_states),
+            # Do not skip downstream tasks, respect trigger rules, default trigger rule on all downstream
+            # tasks
+            (True, False, TriggerRule.ALL_SUCCESS, all_success_states),
+            # Do not skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream
+            # task
+            (True, False, TriggerRule.ALL_DONE, all_success_states),
+        ],
+    )
+    def test_short_circuiting(
+        self, callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states
+    ):
+        """
+        Checking the behavior of the ShortCircuitOperator in several scenarios enabling/disabling the skipping
+        of downstream tasks, both short-circuiting modes, and various trigger rules of downstream tasks.
+        """
+
+        self.short_circuit = ShortCircuitOperator(
+            task_id="short_circuit",
+            python_callable=lambda: callable_return,
+            ignore_downstream_trigger_rules=test_ignore_downstream_trigger_rules,
+            dag=self.dag,
+        )
+        self.short_circuit.set_downstream(self.op1)
+        self.op2.trigger_rule = test_trigger_rule
+        self.dag.clear()
+
+        dagrun = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
 
-        upstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.short_circuit.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
-        assert len(tis) == 4
-        for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == 'upstream':
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                assert ti.state == State.SKIPPED
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+        assert self.short_circuit.ignore_downstream_trigger_rules == test_ignore_downstream_trigger_rules
+        assert self.short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
+        assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
+        assert self.op2.trigger_rule == test_trigger_rule
 
-        value = True
-        dag.clear()
-        dr.verify_integrity()
-        upstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        tis = dr.get_task_instances()
-        assert len(tis) == 4
-        for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == 'upstream':
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                assert ti.state == State.NONE
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+        self._assert_expected_task_states(dagrun, expected_task_states)
 
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
         should not cause it to be executed.
         """
-        dag = DAG(
-            'shortcircuit_clear_skipped_downstream_task',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
+
+        self.short_circuit = ShortCircuitOperator(
+            task_id="short_circuit",
+            python_callable=lambda: False,
+            dag=self.dag,
         )
-        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: False)
-        downstream = DummyOperator(task_id='downstream', dag=dag)
+        self.short_circuit.set_downstream(self.op1)
+        self.op2.trigger_rule = TriggerRule.ALL_SUCCESS
+        self.dag.clear()
 
-        short_op >> downstream
-
-        dag.clear()
-
-        dr = dag.create_dagrun(
+        dagrun = self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
 
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.short_circuit.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        assert self.short_circuit.ignore_downstream_trigger_rules
+        assert self.short_circuit.trigger_rule == TriggerRule.ALL_SUCCESS
+        assert self.op1.trigger_rule == TriggerRule.ALL_SUCCESS
+        assert self.op2.trigger_rule == TriggerRule.ALL_SUCCESS
 
-        for ti in tis:
-            if ti.task_id == 'make_choice':
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == 'downstream':
-                assert ti.state == State.SKIPPED
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+        expected_states = {
+            "short_circuit": State.SUCCESS,
+            "op1": State.SKIPPED,
+            "op2": State.SKIPPED,
+        }
+        self._assert_expected_task_states(dagrun, expected_states)
 
-        # Clear downstream
+        # Clear downstream task "op1" that was previously executed.
+        tis = dagrun.get_task_instances()
+
         with create_session() as session:
-            clear_task_instances([t for t in tis if t.task_id == "downstream"], session=session, dag=dag)
+            clear_task_instances([ti for ti in tis if ti.task_id == "op1"], session=session, dag=self.dag)
 
-        # Run downstream again
-        downstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        # Check if the states are correct.
-        for ti in dr.get_task_instances():
-            if ti.task_id == 'make_choice':
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == 'downstream':
-                assert ti.state == State.SKIPPED
-            else:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
-
-    def test_xcom_push(self):
-        dag = DAG(
-            'shortcircuit_operator_test_xcom_push',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
-        )
-        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: 'signature')
-        dag.clear()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        tis = dr.get_task_instances()
-        xcom_value = tis[0].xcom_pull(task_ids='make_choice', key='return_value')
-        assert xcom_value == 'signature'
+        self.op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self._assert_expected_task_states(dagrun, expected_states)
 
 
 virtualenv_string_args: List[str] = []
