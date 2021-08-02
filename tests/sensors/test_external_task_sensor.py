@@ -123,8 +123,8 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\']'
-                f' in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\']'
+                ' in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "
@@ -136,26 +136,26 @@ class TestExternalTaskSensor(unittest.TestCase):
         self.test_time_sensor(task_id=TEST_TASK_ID)
         self.test_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
         op = ExternalTaskSensor(
-                task_id='test_external_task_sensor_check_task_ids',
-                external_dag_id=TEST_DAG_ID,
-                external_task_ids=[TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
-                allowed_states=["failed"],
-                failed_states=["success"],
-                dag=self.dag,
+            task_id='test_external_task_sensor_check_task_ids',
+            external_dag_id=TEST_DAG_ID,
+            external_task_ids=[TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
+            allowed_states=["failed"],
+            failed_states=["success"],
+            dag=self.dag,
         )
         with self.assertLogs(op.log, level=logging.INFO) as cm:
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                f'INFO:airflow.task.operators:Poking for tasks '
-                f'[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
-                f'in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                'INFO:airflow.task.operators:Poking for tasks '
+                '[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
+                'in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
             )
             assert (
-                    str(ctx.value) == "Some of the external tasks "
-                    "['time_sensor_check', 'time_sensor_check_alternate'] in DAG "
-                    "unit_test_dag failed."
-                )
+                str(ctx.value) == "Some of the external tasks "
+                "['time_sensor_check', 'time_sensor_check_alternate'] in DAG "
+                "unit_test_dag failed."
+            )
 
     def test_external_dag_sensor(self):
         other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
