@@ -23,7 +23,6 @@ from airflow.models import DAG
 from airflow.providers.apache.drill.operators.drill import DrillOperator
 from airflow.utils.dates import days_ago
 
-
 with DAG(
     dag_id='example_drill_dag',
     schedule_interval=None,
