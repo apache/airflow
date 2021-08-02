@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import unittest
 from datetime import time, timedelta
 
 import pytest
-import logging
 
 from airflow import exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
