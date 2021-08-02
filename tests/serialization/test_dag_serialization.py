@@ -137,6 +137,11 @@ serialized_simple_dag_ground_truth = {
                 'label': 'custom_task',
             },
         ],
+        "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
+        "timetable": {
+            "type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+            "value": {"delta": 86400.0},
+        },
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
@@ -501,12 +506,51 @@ class TestStringifiedDAGs(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, None, NullTimetable()),
-            ("@weekly", "@weekly", cron_timetable("0 0 * * 0")),
-            ("@once", "@once", OnceTimetable()),
+            ({"type": "airflow.timetables.simple.NullTimetable", "value": {}}, NullTimetable()),
+            (
+                {
+                    "type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "value": {"expression": "@weekly", "timezone": "UTC"},
+                },
+                cron_timetable("0 0 * * 0"),
+            ),
+            ({"type": "airflow.timetables.simple.OnceTimetable", "value": {}}, OnceTimetable()),
+            (
+                {
+                    "type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+                    "value": {"delta": 86400.0},
+                },
+                delta_timetable(timedelta(days=1)),
+            ),
+        ]
+    )
+    def test_deserialization_timetable(
+        self,
+        serialized_timetable,
+        expected_timetable,
+    ):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "timetable": serialized_timetable,
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+        assert dag.timetable == expected_timetable
+
+    @parameterized.expand(
+        [
+            (None, NullTimetable()),
+            ("@weekly", cron_timetable("0 0 * * 0")),
+            ("@once", OnceTimetable()),
             (
                 {"__type": "timedelta", "__var": 86400.0},
-                timedelta(days=1),
                 delta_timetable(timedelta(days=1)),
             ),
         ]
@@ -514,9 +558,9 @@ class TestStringifiedDAGs(unittest.TestCase):
     def test_deserialization_schedule_interval(
         self,
         serialized_schedule_interval,
-        expected_schedule_interval,
         expected_timetable,
     ):
+        """Test DAGs serialized before 2.2 can be correctly deserialized."""
         serialized = {
             "__version": 1,
             "dag": {
@@ -530,10 +574,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         }
 
         SerializedDAG.validate_schema(serialized)
-
         dag = SerializedDAG.from_dict(serialized)
-
-        assert dag.schedule_interval == expected_schedule_interval
         assert dag.timetable == expected_timetable
 
     @parameterized.expand(

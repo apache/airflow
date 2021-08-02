@@ -48,7 +48,10 @@
       }
     },
     "timezone": {
-      "type": "string"
+      "anyOf": [
+        { "type": "string" },
+        { "type": "integer" }
+      ]
     },
     "dict": {
       "description": "A python dictionary containing values of any type",
@@ -86,6 +89,13 @@
             { "$ref": "#/definitions/typed_timedelta" },
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
+        },
+        "timetable": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "value": { "$ref": "#/definitions/dict" }
+          }
         },
         "catchup": { "type": "boolean" },
         "is_subdag": { "type": "boolean" },

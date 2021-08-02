@@ -27,7 +27,7 @@ import sys
 import traceback
 import warnings
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
@@ -72,7 +72,6 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.schedules import Schedule
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.typing_compat import Literal, RePatternType
 from airflow.utils import timezone
@@ -92,11 +91,34 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-ScheduleInterval = Union[str, timedelta, relativedelta]
 DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
+ScheduleIntervalArgNotSet = type("ScheduleIntervalArgNotSet", (), {})
+
 DagStateChangeCallback = Callable[[Context], None]
+ScheduleInterval = Union[str, timedelta, relativedelta]
+ScheduleIntervalArg = Union[ScheduleInterval, None, Type[ScheduleIntervalArgNotSet]]
+
+
+# Backward compatibility: If neither schedule_interval nor timetable is
+# *provided by the user*, default to a one-day interval.
+DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
+
+
+def create_timetable(interval: ScheduleIntervalArg, timezone: tzinfo) -> Timetable:
+    """Create a Timetable instance from a ``schedule_interval`` argument."""
+    if interval is ScheduleIntervalArgNotSet:
+        return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
+    if interval is None:
+        return NullTimetable()
+    if interval == "@once":
+        return OnceTimetable()
+    if isinstance(interval, (timedelta, relativedelta)):
+        return DeltaDataIntervalTimetable(interval)
+    if isinstance(interval, str):
+        return CronDataIntervalTimetable(interval, timezone)
+    raise ValueError(f"{interval!r} is not a valid schedule_interval.")
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -256,7 +278,8 @@ class DAG(LoggingMixin):
         self,
         dag_id: str,
         description: Optional[str] = None,
-        schedule_interval: Optional[ScheduleInterval] = timedelta(days=1),
+        schedule_interval: ScheduleIntervalArg = ScheduleIntervalArgNotSet,
+        timetable: Optional[Timetable] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         full_filepath: Optional[str] = None,
@@ -349,7 +372,18 @@ class DAG(LoggingMixin):
         if 'end_date' in self.default_args:
             self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
-        self.schedule_interval = schedule_interval
+        # Calculate the DAG's timetable.
+        if timetable is None:
+            self.timetable = create_timetable(schedule_interval, self.timezone)
+            if schedule_interval is ScheduleIntervalArgNotSet:
+                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
+            self.schedule_interval: ScheduleInterval = schedule_interval
+        elif schedule_interval is ScheduleIntervalArgNotSet:
+            self.timetable = timetable
+            self.schedule_interval = self.timetable.summary
+        else:
+            raise TypeError("cannot specify both 'schedule_interval' and 'timetable'")
+
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
@@ -494,7 +528,7 @@ class DAG(LoggingMixin):
             stacklevel=2,
         )
         try:
-            return not self.timetable._schedule._should_fix_dst
+            return not self.timetable._should_fix_dst
         except AttributeError:
             return True
 
@@ -513,16 +547,16 @@ class DAG(LoggingMixin):
         return next_info.data_interval.start
 
     def previous_schedule(self, dttm):
+        from airflow.timetables.interval import _DataIntervalTimetable
+
         warnings.warn(
             "`DAG.previous_schedule()` is deprecated.",
             category=DeprecationWarning,
             stacklevel=2,
         )
-        try:
-            schedule: Schedule = self.timetable._schedule
-        except AttributeError:
+        if not isinstance(self.timetable, _DataIntervalTimetable):
             return None
-        return schedule.get_prev(pendulum.instance(dttm))
+        return self.timetable._get_prev(pendulum.instance(dttm))
 
     def next_dagrun_info(
         self,
@@ -583,20 +617,6 @@ class DAG(LoggingMixin):
         else:
             latest = None
         return TimeRestriction(earliest, latest, self.catchup)
-
-    @cached_property
-    def timetable(self) -> Timetable:
-        interval = self.schedule_interval
-        if interval is None:
-            return NullTimetable()
-        if interval == "@once":
-            return OnceTimetable()
-        if isinstance(interval, (timedelta, relativedelta)):
-            return DeltaDataIntervalTimetable(interval)
-        if isinstance(interval, str):
-            return CronDataIntervalTimetable(interval, self.timezone)
-        type_name = type(interval).__name__
-        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
 
     def iter_dagrun_infos_between(
         self,
@@ -844,7 +864,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and self.schedule_interval is None
+        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_run
 
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
