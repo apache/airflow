@@ -259,6 +259,17 @@ class TestMongoHook(unittest.TestCase):
         assert len(list(result_objs)) > 1
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_find_many_with_projection(self):
+        collection = mongomock.MongoClient().db.collection
+        objs = [{'test_find_many_1': 'test_value'}, {'test_find_many_2': 'test_value'}]
+        collection.insert(objs)
+
+        projection = ['test_find_many_1']
+        result_objs = self.hook.find(collection, projection, find_one=False)
+
+        assert len(list(result_objs)) == 1
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_aggregate(self):
         collection = mongomock.MongoClient().db.collection
         objs = [
