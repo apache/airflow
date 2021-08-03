@@ -109,7 +109,7 @@ class SalesforceHook(BaseHook):
             ),
             "extra__salesforce__proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
             "extra__salesforce__version": StringField(
-                lazy_gettext("Salesforce API Version"), widget=BS3TextFieldWidget()
+                lazy_gettext("API Version"), widget=BS3TextFieldWidget()
             ),
             "extra__salesforce__client_id": StringField(
                 lazy_gettext("Client ID"), widget=BS3TextFieldWidget()
