@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import io
 import json
 from typing import Any, Dict, List, Optional
 
@@ -162,15 +162,17 @@ class SlackAPIFileOperator(SlackAPIOperator):
     .. code-block:: python
 
         # Send file with filename and filetype
-        slack = SlackAPIFileOperator(
-            task_id="slack_file_upload",
-            dag=dag,
-            slack_conn_id="slack",
-            channel="#general",
-            initial_comment="Hello World!",
-            filename="hello_world.csv",
-            filetype="csv",
-        )
+        with open("test.txt", "rb") as file:
+            slack = SlackAPIFileOperator(
+                task_id="slack_file_upload",
+                dag=dag,
+                slack_conn_id="slack",
+                channel="#general",
+                initial_comment="Hello World!",
+                file=file,
+                filename="hello_world.csv",
+                filetype="csv",
+            )
 
         # Send file content
         slack = SlackAPIFileOperator(
@@ -202,6 +204,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
+        file: io.BufferedReader = None,
         filename: str = None,
         filetype: str = None,
         content: str = None,
@@ -210,6 +213,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.method = 'files.upload'
         self.channel = channel
         self.initial_comment = initial_comment
+        self.file = file
         self.filename = filename
         self.filetype = filetype
         self.content = content
@@ -230,7 +234,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
                 'filetype': self.filetype,
                 'initial_comment': self.initial_comment,
             }
-            self.file_params = {'file': self.filename}
+            self.file_params = {'file': self.file}
 
     def execute(self, **kwargs):
         """
