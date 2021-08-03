@@ -81,7 +81,7 @@ Proxies (optional)
     A mapping of scheme-to-proxy server(s).
 
 Salesforce API Version (optional)
-    The version of the Salesforce API to use.  If not specified a default value will be used.
+    The version of the Salesforce API to use when attempting to connect.  If not specified a default value will be used.
 
 Client ID (optional)
     The ID of the client.
