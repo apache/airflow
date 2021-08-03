@@ -4,7 +4,7 @@ pyparsing==2.4.7
 
 # --- considered as packages
 
-{% if params.environ and params.environ == 'templated_unit_test' %}
+{% if params and params.environ and params.environ == 'templated_unit_test' %}
     funcsigs==1.0.2
 {% else %}
     funcsigs==0.4

@@ -845,6 +845,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         self._run_as_operator(
             f,
             requirements='requirements.txt',
+            use_dill=True,
             params={'environ': 'templated_unit_test'},
             system_site_packages=False,
         )

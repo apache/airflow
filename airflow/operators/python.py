@@ -350,20 +350,16 @@ class PythonVirtualenvOperator(PythonOperator):
         self.system_site_packages = system_site_packages
         self.pickling_library = dill if self.use_dill else pickle
 
-    def pre_execute(self, context: Any):
-        if isinstance(self.requirements, list):
-            return
-
-        import pkg_resources
-        self.requirements = [str(req) for req in pkg_resources.parse_requirements(self.requirements)]
-
     def execute(self, context: Dict):
         serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
         return super().execute(context=serializable_context)
 
     def execute_callable(self):
-        if not self.system_site_packages and self.use_dill and 'dill' not in self.requirements:
-            self.requirements.append('dill')
+        if not self.system_site_packages and self.use_dill:
+            if isinstance(self.requirements, List) and 'dill' not in self.requirements:
+                self.requirements.append('dill')
+            else:
+                self.requirements += '\ndill'
 
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             if self.templates_dict:
