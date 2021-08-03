@@ -1460,8 +1460,6 @@ class TestTaskInstance:
 
         assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
         assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
-        assert isinstance(template_context["logical_date"], pendulum.DateTime)
-        assert isinstance(template_context["next_logical_date"], pendulum.DateTime)
 
     @pytest.mark.parametrize(
         "content, expected_output",
