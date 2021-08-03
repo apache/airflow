@@ -103,6 +103,8 @@ class AzureContainerInstancesOperator(BaseOperator):
     :type restart_policy: str
     :param ip_address: The IP address type of the container group.
     :type ip_address: IpAddress
+    :param user_assigned_identities: List of user assigned identity strings.
+    :type user_assigned_identities: Optional[List[str]]
 
     **Example**::
 
@@ -126,6 +128,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     memory_in_gb=14.0,
                     cpu=4.0,
                     gpu=GpuResource(count=1, sku='K80'),
+                    user_assigned_identities=['/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{identityName}']
                     command=["/bin/echo", "world"],
                     task_id="start_container"
                 )
@@ -157,6 +160,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         restart_policy: str = 'Never',
         ip_address: Optional[IpAddress] = None,
         ports: Optional[List[ContainerPort]] = None,
+        user_assigned_identities: Optional[List[str]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -194,6 +198,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             )
         self.ip_address = ip_address
         self.ports = ports
+        self.user_assigned_identities = user_assigned_identities if user_assigned_identities else []
 
     def execute(self, context: dict) -> int:
         # Check name again in case it was templated.
@@ -231,6 +236,13 @@ class AzureContainerInstancesOperator(BaseOperator):
             volumes.append(hook.get_file_volume(mount_name, share_name, account_name, read_only))
             volume_mounts.append(VolumeMount(name=mount_name, mount_path=mount_path, read_only=read_only))
 
+        params_identity = {}
+        if self.user_assigned_identities:
+            params_identity = {
+                "type": "UserAssigned",
+                "user_assigned_identities": {uaid: {} for uaid in self.user_assigned_identities}
+            }
+
         exit_code = 1
         try:
             self.log.info("Starting container group with %.1f cpu %.1f mem", self.cpu, self.memory_in_gb)
@@ -266,6 +278,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 os_type=self.os_type,
                 tags=self.tags,
                 ip_address=self.ip_address,
+                identity=params_identity,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
