@@ -23,7 +23,8 @@ Templates reference
 Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
 
 The following come for free out of the box with Airflow.
-Additional custom macros can be added globally through :doc:`plugins`, or at a DAG level through the ``DAG.user_defined_macros`` argument.
+Additional custom macros can be added globally through :doc:`plugins`, or at a DAG level through the
+``DAG.user_defined_macros`` argument.
 
 .. _templates:variables:
 
@@ -32,71 +33,74 @@ Variables
 The Airflow engine passes a few variables by default that are accessible
 in all templates
 
-=====================================   ====================================
-Variable                                Description
-=====================================   ====================================
-``{{ logical_date }}``                  the logical date of the DAG run (`pendulum.Pendulum`_)
-``{{ ds }}``                            the logical date as ``YYYY-MM-DD``
-``{{ ds_nodash }}``                     the logical date as ``YYYYMMDD``
-``{{ ts }}``                            same as ``schedule_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
-``{{ ts_nodash }}``                     same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
-``{{ ts_nodash_with_tz }}``             same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
-``{{ next_logical_date }}``             the next logical date if exists (`pendulum.Pendulum`_ or ``None``)
-``{{ next_ds }}``                       the next logical date as ``YYYY-MM-DD``
-                                        if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
-                                        ``{{ next_ds }}`` will be ``2018-01-08``
-``{{ next_ds_nodash }}``                the next schedule date as ``YYYYMMDD`` if exists, else ``None``
-``{{ prev_logical_date }}``             logical date of the immediately previous scheduled DAG run
-                                        (`pendulum.Pendulum`_ or ``None``)
-``{{ data_interval_start }}``           start of the data interval (`pendulum.Pendulum`_ or ``None``)
-``{{ data_interval_end }}``             end of the data interval (`pendulum.Pendulum`_ or ``None``)
-``{{ prev_logical_date_success }}``     logical date from prior successful DAG run (`pendulum.Pendulum`_ or ``None``)
-``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (`pendulum.Pendulum`_)
-``{{ dag }}``                           the DAG object
-``{{ task }}``                          the Task object
-``{{ macros }}``                        a reference to the macros package, described below
-``{{ task_instance }}``                 the task_instance object
-``{{ ti }}``                            same as ``{{ task_instance }}``
-``{{ params }}``                        a reference to the user-defined params dictionary which can be overridden by
-                                        the dictionary passed through ``trigger_dag -c`` if you enabled
-                                        ``dag_run_conf_overrides_params`` in ``airflow.cfg``
-``{{ var.value.my_var }}``              global defined variables represented as a dictionary
-``{{ var.json.my_var.path }}``          global defined variables represented as a dictionary
-                                        with deserialized JSON object, append the path to the
-                                        key within the JSON object
-``{{ conn.my_conn_id }}``               connection represented as a dictionary
+==========================================  ====================================
+Variable                                    Description
+==========================================  ====================================
+``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_ or ``None``).
+``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_ or ``None``).
+``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
+``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.
+``{{ ts }}``                                Same as ``data_interval_start.isoformat()``.
+                                            Example: ``2018-01-01T00:00:00+00:00``.
+``{{ ts_nodash_with_tz }}``                 Same as ``ts`` without ``-`` and ``:``.
+                                            Example: ``20180101T000000+0000``.
+``{{ ts_nodash }}``                         Same as ``ts`` without ``-``, ``:`` and timezone info.
+                                            Example: ``20180101T000000``.
+``{{ prev_data_interval_start_success }}``  Start of the data interval from prior successful DAG run
+                                            (`pendulum.Pendulum`_ or ``None``).
+``{{ prev_data_interval_end_success }}``    End of the data interval from prior successful DAG run
+                                            (`pendulum.Pendulum`_ or ``None``).
+``{{ prev_start_date_success }}``           Start date from prior successful dag run (if available)
+                                            (`pendulum.Pendulum`_ or ``None``).
+``{{ dag }}``                               The DAG object.
+``{{ task }}``                              The Task object.
+``{{ macros }}``                            A reference to the macros package, described below.
+``{{ task_instance }}``                     The task_instance object.
+``{{ ti }}``                                Same as ``{{ task_instance }}``.
+``{{ params }}``                            A reference to the user-defined params dictionary which can be
+                                            overridden by the dictionary passed through ``trigger_dag -c`` if
+                                            you enabled ``dag_run_conf_overrides_params`` in ``airflow.cfg``.
+``{{ var.value.my_var }}``                  Global defined variables represented as a dictionary.
+``{{ var.json.my_var.path }}``              Global defined variables represented as a dictionary.
+                                            With deserialized JSON object, append the path to the key within
+                                            the JSON object.
+``{{ conn.my_conn_id }}``                   Connection represented as a dictionary.
+``{{ task_instance_key_str }}``             A unique, human-readable key to the task instance formatted
+                                            ``{dag_id}__{task_id}__{ds_nodash}``.
+``{{ conf }}``                              The full configuration object located at
+                                            ``airflow.configuration.conf`` which represents the content of
+                                            your ``airflow.cfg``.
+``{{ run_id }}``                            The ``run_id`` of the current DAG run.
+``{{ dag_run }}``                           A reference to the DagRun object.
+``{{ test_mode }}``                         Whether the task instance was called using the CLI's test
+                                            subcommand.
+==========================================  ====================================
 
-``{{ task_instance_key_str }}``         a unique, human-readable key to the task instance
-                                        formatted ``{dag_id}__{task_id}__{ds_nodash}``
-``{{ conf }}``                          the full configuration object located at
-                                        ``airflow.configuration.conf`` which
-                                        represents the content of your
-                                        ``airflow.cfg``
-``{{ run_id }}``                        the ``run_id`` of the current DAG run
-``{{ dag_run }}``                       a reference to the DagRun object
-``{{ test_mode }}``                     whether the task instance was called using
-                                        the CLI's test subcommand
-=====================================   ====================================
-
-The following variables are deprecated. They are kept for backward compatibility,
-but you should convert existing code to use other variables instead.
+The following variables are deprecated. They are kept for backward compatibility, but you should convert
+existing code to use other variables instead.
 
 =====================================   ====================================
 Deprecated Variable                     Description
 =====================================   ====================================
 ``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
-``{{ prev_ds }}``                       the previous execution date as ``YYYY-MM-DD``
-                                        if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
-                                        ``{{ prev_ds }}`` will be ``2018-01-01``
+``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.Pendulum`_)
+                                        if ``{{ execution_date }}`` is ``2018-01-01 00:00:00`` and
+                                        ``schedule_interval`` is ``@weekly``, ``{{ next_execution_date }}``
+                                        will be ``2018-01-08 00:00:00``
+``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
+``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
+``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
+                                        if ``{{ execution_date }}`` is ``2018-01-08 00:00:00`` and
+                                        ``schedule_interval`` is ``@weekly``, ``{{ prev_execution_date }}``
+                                        will be ``2018-01-01 00:00:00``
+``{{ prev_ds }}``                       the previous execution date as ``YYYY-MM-DD`` if exists, else ``None``
 ``{{ prev_ds_nodash }}``                the previous execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ yesterday_ds }}``                  the day before the execution date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
-``{{ prev_execution_date_success }}``   execution date from prior successful dag run,
-                                        same as ``prev_logical_date_success``
-``{{ next_execution_date }}``           the next execution date, same as ``next_logical_date``
+``{{ prev_execution_date_success }}``   execution date from prior successful dag run
+
 =====================================   ====================================
 
 Note that you can access the object's attributes and methods with simple
