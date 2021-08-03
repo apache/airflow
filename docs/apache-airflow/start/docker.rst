@@ -93,7 +93,7 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
     mkdir ./dags ./logs ./plugins
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 
-See:ref:`Docker Compose environment variables <docker-compose-env-variables>`
+See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
 
 On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 

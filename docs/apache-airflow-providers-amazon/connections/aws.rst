@@ -415,3 +415,19 @@ You can configure connection, also using environmental variable :envvar:`AIRFLOW
     assume_role_method=assume_role_with_web_identity&\
     assume_role_with_web_identity_federation=google&\
     assume_role_with_web_identity_federation_audience=aaa.polidea.com"
+
+Using IAM Roles for Service Accounts (IRSA) on EKS
+----------------------------------------------------------------
+
+If you are running Airflow on Amazon EKS, you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service by granting the IAM role to it's service account.  To activate this, the following steps must be followed:
+
+1. Create an IAM OIDC Provider on EKS cluster.
+2. Create an IAM Role and Policy to attach to the Airflow service account with web identity provider created at 1.
+3. Add the corresponding IAM Role to the Airflow service account as an annotation.
+
+.. seealso::
+    https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+
+Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that `Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added. Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__ will configure credentials using those variables.
+
+In order to use IRSA in Airflow, you have to create an aws connection with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because it manually create a session using connection fields. If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.

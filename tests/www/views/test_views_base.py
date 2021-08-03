@@ -58,7 +58,7 @@ def test_home(capture_templates, admin_client):
         val_state_color_mapping = (
             'const STATE_COLOR = {"failed": "red", '
             '"null": "lightblue", "queued": "gray", '
-            '"removed": "lightgrey", "running": "lime", '
+            '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
             '"scheduled": "tan", "sensing": "lightseagreen", '
             '"shutdown": "blue", "skipped": "pink", '
             '"success": "green", "up_for_reschedule": "turquoise", '

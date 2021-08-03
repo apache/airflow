@@ -121,7 +121,6 @@ from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
     DagRunEditForm,
-    DagRunForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
@@ -277,6 +276,29 @@ def task_group_to_dict(task_group):
         'tooltip': task_group.tooltip,
         'children': children,
     }
+
+
+def get_key_paths(input_dict):
+    """Return a list of dot-separated dictionary paths"""
+    for key, value in input_dict.items():
+        if isinstance(value, dict):
+            for sub_key in get_key_paths(value):
+                yield '.'.join((key, sub_key))
+        else:
+            yield key
+
+
+def get_value_from_path(key_path, content):
+    """Return the value from a dictionary based on dot-separated path of keys"""
+    elem = content
+    for x in key_path.strip(".").split("."):
+        try:
+            x = int(x)
+            elem = elem[x]
+        except ValueError:
+            elem = elem.get(x)
+
+    return elem
 
 
 def dag_edges(dag):
@@ -995,10 +1017,30 @@ class Airflow(AirflowBaseView):
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
                 if isinstance(content, (dict, list)):
-                    content = json.dumps(content, sort_keys=True, indent=4)
-                html_dict[template_field] = renderers[renderer](content)
+                    json_content = json.dumps(content, sort_keys=True, indent=4)
+                    html_dict[template_field] = renderers[renderer](json_content)
+                else:
+                    html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
+
+            if isinstance(content, dict):
+                if template_field == 'op_kwargs':
+                    for key, value in content.items():
+                        renderer = task.template_fields_renderers.get(key, key)
+                        if renderer in renderers:
+                            html_dict['.'.join([template_field, key])] = renderers[renderer](value)
+                        else:
+                            html_dict['.'.join([template_field, key])] = Markup(
+                                "<pre><code>{}</pre></code>"
+                            ).format(pformat(value))
+                else:
+                    for dict_keys in get_key_paths(content):
+                        template_path = '.'.join((template_field, dict_keys))
+                        renderer = task.template_fields_renderers.get(template_path, template_path)
+                        if renderer in renderers:
+                            content_value = get_value_from_path(dict_keys, content)
+                            html_dict[template_path] = renderers[renderer](content_value)
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -3179,11 +3221,33 @@ class ConnectionModelView(AirflowModelView):
     def process_form(self, form, is_created):
         """Process form data."""
         conn_type = form.data['conn_type']
+        conn_id = form.data["conn_id"]
         extra = {
             key: form.data[key]
             for key in self.extra_fields
             if key in form.data and key.startswith(f"extra__{conn_type}__")
         }
+
+        # If parameters are added to the classic `Extra` field, include these values along with
+        # custom-field extras.
+        extra_conn_params = form.data.get("extra")
+
+        if extra_conn_params:
+            try:
+                extra.update(json.loads(extra_conn_params))
+            except (JSONDecodeError, TypeError):
+                flash(
+                    Markup(
+                        "<p>The <em>Extra</em> connection field contained an invalid value for Conn ID: "
+                        f"<q>{conn_id}</q>.</p>"
+                        "<p>If connection parameters need to be added to <em>Extra</em>, "
+                        "please make sure they are in the form of a single, valid JSON object.</p><br>"
+                        "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
+                        f"{extra_conn_params}",
+                    ),
+                    category="error",
+                )
+
         if extra.keys():
             form.extra.data = json.dumps(extra)
 
@@ -3520,7 +3584,6 @@ class DagRunModelView(AirflowModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
-        'add': 'create',
         'list': 'read',
         'action_clear': 'delete',
         'action_muldelete': 'delete',
@@ -3529,14 +3592,12 @@ class DagRunModelView(AirflowModelView):
         'action_set_success': 'edit',
     }
     base_permissions = [
-        permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = [
         'state',
         'dag_id',
@@ -3565,7 +3626,6 @@ class DagRunModelView(AirflowModelView):
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
-    add_form = DagRunForm
     edit_form = DagRunEditForm
 
     formatters_columns = {
