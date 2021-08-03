@@ -1602,7 +1602,7 @@ class Airflow(AirflowBaseView):
                     'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
                 )
 
-        dag: DAG = current_app.dag_bag.get_dag(dag_id)
+        dag = current_app.dag_bag.get_dag(dag_id)
 
         if unpause and dag.is_paused:
             models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
