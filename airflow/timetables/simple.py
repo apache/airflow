@@ -37,8 +37,8 @@ class NullTimetable(Timetable):
     def validate(self) -> None:
         pass
 
-    def infer_data_interval(self, run_after: DateTime) -> Optional[DataInterval]:
-        return None
+    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+        return DataInterval.exact(run_after)
 
     def next_dagrun_info(
         self,
@@ -63,8 +63,8 @@ class OnceTimetable(Timetable):
     def validate(self) -> None:
         pass
 
-    def infer_data_interval(self, run_after: DateTime) -> Optional[DataInterval]:
-        return DataInterval(start=run_after, end=run_after)
+    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+        return DataInterval.exact(run_after)
 
     def next_dagrun_info(
         self,
@@ -81,4 +81,4 @@ class OnceTimetable(Timetable):
         run_after = restriction.earliest
         if restriction.latest is not None and run_after > restriction.latest:
             return None
-        return DagRunInfo(run_after=run_after, data_interval=None)
+        return DagRunInfo.exact(run_after)

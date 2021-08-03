@@ -23,13 +23,15 @@ from airflow.typing_compat import Protocol
 
 
 class DataInterval(NamedTuple):
-    """A data interval for a DagRun to operate over.
-
-    The represented interval is ``[start, end)``.
-    """
+    """A data interval for a DagRun to operate over."""
 
     start: DateTime
     end: DateTime
+
+    @classmethod
+    def exact(cls, at: DateTime) -> "DagRunInfo":
+        """Represent an "interval" containing only an exact time."""
+        return cls(start=at, end=at)
 
 
 class TimeRestriction(NamedTuple):
@@ -61,8 +63,13 @@ class DagRunInfo(NamedTuple):
     run_after: DateTime
     """The earliest time this DagRun is created and its tasks scheduled."""
 
-    data_interval: Optional[DataInterval]
-    """The data interval this DagRun to operate over, if applicable."""
+    data_interval: DataInterval
+    """The data interval this DagRun to operate over."""
+
+    @classmethod
+    def exact(cls, at: DateTime) -> "DagRunInfo":
+        """Represent a run on an exact time."""
+        return cls(run_after=at, data_interval=DataInterval.exact(at))
 
     @classmethod
     def interval(cls, start: DateTime, end: DateTime) -> "DagRunInfo":
@@ -76,14 +83,11 @@ class DagRunInfo(NamedTuple):
 
     @property
     def logical_date(self) -> DateTime:
-        """Infer the logical date to use for the actual DagRun.
+        """Infer the logical date to represent a DagRun.
 
-        For backward compatibility, this needs to match how ``execution_date``
-        is calculated before AIP-39. If there is a data interval, this is the
-        beginning of the interval; if there is not, ``run_after`` is used.
+        This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
+        essentially the same, just a different name.
         """
-        if self.data_interval is None:
-            return self.run_after
         return self.data_interval.start
 
 
@@ -97,7 +101,7 @@ class Timetable(Protocol):
         """
         raise NotImplementedError()
 
-    def infer_data_interval(self, run_after: DateTime) -> Optional[DataInterval]:
+    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
         """When a DAG run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
