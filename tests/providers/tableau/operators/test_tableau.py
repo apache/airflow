@@ -158,8 +158,8 @@ class TestTableauOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             operator.execute({})
 
-    @patch('airflow.providers.tableau.operators.tableau.TableauHook')
-    def test_get_resource_id(self, mock_tableau_hook):
+
+    def test_get_resource_id(self):
         """
         Test get resource id
         """
@@ -171,4 +171,4 @@ class TestTableauOperator(unittest.TestCase):
             task_id='t',
             dag=None
         )
-        assert operator._get_resource_id(mock_tableau_hook) == resource_id
+        assert operator._get_resource_id(resource_id) == resource_id

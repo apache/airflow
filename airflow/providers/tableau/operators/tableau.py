@@ -102,8 +102,8 @@ class TableauOperator(BaseOperator):
             raise AirflowException(error_message)
 
         available_methods = RESOURCES_METHODS[self.resource]
-        if self.method in available_methods:
-            error_message = f'Method not found! Available methods for {self.resource}: {available_methods}'
+        if self.method not in available_methods:
+            error_message = f'Method {self.method} was not found! Available methods for {self.resource}: {available_methods}'
             raise AirflowException(error_message)
 
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
