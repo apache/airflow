@@ -1044,6 +1044,7 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         self.hostname = get_hostname()
+        self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
