@@ -104,3 +104,8 @@ ssh, statsd, tableau, telegram, trino, vertica, virtualenv, webhdfs, winrm, yand
 # END EXTRAS HERE
 
 # For installing Airflow in development environments - see CONTRIBUTING.rst
+
+# COMPILING FRONT-END ASSETS (in case you see "Please make sure to build the frontend in static/ directory and then restart the server")
+# Optional : Installing yarn - https://classic.yarnpkg.com/en/docs/install
+
+python setup.py compile_assets

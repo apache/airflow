@@ -428,8 +428,9 @@ def app():
 
 @pytest.fixture
 def dag_maker(request):
-    from airflow.models import DAG
+    from airflow.models import DAG, DagModel
     from airflow.utils import timezone
+    from airflow.utils.session import provide_session
     from airflow.utils.state import State
 
     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -444,33 +445,39 @@ def dag_maker(request):
             dag.__exit__(type, value, traceback)
             if type is None:
                 dag.clear()
-                self.dag_run = dag.create_dagrun(
-                    run_id=self.kwargs.get("run_id", "test"),
-                    state=self.kwargs.get('state', State.RUNNING),
-                    execution_date=self.kwargs.get('execution_date', self.kwargs['start_date']),
-                    start_date=self.kwargs['start_date'],
-                )
+
+        @provide_session
+        def make_dagmodel(self, session=None, **kwargs):
+            dag = self.dag
+            defaults = dict(dag_id=dag.dag_id, next_dagrun=dag.start_date, is_active=True)
+            kwargs = {**defaults, **kwargs}
+            dag_model = DagModel(**kwargs)
+            session.add(dag_model)
+            session.flush()
+            return dag_model
+
+        def create_dagrun(self, **kwargs):
+            dag = self.dag
+            defaults = dict(
+                run_id='test',
+                state=State.RUNNING,
+                execution_date=self.start_date,
+                start_date=self.start_date,
+            )
+            kwargs = {**defaults, **kwargs}
+            self.dag_run = dag.create_dagrun(**kwargs)
+            return self.dag_run
 
         def __call__(self, dag_id='test_dag', **kwargs):
             self.kwargs = kwargs
-            if "start_date" not in kwargs:
+            self.start_date = self.kwargs.get('start_date', None)
+            if not self.start_date:
                 if hasattr(request.module, 'DEFAULT_DATE'):
-                    kwargs['start_date'] = getattr(request.module, 'DEFAULT_DATE')
+                    self.start_date = getattr(request.module, 'DEFAULT_DATE')
                 else:
-                    kwargs['start_date'] = DEFAULT_DATE
-            dagrun_fields_not_in_dag = [
-                'state',
-                'execution_date',
-                'run_type',
-                'queued_at',
-                "run_id",
-                "creating_job_id",
-                "external_trigger",
-                "last_scheduling_decision",
-                "dag_hash",
-            ]
-            kwargs = {k: v for k, v in kwargs.items() if k not in dagrun_fields_not_in_dag}
-            self.dag = DAG(dag_id, **kwargs)
+                    self.start_date = DEFAULT_DATE
+            self.kwargs['start_date'] = self.start_date
+            self.dag = DAG(dag_id, **self.kwargs)
             return self
 
     return DagFactory()
