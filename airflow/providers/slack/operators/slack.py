@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import io
 import json
 from typing import Any, Dict, List, Optional
 
@@ -197,15 +196,14 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :type content: str
     """
 
-    template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
+    template_fields = ('channel', 'initial_comment', 'filetype', 'content')
     ui_color = '#44BEDF'
 
     def __init__(
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
-        file: io.BufferedReader = None,
-        filename: str = None,
+        file: str = None,
         filetype: str = None,
         content: str = None,
         **kwargs,
@@ -214,34 +212,34 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.channel = channel
         self.initial_comment = initial_comment
         self.file = file
-        self.filename = filename
         self.filetype = filetype
         self.content = content
         self.file_params = {}
         super().__init__(method=self.method, **kwargs)
-
-    def construct_api_call_params(self) -> Any:
-        if self.content is not None:
-            self.api_params = {
-                'channels': self.channel,
-                'content': self.content,
-                'initial_comment': self.initial_comment,
-            }
-        elif self.filename is not None:
-            self.api_params = {
-                'channels': self.channel,
-                'filename': self.filename,
-                'filetype': self.filetype,
-                'initial_comment': self.initial_comment,
-            }
-            self.file_params = {'file': self.file}
 
     def execute(self, **kwargs):
         """
         The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
         """
-        if not self.api_params:
-            self.construct_api_call_params()
         slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
-        slack.call(self.method, data=self.api_params, files=self.file_params)
+
+        # If file content is passed.
+        if self.content is not None:
+            self.api_params = {
+                'channels': self.channel,
+                'content': self.content,
+                'initial_comment': self.initial_comment,
+            }
+            slack.call(self.method, data=self.api_params)
+        # If file name is passed.
+        elif self.file is not None:
+            self.api_params = {
+                'channels': self.channel,
+                'filename': self.file,
+                'filetype': self.filetype,
+                'initial_comment': self.initial_comment,
+            }
+            with open(self.file, "rb") as file_name:
+                slack.call(self.method, data=self.api_params, files={'file': file_name})
+                file_name.close()

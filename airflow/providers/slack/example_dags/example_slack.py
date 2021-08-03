@@ -20,28 +20,27 @@ from airflow.providers.slack.operators.slack import SlackAPIFileOperator
 from airflow.utils.dates import days_ago
 
 with DAG(
-    dag_id='influxdb_example_dag',
+    dag_id='slack_example_dag',
     schedule_interval=None,
     start_date=days_ago(2),
     max_active_runs=1,
     tags=['example'],
 ) as dag:
     # Send file with filename and filetype
-    with open("test.txt", "rb") as file:
-        slack_operator_file = SlackAPIFileOperator(
-            task_id="slack_file_upload",
-            dag=dag,
-            slack_conn_id="slack",
-            channel="#general",
-            initial_comment="Hello World!",
-            file=file,
-            filename="test.txt",
-            filetype="csv",
-        )
+    slack_operator_file = SlackAPIFileOperator(
+        task_id="slack_file_upload_1",
+        dag=dag,
+        slack_conn_id="slack",
+        channel="#general",
+        initial_comment="Hello World!",
+        file="/files/dags/test.txt",
+        filename="test.txt",
+        filetype="txt",
+    )
 
     # Send file content
     slack_operator_file_content = SlackAPIFileOperator(
-        task_id="slack_file_upload",
+        task_id="slack_file_upload_2",
         dag=dag,
         slack_conn_id="slack",
         channel="#general",
