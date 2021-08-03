@@ -22,6 +22,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.tableau.operators.tableau import TableauOperator
+from airflow.providers.tableau.hooks.tableau import TableauJobFinishCode
 
 
 class TestTableauOperator(unittest.TestCase):
@@ -56,6 +57,7 @@ class TestTableauOperator(unittest.TestCase):
             'method': 'refresh'
         }
 
+
     @patch('airflow.providers.tableau.operators.tableau.TableauHook')
     def test_execute_workbooks(self, mock_tableau_hook):
         """
@@ -70,26 +72,26 @@ class TestTableauOperator(unittest.TestCase):
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch('airflow.providers.tableau.sensors.tableau_job_status.TableauJobStatusSensor')
+
     @patch('airflow.providers.tableau.operators.tableau.TableauHook')
-    def test_execute_workbooks_blocking(self, mock_tableau_hook, mock_tableau_job_status_sensor):
+    def test_execute_workbooks_blocking(self, mock_tableau_hook):
         """
         Test execute workbooks blocking
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mocked_workbooks)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_tableau_hook.server.jobs.get_by_id = Mock(
+            return_value=Mock(finish_code=TableauJobFinishCode.SUCCESS.value)
+        )
+
         operator = TableauOperator(find='wb_2', resource='workbooks', **self.kwargs)
 
         job_id = operator.execute(context={})
 
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
-        mock_tableau_job_status_sensor.assert_called_once_with(
-            job_id=job_id,
-            site_id=self.kwargs['site_id'],
-            tableau_conn_id='tableau_default',
-            task_id='wait_until_succeeded',
-            dag=None,
+        mock_tableau_hook.wait_for_state.assert_called_once_with(
+            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
         )
 
     @patch('airflow.providers.tableau.operators.tableau.TableauHook')
@@ -111,31 +113,30 @@ class TestTableauOperator(unittest.TestCase):
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
-        operator = TableauOperator(find='test', resource='datasources', **self.kwargs)
+        operator = TableauOperator(blocking_refresh=False, find='ds_2', resource='datasources', **self.kwargs)
 
         job_id = operator.execute(context={})
 
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
-
+    
     @patch('airflow.providers.tableau.operators.tableau.TableauHook')
     def test_execute_datasources_blocking(self, mock_tableau_hook):
         """
         Test execute datasources blocking
         """
         mock_tableau_hook.get_all = Mock(return_value=self.mock_datasources)
-        mock_tableau_hook.return_value.__enter__ = Mock(
-            return_value=mock_tableau_hook)
-        operator = TableauOperator(find='test', resource='datasources', **self.kwargs)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        operator = TableauOperator(find='ds_2', resource='datasources', **self.kwargs)
 
         job_id = operator.execute(context={})
 
         mock_tableau_hook.server.datasources.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.datasources.refresh.return_value.id == job_id
-        mock_tableau_hook.waiting_until_succeeded.assert_called_once_with(
-            job_id=job_id,
+        mock_tableau_hook.wait_for_state.assert_called_once_with(
+            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
         )
-
+        
     @patch('airflow.providers.tableau.operators.tableau.TableauHook')
     def test_execute_missing_datasource(self, mock_tableau_hook):
         """

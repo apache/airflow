@@ -109,7 +109,7 @@ class TableauOperator(BaseOperator):
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
 
             resource = getattr(tableau_hook.server, self.resource)
-            method = getattr(resource, self.resource)
+            method = getattr(resource, self.method)
 
             resource_id = self._get_resource_id(tableau_hook)
 
