@@ -561,7 +561,10 @@ class DAG(LoggingMixin):
             category=DeprecationWarning,
             stacklevel=2,
         )
-        return self.next_dagrun_info(date_last_automated_dagrun)[0]
+        info = self.next_dagrun_info(date_last_automated_dagrun)
+        if info is None:
+            return None
+        return info.run_after
 
     @cached_property
     def _time_restriction(self) -> TimeRestriction:
@@ -643,9 +646,9 @@ class DAG(LoggingMixin):
             return
 
         # If align=False and earliest does not fall on the timetable's logical
-        # schedule, "invent" a data interval between it and the logical date.
+        # schedule, "invent" a data interval for it.
         if not align and info.logical_date != earliest:
-            yield DagRunInfo.interval(earliest, info.logical_date)
+            yield DagRunInfo.interval(earliest, info.data_interval.start)
 
         # Generate naturally according to schedule.
         while info is not None:
@@ -2464,7 +2467,8 @@ class DagModel(Base):
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
 
-    next_dagrun = Column(UtcDateTime)  # The logical_date of the next dag run.
+    # The logical date of the next dag run.
+    next_dagrun = Column(UtcDateTime)
 
     # Must be either both NULL or both datetime.
     next_dagrun_data_interval_start = Column(UtcDateTime)
