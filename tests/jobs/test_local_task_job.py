@@ -694,8 +694,6 @@ class TestLocalTaskJob:
                 for upstream, downstream in dependencies.items():
                     dag.set_dependency(upstream, downstream)
 
-            dag_maker.make_dagmodel()
-
             scheduler_job = SchedulerJob(subdir=os.devnull)
             scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
 
@@ -837,12 +835,11 @@ class TestLocalTaskJob:
             op1 = PythonOperator(task_id='dummy', python_callable=lambda: True)
 
         session = settings.Session()
-        dag_maker.make_dagmodel(
-            has_task_concurrency_limits=False,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
-            is_active=True,
-            is_paused=True,
-        )
+        dagmodel = dag_maker.dag_model
+        dagmodel.next_dagrun_create_after = dag.following_schedule(DEFAULT_DATE)
+        dagmodel.is_paused = True
+        session.merge(dagmodel)
+        session.flush()
         # Write Dag to DB
         dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
         dagbag.bag_dag(dag, root_dag=dag)
