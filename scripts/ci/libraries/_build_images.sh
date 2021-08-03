@@ -193,7 +193,7 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the images bu running
+   Make sure you build the images by running:
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
 
@@ -410,12 +410,15 @@ function build_images::get_docker_image_names() {
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
     local token="${GITHUB_TOKEN}"
-    if [[ -z "${token}" ]] ; then
+    if [[ -z "${token}" ]]; then
         verbosity::print_info
         verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
         verbosity::print_info
-    fi
-    if [[ -n "${token}" ]]; then
+    elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+        verbosity::print_info
+    elif [[ -n "${token}" ]]; then
         echo "${token}" | docker_v login \
             --username "${GITHUB_USERNAME:-apache}" \
             --password-stdin \

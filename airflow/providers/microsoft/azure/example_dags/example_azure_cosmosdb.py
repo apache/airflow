@@ -31,17 +31,15 @@ from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmos
 from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDocumentSensor
 from airflow.utils import dates
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
-
 with DAG(
     dag_id='example_azure_cosmosdb_sensor',
-    default_args=default_args,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+    },
     start_date=dates.days_ago(2),
     doc_md=__doc__,
     tags=['example'],

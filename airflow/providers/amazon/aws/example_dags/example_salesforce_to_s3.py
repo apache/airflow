@@ -54,19 +54,18 @@ with DAG(
 
     store_to_s3_data_lake = S3CopyObjectOperator(
         task_id="store_to_s3_data_lake",
-        source_bucket_key=upload_salesforce_data_to_s3_landing.output["s3_uri"],
+        source_bucket_key=upload_salesforce_data_to_s3_landing.output,
         dest_bucket_name="data_lake",
         dest_bucket_key=f"{BASE_PATH}/{date_prefixes}/{FILE_NAME}",
     )
 
     delete_data_from_s3_landing = S3DeleteObjectsOperator(
         task_id="delete_data_from_s3_landing",
-        bucket=upload_salesforce_data_to_s3_landing.output["s3_bucket_name"],
-        keys=upload_salesforce_data_to_s3_landing.output["s3_key"],
+        bucket=upload_salesforce_data_to_s3_landing.s3_bucket_name,
+        keys=upload_salesforce_data_to_s3_landing.s3_key,
     )
 
     store_to_s3_data_lake >> delete_data_from_s3_landing
 
     # Task dependencies created via `XComArgs`:
     #   upload_salesforce_data_to_s3_landing >> store_to_s3_data_lake
-    #   upload_salesforce_data_to_s3_landing >> delete_data_from_s3_landing

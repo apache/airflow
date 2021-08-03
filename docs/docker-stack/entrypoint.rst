@@ -105,7 +105,7 @@ To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 Waits for celery broker connection
 ----------------------------------
 
-In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``, ``worker``, or ``flower``
+In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``
 commands are used the entrypoint will wait until the celery broker DB connection is available.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified

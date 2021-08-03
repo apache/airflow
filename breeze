@@ -255,8 +255,8 @@ function breeze::initialize_virtualenv() {
         echo
         pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
-        pip install -e ".[devel]" \
-            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+        pip install -e ".[devel_all]" \
+            --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         res=$?
         set -e
         popd
@@ -861,6 +861,12 @@ function breeze::parse_arguments() {
         --mysql-version)
             export MYSQL_VERSION="${2}"
             echo "MySQL version: ${MYSQL_VERSION}"
+            echo
+            shift 2
+            ;;
+        --mssql-version)
+            export MSSQL_VERSION="${2}"
+            echo "MSSQL version: ${MSSQL_VERSION}"
             echo
             shift 2
             ;;
@@ -1581,6 +1587,10 @@ function breeze::prepare_formatted_versions() {
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_MYSQL_VERSIONS
 
+    FORMATTED_MSSQL_VERSIONS=$(echo "${_breeze_allowed_mssql_versions=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_MSSQL_VERSIONS
+
     FORMATTED_DEFAULT_CI_EXTRAS=$(echo "${DEFAULT_CI_EXTRAS=}" |
         tr ',' ' ' | fold -w "${indented_screen_width}" -s | sed "s/ /,/g; s/^/${list_prefix}/")
     readonly FORMATTED_DEFAULT_CI_EXTRAS
@@ -2258,9 +2268,15 @@ ${FORMATTED_BACKENDS}
 ${FORMATTED_POSTGRES_VERSIONS}
 
 --mysql-version MYSQL_VERSION
-        Mysql version used. One of:
+        MySql version used. One of:
 
 ${FORMATTED_MYSQL_VERSIONS}
+
+--mssql-version MSSQL_VERSION
+        MSSql version used. One of:
+
+${FORMATTED_MSSQL_VERSIONS}
+
 "
 }
 

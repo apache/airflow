@@ -19,55 +19,32 @@
 
 Salesforce Connection
 =====================
-The HTTP connection type provides connection to Salesforce.
+The Salesforce connection type provides connection to Salesforce.
 
 Configuring the Connection
 --------------------------
-Host (required)
-    specify the host address to connect: ``https://your_host.lightning.force.com``
-
-Login (required)
+Username (required)
     Specify the email address used to login to your account.
 
 Password (required)
     Specify the password associated with the account.
 
-Extra (required)
-    Specify the extra parameters (as json dictionary) that can be used in Salesforce
-    connection.
-    The following parameter is required:
+Security Token (required)
+    Specify the Salesforce security token for the username.
 
-    * ``security_token``: Salesforce token.
+Domain (optional)
+    The domain to using for connecting to Salesforce. Use common domains, such as 'login'
+    or 'test', or Salesforce My domain. If not used, will default to 'login'.
 
-    The following parameter is optional:
+For security reason we suggest you to use one of the secrets Backend to create this
+connection (Using ENVIRONMENT VARIABLE or Hashicorp Vault, GCP Secrets Manager etc).
 
-    * ``domain``: set to ``test`` if working in sandbox mode.
+When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
+following the standard syntax of DB connections - where extras are passed as parameters of the URI. For example:
 
-    For security reason we suggest you to use one of the secrets Backend to create this
-    connection (Using ENVIRONMENT VARIABLE or Hashicorp Vault, GCP Secrets Manager etc).
+  .. code-block:: bash
 
-
-    When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
-    following the standard syntax of DB connections - where extras are passed as parameters
-    of the URI.
-
-    For example:
-
-    .. code-block:: bash
-
-       export AIRFLOW_CONN_SALESFORCE_DEFAULT='http://your_username:your_password@https%3A%2F%2Fyour_host.lightning.force.com?security_token=your_token'
-
-
-Examples for the **Extra** field
---------------------------------
-Setting up sandbox mode:
-
-.. code-block:: json
-
-    {
-      "security_token": "your_token",
-      "domain":"test"
-    }
+    export AIRFLOW_CONN_SALESFORCE_DEFAULT='http://your_username:your_password@https%3A%2F%2Fyour_host.lightning.force.com?security_token=your_token'
 
 .. note::
   Airflow currently does not support other login methods such as IP filtering and JWT.

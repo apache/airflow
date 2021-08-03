@@ -95,6 +95,7 @@ else:
 
 with models.DAG(
     'example_gcp_function',
+    default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],

@@ -29,6 +29,8 @@ Features
 * ``Added select_query to the templated fields in RedshiftToS3Operator (#16767)``
 * ``AWS Hook - allow IDP HTTP retry (#12639) (#16612)``
 * ``Update Boto3 API calls in ECSOperator (#16050)``
+* ``Adding custom Salesforce connection type + SalesforceToS3Operator updates (#17162)``
+* ``Adding SalesforceToS3Operator to Amazon Provider (#17094)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -36,12 +38,19 @@ Bug Fixes
 * ``AWS DataSync default polling adjusted from 5s to 30s (#11011)``
 * ``Fix wrong template_fields_renderers for AWS operators (#16820)``
 * ``AWS DataSync cancel task on exception (#11011) (#16589)``
+* ``Fixed template_fields_renderers for Amazon provider (#17087)``
+* ``removing try-catch block (#17081)``
+* ``ECSOperator / pass context to self.xcom_pull as it was missing (when using reattach) (#17141)``
+* ``Made S3ToRedshiftOperator transaction safe (#17117)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
    * ``Bump sphinxcontrib-spelling and minor improvements (#16675)``
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Added docs &amp; doc ref&#39;s for AWS transfer operators between SFTP &amp; S3 (#16964)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Updating Amazon-AWS example DAGs to use XComArgs (#16868)``
 
 2.0.0
 .....

@@ -116,6 +116,8 @@ Dsn
 Dynamodb
 EDITMSG
 ETag
+EdgeModifier
+EdgeModifiers
 Eg
 EmrAddSteps
 EmrCreateJobFlow
@@ -1225,6 +1227,7 @@ stringified
 subchart
 subclasses
 subclassing
+subcluster
 subcommand
 subcommands
 subdag
@@ -1361,6 +1364,7 @@ videointelligence
 virtualenv
 vm
 volumeMounts
+warmup
 wasb
 webProperty
 webhdfs

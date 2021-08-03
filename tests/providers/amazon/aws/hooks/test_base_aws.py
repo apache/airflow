@@ -233,6 +233,62 @@ class TestAwsBaseHook(unittest.TestCase):
     @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
     @mock.patch.object(AwsBaseHook, 'get_connection')
     @mock_sts
+    def test_assume_role(self, mock_get_connection):
+        aws_conn_id = 'aws/test'
+        role_arn = 'arn:aws:iam::123456:role/role_arn'
+        slugified_role_session_name = 'airflow_aws-test'
+
+        mock_connection = Connection(
+            conn_id=aws_conn_id,
+            extra=json.dumps(
+                {
+                    "role_arn": role_arn,
+                }
+            ),
+        )
+        mock_get_connection.return_value = mock_connection
+
+        def mock_assume_role(**kwargs):
+            assert kwargs['RoleArn'] == role_arn
+            # The role session name gets invalid characters removed/replaced with hyphens
+            # (e.g. / is replaced with -)
+            assert kwargs['RoleSessionName'] == slugified_role_session_name
+            sts_response = {
+                'ResponseMetadata': {'HTTPStatusCode': 200},
+                'Credentials': {
+                    'Expiration': datetime.now(),
+                    'AccessKeyId': 1,
+                    'SecretAccessKey': 1,
+                    'SessionToken': 1,
+                },
+            }
+            return sts_response
+
+        with mock.patch(
+            'airflow.providers.amazon.aws.hooks.base_aws.requests.Session.get'
+        ) as mock_get, mock.patch('airflow.providers.amazon.aws.hooks.base_aws.boto3') as mock_boto3:
+            mock_get.return_value.ok = True
+
+            mock_client = mock_boto3.session.Session.return_value.client
+            mock_client.return_value.assume_role.side_effect = mock_assume_role
+
+            hook = AwsBaseHook(aws_conn_id=aws_conn_id, client_type='s3')
+            hook.get_client_type('s3')
+
+        calls_assume_role = [
+            mock.call.session.Session().client('sts', config=None),
+            mock.call.session.Session()
+            .client()
+            .assume_role(
+                RoleArn=role_arn,
+                RoleSessionName=slugified_role_session_name,
+            ),
+        ]
+        mock_boto3.assert_has_calls(calls_assume_role)
+
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock.patch.object(AwsBaseHook, 'get_connection')
+    @mock_sts
     def test_get_credentials_from_role_arn(self, mock_get_connection):
         mock_connection = Connection(extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}')
         mock_get_connection.return_value = mock_connection

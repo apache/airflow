@@ -33,6 +33,9 @@ under the License.
   <div class="input-group" style="float: right">
     <input type="text" id="searchbox" class="form-control" placeholder="Search for..." onenter="null">
   </div>
+  <label for="deps-filter" class="h5" style="float: right; margin-right: 5px">
+    <input type="checkbox" id="deps-filter" checked> Only show DAGs with dependencies
+  </label>
 </h2>
 <hr/>
 <div class="legend-row">
@@ -67,7 +70,7 @@ under the License.
   <script src="{{ url_for_asset('d3-shape.min.js') }}"></script>
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
   <script>
-    let nodes = {{ nodes|tojson }};
+    let dagNodes = {{ nodes|tojson }};
     let edges = {{ edges|tojson }};
     const arrange = '{{ arrange }}';
   </script>

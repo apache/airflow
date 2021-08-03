@@ -31,13 +31,8 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_papermill_operator',
-    default_args=default_args,
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
@@ -69,7 +64,6 @@ def check_notebook(inlets, execution_date):
 
 with DAG(
     dag_id='example_papermill_operator_2',
-    default_args=default_args,
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),

@@ -195,7 +195,7 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
 
 In the example, the ``template_fields`` should be ``['guest_name']`` and not  ``['name']``
 
-Additionally you may provide ``template_fields_renderers`` dictionary which defines in what style the value
+Additionally you may provide ``template_fields_renderers`` a dictionary which defines in what style the value
 from template field renders in Web UI. For example:
 
 .. code-block:: python
@@ -208,12 +208,48 @@ from template field renders in Web UI. For example:
                 super().__init__(**kwargs)
                 self.request_body = request_body
 
+In the situation where ``template_field`` is itself a dictionary, it is also possible to specify a
+dot-separated key path to extract and render individual elements appropriately.  For example:
+
+.. code-block:: python
+
+        class MyConfigOperator(BaseOperator):
+            template_fields = ["configuration"]
+            template_fields_renderers = {
+                "configuration": "json",
+                "configuration.query.sql": "sql",
+            }
+
+            def __init__(self, configuration: dict, **kwargs) -> None:
+                super().__init__(**kwargs)
+                self.configuration = configuration
+
+Then using this template as follows:
+
+.. code-block:: python
+
+        with dag:
+            config_task = MyConfigOperator(
+                task_id="task_id_1",
+                configuration={"query": {"job_id": "123", "sql": "select * from my_table"}},
+                dag=dag,
+            )
+
+This will result in the UI rendering ``configuration`` as json in addition to the value contained in the
+configuration at ``query.sql`` to be rendered with the SQL lexer.
+
+.. image:: ../img/template_field_renderer_path.png
+
 Currently available lexers:
 
   - bash
   - doc
+  - hql
+  - html
+  - jinja
   - json
   - md
+  - powershell
   - py
   - rst
   - sql

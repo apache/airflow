@@ -97,7 +97,7 @@ unit of work and continuity.
     lineage
     dag-serialization
     modules_management
-    Release policies <release-process>
+    Release Policies <release-process>
     changelog
     best-practices
     production-deployment

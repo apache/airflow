@@ -1694,8 +1694,10 @@ def replace_content(file_path, old_text, new_text, provider_package_id):
             os.remove(temp_file_path)
 
 
+AUTOMATICALLY_GENERATED_MARKER = "AUTOMATICALLY GENERATED"
 AUTOMATICALLY_GENERATED_CONTENT = (
-    ".. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!"
+    f".. THE REMAINDER OF THE FILE IS {AUTOMATICALLY_GENERATED_MARKER}. "
+    f"IT WILL BE OVERWRITTEN AT RELEASE TIME!"
 )
 
 
@@ -1715,7 +1717,7 @@ def update_index_rst(
     new_text = deepcopy(old_text)
     lines = old_text.splitlines(keepends=False)
     for index, line in enumerate(lines):
-        if line == AUTOMATICALLY_GENERATED_CONTENT:
+        if AUTOMATICALLY_GENERATED_MARKER in line:
             new_text = "\n".join(lines[:index])
     new_text += "\n" + AUTOMATICALLY_GENERATED_CONTENT + "\n"
     new_text += index_update
