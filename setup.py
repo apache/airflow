@@ -218,9 +218,8 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=4.4.2',
-    'flower>=0.7.3, <1.0',
-    'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
+    'celery~=5.1,>=5.1.2',
+    'flower~=1.0.0',
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -418,7 +417,7 @@ qubole = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'amqp<5.0.0',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
