@@ -109,7 +109,7 @@ class InfluxDBHook(BaseHook):
         query_api = client.query_api()
         return query_api.query(query)
 
-    def query_with_df(self, query) -> pd.DataFrame:
+    def query_to_df(self, query) -> pd.DataFrame:
         """
         Function to use the query_api
         to run the query and return a pandas dataframe
