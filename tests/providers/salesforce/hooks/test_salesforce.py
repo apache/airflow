@@ -22,13 +22,14 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from requests import Session as request_session
 from numpy import nan
+from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
 from airflow.models.connection import Connection
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 from airflow.utils.session import create_session
+
 
 class TestSalesforceHook(unittest.TestCase):
     def setUp(self):
@@ -75,7 +76,7 @@ class TestSalesforceHook(unittest.TestCase):
                 "extra__salesforce__security_token": "token",
                 "extra__salesforce__version": "42.0"
             }
-            '''
+            ''',
         )
         with create_session() as session:
             session.add(password_auth_conn)
@@ -131,15 +132,17 @@ class TestSalesforceHook(unittest.TestCase):
                 "extra__salesforce__security_token": "",
                 "extra__salesforce__version": "29.0"
             }
-            '''
+            ''',
         )
         with create_session() as session:
             session.add(direct_access_conn)
             session.commit()
 
-        self.salesforce_hook = SalesforceHook(
-            salesforce_conn_id="direct_access_conn", session_id="session_id"
-        )
+        with request_session() as session:
+            self.salesforce_hook = SalesforceHook(
+                salesforce_conn_id="direct_access_conn", session_id="session_id", session=session
+            )
+
         self.salesforce_hook.get_conn()
 
         extras = direct_access_conn.extra_dejson
@@ -154,7 +157,7 @@ class TestSalesforceHook(unittest.TestCase):
             organizationId=None,
             version=extras["extra__salesforce__version"],
             proxies=None,
-            session=None,
+            session=self.salesforce_hook.session,
             client_id=extras["extra__salesforce__client_id"],
             consumer_key=None,
             privatekey_file=None,
@@ -189,7 +192,7 @@ class TestSalesforceHook(unittest.TestCase):
                 "extra__salesforce__security_token": "",
                 "extra__salesforce__version": "34.0"
             }
-            '''
+            ''',
         )
         with create_session() as session:
             session.add(jwt_auth_conn)
@@ -245,7 +248,7 @@ class TestSalesforceHook(unittest.TestCase):
                 "extra__salesforce__security_token": "",
                 "extra__salesforce__version": ""
             }
-            '''
+            ''',
         )
         with create_session() as session:
             session.add(ip_filtering_auth_conn)
