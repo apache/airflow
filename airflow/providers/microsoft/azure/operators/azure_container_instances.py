@@ -128,7 +128,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     memory_in_gb=14.0,
                     cpu=4.0,
                     gpu=GpuResource(count=1, sku='K80'),
-                    user_assigned_identities=['/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{identityName}']
+                    user_assigned_identities=['/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{identityName}'],
                     command=["/bin/echo", "world"],
                     task_id="start_container"
                 )
