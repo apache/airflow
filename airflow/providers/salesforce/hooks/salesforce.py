@@ -25,10 +25,10 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
-from requests import Session
 from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
+from requests import Session
 from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base import BaseHook
@@ -71,7 +71,7 @@ class SalesforceHook(BaseHook):
         self,
         salesforce_conn_id: str = default_conn_name,
         session_id: Optional[str] = None,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
     ) -> None:
         super().__init__()
         self.conn_id = salesforce_conn_id
@@ -103,15 +103,11 @@ class SalesforceHook(BaseHook):
             "extra__salesforce__organization_id": StringField(
                 lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()
             ),
-            "extra__salesforce__instance": StringField(
-                lazy_gettext("Instance"), widget=BS3TextFieldWidget()
-            ),
+            "extra__salesforce__instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
             "extra__salesforce__instance_url": StringField(
                 lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()
             ),
-            "extra__salesforce__proxies": StringField(
-                lazy_gettext("Proxies"), widget=BS3TextFieldWidget()
-            ),
+            "extra__salesforce__proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
             "extra__salesforce__version": StringField(
                 lazy_gettext("Salesforce API Version"), widget=BS3TextFieldWidget()
             ),
