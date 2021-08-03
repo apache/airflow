@@ -134,7 +134,7 @@ class SalesforceHook(BaseHook):
             self.conn = Salesforce(
                 username=connection.login,
                 password=connection.password,
-                security_token=extras["extra__salesforce__security_token"],
+                security_token=extras["extra__salesforce__security_token"] or None,
                 domain=extras["extra__salesforce__domain"] or None,
                 session_id=self.session_id,
                 instance=extras["extra__salesforce__instance"] or None,
