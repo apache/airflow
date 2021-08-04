@@ -24,7 +24,7 @@ Airflow has two main images (build from Dockerfiles):
 
   * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
     You can read more about building and using the production image in the
-    `Production Deployments <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_ document.
+    `Docker stack <https://airflow.apache.org/docs/docker-stack/index.html>`_ documentation.
     The image is built using `Dockerfile <Dockerfile>`_
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
@@ -246,19 +246,21 @@ Images with a commit SHA (built for pull requests and pushes)
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA>    - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<COMMIT_SHA>       - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<COMMIT_SHA> - for production build stage
-  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster-<COMMIT_SHA>   - for base Python images
+  ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>         - for CI images
+  ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>       - for production images
+
+We do not push Base Python images and prod-build images when we prepare COMMIT builds, because those
+images are never rebuilt locally, so there is no need to store base images specific for those builds.
 
 Latest images (pushed when main merge succeeds):
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster          - for base Python images
+  ghcr.io/apache/airflow/<BRANCH>/python:<X.Y>-slim-buster        - for base Python images
+  ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:latest           - for CI images
+  ghcr.io/apache/airflow/<BRANCH>/ci-manifest/python<X.Y>:latest  - for CI Manifest images
+  ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:latest         - for production images
+  ghcr.io/apache/airflow/<BRANCH>/prod-build/python<X.Y>:latest   - for production build stage
 
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
@@ -552,8 +554,8 @@ way of querying image details via API. You really need to download the image to 
 We workaround it in the way that always when we build the image we build a very small image manifest
 containing randomly generated UUID and push it to registry together with the main CI image.
 The tag for the manifest image reflects the image it refers to with added ``-manifest`` suffix.
-The manifest image for ``ghcr.io/apache/airflow-main-python3.6-ci-v2`` is named
-``ghcr.io/apache/airflow-main-python3.6-ci-v2-manifest``.
+The manifest image for ``ghcr.io/apache/airflow/main/ci/python3.6`` is named
+``ghcr.io/apache/airflow/main/ci-manifest/python3.6``.
 
 The image is quickly pulled (it is really, really small) when important files change and the content
 of the randomly generated UUID is compared with the one in our image. If the contents are different
