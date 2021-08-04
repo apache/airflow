@@ -255,7 +255,7 @@ Example of upgrading Airflow Provider packages
 
 The :ref:`Airflow Providers <providers:community-maintained-providers>` are released independently of core
 Airflow and sometimes you might want to upgrade specific providers only to fix some problems or
-use features available in that provider. Here is an example of how you can do it
+use features available in that provider version. Here is an example of how you can do it
 
 .. exampleinclude:: docker-examples/extending/add-providers/Dockerfile
     :language: Dockerfile
