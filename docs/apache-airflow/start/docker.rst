@@ -90,7 +90,7 @@ by placing a custom Dockerfile alongside your `docker-compose.yaml`. Then you ca
 do it only once). You can also add the `--build` flag to your `docker-compose` commands to rebuild the images
 on-the-fly when you run other `docker-compose` commands.
 
-The examples of how you can extend the image with custom providers, python packages,
+Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
 Initializing Environment
