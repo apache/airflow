@@ -33,8 +33,12 @@ sanity_checks::sanitize_mounted_files
 
 read -r -a EXTRA_DOCKER_FLAGS <<<"$(local_mounts::convert_local_mounts_to_docker_params)"
 
-docker_v run --entrypoint /bin/bash "${EXTRA_DOCKER_FLAGS[@]}" \
-    --rm \
-    --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
-    "${AIRFLOW_CI_IMAGE}" \
-    -c /opt/airflow/scripts/in_container/run_fix_ownership.sh || true
+if docker image inspect "${AIRFLOW_CI_IMAGE}" >/dev/null 2>&1; then
+    docker_v run --entrypoint /bin/bash "${EXTRA_DOCKER_FLAGS[@]}" \
+        --rm \
+        --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
+        "${AIRFLOW_CI_IMAGE}" \
+        -c /opt/airflow/scripts/in_container/run_fix_ownership.sh || true
+else
+    echo "Skip fixing ownership as seems that you do not have the ${AIRFLOW_CI_IMAGE} image yet"
+fi
