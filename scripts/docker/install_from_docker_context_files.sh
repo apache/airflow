@@ -96,7 +96,7 @@ function install_airflow_and_providers_from_docker_context_files(){
 
     # make sure correct PIP version is left installed
     pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
-    pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
+    pip check
 
 }
 
