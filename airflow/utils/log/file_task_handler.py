@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 import httpx
-from httpx import HTTPStatusError
 from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
