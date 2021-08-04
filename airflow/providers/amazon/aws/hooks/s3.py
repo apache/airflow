@@ -226,7 +226,6 @@ class S3Hook(AwsBaseHook):
     ) -> list:
         """
         Lists prefixes in a bucket under prefix
-
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         :param prefix: a key prefix
@@ -268,7 +267,7 @@ class S3Hook(AwsBaseHook):
         delimiter: Optional[str] = None,
         page_size: Optional[int] = None,
         max_items: Optional[int] = None,
-    ) -> list:
+    ) -> Tuple[list, list]:
         """
         Lists keys in a bucket under prefix and not containing delimiter
 
@@ -283,7 +282,7 @@ class S3Hook(AwsBaseHook):
         :param max_items: maximum items to return
         :type max_items: int
         :return: a list of matched keys
-        :rtype: list
+        :rtype: tuple
         """
         prefix = prefix or ''
         delimiter = delimiter or ''
@@ -298,12 +297,19 @@ class S3Hook(AwsBaseHook):
         )
 
         keys = []
+        prefixes = []
         for page in response:
             if 'Contents' in page:
                 for k in page['Contents']:
                     keys.append(k['Key'])
+            # Capturing common prefixes here to avoid making an additonal API call in the
+            # operator with the list_prefixes hook. This assumes the same optional args
+            # for both calls (which is also the case when making calls using two hooks).
+            if 'CommonPrefixes' in page:
+                for common_prefix in page['CommonPrefixes']:
+                    prefixes.append(common_prefix['Prefix'])
 
-        return keys
+        return keys, prefixes
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -454,7 +460,7 @@ class S3Hook(AwsBaseHook):
         :rtype: boto3.s3.Object
         """
         prefix = re.split(r'[\[\*\?]', wildcard_key, 1)[0]
-        key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
+        key_list, _ = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
         if key_matches:
             return self.get_key(key_matches[0], bucket_name)
@@ -751,7 +757,7 @@ class S3Hook(AwsBaseHook):
         :rtype: None
         """
         if force_delete:
-            bucket_keys = self.list_keys(bucket_name=bucket_name)
+            bucket_keys, _ = self.list_keys(bucket_name=bucket_name)
             if bucket_keys:
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
         self.conn.delete_bucket(Bucket=bucket_name)

@@ -24,21 +24,52 @@ from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 TASK_ID = 'test-s3-list-operator'
 BUCKET = 'test-bucket'
 DELIMITER = '.csv'
-PREFIX = 'TEST'
+PREFIX = 'TEST/'
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
+MOCK_FILES_RECURSIVE = ["TEST1.csv", "TEST2.csv", "TEST3.csv", "TEST/"]
 
 
 class TestS3ListOperator(unittest.TestCase):
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
     def test_execute(self, mock_hook):
+        mock_hook.return_value.list_keys.return_value = (MOCK_FILES, [PREFIX])
 
-        mock_hook.return_value.list_keys.return_value = MOCK_FILES
-
-        operator = S3ListOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
+        operator = S3ListOperator(
+            task_id=TASK_ID,
+            bucket=BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            # recursive omitted to verify that it defaults to False
+        )
 
         files = operator.execute(None)
 
         mock_hook.return_value.list_keys.assert_called_once_with(
-            bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
+            bucket_name=BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
         )
+
         assert sorted(files) == sorted(MOCK_FILES)
+
+    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
+    def test_execute_recursive(self, mock_hook):
+        mock_hook.return_value.list_keys.return_value = (MOCK_FILES, [PREFIX])
+
+        operator = S3ListOperator(
+            task_id=TASK_ID,
+            bucket=BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            recursive=True,
+        )
+
+        files = operator.execute(None)
+
+        mock_hook.return_value.list_keys.assert_called_once_with(
+            bucket_name=BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+        )
+
+        assert sorted(files) == sorted(MOCK_FILES_RECURSIVE)

@@ -34,8 +34,11 @@ class S3ListOperator(BaseOperator):
     :param prefix: Prefix string to filters the objects whose name begin with
         such prefix. (templated)
     :type prefix: str
-    :param delimiter: the delimiter marks key hierarchy. (templated)
+    :param delimiter: The delimiter marks key hierarchy. (templated)
     :type delimiter: str
+    :param recursive: If set to True this operator will return subfolders in
+    addition to files. If set to False only filenames will be returned. Defaults
+    to False to preserve backwards compatibility.
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -57,10 +60,11 @@ class S3ListOperator(BaseOperator):
         ``customers/2018/04/`` key in the ``data`` bucket. ::
 
             s3_file = S3ListOperator(
-                task_id='list_3s_files',
+                task_id='list_s3_files',
                 bucket='data',
                 prefix='customers/2018/04/',
                 delimiter='/',
+                recursive='True',
                 aws_conn_id='aws_customers_conn'
             )
     """
@@ -74,6 +78,7 @@ class S3ListOperator(BaseOperator):
         bucket: str,
         prefix: str = '',
         delimiter: str = '',
+        recursive=False,
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[str, bool]] = None,
         **kwargs,
@@ -82,6 +87,7 @@ class S3ListOperator(BaseOperator):
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
+        self.recursive = recursive
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
@@ -89,10 +95,17 @@ class S3ListOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of files from bucket: %s in prefix: %s (Delimiter %s)',
+            'Getting the list of files from bucket: %s in prefix: %s (Delimiter %s},'
+            + ' include CommonPrefixes? {%s})',
             self.bucket,
             self.prefix,
             self.delimiter,
+            self.recursive,
         )
 
-        return hook.list_keys(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        keys, prefixes = hook.list_keys(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        if self.recursive:
+            for prefix in prefixes:
+                keys.append(prefix)
+
+        return keys
