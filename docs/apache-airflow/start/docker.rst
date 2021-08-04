@@ -86,7 +86,7 @@ Using custom images
 
 When you want to run Airflow locally, you might want to use an extended image, containing some additional dependencies - for
 example you might add new python packages, or upgrade airflow providers to a later version. This can be done very easily
-by placing your custom Dockerfile. Then you can use `docker-compose build` command to build your image (you need to
+by placing a custom Dockerfile alongside your `docker-compose.yaml`. Then you can use `docker-compose build` command to build your image (you need to
 do it only once) and you can also add `--build` to your `docker-compose` commands with flag to rebuild the images
 on-the-fly when you run other `docker-compose` commands.
 
