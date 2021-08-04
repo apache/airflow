@@ -480,6 +480,7 @@ def dag_maker(request):
                     self.start_date = DEFAULT_DATE
             self.kwargs['start_date'] = self.start_date
             self.dag = DAG(dag_id, **self.kwargs)
+            self.dag.fileloc = request.module.__file__
             return self
 
     return DagFactory()
