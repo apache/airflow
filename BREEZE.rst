@@ -2390,9 +2390,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Helm version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v3.2.4
+                 v3.6.3
 
-          Default: v3.2.4
+          Default: v3.6.3
 
   --executor EXECUTOR
           Executor to use in a kubernetes cluster.
