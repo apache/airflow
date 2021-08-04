@@ -30,28 +30,29 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 
-function install_airflow_from_branch_tip() {
+function install_airflow_dependencies_from_branch_tip() {
     echo
     echo "Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies"
     echo
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
-    # Install latest set of dependencies using constraints
+    # Install latest set of dependencies using constraints. In case constraints were upgraded and there
+    # are conflicts, this might fail, but it should be fixed in the following installation steps
     pip install ${AIRFLOW_INSTALL_USER_FLAG} \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-      --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
+      --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
     # make sure correct PIP version is used
     pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes || true
     echo
     echo Uninstalling just airflow. Dependencies remain.
     echo
-    pip uninstall --yes apache-airflow
+    pip uninstall --yes apache-airflow || true
 }
 
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
 
-install_airflow_from_branch_tip
+install_airflow_dependencies_from_branch_tip
