@@ -32,6 +32,8 @@ class SFTPSensor(BaseSensorOperator):
     :type path: str
     :param sftp_conn_id: The connection to run the sensor against
     :type sftp_conn_id: str
+    :param fnmatch_pattern: optional pattern to filter the remote_full_path files
+    :type: fnmatch_pattern: Optional[str]
     """
 
     template_fields = (
