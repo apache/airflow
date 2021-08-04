@@ -217,6 +217,52 @@ class BaseXCom(Base, LoggingMixin):
             session.delete(xcom)
         session.commit()
 
+    @classmethod
+    @provide_session
+    def clear(
+        cls,
+        execution_date: pendulum.DateTime,
+        dag_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        include_prior_dates: bool = False,
+        session: Session = None,
+    ) -> None:
+        """
+        Clears all XCom data from the database for the task instance
+
+        :param execution_date: Execution date for the task
+        :type execution_date: pendulum.datetime
+        :param dag_id: If provided, only pulls XCom from this DAG.
+            If None (default), the DAG of the calling task is used.
+        :type dag_id: str
+        :param task_id: Only XComs from task with matching id will be
+            pulled. Can pass None to remove the filter.
+        :type task_id: str
+        :param include_prior_dates: If False, only XComs from the current
+            execution_date are returned. If True, XComs from previous dates
+            are returned as well.
+        :type include_prior_dates: bool
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
+        """
+        filters = []
+
+        if dag_id:
+            filters.append(cls.dag_id == dag_id)
+
+        if task_id:
+            filters.append(cls.task_id == task_id)
+
+        if include_prior_dates:
+            filters.append(cls.execution_date <= execution_date)
+        else:
+            filters.append(cls.execution_date == execution_date)
+
+        session.query(cls).filter(
+            and_(*filters)
+        ).delete()
+        session.commit()
+
     @staticmethod
     def serialize_value(value: Any):
         """Serialize Xcom value to str or pickled object"""
