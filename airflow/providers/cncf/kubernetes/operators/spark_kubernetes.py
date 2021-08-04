@@ -71,7 +71,7 @@ class SparkKubernetesOperator(BaseOperator):
             group=self.api_group,
             version=self.api_version,
             plural="sparkapplications",
-            body=self.application_file,
+            body=open(self.application_file).read(),
             namespace=self.namespace,
         )
         return response
