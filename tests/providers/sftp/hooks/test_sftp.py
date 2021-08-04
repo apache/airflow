@@ -43,6 +43,7 @@ TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
 SUB_DIR = "sub_dir"
 TMP_FILE_FOR_TESTS = 'test_file.txt'
+CSV_TMP_FILE_FOR_TESTS = 'test_file.csv'
 
 SFTP_CONNECTION_USER = "root"
 
@@ -68,6 +69,8 @@ class TestSFTPHook(unittest.TestCase):
             file.write('Test file')
         with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), 'a') as file:
             file.write('Test file')
+        with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, CSV_TMP_FILE_FOR_TESTS), 'a') as file:
+            file.write('Test file')
 
     def test_get_conn(self):
         output = self.hook.get_conn()
@@ -85,7 +88,13 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_list_directory(self):
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        assert output == [SUB_DIR]
+        assert output == [SUB_DIR, CSV_TMP_FILE_FOR_TESTS]
+
+    def test_list_directory_with_pattern(self):
+        output = self.hook.list_directory(
+            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), fnmatch_pattern=".*.csv"
+        )
+        assert output == [CSV_TMP_FILE_FOR_TESTS]
 
     def test_create_and_delete_directory(self):
         new_dir_name = 'new_dir'
@@ -117,7 +126,7 @@ class TestSFTPHook(unittest.TestCase):
             local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
         )
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        assert output == [SUB_DIR, TMP_FILE_FOR_TESTS]
+        assert output == [SUB_DIR, CSV_TMP_FILE_FOR_TESTS, TMP_FILE_FOR_TESTS]
         retrieved_file_name = 'retrieved.txt'
         self.hook.retrieve_file(
             remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
@@ -127,7 +136,15 @@ class TestSFTPHook(unittest.TestCase):
         os.remove(os.path.join(TMP_PATH, retrieved_file_name))
         self.hook.delete_file(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        assert output == [SUB_DIR]
+        assert output == [SUB_DIR, CSV_TMP_FILE_FOR_TESTS]
+
+    def test_retrieve_with_pattern(self):
+        self.hook.retrieve_file(
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH),
+            fnmatch_pattern=".*.csv",
+        )
+        assert CSV_TMP_FILE_FOR_TESTS in os.listdir(TMP_PATH)
 
     def test_get_mod_time(self):
         self.hook.store_file(
@@ -263,9 +280,16 @@ class TestSFTPHook(unittest.TestCase):
         tree_map = self.hook.get_tree_map(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         files, dirs, unknowns = tree_map
 
-        assert files == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
+        assert files == [
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS),
+            os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, CSV_TMP_FILE_FOR_TESTS),
+        ]
         assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
         assert unknowns == []
+
+    def test_get_tree_map_with_pattern(self):
+        files, _, _ = self.hook.get_tree_map(path=os.path.join(TMP_PATH), fnmatch_pattern=".*.csv")
+        assert os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, CSV_TMP_FILE_FOR_TESTS) in files
 
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
