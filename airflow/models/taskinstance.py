@@ -709,7 +709,6 @@ class TaskInstance(Base, LoggingMixin):
             execution_date=self.execution_date,
             session=session,
         )
-        session.commit()
         self.log.debug("XCom data cleared")
 
     @property
