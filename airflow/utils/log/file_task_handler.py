@@ -186,6 +186,11 @@ class FileTaskHandler(logging.Handler):
                 )
                 response.encoding = "utf-8"
 
+                if response.status_code == 403:
+                    log += "*** !!!! Please make sure that all your webservers and workers have" \
+                           " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                    log += "*** See more at https://airflow.apache.org/docs/apache-airflow/" \
+                           "stable/configurations-ref.html#secret-key\n***"
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 
