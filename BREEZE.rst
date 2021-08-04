@@ -1279,9 +1279,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
 
-  --continue-on-pip-check-failure
-          Continue even if 'pip check' fails.
-
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
@@ -2382,9 +2379,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Helm version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v3.2.4
+                 v3.6.3
 
-          Default: v3.2.4
+          Default: v3.6.3
 
   --executor EXECUTOR
           Executor to use in a kubernetes cluster.
@@ -2434,9 +2431,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
-
-  --continue-on-pip-check-failure
-          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Use different Airflow version at runtime in CI image
