@@ -37,7 +37,7 @@ class TestSalesforceHook(unittest.TestCase):
 
     def _insert_conn_db_entry(conn_id, conn_object):
         with create_session() as session:
-            session.query(Connection).filter(Connection.conn_id==conn_id).delete()
+            session.query(Connection).filter(Connection.conn_id == conn_id).delete()
             session.add(conn_object)
             session.commit()
 
