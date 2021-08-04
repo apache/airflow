@@ -54,7 +54,7 @@ class TableauOperator(BaseOperator):
     :type match_with: Optional[str]
     :param site_id: The id of the site where the workbook belongs to.
     :type site_id: Optional[str]
-    :param blocking_refresh: By default the extract refresh will be blocking means it will wait until it has finished.
+    :param blocking_refresh: By default will be blocking means it will wait until it has finished.
     :type blocking_refresh: bool
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
@@ -103,7 +103,7 @@ class TableauOperator(BaseOperator):
 
         available_methods = RESOURCES_METHODS[self.resource]
         if self.method not in available_methods:
-            error_message = f'Method {self.method} was not found! Available methods for {self.resource}: {available_methods}'
+            error_message = f'Method not found! Available methods for {self.resource}: {available_methods}'
             raise AirflowException(error_message)
 
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
