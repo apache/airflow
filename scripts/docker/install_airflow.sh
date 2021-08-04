@@ -60,7 +60,7 @@ function install_airflow() {
 
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
-        pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
+        pip check
     else \
         echo
         echo Installing all packages with constraints and upgrade if needed
@@ -76,7 +76,7 @@ function install_airflow() {
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
-        pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
+        pip check
     fi
 
 }
