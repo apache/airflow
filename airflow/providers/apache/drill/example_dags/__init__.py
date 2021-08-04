@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-while echo "Running"; do
-    airflow scheduler -n 5
-    return_code=$?
-    if (( return_code != 0 )); then
-        echo "Scheduler crashed with exit code $return_code. Respawning.." >&2
-        date >> /tmp/airflow_scheduler_errors.txt
-    fi
-
-    sleep 1
-done

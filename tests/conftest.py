@@ -445,16 +445,16 @@ def dag_maker(request):
             dag.__exit__(type, value, traceback)
             if type is None:
                 dag.clear()
-
-        @provide_session
-        def make_dagmodel(self, session=None, **kwargs):
-            dag = self.dag
-            defaults = dict(dag_id=dag.dag_id, next_dagrun=dag.start_date, is_active=True)
-            kwargs = {**defaults, **kwargs}
-            dag_model = DagModel(**kwargs)
-            session.add(dag_model)
-            session.flush()
-            return dag_model
+                self.dag_model = DagModel(
+                    dag_id=dag.dag_id,
+                    next_dagrun=dag.start_date,
+                    is_active=True,
+                    is_paused=False,
+                    max_active_tasks=dag.max_active_tasks,
+                    has_task_concurrency_limits=False,
+                )
+                self.session.add(self.dag_model)
+                self.session.flush()
 
         def create_dagrun(self, **kwargs):
             dag = self.dag
@@ -468,8 +468,10 @@ def dag_maker(request):
             self.dag_run = dag.create_dagrun(**kwargs)
             return self.dag_run
 
-        def __call__(self, dag_id='test_dag', **kwargs):
+        @provide_session
+        def __call__(self, dag_id='test_dag', session=None, **kwargs):
             self.kwargs = kwargs
+            self.session = session
             self.start_date = self.kwargs.get('start_date', None)
             if not self.start_date:
                 if hasattr(request.module, 'DEFAULT_DATE'):

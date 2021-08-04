@@ -121,7 +121,6 @@ from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
     DagRunEditForm,
-    DagRunForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
@@ -1389,9 +1388,8 @@ class Airflow(AirflowBaseView):
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dm_db = models.DagModel
         ti_db = models.TaskInstance
-        dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
+        dag = DagModel.get_dagmodel(dag_id)
         ti = session.query(ti_db).filter(and_(ti_db.dag_id == dag_id, ti_db.task_id == task_id)).first()
 
         if not ti:
@@ -3585,7 +3583,6 @@ class DagRunModelView(AirflowModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
-        'add': 'create',
         'list': 'read',
         'action_clear': 'delete',
         'action_muldelete': 'delete',
@@ -3594,14 +3591,12 @@ class DagRunModelView(AirflowModelView):
         'action_set_success': 'edit',
     }
     base_permissions = [
-        permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = [
         'state',
         'dag_id',
@@ -3630,7 +3625,6 @@ class DagRunModelView(AirflowModelView):
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
-    add_form = DagRunForm
     edit_form = DagRunEditForm
 
     formatters_columns = {
