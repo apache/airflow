@@ -407,9 +407,9 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 seconds=manager._zombie_threshold_secs + 1
             )
             manager._find_zombies()
-            requests = manager._callback_to_execute[dag.full_filepath]
+            requests = manager._callback_to_execute[dag.fileloc]
             assert 1 == len(requests)
-            assert requests[0].full_filepath == dag.full_filepath
+            assert requests[0].full_filepath == dag.fileloc
             assert requests[0].msg == "Detected as zombie"
             assert requests[0].is_failure_callback is True
             assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
@@ -451,7 +451,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
                 expected_failure_callback_requests = [
                     TaskCallbackRequest(
-                        full_filepath=dag.full_filepath,
+                        full_filepath=dag.fileloc,
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg="Message",
                     )

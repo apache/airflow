@@ -496,18 +496,8 @@ class SchedulerJob(BaseJob):
         """
         # actually enqueue them
         for ti in task_instances:
-            command = TI.generate_command(
-                ti.dag_id,
-                ti.task_id,
-                ti.execution_date,
+            command = ti.command_as_list(
                 local=True,
-                mark_success=False,
-                ignore_all_deps=False,
-                ignore_depends_on_past=False,
-                ignore_task_deps=False,
-                ignore_ti_state=False,
-                pool=ti.pool,
-                file_path=ti.dag_model.fileloc,
                 pickle_id=ti.dag_model.pickle_id,
             )
 
