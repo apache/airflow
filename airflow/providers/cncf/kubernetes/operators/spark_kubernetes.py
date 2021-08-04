@@ -67,11 +67,12 @@ class SparkKubernetesOperator(BaseOperator):
     def execute(self, context):
         self.log.info("Creating sparkApplication")
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        response = hook.create_custom_object(
-            group=self.api_group,
-            version=self.api_version,
-            plural="sparkapplications",
-            body=open(self.application_file).read(),
-            namespace=self.namespace,
-        )
-        return response
+        with open(self.application_file, 'r', encoding='utf-8') as app_file:
+            response = hook.create_custom_object(
+                group=self.api_group,
+                version=self.api_version,
+                plural="sparkapplications",
+                body=app_file.read(),
+                namespace=self.namespace,
+                )
+            return response
