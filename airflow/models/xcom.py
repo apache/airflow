@@ -243,7 +243,6 @@ class BaseXCom(Base, LoggingMixin):
             cls.task_id == task_id,
             cls.execution_date == execution_date,
         ).delete()
-        session.commit()
 
     @staticmethod
     def serialize_value(value: Any):
