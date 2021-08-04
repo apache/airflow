@@ -311,8 +311,6 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
-
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.

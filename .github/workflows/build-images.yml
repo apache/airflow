@@ -148,7 +148,6 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}

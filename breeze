@@ -1199,12 +1199,6 @@ function breeze::parse_arguments() {
             echo
             shift
             ;;
-        --continue-on-pip-check-failure)
-            export CONTINUE_ON_PIP_CHECK_FAILURE="true"
-            echo "Skip PIP check failure."
-            echo
-            shift
-            ;;
         --package-format)
             export PACKAGE_FORMAT="${2}"
             echo "Selected package type: ${PACKAGE_FORMAT}"
@@ -2438,9 +2432,6 @@ ${FORMATTED_INSTALLATION_METHOD}
 
 --upgrade-to-newer-dependencies
         Upgrades PIP packages to latest versions available without looking at the constraints.
-
---continue-on-pip-check-failure
-        Continue even if 'pip check' fails.
 
 "
 }

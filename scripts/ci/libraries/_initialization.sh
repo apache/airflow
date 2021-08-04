@@ -446,9 +446,6 @@ function initialization::initialize_image_build_variables() {
     # Installs different airflow version than current from the sources
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
 
-    # Continue on PIP CHECK failure
-    export CONTINUE_ON_PIP_CHECK_FAILURE=${CONTINUE_ON_PIP_CHECK_FAILURE:="false"}
-
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
@@ -684,7 +681,6 @@ Common image build variables:
     INSTALL_FROM_PYPI: '${INSTALL_FROM_PYPI}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
-    CONTINUE_ON_PIP_CHECK_FAILURE: '${CONTINUE_ON_PIP_CHECK_FAILURE}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
     AIRFLOW_CONSTRAINTS_LOCATION: '${AIRFLOW_CONSTRAINTS_LOCATION}'
     AIRFLOW_CONSTRAINTS_REFERENCE: '${AIRFLOW_CONSTRAINTS_REFERENCE}'
