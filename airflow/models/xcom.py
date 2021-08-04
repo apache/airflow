@@ -231,7 +231,7 @@ class BaseXCom(Base, LoggingMixin):
 
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
-        :param dag_id: DAG ID to clear XCom of.
+        :param dag_id: ID of DAG to clear the XCom for.
         :type dag_id: str
         :param task_id: Only XComs from task with matching id will be cleared.
         :type task_id: str
