@@ -685,7 +685,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
             requests = [
                 TaskCallbackRequest(
-                    full_filepath=dag.full_filepath,
+                    full_filepath=dag.fileloc,
                     simple_task_instance=SimpleTaskInstance(ti),
                     msg="Message",
                 )

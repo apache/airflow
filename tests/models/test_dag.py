@@ -25,6 +25,7 @@ import re
 import unittest
 from contextlib import redirect_stdout
 from datetime import timedelta
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Optional
 from unittest import mock
@@ -1769,6 +1770,19 @@ class TestDagModel:
 
         session.rollback()
         session.close()
+
+    @pytest.mark.parametrize(
+        ('fileloc', 'expected_relative'),
+        [
+            (os.path.join(settings.DAGS_FOLDER, 'a.py'), Path('a.py')),
+            ('/tmp/foo.py', Path('/tmp/foo.py')),
+        ],
+    )
+    def test_relative_fileloc(self, fileloc, expected_relative):
+        dag = DAG(dag_id='test')
+        dag.fileloc = fileloc
+
+        assert dag.relative_fileloc == expected_relative
 
 
 class TestQueries(unittest.TestCase):
