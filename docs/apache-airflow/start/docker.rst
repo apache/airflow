@@ -84,7 +84,7 @@ If you need install a new Python library or system library, you can :doc:`build 
 Using custom images
 ===================
 
-When you want to run Airflow locally, you might want to use extended image, containing some additional dependencies - for
+When you want to run Airflow locally, you might want to use an extended image, containing some additional dependencies - for
 example you might add new python packages, or upgrade airflow providers to a later version. This can be done very easily
 by placing your custom Dockerfile. Then you can use `docker-compose build` command to build your image (you need to
 do it only once) and you can also add `--build` to your `docker-compose` commands with flag to rebuild the images
