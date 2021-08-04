@@ -35,12 +35,11 @@ class TestSalesforceHook(unittest.TestCase):
     def setUp(self):
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="conn_id")
 
+    def _insert_conn_db_entry(conn_id, conn_object):
         with create_session() as session:
-            session.query(Connection).delete()
-
-    def tearDown(self):
-        with create_session() as session:
-            session.query(Connection).delete()
+            session.query(Connection).filter(Connection.conn_id==conn_id).delete()
+            session.add(conn_object)
+            session.commit()
 
     def test_get_conn_exists(self):
         self.salesforce_hook.conn = Mock(spec=Salesforce)
@@ -78,9 +77,7 @@ class TestSalesforceHook(unittest.TestCase):
             }
             ''',
         )
-        with create_session() as session:
-            session.add(password_auth_conn)
-            session.commit()
+        TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="password_auth_conn")
         self.salesforce_hook.get_conn()
@@ -134,9 +131,7 @@ class TestSalesforceHook(unittest.TestCase):
             }
             ''',
         )
-        with create_session() as session:
-            session.add(direct_access_conn)
-            session.commit()
+        TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
 
         with request_session() as session:
             self.salesforce_hook = SalesforceHook(
@@ -194,9 +189,7 @@ class TestSalesforceHook(unittest.TestCase):
             }
             ''',
         )
-        with create_session() as session:
-            session.add(jwt_auth_conn)
-            session.commit()
+        TestSalesforceHook._insert_conn_db_entry(jwt_auth_conn.conn_id, jwt_auth_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="jwt_auth_conn")
         self.salesforce_hook.get_conn()
@@ -250,9 +243,7 @@ class TestSalesforceHook(unittest.TestCase):
             }
             ''',
         )
-        with create_session() as session:
-            session.add(ip_filtering_auth_conn)
-            session.commit()
+        TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="ip_filtering_auth_conn")
         self.salesforce_hook.get_conn()
