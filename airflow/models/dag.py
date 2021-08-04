@@ -2370,7 +2370,7 @@ class DagModel(Base):
     These items are stored in the database for state related information
     """
     dag_id = Column(String(ID_LEN), primary_key=True)
-    root_dag_id = Column(String(ID_LEN), ForeignKey("dag.dag_id"))
+    root_dag_id = Column(String(ID_LEN))
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = conf.getboolean('core', 'dags_are_paused_at_creation')
@@ -2420,7 +2420,9 @@ class DagModel(Base):
         Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
     )
 
-    parent_dag = relationship("DagModel", remote_side=[dag_id])
+    parent_dag = relationship(
+        "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
+    )
 
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
