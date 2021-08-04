@@ -28,7 +28,7 @@ class EmrContainersGetJobStateOperator(BaseOperator):
     A job run is a unit of work, such as a Spark jar, PySpark script, or SparkSQL query,
     that you submit to Amazon EMR on EKS.
 
-    A job is in PENDING, SUBMITTED, RUNNING, FAILED, CANCELLED or CANCEL state
+    A job is in PENDING, SUBMITTED, RUNNING, FAILED, CANCELLED, CANCEL_PENDING, or COMPLETED state
 
     :param job_id: The ID of the job run request
     :type job_id: str
