@@ -34,11 +34,22 @@ class SFTPSensor(BaseSensorOperator):
     :type sftp_conn_id: str
     """
 
-    template_fields = ('path',)
+    template_fields = (
+        'path',
+        'fnmatch_patten',
+    )
 
-    def __init__(self, *, path: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        path: str,
+        fnmatch_pattern: Optional[str] = None,
+        sftp_conn_id: str = 'sftp_default',
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.path = path
+        self.fnmatch_pattern = fnmatch_pattern
         self.hook: Optional[SFTPHook] = None
         self.sftp_conn_id = sftp_conn_id
 
@@ -46,7 +57,7 @@ class SFTPSensor(BaseSensorOperator):
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:
-            mod_time = self.hook.get_mod_time(self.path)
+            mod_time = self.hook.get_mod_time(self.path, self.fnmatch_pattern)
             self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
