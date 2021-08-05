@@ -91,8 +91,8 @@ class TestSFTPHook(unittest.TestCase):
         assert output == [SUB_DIR, CSV_TMP_FILE_FOR_TESTS]
 
     def test_list_directory_with_pattern(self):
-        output = self.hook.list_directory(
-            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), fnmatch_pattern="*.csv"
+        output = self.hook.list_directory_pattern(
+            directory=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), fnmatch_pattern="*.csv"
         )
         assert output == [CSV_TMP_FILE_FOR_TESTS]
 
@@ -139,8 +139,8 @@ class TestSFTPHook(unittest.TestCase):
         assert output == [SUB_DIR, CSV_TMP_FILE_FOR_TESTS]
 
     def test_retrieve_with_pattern(self):
-        self.hook.retrieve_file(
-            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS),
+        self.hook.retrieve_file_pattern(
+            remote_dir_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS),
             local_full_path=os.path.join(TMP_PATH),
             fnmatch_pattern="*.csv",
         )

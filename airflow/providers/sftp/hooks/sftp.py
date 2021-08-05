@@ -182,20 +182,28 @@ class SFTPHook(SSHHook):
             }
         return files
 
-    def list_directory(self, path: str, fnmatch_pattern: Optional[str] = None) -> List[str]:
+    def list_directory(self, path: str) -> List[str]:
         """
         Returns a list of files on the remote system.
 
         :param path: full path to the remote directory to list
         :type path: str
-        :param fnmatch_pattern: optional pattern to filter the remote_full_path files
-        :type: fnmatch_pattern: Optional[str]
         """
         conn = self.get_conn()
-        if fnmatch_pattern:
-            return [file for file in conn.listdir(path) if fnmatch(file, fnmatch_pattern)]
+        files = conn.listdir(path)
+        return files
 
-        return conn.listdir(path)
+    def list_directory_pattern(self, directory: str, fnmatch_pattern: str = None) -> List[str]:
+        """
+        Returns the list of files respecting the fnmatch on the remote system.
+
+        :param directory: full path to the remote directory to list
+        :type directory: str
+        :param fnmatch_pattern: pattern to filter the files
+        :type: fnmatch_pattern: str
+        """
+        conn = self.get_conn()
+        return [file for file in conn.listdir(directory) if fnmatch(file, fnmatch_pattern)]
 
     def create_directory(self, path: str, mode: int = 777) -> None:
         """
@@ -218,9 +226,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(
-        self, remote_full_path: str, local_full_path: str, fnmatch_pattern: Optional[str] = None
-    ) -> None:
+    def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
         Transfers the remote file to a local location.
         If local_full_path is a string path, the file will be put
@@ -230,16 +236,29 @@ class SFTPHook(SSHHook):
         :type remote_full_path: str
         :param local_full_path: full path to the local file
         :type local_full_path: str
-        :param fnmatch_pattern: optional pattern to filter the remote_full_path files
-        :type: fnmatch_pattern: Optional[str]
         """
         conn = self.get_conn()
-        if fnmatch_pattern:
-            for file in conn.listdir(remote_full_path):
-                if fnmatch(file, fnmatch_pattern):
-                    conn.get(os.path.join(remote_full_path, file), os.path.join(local_full_path, file))
-        else:
-            conn.get(remote_full_path, local_full_path)
+        conn.get(remote_full_path, local_full_path)
+
+    def retrieve_file_pattern(
+        self, remote_dir_path: str, local_full_path: str, fnmatch_pattern: str = None
+    ) -> None:
+        """
+        Transfers the remote file to a local location.
+        If local_full_path is a string path, the file will be put
+        at that location
+
+        :param remote_dir_path: path to the remote directory
+        :type remote_dir_path: str
+        :param local_full_path: full path to the local file
+        :type local_full_path: str
+        :param fnmatch_pattern: pattern to filter the remote_dir_path files
+        :type: fnmatch_pattern: str
+        """
+        conn = self.get_conn()
+        for file in conn.listdir(remote_dir_path):
+            if fnmatch(file, fnmatch_pattern):
+                conn.get(os.path.join(remote_dir_path, file), os.path.join(local_full_path, file))
 
     def store_file(self, remote_full_path: str, local_full_path: str) -> None:
         """
@@ -265,24 +284,50 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.remove(path)
 
-    def get_mod_time(self, path: str, fnmatch_pattern: Optional[str] = None) -> str:
+    def delete_file_pattern(self, dir_path: str, fnmatch_pattern: str) -> None:
         """
-        Returns modification time.
+        Removes files matching the pattern on the FTP Server
 
-        :param path: full path to the remote file
-        :type path: str
-        :param fnmatch_pattern: optional pattern to filter the remote_full_path files
-        :type: fnmatch_pattern: Optional[str]
+        :param dir_path: full path to the remote directory
+        :type dir_path: str
+        :param fnmatch_pattern: pattern to filter the dir_path files
+        :type fnmatch_pattern: str
         """
         conn = self.get_conn()
-        if fnmatch_pattern:
-            for file in conn.listdir(path):
-                if fnmatch(file, fnmatch_pattern):
-                    path = file
-                    break
+        for file in conn.listdir(dir_path):
+            if fnmatch(file, fnmatch_pattern):
+                conn.remove(os.path.join(dir_path, file))
 
+    def get_mod_time(self, path: str) -> str:
+        """
+        Returns modification time.
+        :param path: full path to the remote file
+        :type path: str
+        """
+        conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
+
+    def get_mod_time_pattern(self, dir_path: str, fnmatch_pattern: str = None) -> str:
+        """
+        Returns modification time of the files matching the pattern in the remote folder.
+
+        :param dir_path: path to the remote directory
+        :type dir_path: str
+        :param fnmatch_pattern: pattern to filter the remote_full_path files
+        :type: fnmatch_pattern: str
+        """
+        ftp_mdtm = {}
+        conn = self.get_conn()
+
+        for file in conn.listdir(dir_path):
+            if fnmatch(file, fnmatch_pattern):
+                path_to_file = os.path.join(dir_path, file)
+                ftp_mdtm[path_to_file] = conn.stat(path_to_file).st_mtime
+
+        f = lambda x: datetime.datetime.fromtimestamp(x).strftime('%Y%m%d%H%M%S')
+
+        return dict((k, f(v)) for k, v in ftp_mdtm.items())
 
     def path_exists(self, path: str) -> bool:
         """

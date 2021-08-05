@@ -38,7 +38,7 @@ class SFTPSensor(BaseSensorOperator):
 
     template_fields = (
         'path',
-        'fnmatch_patten',
+        'fnmatch_pattern',
     )
 
     def __init__(
@@ -57,13 +57,23 @@ class SFTPSensor(BaseSensorOperator):
 
     def poke(self, context: dict) -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
-        self.log.info('Poking for %s', self.path)
-        try:
-            mod_time = self.hook.get_mod_time(self.path, self.fnmatch_pattern)
-            self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
-        except OSError as e:
-            if e.errno != SFTP_NO_SUCH_FILE:
-                raise e
-            return False
+        if not self.fnmatch_pattern:
+            self.log.info('Poking for %s', self.path)
+            try:
+                mod_time = self.hook.get_mod_time(self.path)
+                self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
+            except OSError as e:
+                if e.errno != SFTP_NO_SUCH_FILE:
+                    raise e
+                return False
+        else:
+            self.log.info('Poking for files matching pattern %s into %s', self.fnmatch_pattern, self.path)
+            try:
+                mod_time = self.hook.get_mod_time_pattern(self.path, self.fnmatch_pattern)
+                self.log.info('Found Files last modified %s', str(mod_time))
+            except OSError as e:
+                if e.errno != SFTP_NO_SUCH_FILE:
+                    raise e
+                return False
         self.hook.close_conn()
         return True
