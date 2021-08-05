@@ -149,11 +149,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        if self.connections_prefix and self.sep:
-            conn_id = self.build_path(self.connections_prefix, conn_id, self.sep)
-
         try:
-            secret_string = self._get_secret(conn_id)
+            secret_string = self._get_secret(self.connections_prefix, conn_id)
             secret = ast.literal_eval(secret_string)  # json.loads gives error
         except ValueError:  # 'malformed node or string: ' error, for empty conns
             connection = None
