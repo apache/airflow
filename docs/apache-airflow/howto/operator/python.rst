@@ -47,7 +47,7 @@ Templating
 ^^^^^^^^^^
 
 Airflow passes in an additional set of keyword arguments: one for each of the
-:doc:`Jinja template variables <../../macros-ref>` and a ``templates_dict``
+:ref:`Jinja template variables <templates:variables>` and a ``templates_dict``
 argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
