@@ -66,6 +66,8 @@ class SFTPSensor(BaseSensorOperator):
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise e
                 return False
+            self.hook.close_conn()
+            return True
         else:
             self.log.info('Poking for files matching pattern %s into %s', self.fnmatch_pattern, self.path)
             try:
@@ -75,5 +77,5 @@ class SFTPSensor(BaseSensorOperator):
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise e
                 return False
-        self.hook.close_conn()
-        return True
+            self.hook.close_conn()
+            return True
