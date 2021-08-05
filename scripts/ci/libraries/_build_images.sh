@@ -669,7 +669,6 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
@@ -810,7 +809,6 @@ function build_images::build_prod_images() {
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
@@ -845,7 +843,6 @@ function build_images::build_prod_images() {
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -1012,23 +1009,6 @@ Production image:
 
 ${COLOR_BLUE}
      ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6
-${COLOR_RESET}
-
-* If you want to build the image regardless if 'pip check' fails for it, you can add
-  --continue-on-pip-check-failure flag and enter the image and inspect dependencies.
-
-CI image:
-
-${COLOR_BLUE}
-     ./breeze build-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
-     docker run -it apache/airflow:main-3.6-ci bash
-${COLOR_RESET}
-
-Production image:
-
-${COLOR_BLUE}
-     ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
-     docker run -it apache/airflow:main-3.6 bash
 ${COLOR_RESET}
 
 * You will see error messages there telling which requirements are conflicting and which packages caused the

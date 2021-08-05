@@ -221,7 +221,7 @@ function initialization::initialize_files_for_rebuild_check() {
         "scripts/docker/common.sh"
         "scripts/docker/install_additional_dependencies.sh"
         "scripts/docker/install_airflow.sh"
-        "scripts/docker/install_airflow_from_branch_tip.sh"
+        "scripts/docker/install_airflow_dependencies_from_branch_tip.sh"
         "scripts/docker/install_from_docker_context_files.sh"
         "scripts/docker/install_mysql.sh"
         "airflow/www/package.json"
@@ -422,7 +422,7 @@ function initialization::initialize_image_build_variables() {
     export INSTALLED_PROVIDERS
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.1"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.2"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -445,9 +445,6 @@ function initialization::initialize_image_build_variables() {
 
     # Installs different airflow version than current from the sources
     export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:=""}
-
-    # Continue on PIP CHECK failure
-    export CONTINUE_ON_PIP_CHECK_FAILURE=${CONTINUE_ON_PIP_CHECK_FAILURE:="false"}
 
     # Determines if airflow should be installed from a specified reference in GitHub
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
@@ -503,7 +500,7 @@ function initialization::initialize_kubernetes_variables() {
     CURRENT_KIND_VERSIONS+=("v0.11.1")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
-    CURRENT_HELM_VERSIONS+=("v3.2.4")
+    CURRENT_HELM_VERSIONS+=("v3.6.3")
     export CURRENT_HELM_VERSIONS
     # Current executor in chart
     CURRENT_EXECUTOR+=("KubernetesExecutor")
@@ -684,7 +681,6 @@ Common image build variables:
     INSTALL_FROM_PYPI: '${INSTALL_FROM_PYPI}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
-    CONTINUE_ON_PIP_CHECK_FAILURE: '${CONTINUE_ON_PIP_CHECK_FAILURE}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
     AIRFLOW_CONSTRAINTS_LOCATION: '${AIRFLOW_CONSTRAINTS_LOCATION}'
     AIRFLOW_CONSTRAINTS_REFERENCE: '${AIRFLOW_CONSTRAINTS_REFERENCE}'

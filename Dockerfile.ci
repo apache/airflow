@@ -22,6 +22,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG AIRFLOW_VERSION="2.2.0.dev0"
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="6"
 
@@ -126,6 +128,15 @@ ARG RUNTIME_APT_DEPS="\
       unzip \
       vim \
       xxd"
+
+# Install Helm
+ARG HELM_VERSION="v3.6.3"
+
+RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
+    && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz" \
+    && curl --location "${HELM_URL}" | tar -xvz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm
+
 ARG ADDITIONAL_RUNTIME_APT_DEPS=""
 ARG RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
@@ -219,7 +230,7 @@ ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
 ARG INSTALL_FROM_PYPI="true"
-ARG AIRFLOW_PIP_VERSION=21.1.2
+ARG AIRFLOW_PIP_VERSION=21.2.2
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -282,7 +293,7 @@ ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENT
 RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        bash /scripts/docker/install_airflow_from_branch_tip.sh; \
+        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 # Generate random hex dump file so that we can determine whether it's faster to rebuild the image
@@ -311,8 +322,6 @@ COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 
-ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
-
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
@@ -337,11 +346,13 @@ RUN chmod a+x /entrypoint
 
 COPY scripts/docker/load.bash /opt/bats/lib/
 
-# We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
-# copying over stuff that is accidentally generated or that we do not need (such as egg-info)
-# if you want to add something that is missing and you expect to see it in the image you can
-# add it with ! in .dockerignore next to the airflow, test etc. directories there
-COPY . ${AIRFLOW_SOURCES}/
+# Additional python deps to install
+ARG ADDITIONAL_PYTHON_DEPS=""
+
+RUN bash /scripts/docker/install_pip_version.sh; \
+    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+            bash /scripts/docker/install_additional_dependencies.sh; \
+    fi
 
 # Install autocomplete for airflow
 RUN if command -v airflow; then \
@@ -351,27 +362,16 @@ RUN if command -v airflow; then \
 # Install autocomplete for Kubectl
 RUN echo "source /etc/bash_completion" >> ~/.bashrc
 
+# We can copy everything here. The Context is filtered by dockerignore. This makes sure we are not
+# copying over stuff that is accidentally generated or that we do not need (such as egg-info)
+# if you want to add something that is missing and you expect to see it in the image you can
+# add it with ! in .dockerignore next to the airflow, test etc. directories there
+COPY . ${AIRFLOW_SOURCES}/
+
 WORKDIR ${AIRFLOW_SOURCES}
-
-# Install Helm
-ARG HELM_VERSION="v3.2.4"
-
-RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
-    && HELM_URL="https://get.helm.sh/helm-${HELM_VERSION}-${SYSTEM}-amd64.tar.gz" \
-    && curl --location "${HELM_URL}" | tar -xvz -O "${SYSTEM}"-amd64/helm > /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm
-
-# Additional python deps to install
-ARG ADDITIONAL_PYTHON_DEPS=""
-
-RUN bash /scripts/docker/install_pip_version.sh; \
-    if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-            bash /scripts/docker/install_additional_dependencies.sh; \
-    fi
 
 ARG BUILD_ID
 ARG COMMIT_SHA
-ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_DATE_CREATED
 
 ENV PATH="/files/bin/:/opt/airflow/scripts/in_container/bin/:${HOME}:${PATH}" \
