@@ -308,7 +308,7 @@ class SFTPHook(SSHHook):
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
 
-    def get_mod_time_pattern(self, dir_path: str, fnmatch_pattern: str = None) -> str:
+    def get_mod_time_pattern(self, dir_path: str, fnmatch_pattern: str = None) -> Dict[str, str]:
         """
         Returns modification time of the files matching the pattern in the remote folder.
 
