@@ -92,7 +92,7 @@
     function doRemoveCurve(version, mode, groupCenterIdx, curveIdx) {
       $.ajax({
         type: 'PUT',
-        url: "{{ url_for('Airflow.remove_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
+        url: "{{ url_for('CurveTemplateView.remove_curve_template',bolt_no=bolt_no, craft_type=craft_type ) }}",
         data: JSON.stringify({
           csrf_token: '{{ csrf_token() }}',
           version,

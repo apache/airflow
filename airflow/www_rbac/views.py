@@ -21,7 +21,9 @@ import uuid
 import copy
 import itertools
 import json
+import logging
 import math
+import os
 import socket
 import traceback
 from flask_login import current_user
@@ -32,7 +34,7 @@ from airflow.settings import TIMEZONE
 from datetime import datetime
 import six
 from six.moves.urllib.parse import quote
-import pprint
+
 import markdown
 import pendulum
 import sqlalchemy as sqla
@@ -59,12 +61,9 @@ from airflow import settings, configuration
 from airflow.configuration import conf
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import Variable, Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors, \
-    TaskInstance
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.exceptions import AirflowException
 from airflow.models.dagcode import DagCode
-from airflow.models.error_tag import ErrorTag
-from airflow.models.tightening_controller import TighteningController, DeviceTypeModel
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -80,17 +79,8 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
-from flask_wtf.csrf import CSRFProtect
-from plugins.utils import get_curve, get_result
-from airflow.www_rbac.api.experimental.endpoints import do_remove_curve_from_curve_template
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
-import logging
-import os
 
-FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
-
-_logger = logging.getLogger(__name__)
-csrf = CSRFProtect()
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -389,146 +379,6 @@ class Airflow(AirflowBaseView):
                 })
 
         return wwwutils.json_response(payload)
-
-    @expose('/view_curve/<string:entity_id>')
-    @has_access
-    def view_curve_page(self, entity_id: str):
-        entity_id = entity_id.replace('@', '/')
-
-        _has_access = self.appbuilder.sm.has_access
-
-        try:
-            result = get_result(entity_id)
-        except Exception as e:
-            logging.error(e)
-            result = {}
-        try:
-            curve = get_curve(entity_id)
-        except Exception as e:
-            logging.error(e)
-            curve = {}
-
-        analysis_error_message_mapping = Variable.get('analysis_error_message_mapping', deserialize_json=True,
-                                                      default_var={})
-
-        verify_error_map = Variable.get('verify_error_map', deserialize_json=True,
-                                        default_var={})
-
-        result_error_message_mapping = Variable.get('result_error_message_mapping', deserialize_json=True,
-                                                    default_var={})
-
-        controller_name = result.get('controller_name','').split('@')[0] if result.get('controller_name') else ''
-        controller = TighteningController.find_controller(controller_name)
-        error_tags = ErrorTag.get_all()
-        ENV_CURVE_GRAPH_SHOW_RANGE = os.environ.get('CURVE_GRAPH_SHOW_RANGE')
-        show_range = (ENV_CURVE_GRAPH_SHOW_RANGE == True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
-        can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
-                     and _has_access('set_final_state_nok', 'TaskInstanceModelView')
-
-        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, getattr(current_user, 'last_name', ''),
-                                       CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
-        logging.info(msg)
-
-        if result.get('device_type') == 'servo_press':
-            cur_key_map = {
-                'cur_w': '位移',
-                'cur_m': '压力',
-                'cur_t': '时间',
-            }
-            display_keys = Variable.get('servo_press_view_curve_page_keys', deserialize_json=True,
-                                        default_var={})
-            result_keys_translation_mapping = Variable.get('servo_press_result_keys_translation_mapping',
-                                                           deserialize_json=True,
-                                                           default_var={})
-        else:
-            cur_key_map = {
-                'cur_w': '角度',
-                'cur_m': '扭矩',
-                'cur_t': '时间',
-                'cur_s': '转速'
-            }
-            display_keys = Variable.get('view_curve_page_keys', deserialize_json=True,
-                                        default_var={})
-            result_keys_translation_mapping = Variable.get('result_keys_translation_mapping',
-                                                           deserialize_json=True,
-                                                           default_var={})
-
-        return self.render_template('curve.html', result=result,
-                                    curve=curve, analysisErrorMessageMapping=analysis_error_message_mapping,
-                                    resultErrorMessageMapping=result_error_message_mapping,
-                                    resultKeysTranslationMapping=result_keys_translation_mapping,
-                                    verify_error_map=verify_error_map,
-                                    can_verify=can_verify,
-                                    controller=controller,
-                                    errorTags=error_tags,
-                                    show_range=show_range,
-                                    display_keys=display_keys,
-                                    cur_key_map=cur_key_map
-                                    )
-
-    @expose('/curve_template/<string:bolt_no>/<string:craft_type>')
-    @has_access
-    def view_curve_template(self, bolt_no, craft_type):
-        curve_template = Variable.get_fuzzy_active('{}/{}'.format(bolt_no, craft_type),
-                                                   deserialize_json=True,
-                                                   default_var=None
-                                                   )[1]
-        _has_access = self.appbuilder.sm.has_access
-        can_delete = _has_access('can_edit', 'VariableModelView') and _has_access('can_remove_curve_template',
-                                                                                  'Airflow')
-
-        if curve_template is None:
-            # todo: 不要返回错误页面
-            return circles(AirflowNotFoundException)
-
-        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, getattr(current_user, 'last_name', ''),
-                                       CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'],
-                                       '查看曲线模板页面')
-        logging.info(msg)
-        device_type = 'tightening'  # fixme: 临时使用固定的device_type, 后续在控制器配置中添加
-        if device_type == 'servo_press':
-            cur_key_map = {
-                'cur_w': '位移',
-                'cur_m': '压力',
-                'cur_t': '时间',
-            }
-        else:
-            cur_key_map = {
-                'cur_w': '角度',
-                'cur_m': '扭矩',
-                'cur_t': '时间',
-                'cur_s': '转速'
-            }
-        return self.render_template('curve_template.html', can_delete=can_delete,
-                                    curve_template=curve_template, bolt_no=bolt_no,
-                                    craft_type=craft_type, device_type=device_type, cur_key_map=cur_key_map)
-
-    @expose('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
-    @has_access
-    def remove_curve_template(self, bolt_no, craft_type):
-        _has_access = self.appbuilder.sm.has_access
-        can_delete = _has_access('can_edit', 'VariableModelView')
-        if not can_delete:
-            return {'error': u'没有权限'}
-
-        params = request.get_json(force=True)
-        version = params.get('version', None)
-        mode = params.get('mode', None)
-        group_center_idx = params.get('group_center_idx', None)
-        curve_idx = params.get('curve_idx', None)
-        try:
-            new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
-                                                               curve_idx)
-            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                           current_user, getattr(current_user, 'last_name', ''),
-                                           CUSTOM_EVENT_NAME_MAP['DELETE'],
-                                           CUSTOM_PAGE_NAME_MAP['CURVE_TEMPLATE'], '删除曲线模板')
-            logging.info(msg)
-            return {'data': new_template}
-        except Exception as e:
-            return {'error': str(e)}
 
     @expose('/task_stats', methods=['POST'])
     @has_access
@@ -2950,28 +2800,6 @@ class TaskInstanceModelView(AirflowModelView):
         duration = attr.get('duration')
         if end_date and duration:
             return timedelta(seconds=duration)
-
-    def error_tag_f(attr):
-        ret = []
-        try:
-            error_tags = json.loads(attr.get('error_tag') or '[]')
-            if not error_tags:
-                return u'无异常标签'
-            error_tag_vals = ErrorTag.get_all_dict() or {}
-            for tag in error_tags:
-                v = error_tag_vals.get(str(tag), '')
-                if not v:
-                    continue
-                ret.append(v)
-        except Exception as e:
-            return ','.join(ret)
-        return ','.join(ret)
-
-    def type_f(attr):
-        ti_type = attr.get('type')
-        if ti_type == 'rework':
-            return lazy_gettext('Task Instance Rework')
-        return lazy_gettext('Task Instance Normal')
 
     formatters_columns = {
         'log_url': log_url_formatter,

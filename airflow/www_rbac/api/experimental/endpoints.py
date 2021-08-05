@@ -550,55 +550,6 @@ def dag_is_paused(dag_id):
     return jsonify({'is_paused': is_paused})
 
 
-def do_remove_curve_from_curve_template(bolt_no=None, craft_type=None, version=None, mode=None, group_center_idx=None,
-                                        curve_idx=None):
-    if version is None or not bolt_no or not craft_type \
-        or mode is None or group_center_idx is None or curve_idx is None:
-        raise Exception('参数错误')
-    template_name = '{}/{}'.format(bolt_no, craft_type)
-    key, curve_template = Variable.get_fuzzy_active(template_name,
-                                                    deserialize_json=True,
-                                                    default_var=None
-                                                    )
-    template_version = curve_template.get('version', 0)
-    if version != template_version:
-        raise Exception('曲线模板信息过期，请刷新页面')
-    if curve_template is None:
-        raise Exception('读取模板信息失败')
-    template_cluster = curve_template.get('template_cluster', None)
-    if template_cluster is None:
-        raise Exception('读取模板簇失败')
-    mode_cluster = template_cluster.get(mode, None)
-    if mode_cluster is None:
-        raise Exception('无法找到对应模式的模板簇')
-    groups = mode_cluster.get('curve_template_group_array', None)
-    if groups is None:
-        raise Exception('无法找到对应模式的曲线组')
-    group = groups[group_center_idx]  # fixme
-    if group is None:
-        raise Exception('无法找到对应模式的曲线组')
-    template_data_array = group.get('template_data_array', None)
-    if group is None:
-        raise Exception('无法找到对应模式的曲线组')
-    if template_data_array[curve_idx]:
-        del template_data_array[curve_idx]
-    if len(template_data_array) == 0:
-        del groups[group_center_idx]
-        mode_cluster['curve_template_groups_k'] -= 1
-    if mode_cluster['curve_template_groups_k'] == 0:
-        del template_cluster[mode]
-    curve_template.update({
-        'version': template_version + 1
-    })
-    Variable.set(key, curve_template, serialize_json=True, is_curve_template=True)
-    dag_id = 'load_all_curve_tmpls'
-    conf = {
-        'template_names': [template_name]
-    }
-    trigger.trigger_dag(dag_id, conf=conf, replace_microseconds=False)
-    return curve_template
-
-
 # @api_experimental.route('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
 # @requires_authentication
 # def remove_curve_from_curve_template(bolt_no, craft_type):

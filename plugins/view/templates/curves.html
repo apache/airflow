@@ -46,7 +46,7 @@
                            data-measureresult="{{ result.measure_result }}"
                            type="checkbox">
                     <a type="button" class="btn btn-sm btn-default"
-                       href="{{ url_for('Airflow.view_curve_page', entity_id=result.entity_id.replace('/', '@')) }}"
+                       href="{{ url_for('CurveView.view_curve_page', entity_id=result.entity_id.replace('/', '@')) }}"
                        target="_blank">
                       <i class="glyphicon glyphicon-new-window"></i>
                     </a>
@@ -358,7 +358,7 @@
       curveChart.on('click', (params) => {
         if (params.componentType === 'series') {
           const entity_id = findClickedCurve(params.seriesName);
-          const url = "{{ url_for('Airflow.view_curve_page', entity_id='ENTITY_ID') }}"
+          const url = "{{ url_for('CurveView.view_curve_page', entity_id='ENTITY_ID') }}"
             .replace('ENTITY_ID', entity_id)
           window.open(url);
         }

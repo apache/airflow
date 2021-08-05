@@ -15,7 +15,7 @@
             {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
           </center>
           {% if modelview_name == 'CurveAnalysisBoltNoView' %}
-            <a href="{{ url_for('Airflow.view_curve_template',bolt_no=item.bolt_number,craft_type='1') }}"
+            <a href="{{ url_for('CurveTemplateView.view_curve_template',bolt_no=item.bolt_number,craft_type='1') }}"
                target="_blank" style="display:block">查看曲线模板</a>
           {% endif %}
           {% if modelview_name == 'CurveAnalysisTrackNoView' %}
