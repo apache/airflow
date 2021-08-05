@@ -264,7 +264,7 @@ class TestMongoHook(unittest.TestCase):
         objs = [{'test_find_many_1': 'test_value'}, {'test_find_many_2': 'test_value'}]
         collection.insert(objs)
 
-        projection = ['test_find_many_1']
+        projection = {'test_find_many_1': 0}
         result_objs = self.hook.find(collection, projection, find_one=False)
 
         assert len(list(result_objs)) == 1
