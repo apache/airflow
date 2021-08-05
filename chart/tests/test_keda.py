@@ -61,7 +61,7 @@ class TestKeda:
     )
     def test_keda_concurrency(self, executor, concurrency):
         """
-        ScaledObject should only be created when set to enabled and executor is Celery or CeleryKubernetes
+        Verify keda sql query is uses configured concurrency
         """
         docs = render_chart(
             values={
@@ -73,8 +73,40 @@ class TestKeda:
         )
         expected_query = (
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
-            "FROM task_instance WHERE state='running' OR state='queued'"
+            "FROM task_instance WHERE (state='running' OR state='queued')"
         )
+        assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+
+    @parameterized.expand(
+        [
+            ("CeleryExecutor", None, False),
+            ("CeleryExecutor", 'my_queue', False),
+            ("CeleryKubernetesExecutor", None, True),
+            ("CeleryKubernetesExecutor", 'my_queue', True),
+        ]
+    )
+    def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):
+        """
+        Verify keda sql query ignores kubernetes queue when CKE is used.
+        Sometimes a user might want to use a different queue name for k8s executor tasks,
+        and we also verify here that we use the configured queue name in that case.
+        """
+        values = {
+            "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+            "executor": executor,
+        }
+        if queue:
+            values.update({'config': {'celery_kubernetes_executor': {'kubernetes_queue': queue}}})
+        docs = render_chart(
+            values=values,
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        expected_query = (
+            "SELECT ceil(COUNT(*)::decimal / 16) "
+            "FROM task_instance WHERE (state='running' OR state='queued')"
+        )
+        if should_filter:
+            expected_query += f" AND queue != '{queue or 'kubernetes'}'"
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @parameterized.expand(
