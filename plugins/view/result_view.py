@@ -2,22 +2,9 @@ from plugins.result_storage.model import ResultModel
 import json
 from flask_babel import gettext
 from plugins import AirflowModelView
-from datetime import datetime
-from flask_login import current_user
-from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-from wtforms.fields import StringField
-from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
-from flask_appbuilder.actions import action
-from flask_appbuilder import expose, has_access
-from flask import make_response, redirect
 from airflow.plugins_manager import AirflowPlugin
-from airflow.settings import TIMEZONE
-from airflow.utils.db import provide_session
-from flask_appbuilder.models.sqla.filters import BaseFilter, get_field_setup_query
 from airflow.models.error_tag import ErrorTag
-from airflow.www_rbac.decorators import has_dag_access
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 from airflow.configuration import conf
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
