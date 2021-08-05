@@ -34,11 +34,15 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection or Variables from AWS Secrets Manager
+
     Configurable via ``airflow.cfg`` like so:
+
     .. code-block:: ini
+
         [secrets]
         backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
         backend_kwargs = {"connections_prefix": "airflow/connections"}
+
     For example, if secrets prefix is ``airflow/connections/smtp_default``, this would be accessible
     if you provide ``{"connections_prefix": "airflow/connections"}`` and request conn_id ``smtp_default``.
     If variables prefix is ``airflow/variables/hello``, this would be accessible
@@ -46,8 +50,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     And if config_prefix is ``airflow/config/sql_alchemy_conn``, this would be accessible
     if you provide ``{"config_prefix": "airflow/config"}`` and request config
     key ``sql_alchemy_conn``.
+
     You can also pass additional keyword arguments like ``aws_secret_access_key``, ``aws_access_key_id``
     or ``region_name`` to this class and they would be passed on to Boto3 client.
+
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null), requests for connections will not be sent to AWS Secrets Manager
     :type connections_prefix: str
@@ -64,13 +70,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
 
     def __init__(
-            self,
-            connections_prefix: str = 'airflow/connections',
-            variables_prefix: str = 'airflow/variables',
-            config_prefix: str = 'airflow/config',
-            profile_name: Optional[str] = None,
-            sep: str = "/",
-            **kwargs,
+        self,
+        connections_prefix: str = 'airflow/connections',
+        variables_prefix: str = 'airflow/variables',
+        config_prefix: str = 'airflow/config',
+        profile_name: Optional[str] = None,
+        sep: str = "/",
+        **kwargs,
     ):
         super().__init__()
         if connections_prefix is not None:
