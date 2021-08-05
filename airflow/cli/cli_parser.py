@@ -68,7 +68,9 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     (celery_executor.CeleryExecutor, celery_kubernetes_executor.CeleryKubernetesExecutor),
                 ):
                     message = (
-                        f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
+                        f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
+                        f'executors derived from them, your current executor: {executor}. '
+                        f'Your current executor class hierarchy: {type(executor).mro()}'
                     )
                     raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':
@@ -777,7 +779,6 @@ class GroupCommand(NamedTuple):
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
-
 
 DAGS_COMMANDS = (
     ActionCommand(
