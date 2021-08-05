@@ -29,7 +29,6 @@ from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
-from airflow.models import DagModel
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
@@ -204,15 +203,18 @@ def generate_pages(current_page,
     last_node_link = (
         void_link
         if is_disabled else
-        f'?{get_params(page=last_page, search=search, status=status, tags=tags, orderBy=sorting_key, orderDir=sorting_order)}'
+        f'''?{get_params(
+            page=last_page,
+            search=search,
+            status=status,
+            tags=tags,
+            orderBy=sorting_key,
+            orderDir=sorting_order
+        )}'''
     )
     output.append(
         last_node.format(
-            href_link="?{}".format(  # noqa
-                get_params(
-                    page=last_page, search=search, status=status, orderBy=sorting_key, orderDir=sorting_order
-                )
-            ),
+            href_link=last_node_link,
             disabled=is_disabled,
         )
     )
