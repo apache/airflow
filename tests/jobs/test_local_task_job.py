@@ -733,6 +733,7 @@ class TestLocalTaskJob:
             if scheduler_job.processor_agent:
                 scheduler_job.processor_agent.end()
 
+    @pytest.mark.quarantined
     def test_task_sigkill_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigkill
