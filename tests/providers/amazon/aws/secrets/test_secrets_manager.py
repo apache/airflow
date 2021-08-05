@@ -39,9 +39,13 @@ class TestSecretsManagerBackend(TestCase):
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': 'postgresql://airflow:airflow@host:5432/airflow',
-        }
+            'user': 'airflow',
+            'pass': 'airflow',
+            'host': 'host',
+            'port': 5432,
+            'schema': 'airflow',
+            'engine': 'postgresql'
+        },
 
         secrets_manager_backend = SecretsManagerBackend()
         secrets_manager_backend.client.create_secret(**create_param)
