@@ -70,7 +70,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     message = (
                         f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
                         f'executors derived from them, your current executor: {executor}. '
-                        f'Your current executor class hierarchy: {type(executor).mro()}'
+                        f'Your current executor class hierarchy: {type(executor_cls).mro()}'
                     )
                     raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':
