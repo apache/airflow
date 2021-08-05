@@ -69,7 +69,7 @@ class TestSFTPHook(unittest.TestCase):
             file.write('Test file')
         with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), 'a') as file:
             file.write('Test file')
-        with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, CSV_TMP_FILE_FOR_TESTS), 'a') as file:
+        with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, CSV_TMP_FILE_FOR_TESTS), 'a') as file:
             file.write('Test file')
 
     def test_get_conn(self):
@@ -92,7 +92,7 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_list_directory_with_pattern(self):
         output = self.hook.list_directory(
-            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), fnmatch_pattern=".*.csv"
+            path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), fnmatch_pattern="*.csv"
         )
         assert output == [CSV_TMP_FILE_FOR_TESTS]
 
@@ -142,7 +142,7 @@ class TestSFTPHook(unittest.TestCase):
         self.hook.retrieve_file(
             remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS),
             local_full_path=os.path.join(TMP_PATH),
-            fnmatch_pattern=".*.csv",
+            fnmatch_pattern="*.csv",
         )
         assert CSV_TMP_FILE_FOR_TESTS in os.listdir(TMP_PATH)
 
@@ -288,7 +288,7 @@ class TestSFTPHook(unittest.TestCase):
         assert unknowns == []
 
     def test_get_tree_map_with_pattern(self):
-        files, _, _ = self.hook.get_tree_map(path=os.path.join(TMP_PATH), fnmatch_pattern=".*.csv")
+        files, _, _ = self.hook.get_tree_map(path=os.path.join(TMP_PATH), fnmatch_pattern="*.csv")
         assert os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, CSV_TMP_FILE_FOR_TESTS) in files
 
     def tearDown(self):
