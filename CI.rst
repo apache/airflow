@@ -568,12 +568,11 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Tests Kubernetes          | Run Kubernetes test                          | Yes(2)| Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
-| Push PROD images          | Pushes PROD images to GitHub Registry (4)    | -     | Yes   | -    |
-+---------------------------+----------------------------------------------+-------+-------+------+
-| Push CI images            | Pushes CI images to GitHub Registry (4)      | -     | Yes   | -    |
-+---------------------------+----------------------------------------------+-------+-------+------+
 | Constraints               | Upgrade constraints to latest ones (4)       | -     | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
+| Push images               | Pushes latest images to GitHub Registry (4)  | -     | Yes   | Yes  |
++---------------------------+----------------------------------------------+-------+-------+------+
+
 
 Comments:
 
@@ -584,8 +583,8 @@ Comments:
      You can set it to "false" to disable using shared images - this is slower though as the images
      are rebuilt in every job that needs them.
  (4) PROD and CI images are pushed as "latest" to GitHub Container registry and constraints are upgraded
-     only if all tests are successful. Note that images are not pushed in CRON jobs because they are rebuilt
-     from scratch and we want to push incremental changes to the Github Container registry.
+     only if all tests are successful. The images are rebuilt in this step using constraints pushed
+     in the previous step.
 
 CodeQL scan
 -----------
@@ -620,7 +619,9 @@ with the COMMIT_SHA id for images that were used in particular build.
 The image names follow the patterns (except the Python image, all the images are stored in
 https://ghcr.io/ in ``apache`` organization.
 
-The packages are available under:
+The packages are available under (CONTAINER_NAME is url-encoded name of the image). Note that "/" are
+supported now in the ``ghcr.io`` as apart of the image name within ``apache`` organization, but they
+have to be percent-encoded when you access them via UI (/ = %2F)
 
 ``https://github.com/apache/airflow/pkgs/container/<CONTAINER_NAME>``
 
@@ -631,26 +632,30 @@ The packages are available under:
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow-python-v2:<X.Y>-slim-buster                      | Version of python base image used in Airflow Builds      |
-| python base  | or                                                       | We keep the "latest" version there and also each build   |
-| image        | airflow-python-v2:<X.Y>-slim-buster-<COMMIT_SHA>         | has an associated specific python version that was used. |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-buster                | Version of python base image used in Airflow Builds      |
+| python base  |                                                          | We keep the "latest" version only to mark last "good"    |
+| image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| CI image     | airflow-<BRANCH>-python<X.Y>-ci-v2:latest                | CI image - this is the image used for most of the tests. |
-|              | or                                                       | Contains all provider dependencies and tools useful      |
-|              | airflow-<BRANCH>-python<X.Y>-ci-v2:<COMMIT_SHA>          | For testing. This image is used in Breeze.               |
+| PROD Build   | airflow/<BRANCH>/prod-build/python<X.Y>:latest           | Production Build image - this is the "build" stage of    |
+| image        |                                                          | production image. It contains build-essentials and all   |
+|              |                                                          | necessary apt packages to build/install PIP packages.    |
+|              |                                                          | We keep the "latest" version only to speed up builds.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Manifest     | airflow-<BRANCH>-python<X.Y>-ci-v2-manifest:latest       | CI manifest image - this is the image used to optimize   |
-| CI image     | or                                                       | pulls and builds for Breeze development environment      |
-|              | airflow-<BRANCH>-python<X.Y>-ci-v2-manifest:<COMMIT_SHA> | They store hash indicating whether the image will be     |
+| Manifest     | airflow/<BRANCH>/ci-manifest/python<X.Y>:latest          | CI manifest image - this is the image used to optimize   |
+| CI image     |                                                          | pulls and builds for Breeze development environment      |
+|              |                                                          | They store hash indicating whether the image will be     |
 |              |                                                          | faster to build or pull.                                 |
+|              |                                                          | We keep the "latest" version only to help breeze to      |
+|              |                                                          | check if new image should be pulled.                     |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| PROD Build   | airflow-<BRANCH>-python<X.Y>-build-v2:latest             | Production Build image - this is the "build" segment of  |
-| image        | or                                                       | production image. It contains build-essentials and all   |
-|              | airflow-<BRANCH>-python<X.Y>-build-v2:<COMMIT_SHA>       | necessary packages to install PIP packages.              |
+| CI image     | airflow/<BRANCH>/ci/python<X.Y>:latest                   | CI image - this is the image used for most of the tests. |
+|              | or                                                       | Contains all provider dependencies and tools useful      |
+|              | airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>             | For testing. This image is used in Breeze.               |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| PROD image   | airflow-<BRANCH>-python<X.Y>-v2:latest                   | Production image. This is the actual production image    |
+|              |                                                          | faster to build or pull.                                 |
+| PROD image   | airflow/<BRANCH>/prod/python<X.Y>:latest                 | Production image. This is the actual production image    |
 |              | or                                                       | optimized for size.                                      |
-|              | airflow-<BRANCH>-python<X.Y>-v2:<COMMIT_SHA>             | It contains only compiled libraries and minimal set of   |
+|              | airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>           | It contains only compiled libraries and minimal set of   |
 |              |                                                          | dependencies to run Airflow.                             |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
@@ -668,9 +673,9 @@ For example knowing that the CI build was for commit ``cd27124534b46c9688a1d89e7
 
 .. code-block:: bash
 
-  docker pull ghcr.io/apache/airflow-main-python3.6-ci:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it ghcr.io/apache/airflow-main-python3.6-ci:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or

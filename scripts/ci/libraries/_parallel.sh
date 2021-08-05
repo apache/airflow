@@ -23,6 +23,9 @@
 function parallel::initialize_monitoring() {
     PARALLEL_MONITORED_DIR="$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
+
+    PARALLEL_TAIL_LENGTH=${PARALLEL_TAIL_LENGTH:=2}
+    export PARALLEL_TAIL_LENGTH
 }
 
 function parallel::make_sure_gnu_parallel_is_installed() {
@@ -82,9 +85,9 @@ function parallel::monitor_loop() {
               continue
             fi
 
-            echo "${COLOR_BLUE}### The last lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
+            echo "${COLOR_BLUE}### The last ${PARALLEL_TAIL_LENGTH} lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
             echo
-            tail -2 "${directory}/stdout" || true
+            tail "-${PARALLEL_TAIL_LENGTH}" "${directory}/stdout" || true
             echo
 
             if [[ -s "${directory}/status" ]]; then

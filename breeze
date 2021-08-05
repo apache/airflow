@@ -164,6 +164,9 @@ function breeze::setup_default_breeze_constants() {
     # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES="false"
 
+    # When we push from breeze we always want to push base python images
+    export PUSH_PYTHON_BASE_IMAGE="true"
+
     # Determines whether to reinstall airflow at entering the image.
     export USE_AIRFLOW_VERSION=""
     # if set to true, the ci image will look for wheel packages in dist folder and will install them
@@ -569,8 +572,7 @@ EOF
 #   AIRFLOW_SOURCES
 #   AIRFLOW_CI_IMAGE
 #   AIRFLOW_PROD_IMAGE
-#   AIRFLOW_PROD_IMAGE_KUBERNETES
-#   AIRFLOW_PROD_BASE_TAG
+#   AIRFLOW_IMAGE_KUBERNETES
 #   SQLITE_URL
 #
 # Arguments:
@@ -633,8 +635,7 @@ export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
-export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE_KUBERNETES}"
-export AIRFLOW_PROD_BASE_TAG="${AIRFLOW_PROD_BASE_TAG}"
+export AIRFLOW_IMAGE_KUBERNETES="${AIRFLOW_IMAGE_KUBERNETES}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
@@ -650,7 +651,6 @@ EOF
 #
 # Global constants set:
 #
-#     PYTHON_BASE_IMAGE_VERSION
 #     PYTHON_BASE_IMAGE
 #     AIRFLOW_CI_IMAGE
 #     BUILT_CI_IMAGE_FLAG_FILE
@@ -956,7 +956,6 @@ function breeze::parse_arguments() {
             echo
             export DOCKER_CACHE="disabled"
             # if not set here, docker cached is determined later, depending on type of image to be build
-            readonly DOCKER_CACHE
             export FORCE_BUILD_IMAGES="true"
             shift
             ;;
@@ -972,7 +971,6 @@ function breeze::parse_arguments() {
             echo
             export DOCKER_CACHE="local"
             # if not set here, docker cached is determined later, depending on type of image to be build
-            readonly DOCKER_CACHE
             shift
             ;;
         -U | --build-cache-pulled)
@@ -980,14 +978,12 @@ function breeze::parse_arguments() {
             echo
             export DOCKER_CACHE="pulled"
             # if not set here, docker cached is determined later, depending on type of image to be build
-            readonly DOCKER_CACHE
             shift
             ;;
         -X | --build-cache-disabled)
             echo "Use disabled cache to build images"
             echo
             export DOCKER_CACHE="disabled"
-            readonly DOCKER_CACHE
             # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
@@ -1148,7 +1144,6 @@ function breeze::parse_arguments() {
             export CHECK_IMAGE_FOR_REBUILD="false"
             export SKIP_BUILDING_PROD_IMAGE="true"
             export SKIP_CHECK_REMOTE_IMAGE="true"
-            export FAIL_ON_GITHUB_DOCKER_PULL_ERROR="true"
             shift 2
             ;;
         --init-script)
@@ -3608,7 +3603,7 @@ breeze::check_and_save_all_params
 
 build_images::determine_docker_cache_strategy
 
-build_images::get_docker_image_names
+build_images::get_docker_cache_image_names
 
 initialization::make_constants_read_only
 
