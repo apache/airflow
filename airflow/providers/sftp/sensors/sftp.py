@@ -72,7 +72,7 @@ class SFTPSensor(BaseSensorOperator):
             self.log.info('Poking for files matching pattern %s into %s', self.fnmatch_pattern, self.path)
             try:
                 mod_time = self.hook.get_mod_time_pattern(self.path, self.fnmatch_pattern)
-                self.log.info('Found Files last modified %s', str(mod_time))
+                self.log.info('Found %s Files last modified %s', str(len(mod_time)), str(mod_time))
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
                     raise e

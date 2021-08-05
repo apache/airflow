@@ -320,10 +320,9 @@ class SFTPHook(SSHHook):
         ftp_mdtm = {}
         conn = self.get_conn()
 
-        for file in conn.listdir(dir_path):
-            if fnmatch(file, fnmatch_pattern):
-                path_to_file = os.path.join(dir_path, file)
-                ftp_mdtm[path_to_file] = conn.stat(path_to_file).st_mtime
+        for file in self.list_directory_pattern(dir_path, fnmatch_pattern):
+            path_to_file = os.path.join(dir_path, file)
+            ftp_mdtm[path_to_file] = conn.stat(path_to_file).st_mtime
 
         f = lambda x: datetime.datetime.fromtimestamp(x).strftime('%Y%m%d%H%M%S')
 
