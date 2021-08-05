@@ -30,7 +30,8 @@ import subprocess
 import time
 import traceback
 from collections import OrderedDict
-from multiprocessing import Pool, cpu_count
+import multiprocessing
+from multiprocessing import cpu_count
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
@@ -48,6 +49,7 @@ from airflow.executors.base_executor import BaseExecutor, CommandType, EventBuff
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -200,7 +202,7 @@ def on_celery_import_modules(*args, **kwargs):
 # pylint: enable=unused-import
 
 
-class CeleryExecutor(BaseExecutor):
+class CeleryExecutor(BaseExecutor, MultiprocessingStartMethodMixin):
     """
     CeleryExecutor is recommended for production use of Airflow. It allows
     distributing the execution of task instances to multiple worker nodes.
@@ -327,7 +329,9 @@ class CeleryExecutor(BaseExecutor):
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
             signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
-        with Pool(processes=num_processes, initializer=reset_signals) as send_pool:
+        mp_start_method = self._get_multiprocessing_start_method()
+        context = multiprocessing.get_context(mp_start_method)
+        with context.Pool(processes=num_processes, initializer=reset_signals) as send_pool:
             key_and_async_results = send_pool.map(
                 send_task_to_executor, task_tuples_to_send, chunksize=chunksize
             )
@@ -592,7 +596,9 @@ class BulkStateFetcher(LoggingMixin):
     def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
-        with Pool(processes=num_process) as sync_pool:
+        mp_start_method = self._get_multiprocessing_start_method()
+        context = multiprocessing.get_context(mp_start_method)
+        with context.Pool(processes=num_process) as sync_pool:
             chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
 
             task_id_to_states_and_info = sync_pool.map(
