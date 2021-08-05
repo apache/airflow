@@ -50,6 +50,7 @@ spec:
           SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
           FROM task_instance
           WHERE (state='running' OR state='queued')
-{{ $k8s_queue := default (printf "kubernetes") .Values.config.celery_kubernetes_executor.kubernetes_queue -}}
-{{ eq .Values.executor "CeleryKubernetesExecutor" | ternary (printf "AND queue != '%s'" $k8s_queue) (print "") | indent 14 }}
+          {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
+          AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+          {{- end }}
 {{- end }}
