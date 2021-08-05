@@ -80,7 +80,7 @@ PIP package                     Version required
 ==============================  ==================
 ``apache-airflow``              ``>=2.1.0``
 ``snowflake-connector-python``  ``>=2.4.1``
-``snowflake-sqlalchemy``        ``>=1.1.0``
+``snowflake-sqlalchemy``        ``>=1.1.0,<1.3``
 ==============================  ==================
 
 Cross provider package dependencies
