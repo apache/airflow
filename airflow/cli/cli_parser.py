@@ -30,7 +30,9 @@ from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors import celery_executor, celery_kubernetes_executor
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -60,10 +62,15 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if action.dest == 'subcommand' and value == 'celery':
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-                message = (
-                    f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
-                )
-                raise ArgumentError(action, message)
+                executor_cls = import_string(ExecutorLoader.executors.get(executor, executor))
+                if not issubclass(
+                    executor_cls,
+                    (celery_executor.CeleryExecutor, celery_kubernetes_executor.CeleryKubernetesExecutor),
+                ):
+                    message = (
+                        f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
+                    )
+                    raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':
             try:
                 import kubernetes.client  # noqa: F401
