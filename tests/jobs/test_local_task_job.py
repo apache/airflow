@@ -779,6 +779,7 @@ class TestLocalTaskJob:
         assert retry_callback_called.value == 1
         assert task_terminated_externally.value == 1
 
+    @pytest.mark.quarantined
     def test_process_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that task runner sets tasks to retry when they(task runner)
