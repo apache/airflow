@@ -29,8 +29,6 @@ import time
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
-from flask_appbuilder.models.decorators import renders
-from flask_babel import lazy_gettext
 
 import dill
 import lazy_object_proxy
@@ -38,7 +36,7 @@ import pendulum
 import six
 from six.moves.urllib.parse import quote_plus
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func, Boolean
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
@@ -50,7 +48,6 @@ from airflow.exceptions import (
 from airflow.models.base import Base, ID_LEN
 from airflow.models.log import Log
 from airflow.models.pool import Pool
-from airflow.models.dagrun import DagRun
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -68,7 +65,6 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from datetime import datetime, timedelta
 
 
 def clear_task_instances(tis,
@@ -1585,69 +1581,3 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.raw = raw
         self._set_context(self)
-
-    @classmethod
-    @provide_session
-    def list_tasks(cls, craft_type=None, bolt_number=None, session=None):
-        tasks = cls.query_tasks(craft_type, bolt_number, session).all()
-        return tasks
-
-    @classmethod
-    @provide_session
-    def query_tasks(cls, craft_type=None, bolt_number=None, session=None):
-        tasks = session.query(TaskInstance)
-        if craft_type:
-            tasks = tasks.filter(TaskInstance.craft_type == craft_type)
-        if bolt_number:
-            tasks = tasks.filter(TaskInstance.bolt_number == bolt_number)
-        return tasks
-
-    @classmethod
-    @provide_session
-    def retried_tasks(cls, delta=None, session=None):
-        tasks = session.query(func.count(TaskInstance.task_id)).filter(TaskInstance._try_number > 1)
-        if delta:
-            return tasks.filter(
-                TaskInstance.execution_date > (timezone.utcnow() + delta)).first()[0]
-        return tasks.first()[0]
-
-    @staticmethod
-    @provide_session
-    def get_all_curves(tasks, session=None):
-        need_delete_curve_files = []
-        for task in tasks:
-            if not task.entity_id:
-                continue
-            f = "{}.csv".format(task.entity_id)
-            need_delete_curve_files.append(f)
-        return need_delete_curve_files
-
-    @classmethod
-    @provide_session
-    def get_all_tasks(cls, start_date=None, end_date=None, upstream=True, downstream=True, limit=100, session=None):
-        TI = cls
-        qry = session.query(TI).filter(TI.state == State.SUCCESS).limit(limit).from_self()
-        if start_date:
-            qry = qry.filter(TI.execution_date >= start_date)
-        if end_date:
-            qry = qry.filter(TI.execution_date <= end_date)
-        tasks = qry.all()
-        return tasks
-
-    @classmethod
-    @provide_session
-    def clear_tasks(cls, start_date=None, end_date=None, upstream=True, downstream=True, limit=10, session=None):
-        count = 0
-        for model in DagRun, TaskFail, cls, TaskReschedule, XCom, Log:
-            if model == TaskFail or model == XCom or model == TaskReschedule or model == Log:
-                qry = session.query(model)
-            else:
-                qry = session.query(model).filter(model.state == State.SUCCESS)
-            if start_date:
-                qry = qry.filter(model.execution_date >= start_date)
-            if end_date:
-                qry = qry.filter(model.execution_date <= end_date)
-            # if limit:
-            #     qry = qry.limit(limit)
-            count += qry.delete()
-        return count

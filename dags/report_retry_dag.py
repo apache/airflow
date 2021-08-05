@@ -9,7 +9,9 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.python_operator import PythonOperator
 from datetime import timedelta
 from airflow.utils.logger import generate_logger
-
+from sqlalchemy import func
+from airflow.utils.db import provide_session
+from airflow.utils import timezone
 _logger = generate_logger(__name__)
 
 local_tz = pendulum.timezone("Asia/Shanghai")
@@ -26,9 +28,18 @@ dag = DAG(dag_id, description=u'分析任务重试数量报警推送',
           schedule_interval='@hourly', default_args=desoutter_default_args, catchup=False)
 
 
+@provide_session
+def retried_tasks(delta=None, session=None):
+    tasks = session.query(func.count(TaskInstance.task_id)).filter(TaskInstance._try_number > 1)
+    if delta:
+        return tasks.filter(
+            TaskInstance.execution_date > (timezone.utcnow() + delta)).first()[0]
+    return tasks.first()[0]
+
+
 def retry_counts(period):
     delta = timedelta(**period)
-    tasks = TaskInstance.retried_tasks(delta=delta)
+    tasks = retried_tasks(delta=delta)
     _logger.debug('found {} retried tasks'.format(tasks))
     return tasks
 

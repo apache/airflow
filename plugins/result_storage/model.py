@@ -1,8 +1,8 @@
 from airflow.utils.sqlalchemy import UtcDateTime
 from plugins.result_storage.base import Base
-from airflow.utils import helpers, timezone
+from airflow.utils import timezone
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text
-
+from airflow.utils.db import provide_session
 
 class ResultModel(Base):
     """
@@ -83,4 +83,19 @@ class ResultModel(Base):
         else:
             return dict()
 
+    @classmethod
+    @provide_session
+    def list_results(cls, craft_type=None, bolt_number=None, session=None):
+        results = cls.query_results(craft_type, bolt_number, session).all()
+        return results
+
+    @classmethod
+    @provide_session
+    def query_results(cls, craft_type=None, bolt_number=None, session=None):
+        results = session.query(cls)
+        if craft_type:
+            results = results.filter(cls.craft_type == craft_type)
+        if bolt_number:
+            results = results.filter(cls.bolt_number == bolt_number)
+        return results
 

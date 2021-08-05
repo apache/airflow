@@ -10,7 +10,6 @@ from airflow.api.common.experimental import trigger_dag as trigger
 import json
 from typing import Optional
 from airflow.exceptions import AirflowNotFoundException, AirflowConfigException
-from airflow.utils.db import provide_session
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -138,14 +137,10 @@ def get_curve_args(connection_key='qcos_minio'):
 
 
 def get_curve_entity_ids(bolt_number=None, craft_type=None):
-    tasks = TaskInstance.list_tasks(craft_type, bolt_number)
+    from plugins.result_storage.model import ResultModel
+    tasks = ResultModel.list_results(craft_type, bolt_number)
     tasks.sort(key=lambda t: t.execution_date, reverse=True)
     return list(map(lambda ti: ti.entity_id, tasks))
-
-
-def get_analysis_tasks(bolt_number=None, craft_type=None):
-    tasks = TaskInstance.query_tasks(craft_type, bolt_number).order_by(TaskInstance.execution_date.desc())
-    return tasks
 
 
 def trigger_push_result_to_mq(data_type, result, entity_id, verify_error, curve_mode):
