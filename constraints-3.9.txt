@@ -90,7 +90,7 @@ apache-airflow-providers-oracle==2.0.0
 apache-airflow-providers-pagerduty==2.0.0
 apache-airflow-providers-papermill==2.0.0
 apache-airflow-providers-plexus==2.0.0
-apache-airflow-providers-postgres==2.1.0
+apache-airflow-providers-postgres==2.0.0
 apache-airflow-providers-presto==2.0.0
 apache-airflow-providers-qubole==2.0.0
 apache-airflow-providers-redis==2.0.0
