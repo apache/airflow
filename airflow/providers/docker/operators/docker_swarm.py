@@ -94,6 +94,19 @@ class DockerSwarmOperator(DockerOperator):
         Supported only if the Docker engine is using json-file or journald logging drivers.
         The `tty` parameter should be set to use this with Python applications.
     :type enable_logging: bool
+    :param configs: List of docker configs to be exposed to the containers of the swarm service.
+        The configs are ConfigReference objects as per the docker api
+        [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
+    :type configs: list[ConfigReference]
+    :param secrets: List of docker secrets to be exposed to the containers of the swarm service.
+        The secrets are SecretReference objects as per the docker create_service api.
+        [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
+    :type secrets: list[SecretReference]
+    :param mode: Indicate whether a service should be deployed as a replicated or global service.
+        Can be either `replicated` or `global`
+    :type mode: str
+    :param replicas: Number of replicas. For replicated services only.
+    :type replicas: int
     """
 
     def __init__(
