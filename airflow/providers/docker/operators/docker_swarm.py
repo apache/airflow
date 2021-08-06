@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
-from typing import Optional
+from typing import Optional, List
 
 import requests
 from docker import types
+from docker.types.services import ConfigReference, SecretReference
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -95,11 +96,21 @@ class DockerSwarmOperator(DockerOperator):
     :type enable_logging: bool
     """
 
-    def __init__(self, *, image: str, enable_logging: bool = True, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        image: str,
+        enable_logging: bool = True,
+        configs: List[ConfigReference] = None,
+        secrets: List[SecretReference] = None,
+        **kwargs
+    ) -> None:
         super().__init__(image=image, **kwargs)
 
         self.enable_logging = enable_logging
         self.service = None
+        self.configs = configs if configs is not None else []
+        self.secrets = secrets if secrets is not None else []
 
     def execute(self, context) -> None:
         self.cli = self._get_cli()
@@ -121,6 +132,8 @@ class DockerSwarmOperator(DockerOperator):
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,
+                    configs=self.configs,
+                    secrets=self.secrets,
                 ),
                 restart_policy=types.RestartPolicy(condition='none'),
                 resources=types.Resources(mem_limit=self.mem_limit),
