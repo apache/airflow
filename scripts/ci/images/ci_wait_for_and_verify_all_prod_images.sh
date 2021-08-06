@@ -25,6 +25,8 @@ source "${LIBRARIES_DIR}/_all_libs.sh"
 
 initialization::set_output_color_variables
 
+PARALLEL_TAIL_LENGTH=5
+
 parallel::make_sure_gnu_parallel_is_installed
 
 parallel::make_sure_python_versions_are_specified
