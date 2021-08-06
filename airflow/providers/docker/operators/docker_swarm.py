@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
-from typing import Optional, List, Union
+from typing import List, Optional, Union
 
 import requests
 from docker import types
-from docker.types.services import ConfigReference, SecretReference, NetworkAttachmentConfig
+from docker.types.services import ConfigReference, NetworkAttachmentConfig, SecretReference
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -121,7 +121,7 @@ class DockerSwarmOperator(DockerOperator):
         mode: str = "replicated",
         replicas: int = 1,
         networks: List[Union[str, NetworkAttachmentConfig]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
 
