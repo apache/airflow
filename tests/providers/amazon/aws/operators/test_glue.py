@@ -35,8 +35,8 @@ class TestAwsGlueJobOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            "s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
             "/glue-examples/glue-scripts/sample_aws_glue_job.py",
+            "s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
         ]
     )
     @mock.patch.object(AwsGlueJobHook, 'get_job_state')
