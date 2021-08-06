@@ -444,7 +444,7 @@ slack = [
 ]
 snowflake = [
     'snowflake-connector-python>=2.4.1',
-    'snowflake-sqlalchemy>=1.1.0,<1.3',
+    'snowflake-sqlalchemy>=1.1.0,<1.3',  # 1.3+ depends on sqlachemy 1.4
 ]
 spark = [
     'pyspark',
