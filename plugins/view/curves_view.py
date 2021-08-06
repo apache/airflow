@@ -36,7 +36,7 @@ class CurvesView(AirflowModelView):
     list_template = "curves.html"
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
     route_base = '/curves'
-    from plugins.result_storage.model import ResultModel
+    from plugins.models.result import ResultModel
     datamodel = CustomSQLAInterface(ResultModel)
     search_columns = ['execution_date', 'car_code', 'error_tag', 'measure_result', 'result', 'final_state']
     label_columns = {

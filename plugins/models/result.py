@@ -1,5 +1,5 @@
 from airflow.utils.sqlalchemy import UtcDateTime
-from plugins.result_storage.base import Base
+from plugins.models.base import Base
 from airflow.utils import timezone
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text
 from airflow.utils.db import provide_session

@@ -5,7 +5,6 @@ from airflow.plugins_manager import AirflowPlugin
 from plugins.utils import get_curve_args
 import os
 from pprint import pformat
-from airflow.models.dagrun import DagRun
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.entities.result_storage import ClsResultStorage
 from plugins.utils import generate_bolt_number

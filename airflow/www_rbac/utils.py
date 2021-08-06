@@ -549,7 +549,7 @@ class DistinctSQLAInterface(CustomSQLAInterface):
         return count, query.all()
 
 
-from airflow.models.error_tag import ErrorTag
+from plugins.models.error_tag import ErrorTag
 
 
 class ErrorTagField(StringField):

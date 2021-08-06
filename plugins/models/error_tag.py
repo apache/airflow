@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 
-from plugins.result_storage.base import Base
+from plugins.models.base import Base
 from airflow.utils.db import provide_session
 
 

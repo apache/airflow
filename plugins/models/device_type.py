@@ -1,7 +1,7 @@
 from airflow.utils.db import provide_session
 from sqlalchemy import Column, String, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-from plugins.result_storage.base import Base
+from plugins.models.base import Base
 
 
 class DeviceTypeModel(Base):

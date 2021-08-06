@@ -37,7 +37,6 @@ from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordFi
 from wtforms.ext.sqlalchemy.fields import QuerySelectField
 from airflow.utils.db import provide_session, create_session
 from airflow.models import Connection
-from airflow.models.tightening_controller import DeviceTypeModel
 from airflow.utils import timezone
 from airflow.www_rbac.validators import ValidJson
 from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
@@ -205,6 +204,7 @@ class ErrorTagForm(DynamicForm):
 def device_type_query():
     print(current_app)
     session = current_app.appbuilder.get_session()
+    from plugins.models.device_type import DeviceTypeModel
     return session.query(DeviceTypeModel)
 
 

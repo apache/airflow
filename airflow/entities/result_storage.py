@@ -10,8 +10,8 @@ from airflow.utils.db import create_session
 from airflow.utils.logger import generate_logger
 from airflow import settings
 from .entity import ClsEntity
-from plugins.result_storage.base import Base
-from plugins.result_storage.model import ResultModel
+from plugins.models.base import Base
+from plugins.models.result import ResultModel
 from airflow.utils.db import provide_session
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')

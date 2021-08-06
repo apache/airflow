@@ -86,7 +86,7 @@ def verify_params(test_mode, **kwargs):
 
 @provide_session
 def get_all_results(start_date=None, end_date=None, limit=1000, session=None):
-    from plugins.result_storage.model import ResultModel
+    from plugins.models.result import ResultModel
     qry = session.query(ResultModel).limit(limit).from_self()
     if start_date:
         qry = qry.filter(ResultModel.update_time >= start_date)

@@ -81,7 +81,7 @@ def is_mismatch(measure_result, curve_mode):
 def get_recent_mismatch_rate(session=None):
     delta = datetime.timedelta(days=2)
     min_date = timezone.utcnow() - delta
-    from plugins.result_storage.model import ResultModel
+    from plugins.models.result import ResultModel
     total = session.query(ResultModel).filter(
         ResultModel.execution_date > min_date
     ).count()

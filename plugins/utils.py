@@ -137,7 +137,7 @@ def get_curve_args(connection_key='qcos_minio'):
 
 
 def get_curve_entity_ids(bolt_number=None, craft_type=None):
-    from plugins.result_storage.model import ResultModel
+    from plugins.models.result import ResultModel
     tasks = ResultModel.list_results(craft_type, bolt_number)
     tasks.sort(key=lambda t: t.execution_date, reverse=True)
     return list(map(lambda ti: ti.entity_id, tasks))

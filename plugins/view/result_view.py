@@ -1,4 +1,4 @@
-from plugins.result_storage.model import ResultModel
+from plugins.models.result import ResultModel
 import json
 from flask_babel import gettext
 from plugins import AirflowModelView
