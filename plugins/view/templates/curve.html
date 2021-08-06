@@ -293,7 +293,7 @@
       const entity_id = '{{ result.entity_id }}'.replaceAll('/', '@')
       $.ajax({
         type: 'POST',
-        url: "{{ url_for('api_experimental.double_confirm_task',entity_id='ENTITY_ID' ) }}".replace('ENTITY_ID', entity_id),
+        url: "{{ url_for('DoubleConfirmView.double_confirm_task',entity_id='ENTITY_ID' ) }}".replace('ENTITY_ID', entity_id),
         data: JSON.stringify({
           csrf_token: '{{ csrf_token() }}',
           final_state: finalState,

@@ -1,4 +1,3 @@
-from flask_appbuilder.baseviews import BaseCRUDView
 from flask_appbuilder.urltools import get_filter_args, get_page_args
 import http
 import zipfile
@@ -7,17 +6,16 @@ from flask_login import current_user
 from airflow.settings import TIMEZONE
 from datetime import datetime
 from typing import List
-from flask import Response, request
+from flask import Response
 from flask import send_file
 from flask_appbuilder import expose, has_access
-from flask_babel import lazy_gettext, gettext
+from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
-from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from plugins.models.error_tag import ErrorTag
 from airflow.www_rbac import utils as wwwutils
-from plugins.utils import get_curve, get_result, get_results
+from plugins.utils import get_curve_entity_ids, get_curve, get_result, get_results
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
@@ -26,6 +24,8 @@ from pathlib import Path
 from airflow.configuration import AIRFLOW_HOME
 from airflow.plugins_manager import AirflowPlugin
 from plugins import AirflowModelView
+from flask import jsonify, request
+from airflow.exceptions import AirflowException
 
 _logger = logging.getLogger(__name__)
 
@@ -103,7 +103,7 @@ class CurvesView(AirflowModelView):
             t.view_error_tags = ','.join(ret)
 
         selected_results = {}
-        results=list(get_results(curves_list))
+        results = list(get_results(curves_list))
 
         for result in results:
             selected_results[result.get('entity_id')] = {
@@ -184,7 +184,7 @@ class CurvesView(AirflowModelView):
                 curve = get_curve(entity_id)
                 f = f'{entity_id}.csv'.replace('/', '@')
                 f = os.path.join(base_path, f)
-                dd = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in curve.items() ]))
+                dd = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in curve.items()]))
                 dd.to_csv(f, index=False, header=True)
                 files.append(f)
             except Exception as e:
@@ -240,6 +240,55 @@ class CurvesView(AirflowModelView):
     def view_curves(self, bolt_no, craft_type):
         ret = self.do_render(bolt_no=bolt_no, craft_type=craft_type)
         return ret
+
+    @expose(
+        '/curves',
+        methods=['GET'])
+    @has_access
+    def get_curves_by_entity_id(self):
+        try:
+            curves = []
+
+            vals = request.args.get('entity_ids')
+            entity_ids = str(vals).split(",")
+            if entity_ids is None:
+                return jsonify(curves)
+
+            for entity_id in entity_ids:
+                try:
+                    curve = get_curve(entity_id)
+                    if curve is not None:
+                        curves.append({
+                            'entity_id': entity_id,
+                            'curve': curve
+                        })
+                except Exception as e:
+                    _log.debug(e)
+                    curves.append({
+                        'entity_id': entity_id,
+                        'curve': []
+                    })
+
+            return jsonify(curves=curves)
+        except AirflowException as e:
+            _logger.error("get_curves_by_entity_id", e)
+            response = jsonify(error="{}".format(repr(e)))
+            response.status_code = e.status_code
+            return response
+
+    @expose('/curve-entities', methods=['GET'])
+    @has_access
+    def get_curves(self):
+        try:
+            craft_type = request.args.get('craft_type')
+            bolt_number = request.args.get('bolt_number')
+            entity_ids = get_curve_entity_ids(bolt_number, craft_type)
+            return jsonify(entity_ids)
+        except AirflowException as e:
+            _logger.error(e)
+            response = jsonify(error="{}".format(e))
+            response.status_code = e.status_code
+            return response
 
 
 curves_view = CurvesView()

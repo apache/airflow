@@ -235,7 +235,7 @@
       const entityIdsStr = queryEntityIds.join(',');
       return $.ajax({
         type: 'GET',
-        url: "{{ url_for('api_experimental.get_curves_by_entity_id') }}",
+        url: "{{ url_for('CurvesView.get_curves_by_entity_id') }}",
         data: {
           entity_ids: entityIdsStr,
           csrf_token: '{{ csrf_token() }}'

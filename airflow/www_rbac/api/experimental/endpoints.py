@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import airflow.api
 import numpy as np
 from airflow.api.common.experimental import pool as pool_api
@@ -27,28 +26,17 @@ from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
-from airflow.models import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
-from plugins.utils import trigger_training_dag, get_curve_entity_ids, get_curve, trigger_push_result_to_mq, \
-    get_result
+from plugins.utils import get_results
 from flask import g, Blueprint, jsonify, request, url_for
-import json
 import os
-from airflow.utils.db import provide_session
-import datetime
-from random import choices
 from airflow.utils.spc.lexen_spc.chart import covert2dArray, xbar_rbar, rbar, xbar_sbar, sbar, cpk
 from airflow.utils.spc.lexen_spc.plot import histogram, normal
-import math
-from airflow.settings import TIMEZONE
-from flask_login import current_user
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
-import logging
 from airflow.utils.misc import profile, get_first_valid_data
 from airflow.configuration import conf
 
@@ -63,132 +51,6 @@ api_experimental = Blueprint('api_experimental', __name__)
 SPC_SIZE = int(os.getenv('ENV_SPC_SIZE', '5'))
 
 SPC_MIN_LEN = int(os.getenv('ENV_SPC_MIN_LEN', '25'))
-
-ANALYSIS_NOK_RESULTS = True if os.environ.get('ANALYSIS_NOK_RESULTS', 'False') == 'True' else False
-
-FILTER_MISMATCHES = True if os.environ.get('FILTER_MISMATCHES', 'False') == 'True' else False
-
-MISMATCH_RATE_RELAXATION_FACTOR = float(os.environ.get('MISMATCH_RATE_RELAXATION_FACTOR', '1'))
-MISMATCH_RATE_RELAXATION_THRESHOLD = float(os.environ.get('MISMATCH_RATE_RELAXATION_THRESHOLD', '0.001'))
-
-
-def is_mismatch(measure_result, curve_mode):
-    analysis_result = 'OK' if curve_mode[0] is 0 else 'NOK'
-    return analysis_result != measure_result
-
-
-@provide_session
-def get_recent_mismatch_rate(session=None):
-    delta = datetime.timedelta(days=2)
-    min_date = timezone.utcnow() - delta
-    from plugins.models.result import ResultModel
-    total = session.query(ResultModel).filter(
-        ResultModel.execution_date > min_date
-    ).count()
-    mismatches = session.query(ResultModel).filter(
-        ResultModel.execution_date > min_date,
-        ResultModel.measure_result != ResultModel.result
-    ).count()
-    _log.info('total:{},mismatches:{}'.format(total, mismatches))
-    return mismatches / (total + 1), total
-
-
-def mismatch_relaxation(mismatch_rate, count) -> bool:
-    if mismatch_rate < MISMATCH_RATE_RELAXATION_THRESHOLD:
-        return False
-    weight = MISMATCH_RATE_RELAXATION_FACTOR * (mismatch_rate - MISMATCH_RATE_RELAXATION_THRESHOLD) / (
-        mismatch_rate + MISMATCH_RATE_RELAXATION_THRESHOLD) * math.log(count, 2)
-    _log.info('weight: {}'.format(weight))
-    return choices([True, False], weights=[weight, 1])[0]
-
-
-def filter_mismatches(measure_result, curve_mode):
-    if not is_mismatch(measure_result, curve_mode):
-        _log.info('not mismatch')
-        return curve_mode
-    _log.info('is mismatch')
-    mismatch_rate, count = get_recent_mismatch_rate()
-    _log.info('mismatch_rate:{}, count:{}'.format(mismatch_rate, count))
-    if mismatch_relaxation(mismatch_rate, count):
-        return [0] if measure_result == 'OK' else [1]
-    return curve_mode
-
-
-@csrf.exempt
-@api_experimental.route('/taskinstance/analysis_result', methods=['PUT'])
-@requires_authentication
-def put_anaylysis_result():
-    try:
-        data = request.get_json(force=True)
-        entity_id = data.get('entity_id')
-        measure_result = data.get('measure_result')
-        curve_mode = list(map(int, data.get('result')))  # List[int]
-
-        if FILTER_MISMATCHES:
-            curve_mode = filter_mismatches(measure_result, curve_mode)
-
-        result = 'OK' if curve_mode[0] is 0 else 'NOK'
-        if (not ANALYSIS_NOK_RESULTS) and measure_result == 'NOK':
-            result = 'NOK'
-
-        extra = {}
-        if curve_mode[0] is not 0:
-            extra['error_tag'] = json.dumps(curve_mode)
-        else:
-            extra['error_tag'] = json.dumps([])
-        extra['verify_error'] = int(data.get('verify_error'))  # OK, NOK
-
-        from airflow.hooks.result_storage_plugin import ResultStorageHook
-        ResultStorageHook.save_analyze_result(
-            entity_id,
-            result,
-            **extra
-        )
-
-        trigger_push_result_to_mq(
-            'analysis_result',
-            result,
-            entity_id,
-            extra['verify_error'],
-            curve_mode
-        )
-        resp = jsonify({'response': 'ok'})
-        resp.status_code = 200
-        return resp
-    except Exception as e:
-        resp = jsonify({'error': repr(e)})
-        resp.status_code = 500
-        return resp
-
-
-@csrf.exempt
-@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/error_tag',
-                        methods=['POST'])
-@requires_authentication
-def save_curve_error_tag(dag_id, task_id, execution_date):
-    return _save_curve_error_tag(dag_id, task_id, execution_date)
-
-
-@csrf.exempt
-@api_experimental.route('/error_tag/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>',
-                        methods=['POST'])
-@requires_authentication
-def save_curve_error_tag_w_csrf(dag_id, task_id, execution_date):
-    return _save_curve_error_tag(dag_id, task_id, execution_date)
-
-
-def _save_curve_error_tag(dag_id, task_id, execution_date):
-    try:
-        params = request.get_json(force=True)  # success failed
-        error_tags = params.get('error_tags', [])
-        # fixme
-        # do_save_curve_error_tag(dag_id, task_id, execution_date, error_tags)
-        return jsonify(response='ok')
-    except Exception as e:
-        _log.info(repr(e))
-        response = jsonify({'error': repr(e)})
-        response.status_code = 400
-        return response
 
 
 @csrf.exempt
@@ -232,12 +94,7 @@ def trigger_dag(dag_id):
         replace_microseconds = to_boolean(data['replace_microseconds'])
 
     try:
-        dr = trigger.trigger_dag(
-            dag_id,
-            run_id,
-            conf,
-            execution_date,
-            replace_microseconds)
+        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
@@ -296,9 +153,7 @@ def get_dag_code(dag_id):
         return response
 
 
-@api_experimental.route(
-    '/dags/<string:dag_id>/tasks/<string:task_id>',
-    methods=['GET'])
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
 @requires_authentication
 def task_info(dag_id, task_id):
     """Returns a JSON with a task's public instance variables. """
@@ -315,49 +170,6 @@ def task_info(dag_id, task_id):
               for k, v in vars(info).items()
               if not k.startswith('_')}
     return jsonify(fields)
-
-
-@api_experimental.route('/double-confirm/<string:entity_id>', methods=['POST'])
-@requires_authentication
-def double_confirm_task(entity_id):
-    try:
-        msg = CUSTOM_LOG_FORMAT.format(datetime.datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, getattr(current_user, 'last_name', ''),
-                                       CUSTOM_EVENT_NAME_MAP['DOUBLE_CONFIRM'], CUSTOM_PAGE_NAME_MAP['CURVE'], '曲线二次确认')
-        logging.info(msg)
-        params = request.get_json(force=True)  # success failed
-        final_state = params.get('final_state', None)
-        error_tags = params.get('error_tags', [])
-        entity_id = entity_id.replace('@', '/')
-        result = get_result(entity_id)
-        if not result.get('result'):
-            raise AirflowException(u"分析结果还没有生成，请等待分析结果生成后再进行二次确认")
-        if not final_state or final_state not in ['OK', 'NOK']:
-            raise AirflowException("二次确认参数未定义或数值不正确!")
-        trigger_training_dag(entity_id, final_state, error_tags)
-        return jsonify({'response': 'ok'})
-    except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
-
-
-@api_experimental.route(
-    '/curve-entities',
-    methods=['GET'])
-@requires_authentication
-def get_curves():
-    try:
-        craft_type = request.args.get('craft_type')
-        bolt_number = request.args.get('bolt_number')
-        entity_ids = get_curve_entity_ids(bolt_number, craft_type)
-        return jsonify(entity_ids)
-    except AirflowException as e:
-        _log.info(e)
-        response = jsonify(error="{}".format(e))
-        response.status_code = e.status_code
-        return response
 
 
 TORQUE = "torque"
@@ -480,46 +292,8 @@ def get_spc_by_entity_id():
         return response
 
 
-@api_experimental.route(
-    '/curves',
-    methods=['GET'])
-@requires_authentication
-def get_curves_by_entity_id():
-    try:
-        curves = []
-
-        vals = request.args.get('entity_ids')
-        entity_ids = str(vals).split(",")
-        if entity_ids is None:
-            return jsonify(curves)
-
-        for entity_id in entity_ids:
-            try:
-                curve = get_curve(entity_id)
-                if curve is not None:
-                    curves.append({
-                        'entity_id': entity_id,
-                        'curve': curve
-                    })
-            except Exception as e:
-                _log.debug(e)
-                curves.append({
-                    'entity_id': entity_id,
-                    'curve': []
-                })
-
-        return jsonify(curves=curves)
-    except AirflowException as e:
-        _log.error("get_curves_by_entity_id", e)
-        response = jsonify(error="{}".format(repr(e)))
-        response.status_code = e.status_code
-        return response
-
-
 # ToDo: Shouldn't this be a PUT method?
-@api_experimental.route(
-    '/dags/<string:dag_id>/paused/<string:paused>',
-    methods=['GET'])
+@api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
 @requires_authentication
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
@@ -528,7 +302,7 @@ def dag_paused(dag_id, paused):
     with create_session() as session:
         orm_dag = (
             session.query(DagModel)
-                .filter(DagModel.dag_id == dag_id).first()
+                   .filter(DagModel.dag_id == dag_id).first()
         )
         if paused == 'true':
             orm_dag.is_paused = True
@@ -550,22 +324,6 @@ def dag_is_paused(dag_id):
     return jsonify({'is_paused': is_paused})
 
 
-# @api_experimental.route('/curve_template/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
-# @requires_authentication
-# def remove_curve_from_curve_template(bolt_no, craft_type):
-#     params = request.get_json(force=True)
-#     version = params.get('version', None)
-#     mode = params.get('mode', None)
-#     group_center_idx = params.get('group_center_idx', None)
-#     curve_idx = params.get('curve_idx', None)
-#     try:
-#         new_template = do_remove_curve_from_curve_template(bolt_no, craft_type, version, mode, group_center_idx,
-#                                                            curve_idx)
-#         return {'data': new_template}
-#     except Exception as e:
-#         return {'error': str(e)}
-
-
 @api_experimental.route(
     '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
     methods=['GET'])
@@ -585,7 +343,7 @@ def task_instance_info(dag_id, execution_date, task_id):
         error_message = (
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
+            .format(execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -661,8 +419,7 @@ def latest_dag_runs():
                 'dag_run_url': url_for('Airflow.graph', dag_id=dagrun.dag_id,
                                        execution_date=dagrun.execution_date)
             })
-    # old flask versions dont support jsonifying arrays
-    return jsonify(items=payload)
+    return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
 
 
 @api_experimental.route('/pools/<string:name>', methods=['GET'])
