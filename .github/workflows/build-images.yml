@@ -74,6 +74,7 @@ jobs:
       image-build: ${{ steps.dynamic-outputs.outputs.image-build }}
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
     steps:
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
@@ -231,6 +232,8 @@ jobs:
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      INSTALL_PROVIDERS_FROM_SOURCES: >
+        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
     steps:
       - name: Set envs
         # Set pull image tag for CI image build, in order to pull the image pushed
