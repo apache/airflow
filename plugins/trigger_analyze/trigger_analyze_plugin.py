@@ -9,11 +9,9 @@ from typing import Dict
 from airflow.api.common.experimental import trigger_dag as trigger
 from distutils.util import strtobool
 from flask import jsonify, request, Blueprint
-from flask_appbuilder import BaseView
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www_rbac.app import csrf
-from flask_appbuilder import expose
 from plugins.utils import trigger_push_result_to_mq
 import json
 from airflow.utils.db import provide_session

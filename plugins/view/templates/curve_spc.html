@@ -72,7 +72,7 @@
     const entityIdsStr = queryEntityIds.join(',');
     return $.ajax({
       type: 'GET',
-      url: "{{ url_for('api_experimental.get_spc_by_entity_id') }}",
+      url: "{{ url_for('curve_spc.get_spc_by_entity_id') }}",
       data: {
         entity_ids: entityIdsStr,
         type: type,
@@ -100,10 +100,10 @@
   }
 
   function canDoSPCAnalysis() {
-    if (backendSelectedTasks && Object.keys(backendSelectedTasks).length > 0) {
-      const backendSelectedEntityIds = Object.keys(backendSelectedTasks);
+    if (backendSelectedResults && Object.keys(backendSelectedResults).length > 0) {
+      const backendSelectedEntityIds = Object.keys(backendSelectedResults);
       selectedEIds = selectedEIds.concat(backendSelectedEntityIds);
-      extraData = Object.assign(extraData, backendSelectedTasks);
+      extraData = Object.assign(extraData, backendSelectedResults);
     }
     if (selectedEIds.length === 0) {
       alert('SPC查看! 请确认! 未选中任意曲线!!!');
