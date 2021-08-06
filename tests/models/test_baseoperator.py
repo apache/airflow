@@ -31,6 +31,7 @@ from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.edgemodifier import Label
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
@@ -405,7 +406,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
 
-        # Begin test for classic operators
+        # Begin test for classic operators with `EdgeModifiers`
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
         chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
@@ -422,7 +423,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
             upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
         )
 
-        # Begin test for `XComArgs`
+        # Begin test for `XComArgs` with `EdgeModifiers`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
         [xop1, xop2, xop3, xop4, xop5, xop6] = [
             task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
@@ -442,6 +443,23 @@ class TestBaseOperatorMethods(unittest.TestCase):
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
         )
 
+        # Begin test for `TaskGroups`
+        [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
+        [op1, op2] = [DummyOperator(task_id=f'task{i}', dag=dag) for i in range(1, 3)]
+        [tgop1, tgop2] = [
+            DummyOperator(task_id=f'task_group_task{i}', task_group=tg1, dag=dag) for i in range(1, 3)
+        ]
+        [tgop3, tgop4] = [
+            DummyOperator(task_id=f'task_group_task{i}', task_group=tg2, dag=dag) for i in range(1, 3)
+        ]
+        chain(op1, tg1, tg2, op2)
+
+        assert {tgop1, tgop2} == set(op1.get_direct_relatives(upstream=False))
+        assert {tgop3, tgop4} == set(tgop1.get_direct_relatives(upstream=False))
+        assert {tgop3, tgop4} == set(tgop2.get_direct_relatives(upstream=False))
+        assert [op2] == tgop3.get_direct_relatives(upstream=False)
+        assert [op2] == tgop4.get_direct_relatives(upstream=False)
+
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
         [op1, op2] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 3)]
@@ -457,8 +475,15 @@ class TestBaseOperatorMethods(unittest.TestCase):
         with pytest.raises(TypeError):
             chain([xop1, xop2], 1)
 
+        # Begin test for `EdgeModifiers`
         with pytest.raises(TypeError):
             chain([Label("labe1"), Label("label2")], 1)
+
+        # Begin test for `TaskGroups`
+        [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
+
+        with pytest.raises(TypeError):
+            chain([tg1, tg2], 1)
 
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
@@ -471,7 +496,7 @@ class TestBaseOperatorMethods(unittest.TestCase):
         with pytest.raises(AirflowException):
             chain([op1, op2, op3], [label1, label2])
 
-        # Begin test for `XComArgs`
+        # Begin test for `XComArgs` with `EdgeModifiers`
         [label3, label4] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
         [xop1, xop2, xop3, xop4, xop5] = [
             task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
@@ -483,6 +508,12 @@ class TestBaseOperatorMethods(unittest.TestCase):
 
         with pytest.raises(AirflowException):
             chain([xop1, xop2, xop3], [label1, label2])
+
+        # Begin test for `TaskGroups`
+        [tg1, tg2, tg3, tg4, tg5] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 6)]
+
+        with pytest.raises(AirflowException):
+            chain([tg1, tg2], [tg3, tg4, tg5])
 
     def test_lineage_composition(self):
         """
