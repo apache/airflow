@@ -75,11 +75,12 @@ class TestDockerSwarmOperator(unittest.TestCase):
             secrets=[SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
             mode="replicated",
             replicas=3,
+            networks=["dummy_network"],
         )
         operator.execute(None)
 
         types_mock.TaskTemplate.assert_called_once_with(
-            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
+            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj, networks=["dummy_network"],
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest',

@@ -15,11 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
-from typing import Optional, List
+from typing import Optional, List, Union
 
 import requests
 from docker import types
-from docker.types.services import ConfigReference, SecretReference
+from docker.types.services import ConfigReference, SecretReference, NetworkAttachmentConfig
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -107,6 +107,8 @@ class DockerSwarmOperator(DockerOperator):
     :type mode: str
     :param replicas: Number of replicas. For replicated services only.
     :type replicas: int
+    :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
+    :type networks: List[Union[str, NetworkAttachmentConfig]]
     """
 
     def __init__(
@@ -118,16 +120,18 @@ class DockerSwarmOperator(DockerOperator):
         secrets: List[SecretReference] = None,
         mode: str = "replicated",
         replicas: int = 1,
+        networks: List[Union[str, NetworkAttachmentConfig]] = None,
         **kwargs
     ) -> None:
         super().__init__(image=image, **kwargs)
 
         self.enable_logging = enable_logging
         self.service = None
-        self.configs = configs if configs is not None else []
-        self.secrets = secrets if secrets is not None else []
+        self.configs = configs
+        self.secrets = secrets
         self.mode = mode
         self.replicas = replicas
+        self.networks = networks
 
     def execute(self, context) -> None:
         self.cli = self._get_cli()
@@ -154,6 +158,7 @@ class DockerSwarmOperator(DockerOperator):
                 ),
                 restart_policy=types.RestartPolicy(condition='none'),
                 resources=types.Resources(mem_limit=self.mem_limit),
+                networks=self.networks,
             ),
             name=f'airflow-{get_random_string()}',
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
