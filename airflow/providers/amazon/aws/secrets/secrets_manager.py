@@ -17,9 +17,9 @@
 # under the License.
 """Objects relating to sourcing secrets from AWS Secrets Manager"""
 
+import ast
 from typing import Optional
 
-import ast
 import boto3
 
 try:
@@ -100,9 +100,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         Create a Secrets Manager client
         """
-        session = boto3.session.Session(
-            profile_name=self.profile_name
-        )
+        session = boto3.session.Session(profile_name=self.profile_name)
+
         return session.client(service_name="secretsmanager", **self.kwargs)
 
     def _get_extra(self, secret, conn_string):
@@ -120,7 +119,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             'host': ['host', 'remote_host', 'server'],
             'port': ['port'],
             'schema': ['database', 'schema'],
-            'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine']
+            'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
         }
 
         conn_d = {}
@@ -203,6 +202,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.log.debug(
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
-                "Secret %s not found.", secret_id
+                "Secret %s not found.",
+                secret_id
             )
             return None
