@@ -4,7 +4,7 @@ from flask_babel import gettext
 from plugins import AirflowModelView
 from flask_babel import lazy_gettext
 from airflow.plugins_manager import AirflowPlugin
-from airflow.models.error_tag import ErrorTag
+from plugins.models.error_tag import ErrorTag
 from airflow.configuration import conf
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')

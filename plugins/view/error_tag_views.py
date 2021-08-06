@@ -16,7 +16,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
 from airflow.utils.db import provide_session
 from flask_appbuilder.models.sqla.filters import BaseFilter, get_field_setup_query
-from airflow.models.error_tag import ErrorTag
+from plugins.models.error_tag import ErrorTag
 from airflow.www_rbac.decorators import has_dag_access
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging

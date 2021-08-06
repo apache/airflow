@@ -17,7 +17,7 @@ def load_default_controller(file_dir, session=None):
     if not os.path.exists(file_path):
         log.error("导入控制器目录不存在：{}".format(file_path))
         return
-    from airflow.models import TighteningController
+    from plugins.models.tightening_controller import TighteningController
     val = load_data_from_csv(file_path, {
         'controller_name': '控制器名称',
         'line_code': '工段编号',
@@ -50,14 +50,14 @@ def merge_data(model, data, is_exist, session=None):
 @provide_session
 def create_default_error_tags(session=None):
     log.info("Loading default error_tags")
-    from airflow.models import ErrorTag
+    from plugins.models.error_tag import ErrorTag
     current_dir = os.path.dirname(os.path.abspath(__file__))
     error_tags = load_data_from_csv(os.path.join(current_dir, 'data/error_tags.csv'), {
         'value': 'value',
         'label': 'label'
     })
     for error_tag in error_tags:
-        data = ErrorTag(lable=error_tag.get('label'), value=error_tag.get('value'))
+        data = ErrorTag(label=error_tag.get('label'), value=error_tag.get('value'))
         merge_data(model=ErrorTag, data=data, is_exist=ErrorTag.label == data.label, session=session)
 
 
@@ -71,7 +71,7 @@ def create_device_type_support(session=None):
         'name': 'name',
         'view_config': 'view_config'
     })
-    from airflow.models.tightening_controller import DeviceTypeModel
+    from plugins.models.device_type import DeviceTypeModel
     for device_type in device_types:
         data = DeviceTypeModel(name=device_type.get('name'), view_config=device_type.get('view_config'))
         merge_data(model=DeviceTypeModel, data=data, is_exist=DeviceTypeModel.name == data.name, session=session)

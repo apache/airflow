@@ -1,24 +1,7 @@
 from airflow.utils.db import provide_session
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-from airflow.models.base import Base, ID_LEN
-
-
-class DeviceTypeModel(Base):
-    __tablename__ = "device_type"
-
-    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
-
-    name = Column(String(100), nullable=False)
-
-    view_config = Column(String(1000), nullable=True)
-
-    def __repr__(self):
-        return self.name
-
-    def __init__(self, name=None, view_config=None):
-        self.name = name
-        self.view_config = view_config
+from plugins.result_storage.base import Base
 
 
 class TighteningController(Base):
@@ -34,11 +17,12 @@ class TighteningController(Base):
     line_name = Column(String(1000), nullable=True)
     work_center_code = Column(String(1000), nullable=False)
     work_center_name = Column(String(1000), nullable=True)
-    device_type = relationship('DeviceTypeModel')
+    device_type = relationship('models.device_type.DeviceTypeModel')
     device_type_id = Column(Integer, ForeignKey('device_type.id'), nullable=False)
 
-    def __init__(self, controller_name=None, line_code=None, line_name=None, work_center_code=None,
-                 work_center_name=None, device_type_id=None):
+    def __init__(self, *args, controller_name=None, line_code=None, line_name=None, work_center_code=None,
+                 work_center_name=None, device_type_id=None, **kwargs):
+        super(TighteningController, self).__init__(*args, **kwargs)
         self.controller_name = controller_name
         self.line_code = line_code
         self.line_name = line_name

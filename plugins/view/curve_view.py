@@ -4,8 +4,7 @@ import logging
 from flask_appbuilder import BaseView, expose, has_access
 from airflow.models import Variable
 from plugins.utils import get_curve, get_result
-from airflow.models.tightening_controller import TighteningController
-from airflow.models.error_tag import ErrorTag
+from plugins.models.error_tag import ErrorTag
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 from datetime import datetime
 import os
@@ -46,6 +45,7 @@ class CurveView(BaseView):
                                                     default_var={})
 
         controller_name = result.get('controller_name', '').split('@')[0] if result.get('controller_name') else ''
+        from plugins.models.tightening_controller import TighteningController
         controller = TighteningController.find_controller(controller_name)
         error_tags = ErrorTag.get_all()
         ENV_CURVE_GRAPH_SHOW_RANGE = os.environ.get('CURVE_GRAPH_SHOW_RANGE')

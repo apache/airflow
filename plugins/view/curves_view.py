@@ -15,7 +15,7 @@ from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
-from airflow.models.error_tag import ErrorTag
+from plugins.models.error_tag import ErrorTag
 from airflow.www_rbac import utils as wwwutils
 from plugins.utils import get_curve, get_result, get_results
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP

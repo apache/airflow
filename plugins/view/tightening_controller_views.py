@@ -10,7 +10,6 @@ from flask import redirect
 from plugins import AirflowModelView
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
-from airflow.models.tightening_controller import TighteningController, DeviceTypeModel
 from airflow.www_rbac.decorators import has_dag_access, action_logging
 from airflow.www_rbac.forms import TighteningControllerForm
 from flask_appbuilder.widgets import RenderTemplateWidget
@@ -32,7 +31,7 @@ class AirflowControllerListWidget(RenderTemplateWidget):
 
 class TighteningControllerView(AirflowModelView):
     route_base = '/tightening_controller'
-
+    from plugins.models.tightening_controller import TighteningController
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
 
     base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete', 'can_controllerimport']
@@ -150,6 +149,7 @@ class TighteningControllerView(AirflowModelView):
 
 
 class DeviceTypeView(ModelView):
+    from plugins.models.device_type import DeviceTypeModel
     datamodel = AirflowModelView.CustomSQLAInterface(DeviceTypeModel)
     related_views = [TighteningControllerView]
 

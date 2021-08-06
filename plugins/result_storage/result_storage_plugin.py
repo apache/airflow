@@ -9,7 +9,6 @@ from airflow.models.dagrun import DagRun
 from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.entities.result_storage import ClsResultStorage
 from plugins.utils import generate_bolt_number
-from airflow.models.tightening_controller import TighteningController
 from plugins.utils import get_craft_type
 
 _logger = LoggingMixin().log
@@ -18,10 +17,12 @@ SUPPORT_DEVICE_TYPE = ['tightening', 'servo_press']
 MINIO_ROOT_URL = os.environ.get('MINIO_ROOT_URL', None)
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
+
 class ResultStorageHook(BaseHook, ABC):
 
     @staticmethod
     def get_line_code_by_controller_name(controller_name):
+        from plugins.models.tightening_controller import TighteningController
         controller_data = TighteningController.find_controller(controller_name)
         if not controller_data:
             raise Exception('未找到控制器数据: {}'.format(controller_name))

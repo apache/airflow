@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 
-from airflow.models.base import Base
+from plugins.result_storage.base import Base
 from airflow.utils.db import provide_session
 
 
@@ -16,9 +16,10 @@ class ErrorTag(Base):
     value = Column(String(1000), nullable=False, unique=True)
 
     def __init__(
-        self, lable=None, value=None):
-        self.label = lable
+        self, *args, label=None, value=None,**kwargs):
+        self.label = label
         self.value = value
+        super(ErrorTag, self).__init__(*args, **kwargs)
 
     @staticmethod
     def _error_tag_data(error_tag):
