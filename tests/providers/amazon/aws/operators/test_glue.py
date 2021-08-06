@@ -17,6 +17,7 @@
 
 import unittest
 from unittest import mock
+
 from parameterized import parameterized
 
 from airflow import configuration
@@ -32,19 +33,18 @@ class TestAwsGlueJobOperator(unittest.TestCase):
 
         self.glue_hook_mock = glue_hook_mock
 
-    @parameterized.expand([
-        "s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
-        "/glue-examples/glue-scripts/sample_aws_glue_job.py"])
+    @parameterized.expand(
+        [
+            "s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
+            "/glue-examples/glue-scripts/sample_aws_glue_job.py",
+        ]
+    )
     @mock.patch.object(AwsGlueJobHook, 'get_job_state')
     @mock.patch.object(AwsGlueJobHook, 'initialize_job')
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     @mock.patch.object(S3Hook, "load_file")
     def test_execute_without_failure(
-        self, script_location,
-        mock_load_file,
-        mock_get_conn,
-        mock_initialize_job,
-        mock_get_job_state
+        self, script_location, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state
     ):
         glue = AwsGlueJobOperator(
             task_id='test_glue_operator',
@@ -55,8 +55,7 @@ class TestAwsGlueJobOperator(unittest.TestCase):
             s3_bucket='some_bucket',
             iam_role_name='my_test_role',
         )
-        mock_initialize_job.return_value = {'JobRunState' : 'RUNNING',
-                                            'JobRunId' : '11111'}
+        mock_initialize_job.return_value = {'JobRunState': 'RUNNING', 'JobRunId': '11111'}
         mock_get_job_state.return_value = 'SUCCEEDED'
         glue.execute(None)
         mock_initialize_job.assert_called_once_with({})
