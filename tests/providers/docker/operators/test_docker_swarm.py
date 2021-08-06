@@ -23,6 +23,7 @@ import pytest
 import requests
 from docker import APIClient
 from docker.types import Mount
+from docker.types.services import ConfigReference, SecretReference
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -69,6 +70,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
             mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             auto_remove=True,
             tty=True,
+            configs=[ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
+            secrets=[SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
         )
         operator.execute(None)
 
@@ -82,6 +85,8 @@ class TestDockerSwarmOperator(unittest.TestCase):
             mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
             tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
+            configs=[ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
+            secrets=[SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
