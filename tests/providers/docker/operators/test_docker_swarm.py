@@ -80,7 +80,10 @@ class TestDockerSwarmOperator(unittest.TestCase):
         operator.execute(None)
 
         types_mock.TaskTemplate.assert_called_once_with(
-            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj, networks=["dummy_network"],
+            container_spec=mock_obj,
+            restart_policy=mock_obj,
+            resources=mock_obj,
+            networks=["dummy_network"],
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest',
