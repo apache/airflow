@@ -3431,7 +3431,6 @@ class VariableModelView(AirflowModelView):
         'delete': 'delete',
         'action_muldelete': 'delete',
         'action_varexport': 'read',
-        'varimport': 'create',
     }
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
@@ -3494,6 +3493,7 @@ class VariableModelView(AirflowModelView):
         return response
 
     @expose('/varimport', methods=["POST"])
+    @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
     @action_logging
     def varimport(self):
         """Import variables"""
