@@ -540,7 +540,7 @@ class DAG(LoggingMixin):
         :param date_last_automated_dagrun: The ``max(execution_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
-        :returns: DagRunInfo of the next dagrun, or None if a dagrun is not
+        :return: DagRunInfo of the next dagrun, or None if a dagrun is not
             going to be scheduled.
         """
         # Never schedule a subdag. It will be scheduled by its parent dag.
