@@ -18,12 +18,7 @@
 
 
 from airflow.models.dag import DagModel
-
-from airflow.www.views import (
-    build_dag_sorting_query,
-    dag_query_for_key,
-    query_ordering_transform_for_key,
-)
+from airflow.www.views import build_dag_sorting_query, dag_query_for_key, query_ordering_transform_for_key
 
 
 def test_dag_sorting_query():

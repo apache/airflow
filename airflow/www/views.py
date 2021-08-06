@@ -681,8 +681,8 @@ class Airflow(AirflowBaseView):
                 num_of_all_dags = all_dags_count
 
             order_by_query = build_dag_sorting_query(
-                sorting_key=arg_sorting_key,
-                sorting_order=arg_orderby_key)
+                sorting_key=arg_sorting_key, sorting_order=arg_orderby_key
+            )
 
             dags = (
                 current_dags.order_by(order_by_query)
