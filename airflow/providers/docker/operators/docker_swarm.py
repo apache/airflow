@@ -103,6 +103,8 @@ class DockerSwarmOperator(DockerOperator):
         enable_logging: bool = True,
         configs: List[ConfigReference] = None,
         secrets: List[SecretReference] = None,
+        mode: str = "replicated",
+        replicas: int = 1,
         **kwargs
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -111,6 +113,8 @@ class DockerSwarmOperator(DockerOperator):
         self.service = None
         self.configs = configs if configs is not None else []
         self.secrets = secrets if secrets is not None else []
+        self.mode = mode
+        self.replicas = replicas
 
     def execute(self, context) -> None:
         self.cli = self._get_cli()
@@ -140,6 +144,7 @@ class DockerSwarmOperator(DockerOperator):
             ),
             name=f'airflow-{get_random_string()}',
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
+            mode=types.ServiceMode(mode=self.mode, replicas=self.replicas),
         )
 
         self.log.info('Service started: %s', str(self.service))
