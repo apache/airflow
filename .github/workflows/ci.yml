@@ -576,7 +576,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
-      (github.repository == 'apache/airflow' || github.event_name != 'schedule')
+      (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
+      needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -921,7 +922,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     # Only upload coverage on merges to main
     if: >
       github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1003,8 +1005,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
     if: >
-      needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true'
+      ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
+        needs.build-info.outputs.needs-helm-tests == 'true' ) &&
+      needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1057,7 +1060,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         ${{needs.build-info.outputs.pythonVersionsListAsString}}
       CURRENT_KUBERNETES_VERSIONS_AS_STRING: >
         ${{needs.build-info.outputs.kubernetesVersionsListAsString}}
-    if: needs.build-info.outputs.run-kubernetes-tests == 'true'
+    if: >
+      needs.build-info.outputs.run-kubernetes-tests == 'true' &&
+      needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1118,7 +1123,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mysql
       - tests-mssql
       - tests-postgres
-      - tests-kubernetes
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
