@@ -307,3 +307,12 @@ class TestSubDagOperator(unittest.TestCase):
             mock_skip.assert_called_once_with(context['dag_run'], context['execution_date'], [dummy_dag_task])
         else:
             mock_skip.assert_not_called()
+
+    def test_deprecation_warning(self):
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.test', default_args=default_args)
+        warning_message = """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."""
+
+        with pytest.warns(DeprecationWarning) as warnings:
+            SubDagOperator(task_id='test', subdag=subdag, dag=dag)
+        assert warning_message == str(warnings[0].message)
