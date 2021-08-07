@@ -107,7 +107,7 @@ def dag_backfill(args, dag=None):
         dag.run(
             start_date=args.start_date,
             end_date=args.end_date,
-            mark_success=args.mark_success,
+            mark_as=args.mark_as,
             local=args.local,
             donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
             ignore_first_depends_on_past=args.ignore_first_depends_on_past,

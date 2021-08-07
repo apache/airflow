@@ -61,7 +61,7 @@ class TestDebugExecutor:
         assert key in executor.queued_tasks
         assert key in executor.tasks_params
         assert executor.tasks_params[key] == {
-            "mark_success": True,
+            "mark_as": State.SUCCESS,
             "pool": "pool",
         }
 

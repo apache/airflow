@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from typing import Dict, List, Optional, Set, Union
 
 from airflow.configuration import conf
@@ -23,6 +24,7 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 
 class CeleryKubernetesExecutor(LoggingMixin):
@@ -95,7 +97,9 @@ class CeleryKubernetesExecutor(LoggingMixin):
     def queue_task_instance(
         self,
         task_instance: TaskInstance,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        # Can we consider this class as "final", hence remove this parameter ? (check _router() method)
+        mark_success: Optional[bool] = None,
         pickle_id: Optional[str] = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -105,20 +109,28 @@ class CeleryKubernetesExecutor(LoggingMixin):
         cfg_path: Optional[str] = None,
     ) -> None:
         """Queues task instance via celery or kubernetes executor"""
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         executor = self._router(SimpleTaskInstance(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
         executor.queue_task_instance(
             task_instance,
-            mark_success,
-            pickle_id,
-            ignore_all_deps,
-            ignore_depends_on_past,
-            ignore_task_deps,
-            ignore_ti_state,
-            pool,
-            cfg_path,
+            mark_as=mark_as,
+            pickle_id=pickle_id,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            pool=pool,
+            cfg_path=cfg_path,
         )
 
     def has_task(self, task_instance: TaskInstance) -> bool:

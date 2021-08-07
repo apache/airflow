@@ -34,6 +34,7 @@ from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNE
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import parse as parsedate
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -94,7 +95,7 @@ class Arg:
 
     def __init__(
         self,
-        flags=_UNSET,
+        flags,
         help=_UNSET,
         action=_UNSET,
         default=_UNSET,
@@ -103,6 +104,7 @@ class Arg:
         choices=_UNSET,
         required=_UNSET,
         metavar=_UNSET,
+        const=_UNSET,
         dest=_UNSET,
     ):
         self.flags = flags
@@ -219,7 +221,17 @@ ARG_NUM_EXECUTIONS = Arg(
 
 # backfill
 ARG_MARK_SUCCESS = Arg(
-    ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
+    ("-m", "--mark-success"),
+    action="store_const",
+    const=TaskInstanceState.SUCCESS,
+    dest='mark_as',
+    help="Mark jobs as succeeded without running them (deprecated, use --mark-as=success instead)",
+)
+ARG_MARK_AS = Arg(
+    ("-a", "--mark-as"),
+    choices=['skipped', 'success'],
+    help="Mark jobs as being in the given state, without running them",
+    type=TaskInstanceState,
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
@@ -250,7 +262,7 @@ ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
     ),
     action="store_true",
 )
-ARG_POOL = Arg(("--pool",), "Resource pool to use")
+ARG_POOL = Arg(("--pool",), help="Resource pool to use")
 ARG_DELAY_ON_LIMIT = Arg(
     ("--delay-on-limit",),
     help=(
@@ -895,6 +907,7 @@ DAGS_COMMANDS = (
             ARG_TASK_REGEX,
             ARG_START_DATE,
             ARG_END_DATE,
+            ARG_MARK_AS,
             ARG_MARK_SUCCESS,
             ARG_LOCAL,
             ARG_DONOT_PICKLE,
@@ -1005,6 +1018,7 @@ TASKS_COMMANDS = (
             ARG_TASK_ID,
             ARG_EXECUTION_DATE_OR_DAGRUN_ID,
             ARG_SUBDIR,
+            ARG_MARK_AS,
             ARG_MARK_SUCCESS,
             ARG_FORCE,
             ARG_POOL,

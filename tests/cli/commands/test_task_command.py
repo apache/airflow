@@ -128,7 +128,7 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_run(self.parser.parse_args(args0), dag=dag)
         mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
-            mark_success=False,
+            mark_as=None,
             ignore_all_deps=True,
             ignore_depends_on_past=False,
             ignore_task_deps=False,
@@ -161,7 +161,7 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_run(self.parser.parse_args(args0), dag=dag)
         mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
-            mark_success=False,
+            mark_as=None,
             ignore_all_deps=True,
             ignore_depends_on_past=False,
             ignore_task_deps=False,

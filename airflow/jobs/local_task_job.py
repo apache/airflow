@@ -17,6 +17,7 @@
 # under the License.
 #
 import signal
+import warnings
 from typing import Optional
 
 import psutil
@@ -34,7 +35,7 @@ from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 class LocalTaskJob(BaseJob):
@@ -49,12 +50,21 @@ class LocalTaskJob(BaseJob):
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         pickle_id: Optional[str] = None,
         pool: Optional[str] = None,
         *args,
         **kwargs,
     ):
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         self.task_instance = task_instance
         self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
@@ -63,7 +73,7 @@ class LocalTaskJob(BaseJob):
         self.ignore_ti_state = ignore_ti_state
         self.pool = pool
         self.pickle_id = pickle_id
-        self.mark_success = mark_success
+        self.mark_as = mark_as
         self.task_runner = None
 
         # terminating state is used so that a job don't try to
@@ -85,7 +95,7 @@ class LocalTaskJob(BaseJob):
         signal.signal(signal.SIGTERM, signal_handler)
 
         if not self.task_instance.check_and_change_state_before_execution(
-            mark_success=self.mark_success,
+            mark_as=self.mark_as,
             ignore_all_deps=self.ignore_all_deps,
             ignore_depends_on_past=self.ignore_depends_on_past,
             ignore_task_deps=self.ignore_task_deps,

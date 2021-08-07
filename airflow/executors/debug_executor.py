@@ -24,12 +24,13 @@ DebugExecutor
 """
 
 import threading
+import warnings
 from typing import Any, Dict, List, Optional
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 class DebugExecutor(BaseExecutor):
@@ -90,7 +91,9 @@ class DebugExecutor(BaseExecutor):
     def queue_task_instance(
         self,
         task_instance: TaskInstance,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        # Can we consider this class as "final", hence remove this parameter ?
+        mark_success: Optional[bool] = None,
         pickle_id: Optional[str] = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -100,6 +103,14 @@ class DebugExecutor(BaseExecutor):
         cfg_path: Optional[str] = None,
     ) -> None:
         """Queues task instance with empty command because we do not need it."""
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise ValueError('You cannot use both `mark_success` and `mark_as` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere
@@ -108,7 +119,7 @@ class DebugExecutor(BaseExecutor):
         )
         # Save params for TaskInstance._run_raw_task
         self.tasks_params[task_instance.key] = {
-            "mark_success": mark_success,
+            "mark_as": mark_as,
             "pool": pool,
         }
 

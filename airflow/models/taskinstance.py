@@ -73,7 +73,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
 try:
@@ -423,7 +423,8 @@ class TaskInstance(Base, LoggingMixin):
 
     def command_as_list(
         self,
-        mark_success=False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         ignore_all_deps=False,
         ignore_task_deps=False,
         ignore_depends_on_past=False,
@@ -440,6 +441,14 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         dag: Union["DAG", "DagModel"]
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
         if hasattr(self, 'task') and hasattr(self.task, 'dag'):
@@ -464,7 +473,7 @@ class TaskInstance(Base, LoggingMixin):
             self.dag_id,
             self.task_id,
             self.execution_date,
-            mark_success=mark_success,
+            mark_as=mark_as,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
             ignore_depends_on_past=ignore_depends_on_past,
@@ -483,7 +492,8 @@ class TaskInstance(Base, LoggingMixin):
         dag_id: str,
         task_id: str,
         execution_date: datetime,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
@@ -505,7 +515,13 @@ class TaskInstance(Base, LoggingMixin):
         :type task_id: str
         :param execution_date: Execution date for the task
         :type execution_date: datetime
+        :param mark_as: Mark the task as being in the given state.
+        :type mark_as: .TaskInstanceState
         :param mark_success: Whether to mark the task as successful
+           .. deprecated: 2.1.3
+
+                Use ``mark_as=State.SUCCESS`` instead.
+
         :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
@@ -536,10 +552,18 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         :rtype: list[str]
         """
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         iso = execution_date.isoformat()
         cmd = ["airflow", "tasks", "run", dag_id, task_id, iso]
-        if mark_success:
-            cmd.extend(["--mark-success"])
+        if mark_as:
+            cmd.extend(["--mark-as", mark_as.value])
         if pickle_id:
             cmd.extend(["--pickle", str(pickle_id)])
         if job_id:
@@ -572,8 +596,8 @@ class TaskInstance(Base, LoggingMixin):
         return base_url + f"/log?execution_date={iso}&task_id={self.task_id}&dag_id={self.dag_id}"
 
     @property
-    def mark_success_url(self):
-        """URL to mark TI success"""
+    def mark_skipped_url(self):
+        """URL to mark the :class:`.TaskInstance` as skipped"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
         return base_url + (
@@ -583,7 +607,22 @@ class TaskInstance(Base, LoggingMixin):
             f"&execution_date={iso}"
             "&upstream=false"
             "&downstream=false"
-            "&state=success"
+            f"&state={State.SKIPPED}"
+        )
+
+    @property
+    def mark_success_url(self):
+        """URL to mark the :class:`.TaskInstance` as successful"""
+        iso = quote(self.execution_date.isoformat())
+        base_url = conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/confirm"
+            f"?task_id={self.task_id}"
+            f"&dag_id={self.dag_id}"
+            f"&execution_date={iso}"
+            "&upstream=false"
+            "&downstream=false"
+            f"&state={State.SUCCESS}"
         )
 
     @provide_session
@@ -1018,7 +1057,8 @@ class TaskInstance(Base, LoggingMixin):
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
@@ -1039,7 +1079,13 @@ class TaskInstance(Base, LoggingMixin):
         :type ignore_task_deps: bool
         :param ignore_ti_state: Disregards previous task instance state
         :type ignore_ti_state: bool
+        :param mark_as: Don't run the task, mark it as being in the given state.
+        :type mark_as: .TaskInstanceState
         :param mark_success: Don't run the task, mark its state as success
+           .. deprecated: 2.1.3
+
+                Use ``mark_as=State.SUCCESS`` instead.
+
         :type mark_success: bool
         :param test_mode: Doesn't record success or failure in the DB
         :type test_mode: bool
@@ -1052,6 +1098,14 @@ class TaskInstance(Base, LoggingMixin):
         :return: whether the state was changed to running or not
         :rtype: bool
         """
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         task = self.task
         self.refresh_from_task(task, pool_override=pool)
         self.test_mode = test_mode
@@ -1066,9 +1120,9 @@ class TaskInstance(Base, LoggingMixin):
         # TODO: Logging needs cleanup, not clear what is being printed
         hr_line_break = "\n" + ("-" * 80)  # Line break
 
-        if not mark_success:
+        if not mark_as:
             # Firstly find non-runnable and non-requeueable tis.
-            # Since mark_success is not set, we do nothing.
+            # Since mark_as is not set, we do nothing.
             non_requeueable_dep_context = DepContext(
                 deps=RUNNING_DEPS - REQUEUEABLE_DEPS,
                 ignore_all_deps=ignore_all_deps,
@@ -1137,8 +1191,8 @@ class TaskInstance(Base, LoggingMixin):
         # "max number of connections reached"
         settings.engine.dispose()  # type: ignore
         if verbose:
-            if mark_success:
-                self.log.info("Marking success for %s on %s", self.task, self.execution_date)
+            if mark_as:
+                self.log.info("Marking task %s on %s as %s", self.task, self.execution_date, mark_as.value)
             else:
                 self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
@@ -1165,7 +1219,8 @@ class TaskInstance(Base, LoggingMixin):
     @Sentry.enrich_errors
     def _run_raw_task(
         self,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
@@ -1178,7 +1233,13 @@ class TaskInstance(Base, LoggingMixin):
         completion and runs any post-execute callbacks. Meant to be called
         only after another function changes the state to running.
 
+        :param mark_as: Don't run the tasks, mark it with the given state.
+        :type: mark_as: .TaskInstanceState
         :param mark_success: Don't run the task, mark its state as success
+           .. deprecated: 2.1.3
+
+                Use ``mark_as=State.SUCCESS`` instead.
+
         :type mark_success: bool
         :param test_mode: Doesn't record success or failure in the DB
         :type test_mode: bool
@@ -1187,6 +1248,14 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         task = self.task
         self.test_mode = test_mode
         self.refresh_from_task(task, pool_override=pool)
@@ -1199,11 +1268,11 @@ class TaskInstance(Base, LoggingMixin):
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
-            if not mark_success:
+            if mark_as is None:
                 context = self.get_template_context()
                 self._prepare_and_execute_task_with_callbacks(context, task)
             self.refresh_from_db(lock_for_update=True)
-            self.state = State.SUCCESS
+            self.state = mark_as or TaskInstanceState.SUCCESS
         except AirflowSmartSensorException as e:
             self.log.info(e)
             return
@@ -1390,20 +1459,29 @@ class TaskInstance(Base, LoggingMixin):
         ignore_depends_on_past: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
         session=None,
     ) -> None:
         """Run TaskInstance"""
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         res = self.check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
+            mark_as=mark_as,
             test_mode=test_mode,
             job_id=job_id,
             pool=pool,
@@ -1415,7 +1493,7 @@ class TaskInstance(Base, LoggingMixin):
         try:
             error_fd = NamedTemporaryFile(delete=True)
             self._run_raw_task(
-                mark_success=mark_success,
+                mark_as=mark_as,
                 test_mode=test_mode,
                 job_id=job_id,
                 pool=pool,

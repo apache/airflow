@@ -18,6 +18,7 @@
 #
 
 import time
+import warnings
 from collections import OrderedDict
 from datetime import datetime
 from typing import Optional, Set
@@ -45,7 +46,7 @@ from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.utils import helpers, timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
@@ -126,7 +127,8 @@ class BackfillJob(BaseJob):
         dag,
         start_date=None,
         end_date=None,
-        mark_success=False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         donot_pickle=False,
         ignore_first_depends_on_past=False,
         ignore_task_deps=False,
@@ -146,8 +148,15 @@ class BackfillJob(BaseJob):
         :type start_date: datetime.datetime
         :param end_date: end date for the backfill date range.
         :type end_date: datetime.datetime
+        :param mark_as: Mark the task as being in the given state.
+            Value must be one of :class:`.TaskInstanceState`.
+        :type mark_as: .TaskInstanceState
         :param mark_success: flag whether to mark the task auto success.
-        :type mark_success: bool
+        :type mark_success: airflow.utils.state.State
+           .. deprecated: 2.1.3
+
+                Use ``mark_as=State.SUCCESS`` instead.
+
         :param donot_pickle: whether pickle
         :type donot_pickle: bool
         :param ignore_first_depends_on_past: whether to ignore depend on past
@@ -169,11 +178,19 @@ class BackfillJob(BaseJob):
         :param args:
         :param kwargs:
         """
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
         self.bf_end_date = end_date
-        self.mark_success = mark_success
+        self.mark_as = mark_as
         self.donot_pickle = donot_pickle
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.ignore_task_deps = ignore_task_deps
@@ -514,7 +531,7 @@ class BackfillJob(BaseJob):
 
                         executor.queue_task_instance(
                             ti,
-                            mark_success=self.mark_success,
+                            mark_as=self.mark_as,
                             pickle_id=pickle_id,
                             ignore_task_deps=self.ignore_task_deps,
                             ignore_depends_on_past=ignore_depends_on_past,

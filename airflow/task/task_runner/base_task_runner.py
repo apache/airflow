@@ -91,7 +91,7 @@ class BaseTaskRunner(LoggingMixin):
             + self._task_instance.command_as_list(
                 raw=True,
                 pickle_id=local_task_job.pickle_id,
-                mark_success=local_task_job.mark_success,
+                mark_as=local_task_job.mark_as,
                 job_id=local_task_job.id,
                 pool=local_task_job.pool,
                 cfg_path=cfg_path,

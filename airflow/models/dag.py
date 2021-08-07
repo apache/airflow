@@ -83,7 +83,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -1919,7 +1919,8 @@ class DAG(LoggingMixin):
         self,
         start_date=None,
         end_date=None,
-        mark_success=False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
         local=False,
         executor=None,
         donot_pickle=conf.getboolean('core', 'donot_pickle'),
@@ -1939,7 +1940,13 @@ class DAG(LoggingMixin):
         :type start_date: datetime.datetime
         :param end_date: the end date of the range to run
         :type end_date: datetime.datetime
+        :param mark_as: Mark the task as being in the given state.
+        :type mark_as: .TaskInstanceState
         :param mark_success: True to mark jobs as succeeded without running them
+           .. deprecated: 2.1.3
+
+                Use ``mark_as=State.SUCCESS`` instead.
+
         :type mark_success: bool
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
@@ -1967,6 +1974,14 @@ class DAG(LoggingMixin):
         :type: bool
 
         """
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
         from airflow.jobs.backfill_job import BackfillJob
 
         if not executor and local:
@@ -1981,7 +1996,7 @@ class DAG(LoggingMixin):
             self,
             start_date=start_date,
             end_date=end_date,
-            mark_success=mark_success,
+            mark_as=mark_as,
             executor=executor,
             donot_pickle=donot_pickle,
             ignore_task_deps=ignore_task_deps,

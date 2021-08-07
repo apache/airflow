@@ -16,6 +16,7 @@
 # under the License.
 """Base executor - this is the base class for all the implemented executors."""
 import sys
+import warnings
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -23,7 +24,7 @@ from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 PARALLELISM: int = conf.getint('core', 'PARALLELISM')
 
@@ -87,7 +88,8 @@ class BaseExecutor(LoggingMixin):
     def queue_task_instance(
         self,
         task_instance: TaskInstance,
-        mark_success: bool = False,
+        mark_success: Optional[bool] = None,
+        mark_as: Optional[TaskInstanceState] = None,
         pickle_id: Optional[str] = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -97,6 +99,15 @@ class BaseExecutor(LoggingMixin):
         cfg_path: Optional[str] = None,
     ) -> None:
         """Queues task instance."""
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
+
         pool = pool or task_instance.pool
 
         # TODO (edgarRd): AIRFLOW-1985:
@@ -105,7 +116,7 @@ class BaseExecutor(LoggingMixin):
         # For a long term solution we need to address AIRFLOW-1986
         command_list_to_run = task_instance.command_as_list(
             local=True,
-            mark_success=mark_success,
+            mark_as=mark_as,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
             ignore_task_deps=ignore_task_deps,

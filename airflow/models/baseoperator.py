@@ -70,6 +70,7 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -1252,15 +1253,25 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         end_date: Optional[datetime] = None,
         ignore_first_depends_on_past: bool = True,
         ignore_ti_state: bool = False,
-        mark_success: bool = False,
+        mark_as: Optional[TaskInstanceState] = None,
+        mark_success: Optional[bool] = None,
     ) -> None:
         """Run a set of task instances for a date range."""
+        if mark_success is not None:
+            warnings.warn(
+                'The argument `mark_success` has been deprecated. Use `state=State.SUCCESS` instead.',
+                DeprecationWarning,
+            )
+            if mark_as is not None:
+                raise TypeError('You cannot use both `mark_as` and `mark_success` arguments')
+            mark_as = TaskInstanceState.SUCCESS if mark_success else None
+
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
         for execution_date in self.dag.get_run_dates(start_date, end_date, align=False):
             TaskInstance(self, execution_date).run(
-                mark_success=mark_success,
+                mark_as=mark_as,
                 ignore_depends_on_past=(execution_date == start_date and ignore_first_depends_on_past),
                 ignore_ti_state=ignore_ti_state,
             )

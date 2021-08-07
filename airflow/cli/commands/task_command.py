@@ -113,7 +113,7 @@ def _run_task_by_executor(args, dag, ti):
     print("Sending to executor.")
     executor.queue_task_instance(
         ti,
-        mark_success=args.mark_success,
+        mark_as=args.mark_as,
         pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=args.ignore_depends_on_past,
@@ -129,7 +129,7 @@ def _run_task_by_local_task_job(args, ti):
     """Run LocalTaskJob, which monitors the raw task execution process"""
     run_job = LocalTaskJob(
         task_instance=ti,
-        mark_success=args.mark_success,
+        mark_as=args.mark_as,
         pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=args.ignore_depends_on_past,
@@ -167,7 +167,7 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
             )
         )
     ti._run_raw_task(
-        mark_success=args.mark_success,
+        mark_as=args.mark_as,
         job_id=args.job_id,
         pool=args.pool,
         error_file=args.error_file,
