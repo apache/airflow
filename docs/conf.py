@@ -500,6 +500,7 @@ autodoc_mock_imports = [
     'jira',
     'kubernetes',
     'msrestazure',
+    'oss2',
     'pandas',
     'pandas_gbq',
     'paramiko',
