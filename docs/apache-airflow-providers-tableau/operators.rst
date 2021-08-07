@@ -20,10 +20,10 @@
 .. _howto/operator:TableauOperator:
 
 TableauOperator
-=============
+===============
 
-Use the :class: ~airflow.providers.tableau.operators.TableauOperator to execute
-Tableau server client python commands in a Tableau <https://tableau.github.io/server-client-python/docs/api-ref>.
+Use the :class:`~airflow.providers.tableau.operators.TableauOperator` to execute
+Tableau server client python commands in a `Tableau <https://tableau.github.io/server-client-python/docs/api-ref>`.
 
 
 Using the Operator
