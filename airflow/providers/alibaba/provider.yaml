@@ -22,7 +22,7 @@ description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
 versions:
-  - 2.1.0
+  - 1.0.0
 
 additional-dependencies:
   - apache-airflow>=2.1.0
