@@ -40,8 +40,11 @@ RESOURCES_METHODS = {
 class TableauOperator(BaseOperator):
     """
     Exectues a Tableau API Resource
-
-    .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref
+    https://tableau.github.io/server-client-python/docs/api-ref
+    
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:TableauOperator`
 
     :param resource: The name of the resource to use.
     :type resource: str

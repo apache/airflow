@@ -36,7 +36,7 @@ Using the Operator
 | **site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**
 | **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**
 | **check_interval**: time in seconds that the job should wait in between each instance state checks until operation is completed. **float** - Default: **20**
-| **tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**  
+| **tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**
 |
 |
 
