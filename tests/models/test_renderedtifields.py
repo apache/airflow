@@ -26,6 +26,7 @@ from unittest import mock
 from parameterized import parameterized
 
 from airflow import settings
+from airflow.configuration import TEST_DAGS_FOLDER
 from airflow.models import Variable
 from airflow.models.dag import DAG
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
@@ -244,6 +245,7 @@ class TestRenderedTaskInstanceFields(unittest.TestCase):
         dag = DAG("test_get_k8s_pod_yaml", start_date=START_DATE)
         with dag:
             task = BashOperator(task_id="test", bash_command="echo hi")
+        dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
 
         ti = TI(task=task, execution_date=EXECUTION_DATE)
 

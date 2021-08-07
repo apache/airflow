@@ -68,7 +68,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.version import version
-from tests.models import DEFAULT_DATE
+from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
@@ -1743,6 +1743,45 @@ class TestTaskInstance(unittest.TestCase):
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    @parameterized.expand(
+        [
+            (State.SUCCESS, "Error when executing on_success_callback"),
+            (State.UP_FOR_RETRY, "Error when executing on_retry_callback"),
+            (State.FAILED, "Error when executing on_failure_callback"),
+        ]
+    )
+    def test_finished_callbacks_handle_and_log_exception(self, finished_state, expected_message):
+        called = completed = False
+
+        def on_finish_callable(context):
+            nonlocal called, completed
+            called = True
+            raise KeyError
+            completed = True
+
+        dag = DAG(
+            'test_success_callback_handles_exception',
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        )
+        task = DummyOperator(
+            task_id='op',
+            email='test@test.test',
+            on_success_callback=on_finish_callable,
+            on_retry_callback=on_finish_callable,
+            on_failure_callback=on_finish_callable,
+            dag=dag,
+        )
+
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti._log = mock.Mock()
+        ti.state = finished_state
+        ti._run_finished_callback()
+
+        assert called
+        assert not completed
+        ti.log.exception.assert_called_once_with(expected_message)
+
     def test_handle_failure(self):
         start_date = timezone.datetime(2016, 6, 1)
         dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
@@ -1899,6 +1938,26 @@ class TestTaskInstance(unittest.TestCase):
         assert call(f'ti.start.{dag.dag_id}.{op.task_id}') in stats_mock.mock_calls
         assert stats_mock.call_count == 5
 
+    def test_command_as_list(self):
+        dag = DAG(
+            'test_dag',
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        )
+        dag.fileloc = os.path.join(TEST_DAGS_FOLDER, 'x.py')
+        op = DummyOperator(task_id='dummy_op', dag=dag)
+        ti = TI(task=op, execution_date=DEFAULT_DATE)
+        assert ti.command_as_list() == [
+            'airflow',
+            'tasks',
+            'run',
+            dag.dag_id,
+            op.task_id,
+            DEFAULT_DATE.isoformat(),
+            '--subdir',
+            'DAGS_FOLDER/x.py',
+        ]
+
     def test_generate_command_default_param(self):
         dag_id = 'test_generate_command_default_param'
         task_id = 'task'
@@ -1925,8 +1984,9 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_get_rendered_template_fields(self):
 
-        with DAG('test-dag', start_date=DEFAULT_DATE):
+        with DAG('test-dag', start_date=DEFAULT_DATE) as dag:
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
+        dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
 
         ti = TI(task=task, execution_date=DEFAULT_DATE)
 
@@ -1984,6 +2044,8 @@ class TestTaskInstance(unittest.TestCase):
                             'test_get_rendered_k8s_spec',
                             'op1',
                             '2016-01-01T00:00:00+00:00',
+                            '--subdir',
+                            __file__,
                         ],
                         'image': ':',
                         'name': 'base',
