@@ -119,34 +119,6 @@ class TestDockerOperator(unittest.TestCase):
             'PRIVATE': 'MESSAGE'
         }, "To keep this private, it must be an underscored attribute."
 
-    @mock.patch('airflow.providers.docker.operators.docker.tls.TLSConfig')
-    def test_execute_tls(self, tls_class_mock):
-        tls_mock = mock.Mock()
-        tls_class_mock.return_value = tls_mock
-
-        operator = DockerOperator(
-            docker_url='tcp://127.0.0.1:2376',
-            image='ubuntu',
-            owner='unittest',
-            task_id='unittest',
-            tls_client_cert='cert.pem',
-            tls_ca_cert='ca.pem',
-            tls_client_key='key.pem',
-        )
-        operator.execute(None)
-
-        tls_class_mock.assert_called_once_with(
-            assert_hostname=None,
-            ca_cert='ca.pem',
-            client_cert=('cert.pem', 'key.pem'),
-            ssl_version=None,
-            verify=True,
-        )
-
-        self.client_class_mock.assert_called_once_with(
-            base_url='https://127.0.0.1:2376', tls=tls_mock, version=None
-        )
-
     def test_execute_unicode_logs(self):
         self.hook_mock.run_image.return_value = (['unicode container log 😁'], '')
 

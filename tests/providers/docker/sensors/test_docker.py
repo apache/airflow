@@ -22,17 +22,19 @@ from airflow.exceptions import AirflowException
 from airflow.providers.docker.sensors.docker import DockerSensor
 
 
-@mock.patch('airflow.providers.docker.sensors.docker.APIClient', autospec=True)
+@mock.patch('airflow.providers.docker.sensors.docker.get_client', autospec=True)
 @mock.patch('airflow.providers.docker.sensors.docker.DockerClientHook')
 class TestDockerOperator(unittest.TestCase):
-    def test_sensor_ok_on_container_success(self, hook_class, client_class):
+    def test_sensor_ok_on_container_success(self, hook_class, get_client_mock):
+        get_client_mock.return_value = mock.Mock()
         sensor = DockerSensor(image='ubuntu', task_id='unittest')
-        sensor.cli = client_class.return_value
+        sensor.cli = get_client_mock.return_value
         assert sensor.poke({})
 
-    def test_sensor_ng_on_container_failure(self, hook_class, client_class):
+    def test_sensor_ng_on_container_failure(self, hook_class, get_client_mock):
+        get_client_mock.return_value = mock.Mock()
         sensor = DockerSensor(image='ubuntu', task_id='unittest')
-        sensor.cli = client_class.return_value
+        sensor.cli = get_client_mock.return_value
         hook = hook_class.return_value
         hook.run_image.side_effect = AirflowException()
         assert not sensor.poke({})

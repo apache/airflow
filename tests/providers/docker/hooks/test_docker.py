@@ -163,3 +163,28 @@ class TestDockerHook(unittest.TestCase):
         hook = hook_class_mock.return_value
         assert hook_class_mock.call_count == 1
         assert hook.get_conn.call_count == 1
+
+    @mock.patch('airflow.providers.docker.hooks.docker.tls.TLSConfig')
+    def test_get_client_with_tls(self, tls_class_mock, docker_client_mock):
+        tls_mock = mock.Mock()
+        tls_class_mock.return_value = tls_mock
+
+        get_client(
+            docker_url='unix://var/run/docker.sock',
+            api_version='1.19',
+            tls_client_cert='cert.pem',
+            tls_ca_cert='ca.pem',
+            tls_client_key='key.pem',
+        )
+
+        tls_class_mock.assert_called_once_with(
+            assert_hostname=None,
+            ca_cert='ca.pem',
+            client_cert=('cert.pem', 'key.pem'),
+            ssl_version=None,
+            verify=True,
+        )
+
+        docker_client_mock.assert_called_once_with(
+            base_url='unix://var/run/docker.sock', tls=tls_mock, version='1.19'
+        )

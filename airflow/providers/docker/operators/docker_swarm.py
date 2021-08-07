@@ -21,6 +21,7 @@ import requests
 from docker import types
 
 from airflow.exceptions import AirflowException
+from airflow.providers.docker.hooks.docker import get_client
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
 
@@ -102,7 +103,16 @@ class DockerSwarmOperator(DockerOperator):
         self.service = None
 
     def execute(self, context) -> None:
-        self.cli = self._get_cli()
+        self.cli = get_client(
+            self.docker_conn_id,
+            self.docker_url,
+            self.api_version,
+            self.tls_ca_cert,
+            self.tls_client_cert,
+            self.tls_client_key,
+            self.tls_ssl_version,
+            self.tls_hostname,
+        )
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
