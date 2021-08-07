@@ -26,7 +26,7 @@ warnings.warn(
     airflow.providers.tableau.operators.tableau.TableauOperator instead
     """,
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 

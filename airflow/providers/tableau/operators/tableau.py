@@ -16,7 +16,6 @@
 # under the License.
 from typing import Optional
 
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
@@ -140,5 +139,4 @@ class TableauOperator(BaseOperator):
                 self.log.info('Found matching with id %s', resource_id)
                 return resource_id
 
-        raise AirflowException(
-            f'{self.resource} with {self.match_with} {self.find} not found!')
+        raise AirflowException(f'{self.resource} with {self.match_with} {self.find} not found!')
