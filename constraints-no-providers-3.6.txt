@@ -67,14 +67,14 @@ flower==0.9.7
 gevent==21.8.0
 google-auth==1.34.0
 graphviz==0.17
-greenlet==1.1.0
+greenlet==1.1.1
 gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.13.6
 httpx==0.18.2
 humanize==3.11.0
 idna==3.2
-immutables==0.15
+immutables==0.16
 importlib-metadata==4.6.3
 importlib-resources==1.5.0
 inflection==0.5.1

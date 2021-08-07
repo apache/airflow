@@ -259,7 +259,7 @@ google-crc32c==1.1.2
 google-resumable-media==1.3.3
 googleapis-common-protos==1.53.0
 graphviz==0.17
-greenlet==1.1.0
+greenlet==1.1.1
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
 grpcio==1.39.0
