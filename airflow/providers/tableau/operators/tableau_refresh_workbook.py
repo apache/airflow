@@ -81,7 +81,6 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         :return: the id of the job that executes the extract refresh
         :rtype: str
         """
-
         job_id = TableauOperator(
             resource='workbooks',
             method='refresh',

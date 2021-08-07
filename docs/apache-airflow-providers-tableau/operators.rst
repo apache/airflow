@@ -22,19 +22,19 @@
 TableauOperator
 =============
 
-Use the :class:`~airflow.providers.tableau.operators.TableauOperator` to execute
-Tableau server client python commands in a `Tableau <https://tableau.github.io/server-client-python/docs/api-ref>`.
+Use the :class: ~airflow.providers.tableau.operators.TableauOperator to execute
+Tableau server client python commands in a Tableau <https://tableau.github.io/server-client-python/docs/api-ref>.
 
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
 | **resource**: The name of the resource to use. **str**
-| **method**: The name of the resource's method to execute. **str**  
-| **find**: The reference of resource wich will recive the action. **str**  
-| **match_with**: The resource field name to be matched with find parameter. **str** - Default: **id**  
-| **site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**  
-| **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**  
+| **method**: The name of the resource's method to execute. **str**
+| **find**: The reference of resource wich will recive the action. **str**
+| **match_with**: The resource field name to be matched with find parameter. **str** - Default: **id**
+| **site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**
+| **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**
 | **check_interval**: time in seconds that the job should wait in between each instance state checks until operation is completed. **float** - Default: **20**
 | **tableau_conn_id**: The credentials to authenticate to the Tableau Server. **str** - Default: **tableau_default**  
 |
@@ -54,42 +54,42 @@ Using the Operator
    * - datasources
      - X
      - X
-     - 
+     -
      -
    * - groups
      - X
-     - 
-     - 
+     -
+     -
      -
    * - projects
      - X
-     - 
-     - 
+     -
+     -
      -
    * - schedule
      - X
-     - 
-     - 
+     -
+     -
      -
    * - sites
      - X
-     - 
-     - 
+     -
+     -
      -
    * - tasks
      - X
-     - 
-     - 
+     -
+     -
      - X
    * - users
-     - 
-     - 
+     -
+     -
      - X
      -
    * - workbooks
      - X
      - X
-     - 
+     -
      -
 
 

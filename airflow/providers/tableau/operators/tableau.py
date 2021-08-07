@@ -94,7 +94,6 @@ class TableauOperator(BaseOperator):
         :return: the id of the job that executes the extract refresh or downloaded file URI.
         :rtype: str
         """
-
         available_resources = RESOURCES_METHODS.keys()
         if self.resource not in available_resources:
             error_message = f'Resource not found! Available Resources: {available_resources}'
