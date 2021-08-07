@@ -154,7 +154,7 @@ class DockerSwarmOperator(DockerOperator):
                     user=self.user,
                     tty=self.tty,
                     configs=self.configs,
-                    secrets=self.secrets, 
+                    secrets=self.secrets,
                 ),
                 restart_policy=types.RestartPolicy(condition='none'),
                 resources=types.Resources(mem_limit=self.mem_limit),
