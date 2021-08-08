@@ -477,7 +477,7 @@ class DagRun(Base, LoggingMixin):
         schedulable_tis: List[TI] = []
         changed_tis = False
 
-        tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))
+        tis = list(self.get_task_instances(session=session, state=State.task_states))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in tis:
             try:

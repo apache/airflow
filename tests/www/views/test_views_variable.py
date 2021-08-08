@@ -96,6 +96,19 @@ def test_import_variables_success(session, admin_client):
     check_content_in_response('4 variable(s) successfully updated.', resp)
 
 
+def test_import_variables_anon(session, app):
+    assert session.query(Variable).count() == 0
+
+    content = '{"str_key": "str_value}'
+    bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
+
+    resp = app.test_client().post(
+        '/variable/varimport', data={'file': (bytes_content, 'test.json')}, follow_redirects=True
+    )
+    check_content_not_in_response('variable(s) successfully updated.', resp)
+    check_content_in_response('Sign In', resp)
+
+
 def test_description_retrieval(session, admin_client):
     # create valid variable
     admin_client.post('/variable/add', data=VARIABLE, follow_redirects=True)

@@ -399,6 +399,18 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="oss_default",
+            conn_type="oss",
+            extra='''{
+                "auth_type": "AK",
+                "access_key_id": "<ACCESS_KEY_ID>",
+                "access_key_secret": "<ACCESS_KEY_SECRET>"}
+                ''',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="pig_cli_default",
             conn_type="pig_cli",
             schema="default",

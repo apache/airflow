@@ -929,6 +929,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
 
+    # This tests might take longer than default 60 seconds as it is serializing a lot of
+    # context using dill (which is slow apparently).
+    @pytest.mark.execution_timeout(120)
     def test_airflow_context(self):
         def f(
             # basic

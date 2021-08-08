@@ -41,7 +41,7 @@ Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` in ``[se
 .. note::
     If this value is not provided, the SDK will try to read it from the ``SENTRY_DSN`` environment variable.
 
-You can supply `additional configuration options <https://docs.sentry.io/error-reporting/configuration/?platform=python>`__ based on the Python platform via ``[sentry]`` section.
+You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via ``[sentry]`` section.
 Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
 
 Tags
@@ -60,7 +60,7 @@ Breadcrumbs
 ------------
 
 
-When a task fails with an error `breadcrumbs <https://docs.sentry.io/enriching-error-data/breadcrumbs/?platform=python>`__ will be added for the other tasks in the current dag run.
+When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current dag run.
 
 ======================================= ==============================================================
 Name                                    Description

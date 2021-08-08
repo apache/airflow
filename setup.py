@@ -179,9 +179,13 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
+alibaba = [
+    'oss2>=2.14.0',
+]
 amazon = [
     'boto3>=1.15.0,<1.18.0',
     'watchtower~=1.0.6',
+    'jsonpath_ng>=1.5.3',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
@@ -425,7 +429,7 @@ salesforce = [
     'tableauserverclient',
 ]
 samba = [
-    'pysmbclient>=0.1.3',
+    'smbprotocol>=1.5.0',
 ]
 segment = [
     'analytics-python>=1.2.9',
@@ -476,7 +480,7 @@ winrm = [
     'pywinrm~=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.22.0',
+    'yandexcloud>=0.97.0',
 ]
 zendesk = [
     'zdesk',
@@ -532,6 +536,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'airbyte': http_provider,
+    'alibaba': alibaba,
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,

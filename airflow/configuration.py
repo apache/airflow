@@ -242,7 +242,7 @@ class AirflowConfigParser(ConfigParser):
             if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
                 raise AirflowConfigException(
                     f"error: sqlite C library version too old (< {min_sqlite_version}). "
-                    f"See {get_docs_url('howto/set-up-database.rst#setting-up-a-sqlite-database')}"
+                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
                 )
 
         if self.has_option('core', 'mp_start_method'):

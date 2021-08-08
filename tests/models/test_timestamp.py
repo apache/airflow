@@ -24,17 +24,14 @@ from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+from tests.test_utils.db import clear_db_logs, clear_db_runs
 
 
-@pytest.yield_fixture(name="clear_db_fixture")
-@provide_session
-def clear_db(session=None):
-    session.query(Log).delete()
-    session.query(TaskInstance).delete()
-    yield session
-    session.query(Log).delete()
-    session.query(TaskInstance).delete()
-    session.commit()
+@pytest.fixture(autouse=True)
+def clear_db():
+    clear_db_logs()
+    clear_db_runs()
+    yield
 
 
 def add_log(execdate, session, timezone_override=None):
@@ -50,28 +47,28 @@ def add_log(execdate, session, timezone_override=None):
     return log
 
 
-def test_timestamp_behaviour(clear_db_fixture):
-    for session in clear_db_fixture:
-        execdate = timezone.utcnow()
-        with freeze_time(execdate):
-            current_time = timezone.utcnow()
-            old_log = add_log(execdate, session)
-            session.expunge(old_log)
-            log_time = session.query(Log).one().dttm
-            assert log_time == current_time
-            assert log_time.tzinfo.name == 'UTC'
+@provide_session
+def test_timestamp_behaviour(session=None):
+    execdate = timezone.utcnow()
+    with freeze_time(execdate):
+        current_time = timezone.utcnow()
+        old_log = add_log(execdate, session)
+        session.expunge(old_log)
+        log_time = session.query(Log).one().dttm
+        assert log_time == current_time
+        assert log_time.tzinfo.name == 'UTC'
 
 
-def test_timestamp_behaviour_with_timezone(clear_db_fixture):
-    for session in clear_db_fixture:
-        execdate = timezone.utcnow()
-        with freeze_time(execdate):
-            current_time = timezone.utcnow()
-            old_log = add_log(execdate, session, timezone_override=pendulum.timezone('Europe/Warsaw'))
-            session.expunge(old_log)
-            # No matter what timezone we set - we should always get back UTC
-            log_time = session.query(Log).one().dttm
-            assert log_time == current_time
-            assert old_log.dttm.tzinfo.name != 'UTC'
-            assert log_time.tzinfo.name == 'UTC'
-            assert old_log.dttm.astimezone(pendulum.timezone('UTC')) == log_time
+@provide_session
+def test_timestamp_behaviour_with_timezone(session=None):
+    execdate = timezone.utcnow()
+    with freeze_time(execdate):
+        current_time = timezone.utcnow()
+        old_log = add_log(execdate, session, timezone_override=pendulum.timezone('Europe/Warsaw'))
+        session.expunge(old_log)
+        # No matter what timezone we set - we should always get back UTC
+        log_time = session.query(Log).one().dttm
+        assert log_time == current_time
+        assert old_log.dttm.tzinfo.name != 'UTC'
+        assert log_time.tzinfo.name == 'UTC'
+        assert old_log.dttm.astimezone(pendulum.timezone('UTC')) == log_time

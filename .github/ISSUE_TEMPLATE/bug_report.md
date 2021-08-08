@@ -36,6 +36,13 @@ These questions are the first thing we need to know to understand the context.
 
 **Apache Airflow version**:
 
+**Apache Airflow Provider versions** (please include all providers that are relevant to your bug):
+
+<!--
+
+You can get a complete list of your provider versions with `pip freeze | grep apache-airflow-providers`.
+
+-->
 
 **Kubernetes version (if you are using kubernetes)** (use `kubectl version`):
 

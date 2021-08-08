@@ -1395,7 +1395,7 @@ CELERY_COMMANDS = (
         name='stop',
         help="Stop the Celery worker gracefully",
         func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
-        args=(),
+        args=(ARG_PID,),
     ),
 )
 
