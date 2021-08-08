@@ -380,10 +380,6 @@ class TestStringifiedDAGs(unittest.TestCase):
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
 
-        # Verify that the DAG object has 'full_filepath' attribute
-        # and is equal to fileloc
-        assert serialized_dag.full_filepath == dag.fileloc
-
     def validate_deserialized_task(
         self,
         serialized_task,

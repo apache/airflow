@@ -179,9 +179,13 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
+alibaba = [
+    'oss2>=2.14.0',
+]
 amazon = [
     'boto3>=1.15.0,<1.18.0',
     'watchtower~=1.0.6',
+    'jsonpath_ng>=1.5.3',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
@@ -270,14 +274,12 @@ exasol = [
 facebook = [
     'facebook-business>=6.0.2',
 ]
-flask_oauth = [
-    'Flask-OAuthlib>=0.9.1,<0.9.6',  # Flask OAuthLib 0.9.6 requires Flask-Login 0.5.0 - breaks FAB
-    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
-    'requests-oauthlib<1.2.0',
+flask_appbuilder_authlib = [
+    'authlib',
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=4.0.0,<8.0.0',
+    'google-ads>=12.0.0',
     'google-api-core>=1.25.1,<2.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0,<2.0.0',
@@ -414,6 +416,9 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = ['presto-python-client>=0.7.0,<0.8']
+psrp = [
+    'pypsrp~=0.5',
+]
 qubole = [
     'qds-sdk>=1.10.4',
 ]
@@ -428,7 +433,7 @@ salesforce = [
     'tableauserverclient',
 ]
 samba = [
-    'pysmbclient>=0.1.3',
+    'smbprotocol>=1.5.0',
 ]
 segment = [
     'analytics-python>=1.2.9',
@@ -479,7 +484,7 @@ winrm = [
     'pywinrm~=0.4',
 ]
 yandex = [
-    'yandexcloud>=0.22.0',
+    'yandexcloud>=0.97.0',
 ]
 zendesk = [
     'zdesk',
@@ -512,6 +517,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
+    'pypsrp',
     'pygithub',
     'pysftp',
     'pytest~=6.0',
@@ -535,6 +541,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'airbyte': http_provider,
+    'alibaba': alibaba,
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
@@ -572,6 +579,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'jira': jira,
     'microsoft.azure': azure,
     'microsoft.mssql': mssql,
+    'microsoft.psrp': psrp,
     'microsoft.winrm': winrm,
     'mongo': mongo,
     'mysql': mysql,
@@ -624,8 +632,8 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
     'deprecated_api': deprecated_api,
-    'github_enterprise': flask_oauth,
-    'google_auth': flask_oauth,
+    'github_enterprise': flask_appbuilder_authlib,
+    'google_auth': flask_appbuilder_authlib,
     'kerberos': kerberos,
     'ldap': ldap,
     'leveldb': leveldb,

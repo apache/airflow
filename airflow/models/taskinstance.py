@@ -26,7 +26,7 @@ import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -91,6 +91,10 @@ _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
 
 
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG, DagModel
+
+
 @contextlib.contextmanager
 def set_current_context(context: Context):
     """
@@ -112,6 +116,8 @@ def set_current_context(context: Context):
 
 def load_error_file(fd: IO[bytes]) -> Optional[Union[str, Exception]]:
     """Load and return error from error file"""
+    if fd.closed:
+        return None
     fd.seek(0, os.SEEK_SET)
     data = fd.read()
     if not data:
@@ -156,7 +162,9 @@ def clear_task_instances(
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
-                ti.state = State.SHUTDOWN
+                # If a task is cleared when running, set its state to RESTARTING so that
+                # the task is terminated and becomes eligible for retry.
+                ti.state = State.RESTARTING
                 job_ids.append(ti.job_id)
         else:
             task_id = ti.task_id
@@ -209,7 +217,7 @@ def clear_task_instances(
         from airflow.jobs.base_job import BaseJob
 
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():
-            job.state = State.SHUTDOWN
+            job.state = State.RESTARTING
 
     if activate_dag_runs is not None:
         warnings.warn(
@@ -432,15 +440,25 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag = self.task.dag
+        dag: Union["DAG", "DagModel"]
+        # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
+        if hasattr(self, 'task') and hasattr(self.task, 'dag'):
+            dag = self.task.dag
+        else:
+            dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = f"DAGS_FOLDER/{dag.filepath}"
-        elif should_pass_filepath and dag.full_filepath:
-            path = dag.full_filepath
-        else:
-            path = None
+        path = None
+        if should_pass_filepath:
+            if dag.is_subdag:
+                path = dag.parent_dag.relative_fileloc
+            else:
+                path = dag.relative_fileloc
+
+            if path:
+                if not path.is_absolute():
+                    path = 'DAGS_FOLDER' / path
+                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,
@@ -649,7 +667,10 @@ class TaskInstance(Base, LoggingMixin):
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
             self.queued_dttm = ti.queued_dttm
+            self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
+            self.executor_config = ti.executor_config
+            self.external_executor_id = ti.external_executor_id
         else:
             self.state = None
 
@@ -1037,6 +1058,7 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         self.hostname = get_hostname()
+        self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
@@ -1338,18 +1360,27 @@ class TaskInstance(Base, LoggingMixin):
             if task.on_failure_callback is not None:
                 context = self.get_template_context()
                 context["exception"] = error
-                task.on_failure_callback(context)
+                try:
+                    task.on_failure_callback(context)
+                except Exception:
+                    self.log.exception("Error when executing on_failure_callback")
         elif self.state == State.SUCCESS:
             task = self.task
             if task.on_success_callback is not None:
                 context = self.get_template_context()
-                task.on_success_callback(context)
+                try:
+                    task.on_success_callback(context)
+                except Exception:
+                    self.log.exception("Error when executing on_success_callback")
         elif self.state == State.UP_FOR_RETRY:
             task = self.task
             if task.on_retry_callback is not None:
                 context = self.get_template_context()
                 context["exception"] = error
-                task.on_retry_callback(context)
+                try:
+                    task.on_retry_callback(context)
+                except Exception:
+                    self.log.exception("Error when executing on_retry_callback")
 
     @provide_session
     def run(
@@ -1514,6 +1545,11 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
+        if self.state == State.RESTARTING:
+            # If a task is cleared when running, it goes into RESTARTING state and is always
+            # eligible for retry
+            return True
+
         return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session

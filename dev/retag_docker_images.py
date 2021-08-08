@@ -36,10 +36,11 @@ PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9"]
 GHCR_IO_PREFIX = "ghcr.io/apache/airflow"
 
 GHCR_IO_IMAGES = [
-    "{prefix}-{branch}-python{python_version}-ci-v2-manifest:latest",
-    "{prefix}-{branch}-python{python_version}-ci-v2:latest",
-    "{prefix}-{branch}-python{python_version}-v2:latest",
-    "{prefix}-{branch}-python{python_version}-build-v2:latest",
+    "{prefix}/{branch}/ci-manifest/python{python_version}:latest",
+    "{prefix}/{branch}/ci/python{python_version}:latest",
+    "{prefix}/{branch}/prod-build/python{python_version}-build-v2:latest",
+    "{prefix}/{branch}/prod/python{python_version}-build-v2:latest",
+    "{prefix}/{branch}/python:{python_version}-slim-buster",
 ]
 
 

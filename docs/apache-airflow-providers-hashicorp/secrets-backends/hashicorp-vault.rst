@@ -130,3 +130,41 @@ Verify that you can get the secret from ``vault``:
 
 Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``world`` and
 ``mount_point`` is ``airflow``.
+
+Storing and Retrieving Config
+""""""""""""""""""""""""""""""""
+
+If you have set ``config_path`` as ``config`` and ``mount_point`` as ``airflow``, then for config ``sql_alchemy_conn_secret`` with
+``sql_alchemy_conn_value`` as value, you would want to store your secret as:
+
+.. code-block:: bash
+
+    vault kv put airflow/config/sql_alchemy_conn_value value=postgres://user:pass@host:5432/db?ssl_mode=disable
+
+Verify that you can get the secret from ``vault``:
+
+.. code-block:: console
+
+    ❯ vault kv get airflow/config/sql_alchemy_conn_value
+    ====== Metadata ======
+    Key              Value
+    ---              -----
+    created_time     2020-03-28T02:10:54.301784Z
+    deletion_time    n/a
+    destroyed        false
+    version          1
+
+    ==== Data ====
+    Key      Value
+    ---      -----
+    value    postgres://user:pass@host:5432/db?ssl_mode=disable
+
+Then you can use above secret for ``sql_alchemy_conn_secret`` in your configuration file.
+
+.. code-block:: ini
+
+    [core]
+     sql_alchemy_conn_secret: "sql_alchemy_conn_value"
+
+Note that the secret ``Key`` is ``value``, and secret ``Value`` is ``postgres://user:pass@host:5432/db?ssl_mode=disable`` and
+``mount_point`` is ``airflow``.

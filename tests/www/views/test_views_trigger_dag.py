@@ -27,7 +27,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.www import check_content_in_response
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def initialize_one_dag():
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
@@ -53,7 +53,6 @@ def test_trigger_dag_button(admin_client):
     assert run.run_type == DagRunType.MANUAL
 
 
-@pytest.mark.quarantined
 def test_trigger_dag_conf(admin_client):
     test_dag_id = "example_bash_operator"
     conf_dict = {'string': 'Hello, World!'}

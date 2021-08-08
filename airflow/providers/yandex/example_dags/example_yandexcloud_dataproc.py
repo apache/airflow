@@ -39,13 +39,8 @@ AVAILABILITY_ZONE_ID = 'ru-central1-c'
 S3_BUCKET_NAME_FOR_JOB_LOGS = ''
 
 
-default_args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     'example_yandexcloud_dataproc_operator',
-    default_args=default_args,
     schedule_interval=None,
     start_date=days_ago(1),
     tags=['example'],
@@ -55,6 +50,8 @@ with DAG(
         zone=AVAILABILITY_ZONE_ID,
         connection_id=CONNECTION_ID,
         s3_bucket=S3_BUCKET_NAME_FOR_JOB_LOGS,
+        computenode_count=1,
+        computenode_max_hosts_count=5,
     )
 
     create_hive_query = DataprocCreateHiveJobOperator(

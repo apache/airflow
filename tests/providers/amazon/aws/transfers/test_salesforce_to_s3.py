@@ -95,13 +95,7 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
         assert operator.gzip == GZIP
         assert operator.acl_policy == ACL_POLICY
 
-        expected_op_output = {
-            "s3_uri": f"s3://{S3_BUCKET}/{S3_KEY}",
-            "s3_bucket_name": S3_BUCKET,
-            "s3_key": S3_KEY,
-        }
-
-        assert expected_op_output == operator.execute({})
+        assert f"s3://{S3_BUCKET}/{S3_KEY}" == operator.execute({})
 
         mock_make_query.assert_called_once_with(
             query=QUERY, include_deleted=INCLUDE_DELETED, query_params=QUERY_PARAMS
