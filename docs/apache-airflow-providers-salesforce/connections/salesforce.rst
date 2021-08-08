@@ -19,22 +19,72 @@
 
 Salesforce Connection
 =====================
-The Salesforce connection type provides connection to Salesforce.
+The Salesforce connection type provides connection to Salesforce via several authentication options:
+
+    * Password
+    * Direct Session
+    * OAuth 2.0 JWT
+    * IP Filtering
 
 Configuring the Connection
 --------------------------
-Username (required)
+Username (optional)
     Specify the email address used to login to your account.
 
-Password (required)
+    Use for Password authentication or IP Filtering.
+
+Password (optional)
     Specify the password associated with the account.
 
-Security Token (required)
+    Use for Password authentication or IP Filtering.
+
+Security Token (optional)
     Specify the Salesforce security token for the username.
+
+    Use for Password authentication.
+
+Consumer Key (optional)
+    the consumer key generated for the user.
+
+    Use for OAuth 2.0 JWT authentication.
+
+Private Key (optional)
+    The private key to use for signing the JWT. Provide this or a Private Key File Path (both are not necessary).
+
+    Use for OAuth 2.0 JWT authentication.
+
+Private Key File Path (optional)
+    A local path to the private key to be used for signing the JWT. Provide this or a Private Key (both are not necessary).
+
+    Use for OAuth 2.0 JWT authentication.
+
+Organization ID (optional)
+    The ID of the organization tied to the Salesforce instance.
+
+    Use for IP Filtering.
+
+Instance (optional)
+    The domain name of the Salesforce instance, (i.e. `na1.salesforce.com`).
+
+    Use for Direct Session access.  When calling the `SalesforceHook` a `session_id` also needs to be provided.
+
+Instance URL (optional)
+    The full URL of the Salesforce instance, (i.e. `https://na1.salesforce.com`). When calling the `SalesforceHook` a `session_id` also needs to be provided.
+
+    Use for Direct Session access.
 
 Domain (optional)
     The domain to using for connecting to Salesforce. Use common domains, such as 'login'
     or 'test', or Salesforce My domain. If not used, will default to 'login'.
+
+Proxies (optional)
+    A mapping of scheme-to-proxy server(s).
+
+Salesforce API Version (optional)
+    The version of the Salesforce API to use when attempting to connect.  If not specified a default value will be used.
+
+Client ID (optional)
+    The ID of the client.
 
 For security reason we suggest you to use one of the secrets Backend to create this
 connection (Using ENVIRONMENT VARIABLE or Hashicorp Vault, GCP Secrets Manager etc).
@@ -45,6 +95,3 @@ following the standard syntax of DB connections - where extras are passed as par
   .. code-block:: bash
 
     export AIRFLOW_CONN_SALESFORCE_DEFAULT='http://your_username:your_password@https%3A%2F%2Fyour_host.lightning.force.com?security_token=your_token'
-
-.. note::
-  Airflow currently does not support other login methods such as IP filtering and JWT.
