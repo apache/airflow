@@ -50,7 +50,7 @@ class TableauOperator(BaseOperator):
     :type resource: str
     :param method: The name of the resource's method to execute.
     :type method: str
-    :param find: The reference of resource wich will recive the action.
+    :param find: The reference of resource that will receive the action.
     :type find: str
     :param match_with: The resource field name to be matched with find parameter.
     :type match_with: Optional[str]
