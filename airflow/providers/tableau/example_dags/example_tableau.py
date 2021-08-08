@@ -44,6 +44,7 @@ with DAG(
     tags=['example'],
 ) as dag:
     # Refreshes a workbook and waits until it succeeds.
+    # [START howto_operator_tableau]
     task_refresh_workbook_blocking = TableauOperator(
         resource='workbooks',
         method='refresh',
@@ -53,6 +54,7 @@ with DAG(
         blocking_refresh=True,
         task_id='refresh_tableau_workbook_blocking',
     )
+    # [END howto_operator_tableau]
     # Refreshes a workbook and does not wait until it succeeds.
     task_refresh_workbook_non_blocking = TableauOperator(
         resource='workbooks',

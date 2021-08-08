@@ -41,7 +41,7 @@ class TableauOperator(BaseOperator):
     """
     Exectues a Tableau API Resource
     https://tableau.github.io/server-client-python/docs/api-ref
-    
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:TableauOperator`
