@@ -18,6 +18,8 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.utils.state import State
 
@@ -51,17 +53,57 @@ class TestDebugExecutor:
         assert succeeded
         task_instance_mock._run_raw_task.assert_called_once_with(job_id=job_id)
 
-    def test_queue_task_instance(self):
+    @pytest.mark.parametrize(
+        'mark',
+        (
+            pytest.param(
+                {
+                    'mark_as': State.SKIPPED,
+                    'mark_success': None,
+                },
+                id='mark as skipped',
+            ),
+            pytest.param(
+                {
+                    'mark_as': State.SUCCESS,
+                    'mark_success': None,
+                },
+                id='mark as success',
+            ),
+            pytest.param(
+                {
+                    'mark_as': None,
+                    'mark_success': None,
+                },
+                id='no mark',
+            ),
+            pytest.param(
+                {
+                    'mark_as': None,
+                    'mark_success': True,
+                },
+                id='success',
+            ),
+            pytest.param(
+                {
+                    'mark_as': None,
+                    'mark_success': False,
+                },
+                id='not success',
+            ),
+        ),
+    )
+    def test_queue_task_instance_with_mark_as(self, mark):
         key = "ti_key"
         ti = MagicMock(key=key)
 
         executor = DebugExecutor()
-        executor.queue_task_instance(task_instance=ti, mark_success=True, pool="pool")
+        executor.queue_task_instance(task_instance=ti, **mark, pool="pool")
 
         assert key in executor.queued_tasks
         assert key in executor.tasks_params
         assert executor.tasks_params[key] == {
-            "mark_as": State.SUCCESS,
+            "mark_as": mark['mark_as'] or (State.SUCCESS if mark['mark_success'] else None),
             "pool": "pool",
         }
 

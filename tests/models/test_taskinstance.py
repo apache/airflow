@@ -134,6 +134,119 @@ def get_dummy_dag(dag_maker):
     return create_dag
 
 
+@pytest.fixture(
+    params=(
+        pytest.param({}, id='no mark'),
+        pytest.param(
+            {
+                'mark_success': True,
+            },
+            id='mark success',
+        ),
+        pytest.param(
+            {
+                'mark_as': State.SUCCESS,
+            },
+            id='mark as success',
+        ),
+        pytest.param(
+            {
+                'mark_as': State.SKIPPED,
+            },
+            id='mark as skipped',
+        ),
+    )
+)
+def mark(request):
+    return request.param
+
+
+@pytest.fixture(
+    params=(
+        pytest.param(
+            {
+                'mark_as': State.SUCCESS,
+                'mark_success': False,
+            },
+        ),
+        pytest.param(
+            {
+                'mark_as': State.SUCCESS,
+                'mark_success': True,
+            },
+        ),
+        pytest.param(
+            {
+                'mark_as': State.SKIPPED,
+                'mark_success': False,
+            },
+        ),
+        pytest.param(
+            {
+                'mark_as': State.SKIPPED,
+                'mark_success': True,
+            },
+        ),
+    )
+)
+def mark_invalid(request):
+    return request.param
+
+
+@pytest.fixture
+def mark_options(mark):
+    options = []
+    if 'mark_success' in mark and mark['mark_success']:
+        options.extend(['--mark-as', 'success'])
+    if 'mark_as' in mark and mark['mark_as'] is not None:
+        if options:
+            raise TypeError('You cannot use both `mark_as` and `mark_success`')
+        options.extend(['--mark-as', mark['mark_as'].value])
+    return options
+
+
+@pytest.fixture
+def expected_mark_kwargs(mark):
+    return _mark_kwargs(mark)
+
+
+@pytest.fixture
+def expected_query_count(expected_state):
+    if expected_state is not None:
+        return 7
+    return 12
+
+
+@pytest.fixture
+def expected_state(mark):
+    state = None
+    if 'mark_success' in mark and mark['mark_success']:
+        state = State.SUCCESS
+    if 'mark_as' in mark:
+        if state is not None and mark['mark_as'] is not None:
+            raise TypeError('You cannot use both `mark_as` and `mark_success`')
+        state = mark['mark_as']
+    return state
+
+
+@pytest.fixture
+def mark_invalid_kwargs(mark_invalid):
+    return _mark_kwargs(mark_invalid)
+
+
+def _mark_kwargs(mark):
+    kwargs = {}
+    if 'mark_success' not in mark:
+        kwargs['mark_success'] = None
+    else:
+        kwargs['mark_success'] = mark['mark_success']
+    if 'mark_as' in mark and mark['mark_as'] is not None:
+        kwargs['mark_as'] = mark['mark_as']
+    else:
+        kwargs['mark_as'] = None
+    return kwargs
+
+
 class TestTaskInstance:
     @staticmethod
     def clean_db():
@@ -392,11 +505,12 @@ class TestTaskInstance:
         for (dep_patch, method_patch) in patch_dict.values():
             dep_patch.stop()
 
-    def test_mark_non_runnable_task_as_success(self, get_dummy_dag):
+    def test_mark_non_runnable_task_as_success(self, expected_state, get_dummy_dag, mark):
         """
         test that running task with mark_success param update task state
         as SUCCESS without running task despite it fails dependency checks.
         """
+        # Given
         non_runnable_state = (set(State.task_states) - RUNNABLE_STATES - set(State.SUCCESS)).pop()
         _, task = get_dummy_dag(
             dag_id='test_mark_non_runnable_task_as_success',
@@ -407,8 +521,12 @@ class TestTaskInstance:
         with create_session() as session:
             session.add(ti)
             session.commit()
-        ti.run(mark_success=True)
-        assert ti.state == State.SUCCESS
+
+        # When
+        ti.run(**mark)
+
+        # Then
+        assert ti.state == expected_state or State.SENSING
 
     def test_run_pooling_task(self, get_dummy_dag):
         """
@@ -473,20 +591,31 @@ class TestTaskInstance:
         assert {'bar': 'baz'} == tis[1].executor_config
         session.rollback()
 
-    def test_run_pooling_task_with_mark_success(self, get_dummy_dag):
+    @mock.patch('airflow.models.taskinstance.TaskInstance._prepare_and_execute_task_with_callbacks')
+    def test_run_pooling_task_with_mark_success(self, mock_method, mark, expected_state, get_dummy_dag):
         """
-        test that running task in an existing pool with mark_success param
-        update task state as SUCCESS without running task
-        despite it fails dependency checks.
+        test that running task in an existing pool with ``mark_success`` or ``mark_as`` param
+        updates the task state to the specified without running task despite it fails dependency
+        checks.
+
+        Question: how does that test asserts the tasks was not run ? Indeed even without a mark
+                  argument, the task ends-up with a success state !
         """
+        # Given
         _, task = get_dummy_dag(
             dag_id='test_run_pooling_task_with_mark_success',
-            task_id='test_run_pooling_task_with_mark_success_op',
         )
         ti = TI(task=task, execution_date=timezone.utcnow())
 
-        ti.run(mark_success=True)
-        assert ti.state == State.SUCCESS
+        # When
+        ti.run(**mark)
+
+        # Then
+        # mark request => task is not exected
+        assert expected_state is None or not mock_method.called
+        # no mark request => task is exected
+        assert expected_state is not None or mock_method.called
+        assert ti.state == expected_state or State.SUCCESS
 
     def test_run_pooling_task_with_skip(self, dag_maker):
         """
@@ -1821,7 +1950,8 @@ class TestTaskInstance:
         generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE)
         assert assert_command == generate_command
 
-    def test_generate_command_specific_param(self):
+    def test_generate_command_specific_param(self, expected_mark_kwargs, mark_options):
+        # Given
         dag_id = 'test_generate_command_specific_param'
         task_id = 'task'
         assert_command = [
@@ -1831,12 +1961,30 @@ class TestTaskInstance:
             dag_id,
             task_id,
             DEFAULT_DATE.isoformat(),
-            '--mark-success',
+            *mark_options,
         ]
+
+        # When
         generate_command = TI.generate_command(
-            dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE, mark_success=True
+            dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE, **expected_mark_kwargs
         )
+
+        # Then
         assert assert_command == generate_command
+
+    def test_generate_command_raises_when_both_mark_as_mark_success(
+        self, mark_invalid_kwargs, expected_mark_kwargs
+    ):
+        # Given
+        dag_id = 'test_generate_command_specific_param'
+        task_id = 'task'
+
+        # Ensure
+        with pytest.raises(AirflowException, match='.*both `mark_as` and `mark_success`.*'):
+            # When
+            TI.generate_command(
+                dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE, **expected_mark_kwargs
+            )
 
     def test_get_rendered_template_fields(self, dag_maker):
 
@@ -2061,15 +2209,8 @@ class TestRunRawTaskQueriesCount:
     def teardown_method(self) -> None:
         self._clean()
 
-    @pytest.mark.parametrize(
-        "expected_query_count, mark_success",
-        [
-            # Expected queries, mark_success
-            (12, False),
-            (7, True),
-        ],
-    )
-    def test_execute_queries_count(self, expected_query_count, mark_success, get_dummy_dag):
+    def test_execute_queries_count(self, expected_query_count, get_dummy_dag, mark):
+        task_executed = mark.get('mark_as', None) is not None or mark.get('mark_success', False)
         _, task = get_dummy_dag()
         with create_session() as session:
 
@@ -2081,12 +2222,12 @@ class TestRunRawTaskQueriesCount:
         # for other DBs. delete_old_records is called only when mark_success is False
         expected_query_count_based_on_db = (
             expected_query_count + 1
-            if session.bind.dialect.name == "mssql" and expected_query_count > 0 and not mark_success
+            if session.bind.dialect.name == "mssql" and expected_query_count > 0 and not task_executed
             else expected_query_count
         )
 
         with assert_queries_count(expected_query_count_based_on_db):
-            ti._run_raw_task(mark_success=mark_success)
+            ti._run_raw_task(**mark)
 
     def test_execute_queries_count_store_serialized(self, get_dummy_dag):
         _, task = get_dummy_dag()

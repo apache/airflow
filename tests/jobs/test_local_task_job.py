@@ -293,6 +293,7 @@ class TestLocalTaskJob:
         )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
+        # Ain't there a ``mark_success=True`` missing here ?
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         settings.engine.dispose()
         process = multiprocessing.Process(target=job1.run)

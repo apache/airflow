@@ -795,12 +795,29 @@ def dag_bag_head_tail():
     yield dag_bag
 
 
-def test_clear_overlapping_external_task_marker(dag_bag_head_tail):
+@pytest.mark.parametrize(
+    'mark',
+    (
+        pytest.param(
+            {
+                'mark_as': State.SUCCESS,
+            },
+            id='mark_as=success',
+        ),
+        pytest.param(
+            {
+                'mark_success': True,
+            },
+            id='mark_success=True',
+        ),
+    ),
+)
+def test_clear_overlapping_external_task_marker(dag_bag_head_tail, mark):
     dag = dag_bag_head_tail.get_dag("head_tail")
 
     # Mark first head task success.
     first = TaskInstance(task=dag.get_task("head"), execution_date=DEFAULT_DATE)
-    first.run(mark_success=True)
+    first.run(**mark)
 
     for delta in range(10):
         execution_date = DEFAULT_DATE + timedelta(days=delta)

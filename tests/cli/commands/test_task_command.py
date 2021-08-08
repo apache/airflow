@@ -137,13 +137,33 @@ class TestCliTasks(unittest.TestCase):
             pool=None,
         )
 
+    @parameterized.expand(
+        [
+            (
+                {'mark_as': None},
+                [],
+            ),
+            (
+                {'mark_as': State.SUCCESS},
+                ['--mark-success'],
+            ),
+            (
+                {'mark_as': State.SUCCESS},
+                ['--mark-as', 'success'],
+            ),
+            (
+                {'mark_as': State.SKIPPED},
+                ['--mark-as', 'skipped'],
+            ),
+        ]
+    )
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_with_existing_dag_run_id(self, mock_local_job):
+    def test_run_with_existing_dag_run_id(self, mark, mark_options, mock_local_job):
         """
         Test that we can run with existing dag_run_id
         """
+        # Given
         dag_id = 'test_run_ignores_all_dependencies'
-
         dag = self.dagbag.get_dag(dag_id)
         task0_id = 'test_run_dependent_task'
         run_id = 'TEST_RUN_ID'
@@ -153,21 +173,25 @@ class TestCliTasks(unittest.TestCase):
             'run',
             '--ignore-all-dependencies',
             '--local',
+            *mark_options,
             dag_id,
             task0_id,
             run_id,
         ]
 
+        # When
         task_command.task_run(self.parser.parse_args(args0), dag=dag)
+
+        # Then
         mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
-            mark_as=None,
             ignore_all_deps=True,
             ignore_depends_on_past=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
             pickle_id=None,
             pool=None,
+            **mark,
         )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")

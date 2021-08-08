@@ -22,6 +22,7 @@ from parameterized import parameterized
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.executors.kubernetes_executor import KubernetesExecutor
+from airflow.utils.state import TaskInstanceState
 
 KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
 
@@ -95,21 +96,40 @@ class TestCeleryKubernetesExecutor:
 
     @parameterized.expand(
         [
-            ('any-other-queue',),
-            (KUBERNETES_QUEUE,),
+            (
+                'any-other-queue',
+                {'mark_as': None, 'mark_success': False},
+            ),
+            (
+                'any-other-queue',
+                {'mark_as': None, 'mark_success': True},
+            ),
+            (
+                'any-other-queue',
+                {'mark_as': TaskInstanceState.SKIPPED, 'mark_success': None},
+            ),
+            (
+                'any-other-queue',
+                {'mark_as': TaskInstanceState.SUCCESS, 'mark_success': None},
+            ),
+            (
+                'any-other-queue',
+                {'mark_as': None, 'mark_success': None},
+            ),
+            (
+                KUBERNETES_QUEUE,
+                {'mark_as': None, 'mark_success': False},
+            ),
         ]
     )
-    def test_queue_task_instance(self, test_queue):
+    def test_queue_task_instance(self, test_queue, marks):
+        # Given
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()
         cke = CeleryKubernetesExecutor(celery_executor_mock, k8s_executor_mock)
-
         ti = mock.MagicMock()
         ti.queue = test_queue
-
         kwargs = dict(
-            task_instance=ti,
-            mark_success=False,
             pickle_id=None,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
@@ -117,14 +137,21 @@ class TestCeleryKubernetesExecutor:
             ignore_ti_state=False,
             pool=None,
             cfg_path=None,
+            **marks,
         )
-        kwarg_values = kwargs.values()
-        cke.queue_task_instance(**kwargs)
+        expected_kwargs = kwargs.copy()
+        success = expected_kwargs.pop('mark_success')
+        expected_kwargs['mark_as'] = kwargs['mark_as'] or (TaskInstanceState.SUCCESS if success else None)
+
+        # When
+        cke.queue_task_instance(ti, **kwargs)
+
+        # Then
         if test_queue == KUBERNETES_QUEUE:
-            k8s_executor_mock.queue_task_instance.assert_called_once_with(*kwarg_values)
+            k8s_executor_mock.queue_task_instance.assert_called_once_with(ti, **expected_kwargs)
             celery_executor_mock.queue_task_instance.assert_not_called()
         else:
-            celery_executor_mock.queue_task_instance.assert_called_once_with(*kwarg_values)
+            celery_executor_mock.queue_task_instance.assert_called_once_with(ti, **expected_kwargs)
             k8s_executor_mock.queue_task_instance.assert_not_called()
 
     @parameterized.expand(
