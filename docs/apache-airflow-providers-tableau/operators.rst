@@ -23,7 +23,7 @@ TableauOperator
 ===============
 
 Use the :class:`~airflow.providers.tableau.operators.TableauOperator` to execute
-Tableau server client python commands in a `Tableau <https://tableau.github.io/server-client-python/docs/api-ref>`.
+Tableau server client python commands in a `Tableau <https://tableau.github.io/server-client-python/docs/api-ref>`__.
 
 
 Using the Operator
@@ -31,7 +31,7 @@ Using the Operator
 
 | **resource**: The name of the resource to use. **str**
 | **method**: The name of the resource's method to execute. **str**
-| **find**: The reference of resource wich will recive the action. **str**
+| **find**: The reference of resource that will receive the action. **str**
 | **match_with**: The resource field name to be matched with find parameter. **str** - Default: **id**
 | **site_id**: The id of the site where the workbook belongs to. **str** - Default: **None**
 | **blocking_refresh**: By default the extract refresh will be blocking means it will wait until it has finished. **bool** - Default: **True**
@@ -51,42 +51,42 @@ Using the Operator
      - refresh
      - remove
      - run
-   * - datasources
+   * - **datasources**
      - X
      - X
      -
      -
-   * - groups
+   * - **groups**
      - X
      -
      -
      -
-   * - projects
+   * - **projects**
      - X
      -
      -
      -
-   * - schedule
+   * - **schedule**
      - X
      -
      -
      -
-   * - sites
+   * - **sites**
      - X
      -
      -
      -
-   * - tasks
+   * - **tasks**
      - X
      -
      -
      - X
-   * - users
+   * - **users**
      -
      -
      - X
      -
-   * - workbooks
+   * - **workbooks**
      - X
      - X
      -

@@ -21,10 +21,7 @@ from airflow.models import BaseOperator
 from airflow.providers.tableau.operators.tableau import TableauOperator
 
 warnings.warn(
-    """
-    Deprecated class for refresh tableau workbooks. please use
-    airflow.providers.tableau.operators.tableau.TableauOperator instead
-    """,
+    """This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.""",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -32,8 +29,7 @@ warnings.warn(
 
 class TableauRefreshWorkbookOperator(BaseOperator):
     """
-    Deprecated class for refresh tableau workbooks. please use
-    airflow.providers.tableau.operators.tableau.TableauOperator instead
+    This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.
 
     Refreshes a Tableau Workbook/Extract
 
