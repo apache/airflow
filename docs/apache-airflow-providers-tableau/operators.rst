@@ -43,54 +43,27 @@ Using the Operator
 
 
 .. list-table:: Available methods by resource
-   :widths: 15 15 15 15 15
+   :widths: 15 15
    :header-rows: 1
 
    * - Resource
-     - delete
-     - refresh
-     - remove
-     - run
+     - Methods
    * - **datasources**
-     - X
-     - X
-     -
-     -
+     - ``delete``, ``refresh``
    * - **groups**
-     - X
-     -
-     -
-     -
+     - ``delete``
    * - **projects**
-     - X
-     -
-     -
-     -
+     - ``delete``
    * - **schedule**
-     - X
-     -
-     -
-     -
+     - ``delete``
    * - **sites**
-     - X
-     -
-     -
-     -
+     - ``delete``
    * - **tasks**
-     - X
-     -
-     -
-     - X
+     - ``delete``, ``run``
    * - **users**
-     -
-     -
-     - X
-     -
+     - ``remove``
    * - **workbooks**
-     - X
-     - X
-     -
-     -
+     - ``delete``, ``refresh``
 
 
 An example usage of the TableauOperator is as follows:
