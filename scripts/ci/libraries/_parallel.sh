@@ -219,9 +219,7 @@ function parallel::cleanup_runner() {
     start_end::group_start "Cleanup runner"
     parallel::kill_all_running_docker_containers
     parallel::system_prune_docker
-    docker_engine_resources::get_available_memory_in_docker
-    docker_engine_resources::get_available_cpus_in_docker
-    docker_engine_resources::get_available_disk_space_in_docker
+    docker_engine_resources::check_all_resources
     docker_engine_resources::print_overall_stats
     parallel::kill_stale_semaphore_locks
     start_end::group_end
