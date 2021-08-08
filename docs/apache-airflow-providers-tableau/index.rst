@@ -27,6 +27,7 @@ Content
     :caption: References
 
     Connection Types <connections/tableau>
+    Operators <operators>
     Python API <_api/airflow/providers/tableau/index>
 
 .. toctree::
