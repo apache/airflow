@@ -293,6 +293,7 @@ Reddit
 Redhat
 ReidentifyContentResponse
 Reinitialising
+Remoting
 ResourceRequirements
 Roadmap
 Robinhood
@@ -1077,6 +1078,7 @@ proto
 protobuf
 provisioner
 psql
+psrp
 psycopg
 pty
 pubsub
@@ -1092,6 +1094,7 @@ pymssql
 pymysql
 pyodbc
 pypa
+pypsrp
 pytest
 pythonic
 pythonpath

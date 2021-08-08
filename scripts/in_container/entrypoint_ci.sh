@@ -216,6 +216,8 @@ EXTRA_PYTEST_ARGS=(
     "--pythonwarnings=ignore::PendingDeprecationWarning"
     "--junitxml=${RESULT_LOG_FILE}"
     # timeouts in seconds for individual tests
+    "--timeouts-order"
+    "moi"
     "--setup-timeout=20"
     "--execution-timeout=60"
     "--teardown-timeout=20"
