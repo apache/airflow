@@ -1033,17 +1033,17 @@ class TestSchedulerJob:
 
     def test_change_state_for_tis_without_dagrun(self, dag_maker):
         with dag_maker(dag_id='test_change_state_for_tis_without_dagrun') as dag1:
-            DummyOperator(task_id='dummy', owner='airflow')
-            DummyOperator(task_id='dummy_b', owner='airflow')
+            DummyOperator(task_id='dummy')
+            DummyOperator(task_id='dummy_b')
         dr1 = dag_maker.create_dagrun()
 
         with dag_maker(dag_id='test_change_state_for_tis_without_dagrun_dont_change') as dag2:
-            DummyOperator(task_id='dummy', owner='airflow')
+            DummyOperator(task_id='dummy')
         dr2 = dag_maker.create_dagrun()
 
         # Using dag_maker for below dag will create a dagrun and we don't want a dagrun
         with dag_maker(dag_id='test_change_state_for_tis_without_dagrun_no_dagrun') as dag3:
-            DummyOperator(task_id='dummy', owner='airflow')
+            DummyOperator(task_id='dummy')
 
         session = settings.Session()
 
@@ -1858,19 +1858,16 @@ class TestSchedulerJob:
             assert session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count() == 0
 
     @pytest.mark.quarantined
-    def test_scheduler_verify_pool_full(self):
+    def test_scheduler_verify_pool_full(self, dag_maker):
         """
         Test task instances not queued when pool is full
         """
-        dag = DAG(dag_id='test_scheduler_verify_pool_full', start_date=DEFAULT_DATE)
-
-        BashOperator(
-            task_id='dummy',
-            dag=dag,
-            owner='airflow',
-            pool='test_scheduler_verify_pool_full',
-            bash_command='echo hi',
-        )
+        with dag_maker(dag_id='test_scheduler_verify_pool_full') as dag:
+            BashOperator(
+                task_id='dummy',
+                pool='test_scheduler_verify_pool_full',
+                bash_command='echo hi',
+            )
 
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
@@ -1892,10 +1889,8 @@ class TestSchedulerJob:
         self.scheduler_job.processor_agent = mock.MagicMock()
 
         # Create 2 dagruns, which will create 2 task instances.
-        dr = dag.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
         )
         self.scheduler_job._schedule_dag_run(dr, session)
         dr = dag.create_dagrun(
@@ -1919,7 +1914,6 @@ class TestSchedulerJob:
         with dag_maker(dag_id='test_scheduler_verify_pool_full_2_slots_per_task') as dag:
             BashOperator(
                 task_id='dummy',
-                owner='airflow',
                 pool='test_scheduler_verify_pool_full_2_slots_per_task',
                 pool_slots=2,
                 bash_command='echo hi',
@@ -1963,27 +1957,23 @@ class TestSchedulerJob:
         assert len(task_instances_list) == 3
 
     @pytest.mark.quarantined
-    def test_scheduler_keeps_scheduling_pool_full(self):
+    def test_scheduler_keeps_scheduling_pool_full(self, dag_maker):
         """
         Test task instances in a pool that isn't full keep getting scheduled even when a pool is full.
         """
-        dag_d1 = DAG(dag_id='test_scheduler_keeps_scheduling_pool_full_d1', start_date=DEFAULT_DATE)
-        BashOperator(
-            task_id='test_scheduler_keeps_scheduling_pool_full_t1',
-            dag=dag_d1,
-            owner='airflow',
-            pool='test_scheduler_keeps_scheduling_pool_full_p1',
-            bash_command='echo hi',
-        )
+        with dag_maker(dag_id='test_scheduler_keeps_scheduling_pool_full_d1') as dag_d1:
+            BashOperator(
+                task_id='test_scheduler_keeps_scheduling_pool_full_t1',
+                pool='test_scheduler_keeps_scheduling_pool_full_p1',
+                bash_command='echo hi',
+            )
 
-        dag_d2 = DAG(dag_id='test_scheduler_keeps_scheduling_pool_full_d2', start_date=DEFAULT_DATE)
-        BashOperator(
-            task_id='test_scheduler_keeps_scheduling_pool_full_t2',
-            dag=dag_d2,
-            owner='airflow',
-            pool='test_scheduler_keeps_scheduling_pool_full_p2',
-            bash_command='echo hi',
-        )
+        with dag_maker(dag_id='test_scheduler_keeps_scheduling_pool_full_d2') as dag_d2:
+            BashOperator(
+                task_id='test_scheduler_keeps_scheduling_pool_full_t2',
+                pool='test_scheduler_keeps_scheduling_pool_full_p2',
+                bash_command='echo hi',
+            )
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
             include_examples=False,
@@ -2049,7 +2039,6 @@ class TestSchedulerJob:
             # Medium priority, not enough slots
             BashOperator(
                 task_id='test_scheduler_verify_priority_and_slots_t0',
-                owner='airflow',
                 pool='test_scheduler_verify_priority_and_slots',
                 pool_slots=2,
                 priority_weight=2,
@@ -2058,7 +2047,6 @@ class TestSchedulerJob:
             # High priority, occupies first slot
             BashOperator(
                 task_id='test_scheduler_verify_priority_and_slots_t1',
-                owner='airflow',
                 pool='test_scheduler_verify_priority_and_slots',
                 pool_slots=1,
                 priority_weight=3,
@@ -2067,7 +2055,6 @@ class TestSchedulerJob:
             # Low priority, occupies second slot
             BashOperator(
                 task_id='test_scheduler_verify_priority_and_slots_t2',
-                owner='airflow',
                 pool='test_scheduler_verify_priority_and_slots',
                 pool_slots=1,
                 priority_weight=1,
@@ -2176,15 +2163,15 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.quarantined
-    def test_verify_integrity_if_dag_changed(self):
+    def test_verify_integrity_if_dag_changed(self, dag_maker):
         # CleanUp
         with create_session() as session:
             session.query(SerializedDagModel).filter(
                 SerializedDagModel.dag_id == 'test_verify_integrity_if_dag_changed'
             ).delete(synchronize_session=False)
 
-        dag = DAG(dag_id='test_verify_integrity_if_dag_changed', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo hi')
+        with dag_maker(dag_id='test_verify_integrity_if_dag_changed') as dag:
+            BashOperator(task_id='dummy', bash_command='echo hi')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
@@ -2254,7 +2241,9 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id='test_retry_still_in_executor', schedule_interval="@once") as dag:
             dag_task1 = BashOperator(
-                task_id='test_retry_handling_op', bash_command='exit 1', retries=1, dag=dag, owner='airflow'
+                task_id='test_retry_handling_op',
+                bash_command='exit 1',
+                retries=1,
             )
         dag.is_subdag = False
 
@@ -2353,7 +2342,7 @@ class TestSchedulerJob:
         start_date = six_hours_ago_to_the_hour
         dag_name1 = 'get_active_runs_test'
 
-        default_args = {'owner': 'airflow', 'depends_on_past': False, 'start_date': start_date}
+        default_args = {'depends_on_past': False, 'start_date': start_date}
         with dag_maker(
             dag_name1, schedule_interval='* * * * *', max_active_runs=1, default_args=default_args
         ) as dag1:
@@ -2796,7 +2785,7 @@ class TestSchedulerJob:
             max_active_runs=5,
             catchup=True,
         ) as dag:
-            DummyOperator(task_id='dummy', owner='airflow')
+            DummyOperator(task_id='dummy')
 
         session = settings.Session()
         dagbag = DagBag(
@@ -3258,7 +3247,7 @@ class TestSchedulerJob:
         tis = dr.get_task_instances()
         assert len(tis) == 1
 
-        BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo test')
+        BashOperator(task_id='dummy2', dag=dag, bash_command='echo test')
         SerializedDagModel.write_dag(dag=dag)
 
         self.scheduler_job._schedule_dag_run(dr, session)
@@ -3277,7 +3266,7 @@ class TestSchedulerJob:
         Test dag after dag.clear, max_active_runs is respected
         """
         with dag_maker(dag_id='test_scheduler_max_active_runs_respected_after_clear') as dag:
-            BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo Hi')
+            BashOperator(task_id='dummy', bash_command='echo Hi')
         dag.max_active_runs = 1
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
