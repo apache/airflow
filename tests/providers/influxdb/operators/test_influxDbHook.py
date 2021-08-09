@@ -41,3 +41,8 @@ class TestInfluxDbHookConn(unittest.TestCase):
 
         assert self.influxdb_hook.org_name == 'test'
         assert self.influxdb_hook.uri == 'http://localhost:7687'
+
+        assert self.influxdb_hook.get_connection.return_value.schema == 'http'
+        assert self.influxdb_hook.get_connection.return_value.host == 'localhost'
+
+        assert self.influxdb_hook.get_client is not None
