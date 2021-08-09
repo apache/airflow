@@ -85,6 +85,12 @@ class ConnectionFormWidgetInfo(NamedTuple):
     field: Field
 
 
+class TaskflowDecoratorInfo(NamedTuple):
+    """Taskflow decorator information"""
+
+    name: str
+
+
 class ProvidersManager(LoggingMixin):
     """
     Manages all provider packages. This is a Singleton class. The first time it is
@@ -106,6 +112,8 @@ class ProvidersManager(LoggingMixin):
         self._provider_dict: Dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: Dict[str, HookInfo] = {}
+
+        self._taskflow_decorator_dict: Dict[str, TaskflowDecoratorInfo] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -118,6 +126,7 @@ class ProvidersManager(LoggingMixin):
         self._providers_list_initialized = False
         self._providers_hooks_initialized = False
         self._providers_extra_links_initialized = False
+        self._providers_taskflow_decorator_initialized = False
 
     def initialize_providers_list(self):
         """Lazy initialization of providers list."""
@@ -157,6 +166,20 @@ class ProvidersManager(LoggingMixin):
             "Initialization of Providers Manager hooks took %.2f seconds", perf_counter() - start_time
         )
         self._providers_hooks_initialized = True
+
+    def initialize_providers_taskflow_decorator(self):
+        """Lazy initialization of providers hooks."""
+        if self._providers_taskflow_decorator_initialized:
+            return
+        self.initialize_providers_list()
+        start_time = perf_counter()
+        self.log.debug("Initializing Taskflow Decorators")
+        self._discover_taskflow_decorators()
+        self.log.debug(
+            "Initialization of Providers Manager Taskflow Decorators took %.2f seconds",
+            perf_counter() - start_time,
+        )
+        self._providers_taskflow_decorator_initialized = True
 
     def initialize_providers_extra_links(self):
         """Lazy initialization of providers extra links."""
@@ -269,6 +292,15 @@ class ProvidersManager(LoggingMixin):
             if hook_class_names:
                 for hook_class_name in hook_class_names:
                     self._add_hook(hook_class_name, provider_package)
+
+    def _discover_taskflow_decorators(self) -> None:
+        for name, provider in self._provider_dict.items():
+            taskflow_decorators = provider[1].get("task-decorators")
+            if taskflow_decorators:
+                for taskflow_decorator in taskflow_decorators:
+                    self._taskflow_decorator_dict[taskflow_decorators] = TaskflowDecoratorInfo(
+                        name=taskflow_decorator
+                    )
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
@@ -439,6 +471,11 @@ class ProvidersManager(LoggingMixin):
         """Returns dictionary of connection_type-to-hook mapping"""
         self.initialize_providers_hooks()
         return self._hooks_dict
+
+    @property
+    def taskflow_decorators(self) -> Dict[str, TaskflowDecoratorInfo]:
+        self.initialize_providers_taskflow_decorator()
+        return self._taskflow_decorator_dict
 
     @property
     def extra_links_class_names(self) -> Set[str]:

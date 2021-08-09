@@ -17,12 +17,11 @@
 
 from typing import Callable, Optional
 
-import importlib_metadata as metadata
-
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import _virtualenv_task
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
+from airflow.providers_manager import ProvidersManager
 
 
 class _TaskDecorator:
@@ -49,7 +48,7 @@ class _TaskDecorator:
     def __getattr__(self, name):
         if self.store.get(name, None):
             return self.store[name]
-        connections = [e for e in metadata.entry_points()['airflow.task_decorators'] if e.name == name]
+        connections = ProvidersManager.taskflow_decorators[name].name
         mod = connections[0].load()
         self.store[name] = mod
         return mod
