@@ -240,7 +240,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         if self.user_assigned_identities:
             params_identity = {
                 "type": "UserAssigned",
-                "user_assigned_identities": {uaid: {} for uaid in self.user_assigned_identities}
+                "user_assigned_identities": {uaid: {} for uaid in self.user_assigned_identities},
             }
 
         exit_code = 1
