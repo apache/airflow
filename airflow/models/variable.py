@@ -19,7 +19,7 @@
 
 import json
 from builtins import bytes
-from typing import Any, List
+from typing import Any
 
 from sqlalchemy import Column, Integer, String, Text, Boolean
 from sqlalchemy.ext.declarative import declared_attr
@@ -38,8 +38,6 @@ class Variable(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
-    is_curve_template = Column(Boolean, default=True)
-    active = Column(Boolean, default=True)
     _val = Column('val', Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
 
@@ -57,9 +55,9 @@ class Variable(Base, LoggingMixin):
                 log.error("Can't decrypt _val for key={}, invalid token "
                           "or value".format(self.key))
                 return None
-            except Exception as e:
+            except Exception:
                 log.error("Can't decrypt _val for key={}, FERNET_KEY "
-                          "configuration missing: {}".format(self.key, repr(e)))
+                          "configuration missing".format(self.key))
                 return None
         else:
             return self._val
@@ -105,58 +103,24 @@ class Variable(Base, LoggingMixin):
             return obj
 
     @classmethod
-    @provide_session
     def get(
         cls,
         key,  # type: str
         default_var=__NO_DEFAULT_SENTINEL,  # type: Any
         deserialize_json=False,  # type: bool
-        session=None,
-        is_all=False,
-        fun_filter=lambda cls, key: cls.key == key
+        session=None
     ):
-        objs = session.query(cls).filter(fun_filter(cls, key))
-        if is_all:
-            return objs.all()
-        obj = objs.first()
-        if obj is None:
+        var_val = get_variable(key=key)
+        if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
                 raise KeyError('Variable {} does not exist'.format(key))
         else:
             if deserialize_json:
-                return json.loads(obj.val)
+                return json.loads(var_val)
             else:
-                return obj.val
-
-    @classmethod
-    @provide_session
-    def get_all_active_curve_tmpls(cls, session=None):
-        tmpls: List[cls] = session.query(cls).filter(cls.active, cls.is_curve_template).all()
-        ret = {}
-        for tmpl in tmpls:
-            ret[tmpl.key] = tmpl.val
-        return ret
-
-    @classmethod
-    @provide_session
-    def get_fuzzy_active(
-        cls,
-        key,  # type: str
-        deserialize_json=False,  # type: bool
-        session=None,
-        default_var=__NO_DEFAULT_SENTINEL
-    ):
-        key_p = "%{}%".format(key)
-        obj = session.query(cls).filter(cls.key.like(key_p), cls.active).first()
-        if obj is None:
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
-                return key, default_var
-            raise KeyError('Variable {} does not exist'.format(key))
-        if deserialize_json:
-            return obj.key, json.loads(obj.val)
-        return obj.key, obj.val
+                return var_val
 
     @classmethod
     @provide_session
@@ -165,7 +129,6 @@ class Variable(Base, LoggingMixin):
         key,  # type: str
         value,  # type: Any
         serialize_json=False,  # type: bool
-        is_curve_template=False,  # type: bool
         session=None
     ):
 
@@ -175,28 +138,7 @@ class Variable(Base, LoggingMixin):
             stored_value = str(value)
 
         Variable.delete(key, session=session)
-        session.add(Variable(
-            key=key,
-            val=stored_value,
-            is_curve_template=is_curve_template
-        ))  # type: ignore
-        session.flush()
-
-    @classmethod
-    @provide_session
-    def update(
-        cls,
-        key,  # type: str
-        value,  # type: Any
-        serialize_json=False,  # type: bool
-        session=None
-    ):
-
-        if serialize_json:
-            stored_value = json.dumps(value, indent=2, separators=(',', ': '))
-        else:
-            stored_value = str(value)
-        session.query(cls).filter(cls.key == key).update({cls.val: stored_value})  # type: ignore
+        session.add(Variable(key=key, val=stored_value))  # type: ignore
         session.flush()
 
     @classmethod

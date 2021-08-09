@@ -11,7 +11,7 @@ import logging
 import pika
 from typing import Optional
 from airflow.models import DAG
-from airflow.models import Variable
+from plugins.models.curve_template import CurveTemplateModel
 from typing import Dict
 from airflow.operators.python_operator import PythonOperator
 from airflow.entities.redis import ClsRedisConnection, gen_template_key
@@ -88,19 +88,18 @@ def template_upgrade_handler(ch, method: pika.spec.Basic.Deliver, properties: pi
         _logger.error("template_upgrade_handler error: {}".format(repr(e)))
         raise e
     try:
-        key, val = Variable.get_fuzzy_active(key=template_name, deserialize_json=True)
+        key, val = CurveTemplateModel.get_fuzzy_active(key=template_name, deserialize_json=True)
         _logger.debug("Get Template Var: {}".format(key))
         windows = val.get('curve_param').get('windows', None) if val.get('curve_param', False) else None
         if windows:
             template.update({'windows': windows})
         template.update({'version': val.get('version', 0) + 1})
-        Variable.set(key=key, value=template, serialize_json=True,
-                     is_curve_template=True)  # 此业务场景下 params不会变化故覆盖现有的variable
+        CurveTemplateModel.set(key=key, value=template, serialize_json=True)  # 此业务场景下 params不会变化故覆盖现有的variable
 
     except KeyError as e:
         # 没有这个key 重新创建这个key
         key = "{}@@{}".format(template_name, str(uuid.uuid4()))
-        Variable.set(key=key, value=template, serialize_json=True, is_curve_template=True)
+        CurveTemplateModel.set(key=key, value=template, serialize_json=True)
     except Exception as e:
         _logger.error("template_upgrade_handler error: {}".format(repr(e)))
     try:

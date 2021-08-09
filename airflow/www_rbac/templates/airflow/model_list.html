@@ -73,7 +73,7 @@
           <center>
             {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
           </center>
-          {% if item['is_curve_template'] %}
+          {% if modelview_name=='CurveTemplateView' %}
             <a href="{{url_for('CurveTemplateView.view_curve_template',bolt_no=item.key.split('@@')[0].split('/')[0],craft_type=item.key.split('@@')[0].split('/')[1])}}" target="_blank" style="display:block">查看曲线模板</a>
             <a href="{{url_for('CurvesView.view_curves',bolt_no=item.key.split('@@')[0].split('/')[0],craft_type=item.key.split('@@')[0].split('/')[1])}}" target="_blank" style="display:block">查看相关曲线</a>
           {% endif %}

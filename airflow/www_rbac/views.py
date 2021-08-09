@@ -2411,68 +2411,16 @@ class VariableModelView(AirflowModelView):
 
     base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete', 'can_varimport']
 
-    list_columns = ['key', 'val', 'is_encrypted', 'is_curve_template', 'active']
-    add_columns = ['key', 'val', 'is_curve_template', 'active']
-    edit_columns = ['key', 'val', 'is_curve_template', 'active']
-    search_columns = ['key', 'val', 'is_curve_template', 'active']
+    list_columns = ['key', 'val', 'is_encrypted']
+    add_columns = ['key', 'val']
+    edit_columns = ['key', 'val']
+    search_columns = ['key', 'val']
     label_columns = {
         'key': lazy_gettext('Key'), 'val': lazy_gettext('Val'),
-        'is_encrypted': lazy_gettext('Is Encrypted'), 'is_curve_template': lazy_gettext('Is Curve Template'),
-        'active': lazy_gettext('Active')
+        'is_encrypted': lazy_gettext('Is Encrypted')
     }
-    # add_form = edit_form = VariableForm
 
     base_order = ('key', 'asc')
-
-    @expose("/list/")
-    @has_access
-    def list(self):
-        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, getattr(current_user, 'last_name', ''),
-                                       CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'],
-                                       '曲线模板：查看变量')
-        logging.info(msg)
-        return super(VariableModelView, self).list()
-
-    @staticmethod
-    def generateCurveParamKey(key):
-        return "{}@@{}".format(key, uuid.uuid3(uuid.NAMESPACE_DNS, key))
-
-    @staticmethod
-    def is_curve_param_key(key: str) -> bool:
-        return '@@' in key
-
-    def pre_add(self, item):
-        super(VariableModelView, self).pre_add(item)
-        if item.is_curve_template:
-            item.key = self.generateCurveParamKey(item.key)
-
-    def post_add(self, item):
-        super(VariableModelView, self).post_add(item)
-        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, getattr(current_user, 'last_name', ''),
-                                       CUSTOM_EVENT_NAME_MAP['ADD'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'],
-                                       '曲线模板：增加变量')
-        logging.info(msg)
-
-    def pre_update(self, item: models.Variable):
-        super(VariableModelView, self).pre_update(item)
-        if item.is_curve_template and self.is_curve_param_key(item.key):
-            return
-        if item.is_curve_template:
-            item.key = self.generateCurveParamKey(item.key)
-            return
-        if self.is_curve_param_key(item.key):
-            item.key = item.key.split('@@')[0]
-            return
-
-    def post_update(self, item):
-        super(VariableModelView, self).post_update(item)
-        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-                                       current_user, getattr(current_user, 'last_name', ''),
-                                       CUSTOM_EVENT_NAME_MAP['UPDATE'],
-                                       CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'], '曲线模板：修改变量')
-        logging.info(msg)
 
     def hidden_field_formatter(attr):
         if isinstance(attr, str):
@@ -2552,8 +2500,7 @@ class VariableModelView(AirflowModelView):
             suc_count = fail_count = 0
             for k, v in d.items():
                 try:
-                    is_curve_template = VariableModelView.is_curve_param_key(k)
-                    models.Variable.set(k, v, serialize_json=isinstance(v, dict), is_curve_template=is_curve_template)
+                    models.Variable.set(k, v, serialize_json=isinstance(v, dict))
                 except Exception as e:
                     logging.info('Variable import failed: {}'.format(repr(e)))
                     fail_count += 1

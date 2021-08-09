@@ -378,7 +378,7 @@
         },
         bolt_number: {
           label: "{{ '编号' if result.device_type == 'servo_press' else '螺栓编号'}}",
-          value: '<a target="_blank" href="' + "{{url_for('VariableModelView.list',_flt_0_key=result.bolt_number,_flt_0_is_curve_template='y')}}" + '">{{result.bolt_number}}</a>'
+          value: '<a target="_blank" href="' + "{{url_for('CurveTemplateView.list',_flt_0_key=result.bolt_number)}}" + '">{{result.bolt_number}}</a>'
         },
         execution_date: {
           label: "{{ '时间' if result.device_type == 'servo_press' else '拧紧时间'}}",

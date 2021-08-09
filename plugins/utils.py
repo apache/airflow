@@ -1,8 +1,6 @@
 from airflow import settings
 from airflow.utils.logger import generate_logger
 import os
-from airflow.models.variable import Variable
-from airflow.models.taskinstance import TaskInstance
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from airflow.entities.result_storage import ClsResultStorage
 from airflow.entities.curve_storage import ClsCurveStorage
@@ -10,7 +8,7 @@ from airflow.api.common.experimental import trigger_dag as trigger
 import json
 from typing import Optional
 from airflow.exceptions import AirflowNotFoundException, AirflowConfigException
-
+from plugins.models.curve_template import CurveTemplateModel
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
 CRAFT_TYPE_MAP = {
@@ -43,7 +41,7 @@ def ensure_int(num):
 
 
 def get_craft_type(nut_no: str) -> Optional[int]:
-    template_data = Variable.get_fuzzy_active(nut_no,
+    template_data = CurveTemplateModel.get_fuzzy_active(nut_no,
                                               deserialize_json=True,
                                               default_var=None
                                               )[1]
@@ -84,7 +82,7 @@ def generate_curve_name(nut_no):
 def get_curve_params(bolt_number):
     curve_name = generate_curve_name(bolt_number)
     try:
-        return Variable.get_fuzzy_active(
+        return CurveTemplateModel.get_fuzzy_active(
             curve_name,
             deserialize_json=True,
             default_var={}

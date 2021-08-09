@@ -9,7 +9,7 @@ from airflow.operators.python_operator import PythonOperator
 from typing import Dict
 import logging
 from plugins.utils import get_curve_template_name
-from airflow.models import Variable
+from plugins.models.curve_template import CurveTemplateModel
 import asyncio
 from airflow.entities.redis import ClsRedisConnection
 from plugins.utils import parse_template_name
@@ -90,7 +90,7 @@ def remove_outdated_templates():
     for key in keys:
         name = parse_template_name(key.decode())
         try:
-            k, v = Variable.get_fuzzy_active(name, deserialize_json=True)
+            k, v = CurveTemplateModel.get_fuzzy_active(name, deserialize_json=True)
             _logger.info('模板{}在使用中'.format(k))
         except:
             _logger.info('模板{}已过期，将从redis中删除'.format(name))
@@ -114,11 +114,11 @@ def doLoadTmpls2Redis(template_names=None):
 def get_templates_from_variables(template_names=None) -> Dict:
     # 如果没有指定template_names，加载所有模板
     if not template_names or len(template_names) == 0:
-        return Variable.get_all_active_curve_tmpls()
+        return CurveTemplateModel.get_all_active_curve_tmpls()
     # 加载指定模板
     templates = {}
     for t in template_names:
-        key, val = Variable.get_fuzzy_active(t, deserialize_json=True, default_var=None)
+        key, val = CurveTemplateModel.get_fuzzy_active(t, deserialize_json=True, default_var=None)
         template_name = get_curve_template_name(key)
         templates[template_name] = val
     return templates
