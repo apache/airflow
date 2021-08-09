@@ -190,7 +190,7 @@ appear natively as part of the ``@task.____`` design.
 For an example. Let's say you were trying to create a "foo" decorator. To create ``@task.foo``, follow the following
 steps:
 
-1. Create a ``DecoratedFooOperator``
+1. Create a ``FooDecoratedOperator``
 
 In this case, we are assuming that you have a ``FooOperator`` that takes a python function as an argument.
 By creating a ``FooDecoratedOperator`` that inherits from ``FooOperator`` and
