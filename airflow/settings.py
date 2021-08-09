@@ -50,6 +50,8 @@ except Exception:
     pass
 log.info("Configured default timezone %s", TIMEZONE)
 
+LOCALIZE_RUN_ID = conf.get("core", "localize_dag_run_id", fallback=False)
+
 
 HEADER = '\n'.join(
     [
