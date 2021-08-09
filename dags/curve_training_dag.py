@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from airflow.utils.logger import generate_logger
@@ -81,9 +82,11 @@ def do_trigger_training(result, final_state):
     pset = result.get('pset', None)
     bolt_number = generate_bolt_number(controller_name, job, batch_count, pset)
     curve_params = get_curve_params(bolt_number)
-    result.update({
-        'execution_date': result.get('execution_date').strftime("%Y-%m-%d %H:%M:%S")
-    })
+    for k, v in result.items():
+        if isinstance(v, datetime.datetime):
+            result.update({
+                k: v.strftime("%Y-%m-%d %H:%M:%S")
+            })
     data = {
         'entity_id': entity_id,
         'result': result,
