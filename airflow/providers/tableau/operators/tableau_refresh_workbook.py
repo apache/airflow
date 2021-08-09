@@ -14,21 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 from typing import Optional
 
-from tableauserverclient import WorkbookItem
-
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.tableau.hooks.tableau import (
-    TableauHook,
-    TableauJobFailedException,
-    TableauJobFinishCode,
+from airflow.providers.tableau.operators.tableau import TableauOperator
+
+warnings.warn(
+    """This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.""",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
 class TableauRefreshWorkbookOperator(BaseOperator):
     """
+    This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.
+
     Refreshes a Tableau Workbook/Extract
 
     .. seealso:: https://tableau.github.io/server-client-python/docs/api-ref#workbooks
@@ -75,29 +77,17 @@ class TableauRefreshWorkbookOperator(BaseOperator):
         :return: the id of the job that executes the extract refresh
         :rtype: str
         """
-        with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
-            workbook = self._get_workbook_by_name(tableau_hook)
+        job_id = TableauOperator(
+            resource='workbooks',
+            method='refresh',
+            find=self.workbook_name,
+            match_with='name',
+            site_id=self.site_id,
+            tableau_conn_id=self.tableau_conn_id,
+            blocking_refresh=self.blocking,
+            check_interval=self.check_interval,
+            task_id='refresh_workbook',
+            dag=None,
+        ).execute(context={})
 
-            job_id = self._refresh_workbook(tableau_hook, workbook.id)
-            if self.blocking:
-                if not tableau_hook.wait_for_state(
-                    job_id=job_id,
-                    check_interval=self.check_interval,
-                    target_state=TableauJobFinishCode.SUCCESS,
-                ):
-                    raise TableauJobFailedException('The Tableau Refresh Workbook Job failed!')
-
-            self.log.info('Workbook %s has been successfully refreshed.', self.workbook_name)
-            return job_id
-
-    def _get_workbook_by_name(self, tableau_hook: TableauHook) -> WorkbookItem:
-        for workbook in tableau_hook.get_all(resource_name='workbooks'):
-            if workbook.name == self.workbook_name:
-                self.log.info('Found matching workbook with id %s', workbook.id)
-                return workbook
-        raise AirflowException(f'Workbook {self.workbook_name} not found!')
-
-    def _refresh_workbook(self, tableau_hook: TableauHook, workbook_id: str) -> str:
-        job = tableau_hook.server.workbooks.refresh(workbook_id)
-        self.log.info('Refreshing Workbook %s...', self.workbook_name)
-        return job.id
+        return job_id

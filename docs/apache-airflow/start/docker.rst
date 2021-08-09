@@ -78,9 +78,6 @@ Some directories in the container are mounted, which means that their contents a
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
 If you need install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
 
-.. _initializing_docker_compose_environment:
-
-
 Using custom images
 ===================
 
@@ -93,6 +90,8 @@ to rebuild the images on-the-fly when you run other ``docker-compose`` commands.
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
+.. _initializing_docker_compose_environment:
+
 Initializing Environment
 ========================
 
@@ -102,7 +101,7 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
 
 .. code-block:: bash
 
-    mkdir ./dags ./logs ./plugins
+    mkdir -p ./dags ./logs ./plugins
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
@@ -123,6 +122,22 @@ After initialization is complete, you should see a message like below.
     start_airflow-init_1 exited with code 0
 
 The account created has the login ``airflow`` and the password ``airflow``.
+
+Cleaning-up the environment
+===========================
+
+The docker-compose we prepare is a "Quick-start" one. It is not intended to be used in production
+and it has a number of caveats - one of them that the best way to recover from any problem is to clean it
+up and restart from the scratch.
+
+The best way to do it is to:
+
+* Run ``docker-compose down --volumes --remove-orphans`` command in the directory you downloaded the
+  ``docker-compose.yaml`` file
+* remove the whole directory where you downloaded the ``docker-compose.yaml`` file
+  ``rm -rf '<DIRECTORY>'``
+* re-download the ``docker-compose.yaml`` file
+* re-start following the instructions from the very beginning in this guide
 
 Running Airflow
 ===============

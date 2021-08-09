@@ -29,7 +29,6 @@ from unittest.mock import call, mock_open, patch
 import pendulum
 import pytest
 from freezegun import freeze_time
-from parameterized import param
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
@@ -1380,14 +1379,14 @@ class TestTaskInstance:
 
             return ret
 
-    _prev_dates_param_list = (
-        param('cron/catchup', '0 0 * * * ', True),
-        param('cron/no-catchup', '0 0 * * *', False),
-        param('no-sched/catchup', None, True),
-        param('no-sched/no-catchup', None, False),
-        param('timedelta/catchup', datetime.timedelta(days=1), True),
-        param('timedelta/no-catchup', datetime.timedelta(days=1), False),
-    )
+    _prev_dates_param_list = [
+        pytest.param('0 0 * * * ', True, id='cron/catchup'),
+        pytest.param('0 0 * * *', False, id='cron/no-catchup'),
+        pytest.param(None, True, id='no-sched/catchup'),
+        pytest.param(None, False, id='no-sched/no-catchup'),
+        pytest.param(datetime.timedelta(days=1), True, id='timedelta/catchup'),
+        pytest.param(datetime.timedelta(days=1), False, id='timedelta/no-catchup'),
+    ]
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
     def test_previous_ti(self, schedule_interval, catchup, dag_maker) -> None:

@@ -19,32 +19,25 @@
 
 import datetime
 import os
-import unittest
 from datetime import timedelta
 from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from zipfile import ZipFile
 
 import pytest
-from parameterized import parameterized
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessor
-from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.models import DAG, DagBag, DagModel, SlaMiss, TaskInstance
-from airflow.models.dagrun import DagRun
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models import DAG, DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
-from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -59,6 +52,17 @@ from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
+# Include the words "airflow" and "dag" in the file contents,
+# tricking airflow into thinking these
+# files contain a DAG (otherwise Airflow will skip them)
+PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
+UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
+INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
+
+# Filename to be used for dags that are created in an ad-hoc manner and can be removed/
+# created at runtime
+TEMP_DAG_FILENAME = "temp_dag.py"
+
 
 @pytest.fixture(scope="class")
 def disable_load_example():
@@ -68,7 +72,7 @@ def disable_load_example():
 
 
 @pytest.mark.usefixtures("disable_load_example")
-class TestDagFileProcessor(unittest.TestCase):
+class TestDagFileProcessor:
     @staticmethod
     def clean_db():
         clear_db_runs()
@@ -79,7 +83,7 @@ class TestDagFileProcessor(unittest.TestCase):
         clear_db_jobs()
         clear_db_serialized_dags()
 
-    def setUp(self):
+    def setup_method(self):
         self.clean_db()
 
         # Speed up some tests by not running the tasks, just look at what we
@@ -87,7 +91,7 @@ class TestDagFileProcessor(unittest.TestCase):
         self.null_exec = MockExecutor()
         self.scheduler_job = None
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         if self.scheduler_job and self.scheduler_job.processor_agent:
             self.scheduler_job.processor_agent.end()
             self.scheduler_job = None
@@ -109,15 +113,16 @@ class TestDagFileProcessor(unittest.TestCase):
         return dag
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         # Ensure the DAGs we are looking at from the DB are up-to-date
         non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
         non_serialized_dagbag.sync_to_db()
         cls.dagbag = DagBag(read_dags_from_db=True)
 
-    @staticmethod
-    def assert_scheduled_ti_count(session, count):
-        assert count == session.query(TaskInstance).filter_by(state=State.SCHEDULED).count()
+    def _process_file(self, file_path, session):
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+
+        dag_file_processor.process_file(file_path, [], False, session)
 
     def test_dag_file_processor_sla_miss_callback(self):
         """
@@ -345,280 +350,6 @@ class TestDagFileProcessor(unittest.TestCase):
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-    @parameterized.expand(
-        [
-            [State.NONE, None, None],
-            [
-                State.UP_FOR_RETRY,
-                timezone.utcnow() - datetime.timedelta(minutes=30),
-                timezone.utcnow() - datetime.timedelta(minutes=15),
-            ],
-            [
-                State.UP_FOR_RESCHEDULE,
-                timezone.utcnow() - datetime.timedelta(minutes=30),
-                timezone.utcnow() - datetime.timedelta(minutes=15),
-            ],
-        ]
-    )
-    def test_dag_file_processor_process_task_instances(self, state, start_date, end_date):
-        """
-        Test if _process_task_instances puts the right task instances into the
-        mock_list.
-        """
-        dag = DAG(dag_id='test_scheduler_process_execute_task', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo hi')
-
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            session.merge(orm_dag)
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        assert dr is not None
-
-        with create_session() as session:
-            ti = dr.get_task_instances(session=session)[0]
-            ti.state = state
-            ti.start_date = start_date
-            ti.end_date = end_date
-
-            self.scheduler_job._schedule_dag_run(dr, session)
-            self.assert_scheduled_ti_count(session, 1)
-
-            session.refresh(ti)
-            assert ti.state == State.SCHEDULED
-
-    @parameterized.expand(
-        [
-            [State.NONE, None, None],
-            [
-                State.UP_FOR_RETRY,
-                timezone.utcnow() - datetime.timedelta(minutes=30),
-                timezone.utcnow() - datetime.timedelta(minutes=15),
-            ],
-            [
-                State.UP_FOR_RESCHEDULE,
-                timezone.utcnow() - datetime.timedelta(minutes=30),
-                timezone.utcnow() - datetime.timedelta(minutes=15),
-            ],
-        ]
-    )
-    def test_dag_file_processor_process_task_instances_with_task_concurrency(
-        self,
-        state,
-        start_date,
-        end_date,
-    ):
-        """
-        Test if _process_task_instances puts the right task instances into the
-        mock_list.
-        """
-        dag = DAG(dag_id='test_scheduler_process_execute_task_with_task_concurrency', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', task_concurrency=2, dag=dag, owner='airflow', bash_command='echo Hi')
-
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            session.merge(orm_dag)
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        assert dr is not None
-
-        with create_session() as session:
-            ti = dr.get_task_instances(session=session)[0]
-            ti.state = state
-            ti.start_date = start_date
-            ti.end_date = end_date
-
-            self.scheduler_job._schedule_dag_run(dr, session)
-            self.assert_scheduled_ti_count(session, 1)
-
-            session.refresh(ti)
-            assert ti.state == State.SCHEDULED
-
-    @parameterized.expand(
-        [
-            [State.NONE, None, None],
-            [
-                State.UP_FOR_RETRY,
-                timezone.utcnow() - datetime.timedelta(minutes=30),
-                timezone.utcnow() - datetime.timedelta(minutes=15),
-            ],
-            [
-                State.UP_FOR_RESCHEDULE,
-                timezone.utcnow() - datetime.timedelta(minutes=30),
-                timezone.utcnow() - datetime.timedelta(minutes=15),
-            ],
-        ]
-    )
-    def test_dag_file_processor_process_task_instances_depends_on_past(self, state, start_date, end_date):
-        """
-        Test if _process_task_instances puts the right task instances into the
-        mock_list.
-        """
-        dag = DAG(
-            dag_id='test_scheduler_process_execute_task_depends_on_past',
-            start_date=DEFAULT_DATE,
-            default_args={
-                'depends_on_past': True,
-            },
-        )
-        BashOperator(task_id='dummy1', dag=dag, owner='airflow', bash_command='echo hi')
-        BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo hi')
-
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            session.merge(orm_dag)
-
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
-        assert dr is not None
-
-        with create_session() as session:
-            tis = dr.get_task_instances(session=session)
-            for ti in tis:
-                ti.state = state
-                ti.start_date = start_date
-                ti.end_date = end_date
-
-            self.scheduler_job._schedule_dag_run(dr, session)
-            self.assert_scheduled_ti_count(session, 2)
-
-            session.refresh(tis[0])
-            session.refresh(tis[1])
-            assert tis[0].state == State.SCHEDULED
-            assert tis[1].state == State.SCHEDULED
-
-    def test_scheduler_job_add_new_task(self):
-        """
-        Test if a task instance will be added if the dag is updated
-        """
-        dag = DAG(dag_id='test_scheduler_add_new_task', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo test')
-
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-
-        # Since we don't want to store the code for the DAG defined in this file
-        with mock.patch.object(settings, "STORE_DAG_CODE", False):
-            self.scheduler_job.dagbag.sync_to_db()
-
-        session = settings.Session()
-        orm_dag = session.query(DagModel).get(dag.dag_id)
-        assert orm_dag is not None
-
-        if self.scheduler_job.processor_agent:
-            self.scheduler_job.processor_agent.end()
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.processor_agent = mock.MagicMock()
-        dag = self.scheduler_job.dagbag.get_dag('test_scheduler_add_new_task', session=session)
-        self.scheduler_job._create_dag_runs([orm_dag], session)
-
-        drs = DagRun.find(dag_id=dag.dag_id, session=session)
-        assert len(drs) == 1
-        dr = drs[0]
-
-        tis = dr.get_task_instances()
-        assert len(tis) == 1
-
-        BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo test')
-        SerializedDagModel.write_dag(dag=dag)
-
-        self.scheduler_job._schedule_dag_run(dr, session)
-        self.assert_scheduled_ti_count(session, 2)
-        session.flush()
-
-        drs = DagRun.find(dag_id=dag.dag_id, session=session)
-        assert len(drs) == 1
-        dr = drs[0]
-
-        tis = dr.get_task_instances()
-        assert len(tis) == 2
-
-    def test_runs_respected_after_clear(self):
-        """
-        Test dag after dag.clear, max_active_runs is respected
-        """
-        dag = DAG(dag_id='test_scheduler_max_active_runs_respected_after_clear', start_date=DEFAULT_DATE)
-        dag.max_active_runs = 1
-
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo Hi')
-
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
-        dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-        # Write Dag to DB
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
-        dagbag.bag_dag(dag, root_dag=dag)
-        dagbag.sync_to_db()
-
-        dag = DagBag(read_dags_from_db=True, include_examples=False).get_dag(dag.dag_id)
-
-        self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-
-        date = DEFAULT_DATE
-        dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=date,
-            state=State.QUEUED,
-        )
-        date = dag.following_schedule(date)
-        dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=date,
-            state=State.QUEUED,
-        )
-        date = dag.following_schedule(date)
-        dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=date,
-            state=State.QUEUED,
-        )
-        dag.clear()
-
-        assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 3
-
-        session = settings.Session()
-        self.scheduler_job._start_queued_dagruns(session)
-        session.commit()
-        # Assert that only 1 dagrun is active
-        assert len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)) == 1
-        # Assert that the other two are queued
-        assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 2
-
     @patch.object(TaskInstance, 'handle_failure_with_callback')
     def test_execute_on_failure_callbacks(self, mock_ti_handle_failure):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
@@ -699,75 +430,175 @@ class TestDagFileProcessor(unittest.TestCase):
             assert "Callback fired" == content
             os.remove(callback_file.name)
 
-    def test_should_mark_dummy_task_as_success(self):
-        dag_file = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
-        )
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
+    def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmpdir):
+        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        with open(unparseable_filename, 'w') as unparseable_file:
+            unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
-        # Write DAGs to dag and serialized_dag table
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
-        dagbag.sync_to_db()
+        with create_session() as session:
+            self._process_file(unparseable_filename, session)
+            import_errors = session.query(errors.ImportError).all()
 
-        self.scheduler_job_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job_job.processor_agent = mock.MagicMock()
-        dag = self.scheduler_job_job.dagbag.get_dag("test_only_dummy_tasks")
+            assert len(import_errors) == 1
+            import_error = import_errors[0]
+            assert import_error.filename == unparseable_filename
+            assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
+            session.rollback()
 
-        # Create DagRun
+    def test_no_import_errors_with_parseable_dag(self, tmpdir):
+        parseable_filename = tmpdir / TEMP_DAG_FILENAME
+
+        with open(parseable_filename, 'w') as parseable_file:
+            parseable_file.writelines(PARSEABLE_DAG_FILE_CONTENTS)
+
+        with create_session() as session:
+            self._process_file(parseable_file, session)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 0
+
+            session.rollback()
+
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
+    def test_new_import_error_replaces_old(self, tmpdir):
+        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+
+        # Generate original import error
+        with open(unparseable_filename, 'w') as unparseable_file:
+            unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
         session = settings.Session()
-        orm_dag = session.query(DagModel).get(dag.dag_id)
-        self.scheduler_job_job._create_dag_runs([orm_dag], session)
+        self._process_file(unparseable_filename, session)
 
-        drs = DagRun.find(dag_id=dag.dag_id, session=session)
-        assert len(drs) == 1
-        dr = drs[0]
+        # Generate replacement import error (the error will be on the second line now)
+        with open(unparseable_filename, 'w') as unparseable_file:
+            unparseable_file.writelines(
+                PARSEABLE_DAG_FILE_CONTENTS + os.linesep + UNPARSEABLE_DAG_FILE_CONTENTS
+            )
+        self._process_file(unparseable_filename, session)
 
-        # Schedule TaskInstances
-        self.scheduler_job_job._schedule_dag_run(dr, session)
+        import_errors = session.query(errors.ImportError).all()
+
+        assert len(import_errors) == 1
+        import_error = import_errors[0]
+        assert import_error.filename == unparseable_filename
+        assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 2)"
+
+        session.rollback()
+
+    def test_remove_error_clears_import_error(self, tmpdir):
+        filename_to_parse = tmpdir / TEMP_DAG_FILENAME
+
+        # Generate original import error
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+        session = settings.Session()
+        self._process_file(filename_to_parse, session)
+
+        # Remove the import error from the file
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(PARSEABLE_DAG_FILE_CONTENTS)
+        self._process_file(filename_to_parse, session)
+
+        import_errors = session.query(errors.ImportError).all()
+
+        assert len(import_errors) == 0
+
+        session.rollback()
+
+    def test_import_error_tracebacks(self, tmpdir):
+        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        with open(unparseable_filename, "w") as unparseable_file:
+            unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+
         with create_session() as session:
-            tis = session.query(TaskInstance).all()
+            self._process_file(unparseable_filename, session)
+            import_errors = session.query(errors.ImportError).all()
 
-        dags = self.scheduler_job_job.dagbag.dags.values()
-        assert ['test_only_dummy_tasks'] == [dag.dag_id for dag in dags]
-        assert 5 == len(tis)
-        assert {
-            ('test_task_a', 'success'),
-            ('test_task_b', None),
-            ('test_task_c', 'success'),
-            ('test_task_on_execute', 'scheduled'),
-            ('test_task_on_success', 'scheduled'),
-        } == {(ti.task_id, ti.state) for ti in tis}
-        for state, start_date, end_date, duration in [
-            (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis
-        ]:
-            if state == 'success':
-                assert start_date is not None
-                assert end_date is not None
-                assert 0.0 == duration
-            else:
-                assert start_date is None
-                assert end_date is None
-                assert duration is None
+            assert len(import_errors) == 1
+            import_error = import_errors[0]
+            assert import_error.filename == unparseable_filename
+            expected_stacktrace = (
+                "Traceback (most recent call last):\n"
+                '  File "{}", line 3, in <module>\n'
+                "    something()\n"
+                '  File "{}", line 2, in something\n'
+                "    return airflow_DAG\n"
+                "NameError: name 'airflow_DAG' is not defined\n"
+            )
+            assert import_error.stacktrace == expected_stacktrace.format(
+                unparseable_filename, unparseable_filename
+            )
+            session.rollback()
 
-        self.scheduler_job_job._schedule_dag_run(dr, session)
+    @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
+    def test_import_error_traceback_depth(self, tmpdir):
+        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        with open(unparseable_filename, "w") as unparseable_file:
+            unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+
         with create_session() as session:
-            tis = session.query(TaskInstance).all()
+            self._process_file(unparseable_filename, session)
+            import_errors = session.query(errors.ImportError).all()
 
-        assert 5 == len(tis)
-        assert {
-            ('test_task_a', 'success'),
-            ('test_task_b', 'success'),
-            ('test_task_c', 'success'),
-            ('test_task_on_execute', 'scheduled'),
-            ('test_task_on_success', 'scheduled'),
-        } == {(ti.task_id, ti.state) for ti in tis}
-        for state, start_date, end_date, duration in [
-            (ti.state, ti.start_date, ti.end_date, ti.duration) for ti in tis
-        ]:
-            if state == 'success':
-                assert start_date is not None
-                assert end_date is not None
-                assert 0.0 == duration
-            else:
-                assert start_date is None
-                assert end_date is None
-                assert duration is None
+            assert len(import_errors) == 1
+            import_error = import_errors[0]
+            assert import_error.filename == unparseable_filename
+            expected_stacktrace = (
+                "Traceback (most recent call last):\n"
+                '  File "{}", line 2, in something\n'
+                "    return airflow_DAG\n"
+                "NameError: name 'airflow_DAG' is not defined\n"
+            )
+            assert import_error.stacktrace == expected_stacktrace.format(unparseable_filename)
+
+            session.rollback()
+
+    def test_import_error_tracebacks_zip(self, tmpdir):
+        invalid_zip_filename = tmpdir / "test_zip_invalid.zip"
+        invalid_dag_filename = invalid_zip_filename / TEMP_DAG_FILENAME
+        with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
+            invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+
+        with create_session() as session:
+            self._process_file(invalid_zip_filename, session)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 1
+            import_error = import_errors[0]
+            assert import_error.filename == invalid_zip_filename
+            expected_stacktrace = (
+                "Traceback (most recent call last):\n"
+                '  File "{}", line 3, in <module>\n'
+                "    something()\n"
+                '  File "{}", line 2, in something\n'
+                "    return airflow_DAG\n"
+                "NameError: name 'airflow_DAG' is not defined\n"
+            )
+            assert import_error.stacktrace == expected_stacktrace.format(
+                invalid_dag_filename, invalid_dag_filename
+            )
+            session.rollback()
+
+    @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
+    def test_import_error_tracebacks_zip_depth(self, tmpdir):
+        invalid_zip_filename = tmpdir / "test_zip_invalid.zip"
+        invalid_dag_filename = invalid_zip_filename / TEMP_DAG_FILENAME
+        with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
+            invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
+
+        with create_session() as session:
+            self._process_file(invalid_zip_filename, session)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 1
+            import_error = import_errors[0]
+            assert import_error.filename == invalid_zip_filename
+            expected_stacktrace = (
+                "Traceback (most recent call last):\n"
+                '  File "{}", line 2, in something\n'
+                "    return airflow_DAG\n"
+                "NameError: name 'airflow_DAG' is not defined\n"
+            )
+            assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
+            session.rollback()

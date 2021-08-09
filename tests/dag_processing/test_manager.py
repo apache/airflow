@@ -43,7 +43,7 @@ from airflow.dag_processing.manager import (
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.models import DagBag, DagModel, TaskInstance as TI
+from airflow.models import DagBag, DagModel, TaskInstance as TI, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
@@ -105,8 +105,8 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._waitable_handle
 
 
-class TestDagFileProcessorManager(unittest.TestCase):
-    def setUp(self):
+class TestDagFileProcessorManager:
+    def setup_method(self):
         clear_db_runs()
 
     def run_processor_manager_one_loop(self, manager, parent_pipe):
@@ -125,6 +125,45 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 elif obj.done:
                     return results
             raise RuntimeError("Shouldn't get here - nothing to read, but manager not finished!")
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    def test_remove_file_clears_import_error(self, tmpdir):
+        filename_to_parse = tmpdir / 'temp_dag.py'
+
+        # Generate original import error
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines('an invalid airflow DAG')
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=async_mode,
+        )
+
+        with create_session() as session:
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+
+            import_errors = session.query(errors.ImportError).all()
+            assert len(import_errors) == 1
+
+            filename_to_parse.remove()
+
+            # Rerun the scheduler once the dag file has been removed
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 0
+            session.rollback()
+
+        child_pipe.close()
+        parent_pipe.close()
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_max_runs_when_no_files(self):
