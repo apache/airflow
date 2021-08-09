@@ -232,7 +232,7 @@ class TestPubSubPullOperator(unittest.TestCase):
             ReceivedMessage(
                 ack_id=f"{i}",
                 message={
-                    "data": f'Message {i}'.encode('utf8'),
+                    "data": f'Message {i}'.encode(),
                     "attributes": {"type": "generated message"},
                 },
             )

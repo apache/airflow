@@ -148,6 +148,10 @@ g.node.shutdown rect {
   stroke: blue;
 }
 
+g.node.restarting rect {
+  stroke: violet;
+}
+
 g.node.upstream_failed rect {
   stroke: orange;
 }

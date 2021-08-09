@@ -106,10 +106,6 @@ aws_to_gcs_transfer_body = {
 # [END howto_operator_gcp_transfer_create_job_body_aws]
 
 
-# [START howto_operator_gcp_transfer_default_args]
-default_args = {'owner': 'airflow'}
-# [END howto_operator_gcp_transfer_default_args]
-
 with models.DAG(
     'example_gcp_transfer_aws',
     schedule_interval=None,  # Override to match your needs

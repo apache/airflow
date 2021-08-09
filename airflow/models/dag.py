@@ -20,6 +20,7 @@ import copy
 import functools
 import logging
 import os
+import pathlib
 import pickle
 import re
 import sys
@@ -75,13 +76,14 @@ from airflow.timetables.schedules import Schedule
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.typing_compat import Literal, RePatternType
 from airflow.utils import timezone
+from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -221,7 +223,7 @@ class DAG(LoggingMixin):
         <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
-    :param render_template_as_native_obj: If True, uses a Jinja ```NativeEnvironment``
+    :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :type render_template_as_native_obj: bool
@@ -235,12 +237,20 @@ class DAG(LoggingMixin):
         'parent_dag',
         'start_date',
         'schedule_interval',
-        'full_filepath',
+        'fileloc',
         'template_searchpath',
         'last_loaded',
     }
 
     __serialized_fields: Optional[FrozenSet[str]] = None
+
+    fileloc: str
+    """
+    File path that needs to be imported to load this DAG or subdag.
+
+    This may not be an actual file on disk in the case when this DAG is loaded
+    from a ZIP file or other DAG distribution format.
+    """
 
     def __init__(
         self,
@@ -285,10 +295,16 @@ class DAG(LoggingMixin):
             self.params.update(self.default_args['params'])
             del self.default_args['params']
 
+        if full_filepath:
+            warnings.warn(
+                "Passing full_filepath to DAG() is deprecated and has no effect",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         validate_key(dag_id)
 
         self._dag_id = dag_id
-        self._full_filepath = full_filepath if full_filepath else ''
         if concurrency and not max_active_tasks:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
@@ -654,11 +670,22 @@ class DAG(LoggingMixin):
 
     @property
     def full_filepath(self) -> str:
-        return self._full_filepath
+        """:meta private:"""
+        warnings.warn(
+            "DAG.full_filepath is deprecated in favour of fileloc",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.fileloc
 
     @full_filepath.setter
     def full_filepath(self, value) -> None:
-        self._full_filepath = value
+        warnings.warn(
+            "DAG.full_filepath is deprecated in favour of fileloc",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.fileloc = value
 
     @property
     def concurrency(self) -> int:
@@ -734,15 +761,26 @@ class DAG(LoggingMixin):
 
     @property
     def filepath(self) -> str:
-        """File location of where the dag object is instantiated"""
-        fn = self.full_filepath.replace(settings.DAGS_FOLDER + '/', '')
-        fn = fn.replace(os.path.dirname(__file__) + '/', '')
-        return fn
+        """:meta private:"""
+        warnings.warn(
+            "filepath is deprecated, use relative_fileloc instead", DeprecationWarning, stacklevel=2
+        )
+        return str(self.relative_fileloc)
+
+    @property
+    def relative_fileloc(self) -> pathlib.Path:
+        """File location of the importable dag 'file' relative to the configured DAGs folder."""
+        path = pathlib.Path(self.fileloc)
+        try:
+            return path.relative_to(settings.DAGS_FOLDER)
+        except ValueError:
+            # Not relative to DAGS_FOLDER.
+            return path
 
     @property
     def folder(self) -> str:
         """Folder location of where the DAG object is instantiated."""
-        return os.path.dirname(self.full_filepath)
+        return os.path.dirname(self.fileloc)
 
     @property
     def owner(self) -> str:
@@ -1480,7 +1518,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=True,
-        dag_run_state: str = State.RUNNING,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run=False,
         session=None,
         get_tis=False,
@@ -1606,7 +1644,7 @@ class DAG(LoggingMixin):
         confirm_prompt=False,
         include_subdags=True,
         include_parentdag=False,
-        dag_run_state=State.RUNNING,
+        dag_run_state=DagRunState.QUEUED,
         dry_run=False,
     ):
         all_tis = []
@@ -1959,6 +1997,8 @@ class DAG(LoggingMixin):
 
     def cli(self):
         """Exposes a CLI specific to this DAG"""
+        check_cycle(self)
+
         from airflow.cli import cli_parser
 
         parser = cli_parser.get_parser(dag_parser=True)
@@ -1968,7 +2008,7 @@ class DAG(LoggingMixin):
     @provide_session
     def create_dagrun(
         self,
-        state: State,
+        state: DagRunState,
         execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         start_date: Optional[datetime] = None,
@@ -1990,7 +2030,7 @@ class DAG(LoggingMixin):
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: airflow.utils.state.State
+        :type state: airflow.utils.state.DagRunState
         :param start_date: the date this dag run should be evaluated
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
@@ -2115,9 +2155,11 @@ class DAG(LoggingMixin):
             .group_by(DagRun.dag_id)
             .all()
         )
+        filelocs = []
 
         for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
             dag = dag_by_ids[orm_dag.dag_id]
+            filelocs.append(dag.fileloc)
             if dag.is_subdag:
                 orm_dag.is_subdag = True
                 orm_dag.fileloc = dag.parent_dag.fileloc  # type: ignore
@@ -2154,7 +2196,7 @@ class DAG(LoggingMixin):
                         session.add(dag_tag_orm)
 
         if settings.STORE_DAG_CODE:
-            DagCode.bulk_sync_to_db([dag.fileloc for dag in orm_dags])
+            DagCode.bulk_sync_to_db(filelocs)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
@@ -2271,7 +2313,6 @@ class DAG(LoggingMixin):
                 '_old_context_manager_dags',
                 'safe_dag_id',
                 'last_loaded',
-                '_full_filepath',
                 'user_defined_filters',
                 'user_defined_macros',
                 'partial',
@@ -2379,6 +2420,10 @@ class DagModel(Base):
         Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
     )
 
+    parent_dag = relationship(
+        "DagModel", remote_side=[dag_id], primaryjoin=root_dag_id == dag_id, foreign_keys=[root_dag_id]
+    )
+
     NUM_DAGS_PER_DAGRUN_QUERY = conf.getint('scheduler', 'max_dagruns_to_create_per_loop', fallback=10)
 
     def __init__(self, concurrency=None, **kwargs):
@@ -2407,7 +2452,7 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=None):
-        return session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+        return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
 
     @classmethod
     @provide_session
@@ -2451,6 +2496,18 @@ class DagModel(Base):
     @property
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
+
+    @property
+    def relative_fileloc(self) -> Optional[pathlib.Path]:
+        """File location of the importable dag 'file' relative to the configured DAGs folder."""
+        if self.fileloc is None:
+            return None
+        path = pathlib.Path(self.fileloc)
+        try:
+            return path.relative_to(settings.DAGS_FOLDER)
+        except ValueError:
+            # Not relative to DAGS_FOLDER.
+            return path
 
     @provide_session
     def set_is_paused(self, is_paused: bool, including_subdags: bool = True, session=None) -> None:

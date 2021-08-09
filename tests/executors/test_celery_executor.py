@@ -126,14 +126,12 @@ class TestCeleryExecutor(unittest.TestCase):
                 task_tuples_to_send = [
                     (
                         ('success', 'fake_simple_ti', execute_date, 0),
-                        None,
                         success_command,
                         celery_executor.celery_configuration['task_default_queue'],
                         celery_executor.execute_command,
                     ),
                     (
                         ('fail', 'fake_simple_ti', execute_date, 0),
-                        None,
                         fail_command,
                         celery_executor.celery_configuration['task_default_queue'],
                         celery_executor.execute_command,
@@ -141,8 +139,8 @@ class TestCeleryExecutor(unittest.TestCase):
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, simple_ti, command, queue, task) in task_tuples_to_send:
-                    executor.queued_tasks[key] = (command, 1, queue, simple_ti)
+                for (key, command, queue, task) in task_tuples_to_send:
+                    executor.queued_tasks[key] = (command, 1, queue, None)
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
@@ -329,9 +327,11 @@ class TestCeleryExecutor(unittest.TestCase):
         ti1 = TaskInstance(task=task_1, execution_date=exec_date)
         ti1.external_executor_id = '231'
         ti1.queued_dttm = queued_dttm
+        ti1.state = State.QUEUED
         ti2 = TaskInstance(task=task_2, execution_date=exec_date)
         ti2.external_executor_id = '232'
         ti2.queued_dttm = queued_dttm
+        ti2.state = State.QUEUED
 
         tis = [ti1, ti2]
         executor = celery_executor.CeleryExecutor()

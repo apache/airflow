@@ -161,6 +161,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
 
     .. code-block:: python
 
+        # Send file with filename and filetype
         slack = SlackAPIFileOperator(
             task_id="slack_file_upload",
             dag=dag,
@@ -169,7 +170,16 @@ class SlackAPIFileOperator(SlackAPIOperator):
             initial_comment="Hello World!",
             filename="hello_world.csv",
             filetype="csv",
-            content="hello,world,csv,file",
+        )
+
+        # Send file content
+        slack = SlackAPIFileOperator(
+            task_id="slack_file_upload",
+            dag=dag,
+            slack_conn_id="slack",
+            channel="#general",
+            initial_comment="Hello World!",
+            content="file content in txt",
         )
 
     :param channel: channel in which to sent file on slack name (templated)
@@ -192,9 +202,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
-        filename: str = 'default_name.csv',
-        filetype: str = 'csv',
-        content: str = 'default,content,csv,file',
+        filename: str = None,
+        filetype: str = None,
+        content: str = None,
         **kwargs,
     ) -> None:
         self.method = 'files.upload'
@@ -203,13 +213,31 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filename = filename
         self.filetype = filetype
         self.content = content
+        self.file_params = {}
         super().__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self) -> Any:
-        self.api_params = {
-            'channels': self.channel,
-            'content': self.content,
-            'filename': self.filename,
-            'filetype': self.filetype,
-            'initial_comment': self.initial_comment,
-        }
+        if self.content is not None:
+            self.api_params = {
+                'channels': self.channel,
+                'content': self.content,
+                'initial_comment': self.initial_comment,
+            }
+        elif self.filename is not None:
+            self.api_params = {
+                'channels': self.channel,
+                'filename': self.filename,
+                'filetype': self.filetype,
+                'initial_comment': self.initial_comment,
+            }
+            self.file_params = {'file': self.filename}
+
+    def execute(self, **kwargs):
+        """
+        The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
+        It should not prevent a DAG from completing in success
+        """
+        if not self.api_params:
+            self.construct_api_call_params()
+        slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
+        slack.call(self.method, data=self.api_params, files=self.file_params)

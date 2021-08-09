@@ -28,31 +28,34 @@ shift
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
+image_name_with_tag="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+
+# Remove me on 15th of August 2021 after all users had chance to rebase
+legacy_ci_image="ghcr.io/${GITHUB_REPOSITORY}-${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci-v2:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+
 function pull_ci_image() {
-    local image_name_with_tag="${GITHUB_REGISTRY_AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-    start_end::group_start "Pulling ${image_name_with_tag} image"
-    push_pull_remove_images::pull_image_github_dockerhub "${AIRFLOW_CI_IMAGE}" "${image_name_with_tag}"
+    start_end::group_start "Pulling image: ${IMAGE_AVAILABLE}"
+    push_pull_remove_images::pull_image_if_not_present_or_forced "${IMAGE_AVAILABLE}"
+    # Remove me on 15th of August 2021 after all users had chance to rebase
+    if [[ ${IMAGE_AVAILABLE} != "${image_name_with_tag}" ]]; then
+        verbosity::print_info "Tagging the legacy ${IMAGE_AVAILABLE} with ${image_name_with_tag}"
+        docker tag "${IMAGE_AVAILABLE}" "${image_name_with_tag}"
+    fi
     start_end::group_end
-
 }
-
-push_pull_remove_images::check_if_github_registry_wait_for_image_enabled
 
 start_end::group_start "Configure Docker Registry"
 build_images::configure_docker_registry
 start_end::group_end
 
-export AIRFLOW_CI_IMAGE_NAME="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
-
-start_end::group_start "Waiting for ${AIRFLOW_CI_IMAGE_NAME} image to appear"
-
-push_pull_remove_images::wait_for_github_registry_image \
-    "${AIRFLOW_CI_IMAGE_NAME}${GITHUB_REGISTRY_IMAGE_SUFFIX}" "${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-
+start_end::group_start "Waiting for ${image_name_with_tag}"
+# Remove me on 15th of August 2021 after all users had chance to rebase
+push_pull_remove_images::wait_for_image "${image_name_with_tag}" "${legacy_ci_image}"
 build_images::prepare_ci_build
+start_end::group_end
 
 pull_ci_image
 
-verify_image::verify_ci_image "${AIRFLOW_CI_IMAGE}"
-
-start_end::group_end
+if [[ ${VERIFY_IMAGE=} != "false" ]]; then
+    verify_image::verify_ci_image "${image_name_with_tag}"
+fi

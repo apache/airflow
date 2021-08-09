@@ -242,7 +242,7 @@ class AirflowConfigParser(ConfigParser):
             if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
                 raise AirflowConfigException(
                     f"error: sqlite C library version too old (< {min_sqlite_version}). "
-                    f"See {get_docs_url('howto/set-up-database.rst#setting-up-a-sqlite-database')}"
+                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
                 )
 
         if self.has_option('core', 'mp_start_method'):
@@ -456,7 +456,7 @@ class AirflowConfigParser(ConfigParser):
         """
         Reads options, imports the full qualified name, and returns the object.
 
-        In case of failure, it throws an exception a clear message with the key aad the section names
+        In case of failure, it throws an exception with the key and section names
 
         :return: The object or None, if the option is empty
         """

@@ -18,7 +18,7 @@
 version: "2.2"
 services:
   airflow:
-    image: ${AIRFLOW_IMAGE}
+    image: ${AIRFLOW_CI_IMAGE}
     environment:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin

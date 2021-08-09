@@ -71,6 +71,28 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type computenode_disk_type: str
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
+    :type computenode_max_count: int
+    :param computenode_max_count: Maximum number of nodes of compute autoscaling subcluster.
+    :param computenode_warmup_duration: The warmup time of the instance in seconds. During this time,
+                                        traffic is sent to the instance,
+                                        but instance metrics are not collected. In seconds.
+    :type computenode_warmup_duration: int
+    :param computenode_stabilization_duration: Minimum amount of time in seconds for monitoring before
+                                   Instance Groups can reduce the number of instances in the group.
+                                   During this time, the group size doesn't decrease,
+                                   even if the new metric values indicate that it should. In seconds.
+    :type computenode_stabilization_duration: int
+    :param computenode_preemptible: Preemptible instances are stopped at least once every 24 hours,
+                        and can be stopped at any time if their resources are needed by Compute.
+    :type computenode_preemptible: bool
+    :param computenode_cpu_utilization_target: Defines an autoscaling rule
+                                   based on the average CPU utilization of the instance group.
+                                   in percents. 10-100.
+                                   By default is not set and default autoscaling strategy is used.
+    :type computenode_cpu_utilization_target: int
+    :param computenode_decommission_timeout: Timeout to gracefully decommission nodes during downscaling.
+                                             In seconds.
+    :type computenode_decommission_timeout: int
     """
 
     def __init__(
@@ -78,31 +100,38 @@ class DataprocCreateClusterOperator(BaseOperator):
         *,
         folder_id: Optional[str] = None,
         cluster_name: Optional[str] = None,
-        cluster_description: str = '',
-        cluster_image_version: str = '1.1',
+        cluster_description: Optional[str] = '',
+        cluster_image_version: Optional[str] = None,
         ssh_public_keys: Optional[Union[str, Iterable[str]]] = None,
         subnet_id: Optional[str] = None,
         services: Iterable[str] = ('HDFS', 'YARN', 'MAPREDUCE', 'HIVE', 'SPARK'),
         s3_bucket: Optional[str] = None,
         zone: str = 'ru-central1-b',
         service_account_id: Optional[str] = None,
-        masternode_resource_preset: str = 's2.small',
-        masternode_disk_size: int = 15,
-        masternode_disk_type: str = 'network-ssd',
-        datanode_resource_preset: str = 's2.small',
-        datanode_disk_size: int = 15,
-        datanode_disk_type: str = 'network-ssd',
-        datanode_count: int = 2,
-        computenode_resource_preset: str = 's2.small',
-        computenode_disk_size: int = 15,
-        computenode_disk_type: str = 'network-ssd',
+        masternode_resource_preset: Optional[str] = None,
+        masternode_disk_size: Optional[int] = None,
+        masternode_disk_type: Optional[str] = None,
+        datanode_resource_preset: Optional[str] = None,
+        datanode_disk_size: Optional[int] = None,
+        datanode_disk_type: Optional[str] = None,
+        datanode_count: int = 1,
+        computenode_resource_preset: Optional[str] = None,
+        computenode_disk_size: Optional[int] = None,
+        computenode_disk_type: Optional[str] = None,
         computenode_count: int = 0,
+        computenode_max_hosts_count: Optional[int] = None,
+        computenode_measurement_duration: Optional[int] = None,
+        computenode_warmup_duration: Optional[int] = None,
+        computenode_stabilization_duration: Optional[int] = None,
+        computenode_preemptible: bool = False,
+        computenode_cpu_utilization_target: Optional[int] = None,
+        computenode_decommission_timeout: Optional[int] = None,
         connection_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.folder_id = folder_id
-        self.connection_id = connection_id
+        self.yandex_conn_id = connection_id
         self.cluster_name = cluster_name
         self.cluster_description = cluster_description
         self.cluster_image_version = cluster_image_version
@@ -123,11 +152,19 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.computenode_disk_size = computenode_disk_size
         self.computenode_disk_type = computenode_disk_type
         self.computenode_count = computenode_count
+        self.computenode_max_hosts_count = computenode_max_hosts_count
+        self.computenode_measurement_duration = computenode_measurement_duration
+        self.computenode_warmup_duration = computenode_warmup_duration
+        self.computenode_stabilization_duration = computenode_stabilization_duration
+        self.computenode_preemptible = computenode_preemptible
+        self.computenode_cpu_utilization_target = computenode_cpu_utilization_target
+        self.computenode_decommission_timeout = computenode_decommission_timeout
+
         self.hook: Optional[DataprocHook] = None
 
     def execute(self, context) -> None:
         self.hook = DataprocHook(
-            connection_id=self.connection_id,
+            yandex_conn_id=self.yandex_conn_id,
         )
         operation_result = self.hook.client.create_cluster(
             folder_id=self.folder_id,
@@ -151,9 +188,16 @@ class DataprocCreateClusterOperator(BaseOperator):
             computenode_disk_size=self.computenode_disk_size,
             computenode_disk_type=self.computenode_disk_type,
             computenode_count=self.computenode_count,
+            computenode_max_hosts_count=self.computenode_max_hosts_count,
+            computenode_measurement_duration=self.computenode_measurement_duration,
+            computenode_warmup_duration=self.computenode_warmup_duration,
+            computenode_stabilization_duration=self.computenode_stabilization_duration,
+            computenode_preemptible=self.computenode_preemptible,
+            computenode_cpu_utilization_target=self.computenode_cpu_utilization_target,
+            computenode_decommission_timeout=self.computenode_decommission_timeout,
         )
         context['task_instance'].xcom_push(key='cluster_id', value=operation_result.response.id)
-        context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.connection_id)
+        context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.yandex_conn_id)
 
 
 class DataprocDeleteClusterOperator(BaseOperator):
@@ -171,17 +215,17 @@ class DataprocDeleteClusterOperator(BaseOperator):
         self, *, connection_id: Optional[str] = None, cluster_id: Optional[str] = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
-        self.connection_id = connection_id
+        self.yandex_conn_id = connection_id
         self.cluster_id = cluster_id
         self.hook: Optional[DataprocHook] = None
 
     def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        connection_id = self.connection_id or context['task_instance'].xcom_pull(
+        yandex_conn_id = self.yandex_conn_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
         self.hook = DataprocHook(
-            connection_id=connection_id,
+            yandex_conn_id=yandex_conn_id,
         )
         self.hook.client.delete_cluster(cluster_id)
 
@@ -236,11 +280,11 @@ class DataprocCreateHiveJobOperator(BaseOperator):
 
     def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        connection_id = self.connection_id or context['task_instance'].xcom_pull(
+        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
         self.hook = DataprocHook(
-            connection_id=connection_id,
+            yandex_conn_id=yandex_conn_id,
         )
         self.hook.client.create_hive_job(
             query=self.query,
@@ -312,11 +356,11 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
 
     def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        connection_id = self.connection_id or context['task_instance'].xcom_pull(
+        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
         self.hook = DataprocHook(
-            connection_id=connection_id,
+            yandex_conn_id=yandex_conn_id,
         )
         self.hook.client.create_mapreduce_job(
             main_class=self.main_class,
@@ -389,11 +433,11 @@ class DataprocCreateSparkJobOperator(BaseOperator):
 
     def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        connection_id = self.connection_id or context['task_instance'].xcom_pull(
+        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
         self.hook = DataprocHook(
-            connection_id=connection_id,
+            yandex_conn_id=yandex_conn_id,
         )
         self.hook.client.create_spark_job(
             main_class=self.main_class,
@@ -466,11 +510,11 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
 
     def execute(self, context) -> None:
         cluster_id = self.cluster_id or context['task_instance'].xcom_pull(key='cluster_id')
-        connection_id = self.connection_id or context['task_instance'].xcom_pull(
+        yandex_conn_id = self.connection_id or context['task_instance'].xcom_pull(
             key='yandexcloud_connection_id'
         )
         self.hook = DataprocHook(
-            connection_id=connection_id,
+            yandex_conn_id=yandex_conn_id,
         )
         self.hook.client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,

@@ -213,4 +213,5 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             'schema',
             'table',
             'unload_options',
+            'select_query',
         )

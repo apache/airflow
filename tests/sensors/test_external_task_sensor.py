@@ -551,16 +551,16 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child):
     task_0 = dag_0.get_task("task_0")
     clear_tasks(dag_bag, dag_0, task_0, start_date=day_1, end_date=day_2)
 
-    # Assert that dagruns of all the affected dags are set to RUNNING after tasks are cleared.
+    # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
     # Unaffected dagruns should be left as SUCCESS.
     dagrun_0_1 = dag_bag.get_dag('parent_dag_0').get_dagrun(execution_date=day_1)
     dagrun_0_2 = dag_bag.get_dag('parent_dag_0').get_dagrun(execution_date=day_2)
     dagrun_1_1 = dag_bag.get_dag('child_dag_1').get_dagrun(execution_date=day_1)
     dagrun_1_2 = dag_bag.get_dag('child_dag_1').get_dagrun(execution_date=day_2)
 
-    assert dagrun_0_1.state == State.RUNNING
-    assert dagrun_0_2.state == State.RUNNING
-    assert dagrun_1_1.state == State.RUNNING
+    assert dagrun_0_1.state == State.QUEUED
+    assert dagrun_0_2.state == State.QUEUED
+    assert dagrun_1_1.state == State.QUEUED
     assert dagrun_1_2.state == State.SUCCESS
 
 

@@ -25,6 +25,7 @@ import re
 import unittest
 from contextlib import redirect_stdout
 from datetime import timedelta
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Optional
 from unittest import mock
@@ -1432,7 +1433,7 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [(state, State.NONE) for state in State.task_states if state != State.RUNNING]
-        + [(State.RUNNING, State.SHUTDOWN)]
+        + [(State.RUNNING, State.RESTARTING)]
     )  # type: ignore
     def test_clear_dag(self, ti_state_begin, ti_state_end: Optional[str]):
         dag_id = 'test_clear_dag'
@@ -1770,6 +1771,19 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    @pytest.mark.parametrize(
+        ('fileloc', 'expected_relative'),
+        [
+            (os.path.join(settings.DAGS_FOLDER, 'a.py'), Path('a.py')),
+            ('/tmp/foo.py', Path('/tmp/foo.py')),
+        ],
+    )
+    def test_relative_fileloc(self, fileloc, expected_relative):
+        dag = DAG(dag_id='test')
+        dag.fileloc = fileloc
+
+        assert dag.relative_fileloc == expected_relative
+
 
 class TestQueries(unittest.TestCase):
     def setUp(self) -> None:
@@ -2011,7 +2025,7 @@ def test_set_task_instance_state():
         # task_5 remains as SKIPPED
         assert get_task_instance(session, task_5).state == State.SKIPPED
         dagrun.refresh_from_db(session=session)
-        # dagrun should be set to RUNNING
-        assert dagrun.get_state() == State.RUNNING
+        # dagrun should be set to QUEUED
+        assert dagrun.get_state() == State.QUEUED
 
     assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', start_date, 1)}

@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.4.0
   - 1.3.0
@@ -374,9 +375,11 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_sftp.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_sftp
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sftp_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: File Transfer Protocol (FTP)
@@ -387,6 +390,10 @@ transfers:
   - source-integration-name: File Transfer Protocol (FTP)
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.ftp_to_s3
+  - source-integration-name: Salesforce
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/salesforce_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.salesforce_to_s3
 
 hook-class-names:
   - airflow.providers.amazon.aws.hooks.s3.S3Hook

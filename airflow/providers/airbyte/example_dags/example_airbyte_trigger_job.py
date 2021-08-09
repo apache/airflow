@@ -25,13 +25,8 @@ from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperat
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_airbyte_operator',
-    default_args=args,
     schedule_interval=None,
     start_date=days_ago(1),
     dagrun_timeout=timedelta(minutes=60),
@@ -56,9 +51,10 @@ with DAG(
 
     airbyte_sensor = AirbyteJobSensor(
         task_id='airbyte_sensor_source_dest_example',
-        airbyte_job_id="{{task_instance.xcom_pull(task_ids='airbyte_async_source_dest_example')}}",
+        airbyte_job_id=async_source_destination.output,
         airbyte_conn_id='airbyte_default',
     )
     # [END howto_operator_airbyte_asynchronous]
 
-    async_source_destination >> airbyte_sensor
+    # Task dependency created via `XComArgs`:
+    #   async_source_destination >> airbyte_sensor

@@ -1,9 +1,27 @@
-Airflow 2.1.1, 2021-06-29
+Airflow 2.1.2, 2021-07-14
 -------------------------
 
 Bug Fixes
 """""""""
 
+- Only allow webserver to request from the worker log server (#16754)
+- Fix "Invalid JSON configuration, must be a dict" bug (#16648)
+- Fix ``CeleryKubernetesExecutor`` (#16700)
+- Mask value if the key is ``token`` (#16474)
+- Fix impersonation issue with ``LocalTaskJob`` (#16852)
+- Resolve all npm vulnerabilities including bumping ``jQuery`` to ``3.5`` (#16440)
+
+Misc
+""""
+
+- Add Python 3.9 support (#15515)
+
+
+Airflow 2.1.1, 2021-07-02
+-------------------------
+
+Bug Fixes
+"""""""""
 
 - Don't crash attempting to mask secrets in dict with non-string keys (#16601)
 - Always install sphinx_airflow_theme from ``PyPI`` (#16594)

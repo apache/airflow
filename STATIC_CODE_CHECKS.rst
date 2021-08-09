@@ -350,7 +350,7 @@ Run all tests for last commit :
 
 .. code-block:: bash
 
-     ./breeze static-check all -- --ref-from HEAD^ --ref-to HEAD
+     ./breeze static-check all -- --from-ref HEAD^ --to-ref HEAD
 
 
 The ``license`` check is run via a separate script and a separate Docker image containing the

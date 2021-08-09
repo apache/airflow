@@ -44,6 +44,8 @@ Helm Chart for Apache Airflow
     :caption: References
 
     Parameters <parameters-ref>
+    changelog
+    Updating <updating>
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
@@ -100,6 +102,9 @@ To upgrade the chart with the release name ``airflow``:
 .. code-block:: bash
 
     helm upgrade airflow apache-airflow/airflow --namespace airflow
+
+.. note::
+  To upgrade to a new version of the chart, run ``helm repo update`` first.
 
 Uninstalling the Chart
 ----------------------

@@ -424,3 +424,63 @@ def app():
     from airflow.www import app
 
     return app.create_app(testing=True)
+
+
+@pytest.fixture
+def dag_maker(request):
+    from airflow.models import DAG, DagModel
+    from airflow.utils import timezone
+    from airflow.utils.session import provide_session
+    from airflow.utils.state import State
+
+    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+    class DagFactory:
+        def __enter__(self):
+            self.dag.__enter__()
+            return self.dag
+
+        def __exit__(self, type, value, traceback):
+            dag = self.dag
+            dag.__exit__(type, value, traceback)
+            if type is None:
+                dag.clear()
+                self.dag_model = DagModel(
+                    dag_id=dag.dag_id,
+                    next_dagrun=dag.start_date,
+                    is_active=True,
+                    is_paused=False,
+                    max_active_tasks=dag.max_active_tasks,
+                    has_task_concurrency_limits=False,
+                )
+                self.session.add(self.dag_model)
+                self.session.flush()
+
+        def create_dagrun(self, **kwargs):
+            dag = self.dag
+            defaults = dict(
+                run_id='test',
+                state=State.RUNNING,
+                execution_date=self.start_date,
+                start_date=self.start_date,
+            )
+            kwargs = {**defaults, **kwargs}
+            self.dag_run = dag.create_dagrun(**kwargs)
+            return self.dag_run
+
+        @provide_session
+        def __call__(self, dag_id='test_dag', session=None, **kwargs):
+            self.kwargs = kwargs
+            self.session = session
+            self.start_date = self.kwargs.get('start_date', None)
+            if not self.start_date:
+                if hasattr(request.module, 'DEFAULT_DATE'):
+                    self.start_date = getattr(request.module, 'DEFAULT_DATE')
+                else:
+                    self.start_date = DEFAULT_DATE
+            self.kwargs['start_date'] = self.start_date
+            self.dag = DAG(dag_id, **self.kwargs)
+            self.dag.fileloc = request.module.__file__
+            return self
+
+    return DagFactory()

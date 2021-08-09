@@ -25,8 +25,10 @@ from collections import Counter
 from unittest import TestCase
 
 import pytest
+from parameterized import parameterized
 
 from airflow.cli import cli_parser
+from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
@@ -193,3 +195,35 @@ class TestCli(TestCase):
         with pytest.raises(argparse.ArgumentTypeError):
             cli_parser.positive_int(allow_zero=False)('0')
             cli_parser.positive_int(allow_zero=True)('-1')
+
+    def test_dag_parser_celery_command_require_celery_executor(self):
+        with conf_vars({('core', 'executor'): 'SequentialExecutor'}), contextlib.redirect_stderr(
+            io.StringIO()
+        ) as stderr:
+            parser = cli_parser.get_parser()
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['celery'])
+            stderr = stderr.getvalue()
+        assert (
+            "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
+            "works only with CeleryExecutor, your current executor: SequentialExecutor, see help above."
+        ) in stderr
+
+    @parameterized.expand(["CeleryExecutor", "CeleryKubernetesExecutor"])
+    def test_dag_parser_celery_command_accept_celery_executor(self, executor):
+        with conf_vars({('core', 'executor'): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
+            parser = cli_parser.get_parser()
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['celery'])
+            stderr = stderr.getvalue()
+        assert (
+            "airflow celery command error: the following arguments are required: COMMAND, see help above."
+        ) in stderr
+
+    def test_dag_parser_config_command_dont_required_celery_executor(self):
+        with conf_vars({('core', 'executor'): "CeleryExecutor"}), contextlib.redirect_stderr(
+            io.StringIO()
+        ) as stdout:
+            parser = cli_parser.get_parser()
+            parser.parse_args(['config', 'get-value', 'celery', 'broker-url'])
+        assert stdout is not None

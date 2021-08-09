@@ -178,3 +178,160 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.password = None
         params = self.db_hook._get_conn_params()
         assert 'private_key' in params
+
+
+"""
+    Testing hooks with assigning`extra_` parameters
+"""
+
+
+class TestSnowflakeHookExtra(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+
+        self.conn = conn = mock.MagicMock()
+
+        self.conn.login = 'user'
+        self.conn.password = 'pw'
+        self.conn.schema = 'public'
+        self.conn.extra_dejson = {
+            'extra__snowflake__database': 'db',
+            'extra__snowflake__account': 'airflow',
+            'extra__snowflake__warehouse': 'af_wh',
+            'extra__snowflake__region': 'af_region',
+            'extra__snowflake__role': 'af_role',
+        }
+
+        class UnitTestSnowflakeHookExtra(SnowflakeHook):
+            conn_name_attr = 'snowflake_conn_id'
+
+            def get_conn(self):
+                return conn
+
+            def get_connection(self, _):
+                return conn
+
+        self.db_hook_extra = UnitTestSnowflakeHookExtra(
+            session_parameters={"QUERY_TAG": "This is a test hook"}
+        )
+
+        self.non_encrypted_private_key = "/tmp/test_key.pem"
+        self.encrypted_private_key = "/tmp/test_key.p8"
+
+        # Write some temporary private keys. First is not encrypted, second is with a passphrase.
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        private_key = key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+
+        with open(self.non_encrypted_private_key, "wb") as file:
+            file.write(private_key)
+
+        key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
+        private_key = key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.BestAvailableEncryption(self.conn.password.encode()),
+        )
+
+        with open(self.encrypted_private_key, "wb") as file:
+            file.write(private_key)
+
+    def tearDownExtra(self):
+        os.remove(self.encrypted_private_key)
+        os.remove(self.non_encrypted_private_key)
+
+    def test_get_uri_extra(self):
+        uri_shouldbe = (
+            'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
+        )
+        assert uri_shouldbe == self.db_hook_extra.get_uri()
+
+    @parameterized.expand(
+        [
+            ('select * from table', ['uuid', 'uuid']),
+            ('select * from table;select * from table2', ['uuid', 'uuid', 'uuid2', 'uuid2']),
+            (['select * from table;'], ['uuid', 'uuid']),
+            (['select * from table;', 'select * from table2;'], ['uuid', 'uuid', 'uuid2', 'uuid2']),
+        ],
+    )
+    def test_run_storing_query_ids_extra(self, sql, query_ids):
+        cur = mock.MagicMock(rowcount=0)
+        self.conn.cursor.return_value = cur
+        type(cur).sfqid = mock.PropertyMock(side_effect=query_ids)
+        mock_params = {"mock_param": "mock_param"}
+        self.db_hook_extra.run(sql, parameters=mock_params)
+
+        sql_list = sql if isinstance(sql, list) else re.findall(".*?[;]", sql)
+        cur.execute.assert_has_calls([mock.call(query, mock_params) for query in sql_list])
+        assert self.db_hook_extra.query_ids == query_ids[::2]
+        cur.close.assert_called()
+
+    def test_get_conn_params_extra(self):
+        conn_params_shouldbe = {
+            'user': 'user',
+            'password': 'pw',
+            'schema': 'public',
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'authenticator': 'snowflake',
+            'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": "AIRFLOW",
+        }
+        assert self.db_hook_extra.snowflake_conn_id == 'snowflake_default'
+        assert conn_params_shouldbe == self.db_hook_extra._get_conn_params()
+
+    def test_get_conn_params_env_variable_extra(self):
+        conn_params_shouldbe = {
+            'user': 'user',
+            'password': 'pw',
+            'schema': 'public',
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'authenticator': 'snowflake',
+            'session_parameters': {"QUERY_TAG": "This is a test hook"},
+            "application": "AIRFLOW_TEST",
+        }
+        with patch_environ({"AIRFLOW_SNOWFLAKE_PARTNER": 'AIRFLOW_TEST'}):
+            assert self.db_hook_extra.snowflake_conn_id == 'snowflake_default'
+            assert conn_params_shouldbe == self.db_hook_extra._get_conn_params()
+
+    def test_get_conn_extra(self):
+        assert self.db_hook_extra.get_conn() == self.conn
+
+    def test_key_pair_auth_encrypted_extra(self):
+        self.conn.extra_dejson = {
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'private_key_file': self.encrypted_private_key,
+        }
+
+        params = self.db_hook_extra._get_conn_params()
+        assert 'private_key' in params
+
+    def test_key_pair_auth_not_encrypted_extra(self):
+        self.conn.extra_dejson = {
+            'database': 'db',
+            'account': 'airflow',
+            'warehouse': 'af_wh',
+            'region': 'af_region',
+            'role': 'af_role',
+            'private_key_file': self.non_encrypted_private_key,
+        }
+
+        self.conn.password = ''
+        params = self.db_hook_extra._get_conn_params()
+        assert 'private_key' in params
+
+        self.conn.password = None
+        params = self.db_hook_extra._get_conn_params()
+        assert 'private_key' in params
