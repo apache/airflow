@@ -66,7 +66,7 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
 
     if  conf.get('kerberos','include_ip'): 
         include_ip = '-a'
-    else 
+    else: 
         include_ip = '-A'
 
     cmdv = [
