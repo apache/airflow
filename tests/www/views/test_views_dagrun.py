@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
-
 import pytest
 
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response
 
 
@@ -43,97 +40,6 @@ def reset_dagrun():
     with create_session() as session:
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
-
-
-@pytest.mark.parametrize(
-    "post_date, expected",
-    [
-        ("2018-07-06 05:04:03Z", timezone.datetime(2018, 7, 6, 5, 4, 3)),
-        ("2018-07-06 05:04:03-04:00", timezone.datetime(2018, 7, 6, 9, 4, 3)),
-        ("2018-07-06 05:04:03-08:00", timezone.datetime(2018, 7, 6, 13, 4, 3)),
-        ("2018-07-06 05:04:03", timezone.datetime(2018, 7, 6, 5, 4, 3)),
-    ],
-    ids=["UTC", "EDT", "PST", "naive"],
-)
-def test_create_dagrun(session, admin_client, post_date, expected):
-    data = {
-        "state": "running",
-        "dag_id": "example_bash_operator",
-        "execution_date": post_date,
-        "run_id": "test_create_dagrun",
-    }
-    resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    check_content_in_response('Added Row', resp)
-
-    dr = session.query(DagRun).one()
-
-    assert dr.execution_date == expected
-
-
-@conf_vars({("core", "default_timezone"): "America/Toronto"})
-def test_create_dagrun_without_timezone_default(session, admin_client):
-    data = {
-        "state": "running",
-        "dag_id": "example_bash_operator",
-        "execution_date": "2018-07-06 05:04:03",
-        "run_id": "test_create_dagrun",
-    }
-    resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    check_content_in_response('Added Row', resp)
-
-    dr = session.query(DagRun).one()
-
-    assert dr.execution_date == timezone.datetime(2018, 7, 6, 9, 4, 3)
-
-
-def test_create_dagrun_valid_conf(session, admin_client):
-    conf_value = dict(Valid=True)
-    data = {
-        "state": "running",
-        "dag_id": "example_bash_operator",
-        "execution_date": "2018-07-06 05:05:03-02:00",
-        "run_id": "test_create_dagrun_valid_conf",
-        "conf": json.dumps(conf_value),
-    }
-
-    resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    check_content_in_response('Added Row', resp)
-    dr = session.query(DagRun).one()
-    assert dr.conf == conf_value
-
-
-def test_create_dagrun_invalid_conf(session, admin_client):
-    data = {
-        "state": "running",
-        "dag_id": "example_bash_operator",
-        "execution_date": "2018-07-06 05:06:03",
-        "run_id": "test_create_dagrun_invalid_conf",
-        "conf": "INVALID: [JSON",
-    }
-
-    resp = admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    check_content_in_response('JSON Validation Error:', resp)
-    dr = session.query(DagRun).all()
-    assert not dr
-
-
-def test_list_dagrun_includes_conf(session, admin_client):
-    data = {
-        "state": "running",
-        "dag_id": "example_bash_operator",
-        "execution_date": "2018-07-06 05:06:03",
-        "run_id": "test_list_dagrun_includes_conf",
-        "conf": '{"include": "me"}',
-    }
-    admin_client.post('/dagrun/add', data=data, follow_redirects=True)
-    dr = session.query(DagRun).one()
-
-    expect_date = timezone.convert_to_utc(timezone.datetime(2018, 7, 6, 5, 6, 3))
-    assert dr.execution_date == expect_date
-    assert dr.conf == {"include": "me"}
-
-    resp = admin_client.get('/dagrun/list', follow_redirects=True)
-    check_content_in_response("{&#34;include&#34;: &#34;me&#34;}", resp)
 
 
 @pytest.fixture()

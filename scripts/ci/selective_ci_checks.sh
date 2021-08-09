@@ -46,10 +46,12 @@ function check_upgrade_to_newer_dependencies_needed() {
     # shellcheck disable=SC2153
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
             ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
-        # Trigger upgrading to latest constraints where label is set or when
-        # SHA of the merge commit triggers rebuilding layer in the docker image
+        # Trigger upgrading to latest constraints when we are in push or schedule event or when it is forced
+        # By UPGRADE_TO_NEWER_DEPENDENCIES set to non-false. The variable is set to
+        # SHA of the merge commit - so that it always triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
-        # Cached in the image this way
+        # Cached in the image if we set it to "true". This upgrade_to_newer_dependencies variable
+        # can later be overridden in case we find that setup.* files changed (see below)
         upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
     fi
 }
@@ -350,6 +352,8 @@ function check_if_setup_files_changed() {
     show_changed_files
 
     if [[ $(count_changed_files) != "0" ]]; then
+        # In case the setup files changed, we automatically force upgrading to newer dependencies
+        # no matter what was set before
         upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
     fi
     start_end::group_end

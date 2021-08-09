@@ -22,14 +22,6 @@ Changelog
 2.0.1
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
-Features
-~~~~~~~~
-
-
 Bug Fixes
 ~~~~~~~~~
 

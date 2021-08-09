@@ -69,9 +69,7 @@ function test_images() {
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 
-docker_engine_resources::get_available_cpus_in_docker
-
-# Building max for images in parlallel helps to conserve docker image space
+# Building max for images in parallel helps to conserve docker image space
 MAX_PARALLEL_IMAGE_JOBS=4
 export MAX_PARALLEL_IMAGE_JOBS
 

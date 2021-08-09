@@ -58,7 +58,7 @@ Create EMR Job Flow with automatic steps
 Purpose
 """""""
 
-This example dag ``example_emr_job_flow_automatic_steps.py`` use ``EmrCreateJobFlowOperator`` to create a new EMR job flow calculating the mathematical constant ``Pi``, and monitor the progress
+This example dag ``example_emr_job_flow_automatic_steps.py`` uses ``EmrCreateJobFlowOperator`` to create a new EMR job flow calculating the mathematical constant ``Pi``, and monitors the progress
 with ``EmrJobFlowSensor``. The cluster will be terminated automatically after finishing the steps.
 
 JobFlow configuration

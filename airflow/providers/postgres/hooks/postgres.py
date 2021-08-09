@@ -70,6 +70,7 @@ class PostgresHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.connection: Optional[Connection] = kwargs.pop("connection", None)
         self.conn: connection = None
+        self.schema: Optional[str] = kwargs.pop("schema", None)
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()

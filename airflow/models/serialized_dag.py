@@ -90,7 +90,7 @@ class SerializedDagModel(Base):
 
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
-        self.fileloc = dag.full_filepath
+        self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()

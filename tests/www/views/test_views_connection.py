@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 from unittest import mock
 
 import pytest
@@ -54,6 +55,57 @@ def test_prefill_form_null_extra():
 
     cmv = ConnectionModelView()
     cmv.prefill_form(form=mock_form, pk=1)
+
+
+def test_process_form_extras():
+    """
+    Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
+    """
+
+    # Testing parameters set in both `Extra` and custom fields.
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test",
+        "conn_id": "extras_test",
+        "extra": '{"param1": "param1_val"}',
+        "extra__test__custom_field": "custom_field_val",
+    }
+
+    cmv = ConnectionModelView()
+    cmv.extra_fields = ["extra__test__custom_field"]  # Custom field
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {
+        "extra__test__custom_field": "custom_field_val",
+        "param1": "param1_val",
+    }
+
+    # Testing parameters set in `Extra` field only.
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test2",
+        "conn_id": "extras_test2",
+        "extra": '{"param2": "param2_val"}',
+    }
+
+    cmv = ConnectionModelView()
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {"param2": "param2_val"}
+
+    # Testing parameters set in custom fields only.
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test3",
+        "conn_id": "extras_test3",
+        "extra__test3__custom_field": "custom_field_val3",
+    }
+
+    cmv = ConnectionModelView()
+    cmv.extra_fields = ["extra__test3__custom_field"]  # Custom field
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {"extra__test3__custom_field": "custom_field_val3"}
 
 
 def test_duplicate_connection(admin_client):

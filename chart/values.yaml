@@ -1111,6 +1111,8 @@ config:
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
     principal: '{{ .Values.kerberos.principal }}'
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
+  celery_kubernetes_executor:
+    kubernetes_queue: 'kubernetes'
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'

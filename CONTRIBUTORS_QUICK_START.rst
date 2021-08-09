@@ -276,14 +276,14 @@ Setting up Breeze
 
   $ ./breeze --python 3.8 --backend mysql
 
-4. Creating airflow tables and users. ``airflow db reset`` is required to execute at least once for Airflow Breeze to get
-   the database/tables created.
+4. Once the breeze environment is initialized, create airflow tables and users from the breeze CLI. ``airflow db reset``
+   is required to execute at least once for Airflow Breeze to get the database/tables created.
 
 .. code-block:: bash
 
-  $ airflow db reset
-  $ airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname\
-    foo --lastname bar
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
+  root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
+    --email admin@example.com --firstname foo --lastname bar
 
 
 5. Closing Breeze environment. After successfully finishing above command will leave you in container,

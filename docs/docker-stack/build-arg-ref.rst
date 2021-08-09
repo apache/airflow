@@ -79,12 +79,6 @@ for examples of using those arguments.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``CONTINUE_ON_PIP_CHECK_FAILURE``        | ``false``                                | By default the image build fails if pip  |
-|                                          |                                          | check fails for it. This is good for     |
-|                                          |                                          | interactive building but on CI the       |
-|                                          |                                          | image should be built regardless - we    |
-|                                          |                                          | have a separate step to verify image.    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
 |                                          |                                          | upgraded to newer versions matching      |
 |                                          |                                          | setup.py before installation.            |

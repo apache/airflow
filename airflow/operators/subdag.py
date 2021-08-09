@@ -15,7 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""The module which provides a way to nest your DAGs and so your levels of complexity."""
+"""
+This module is deprecated. Please use :mod:`airflow.utils.task_group`.
+The module which provides a way to nest your DAGs and so your levels of complexity.
+"""
+
+import warnings
 from enum import Enum
 from typing import Dict, Optional
 
@@ -42,6 +47,9 @@ class SkippedStatePropagationOptions(Enum):
 
 class SubDagOperator(BaseSensorOperator):
     """
+    This class is deprecated.
+    Please use `airflow.utils.task_group.TaskGroup`.
+
     This runs a sub dag. By convention, a sub dag's dag_id
     should be prefixed by its parent and a dot. As in `parent.child`.
     Although SubDagOperator can occupy a pool/concurrency slot,
@@ -77,6 +85,12 @@ class SubDagOperator(BaseSensorOperator):
 
         self._validate_dag(kwargs)
         self._validate_pool(session)
+
+        warnings.warn(
+            """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def _validate_dag(self, kwargs):
         dag = kwargs.get('dag') or DagContext.get_current_dag()

@@ -22,18 +22,10 @@ Changelog
 2.1.0
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
 Features
 ~~~~~~~~
 
 * ``Adding: Snowflake Role in snowflake provider hook (#16735)``
-
-Bug Fixes
-~~~~~~~~~
-
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

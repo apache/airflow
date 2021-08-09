@@ -18,6 +18,7 @@
 import inspect
 import os
 import pickle
+import shutil
 import sys
 import types
 import warnings
@@ -325,6 +326,8 @@ class PythonVirtualenvOperator(PythonOperator):
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for PythonVirtualenvOperator. Please use string_args."
             )
+        if not shutil.which("virtualenv"):
+            raise AirflowException('PythonVirtualenvOperator requires virtualenv, please install it.')
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
