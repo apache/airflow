@@ -217,8 +217,21 @@ the new ``FooDecoratedOperator`` into a TaskFlow function decorator!
            **kwargs,
        )
 
-3. Register your new decorator in the provider-info.yaml of your provider
+3. Register your new decorator in the provider.yaml of your provider
 
+Finally, add a key-value of ``decorator-name``:``path-to-function`` to your provider.yaml. When Airflow starts, the
+``ProviderManager`` class will automatically import this value and ``task.decorator-name`` will work as a new
+decorator!
+
+.. code-block:: yaml
+
+   package-name: apache-airflow-providers-docker
+   name: Docker
+   description: |
+       `Docker <https://docs.docker.com/install/>`__
+
+   task-decorators:
+       docker: airflow.providers.docker.operators.docker.docker_decorator
 
 
 Finally, use the ``options.entrypoints`` section of your ``setup.cfg`` to allow Airflow to detect your new decorator.
