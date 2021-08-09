@@ -33,14 +33,14 @@
 #                        all the build essentials. This makes the image
 #                        much smaller.
 #
-ARG AIRFLOW_VERSION="2.0.2"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_VERSION="2.2.0.dev0"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,google_auth,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 ARG AIRFLOW_HOME=/opt/airflow
-ARG AIRFLOW_UID="11006"
-ARG AIRFLOW_GID="9992"
+ARG AIRFLOW_UID="50000"
+ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
@@ -247,14 +247,15 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 WORKDIR /opt/airflow
 
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        bash /scripts/docker/install_from_docker_context_files.sh; \
-    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        bash /scripts/docker/install_airflow.sh; \
-    else \
+RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # only compile assets if the prod image is build from sources
         # otherwise they are already compiled-in
         bash /scripts/docker/compile_www_assets.sh; \
+    fi; \
+    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
+    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
@@ -264,12 +265,6 @@ RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
     # make sure that all directories and files in .local are also group accessible
     find /root/.local -executable -print0 | xargs --null chmod g+x; \
     find /root/.local -print0 | xargs --null chmod g+rw
-
-# Update pyhdfs_client.py to account for existing
-COPY scripts/in_container/bin/pyhdfs_client.py /tmp
-RUN rm /root/.local/lib/python3.7/site-packages/pyhdfs_client/pyhdfs_client.py \
- && mv /tmp/pyhdfs_client.py /root/.local/lib/python3.7/site-packages/pyhdfs_client/ \
- && chmod +x /root/.local/lib/python3.7/site-packages/pyhdfs_client/pyhdfs_client.py 
 
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
@@ -419,21 +414,13 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation Java
-COPY scripts/in_container/bin/install_java.sh /java_install.sh
-RUN /java_install.sh
-RUN rm /java_install.sh
-ENV JAVA_HOME=/opt/java/
-
-
-
 # Only copy install_mysql and install_pip_version.sh. We do not need any other scripts in the final image.
 COPY scripts/docker/install_mysql.sh scripts/docker/install_pip_version.sh /scripts/docker/
 
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
-    addgroup --gid "${AIRFLOW_GID}" "xldp" && \
+    addgroup --gid "${AIRFLOW_GID}" "airflow" && \
     adduser --quiet "airflow" --uid "${AIRFLOW_UID}" \
         --gid "${AIRFLOW_GID}" \
         --home "${AIRFLOW_USER_HOME_DIR}" && \
@@ -442,13 +429,13 @@ RUN chmod a+x /scripts/docker/install_mysql.sh && \
     mkdir -pv "${AIRFLOW_HOME}"; \
     mkdir -pv "${AIRFLOW_HOME}/dags"; \
     mkdir -pv "${AIRFLOW_HOME}/logs"; \
-    chown -R "airflow:xldp" "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
+    chown -R "airflow:root" "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}"; \
     find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x && \
         find "${AIRFLOW_HOME}" -print0 | xargs --null chmod g+rw
 
-COPY --chown=airflow:xldp --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
-COPY --chown=airflow:xldp scripts/in_container/prod/entrypoint_prod.sh /entrypoint
-COPY --chown=airflow:xldp scripts/in_container/prod/clean-logs.sh /clean-logs
+COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
+COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
+COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
