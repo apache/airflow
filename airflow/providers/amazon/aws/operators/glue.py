@@ -104,16 +104,15 @@ class AwsGlueJobOperator(BaseOperator):
         if self.script_location and not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
-            s3_hook.load_file(
-                filename=self.script_location,
-                key=self.s3_artifacts_prefix + script_name,
-                bucket_name=self.s3_bucket,
-            )
+            s3_hook.load_file(self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket)
+            s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
+        else:
+            s3_script_location = self.script_location
         glue_job = AwsGlueJobHook(
             job_name=self.job_name,
             desc=self.job_desc,
             concurrent_run_limit=self.concurrent_run_limit,
-            script_location=self.script_location,
+            script_location=s3_script_location,
             retry_limit=self.retry_limit,
             num_of_dpus=self.num_of_dpus,
             aws_conn_id=self.aws_conn_id,
