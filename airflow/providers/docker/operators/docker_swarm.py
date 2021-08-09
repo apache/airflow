@@ -19,7 +19,7 @@ from typing import List, Optional, Union
 
 import requests
 from docker import types
-from docker.types.services import ConfigReference, NetworkAttachmentConfig, SecretReference
+from docker.types import ServiceMode, ConfigReference, NetworkAttachmentConfig, SecretReference
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -97,16 +97,14 @@ class DockerSwarmOperator(DockerOperator):
     :param configs: List of docker configs to be exposed to the containers of the swarm service.
         The configs are ConfigReference objects as per the docker api
         [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
-    :type configs: list[ConfigReference]
+    :type configs: List[docker.types.ConfigReference]
     :param secrets: List of docker secrets to be exposed to the containers of the swarm service.
         The secrets are SecretReference objects as per the docker create_service api.
         [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
-    :type secrets: list[SecretReference]
-    :param mode: Indicate whether a service should be deployed as a replicated or global service.
-        Can be either `replicated` or `global`
-    :type mode: str
-    :param replicas: Number of replicas. For replicated services only.
-    :type replicas: int
+    :type secrets: List[docker.types.SecretReference]
+    :param mode: Indicate whether a service should be deployed as a replicated or global service,
+        and associated parameters
+    :type mode: docker.types.ServiceMode
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :type networks: List[Union[str, NetworkAttachmentConfig]]
     """
@@ -118,8 +116,7 @@ class DockerSwarmOperator(DockerOperator):
         enable_logging: bool = True,
         configs: Optional[List[ConfigReference]] = None,
         secrets: Optional[List[SecretReference]] = None,
-        mode: str = "replicated",
-        replicas: int = 1,
+        mode: Optional[ServiceMode] = None,
         networks: Optional[List[Union[str, NetworkAttachmentConfig]]] = None,
         **kwargs,
     ) -> None:
@@ -130,7 +127,6 @@ class DockerSwarmOperator(DockerOperator):
         self.configs = configs
         self.secrets = secrets
         self.mode = mode
-        self.replicas = replicas
         self.networks = networks
 
     def execute(self, context) -> None:
@@ -162,7 +158,7 @@ class DockerSwarmOperator(DockerOperator):
             ),
             name=f'airflow-{get_random_string()}',
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
-            mode=types.ServiceMode(mode=self.mode, replicas=self.replicas),
+            mode=self.mode,
         )
 
         self.log.info('Service started: %s', str(self.service))

@@ -23,7 +23,7 @@ import pytest
 import requests
 from docker import APIClient
 from docker.types import Mount
-from docker.types.services import ConfigReference, SecretReference
+from docker.types.services import ConfigReference, SecretReference, ServiceMode
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -56,7 +56,6 @@ class TestDockerSwarmOperator(unittest.TestCase):
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
         types_mock.Resources.return_value = mock_obj
-        types_mock.ServiceMode.return_value = mock_obj
 
         client_class_mock.return_value = client_mock
 
@@ -73,8 +72,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             tty=True,
             configs=[ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
             secrets=[SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
-            mode="replicated",
-            replicas=3,
+            mode=ServiceMode(mode="replicated", replicas=3),
             networks=["dummy_network"],
         )
         operator.execute(None)
@@ -97,7 +95,6 @@ class TestDockerSwarmOperator(unittest.TestCase):
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
-        types_mock.ServiceMode.assert_called_once_with(mode="replicated", replicas=3)
 
         client_class_mock.assert_called_once_with(
             base_url='unix://var/run/docker.sock', tls=None, version='1.19'
