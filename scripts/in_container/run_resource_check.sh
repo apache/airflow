@@ -33,7 +33,7 @@ function resource_check() {
     human_readable_memory=$(numfmt --to iec $((mem_available * one_meg)))
     human_readable_disk=$(numfmt --to iec $((disk_available * 1024 )))
     if (( mem_available < 4000 )) ; then
-        echo "${COLOR_YELLOW}WARNING!!!: Not enough memory available for Docker.\e${COLOR_RESET}"
+        echo "${COLOR_YELLOW}WARNING!!!: Not enough memory available for Docker.${COLOR_RESET}"
         echo "At least 4GB of memory required. You have ${human_readable_memory}"
         warning_resources="true"
     else
