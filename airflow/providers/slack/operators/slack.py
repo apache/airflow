@@ -168,9 +168,8 @@ class SlackAPIFileOperator(SlackAPIOperator):
                 slack_conn_id="slack",
                 channel="#general",
                 initial_comment="Hello World!",
-                file=file,
-                filename="hello_world.csv",
-                filetype="csv",
+                file="/files/dags/test.txt",
+                filetype="txt",
             )
 
         # Send file content

@@ -34,7 +34,6 @@ with DAG(
         channel="#general",
         initial_comment="Hello World!",
         file="/files/dags/test.txt",
-        filename="test.txt",
         filetype="txt",
     )
 
