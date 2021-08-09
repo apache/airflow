@@ -2124,15 +2124,15 @@ class TestSchedulerJob:
         )
         assert ti2.state == State.QUEUED
 
-    def test_verify_integrity_if_dag_not_changed(self):
+    def test_verify_integrity_if_dag_not_changed(self, dag_maker):
         # CleanUp
         with create_session() as session:
             session.query(SerializedDagModel).filter(
                 SerializedDagModel.dag_id == 'test_verify_integrity_if_dag_not_changed'
             ).delete(synchronize_session=False)
 
-        dag = DAG(dag_id='test_verify_integrity_if_dag_not_changed', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo hi')
+        with dag_maker(dag_id='test_verify_integrity_if_dag_not_changed') as dag:
+            BashOperator(task_id='dummy', bash_command='echo hi')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
@@ -3075,7 +3075,8 @@ class TestSchedulerJob:
         # Assert that the other one is queued
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 1
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "state, start_date, end_date",
         [
             [State.NONE, None, None],
             [
@@ -3088,31 +3089,23 @@ class TestSchedulerJob:
                 timezone.utcnow() - datetime.timedelta(minutes=30),
                 timezone.utcnow() - datetime.timedelta(minutes=15),
             ],
-        ]
+        ],
     )
-    def test_dag_file_processor_process_task_instances(self, state, start_date, end_date):
+    def test_dag_file_processor_process_task_instances(self, state, start_date, end_date, dag_maker):
         """
         Test if _process_task_instances puts the right task instances into the
         mock_list.
         """
-        dag = DAG(dag_id='test_scheduler_process_execute_task', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo hi')
-
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            session.merge(orm_dag)
+        with dag_maker(dag_id='test_scheduler_process_execute_task') as dag:
+            BashOperator(task_id='dummy', bash_command='echo hi')
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-        )
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         assert dr is not None
 
         with create_session() as session:
@@ -3127,7 +3120,8 @@ class TestSchedulerJob:
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "state,start_date,end_date",
         [
             [State.NONE, None, None],
             [
@@ -3140,35 +3134,26 @@ class TestSchedulerJob:
                 timezone.utcnow() - datetime.timedelta(minutes=30),
                 timezone.utcnow() - datetime.timedelta(minutes=15),
             ],
-        ]
+        ],
     )
     def test_dag_file_processor_process_task_instances_with_task_concurrency(
-        self,
-        state,
-        start_date,
-        end_date,
+        self, state, start_date, end_date, dag_maker
     ):
         """
         Test if _process_task_instances puts the right task instances into the
         mock_list.
         """
-        dag = DAG(dag_id='test_scheduler_process_execute_task_with_task_concurrency', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', task_concurrency=2, dag=dag, owner='airflow', bash_command='echo Hi')
-
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            session.merge(orm_dag)
+        with dag_maker(dag_id='test_scheduler_process_execute_task_with_task_concurrency') as dag:
+            BashOperator(task_id='dummy', task_concurrency=2, bash_command='echo Hi')
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
-        dr = dag.create_dagrun(
+
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
         )
         assert dr is not None
 
@@ -3184,7 +3169,8 @@ class TestSchedulerJob:
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "state, start_date, end_date",
         [
             [State.NONE, None, None],
             [
@@ -3197,37 +3183,31 @@ class TestSchedulerJob:
                 timezone.utcnow() - datetime.timedelta(minutes=30),
                 timezone.utcnow() - datetime.timedelta(minutes=15),
             ],
-        ]
+        ],
     )
-    def test_dag_file_processor_process_task_instances_depends_on_past(self, state, start_date, end_date):
+    def test_dag_file_processor_process_task_instances_depends_on_past(
+        self, state, start_date, end_date, dag_maker
+    ):
         """
         Test if _process_task_instances puts the right task instances into the
         mock_list.
         """
-        dag = DAG(
+        with dag_maker(
             dag_id='test_scheduler_process_execute_task_depends_on_past',
-            start_date=DEFAULT_DATE,
             default_args={
                 'depends_on_past': True,
             },
-        )
-        BashOperator(task_id='dummy1', dag=dag, owner='airflow', bash_command='echo hi')
-        BashOperator(task_id='dummy2', dag=dag, owner='airflow', bash_command='echo hi')
-
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            session.merge(orm_dag)
+        ) as dag:
+            BashOperator(task_id='dummy1', bash_command='echo hi')
+            BashOperator(task_id='dummy2', bash_command='echo hi')
 
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
-        dag.clear()
-        dr = dag.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
         )
         assert dr is not None
 
@@ -3246,12 +3226,12 @@ class TestSchedulerJob:
             assert tis[0].state == State.SCHEDULED
             assert tis[1].state == State.SCHEDULED
 
-    def test_scheduler_job_add_new_task(self):
+    def test_scheduler_job_add_new_task(self, dag_maker):
         """
         Test if a task instance will be added if the dag is updated
         """
-        dag = DAG(dag_id='test_scheduler_add_new_task', start_date=DEFAULT_DATE)
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo test')
+        with dag_maker(dag_id='test_scheduler_add_new_task') as dag:
+            BashOperator(task_id='dummy', bash_command='echo test')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
@@ -3292,20 +3272,14 @@ class TestSchedulerJob:
         tis = dr.get_task_instances()
         assert len(tis) == 2
 
-    def test_runs_respected_after_clear(self):
+    def test_runs_respected_after_clear(self, dag_maker):
         """
         Test dag after dag.clear, max_active_runs is respected
         """
-        dag = DAG(dag_id='test_scheduler_max_active_runs_respected_after_clear', start_date=DEFAULT_DATE)
+        with dag_maker(dag_id='test_scheduler_max_active_runs_respected_after_clear') as dag:
+            BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo Hi')
         dag.max_active_runs = 1
 
-        BashOperator(task_id='dummy', dag=dag, owner='airflow', bash_command='echo Hi')
-
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
         # Write Dag to DB
@@ -3319,10 +3293,10 @@ class TestSchedulerJob:
         self.scheduler_job.processor_agent = mock.MagicMock()
         self.scheduler_job.dagbag.bag_dag(dag, root_dag=dag)
 
+        session = settings.Session()
         date = DEFAULT_DATE
-        dag.create_dagrun(
+        dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=date,
             state=State.QUEUED,
         )
         date = dag.following_schedule(date)
