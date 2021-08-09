@@ -234,19 +234,6 @@ decorator!
        docker: airflow.providers.docker.operators.docker.docker_decorator
 
 
-Finally, use the ``options.entrypoints`` section of your ``setup.cfg`` to allow Airflow to detect your new decorator.
-To allow airflow to see this endpoint, give the function URL <name>=<path>:<function> under the
-``airflow.task_decorators`` tag.
-
-.. code-block:: bash
-
-   [options.entry_points]
-   airflow.task_decorators=
-     foo=my.class.path.foo:foo_task
-
-Now when you install your provider, you should be able to use the ``@task.foo`` decorator and turn any python operator
-into a foo task!
-
 Multiple outputs inference
 --------------------------
 Tasks can also infer multiple outputs by using dict python typing.
