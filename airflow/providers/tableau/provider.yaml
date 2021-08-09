@@ -32,12 +32,15 @@ additional-dependencies:
 integrations:
   - integration-name: Tableau
     external-doc-url: https://www.tableau.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-tableau/operators.rst
     logo: /integration-logos/tableau/tableau.png
     tags: [service]
 
 operators:
   - integration-name: Tableau
     python-modules:
+      - airflow.providers.tableau.operators.tableau
       - airflow.providers.tableau.operators.tableau_refresh_workbook
 
 sensors:
