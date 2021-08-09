@@ -199,32 +199,37 @@ your new class as a taskflow native class.
 
 2. Create a ``foo_task`` function
 
-Once you have your decorated class, create a function that takes arguments ``python_callable``, ``multiple_outputs``,
-and ``kwargs``. This function will use the ``airflow.decorators.base.task_decorator_factory`` function to convert
+Once you have your decorated class, create a function that takes arguments ``python_callable``\, ``multiple_outputs``\,
+and ``kwargs``\. This function will use the ``airflow.decorators.base.task_decorator_factory`` function to convert
 the new ``FooDecoratedOperator`` into a TaskFlow function decorator!
-.. code-block:: python
-    def foo_task(
-        python_callable: Optional[Callable] = None,
-        multiple_outputs: Optional[bool] = None,
-        **kwargs
-    ):
-        return task_decorator_factory(
-            python_callable=python_callable,
-            multiple_outputs=multiple_outputs,
-            decorated_operator_class=FooDecoratedOperator,
-            **kwargs,
-        )
 
-3. Register your new decorator in the entrypoints of your setup.cfg
+.. code-block:: python
+
+   def foo_task(
+       python_callable: Optional[Callable] = None,
+       multiple_outputs: Optional[bool] = None,
+       **kwargs
+   ):
+       return task_decorator_factory(
+           python_callable=python_callable,
+           multiple_outputs=multiple_outputs,
+           decorated_operator_class=FooDecoratedOperator,
+           **kwargs,
+       )
+
+3. Register your new decorator in the provider-info.yaml of your provider
+
+
 
 Finally, use the ``options.entrypoints`` section of your ``setup.cfg`` to allow Airflow to detect your new decorator.
 To allow airflow to see this endpoint, give the function URL <name>=<path>:<function> under the
 ``airflow.task_decorators`` tag.
 
 .. code-block:: bash
-    [options.entry_points]
-    airflow.task_decorators=
-        foo=my.class.path.foo:foo_task
+
+   [options.entry_points]
+   airflow.task_decorators=
+     foo=my.class.path.foo:foo_task
 
 Now when you install your provider, you should be able to use the ``@task.foo`` decorator and turn any python operator
 into a foo task!
