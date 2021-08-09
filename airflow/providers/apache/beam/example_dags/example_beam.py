@@ -309,7 +309,7 @@ with models.DAG(
 
     wait_for_python_job_dataflow_runner_async_done = DataflowJobStatusSensor(
         task_id="wait-for-python-job-async-done",
-        job_id="{{task_instance.xcom_pull('start_python_job_dataflow_runner_async')['id']}}",
+        job_id="{{task_instance.xcom_pull('start_python_job_dataflow_runner_async')['dataflow_job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         project_id=GCP_PROJECT_ID,
         location='us-central1',
