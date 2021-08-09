@@ -190,8 +190,10 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
           cache: false,
           success(data) {
             externalLink.attr('href', data.url);
-            if(/^(?:[a-z]+:)?\/\//.test(data.url))
+            // open absolute (external) links in a new tab/window and relative (local) links directly
+            if(/^(?:[a-z]+:)?\/\//.test(data.url)) {
               externalLink.attr('target', '_blank');
+            }
             externalLink.removeClass('disabled');
             linkTooltip.tooltip('disable');
           },
