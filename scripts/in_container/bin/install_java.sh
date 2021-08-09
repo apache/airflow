@@ -19,8 +19,8 @@
 
 set -euo pipefail
 
-INSTALL_DIR="/opt/java"
-BIN_PATH="/bin/java"
+INSTALL_DIR="/files/opt/java"
+BIN_PATH="/files/bin/java"
 
 if [[ $# != "0" && ${1} == "--reinstall" ]]; then
     rm -rf "${INSTALL_DIR}"
@@ -34,8 +34,7 @@ if command -v java; then
     exit 1
 fi
 
-#DOWNLOAD_URL='https://download.java.net/openjdk/jdk8u41/ri/openjdk-8u41-b04-linux-x64-14_jan_2020.tar.gz'
-DOWNLOAD_URL='https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u292-b10/OpenJDK8U-jdk_x64_linux_hotspot_8u292b10.tar.gz'
+DOWNLOAD_URL='https://download.java.net/openjdk/jdk8u41/ri/openjdk-8u41-b04-linux-x64-14_jan_2020.tar.gz'
 
 if [[ -e ${INSTALL_DIR} ]]; then
     echo "The install directory (${INSTALL_DIR}) already exists. This may mean java is already installed."
@@ -50,7 +49,7 @@ trap "rm -rf ${TMP_DIR}" EXIT
 mkdir -p "${INSTALL_DIR}"
 
 echo "Downloading from ${DOWNLOAD_URL}"
-curl -L -# --fail "${DOWNLOAD_URL}" --output "${TMP_DIR}/openjdk.tar.gz"
+curl -# --fail "${DOWNLOAD_URL}" --output "${TMP_DIR}/openjdk.tar.gz"
 
 echo "Extracting archive"
 tar xzf "${TMP_DIR}/openjdk.tar.gz" -C "${INSTALL_DIR}" --strip-components=1
@@ -59,7 +58,7 @@ echo 'Symlinking executables files to /files/bin'
 mkdir -p "/files/bin/"
 while IPS='' read -r line; do
     BIN_NAME="$(basename "${line}")"
-    ln -s "${line}" "/bin/${BIN_NAME}"
+    ln -s "${line}" "/files/bin/${BIN_NAME}"
 done < <(find "${INSTALL_DIR}/bin/" -type f)
 
 # Sanity check
