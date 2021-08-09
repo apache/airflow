@@ -116,11 +116,11 @@ class DockerSwarmOperator(DockerOperator):
         *,
         image: str,
         enable_logging: bool = True,
-        configs: List[ConfigReference] = None,
-        secrets: List[SecretReference] = None,
+        configs: Optional[List[ConfigReference]] = None,
+        secrets: Optional[List[SecretReference]] = None,
         mode: str = "replicated",
         replicas: int = 1,
-        networks: List[Union[str, NetworkAttachmentConfig]] = None,
+        networks: Optional[List[Union[str, NetworkAttachmentConfig]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
