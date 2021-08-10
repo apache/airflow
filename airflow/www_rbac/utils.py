@@ -485,6 +485,12 @@ class CustomSQLAInterface(SQLAInterface):
                    isinstance(obj.impl, UtcDateTime)
         return False
 
+    def is_errortag(self, col_name):
+        if col_name == 'error_tag':
+            return True
+        return False
+
+
     filter_converter_class = UtcAwareFilterConverter
 
 
