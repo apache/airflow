@@ -19,7 +19,6 @@ from typing import List, Optional, Union
 
 import requests
 from docker import types
-from docker.types import ServiceMode, ConfigReference, NetworkAttachmentConfig, SecretReference
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -114,10 +113,10 @@ class DockerSwarmOperator(DockerOperator):
         *,
         image: str,
         enable_logging: bool = True,
-        configs: Optional[List[ConfigReference]] = None,
-        secrets: Optional[List[SecretReference]] = None,
-        mode: Optional[ServiceMode] = None,
-        networks: Optional[List[Union[str, NetworkAttachmentConfig]]] = None,
+        configs: Optional[List[types.ConfigReference]] = None,
+        secrets: Optional[List[types.SecretReference]] = None,
+        mode: Optional[types.ServiceMode] = None,
+        networks: Optional[List[Union[str, types.NetworkAttachmentConfig]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
