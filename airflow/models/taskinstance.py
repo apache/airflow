@@ -703,12 +703,12 @@ class TaskInstance(Base, LoggingMixin):
         :type session: Session
         """
         self.log.debug("Clearing XCom data")
-        session.query(XCom).filter(
-            XCom.dag_id == self.dag_id,
-            XCom.task_id == self.task_id,
-            XCom.execution_date == self.execution_date,
-        ).delete()
-        session.commit()
+        XCom.clear(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            session=session,
+        )
         self.log.debug("XCom data cleared")
 
     @property

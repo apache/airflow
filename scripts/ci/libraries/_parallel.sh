@@ -52,6 +52,7 @@ function parallel::kill_stale_semaphore_locks() {
             rm -f "${s}" 2>/dev/null
         fi
     done
+    rm -rf "${HOME}/.parallel"
 }
 
 
