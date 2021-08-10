@@ -1,7 +1,10 @@
-from airflow.utils.db import provide_session
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
+from airflow.utils.db import provide_session
+from sqlalchemy import Column, String, Integer
+from airflow.plugins_manager import AirflowPlugin
 from plugins.models.base import Base
+from airflow import settings
 
 
 class TighteningController(Base):
@@ -71,3 +74,14 @@ class TighteningController(Base):
             work_center_name=work_center_name,
             device_type_id=device_type_id
         ))
+
+
+# Defining the plugin class
+class TighteningControllerModelPlugin(AirflowPlugin):
+    name = "tightening_controller_model_plugin"
+
+    @classmethod
+    def on_load(cls):
+        engine = settings.engine
+        if not engine.dialect.has_table(engine, TighteningController.__tablename__):
+            Base.metadata.create_all(engine)

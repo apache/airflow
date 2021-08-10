@@ -173,14 +173,14 @@ def trigger_training_dag(entity_id, final_state, error_tags):
 
 
 def get_result(entity_id):
-    st = ClsResultStorage(**get_result_args())
+    st = ClsResultStorage()
     st.metadata = {'entity_id': entity_id}
     result = st.query_result()
     return result if result else {}
 
 
 def get_results(entity_ids):
-    st = ClsResultStorage(**get_result_args())
+    st = ClsResultStorage()
     if not isinstance(entity_ids, list) or len(entity_ids) == 0:
         return []
     st.metadata = {'entity_id': entity_ids}

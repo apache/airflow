@@ -4,18 +4,13 @@ import os
 import json
 import threading
 from typing import Dict, Optional
-from distutils.util import strtobool
-from sqlalchemy import text
 from airflow.utils.db import create_session
 from airflow.utils.logger import generate_logger
-from airflow import settings
 from .entity import ClsEntity
-from plugins.models.base import Base
 from plugins.models.result import ResultModel
 from airflow.utils.db import provide_session
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
-ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
 
 _logger = generate_logger(__name__)
 IS_DEBUG = RUNTIME_ENV != 'prod'
@@ -30,20 +25,6 @@ class ClsResultStorage(ClsEntity):
                 if not hasattr(ClsResultStorage, "_instance"):
                     ClsResultStorage._instance = object.__new__(cls)
         return ClsResultStorage._instance
-
-    def __init__(self, engine=settings.engine):
-        super(ClsResultStorage, self).__init__()
-        self.engine = engine
-        self.create_table_if_existed()
-
-    def create_table_if_existed(self):
-        if not self.engine.dialect.has_table(self.engine, ResultModel.__tablename__):
-            Base.metadata.create_all(self.engine)
-            if not ENV_TIMESCALE_ENABLE:
-                return
-            with self.engine.connect().execution_options(autocommit=True) as conn:
-                conn.execute(text(
-                    f'''SELECT create_hypertable('{ResultModel.__tablename__}', 'update_time','tool_sn', 4, chunk_time_interval => INTERVAL '1 month', migrate_data => TRUE);'''))
 
     def _write(self, data: Optional[Dict]):
         try:

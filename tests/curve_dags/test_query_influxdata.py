@@ -36,7 +36,7 @@ class TestQueryInfluxdata(TestCase):
             |> range(start: 0, stop: now())
             |> filter(fn: (r) => r._measurement == "results")
             |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'''
-        st = ClsResultStorage(**args)
+        st = ClsResultStorage()
         st.ensure_connect()
         tables = st.query_api.query(query_str)
         for table in tables:
@@ -51,7 +51,7 @@ class TestQueryInfluxdata(TestCase):
         # args.update({
         #     "url": "127.0.0.1:9999"
         # })
-        st = ClsResultStorage(**args)
+        st = ClsResultStorage()
         st.metadata = {'entity_id': '3002/0000002056/1585765585'}
         result = st.query_result()
         print(result)

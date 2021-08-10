@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String
-
-from plugins.models.base import Base
 from airflow.utils.db import provide_session
+from sqlalchemy import Column, String, Integer
+from airflow.plugins_manager import AirflowPlugin
+from plugins.models.base import Base
+from airflow import settings
 
 
 class ErrorTag(Base):
@@ -16,7 +17,7 @@ class ErrorTag(Base):
     value = Column(String(1000), nullable=False, unique=True)
 
     def __init__(
-        self, *args, label=None, value=None,**kwargs):
+        self, *args, label=None, value=None, **kwargs):
         self.label = label
         self.value = value
         super(ErrorTag, self).__init__(*args, **kwargs)
@@ -48,3 +49,14 @@ class ErrorTag(Base):
         objs = session.query(cls).all()
         dataArr = list(map(cls._error_tag_data, objs))
         return dataArr
+
+
+# Defining the plugin class
+class ErrorTagModelPlugin(AirflowPlugin):
+    name = "error_tag_model_plugin"
+
+    @classmethod
+    def on_load(cls):
+        engine = settings.engine
+        if not engine.dialect.has_table(engine, ErrorTag.__tablename__):
+            Base.metadata.create_all(engine)

@@ -1,8 +1,16 @@
 from airflow.utils.sqlalchemy import UtcDateTime
-from plugins.models.base import Base
 from airflow.utils import timezone
-from sqlalchemy import Boolean, Column, Float, Integer, String, Text
+from sqlalchemy import Boolean, Float, Text
 from airflow.utils.db import provide_session
+from sqlalchemy import Column, String, Integer
+from airflow.plugins_manager import AirflowPlugin
+from plugins.models.base import Base
+from airflow import settings
+from distutils.util import strtobool
+from sqlalchemy import text
+import os
+ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
+
 
 class ResultModel(Base):
     """
@@ -12,7 +20,7 @@ class ResultModel(Base):
     def __repr__(self):
         return self.entity_id
 
-    def __init__(self,*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.update_time = timezone.utcnow()
         super(ResultModel, self).__init__(*args, **kwargs)
 
@@ -49,7 +57,7 @@ class ResultModel(Base):
     torque_min = Column(Integer)
     torque_target = Column(Integer)
     torque_threshold = Column(Integer)
-    #TODO: 将时间类型类型改为TIMESTAMP
+    # TODO: 将时间类型类型改为TIMESTAMP
     # update_time = Column(String(256))
     update_time = Column(UtcDateTime())
     user_id = Column(Integer)
@@ -99,3 +107,18 @@ class ResultModel(Base):
             results = results.filter(cls.bolt_number == bolt_number)
         return results
 
+
+# Defining the plugin class
+class ResultModelPlugin(AirflowPlugin):
+    name = "result_model_plugin"
+
+    @classmethod
+    def on_load(cls):
+        engine = settings.engine
+        if not engine.dialect.has_table(engine, ResultModel.__tablename__):
+            Base.metadata.create_all(engine)
+            if not ENV_TIMESCALE_ENABLE:
+                return
+            with engine.connect().execution_options(autocommit=True) as conn:
+                conn.execute(text(
+                    f'''SELECT create_hypertable('{ResultModel.__tablename__}', 'update_time','tool_sn', 4, chunk_time_interval => INTERVAL '1 month', migrate_data => TRUE);'''))
