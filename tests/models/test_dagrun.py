@@ -17,10 +17,12 @@
 # under the License.
 
 import datetime
+import time
 import unittest
 from unittest import mock
 from unittest.mock import call
 
+import pytz
 from parameterized import parameterized
 
 from airflow import models, settings
@@ -207,6 +209,86 @@ class TestDagRun(unittest.TestCase):
         ti_op4.set_state(state=State.SUCCESS, session=session)
         dr.update_state()
         assert State.SUCCESS == dr.state
+
+    def test_dagrun_run_id(self):
+        import pendulum
+        from airflow.configuration import conf
+        run_type = DagRunType.MANUAL
+
+        # Part1:
+        # Test use the utc to generate `run_id`,
+
+        # Set the localize_dag_run_id to False
+        conf.set("core", "localize_dag_run_id", "False")
+        execution_date_summer = datetime.datetime(2021, 8, 8, 8, 8, 8, 123456)
+        run_id_1 = DagRun.generate_run_id(run_type, execution_date_summer)
+        assert run_id_1 == f'manual__{execution_date_summer.isoformat()}'
+        execution_date_winter = datetime.datetime(2021, 2, 8, 8, 8, 8, 123456)
+        run_id_2 = DagRun.generate_run_id(run_type, execution_date_winter)
+        assert run_id_2 == f'manual__{execution_date_winter.isoformat()}'
+
+
+        # Part2 :
+        # Test use the local time to generate `run_id` and the UTC offset and the UTC DST offset are the same
+        # Use Asia/Seoul and Asia/Shanghai as the examples
+
+        # Set the localize_dag_run_id to True
+        conf.set("core", "localize_dag_run_id", "True")
+
+        # create a datetime using Asia/Shanghai
+        execution_date_summer = datetime.datetime(2021, 8, 8, 8, 8, 8, 123456, tzinfo=pytz.timezone("Asia/Shanghai"))
+        execution_date_winter = datetime.datetime(2021, 2, 8, 8, 8, 8, 123456, tzinfo=pytz.timezone("Asia/Shanghai"))
+
+        # Assume the server time zone is Asia/Seoul to check whether the run_id is generated using Seoul time
+        settings.TIMEZONE = pendulum.tz.timezone("Asia/Seoul")
+        run_id_3 = DagRun.generate_run_id(run_type, execution_date_summer)
+        assert run_id_3 == "manual__2021-08-08T09:08:08.123456+09:00"
+        run_id_4 = DagRun.generate_run_id(run_type, execution_date_winter)
+        assert run_id_4 == "manual__2021-02-08T09:08:08.123456+09:00"
+
+        # Part3 :
+        # Test the timezone which the UTC DST and UTF DST offset are not the same
+        # The timezone Europe/Madrid, UTC offset is +01:00, UTC DST offset is +02:00
+        settings.TIMEZONE = pendulum.tz.timezone("Europe/Madrid")
+
+        # Set the localize_dag_run_id to True
+        conf.set("core", "localize_dag_run_id", "True")
+        run_id_7 = DagRun.generate_run_id(run_type, execution_date_summer)
+        assert run_id_7 == "manual__2021-08-08T02:08:08.123456+02:00__DST"
+        run_id_8 = DagRun.generate_run_id(run_type, execution_date_winter)
+        assert run_id_8 == "manual__2021-02-08T01:08:08.123456+01:00"
+
+        # Part3 :
+        # Test from non-dst to dst which means miss 1 hour
+        # The timezone Europe/Athens, UTC offset is +02:00,  UTC DST offset is +03:00
+        # They change it at 2021-03-28 03:00 -> 2021-03-28 04:00
+        settings.TIMEZONE = pendulum.tz.timezone("Europe/Athens")
+        conf.set("core", "localize_dag_run_id", "True")
+
+        # before changing from non-dst to dst
+        execution_date = pendulum.datetime(2021, 3, 28, 2, 8, 0, 123456, tz="Europe/Athens",
+                                           dst_rule=pendulum.PRE_TRANSITION)
+        run_id_9 = DagRun.generate_run_id(run_type, execution_date)
+        assert run_id_9 == "manual__2021-03-28T02:08:00.123456+02:00"
+
+        # changed to dst
+        execution_date = pendulum.datetime(2021, 3, 28, 3, 8, 0, 123456, tz="Europe/Athens",
+                                           dst_rule=pendulum.POST_TRANSITION)
+        run_id_10 = DagRun.generate_run_id(run_type, execution_date)
+        assert run_id_10 == "manual__2021-03-28T04:08:00.123456+03:00__DST"
+
+        # Part3 :
+        # Test from DST to non-DST
+        # The timezone Europe/Athens, UTC offset is +02:00,  UTC DST offset is +03:00
+        # They change it at 2021-10-31 04:00 -> 2021-10-31 03:00, it means there are two 3:00
+        execution_date = pendulum.datetime(2021, 10, 31, 3, 8, 0, 123456, tz="Europe/Athens",
+                                           dst_rule=pendulum.PRE_TRANSITION)
+        run_id_11 = DagRun.generate_run_id(run_type, execution_date)
+        assert run_id_11 == "manual__2021-10-31T03:08:00.123456+03:00__DST"
+        execution_date = pendulum.datetime(2021, 10, 31, 3, 8, 0, 123456, tz="Europe/Athens",
+                                           dst_rule=pendulum.POST_TRANSITION)
+        run_id_12 = DagRun.generate_run_id(run_type, execution_date)
+        assert run_id_12 == "manual__2021-10-31T03:08:00.123456+02:00"
 
     def test_dagrun_deadlock(self):
         session = settings.Session()
