@@ -32,7 +32,12 @@
         "type": "array",
         "description": "Apply custom decorators to the TaskFlow API. Can be accessed by users via '@task.<name>'",
         "items": {
-            "type": "string"
+            "name": {
+                "type": "string"
+            },
+            "path": {
+                "type": "string"
+            }
         }
     }
   },

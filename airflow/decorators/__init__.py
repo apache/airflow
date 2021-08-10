@@ -48,10 +48,9 @@ class _TaskDecorator:
     def __getattr__(self, name):
         if self.store.get(name, None):
             return self.store[name]
-        connections = ProvidersManager.taskflow_decorators[name].name
-        mod = connections[0].load()
-        self.store[name] = mod
-        return mod
+        decorator = ProvidersManager().taskflow_decorators[name]
+        self.store[name] = decorator
+        return decorator
 
 
 task = _TaskDecorator()
