@@ -478,7 +478,7 @@ class BackfillJob(BaseJob):
                         ti.set_state(State.SCHEDULED, session=session)
                 elif self.rerun_succeeded_tasks and ti.state == State.SUCCESS:
                     # Rerun succeeded tasks
-                    self.log.info("Task instance {ti} with state {state}".format(ti=ti, state=ti.state))
+                    self.log.info("Task instance %s with state %s", ti, ti.state)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     # Reset the succeeded task in backfill to scheduled state
