@@ -284,7 +284,10 @@ class TestBackfillJob:
         )
         job.run()
 
-        dr = DagRun.find(dag_id='test_backfill_conf')
+        # We ignore the first dag_run created by fixture
+        dr = DagRun.find(
+            dag_id='test_backfill_conf', execution_start_date=DEFAULT_DATE + datetime.timedelta(days=1)
+        )
 
         assert conf_ == dr[0].conf
 
