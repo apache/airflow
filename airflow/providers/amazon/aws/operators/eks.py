@@ -99,7 +99,7 @@ class EKSCreateClusterOperator(BaseOperator):
         nodegroup_name: Optional[str] = None,
         nodegroup_role_arn: Optional[str] = None,
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -203,8 +203,8 @@ class EKSCreateNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_subnets: List[str],
         nodegroup_role_arn: str,
-        nodegroup_name: Optional[str],
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        nodegroup_name: Optional[str] = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -266,7 +266,7 @@ class EKSDeleteClusterOperator(BaseOperator):
         self,
         cluster_name: str,
         force_delete_compute: bool = False,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -350,7 +350,7 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         self,
         cluster_name: str,
         nodegroup_name: str,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -421,12 +421,12 @@ class EKSPodOperator(KubernetesPodOperator):
         cluster_name: str,
         # Setting in_cluster to False tells the pod that the config
         # file is stored locally in the worker and not in the cluster.
-        in_cluster: Optional[bool] = False,
-        namespace: Optional[str] = DEFAULT_NAMESPACE_NAME,
-        pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
-        pod_name: Optional[str] = DEFAULT_POD_NAME,
-        pod_username: Optional[str] = DEFAULT_POD_USERNAME,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        in_cluster: bool = False,
+        namespace: str = DEFAULT_NAMESPACE_NAME,
+        pod_context: str = DEFAULT_CONTEXT_NAME,
+        pod_name: str = DEFAULT_POD_NAME,
+        pod_username: str = DEFAULT_POD_USERNAME,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:

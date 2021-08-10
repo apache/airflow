@@ -52,7 +52,7 @@ class EKSClusterStateSensor(BaseSensorOperator):
         *,
         cluster_name: str,
         target_state: ClusterStates = ClusterStates.ACTIVE,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ):
@@ -108,7 +108,7 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
         cluster_name: str,
         nodegroup_name: str,
         target_state: NodegroupStates = NodegroupStates.ACTIVE,
-        aws_conn_id: Optional[str] = DEFAULT_CONN_ID,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ):

@@ -23,7 +23,7 @@ import tempfile
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 import yaml
 from botocore.exceptions import ClientError
@@ -186,7 +186,7 @@ class EKSHook(AwsBaseHook):
         )
         return response
 
-    def describe_cluster(self, name: str, verbose: Optional[bool] = False) -> Dict:
+    def describe_cluster(self, name: str, verbose: bool = False) -> Dict:
         """
         Returns descriptive information about an Amazon EKS Cluster.
 
@@ -208,9 +208,7 @@ class EKSHook(AwsBaseHook):
             self.log.info("Cluster Details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
         return response
 
-    def describe_nodegroup(
-        self, clusterName: str, nodegroupName: str, verbose: Optional[bool] = False
-    ) -> Dict:
+    def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> Dict:
         """
         Returns descriptive information about an Amazon EKS Nodegroup.
 
@@ -282,7 +280,7 @@ class EKSHook(AwsBaseHook):
 
     def list_clusters(
         self,
-        verbose: Optional[bool] = False,
+        verbose: bool = False,
     ) -> List:
         """
         Lists all Amazon EKS Clusters in your AWS account.
@@ -301,7 +299,7 @@ class EKSHook(AwsBaseHook):
     def list_nodegroups(
         self,
         clusterName: str,
-        verbose: Optional[bool] = False,
+        verbose: bool = False,
     ) -> List:
         """
         Lists all Amazon EKS Nodegroups associated with the specified cluster.
@@ -353,8 +351,8 @@ class EKSHook(AwsBaseHook):
         self,
         eks_cluster_name: str,
         pod_namespace: str,
-        pod_username: Optional[str] = DEFAULT_POD_USERNAME,
-        pod_context: Optional[str] = DEFAULT_CONTEXT_NAME,
+        pod_username: str = DEFAULT_POD_USERNAME,
+        pod_context: str = DEFAULT_CONTEXT_NAME,
     ) -> str:
         """
         Writes the kubeconfig file given an EKS Cluster.
