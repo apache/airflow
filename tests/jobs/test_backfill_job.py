@@ -768,8 +768,6 @@ class TestBackfillJob:
             op3.set_downstream(op4)
         dag_maker.create_dagrun()
 
-        dag.clear()
-
         executor = MockExecutor(parallelism=16)
         job = BackfillJob(
             dag=dag,
