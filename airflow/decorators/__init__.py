@@ -20,6 +20,7 @@ from typing import Callable, Optional
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import _virtualenv_task
 from airflow.decorators.task_group import task_group  # noqa
+from airflow.exceptions import AirflowException
 from airflow.models.dag import dag  # noqa
 from airflow.providers_manager import ProvidersManager
 
@@ -27,6 +28,9 @@ from airflow.providers_manager import ProvidersManager
 class _TaskDecorator:
     def __init__(self):
         self.store = {"python": python_task, "virtualenv": _virtualenv_task}
+        decorator = ProvidersManager().taskflow_decorators
+        for decorator_name, decorator_class in decorator.items():
+            self.store[decorator_name] = decorator_class
 
     def __call__(
         self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
@@ -48,9 +52,7 @@ class _TaskDecorator:
     def __getattr__(self, name):
         if self.store.get(name, None):
             return self.store[name]
-        decorator = ProvidersManager().taskflow_decorators[name]
-        self.store[name] = decorator
-        return decorator
+        raise AirflowException("Decorator %s not found", name)
 
 
 task = _TaskDecorator()
