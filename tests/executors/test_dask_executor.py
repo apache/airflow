@@ -187,7 +187,7 @@ class TestDaskExecutorQueue(unittest.TestCase):
         assert success_future.exception() is None
 
     def test_dask_queues_no_queue_specified(self):
-        self. self.cluster = LocalCluster(resources={'queue1': 1})
+        self.cluster = LocalCluster(resources={'queue1': 1})
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         executor.start()
 
@@ -209,4 +209,3 @@ class TestDaskExecutorQueue(unittest.TestCase):
 
     def tearDown(self):
         self.cluster.close(timeout=5)
-

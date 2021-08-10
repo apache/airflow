@@ -84,16 +84,12 @@ class DaskExecutor(BaseExecutor):
         resources = None
         if queue is not None:
             scheduler_info = self.client.scheduler_info()
-            avail_queues = set(
-                resource
-                for d in scheduler_info['workers'].values()
-                for resource in d['resources']
-            )
+            avail_queues = {
+                resource for d in scheduler_info['workers'].values() for resource in d['resources']
+            }
 
             if queue not in avail_queues:
-                raise AirflowException(
-                    f"Attempted to submit task to an unavailable queue: '{queue}'"
-                )
+                raise AirflowException(f"Attempted to submit task to an unavailable queue: '{queue}'")
             resources = {queue: 1}
 
         future = self.client.submit(airflow_run, pure=False, resources=resources)
