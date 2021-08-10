@@ -639,7 +639,6 @@ class TestBackfillJob:
             op1.set_upstream(op2)
         dag_maker.create_dagrun()
 
-        dag.clear()
         executor = MockExecutor()
 
         job = BackfillJob(
