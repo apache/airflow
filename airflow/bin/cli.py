@@ -1670,7 +1670,10 @@ def shell(args):
     elif url.get_backend_name() == 'postgresql':
         env = os.environ.copy()
         env['PGHOST'] = url.host or ""
-        env['PGPORT'] = url.port or ""
+        # Port should be cast from int to string before beeing put in env
+        env['PGPORT'] = ""
+        if url.port:
+            env['PGPORT'] = str(url.port)
         env['PGUSER'] = url.username or ""
         # PostgreSQL does not allow the use of PGPASSFILE if the current user is root.
         env["PGPASSWORD"] = url.password or ""
