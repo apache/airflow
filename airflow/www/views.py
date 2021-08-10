@@ -3354,7 +3354,7 @@ class PluginView(AirflowBaseView):
         )
 
 
-class ProvidersView(AirflowBaseView):
+class ProviderView(AirflowBaseView):
     """View to show Airflow Providers"""
 
     default_view = 'list'
@@ -3370,7 +3370,7 @@ class ProvidersView(AirflowBaseView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    @expose('/providers')
+    @expose('/provider')
     @auth.has_access(
         [
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
