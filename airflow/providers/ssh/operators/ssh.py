@@ -151,11 +151,11 @@ class SSHOperator(BaseOperator):
                         stdout.channel.shutdown_read()
                         try:
                             stdout.channel.close()
-                        except Exception as e:
+                        except Exception:
                             # there is a race that when shutdown_read has been called and when
                             # you try to close the connection, the socket is already closed
                             # We should ignore such errors (but we should log them with warning)
-                            self.log.warning("Ignoring exception on close: ", e)
+                            self.log.warning("Ignoring exception on close", exc_info=True)
                         break
 
                 stdout.close()
