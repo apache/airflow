@@ -32,6 +32,7 @@ from sqlalchemy import (
     or_,
     text,
 )
+import pendulum
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
@@ -337,8 +338,15 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
         """Generate Run ID based on Run Type and Execution Date"""
-        if settings.LOCALIZE_RUN_ID:
-            return f"{run_type}__{execution_date.now(tz=settings.TIMEZONE).isoformat()}"
+        from airflow.configuration import conf
+        local_run_id = conf.getboolean("core", "localize_dag_run_id", fallback=False)
+        if local_run_id:
+            local_time = pendulum.instance(execution_date).astimezone(tz=settings.TIMEZONE)
+            is_dst = local_time.is_dst()
+            if is_dst:
+                return f"{run_type}__{local_time.isoformat()}__DST"
+            else:
+                return f"{run_type}__{local_time.isoformat()}"
         else:
             return f"{run_type}__{execution_date.isoformat()}"
 
