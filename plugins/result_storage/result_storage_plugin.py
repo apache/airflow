@@ -2,13 +2,13 @@ from abc import ABC
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.plugins_manager import AirflowPlugin
-from plugins.utils import get_curve_args
+from plugins.utils.utils import get_curve_args
 import os
 from pprint import pformat
-from airflow.entities.curve_storage import ClsCurveStorage
-from airflow.entities.result_storage import ClsResultStorage
-from plugins.utils import generate_bolt_number
-from plugins.utils import get_craft_type
+from plugins.entities.curve_storage import ClsCurveStorage
+from plugins.entities.result_storage import ClsResultStorage
+from plugins.utils.utils import generate_bolt_number
+from plugins.utils.utils import get_craft_type
 
 _logger = LoggingMixin().log
 SUPPORT_DEVICE_TYPE = ['tightening', 'servo_press']

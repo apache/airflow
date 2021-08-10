@@ -4,8 +4,8 @@ from datetime import timedelta
 from airflow.models import DAG
 import pendulum
 from airflow.operators.python_operator import PythonOperator
-from airflow.entities.kafka_consumer import ClsKafkaConsumer
-from airflow.utils.logger import generate_logger
+from plugins.entities.kafka_consumer import ClsKafkaConsumer
+from plugins.utils.logger import generate_logger
 from airflow.utils.db import get_connection
 
 _logger = generate_logger(__name__)

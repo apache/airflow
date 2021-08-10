@@ -20,7 +20,7 @@
 
 from flask_appbuilder.security.views import AuthOAuthView as AV
 from flask_login.mixins import AnonymousUserMixin
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 from flask_login import login_user, logout_user, current_user
 from flask import redirect, url_for
 import logging

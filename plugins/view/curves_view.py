@@ -15,8 +15,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from plugins.models.error_tag import ErrorTag
 from airflow.www_rbac import utils as wwwutils
-from plugins.utils import get_curve_entity_ids, get_curve, get_result, get_results
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from plugins.utils.utils import get_curve_entity_ids, get_curve, get_result, get_results
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
 import pandas as pd

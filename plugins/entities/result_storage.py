@@ -5,8 +5,8 @@ import json
 import threading
 from typing import Dict, Optional
 from airflow.utils.db import create_session
-from airflow.utils.logger import generate_logger
-from .entity import ClsEntity
+from plugins.utils.logger import generate_logger
+from plugins.entities.entity import ClsEntity
 from plugins.models.result import ResultModel
 from airflow.utils.db import provide_session
 

@@ -7,7 +7,7 @@ from airflow.utils.email import send_email
 from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.python_operator import PythonOperator
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 from airflow.utils.db import provide_session
 from sqlalchemy import func
 from datetime import timedelta

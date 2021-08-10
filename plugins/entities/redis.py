@@ -1,13 +1,13 @@
 from redis import Redis
 from airflow.contrib.hooks.redis_hook import RedisHook
 from typing import Dict
-from .entity import ClsEntity
-from airflow.utils.logger import generate_logger
+from plugins.entities.entity import ClsEntity
+from plugins.utils.logger import generate_logger
 import os
 import signal
 from redis.client import Pipeline
 import time
-from plugins.utils import gen_template_key
+from plugins.utils.utils import gen_template_key
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 

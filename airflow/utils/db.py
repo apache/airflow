@@ -33,7 +33,6 @@ from sqlalchemy import text
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.create_default_user import create_default_users
 
 log = LoggingMixin().log
 
@@ -394,7 +393,7 @@ def initdb(rbac=False):
             conn_id='qcos_report', conn_type='http',
             host='172.17.0.1', port=8686
         ), session)
-
+    from plugins.utils.create_default_user import create_default_users
     create_default_users()
 
     # Known event types

@@ -4,7 +4,7 @@ from abc import ABC
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils import timezone
-from plugins.utils import get_curve_params
+from plugins.utils.utils import get_curve_params
 from typing import Dict
 from airflow.api.common.experimental import trigger_dag as trigger
 from distutils.util import strtobool
@@ -12,7 +12,7 @@ from flask import jsonify, request, Blueprint
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www_rbac.app import csrf
-from plugins.utils import trigger_push_result_to_mq
+from plugins.utils.utils import trigger_push_result_to_mq
 import json
 from airflow.utils.db import provide_session
 import datetime

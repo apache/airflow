@@ -1,9 +1,7 @@
 from airflow import settings
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 import os
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
-from airflow.entities.result_storage import ClsResultStorage
-from airflow.entities.curve_storage import ClsCurveStorage
 from airflow.api.common.experimental import trigger_dag as trigger
 import json
 from typing import Optional
@@ -173,6 +171,7 @@ def trigger_training_dag(entity_id, final_state, error_tags):
 
 
 def get_result(entity_id):
+    from plugins.entities.result_storage import ClsResultStorage
     st = ClsResultStorage()
     st.metadata = {'entity_id': entity_id}
     result = st.query_result()
@@ -180,6 +179,7 @@ def get_result(entity_id):
 
 
 def get_results(entity_ids):
+    from plugins.entities.result_storage import ClsResultStorage
     st = ClsResultStorage()
     if not isinstance(entity_ids, list) or len(entity_ids) == 0:
         return []
@@ -189,6 +189,7 @@ def get_results(entity_ids):
 
 
 def get_curve(entity_id):
+    from plugins.entities.curve_storage import ClsCurveStorage
     st = ClsCurveStorage(**get_curve_args())
     st.metadata = {'entity_id': entity_id}
     return st.query_curve()

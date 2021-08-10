@@ -3,7 +3,7 @@ from airflow.models import DAG
 import datetime as dt
 from datetime import timedelta
 import pendulum
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 from distutils.util import strtobool
 from airflow.operators.trigger_analyze_plugin import TriggerAnalyzeOperator
 

@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 from typing import Dict, Optional, Any
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 
 _logger = generate_logger(__name__)
 

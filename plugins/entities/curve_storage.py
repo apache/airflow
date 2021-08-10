@@ -7,8 +7,8 @@ import uuid
 from minio import Minio
 from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
                          BucketAlreadyExists)
-from .entity import ClsEntity
-from airflow.utils.logger import generate_logger
+from plugins.entities.entity import ClsEntity
+from plugins.utils.logger import generate_logger
 import threading
 
 _logger = generate_logger(__name__)

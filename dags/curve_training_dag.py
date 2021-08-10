@@ -1,7 +1,7 @@
 import datetime
 import json
 
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 import os
 from airflow.models import DAG, DagRun
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
@@ -9,7 +9,7 @@ from datetime import timedelta
 from airflow.operators.python_operator import PythonOperator
 import datetime as dt
 import pendulum
-from plugins.utils import get_craft_type, \
+from plugins.utils.utils import get_craft_type, \
     generate_bolt_number, get_curve_params, get_result, get_curve, trigger_push_result_to_mq, get_curve_mode, \
     should_trigger_training
 

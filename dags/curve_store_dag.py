@@ -4,7 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 import pendulum
 from airflow.operators.python_operator import PythonOperator
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 
 # MAX_ACTIVE_ANALYSIS = os.environ.get('MAX_ACTIVE_ANALYSIS', 100)
 MAX_ACTIVE_ANALYSIS = 100

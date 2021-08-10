@@ -1,15 +1,15 @@
 from time import time
 from airflow.exceptions import AirflowConfigException
 from kafka import KafkaConsumer
-from sqlalchemy.sql.expression import false, update
-from .entity import ClsEntity
+from sqlalchemy.sql.expression import false
+from plugins.entities.entity import ClsEntity
 from typing import Optional, Dict
 import threading
 import os
 import json
 import time
 import pprint
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 
 _logger = generate_logger(__name__)
 

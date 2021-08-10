@@ -6,7 +6,7 @@ from unittest import TestCase
 from airflow.models import DagBag
 from airflow.models.taskinstance import TaskInstance
 from dags.curve_store_dag import storeTaskArgs
-from airflow.entities.result_storage import ClsResultStorage
+from plugins.entities.result_storage import ClsResultStorage
 
 
 class TestQueryInfluxdata(TestCase):

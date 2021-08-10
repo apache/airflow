@@ -13,7 +13,7 @@ from airflow.settings import TIMEZONE
 from airflow.www_rbac.decorators import has_dag_access, action_logging
 from flask_appbuilder.widgets import RenderTemplateWidget
 from flask_wtf.csrf import CSRFProtect
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
 import pandas as pd

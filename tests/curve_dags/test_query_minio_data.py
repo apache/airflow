@@ -6,7 +6,7 @@ from unittest import TestCase
 from airflow.models import DagBag
 from airflow.models.taskinstance import TaskInstance
 from dags.curve_store_dag import storeTaskArgs
-from airflow.entities.curve_storage import ClsCurveStorage
+from plugins.entities.curve_storage import ClsCurveStorage
 from airflow.www_rbac.api.experimental.utils import get_curve_args
 
 

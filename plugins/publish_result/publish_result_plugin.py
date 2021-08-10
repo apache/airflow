@@ -2,16 +2,16 @@ from abc import ABC
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.plugins_manager import AirflowPlugin
-from airflow.entities.result_mq import ClsResultMQ
+from plugins.entities.result_mq import ClsResultMQ
 import json
 import pprint
 from typing import Dict
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 import os
 from airflow.models import Variable
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from distutils.util import strtobool
-from plugins.utils import gen_template_key
+from plugins.utils.utils import gen_template_key
 import pika
 from airflow.models import BaseOperator
 from airflow.api.common.experimental import trigger_dag as trigger

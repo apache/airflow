@@ -1,8 +1,8 @@
 from airflow.exceptions import AirflowNotFoundException
 import pika
-from .entity import ClsEntity
+from plugins.entities.entity import ClsEntity
 import threading
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 from airflow.utils.db import get_connection
 
 _logger = generate_logger(__name__)

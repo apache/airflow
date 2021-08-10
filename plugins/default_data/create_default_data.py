@@ -2,7 +2,7 @@ from airflow.utils.db import provide_session
 import os
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.plugins_manager import AirflowPlugin
-from airflow.utils.load_data_from_csv import load_data_from_csv
+from plugins.utils.load_data_from_csv import load_data_from_csv
 from airflow.configuration import conf
 from plugins.factory_code.factory_code import get_factory_code
 

@@ -8,7 +8,7 @@ from airflow.models import Variable
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.python_operator import PythonOperator
 from datetime import timedelta
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 from sqlalchemy import func
 from airflow.utils.db import provide_session
 from airflow.utils import timezone

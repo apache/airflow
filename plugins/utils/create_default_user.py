@@ -1,13 +1,13 @@
 import os
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.load_data_from_csv import load_data_from_csv
+from plugins.utils.load_data_from_csv import load_data_from_csv
 
 log = LoggingMixin().log
 
 
 def create_default_users():
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    default_users = load_data_from_csv(os.path.join(current_dir, 'data/nd/default_users.csv'), {
+    default_users = load_data_from_csv(os.path.join(current_dir, 'default_users.csv'), {
         'username': 'username',
         'email': 'email',
         'lastname': 'lastname',

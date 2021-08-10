@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 from airflow.models import DAG, Log, TaskFail, XCom, DagRun
 from airflow.settings import TIMEZONE
-from airflow.entities.curve_storage import ClsCurveStorage
-from plugins.utils import get_curve_args
+from plugins.entities.curve_storage import ClsCurveStorage
+from plugins.utils.utils import get_curve_args
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import TaskInstance
 from datetime import datetime, timedelta

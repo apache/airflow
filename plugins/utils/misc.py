@@ -20,7 +20,7 @@ class profile(object):
     '''
     Profiler类可以生成单一单数的profile文件
 
-    from airflow.utils.misc import profile
+    from plugins.utils.misc import profile
     [...]
     @profile('/temp/prof.profile')
     def mymethod(...)

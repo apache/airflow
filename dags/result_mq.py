@@ -1,4 +1,4 @@
-from airflow.utils.logger import generate_logger
+from plugins.utils.logger import generate_logger
 import os
 from airflow.models import DAG
 from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS

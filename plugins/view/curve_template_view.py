@@ -8,7 +8,7 @@ from datetime import datetime
 from flask_appbuilder import expose, has_access
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from airflow.exceptions import AirflowNotFoundException
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 from airflow.api.common.experimental import trigger_dag as trigger
 from plugins import AirflowModelView

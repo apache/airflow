@@ -5,9 +5,9 @@ from flask_login import current_user
 import logging
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 from airflow.exceptions import AirflowException
-from plugins.utils import trigger_training_dag, get_result
+from plugins.utils.utils import trigger_training_dag, get_result
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 

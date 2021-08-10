@@ -3,9 +3,9 @@ from airflow.plugins_manager import AirflowPlugin
 import logging
 from flask_appbuilder import BaseView, expose, has_access
 from airflow.models import Variable
-from plugins.utils import get_curve, get_result
+from plugins.utils.utils import get_curve, get_result
 from plugins.models.error_tag import ErrorTag
-from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 from datetime import datetime
 import os
 from airflow.settings import TIMEZONE
