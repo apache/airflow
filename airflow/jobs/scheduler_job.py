@@ -766,7 +766,17 @@ class SchedulerJob(BaseJob):
                 self._change_state_for_tis_without_dagrun(
                     old_states=[State.UP_FOR_RETRY], new_state=State.FAILED, session=session
                 )
-
+                
+                guard.commit()
+            except OperationalError as e:
+                if is_lock_not_available_error(error=e):
+                    self.log.debug("Lock held by another Scheduler")
+                    session.rollback()
+                else:
+                    raise
+                return
+            
+            try:
                 self._change_state_for_tis_without_dagrun(
                     old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE, State.SENSING],
                     new_state=State.NONE,
@@ -780,7 +790,6 @@ class SchedulerJob(BaseJob):
                     session.rollback()
                 else:
                     raise
-            guard.commit()
 
     def _do_scheduling(self, session) -> int:
         """
