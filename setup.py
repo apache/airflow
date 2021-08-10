@@ -179,6 +179,9 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
+alibaba = [
+    'oss2>=2.14.0',
+]
 amazon = [
     'boto3>=1.15.0,<1.18.0',
     'watchtower~=1.0.6',
@@ -412,6 +415,9 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = ['presto-python-client>=0.7.0,<0.8']
+psrp = [
+    'pypsrp~=0.5',
+]
 qubole = [
     'qds-sdk>=1.10.4',
 ]
@@ -510,6 +516,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
+    'pypsrp',
     'pygithub',
     'pysftp',
     'pytest~=6.0',
@@ -533,6 +540,7 @@ devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'airbyte': http_provider,
+    'alibaba': alibaba,
     'amazon': amazon,
     'apache.beam': apache_beam,
     'apache.cassandra': cassandra,
@@ -569,6 +577,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'jira': jira,
     'microsoft.azure': azure,
     'microsoft.mssql': mssql,
+    'microsoft.psrp': psrp,
     'microsoft.winrm': winrm,
     'mongo': mongo,
     'mysql': mysql,
