@@ -19,7 +19,6 @@ version: "2.2"
 services:
   trino:
     image: ghcr.io/apache/airflow-trino:359-2021.07.04
-    container_name: trino
     hostname: trino
     domainname: example.com
 
