@@ -184,7 +184,7 @@ and pythonic.
 Creating Custom TaskFlow Decorators
 -----------------------------------
 
-As of Airflow 2.3, users can now integrate custom decorators into their provider packages and have those decorators
+As of Airflow 2.2, users can now integrate custom decorators into their provider packages and have those decorators
 appear natively as part of the ``@task.____`` design.
 
 For an example. Let's say you were trying to create a "foo" decorator. To create ``@task.foo``, follow the following
