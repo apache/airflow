@@ -415,6 +415,9 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = ['presto-python-client>=0.7.0,<0.8']
+psrp = [
+    'pypsrp~=0.5',
+]
 qubole = [
     'qds-sdk>=1.10.4',
 ]
@@ -513,6 +516,7 @@ devel = [
     'paramiko',
     'pipdeptree',
     'pre-commit',
+    'pypsrp',
     'pygithub',
     'pysftp',
     'pytest~=6.0',
@@ -573,6 +577,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'jira': jira,
     'microsoft.azure': azure,
     'microsoft.mssql': mssql,
+    'microsoft.psrp': psrp,
     'microsoft.winrm': winrm,
     'mongo': mongo,
     'mysql': mysql,

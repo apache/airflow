@@ -16,42 +16,30 @@
 # under the License.
 
 ---
-package-name: apache-airflow-providers-tableau
-name: Tableau
+package-name: apache-airflow-providers-microsoft-psrp
+name: PowerShell Remoting Protocol (PSRP)
 description: |
-    `Tableau <https://www.tableau.com/>`__
+    `PowerShell Remoting Protocol (PSRP)
+    <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__
 
 versions:
-  - 2.1.0
-  - 2.0.0
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - pypsrp>=0.5.0
 
 integrations:
-  - integration-name: Tableau
-    external-doc-url: https://www.tableau.com/
-    how-to-guide:
-      - /docs/apache-airflow-providers-tableau/operators.rst
-    logo: /integration-logos/tableau/tableau.png
-    tags: [service]
+  - integration-name: Windows Remote Management (WinRM)
+    external-doc-url: https://docs.microsoft.com/en-us/windows/win32/winrm/portal
+    logo: /integration-logos/winrm/WinRM.png
+    tags: [protocol]
 
 operators:
-  - integration-name: Tableau
+  - integration-name: Windows Remote Management (WinRM)
     python-modules:
-      - airflow.providers.tableau.operators.tableau
-      - airflow.providers.tableau.operators.tableau_refresh_workbook
-
-sensors:
-  - integration-name: Tableau
-    python-modules:
-      - airflow.providers.tableau.sensors.tableau_job_status
+      - airflow.providers.microsoft.winrm.operators.winrm
 
 hooks:
-  - integration-name: Tableau
+  - integration-name: Windows Remote Management (WinRM)
     python-modules:
-      - airflow.providers.tableau.hooks.tableau
-
-hook-class-names:
-  - airflow.providers.tableau.hooks.tableau.TableauHook
+      - airflow.providers.microsoft.winrm.hooks.winrm
