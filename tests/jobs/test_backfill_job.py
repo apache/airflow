@@ -747,7 +747,7 @@ class TestBackfillJob:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
         )
-        with self.assertRaises(BackfillUnfinished):
+        with pytest.raises((BackfillUnfinished):
             job.run()
 
     def test_backfill_ordered_concurrent_execute(self, dag_maker):
