@@ -40,7 +40,8 @@
               <tr>
                 <td class="h-100" style="text-align: center;vertical-align: middle;">
                   <div class="d-flex flex-column justify-content-center align-items-center">
-                    <input id="{{ result.entity_id }}" class="action_check m-2" name="rowid" value="{{ result.entity_id }}"
+                    <input id="{{ result.entity_id }}" class="action_check m-2" name="rowid"
+                           value="{{ result.entity_id }}"
                            data-carCode="{{ result.car_code }}"
                            data-date="{{ result.execution_date }}"
                            data-measureresult="{{ result.measure_result }}"
@@ -62,20 +63,20 @@
                     <p class="list-group-item-text ml-4"><span>{{ _('Car Code') }}：</span>{{ result.car_code }}</p>
                     <p class="list-group-item-text ml-4 "><span>{{ _('Measure Result') }}：</span>
                       <a
-                        class="badge {{ 'badge-success' if result.measure_result=='OK' else ('badge-danger' if result.measure_result=='NOK' else 'badge-secondary') }}">{{ result.measure_result if result.measure_result else '无结果' }}</a>
+                              class="badge {{ 'badge-success' if result.measure_result=='OK' else ('badge-danger' if result.measure_result=='NOK' else 'badge-secondary') }}">{{ result.measure_result if result.measure_result else '无结果' }}</a>
                     </p>
                     {% if result.should_analyze != False %}
                       <p class="list-group-item-text ml-4"><span>{{ _('Result') }}：</span>
                         <a
-                          class="badge {{ 'badge-success' if result.result=='OK' else ('badge-danger' if result.result=='NOK' else 'badge-secondary') }}">{{ result.result if result.result else '未分析' }}</a>
+                                class="badge {{ 'badge-success' if result.result=='OK' else ('badge-danger' if result.result=='NOK' else 'badge-secondary') }}">{{ result.result if result.result else '未分析' }}</a>
                       </p>
                       <p class="list-group-item-text ml-4"><span>{{ _('Final State') }}：</span>
                         <a
-                          class="badge {{ 'badge-success' if result.final_state=='OK' else ('badge-danger' if result.final_state=='NOK' else 'badge-secondary') }}">{{ result.final_state if result.final_state else '未确认' }}</a>
+                                class="badge {{ 'badge-success' if result.final_state=='OK' else ('badge-danger' if result.final_state=='NOK' else 'badge-secondary') }}">{{ result.final_state if result.final_state else '未确认' }}</a>
                       </p>
                       <p class="list-group-item-text ml-4"><span>{{ _('Error Tags') }}：</span>
                         <a
-                          class="badge badge-danger">{{ result.view_error_tags if result.view_error_tags else '无异常标签' }}</a>
+                                class="badge badge-danger">{{ result.view_error_tags if result.view_error_tags else '无异常标签' }}</a>
                       </p>
                     {% endif %}
                   </button>
@@ -357,9 +358,14 @@
       $('#btn-view-spc').on('click', viewSPC);
       curveChart.on('click', (params) => {
         if (params.componentType === 'series') {
-          const entity_id = findClickedCurve(params.seriesName);
+          let entity_id = findClickedCurve(params.seriesName)
+          if (!entity_id) {
+            alert('结果参数缺失，无法定位到曲线');
+            return;
+          }
+          entity_id = entity_id.replaceAll('/', '@');
           const url = "{{ url_for('CurveView.view_curve_page', entity_id='ENTITY_ID') }}"
-            .replace('ENTITY_ID', entity_id)
+                  .replace('ENTITY_ID', entity_id)
           window.open(url);
         }
       });
