@@ -471,7 +471,6 @@ class TestBackfillJob:
         except AirflowException:
             return
 
-        self.fail()
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_pool_limit(self, mock_log, dag_maker):
