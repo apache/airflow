@@ -19,6 +19,9 @@ version: "2.2"
 services:
   cassandra:
     image: cassandra:3.0
+    environment:
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 256M
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - cassandra-db-volume:/var/lib/cassandra
