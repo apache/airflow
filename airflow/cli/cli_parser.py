@@ -285,7 +285,6 @@ ARG_RERUN_SUCCEED_TASKS = Arg(
     help=(
         "if set, the backfill will auto-rerun "
         "all the succeeded tasks for the backfill date range "
-        "instead of throwing exceptions"
     ),
     action="store_true",
 )

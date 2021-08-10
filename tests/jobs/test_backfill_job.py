@@ -57,8 +57,8 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 @pytest.fixture(scope="module")
 def dag_bag():
     return DagBag(include_examples=True)
-  
-  
+
+
 class TestBackfillJob:
     @staticmethod
     def clean_db():
@@ -71,7 +71,7 @@ class TestBackfillJob:
         self.clean_db()
         self.parser = cli_parser.get_parser()
         self.dagbag = dag_bag
-        
+
     def _get_dummy_dag(
         self,
         dag_maker_fixture,
@@ -87,11 +87,7 @@ class TestBackfillJob:
         return dag
 
     def _times_called_with(self, method, class_):
-        count = 0
-        for args in method.call_args_list:
-            if isinstance(args[0][0], class_):
-                count += 1
-        return count
+        return sum(1 for args in method.call_args_list if isinstance(args[0][0], class_))
 
     def test_unfinished_dag_runs_set_to_failed(self, dag_maker):
         dag = self._get_dummy_dag(dag_maker)
@@ -206,7 +202,8 @@ class TestBackfillJob:
         session.close()
 
     @pytest.mark.backend("postgres", "mysql")
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_id, expected_execution_order",
         [
             [
                 "example_branch_operator",
@@ -635,8 +632,8 @@ class TestBackfillJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_backfill_rerun_upstream_failed_tasks(self):
-        
+    def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
+
         with dag_maker(dag_id='test_backfill_rerun_upstream_failed', schedule_interval='@daily') as dag:
             op1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1')
             op2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2')
@@ -701,8 +698,8 @@ class TestBackfillJob:
         with pytest.raises(AirflowException):
             job.run()
 
-    def test_backfill_retry_intermittent_failed_task(self):
-        dag = DAG(
+    def test_backfill_retry_intermittent_failed_task(self, dag_maker):
+        with dag_maker(
             dag_id='test_intermittent_failure_job',
             schedule_interval="@daily",
             default_args={
@@ -728,8 +725,8 @@ class TestBackfillJob:
         )
         job.run()
 
-    def test_backfill_retry_always_failed_task(self):
-        dag = DAG(
+    def test_backfill_retry_always_failed_task(self, dag_maker):
+        with dag_maker(
             dag_id='test_always_failure_job',
             schedule_interval="@daily",
             default_args={
@@ -754,13 +751,12 @@ class TestBackfillJob:
         with self.assertRaises(BackfillUnfinished):
             job.run()
 
-    def test_backfill_ordered_concurrent_execute(self):
-        dag = DAG(
+    def test_backfill_ordered_concurrent_execute(self, dag_maker):
+
+        with dag_maker(
             dag_id='test_backfill_ordered_concurrent_execute',
             schedule_interval="@daily",
-        )
-
-        with dag:
+        ) as dag:
             op1 = DummyOperator(task_id='leave1')
             op2 = DummyOperator(task_id='leave2')
             op3 = DummyOperator(task_id='upstream_level_1')
@@ -1076,7 +1072,7 @@ class TestBackfillJob:
             op3.set_downstream(op4)
 
         dr = dag_maker.create_dagrun()
-        
+
         executor = MockExecutor()
         sub_dag = dag.partial_subset(
             task_ids_or_regex="leave*", include_downstream=False, include_upstream=False
@@ -1098,7 +1094,7 @@ class TestBackfillJob:
                 assert State.NONE == ti.state
 
     def test_backfill_fill_blanks(self, dag_maker):
-        dag = DAG(
+        with dag_maker(
             'test_backfill_fill_blanks',
         ) as dag:
             op1 = DummyOperator(task_id='op1')
