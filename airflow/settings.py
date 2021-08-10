@@ -52,7 +52,6 @@ except Exception:
 log.info("Configured default timezone %s", TIMEZONE)
 
 
-
 HEADER = '\n'.join(
     [
         r'  ____________       _____________',
