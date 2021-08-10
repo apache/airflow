@@ -11,18 +11,60 @@ from plugins import AirflowModelView
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
 from airflow.www_rbac.decorators import has_dag_access, action_logging
-from airflow.www_rbac.forms import TighteningControllerForm
 from flask_appbuilder.widgets import RenderTemplateWidget
 from flask_wtf.csrf import CSRFProtect
 from airflow.utils.log.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import os
 import pandas as pd
+from wtforms.ext.sqlalchemy.fields import QuerySelectField
+from flask import current_app
+from wtforms.fields import StringField
+from flask_appbuilder.fieldwidgets import (
+    BS3TextFieldWidget, Select2Widget,
+)
+from flask_appbuilder.forms import DynamicForm
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
 _logger = logging.getLogger(__name__)
 csrf = CSRFProtect()
+
+
+def device_type_query():
+    print(current_app)
+    session = current_app.appbuilder.get_session()
+    from plugins.models.device_type import DeviceTypeModel
+    return session.query(DeviceTypeModel)
+
+
+def _get_related_pk_func(obj):
+    return obj.id
+
+
+class TighteningControllerForm(DynamicForm):
+    controller_name = StringField(
+        lazy_gettext('Equipment Name'),
+        widget=BS3TextFieldWidget())
+    line_code = StringField(
+        lazy_gettext('Line Code'),
+        widget=BS3TextFieldWidget())
+    line_name = StringField(
+        lazy_gettext('Line Name'),
+        widget=BS3TextFieldWidget())
+    work_center_code = StringField(
+        lazy_gettext('Work Center Code'),
+        widget=BS3TextFieldWidget())
+    work_center_name = StringField(
+        lazy_gettext('Work Center Name'),
+        widget=BS3TextFieldWidget())
+
+    device_type = QuerySelectField(
+        lazy_gettext('Device Type'),
+        query_factory=device_type_query,
+        # get_pk_func=_get_related_pk_func,
+        widget=Select2Widget(extra_classes="readonly")
+    )
 
 
 class AirflowControllerListWidget(RenderTemplateWidget):

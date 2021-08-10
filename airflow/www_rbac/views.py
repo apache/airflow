@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import uuid
+
 import copy
 import itertools
 import json

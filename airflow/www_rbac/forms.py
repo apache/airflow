@@ -23,7 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import json
-from flask import current_app
+
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget,
 )
@@ -34,8 +34,6 @@ from flask_wtf import FlaskForm
 from wtforms import validators
 from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
                             StringField, DateTimeField, BooleanField)
-from wtforms.ext.sqlalchemy.fields import QuerySelectField
-from airflow.utils.db import provide_session, create_session
 from airflow.models import Connection
 from airflow.utils import timezone
 from airflow.www_rbac.validators import ValidJson
@@ -171,48 +169,3 @@ class ConnectionForm(DynamicForm):
     extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
-
-
-class ErrorTagForm(DynamicForm):
-    value = StringField(
-        lazy_gettext('Value'),
-        widget=BS3TextFieldWidget())
-    label = StringField(
-        lazy_gettext('Label'),
-        widget=BS3TextFieldWidget())
-
-
-def device_type_query():
-    print(current_app)
-    session = current_app.appbuilder.get_session()
-    from plugins.models.device_type import DeviceTypeModel
-    return session.query(DeviceTypeModel)
-
-
-def _get_related_pk_func(obj):
-    return obj.id
-
-
-class TighteningControllerForm(DynamicForm):
-    controller_name = StringField(
-        lazy_gettext('Equipment Name'),
-        widget=BS3TextFieldWidget())
-    line_code = StringField(
-        lazy_gettext('Line Code'),
-        widget=BS3TextFieldWidget())
-    line_name = StringField(
-        lazy_gettext('Line Name'),
-        widget=BS3TextFieldWidget())
-    work_center_code = StringField(
-        lazy_gettext('Work Center Code'),
-        widget=BS3TextFieldWidget())
-    work_center_name = StringField(
-        lazy_gettext('Work Center Name'),
-        widget=BS3TextFieldWidget())
-
-    device_type = QuerySelectField(
-        lazy_gettext('Device Type'),
-        query_factory=device_type_query,
-        # get_pk_func=_get_related_pk_func,
-        widget=Select2Widget(extra_classes="readonly")
-    )

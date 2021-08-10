@@ -18,7 +18,6 @@
 # under the License.
 
 from future import standard_library  # noqa
-
 standard_library.install_aliases()  # noqa
 
 import functools
@@ -37,8 +36,6 @@ from flask_appbuilder.forms import DateTimeField, FieldConverter, Select2Widget,
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
-from sqlalchemy import func
-
 from six.moves.urllib.parse import urlencode
 
 from airflow.configuration import conf
@@ -486,11 +483,6 @@ class CustomSQLAInterface(SQLAInterface):
             return isinstance(obj, UtcDateTime) or \
                    isinstance(obj, sqla.types.TypeDecorator) and \
                    isinstance(obj.impl, UtcDateTime)
-        return False
-
-    def is_errortag(self, col_name):
-        if col_name == 'error_tag':
-            return True
         return False
 
     filter_converter_class = UtcAwareFilterConverter

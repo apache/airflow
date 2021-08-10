@@ -175,10 +175,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 gettext("XComs"),
                                 category=gettext("Admin"))
 
-            # 分析相关
-            # appbuilder.add_view(views.XComModelView,
-            #                     gettext("Analysis"))
-
             if "dev" in version.version:
                 airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
             else:
