@@ -54,8 +54,8 @@ class DateTimeTrigger(BaseTrigger):
         unexpectedly, or handles a DST change poorly.
         """
         # Sleep an hour at a time while it's more than 2 hours away
-        while timezone.utcnow() - self.moment > datetime.timedelta(hours=2):
-            await (asyncio.sleep(3600))
+        while (self.moment - timezone.utcnow()).total_hours() > 2:
+            await asyncio.sleep(3600)
         # Sleep a second at a time otherwise
         while self.moment > timezone.utcnow():
             await asyncio.sleep(1)
