@@ -337,7 +337,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         section of the API.
     :type on_failure_callback: TaskStateChangeCallback
     :param on_execute_callback: much like the ``on_failure_callback`` except
-        that it is executed right before the task is executed.
+        that it is executed right before the task is executed; if an Airflow
+        exception is raised during the execution, this will prevent the task
+        from being executed (all other exceptions are logged and ignored).
     :type on_execute_callback: TaskStateChangeCallback
     :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
