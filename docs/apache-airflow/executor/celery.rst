@@ -209,7 +209,7 @@ queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
 started (using command ``airflow celery worker``), a set of comma-delimited queue
-names (no whitespaces) can be given (e.g. ``airflow celery worker -q spark,quark``).
+names (with no whitespace) can be given (e.g. ``airflow celery worker -q spark,quark``).
 This worker will then only pick up tasks wired to the specified queue(s).
 
 This can be useful if you need specialized workers, either from a
