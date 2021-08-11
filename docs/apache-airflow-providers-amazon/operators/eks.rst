@@ -147,7 +147,7 @@ Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
     :end-before: [END howto_operator_eks_pod_operator]
 
 Reference
----------
+^^^^^^^^^
 
 For further information, look at:
 
