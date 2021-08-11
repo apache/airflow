@@ -103,6 +103,8 @@ class ElasticsearchSecretTest(unittest.TestCase):
                 "elasticsearch": {
                     "enabled": True,
                     "connection": {
+                        "user": "username",
+                        "pass": "password",
                         "host": "elastichostname",
                         "port": 2222,
                     },
@@ -110,5 +112,5 @@ class ElasticsearchSecretTest(unittest.TestCase):
             }
         )
 
-        assert "http://elastichostname:2222" == connection
+        assert "http://username:password@elastichostname:2222" == connection
         
