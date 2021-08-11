@@ -30,6 +30,7 @@ from termcolor import colored
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.executors import executor_constants
 from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import db
 from airflow.www.app import cached_app
 
@@ -72,6 +73,12 @@ class StandaloneCommand:
             self,
             name="webserver",
             command=["webserver", "--port", "8080"],
+            env=env,
+        )
+        self.subcommands["triggerer"] = SubCommand(
+            self,
+            name="triggerer",
+            command=["triggerer"],
             env=env,
         )
         # Run subcommand threads
@@ -123,6 +130,7 @@ class StandaloneCommand:
         color = {
             "webserver": "green",
             "scheduler": "blue",
+            "triggerer": "cyan",
             "standalone": "white",
         }.get(name, "white")
         colorised_name = colored("%10s" % name, color)
@@ -198,7 +206,7 @@ class StandaloneCommand:
         Detects when all Airflow components are ready to serve.
         For now, it's simply time-based.
         """
-        return self.port_open(8080) and self.job_running(SchedulerJob)
+        return self.port_open(8080) and self.job_running(SchedulerJob) and self.job_running(TriggererJob)
 
     def port_open(self, port):
         """

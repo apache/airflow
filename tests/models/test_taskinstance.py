@@ -1981,6 +1981,10 @@ class TestTaskInstance:
             "pid": 123,
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
+            "trigger_timeout": None,
+            "trigger_id": None,
+            "next_kwargs": None,
+            "next_method": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key.lstrip('_')}" for key in expected_values.keys()}

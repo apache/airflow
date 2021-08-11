@@ -25,6 +25,7 @@ import signal
 import warnings
 from collections import defaultdict
 from datetime import datetime, timedelta
+from functools import partial
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
@@ -34,10 +35,23 @@ import jinja2
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_, tuple_
+from sqlalchemy import (
+    Column,
+    Float,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    PickleType,
+    String,
+    and_,
+    func,
+    or_,
+)
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
+from sqlalchemy.sql.expression import tuple_
+from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
 from airflow.configuration import conf
@@ -50,6 +64,8 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowSmartSensorException,
     AirflowTaskTimeout,
+    TaskDeferralError,
+    TaskDeferred,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.connection import Connection
@@ -72,7 +88,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State
 from airflow.utils.timeout import timeout
 
@@ -323,6 +339,18 @@ class TaskInstance(Base, LoggingMixin):
     executor_config = Column(PickleType(pickler=dill))
 
     external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
+
+    # The trigger to resume on if we are in state DEFERRED
+    trigger_id = Column(BigInteger)
+
+    # Optional timeout datetime for the trigger (past this, we'll fail)
+    trigger_timeout = Column(UtcDateTime)
+
+    # The method to call next, and any extra arguments to pass to it.
+    # Usually used when resuming from DEFERRED.
+    next_method = Column(String(1000))
+    next_kwargs = Column(ExtendedJSON)
+
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -333,12 +361,27 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
+        Index('ti_trigger_id', trigger_id),
+        ForeignKeyConstraint(
+            [trigger_id],
+            ['trigger.id'],
+            name='task_instance_trigger_id_fkey',
+            ondelete='CASCADE',
+        ),
     )
 
     dag_model = relationship(
         "DagModel",
         primaryjoin="TaskInstance.dag_id == DagModel.dag_id",
         foreign_keys=dag_id,
+        uselist=False,
+        innerjoin=True,
+    )
+
+    trigger = relationship(
+        "Trigger",
+        primaryjoin="TaskInstance.trigger_id == Trigger.id",
+        foreign_keys=trigger_id,
         uselist=False,
         innerjoin=True,
     )
@@ -671,6 +714,9 @@ class TaskInstance(Base, LoggingMixin):
             self.pid = ti.pid
             self.executor_config = ti.executor_config
             self.external_executor_id = ti.external_executor_id
+            self.trigger_id = ti.trigger_id
+            self.next_method = ti.next_method
+            self.next_kwargs = ti.next_kwargs
         else:
             self.state = None
 
@@ -1204,6 +1250,22 @@ class TaskInstance(Base, LoggingMixin):
                 self._prepare_and_execute_task_with_callbacks(context, task)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
+        except TaskDeferred as defer:
+            # The task has signalled it wants to defer execution based on
+            # a trigger.
+            self._defer_task(defer=defer)
+            self.log.info(
+                'Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s',
+                self.dag_id,
+                self.task_id,
+                self._date_or_empty('execution_date'),
+                self._date_or_empty('start_date'),
+            )
+            if not test_mode:
+                session.add(Log(self.state, self))
+                session.merge(self)
+            session.commit()
+            return
         except AirflowSmartSensorException as e:
             self.log.info(e)
             return
@@ -1324,21 +1386,84 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task(self, context, task_copy):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
+        # If the task has been deferred and is being executed due to a trigger,
+        # then we need to pick the right method to come back to, otherwise
+        # we go for the default execute
+        execute_callable = task_copy.execute
+        if self.next_method:
+            # __fail__ is a special signal value for next_method that indicates
+            # this task was scheduled specifically to fail.
+            if self.next_method == "__fail__":
+                next_kwargs = self.next_kwargs or {}
+                raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+            # Grab the callable off the Operator/Task and add in any kwargs
+            execute_callable = getattr(task_copy, self.next_method)
+            if self.next_kwargs:
+                execute_callable = partial(execute_callable, **self.next_kwargs)
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
         if task_copy.execution_timeout:
+            # If we are coming in with a next_method (i.e. from a deferral),
+            # calculate the timeout from our start_date.
+            if self.next_method:
+                timeout_seconds = (
+                    task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
+                ).total_seconds()
+            else:
+                timeout_seconds = task_copy.execution_timeout.total_seconds()
             try:
-                with timeout(task_copy.execution_timeout.total_seconds()):
-                    result = task_copy.execute(context=context)
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = execute_callable(context=context)
             except AirflowTaskTimeout:
                 task_copy.on_kill()
                 raise
         else:
-            result = task_copy.execute(context=context)
+            result = execute_callable(context=context)
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
             self.xcom_push(key=XCOM_RETURN_KEY, value=result)
         return result
+
+    @provide_session
+    def _defer_task(self, session, defer: TaskDeferred):
+        """
+        Marks the task as deferred and sets up the trigger that is needed
+        to resume it.
+        """
+        from airflow.models.trigger import Trigger
+
+        # First, make the trigger entry
+        trigger_row = Trigger.from_object(defer.trigger)
+        session.add(trigger_row)
+        session.flush()
+
+        # Then, update ourselves so it matches the deferral request
+        self.state = State.DEFERRED
+        self.trigger_id = trigger_row.id
+        self.next_method = defer.method_name
+        self.next_kwargs = defer.kwargs or {}
+
+        # Decrement try number so the next one is the same try
+        self._try_number -= 1
+
+        # Calculate timeout too if it was passed
+        if defer.timeout is not None:
+            self.trigger_timeout = timezone.utcnow() + defer.timeout
+        else:
+            self.trigger_timeout = None
+
+        # If an execution_timeout is set, set the timeout to the minimum of
+        # it and the trigger timeout
+        execution_timeout = self.task.execution_timeout
+        if execution_timeout:
+            if self.trigger_timeout:
+                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+            else:
+                self.trigger_timeout = self.start_date + execution_timeout
 
     def _run_execute_callback(self, context: Context, task):
         """Functions that need to be run before a Task is executed"""
@@ -2177,7 +2302,7 @@ STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
 
-    from airflow.job.base_job import BaseJob
+    from airflow.jobs.base_job import BaseJob
     from airflow.models.dagrun import DagRun
 
     TaskInstance.dag_run = relationship(DagRun)
