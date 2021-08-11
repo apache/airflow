@@ -1127,8 +1127,8 @@ config:
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
-# `podTemplate` is a string containing the contents of `pod_template_file.yaml` used for KubernetesExecutor
-# workers. The default `podTemplate` will use normal `workers` configuration parameters
+# `podTemplate` is a templated string containing the contents of `pod_template_file.yaml` used for
+# KubernetesExecutor workers. The default `podTemplate` will use normal `workers` configuration parameters
 # (e.g. `workers.resources`). As such, you normally won't need to override this directly, however,
 # you can still provide a completely custom `pod_template_file.yaml` if desired.
 # If not set, a default one is created using `files/pod-template-file.kubernetes-helm-yaml`.
@@ -1145,7 +1145,7 @@ podTemplate: ~
 #     labels:
 #       tier: airflow
 #       component: worker
-#       release: my-release
+#       release: {{ .Release.Name }}
 #   spec:
 #     priorityClassName: high-priority
 #     containers:
