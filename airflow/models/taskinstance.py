@@ -1345,6 +1345,8 @@ class TaskInstance(Base, LoggingMixin):
         try:
             if task.on_execute_callback:
                 task.on_execute_callback(context)
+        except AirflowException:
+            raise
         except Exception:
             self.log.exception("Failed when executing execute callback")
 

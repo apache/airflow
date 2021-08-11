@@ -1619,6 +1619,31 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_execute_callback_airflow_exception(self, get_dummy_dag):
+        called = False
+
+        def on_execute_callable(context):
+            nonlocal called
+            called = True
+            raise AirflowSkipException()
+
+        _, task = get_dummy_dag(
+            'test_execute_callback',
+            on_execute_callback=on_execute_callable,
+        )
+
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+
+        session.merge(ti)
+        session.commit()
+
+        ti._run_raw_task()
+        assert called
+        ti.refresh_from_db()
+        assert ti.state == State.SKIPPED
+
     @pytest.mark.parametrize(
         "finished_state, expected_message",
         [
