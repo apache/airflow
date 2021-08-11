@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
+import logging
 import os
 import shutil
 import textwrap
-import unittest
 from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
@@ -29,7 +29,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
-from airflow import models
+from airflow import models, settings
 from airflow.exceptions import SerializationError
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
@@ -45,21 +45,23 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.permissions import delete_dag_specific_permissions
 
 
-class TestDagBag(unittest.TestCase):
+class TestDagBag:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.empty_dir = mkdtemp()
 
     @classmethod
-    def tearDownClass(cls):
+    def teardown_class(cls):
         shutil.rmtree(cls.empty_dir)
 
-    def setUp(self) -> None:
+    def setup_methods(self) -> None:
         db.clear_db_dags()
+        db.clear_db_runs()
         db.clear_db_serialized_dags()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         db.clear_db_dags()
+        db.clear_db_runs()
         db.clear_db_serialized_dags()
 
     def test_get_existing_dag(self):
@@ -170,20 +172,20 @@ class TestDagBag(unittest.TestCase):
             assert dagbag.import_errors[tf_2.name].startswith("Ignoring DAG")
             assert dagbag.dags == dags_in_bag  # Should not change.
 
-    def test_zip_skip_log(self):
+    def test_zip_skip_log(self, caplog):
         """
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
-        with self.assertLogs() as cm:
-            test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
-            dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
+        caplog.set_level(logging.INFO)
+        test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
+        dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
 
-            assert dagbag.has_logged
-            assert (
-                f'INFO:airflow.models.dagbag.DagBag:File {test_zip_path}:file_no_airflow_dag.py '
-                'assumed to contain no DAGs. Skipping.' in cm.output
-            )
+        assert dagbag.has_logged
+        assert (
+            f'File {test_zip_path}:file_no_airflow_dag.py '
+            'assumed to contain no DAGs. Skipping.' in caplog.text
+        )
 
     def test_zip(self):
         """
@@ -312,22 +314,20 @@ class TestDagBag(unittest.TestCase):
         assert dag_id == dag.dag_id
         assert 2 == dagbag.process_file_calls
 
-    def test_dag_removed_if_serialized_dag_is_removed(self):
+    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
         """
         from airflow.operators.dummy import DummyOperator
 
-        dag = models.DAG(
+        with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
             schedule_interval=None,
             start_date=tz.datetime(2021, 10, 12),
-        )
-
-        with dag:
+        ) as dag:
             DummyOperator(task_id="task_1")
-
+        dag_maker.create_dagrun()
         dagbag = DagBag(dag_folder=self.empty_dir, include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}
@@ -691,7 +691,7 @@ class TestDagBag(unittest.TestCase):
             assert new_serialized_dags_count == 1
 
     @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
-    def test_serialized_dag_errors_are_import_errors(self, mock_serialize):
+    def test_serialized_dag_errors_are_import_errors(self, mock_serialize, caplog):
         """
         Test that errors serializing a DAG are recorded as import_errors in the DB
         """
@@ -706,9 +706,9 @@ class TestDagBag(unittest.TestCase):
             )
             assert dagbag.import_errors == {}
 
-            with self.assertLogs(level="ERROR") as cm:
-                dagbag.sync_to_db(session=session)
-            self.assertIn("SerializationError", "\n".join(cm.output))
+            caplog.set_level(logging.ERROR)
+            dagbag.sync_to_db(session=session)
+            assert "SerializationError" in caplog.text
 
             assert path in dagbag.import_errors
             err = dagbag.import_errors[path]
@@ -756,13 +756,13 @@ class TestDagBag(unittest.TestCase):
         )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    @freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0), as_kwarg="frozen_time")
-    def test_sync_to_db_syncs_dag_specific_perms_on_update(self, frozen_time):
+    def test_sync_to_db_syncs_dag_specific_perms_on_update(self):
         """
         Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
         new or updated
         """
-        with create_session() as session:
+        session = settings.Session()
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)) as frozen_time:
             dagbag = DagBag(
                 dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
                 include_examples=False,

@@ -19,24 +19,26 @@ import pendulum
 import pytest
 from freezegun import freeze_time
 
-from airflow.models import DAG, Log, TaskInstance
+from airflow.models import Log, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
-from tests.test_utils.db import clear_db_logs, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs
 
 
 @pytest.fixture(autouse=True)
 def clear_db():
     clear_db_logs()
     clear_db_runs()
+    clear_db_dags()
     yield
 
 
-def add_log(execdate, session, timezone_override=None):
-    dag = DAG(dag_id='logging', default_args={'start_date': execdate})
-    task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+def add_log(execdate, session, dag_maker, timezone_override=None):
+    with dag_maker(dag_id='logging', default_args={'start_date': execdate}):
+        task = DummyOperator(task_id='dummy')
+    dag_maker.create_dagrun()
     task_instance = TaskInstance(task=task, execution_date=execdate, state='success')
     session.merge(task_instance)
     log = Log(State.RUNNING, task_instance)
@@ -48,11 +50,11 @@ def add_log(execdate, session, timezone_override=None):
 
 
 @provide_session
-def test_timestamp_behaviour(session=None):
+def test_timestamp_behaviour(dag_maker, session=None):
     execdate = timezone.utcnow()
     with freeze_time(execdate):
         current_time = timezone.utcnow()
-        old_log = add_log(execdate, session)
+        old_log = add_log(execdate, session, dag_maker)
         session.expunge(old_log)
         log_time = session.query(Log).one().dttm
         assert log_time == current_time
@@ -60,11 +62,11 @@ def test_timestamp_behaviour(session=None):
 
 
 @provide_session
-def test_timestamp_behaviour_with_timezone(session=None):
+def test_timestamp_behaviour_with_timezone(dag_maker, session=None):
     execdate = timezone.utcnow()
     with freeze_time(execdate):
         current_time = timezone.utcnow()
-        old_log = add_log(execdate, session, timezone_override=pendulum.timezone('Europe/Warsaw'))
+        old_log = add_log(execdate, session, dag_maker, timezone_override=pendulum.timezone('Europe/Warsaw'))
         session.expunge(old_log)
         # No matter what timezone we set - we should always get back UTC
         log_time = session.query(Log).one().dttm
