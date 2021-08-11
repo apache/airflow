@@ -1046,7 +1046,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into workers.",
+                    "description": "Launch additional containers into workers. Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
                     "type": "array",
                     "default": []
                 },
