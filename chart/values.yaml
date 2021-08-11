@@ -267,6 +267,10 @@ data:
 fernetKey: ~
 fernetKeySecretName: ~
 
+# Flask secret key for Airflow Webserver: `[webserver] secret_key` in airflow.cfg
+webserverSecretKey: ~
+webserverSecretKeySecretName: ~
+
 # In order to use kerberos you need to create secret containing the keytab file
 # The secret name should follow naming convention of the application where resources are
 # name {{ .Release-name }}-<POSTFIX>. In case of the keytab file, the postfix is "kerberos-keytab"
@@ -1059,6 +1063,7 @@ postgresql:
 #
 #    a: '{{ "{{ not a template }}" }}'
 #
+# Do not set config containing secrets via plain text values, use Env Var or k8s secret object
 # yamllint disable rule:line-length
 config:
   core:
@@ -1106,6 +1111,8 @@ config:
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
     principal: '{{ .Values.kerberos.principal }}'
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
+  celery_kubernetes_executor:
+    kubernetes_queue: 'kubernetes'
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'
@@ -1116,6 +1123,8 @@ config:
     multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
 
+# Whether the KubernetesExecutor can launch workers and pods in multiple namespaces
+# If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
 # `podTemplate` is a string containing the contents of `pod_template_file.yaml` used for KubernetesExecutor

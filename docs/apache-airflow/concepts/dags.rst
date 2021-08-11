@@ -337,7 +337,7 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
 * ``none_failed_or_skipped``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
 * ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
-* ``dummy``: No dependencies at all, run this task at any time
+* ``always``: No dependencies at all, run this task at any time
 
 You can also combine this with the :ref:`concepts:depends-on-past` functionality if you wish.
 

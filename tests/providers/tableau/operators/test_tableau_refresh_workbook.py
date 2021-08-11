@@ -40,9 +40,9 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
             mock_workbook.id = i
             mock_workbook.name = f'wb_{i}'
             self.mocked_workbooks.append(mock_workbook)
-        self.kwargs = {'site_id': 'test_site', 'task_id': 'task', 'dag': None}
+        self.kwargs = {'site_id': 'test_site', 'task_id': 'task', 'dag': None, 'check_interval': 1}
 
-    @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
+    @patch('airflow.providers.tableau.operators.tableau.TableauHook')
     def test_execute(self, mock_tableau_hook):
         """
         Test Execute
@@ -56,7 +56,7 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
 
-    @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
+    @patch('airflow.providers.tableau.operators.tableau.TableauHook')
     def test_execute_blocking(self, mock_tableau_hook):
         """
         Test execute blocking
@@ -72,9 +72,11 @@ class TestTableauRefreshWorkbookOperator(unittest.TestCase):
 
         mock_tableau_hook.server.workbooks.refresh.assert_called_once_with(2)
         assert mock_tableau_hook.server.workbooks.refresh.return_value.id == job_id
-        mock_tableau_hook.server.jobs.get_by_id.assert_called_once_with(job_id)
+        mock_tableau_hook.wait_for_state.assert_called_once_with(
+            job_id=job_id, check_interval=1, target_state=TableauJobFinishCode.SUCCESS
+        )
 
-    @patch('airflow.providers.tableau.operators.tableau_refresh_workbook.TableauHook')
+    @patch('airflow.providers.tableau.operators.tableau.TableauHook')
     def test_execute_missing_workbook(self, mock_tableau_hook):
         """
         Test execute missing workbook

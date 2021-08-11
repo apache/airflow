@@ -57,6 +57,7 @@ from flask_appbuilder import BaseView, ModelView, expose
 from flask_appbuilder.actions import action
 from flask_appbuilder.fieldwidgets import Select2Widget
 from flask_appbuilder.models.sqla.filters import BaseFilter
+from flask_appbuilder.security.decorators import has_access
 from flask_appbuilder.security.views import (
     PermissionModelView,
     PermissionViewModelView,
@@ -121,7 +122,6 @@ from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
     DagRunEditForm,
-    DagRunForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
     DateTimeWithNumRunsWithDagRunsForm,
@@ -277,6 +277,29 @@ def task_group_to_dict(task_group):
         'tooltip': task_group.tooltip,
         'children': children,
     }
+
+
+def get_key_paths(input_dict):
+    """Return a list of dot-separated dictionary paths"""
+    for key, value in input_dict.items():
+        if isinstance(value, dict):
+            for sub_key in get_key_paths(value):
+                yield '.'.join((key, sub_key))
+        else:
+            yield key
+
+
+def get_value_from_path(key_path, content):
+    """Return the value from a dictionary based on dot-separated path of keys"""
+    elem = content
+    for x in key_path.strip(".").split("."):
+        try:
+            x = int(x)
+            elem = elem[x]
+        except ValueError:
+            elem = elem.get(x)
+
+    return elem
 
 
 def dag_edges(dag):
@@ -512,6 +535,30 @@ class Airflow(AirflowBaseView):
     )
     def index(self):
         """Home view."""
+        unit_test_mode: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
+
+        if not unit_test_mode and "sqlite" in conf.get("core", "sql_alchemy_conn"):
+            db_doc_page = get_docs_url("howto/set-up-database.html")
+            flash(
+                Markup(
+                    "Usage of <b>SQLite</b> detected. It should only be used for dev/testing. "
+                    "Do not use <b>SQLite</b> as metadata DB in production. "
+                    "We recommend using Postgres or MySQL. "
+                    f"<a href='{db_doc_page}'><b>Click here</b></a> for more information."
+                ),
+                category="warning",
+            )
+
+        if not unit_test_mode and conf.get("core", "executor") == "SequentialExecutor":
+            exec_doc_page = get_docs_url("executor/index.html")
+            flash(
+                Markup(
+                    "Usage of <b>SequentialExecutor</b> detected. "
+                    "Do not use <b>SequentialExecutor</b> in production. "
+                    f"<a href='{exec_doc_page}'><b>Click here</b></a> for more information."
+                ),
+                category="warning",
+            )
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
 
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
@@ -971,10 +1018,30 @@ class Airflow(AirflowBaseView):
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
                 if isinstance(content, (dict, list)):
-                    content = json.dumps(content, sort_keys=True, indent=4)
-                html_dict[template_field] = renderers[renderer](content)
+                    json_content = json.dumps(content, sort_keys=True, indent=4)
+                    html_dict[template_field] = renderers[renderer](json_content)
+                else:
+                    html_dict[template_field] = renderers[renderer](content)
             else:
                 html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
+
+            if isinstance(content, dict):
+                if template_field == 'op_kwargs':
+                    for key, value in content.items():
+                        renderer = task.template_fields_renderers.get(key, key)
+                        if renderer in renderers:
+                            html_dict['.'.join([template_field, key])] = renderers[renderer](value)
+                        else:
+                            html_dict['.'.join([template_field, key])] = Markup(
+                                "<pre><code>{}</pre></code>"
+                            ).format(pformat(value))
+                else:
+                    for dict_keys in get_key_paths(content):
+                        template_path = '.'.join((template_field, dict_keys))
+                        renderer = task.template_fields_renderers.get(template_path, template_path)
+                        if renderer in renderers:
+                            content_value = get_value_from_path(dict_keys, content)
+                            html_dict[template_path] = renderers[renderer](content_value)
 
         return self.render_template(
             'airflow/ti_code.html',
@@ -1229,8 +1296,6 @@ class Airflow(AirflowBaseView):
         """Retrieve task."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
-        # Carrying execution_date through, even though it's irrelevant for
-        # this context
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
@@ -1324,9 +1389,8 @@ class Airflow(AirflowBaseView):
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        dm_db = models.DagModel
         ti_db = models.TaskInstance
-        dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
+        dag = DagModel.get_dagmodel(dag_id)
         ti = session.query(ti_db).filter(and_(ti_db.dag_id == dag_id, ti_db.task_id == task_id)).first()
 
         if not ti:
@@ -1474,6 +1538,7 @@ class Airflow(AirflowBaseView):
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
 
@@ -1538,6 +1603,10 @@ class Airflow(AirflowBaseView):
                 )
 
         dag = current_app.dag_bag.get_dag(dag_id)
+
+        if unpause and dag.is_paused:
+            models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=False)
+
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
@@ -2590,48 +2659,6 @@ class Airflow(AirflowBaseView):
         models.DagModel.get_dagmodel(dag_id).set_is_paused(is_paused=is_paused)
         return "OK"
 
-    @expose('/refresh', methods=['POST'])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
-    @action_logging
-    @provide_session
-    def refresh(self, session=None):
-        """Refresh DAG."""
-        dag_id = request.values.get('dag_id')
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
-
-        if orm_dag:
-            orm_dag.last_expired = timezone.utcnow()
-            session.merge(orm_dag)
-        session.commit()
-
-        dag = current_app.dag_bag.get_dag(dag_id)
-        # sync dag permission
-        current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
-
-        flash(f"DAG [{dag_id}] is now fresh as a daisy")
-        return redirect(request.referrer)
-
-    @expose('/refresh_all', methods=['POST'])
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
-    @action_logging
-    def refresh_all(self):
-        """Refresh everything"""
-        current_app.dag_bag.collect_dags_from_db()
-
-        # sync permissions for all dags
-        for dag_id, dag in current_app.dag_bag.dags.items():
-            current_app.appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
-        flash("All DAGs are now up to date")
-        return redirect(url_for('Airflow.index'))
-
     @expose('/gantt')
     @auth.has_access(
         [
@@ -3194,11 +3221,33 @@ class ConnectionModelView(AirflowModelView):
     def process_form(self, form, is_created):
         """Process form data."""
         conn_type = form.data['conn_type']
+        conn_id = form.data["conn_id"]
         extra = {
             key: form.data[key]
             for key in self.extra_fields
             if key in form.data and key.startswith(f"extra__{conn_type}__")
         }
+
+        # If parameters are added to the classic `Extra` field, include these values along with
+        # custom-field extras.
+        extra_conn_params = form.data.get("extra")
+
+        if extra_conn_params:
+            try:
+                extra.update(json.loads(extra_conn_params))
+            except (JSONDecodeError, TypeError):
+                flash(
+                    Markup(
+                        "<p>The <em>Extra</em> connection field contained an invalid value for Conn ID: "
+                        f"<q>{conn_id}</q>.</p>"
+                        "<p>If connection parameters need to be added to <em>Extra</em>, "
+                        "please make sure they are in the form of a single, valid JSON object.</p><br>"
+                        "The following <em>Extra</em> parameters were <b>not</b> added to the connection:<br>"
+                        f"{extra_conn_params}",
+                    ),
+                    category="error",
+                )
+
         if extra.keys():
             form.extra.data = json.dumps(extra)
 
@@ -3383,7 +3432,6 @@ class VariableModelView(AirflowModelView):
         'delete': 'delete',
         'action_muldelete': 'delete',
         'action_varexport': 'read',
-        'varimport': 'create',
     }
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
@@ -3446,6 +3494,7 @@ class VariableModelView(AirflowModelView):
         return response
 
     @expose('/varimport', methods=["POST"])
+    @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
     @action_logging
     def varimport(self):
         """Import variables"""
@@ -3535,7 +3584,6 @@ class DagRunModelView(AirflowModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
-        'add': 'create',
         'list': 'read',
         'action_clear': 'delete',
         'action_muldelete': 'delete',
@@ -3544,14 +3592,12 @@ class DagRunModelView(AirflowModelView):
         'action_set_success': 'edit',
     }
     base_permissions = [
-        permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     list_columns = [
         'state',
         'dag_id',
@@ -3580,7 +3626,6 @@ class DagRunModelView(AirflowModelView):
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
-    add_form = DagRunForm
     edit_form = DagRunEditForm
 
     formatters_columns = {
@@ -4218,7 +4263,72 @@ class CustomViewMenuModelView(ViewMenuModelView):
     ]
 
 
-class CustomUserDBModelView(UserDBModelView):
+class CustomUserInfoEditView(UserInfoEditView):
+    """Customize permission names for FAB's builtin UserInfoEditView."""
+
+    class_permission_name = permissions.RESOURCE_MY_PROFILE
+    route_base = "/userinfoeditview"
+    method_permission_name = {
+        'this_form_get': 'edit',
+        'this_form_post': 'edit',
+    }
+    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
+
+class CustomUserStatsChartView(UserStatsChartView):
+    """Customize permission names for FAB's builtin UserStatsChartView."""
+
+    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
+    route_base = "/userstatschartview"
+    method_permission_name = {
+        'chart': 'read',
+        'list': 'read',
+    }
+    base_permissions = [permissions.ACTION_CAN_READ]
+
+
+class MultiResourceUserMixin:
+    """Remaps UserModelView permissions to new resources and actions."""
+
+    _class_permission_name = permissions.RESOURCE_USER
+
+    class_permission_name_mapping = {
+        'userinfoedit': permissions.RESOURCE_MY_PROFILE,
+        'userinfo': permissions.RESOURCE_MY_PROFILE,
+    }
+
+    method_permission_name = {
+        'userinfo': 'read',
+        'download': 'read',
+        'show': 'read',
+        'list': 'read',
+        'edit': 'edit',
+        'userinfoedit': 'edit',
+        'delete': 'delete',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+    ]
+
+    @expose("/show/<pk>", methods=["GET"])
+    @has_access
+    def show(self, pk):
+        pk = self._deserialize_pk_if_composite(pk)
+        widgets = self._show(pk)
+        widgets['show'].template_args['actions'].pop('userinfoedit')
+        return self.render_template(
+            self.show_template,
+            pk=pk,
+            title=self.show_title,
+            widgets=widgets,
+            related_views=self._related_views,
+        )
+
+
+class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
     """Customize permission names for FAB's builtin UserDBModelView."""
 
     _class_permission_name = permissions.RESOURCE_USER
@@ -4232,15 +4342,15 @@ class CustomUserDBModelView(UserDBModelView):
 
     method_permission_name = {
         'add': 'create',
-        'userinfo': 'read',
         'download': 'read',
         'show': 'read',
         'list': 'read',
         'edit': 'edit',
+        'delete': 'delete',
         'resetmypassword': 'read',
         'resetpasswords': 'read',
-        'userinfoedit': 'edit',
-        'delete': 'delete',
+        'userinfo': 'read',
+        'userinfoedit': 'read',
     }
 
     base_permissions = [
@@ -4260,7 +4370,6 @@ class CustomUserDBModelView(UserDBModelView):
                 return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
             if method_name:
                 return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
-
         return self._class_permission_name
 
     @class_permission_name.setter
@@ -4268,77 +4377,25 @@ class CustomUserDBModelView(UserDBModelView):
         self._class_permission_name = name
 
 
-class CustomUserInfoEditView(UserInfoEditView):
-    """Customize permission names for FAB's builtin UserInfoEditView."""
-
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    route_base = "/userinfoeditview"
-    method_permission_name = {
-        'this_form_get': 'read',
-        'this_form_post': 'edit',
-    }
-    base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-
-
-class CustomUserStatsChartView(UserStatsChartView):
-    """Customize permission names for FAB's builtin UserStatsChartView."""
-
-    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
-    route_base = "/userstatschartview"
-    method_permission_name = {
-        'chart': 'read',
-        'list': 'read',
-    }
-    base_permissions = [permissions.ACTION_CAN_READ]
-
-
-class CustomUserLDAPModelView(UserLDAPModelView):
+class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
     """Customize permission names for FAB's builtin UserLDAPModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
+    pass
 
 
-class CustomUserOAuthModelView(UserOAuthModelView):
+class CustomUserOAuthModelView(MultiResourceUserMixin, UserOAuthModelView):
     """Customize permission names for FAB's builtin UserOAuthModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
+    pass
 
 
-class CustomUserOIDModelView(UserOIDModelView):
+class CustomUserOIDModelView(MultiResourceUserMixin, UserOIDModelView):
     """Customize permission names for FAB's builtin UserOIDModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
+    pass
 
 
-class CustomUserRemoteUserModelView(UserRemoteUserModelView):
+class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelView):
     """Customize permission names for FAB's builtin UserRemoteUserModelView."""
 
-    class_permission_name = permissions.RESOURCE_MY_PROFILE
-    method_permission_name = {
-        'userinfo': 'read',
-        'list': 'read',
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
+    pass

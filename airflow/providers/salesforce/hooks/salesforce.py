@@ -25,9 +25,10 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
-from typing import Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
+from requests import Session
 from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base import BaseHook
@@ -37,28 +38,93 @@ log = logging.getLogger(__name__)
 
 class SalesforceHook(BaseHook):
     """
-    Create new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
+    Creates new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
 
     You can then use that file with other Airflow operators to move the data into another data source.
 
-    :param conn_id: the name of the connection that has the parameters we need to connect to Salesforce.
-        The connection should be type `http` and include a user's security token in the `Extras` field.
+    :param conn_id: The name of the connection that has the parameters needed to connect to Salesforce.
+        The connection should be of type `Salesforce`.
     :type conn_id: str
+    :param session_id: The access token for a given HTTP request session.
+    :type session_id: str
+    :param session: A custom HTTP request session. This enables the use of requests Session features not
+        otherwise exposed by `simple_salesforce`.
+    :type session: requests.Session
 
     .. note::
-        For the HTTP connection type, you can include a
-        JSON structure in the `Extras` field.
-        We need a user's security token to connect to Salesforce.
-        So we define it in the `Extras` field as `{"security_token":"YOUR_SECURITY_TOKEN"}`
+        A connection to Salesforce can be created via several authentication options:
 
-        For sandbox mode, add `{"domain":"test"}` in the `Extras` field
+        * Password: Provide Username, Password, and Security Token
+        * Direct Session: Provide a `session_id` and either Instance or Instance URL
+        * OAuth 2.0 JWT: Provide a Consumer Key and either a Private Key or Private Key File Path
+        * IP Filtering: Provide Username, Password, and an Organization ID
 
+        If in sandbox, enter a Domain value of 'test'.
     """
 
-    def __init__(self, conn_id: str) -> None:
+    conn_name_attr = "salesforce_conn_id"
+    default_conn_name = "salesforce_default"
+    conn_type = "salesforce"
+    hook_name = "Salesforce"
+
+    def __init__(
+        self,
+        salesforce_conn_id: str = default_conn_name,
+        session_id: Optional[str] = None,
+        session: Optional[Session] = None,
+    ) -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = salesforce_conn_id
         self.conn = None
+        self.session_id = session_id
+        self.session = session
+
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "extra__salesforce__security_token": PasswordField(
+                lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__salesforce__domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
+            "extra__salesforce__consumer_key": StringField(
+                lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()
+            ),
+            "extra__salesforce__private_key_file_path": PasswordField(
+                lazy_gettext("Private Key File Path"), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__salesforce__private_key": PasswordField(
+                lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__salesforce__organization_id": StringField(
+                lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()
+            ),
+            "extra__salesforce__instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
+            "extra__salesforce__instance_url": StringField(
+                lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()
+            ),
+            "extra__salesforce__proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
+            "extra__salesforce__version": StringField(
+                lazy_gettext("API Version"), widget=BS3TextFieldWidget()
+            ),
+            "extra__salesforce__client_id": StringField(
+                lazy_gettext("Client ID"), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["schema", "port", "extra", "host"],
+            "relabeling": {
+                "login": "Username",
+            },
+        }
 
     def get_conn(self) -> api.Salesforce:
         """Sign into Salesforce, only if we are not already signed in."""
@@ -68,9 +134,19 @@ class SalesforceHook(BaseHook):
             self.conn = Salesforce(
                 username=connection.login,
                 password=connection.password,
-                security_token=extras['security_token'],
-                instance_url=connection.host,
-                domain=extras.get('domain'),
+                security_token=extras["extra__salesforce__security_token"] or None,
+                domain=extras["extra__salesforce__domain"] or None,
+                session_id=self.session_id,
+                instance=extras["extra__salesforce__instance"] or None,
+                instance_url=extras["extra__salesforce__instance_url"] or None,
+                organizationId=extras["extra__salesforce__organization_id"] or None,
+                version=extras["extra__salesforce__version"] or api.DEFAULT_API_VERSION,
+                proxies=extras["extra__salesforce__proxies"] or None,
+                session=self.session,
+                client_id=extras["extra__salesforce__client_id"] or None,
+                consumer_key=extras["extra__salesforce__consumer_key"] or None,
+                privatekey_file=extras["extra__salesforce__private_key_file_path"] or None,
+                privatekey=extras["extra__salesforce__private_key"] or None,
             )
         return self.conn
 

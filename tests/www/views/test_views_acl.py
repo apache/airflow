@@ -694,21 +694,9 @@ def test_failed_success(client_all_dags_edit_tis):
     check_content_in_response('Marked failed on 1 task instances', resp)
 
 
-@pytest.mark.parametrize(
-    "url, expected_content",
-    [
-        ("paused?dag_id=example_bash_operator&is_paused=false", "OK"),
-        ("refresh?dag_id=example_bash_operator", ""),
-    ],
-    ids=[
-        "paused",
-        "refresh",
-    ],
-)
-def test_post_success(dag_test_client, url, expected_content):
-    # post request failure won't test
-    resp = dag_test_client.post(url, follow_redirects=True)
-    check_content_in_response(expected_content, resp)
+def test_paused_post_success(dag_test_client):
+    resp = dag_test_client.post("paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=True)
+    check_content_in_response("OK", resp)
 
 
 @pytest.fixture(scope="module")
@@ -771,9 +759,3 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
     )
     check_content_not_in_response('"message":', resp)
     check_content_not_in_response('"metadata":', resp)
-
-
-def test_refresh_failure_for_viewer(viewer_client):
-    # viewer role can't refresh
-    resp = viewer_client.post('refresh?dag_id=example_bash_operator')
-    check_content_in_response('Redirecting', resp, resp_code=302)

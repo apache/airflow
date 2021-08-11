@@ -80,6 +80,7 @@ class TestECSOperator(unittest.TestCase):
 
     def setUp(self):
         self.set_up_operator()
+        self.mock_context = mock.MagicMock()
 
     def test_init(self):
         assert self.ecs.region_name == 'eu-west-1'
@@ -96,10 +97,23 @@ class TestECSOperator(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ['EC2', None, None, {'launchType': 'EC2'}],
-            ['FARGATE', None, None, {'launchType': 'FARGATE', 'platformVersion': 'LATEST'}],
             [
                 'EC2',
+                None,
+                None,
+                None,
+                {'launchType': 'EC2'},
+            ],
+            [
+                'FARGATE',
+                None,
+                'LATEST',
+                None,
+                {'launchType': 'FARGATE', 'platformVersion': 'LATEST'},
+            ],
+            [
+                'EC2',
+                None,
                 None,
                 {'testTagKey': 'testTagValue'},
                 {'launchType': 'EC2', 'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
@@ -107,12 +121,14 @@ class TestECSOperator(unittest.TestCase):
             [
                 '',
                 None,
+                None,
                 {'testTagKey': 'testTagValue'},
                 {'tags': [{'key': 'testTagKey', 'value': 'testTagValue'}]},
             ],
             [
                 None,
                 {'capacityProvider': 'FARGATE_SPOT'},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
@@ -122,6 +138,7 @@ class TestECSOperator(unittest.TestCase):
             [
                 'FARGATE',
                 {'capacityProvider': 'FARGATE_SPOT', 'weight': 123, 'base': 123},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {
@@ -135,6 +152,7 @@ class TestECSOperator(unittest.TestCase):
             [
                 'EC2',
                 {'capacityProvider': 'FARGATE_SPOT'},
+                'LATEST',
                 None,
                 {
                     'capacityProviderStrategy': {'capacityProvider': 'FARGATE_SPOT'},
@@ -146,11 +164,21 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
     def test_execute_without_failures(
-        self, launch_type, capacity_provider_strategy, tags, expected_args, check_mock, wait_mock
+        self,
+        launch_type,
+        capacity_provider_strategy,
+        platform_version,
+        tags,
+        expected_args,
+        check_mock,
+        wait_mock,
     ):
 
         self.set_up_operator(
-            launch_type=launch_type, capacity_provider_strategy=capacity_provider_strategy, tags=tags
+            launch_type=launch_type,
+            capacity_provider_strategy=capacity_provider_strategy,
+            platform_version=platform_version,
+            tags=tags,
         )
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
@@ -340,7 +368,7 @@ class TestECSOperator(unittest.TestCase):
         }
 
         self.ecs.reattach = True
-        self.ecs.execute(None)
+        self.ecs.execute(self.mock_context)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
@@ -357,6 +385,7 @@ class TestECSOperator(unittest.TestCase):
 
         start_mock.assert_not_called()
         xcom_pull_mock.assert_called_once_with(
+            self.mock_context,
             key=self.ecs.REATTACH_XCOM_KEY,
             task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
         )
@@ -389,7 +418,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.reattach = True
-        self.ecs.execute(None)
+        self.ecs.execute(self.mock_context)
 
         self.aws_hook_mock.return_value.get_conn.assert_called_once()
         extend_args = {}
@@ -403,7 +432,7 @@ class TestECSOperator(unittest.TestCase):
         reattach_mock.assert_called_once()
         client_mock.run_task.assert_called_once()
         xcom_set_mock.assert_called_once_with(
-            None,
+            self.mock_context,
             key=self.ecs.REATTACH_XCOM_KEY,
             task_id=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
             value="arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",

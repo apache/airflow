@@ -41,7 +41,7 @@ build_images::determine_docker_cache_strategy
 
 initialization::get_environment_for_builds_on_ci
 
-build_images::get_docker_image_names
+build_images::get_docker_cache_image_names
 
 initialization::make_constants_read_only
 

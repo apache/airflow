@@ -56,13 +56,13 @@ TRAINER_PY_MODULE = os.environ.get("GCP_MLENGINE_TRAINER_TRAINER_PY_MODULE", "tr
 SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://INVALID BUCKET NAME/tmp/")
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID BUCKET NAME/staging/")
 
-default_args = {"params": {"model_name": MODEL_NAME}}
 
 with models.DAG(
     "example_gcp_mlengine",
     schedule_interval=None,  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
+    params={"model_name": MODEL_NAME},
 ) as dag:
     # [START howto_operator_gcp_mlengine_training]
     training = MLEngineStartTrainingJobOperator(
@@ -100,7 +100,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_print_model]
     get_model_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('get-model') }}\"",
+        bash_command=f"echo {get_model.output}",
         task_id="get-model-result",
     )
     # [END howto_operator_gcp_mlengine_print_model]
@@ -158,7 +158,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_mlengine_print_versions]
     list_version_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('list-version') }}\"",
+        bash_command=f"echo {list_version.output}",
         task_id="list-version-result",
     )
     # [END howto_operator_gcp_mlengine_print_versions]
@@ -192,6 +192,7 @@ with models.DAG(
     training >> create_version
     training >> create_version_2
     create_model >> get_model >> [get_model_result, delete_model]
+    create_model >> get_model >> delete_model
     create_model >> create_version >> create_version_2 >> set_defaults_version >> list_version
     create_version >> prediction
     create_version_2 >> prediction

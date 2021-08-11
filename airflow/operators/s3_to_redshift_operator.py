@@ -17,7 +17,7 @@
 # under the License.
 """
 This module is deprecated.
-Please use :mod:`airflow.providers.amazon.aws.operators.s3_to_redshift`.
+Please use :mod:`airflow.providers.amazon.aws.transfers.s3_to_redshift`.
 """
 
 import warnings

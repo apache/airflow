@@ -17,7 +17,7 @@
 """Executes task in a Kubernetes POD"""
 import re
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Type
 
 from kubernetes.client import CoreV1Api, models as k8s
 
@@ -324,6 +324,9 @@ class KubernetesPodOperator(BaseOperator):
             labels[label_id] = safe_label
         return labels
 
+    def create_pod_launcher(self) -> Type[pod_launcher.PodLauncher]:
+        return pod_launcher.PodLauncher(kube_client=self.client, extract_xcom=self.do_xcom_push)
+
     def execute(self, context) -> Optional[str]:
         try:
             if self.in_cluster is not None:
@@ -337,24 +340,24 @@ class KubernetesPodOperator(BaseOperator):
                     cluster_context=self.cluster_context, config_file=self.config_file
                 )
 
+            self.client = client
+
             self.pod = self.create_pod_request_obj()
             self.namespace = self.pod.metadata.namespace
-
-            self.client = client
 
             # Add combination of labels to uniquely identify a running pod
             labels = self.create_labels_for_pod(context)
 
             label_selector = self._get_pod_identifying_label_string(labels)
 
-            pod_list = client.list_namespaced_pod(self.namespace, label_selector=label_selector)
+            pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector)
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
                 raise AirflowException(
                     f'More than one pod running with labels: {label_selector}'
                 )
 
-            launcher = pod_launcher.PodLauncher(kube_client=client, extract_xcom=self.do_xcom_push)
+            launcher = self.create_pod_launcher()
 
             if len(pod_list.items) == 1:
                 try_numbers_match = self._try_numbers_match(context, pod_list.items[0])

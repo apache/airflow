@@ -188,12 +188,11 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         assert slack_api_post_operator.slack_conn_id == test_slack_conn_id
 
     @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
-    def test_api_call_params_with_default_args(self, mock_hook):
+    def test_api_call_params_with_content_args(self, mock_hook):
         test_slack_conn_id = 'test_slack_conn_id'
 
         slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack',
-            slack_conn_id=test_slack_conn_id,
+            task_id='slack', slack_conn_id=test_slack_conn_id, content='test-content'
         )
 
         slack_api_post_operator.execute()
@@ -201,8 +200,27 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         expected_api_params = {
             'channels': '#general',
             'initial_comment': 'No message has been set!',
-            'filename': 'default_name.csv',
-            'filetype': 'csv',
-            'content': 'default,content,csv,file',
+            'content': 'test-content',
         }
         assert expected_api_params == slack_api_post_operator.api_params
+
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
+    def test_api_call_params_with_file_args(self, mock_hook):
+        test_slack_conn_id = 'test_slack_conn_id'
+
+        slack_api_post_operator = SlackAPIFileOperator(
+            task_id='slack', slack_conn_id=test_slack_conn_id, filename='test.csv', filetype='csv'
+        )
+
+        slack_api_post_operator.execute()
+
+        expected_api_params = {
+            'channels': '#general',
+            'initial_comment': 'No message has been set!',
+            'filename': 'test.csv',
+            'filetype': 'csv',
+        }
+
+        expected_file_params = {'file': 'test.csv'}
+        assert expected_api_params == slack_api_post_operator.api_params
+        assert expected_file_params == slack_api_post_operator.file_params

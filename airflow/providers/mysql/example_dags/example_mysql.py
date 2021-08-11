@@ -23,13 +23,8 @@ from airflow import DAG
 from airflow.providers.mysql.operators.mysql import MySqlOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
-
 dag = DAG(
     'example_mysql',
-    default_args=default_args,
     start_date=days_ago(2),
     tags=['example'],
 )

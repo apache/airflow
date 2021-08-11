@@ -21,17 +21,15 @@ from airflow import DAG
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
-
 dag = DAG(
     'docker_swarm_sample',
-    default_args=default_args,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email': ['airflow@example.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+    },
     schedule_interval=timedelta(minutes=10),
     start_date=days_ago(1),
     catchup=False,

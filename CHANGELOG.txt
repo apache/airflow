@@ -9,6 +9,7 @@ Bug Fixes
 - Fix ``CeleryKubernetesExecutor`` (#16700)
 - Mask value if the key is ``token`` (#16474)
 - Fix impersonation issue with ``LocalTaskJob`` (#16852)
+- Resolve all npm vulnerabilities including bumping ``jQuery`` to ``3.5`` (#16440)
 
 Misc
 """"

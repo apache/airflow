@@ -71,7 +71,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``pysmbclient``     ``>=0.1.3``
+``smbprotocol``     ``>=1.5.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/samba/CHANGELOG.rst

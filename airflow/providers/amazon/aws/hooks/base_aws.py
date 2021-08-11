@@ -37,6 +37,7 @@ import requests
 import tenacity
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from slugify import slugify
 
 try:
     from functools import cached_property
@@ -188,11 +189,14 @@ class _SessionFactory(LoggingMixin):
             self.log.info("No credentials retrieved from Connection")
         return aws_access_key_id, aws_secret_access_key
 
+    def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
+        return slugify(role_session_name, regex_pattern=r'[^\w+=,.@-]+')
+
     def _assume_role(self, sts_client: boto3.client) -> Dict:
         assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         if "external_id" in self.extra_config:  # Backwards compatibility
             assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
-        role_session_name = f"Airflow_{self.conn.conn_id}"
+        role_session_name = self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}")
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
             self.role_arn,

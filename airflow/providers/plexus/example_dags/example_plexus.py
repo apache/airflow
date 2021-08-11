@@ -22,11 +22,10 @@ from airflow.utils.dates import days_ago
 HOME = '/home/acc'
 T3_PRERUN_SCRIPT = 'cp {home}/imdb/run_scripts/mlflow.sh {home}/ && chmod +x mlflow.sh'.format(home=HOME)
 
-args = {'owner': 'core scientific', 'retries': 1}
 
 dag = DAG(
     'test',
-    default_args=args,
+    default_args={'owner': 'core scientific', 'retries': 1},
     description='testing plexus operator',
     start_date=days_ago(1),
     schedule_interval='@once',

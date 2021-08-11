@@ -15,20 +15,20 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _macros:
+.. _templates-ref:
 
-Macros reference
-================
+Templates reference
+===================
 
-Variables and macros can be used in templates (see the :ref:`concepts:jinja-templating` section)
+Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
 
 The following come for free out of the box with Airflow.
 Additional custom macros can be added globally through :doc:`plugins`, or at a DAG level through the ``DAG.user_defined_macros`` argument.
 
-.. _macros:default_variables:
+.. _templates:variables:
 
-Default Variables
------------------
+Variables
+---------
 The Airflow engine passes a few variables by default that are accessible
 in all templates
 
@@ -105,13 +105,34 @@ For example, you could use expressions in your templates like ``{{ conn.my_conn_
 Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{ conn.get('my_conn_id_'+index).host }}``
 ) or provide defaults (e.g ``{{ conn.get('my_conn_id', {"host": "host1", "login": "user1"}).host }}``)
 
+Filters
+-------
+
+Airflow defines the some Jinja filters that can be used to format values.
+
+For example, using ``{{ execution_date | ds }}`` will output the execution_date in the ``YYYY-MM-DD`` format.
+
+=====================  ============  ==================================================================
+Filter                 Operates on   Description
+=====================  ============  ==================================================================
+``ds``                 datetime      Format the datetime as ``YYYY-MM-DD``
+``ds_nodash``          datetime      Format the datetime as ``YYYYMMDD``
+``ts``                 datetime      Same as ``.isoformat()``, Example: ``2018-01-01T00:00:00+00:00``
+``ts_nodash``          datetime      Same as ``ts`` filter without ``-``, ``:`` or TimeZone info.
+                                     Example: ``20180101T000000``
+``ts_nodash_with_tz``  datetime      As ``ts`` filter without ``-`` or ``:``. Example
+                                     ``20180101T000000+0000``
+=====================  ============  ==================================================================
+
+
+.. _templates:macros:
+
 Macros
 ------
 Macros are a way to expose objects to your templates and live under the
 ``macros`` namespace in your templates.
 
 A few commonly used libraries and methods are made available.
-
 
 =================================   ==============================================
 Variable                            Description
@@ -124,13 +145,12 @@ Variable                            Description
 ``macros.random``                   The standard lib's :mod:`random`
 =================================   ==============================================
 
-
 Some airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
-    :show-inheritance:
     :members:
 
-.. autofunction:: airflow.macros.hive.closest_ds_partition
-.. autofunction:: airflow.macros.hive.max_partition
-.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/1.x/#introduction
+.. automodule:: airflow.macros.hive
+    :members:
+
+.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/2.x/#introduction

@@ -54,7 +54,7 @@ with models.DAG(
     # [END howto_search_ads_generate_report_operator]
 
     # [START howto_search_ads_get_report_id]
-    report_id = "{{ task_instance.xcom_pull('generate_report', key='report_id') }}"
+    report_id = generate_report.output["report_id"]
     # [END howto_search_ads_get_report_id]
 
     # [START howto_search_ads_get_report_operator]
@@ -67,4 +67,8 @@ with models.DAG(
     )
     # [END howto_search_ads_getfile_report_operator]
 
-    generate_report >> wait_for_report >> download_report
+    wait_for_report >> download_report
+
+    # Task dependencies created via `XComArgs`:
+    #   generate_report >> wait_for_report
+    #   generate_report >> download_report

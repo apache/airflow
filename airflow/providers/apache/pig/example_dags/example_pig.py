@@ -22,13 +22,8 @@ from airflow import DAG
 from airflow.providers.apache.pig.operators.pig import PigOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 dag = DAG(
     dag_id='example_pig_operator',
-    default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],

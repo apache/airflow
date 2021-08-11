@@ -47,6 +47,7 @@ env:
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -73,6 +74,7 @@ jobs:
       image-build: ${{ steps.dynamic-outputs.outputs.image-build }}
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
     steps:
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
@@ -147,7 +149,6 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
@@ -203,6 +204,10 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
+      # Remove me on 15th of August 2021 after all users had chance to rebase
+      - name: "Push Legacy CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_push_legacy_ci_images.sh
+        if: github.event_name == 'pull_request_target'
 
   build-prod-images:
     permissions:
@@ -227,10 +232,15 @@ jobs:
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      INSTALL_PROVIDERS_FROM_SOURCES: >
+        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
     steps:
       - name: Set envs
+        # Set pull image tag for CI image build, in order to pull the image pushed
+        # Just a moment ago by build-ci-images job
         run: |
           echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
+          echo "GITHUB_REGISTRY_PULL_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -278,10 +288,21 @@ jobs:
         # Pull images built in the previous step
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
+          # Here we are using PULL_IMAGE_TAG set in the environment variables above
       - name: "Build PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        env:
+          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
+        env:
+          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
+      # Remove me on 15th of August 2021 after all users had chance to rebase
+      - name: "Push Legacy PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
+        run: ./scripts/ci/images/ci_push_legacy_prod_images.sh
+        if: github.event_name == 'pull_request_target'
 
   cancel-on-ci-build:
     permissions:

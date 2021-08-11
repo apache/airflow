@@ -169,7 +169,7 @@ class ECSOperator(BaseOperator):
         group: Optional[str] = None,
         placement_constraints: Optional[list] = None,
         placement_strategy: Optional[list] = None,
-        platform_version: str = 'LATEST',
+        platform_version: Optional[str] = None,
         network_configuration: Optional[dict] = None,
         tags: Optional[dict] = None,
         awslogs_group: Optional[str] = None,
@@ -220,7 +220,7 @@ class ECSOperator(BaseOperator):
         self.client = self.get_hook().get_conn()
 
         if self.reattach:
-            self._try_reattach_task()
+            self._try_reattach_task(context)
 
         if not self.arn:
             self._start_task(context)
@@ -254,11 +254,10 @@ class ECSOperator(BaseOperator):
 
         if self.capacity_provider_strategy:
             run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
-            run_opts['platformVersion'] = self.platform_version
         elif self.launch_type:
             run_opts['launchType'] = self.launch_type
-            if self.launch_type == 'FARGATE':
-                run_opts['platformVersion'] = self.platform_version
+        if self.platform_version is not None:
+            run_opts['platformVersion'] = self.platform_version
         if self.group is not None:
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
@@ -301,7 +300,7 @@ class ECSOperator(BaseOperator):
             execution_date=context["ti"].execution_date,
         )
 
-    def _try_reattach_task(self):
+    def _try_reattach_task(self, context):
         task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
         ecs_task_family = task_def_resp['taskDefinition']['family']
 
@@ -312,6 +311,7 @@ class ECSOperator(BaseOperator):
 
         # Check if the ECS task previously launched is already running
         previous_task_arn = self.xcom_pull(
+            context,
             task_ids=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
             key=self.REATTACH_XCOM_KEY,
         )

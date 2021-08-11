@@ -37,7 +37,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 gcp_conn_id = "gcp_conn_id"
 google_ads_conn_id = "google_ads_conn_id"
-api_version = "v5"
+api_version = "v8"
 
 
 class TestGoogleAdsListAccountsOperator:
