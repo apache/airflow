@@ -54,17 +54,33 @@ Cron Presets
 Your DAG will be instantiated for each schedule along with a corresponding
 DAG Run entry in the database backend.
 
-.. note::
+Data Interval
+-------------
 
-    If you run a DAG on a schedule_interval of one day, the run stamped 2020-01-01
-    will be triggered soon after 2020-01-01T23:59. In other words, the job instance is
-    started once the period it covers has ended.  The ``execution_date`` available in the context
-    will also be 2020-01-01.
+Each DAG run in Airflow has an assigned "data interval" that represents the time
+range it operates in. For a DAG scheduled with ``@daily``, for example, each of
+its data interval would start at midnight of each day and end at midnight of the
+next day.
 
-    The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG.
-    Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``,
-    sequentially. If your start_date is 2020-01-01 and schedule_interval is @daily, the first run
-    will be created on 2020-01-02 i.e., after your start date has passed.
+A DAG run is scheduled *after* its associated data interval has ended, to ensure
+the run is able to collect all the data within the time period. Therefore, a run
+covering the data period of 2020-01-01 will not start to run until 2020-01-01
+has ended, i.e. after 2020-01-02 00:00:00.
+
+All dates in Airflow are tied to the data interval concept in some way. The
+"logical date" (also called ``execution_date`` in Airflow versions prior to 2.2)
+of a DAG run, for example, usually denotes the start of the data interval, not
+when the DAG is actually executed.
+
+Similarly, since the ``start_date`` argument for the DAG and its tasks points to
+the same logical date, it marks the start of *the DAG's fist data interval*, not
+when tasks in the DAG will start running. In other words, a DAG run will only be
+scheduled one interval after ``start_date``.
+
+.. tip::
+
+    If ``schedule_interval`` is not enough to express your DAG's schedule,
+    logical date, or data interval, see :doc:`Customizing imetables </howto/timetable>`.
 
 Re-run DAG
 ''''''''''

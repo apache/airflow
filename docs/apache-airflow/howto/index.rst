@@ -33,6 +33,7 @@ configuring an Airflow environment.
     set-config
     set-up-database
     operator/index
+    timetable
     customize-ui
     custom-operator
     create-custom-decorator
