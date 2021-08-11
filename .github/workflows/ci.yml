@@ -81,4 +81,16 @@ jobs:
           docker push docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
           docker push docker.pkg.github.com/masami10/airflow/airflow:latest
 
+          echo ${{ secrets.TENCENT_PASS }} | docker login -u ${{ secrets.TENCENT_USER }} ccr.ccs.tencentyun.com --password-stdin
+          docker tag docker.pkg.github.com/masami10/curve/airflow:${GITHUB_REF##*/} ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
+          docker push ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
+
+      - name: deploy to cluster
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && mkdir -p ~/.kube
+          echo '${{ secrets.TENCENT_KUBECTL_DATA }}' > ~/.kube/config
+
+          export IMAGE="ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}"
+          envsubst < deploy_services/airflow.yaml | ./kubectl apply -f -
 
