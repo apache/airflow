@@ -32,6 +32,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
+from airflow.utils.session import provide_session
 
 
 class TriggererJob(BaseJob):
@@ -65,6 +66,15 @@ class TriggererJob(BaseJob):
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
+
+    @provide_session
+    def is_needed(self, session) -> bool:
+        """
+        Tests if the triggerer job needs to be run (i.e., if there are triggers
+        in the trigger table).
+        This is used for the warning boxes in the UI.
+        """
+        return session.query(Trigger).count() > 0
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""

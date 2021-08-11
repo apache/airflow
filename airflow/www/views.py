@@ -97,6 +97,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
@@ -467,6 +468,7 @@ class AirflowBaseView(BaseView):
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
             scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
+            triggerer_job=lazy_object_proxy.Proxy(TriggererJob.most_recent_job),
             **kwargs,
         )
 
