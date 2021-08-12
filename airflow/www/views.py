@@ -3402,7 +3402,7 @@ class ProviderView(AirflowBaseView):
     def _clean_description(self, description):
         cd = re.sub("[`_]", "", description.strip(" \n.").strip("\""))
         cd = re.sub("<", "<a href=\"", cd)
-        cd = re.sub(">", "\">[site]<a/>", cd)
+        cd = re.sub(">", "\">[site]</a>", cd)
         return cd
 
 
