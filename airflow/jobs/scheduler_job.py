@@ -953,14 +953,13 @@ class SchedulerJob(BaseJob):
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
                     state=State.QUEUED,
+                    data_interval=dag_model.next_dagrun_data_interval,
                     external_trigger=False,
                     session=session,
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
-            dag_model.next_dagrun, dag_model.next_dagrun_create_after = dag.next_dagrun_info(
-                dag_model.next_dagrun
-            )
+            dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun, 0)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()

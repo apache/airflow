@@ -1250,7 +1250,10 @@ class TestSchedulerJob:
         Test if a a dagrun would be scheduled if max_dag_runs has
         been reached but dagrun_timeout is also reached
         """
-        with dag_maker(dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout') as dag:
+        with dag_maker(
+            dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
+            start_date=DEFAULT_DATE,
+        ) as dag:
             DummyOperator(task_id='dummy')
         dag.max_active_runs = 1
         dag.dagrun_timeout = datetime.timedelta(seconds=60)
@@ -1278,6 +1281,8 @@ class TestSchedulerJob:
         assert orm_dag.next_dagrun_create_after
         # But we should record the date of _what run_ it would be
         assert isinstance(orm_dag.next_dagrun, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_start, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_end, datetime.datetime)
 
         # Should be scheduled as dagrun_timeout has passed
         dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
@@ -1294,6 +1299,8 @@ class TestSchedulerJob:
         assert dr.state == State.FAILED
         session.refresh(orm_dag)
         assert isinstance(orm_dag.next_dagrun, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_start, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_end, datetime.datetime)
         assert isinstance(orm_dag.next_dagrun_create_after, datetime.datetime)
 
         expected_callback = DagCallbackRequest(
@@ -1572,9 +1579,12 @@ class TestSchedulerJob:
             run_kwargs = {}
 
         dag = self.dagbag.get_dag(dag_id)
+        dagrun_info = dag.next_dagrun_info(None)
+        assert dagrun_info is not None
+
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=dag.next_dagrun_info(None)[0],
+            execution_date=dagrun_info.logical_date,
             state=State.RUNNING,
         )
 
@@ -2801,21 +2811,28 @@ class TestSchedulerJob:
         # Verify that dag_model.next_dagrun is equal to next execution_date
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=1)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.executor = MockExecutor(do_update=False)
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        # Verify a DagRun is created with the correct execution_date
+        # Verify a DagRun is created with the correct dates
         # when Scheduler._do_scheduling is run in the Scheduler Loop
         self.scheduler_job._do_scheduling(session)
         dr1 = dag.get_dagrun(DEFAULT_DATE, session=session)
         assert dr1 is not None
         assert dr1.state == State.RUNNING
+        assert dr1.execution_date == DEFAULT_DATE
+        assert dr1.data_interval_start == DEFAULT_DATE
+        assert dr1.data_interval_end == DEFAULT_DATE + timedelta(minutes=1)
 
-        # Verify that dag_model.next_dagrun is set to next execution_date
+        # Verify that dag_model.next_dagrun is set to next interval
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=2)
 
         # Trigger the Dag externally
         dr = dag.create_dagrun(
@@ -2833,6 +2850,8 @@ class TestSchedulerJob:
         # triggered DagRun.
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=2)
 
     def test_scheduler_create_dag_runs_check_existing_run(self, dag_maker):
         """
@@ -2887,7 +2906,9 @@ class TestSchedulerJob:
         # Test that this does not raise any error
         self.scheduler_job._create_dag_runs([dag_model], session)
 
-        # Assert dag_model.next_dagrun is set correctly to next execution date
+        # Assert the next dagrun fields are set correctly to next execution date
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(days=1)
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(days=2)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         session.rollback()
 

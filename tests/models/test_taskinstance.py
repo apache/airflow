@@ -1446,13 +1446,20 @@ class TestTaskInstance:
             schedule_interval='0 12 * * *',
         )
 
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        execution_date = timezone.utcnow()
+
+        dag.create_dagrun(
+            execution_date=execution_date,
+            state=State.RUNNING,
+            run_type=DagRunType.MANUAL,
+        )
+
+        ti = TI(task=task, execution_date=execution_date)
 
         template_context = ti.get_template_context()
 
-        assert isinstance(template_context["execution_date"], pendulum.DateTime)
-        assert isinstance(template_context["next_execution_date"], pendulum.DateTime)
-        assert isinstance(template_context["prev_execution_date"], pendulum.DateTime)
+        assert isinstance(template_context["data_interval_start"], pendulum.DateTime)
+        assert isinstance(template_context["data_interval_end"], pendulum.DateTime)
 
     @pytest.mark.parametrize(
         "content, expected_output",
