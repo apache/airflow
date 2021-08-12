@@ -74,7 +74,7 @@ class TriggererJob(BaseJob):
         in the trigger table).
         This is used for the warning boxes in the UI.
         """
-        return session.query(Trigger).count() > 0
+        return session.query(func.count(Trigger.id)).scalar() > 0
 
     def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
