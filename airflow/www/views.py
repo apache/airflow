@@ -464,11 +464,13 @@ class AirflowBaseView(BaseView):
     }
 
     def render_template(self, *args, **kwargs):
+        # Add triggerer_job only if we need it
+        if TriggererJob.is_needed():
+            kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJob.most_recent_job)
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
             scheduler_job=lazy_object_proxy.Proxy(SchedulerJob.most_recent_job),
-            triggerer_job=lazy_object_proxy.Proxy(TriggererJob.most_recent_job),
             **kwargs,
         )
 

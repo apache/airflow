@@ -69,8 +69,9 @@ class TriggererJob(BaseJob):
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
+    @classmethod
     @provide_session
-    def is_needed(self, session) -> bool:
+    def is_needed(cls, session) -> bool:
         """
         Tests if the triggerer job needs to be run (i.e., if there are triggers
         in the trigger table).

@@ -65,7 +65,7 @@
       <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
     </div>
   {% endif %}
-  {% if triggerer_job is defined and triggerer_job.is_needed() and (not triggerer_job or not triggerer_job.is_alive()) %}
+  {% if triggerer_job is defined and (not triggerer_job or not triggerer_job.is_alive()) %}
     <div class="alert alert-warning">
       <p>The triggerer does not appear to be running.
       {% if triggerer_job %}
