@@ -24,6 +24,8 @@ import time
 from collections import deque
 from typing import Deque, Dict, Set, Tuple, Type
 
+from sqlalchemy import func
+
 from airflow.compat.asyncio import create_task
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
