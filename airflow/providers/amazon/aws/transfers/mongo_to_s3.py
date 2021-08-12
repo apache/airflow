@@ -43,7 +43,7 @@ class MongoToS3Operator(BaseOperator):
     :type mongo_query: Union[list, dict]
     :param mongo_projection: optional parameter to filter the returned fields by
         the query. It can be a list of fields names to include or a dictionary
-        for excluding fields (e.g `projection={"_id": 0}`
+        for excluding fields (e.g ``projection={"_id": 0}`` )
     :type mongo_projection: Union[list, dict]
     :param s3_bucket: reference to a specific S3 bucket to store the data
     :type s3_bucket: str
