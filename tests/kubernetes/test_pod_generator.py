@@ -632,13 +632,10 @@ class TestPodGenerator(unittest.TestCase):
         assert client_spec == res
 
     def test_reconcile_specs_init_containers(self):
-        base_objs = [k8s.V1Container(name='base_container1')]
-        client_objs = [k8s.V1Container(name='client_container1')]
-        base_spec = k8s.V1PodSpec(priority=1, containers=[], init_containers=base_objs)
-        client_spec = k8s.V1PodSpec(priority=2, containers=[], init_containers=client_objs)
+        base_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name='base_container1')])
+        client_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name='client_container1')])
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
-        client_spec.init_containers = base_spec.init_containers + client_spec.init_containers
-        assert client_spec == res
+        assert res.init_containers == base_spec.init_containers + client_spec.init_containers
 
     def test_deserialize_model_file(self):
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
