@@ -41,6 +41,10 @@ class MongoToS3Operator(BaseOperator):
     :type mongo_collection: str
     :param mongo_query: query to execute. A list including a dict of the query
     :type mongo_query: Union[list, dict]
+    :param mongo_projection: optional parameter to filter the returned fields by
+        the query. It can be a list of fields names to include or a dictionary
+        for excluding fields (e.g `projection={"_id": 0}`
+    :type mongo_projection: Union[list, dict]
     :param s3_bucket: reference to a specific S3 bucket to store the data
     :type s3_bucket: str
     :param s3_key: in which S3 key the file will be stored
@@ -71,6 +75,7 @@ class MongoToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         mongo_db: Optional[str] = None,
+        mongo_projection: Optional[Union[list, dict]] = None,
         replace: bool = False,
         allow_disk_use: bool = False,
         compression: Optional[str] = None,
@@ -89,6 +94,7 @@ class MongoToS3Operator(BaseOperator):
         # Grab query and determine if we need to run an aggregate pipeline
         self.mongo_query = mongo_query
         self.is_pipeline = isinstance(self.mongo_query, list)
+        self.mongo_projection = mongo_projection
 
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
@@ -113,6 +119,7 @@ class MongoToS3Operator(BaseOperator):
             results = MongoHook(self.mongo_conn_id).find(
                 mongo_collection=self.mongo_collection,
                 query=cast(dict, self.mongo_query),
+                projection=self.mongo_projection,
                 mongo_db=self.mongo_db,
             )
 
