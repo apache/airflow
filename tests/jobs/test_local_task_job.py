@@ -273,6 +273,7 @@ class TestLocalTaskJob:
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.5
 
+    @pytest.mark.quarantined
     def test_mark_success_no_kill(self):
         """
         Test that ensures that mark_success in the UI doesn't cause
