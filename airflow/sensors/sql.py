@@ -20,6 +20,7 @@ from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -48,6 +49,10 @@ class SqlSensor(BaseSensorOperator):
     :type failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned.
     :type fail_on_empty: bool
+    :param hook_kwargs: Extra config params to be passed to the underlying hook.
+        They will be applied in a kwargs fashion, so the keys of the dictionary
+        should match the desired hook constructor params.
+    :type hook_kwargs: dict
     """
 
     template_fields: Iterable[str] = ('sql',)
@@ -58,7 +63,16 @@ class SqlSensor(BaseSensorOperator):
     ui_color = '#7c7287'
 
     def __init__(
-        self, *, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False, **kwargs
+        self,
+        *,
+        conn_id,
+        sql,
+        parameters=None,
+        success=None,
+        failure=None,
+        fail_on_empty=False,
+        hook_kwargs=None,
+        **kwargs,
     ):
         self.conn_id = conn_id
         self.sql = sql
@@ -66,9 +80,10 @@ class SqlSensor(BaseSensorOperator):
         self.success = success
         self.failure = failure
         self.fail_on_empty = fail_on_empty
+        self.hook_kwargs = hook_kwargs or {}
         super().__init__(**kwargs)
 
-    def _get_hook(self):
+    def _get_hook(self) -> DbApiHook:
         conn = BaseHook.get_connection(self.conn_id)
 
         allowed_conn_type = {
@@ -90,7 +105,7 @@ class SqlSensor(BaseSensorOperator):
                 f"Connection type ({conn.conn_type}) is not supported by SqlSensor. "
                 + f"Supported connection types: {list(allowed_conn_type)}"
             )
-        return conn.get_hook()
+        return conn.get_hook(**self.hook_kwargs)
 
     def poke(self, context):
         hook = self._get_hook()

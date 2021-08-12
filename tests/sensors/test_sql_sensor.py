@@ -242,6 +242,22 @@ class TestSqlSensor(TestHiveEnvironment):
             op.poke(None)
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
 
+    @mock.patch('airflow.sensors.sql.BaseHook')
+    def test_sql_sensor_bigquery_hook_kwargs(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            hook_kwargs={
+                'use_legacy_sql': False,
+                'location': 'test_location',
+            },
+        )
+
+        mock_hook.get_connection('google_cloud_default').conn_type = "google_cloud_platform"
+        assert op._get_hook().use_legacy_sql
+        assert op._get_hook().location == 'test_location'
+
     @unittest.skipIf(
         'AIRFLOW_RUNALL_TESTS' not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set"
     )
