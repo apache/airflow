@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import re
 from unittest import mock
 
 import pytest
@@ -24,8 +25,8 @@ from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 
 from airflow.providers_manager import ProvidersManager
-from airflow.www.views import get_safe_url, truncate_task_duration, get_key_paths, get_value_from_path
-import re
+
+from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -104,11 +105,14 @@ def test_should_list_providers_on_page_with_details(admin_client):
     resp = admin_client.get('/provider')
 
     for pi in pm.providers.values():
-        check_content_in_response("<td>"+pi.version+"</td>", resp)
-        check_content_in_response("<td>"+pi[1]["package-name"]+"</td>", resp)
-        cd = re.sub(">", "\">[site]</a>", re.sub("<", "<a href=\"", re.sub("[`_]", "", pi[1]["description"]
-                                                                           .strip(" \n.").strip("\""))))
-        check_content_in_response("<td>"+cd+"</td>", resp)
+        check_content_in_response("<td>" + pi.version + "</td>", resp)
+        check_content_in_response("<td>" + pi[1]["package-name"] + "</td>", resp)
+        cd = re.sub(
+            ">",
+            "\">[site]</a>",
+            re.sub("<", "<a href=\"", re.sub("[`_]", "", pi[1]["description"].strip(" \n.").strip("\""))),
+        )
+        check_content_in_response("<td>" + cd + "</td>", resp)
     check_content_in_response("Providers", resp)
 
 
