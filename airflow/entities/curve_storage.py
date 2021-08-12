@@ -92,11 +92,17 @@ class ClsCurveStorage(ClsEntity):
 
     def convertCSVData(self, curve: Dict):
         data = Dataset()
-        data.headers = [self._headersMap[k] for k in curve.keys()]
-        datamap = [curve.get(key, []) for key in curve.keys()]
-        zipData = zip(*datamap)
-        for d in zipData:
-            data.append(d)
+        headers = []
+        for k, v in curve.items():
+            try:
+                header = self._headersMap[k]
+                col = tuple(v if isinstance(v, list) else [])
+                data.append_col(col, header=header)
+                headers.append(header)
+            except Exception as e:
+                _logger.error(e)
+                continue
+        data.headers = headers
         return data.export('csv').encode('utf-8')
 
     def ensure_connect(self):
