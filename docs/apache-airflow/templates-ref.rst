@@ -39,12 +39,14 @@ Variable                                    Description
 ``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_ or ``None``).
 ``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_ or ``None``).
 ``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
+                                            Same as ``{{ data_interval_start | ds }}``.
 ``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.
-``{{ ts }}``                                Same as ``data_interval_start.isoformat()``.
+                                            Same as ``{{ data_interval_start | ds_nodash }}``.
+``{{ ts }}``                                Same as ``{{ data_interval_start | ts }}``.
                                             Example: ``2018-01-01T00:00:00+00:00``.
-``{{ ts_nodash_with_tz }}``                 Same as ``ts`` without ``-`` and ``:``.
+``{{ ts_nodash_with_tz }}``                 Same as ``{{ data_interval_start | ts_nodash_with_tz }}``.
                                             Example: ``20180101T000000+0000``.
-``{{ ts_nodash }}``                         Same as ``ts`` without ``-``, ``:`` and timezone info.
+``{{ ts_nodash }}``                         Same as ``{{ data_interval_start | ts_nodash }}``.
                                             Example: ``20180101T000000``.
 ``{{ prev_data_interval_start_success }}``  Start of the data interval from prior successful DAG run
                                             (`pendulum.Pendulum`_ or ``None``).
