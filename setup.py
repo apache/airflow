@@ -395,6 +395,9 @@ oracle = [
 pagerduty = [
     'pdpyras>=4.1.2,<5',
 ]
+pandas = [
+    'pandas>=0.17.1, <2.0',
+]
 papermill = [
     'papermill[all]>=1.2.1',
     'scrapbook[all]',
@@ -535,7 +538,7 @@ devel = [
     'yamllint',
 ]
 
-devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
+devel_minreq = cgroups + devel + doc + kubernetes + mysql + pandas + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
@@ -636,6 +639,7 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'kerberos': kerberos,
     'ldap': ldap,
     'leveldb': leveldb,
+    'pandas': pandas,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,
@@ -765,7 +769,7 @@ _all_requirements = list({req for extras_reqs in EXTRAS_REQUIREMENTS.values() fo
 EXTRAS_REQUIREMENTS["all"] = _all_requirements
 
 # All db user extras here
-EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs
+EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs + pandas
 
 # This can be simplified to devel_hadoop + _all_requirements due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
