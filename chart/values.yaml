@@ -415,6 +415,8 @@ workers:
   safeToEvict: true
 
   # Launch additional containers into worker.
+  # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
+  # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
   # Add additional init containers into workers.
   extraInitContainers: []

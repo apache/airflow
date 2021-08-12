@@ -26,10 +26,6 @@ You can define different containers for the scheduler, webserver and worker pods
 
 For example, sidecars that sync DAGs from object storage.
 
-.. note::
-
-   ``workers.extraContainers`` is only functional with ``CeleryExecutor``.
-
 .. code-block:: yaml
 
   scheduler:
@@ -42,6 +38,11 @@ For example, sidecars that sync DAGs from object storage.
       - name: s3-sync
         image: my-company/s3-sync:latest
         imagePullPolicy: Always
+
+.. note::
+
+   If you use ``workers.extraContainers`` with ``KubernetesExecutor``, you are responsible for signaling
+   sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!
 
 
 Init Containers
