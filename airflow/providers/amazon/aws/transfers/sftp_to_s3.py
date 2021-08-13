@@ -86,7 +86,7 @@ class SFTPToS3Operator(BaseOperator):
 
         sftp_client = ssh_hook.get_conn().open_sftp()
 
-        if use_temp_file:
+        if self.use_temp_file:
             with NamedTemporaryFile("w") as f:
                 sftp_client.get(self.sftp_path, f.name)
 
