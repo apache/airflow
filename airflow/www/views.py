@@ -410,11 +410,11 @@ def dag_edges(dag):
 ######################################################################################
 
 
-def circles(error):
-    """Show Circles on screen for any error in the Webserver"""
+def not_found(error):
+    """Show Not Found on screen for any error in the Webserver"""
     return (
         render_template(
-            'airflow/circles.html',
+            'airflow/not_found.html',
             hostname=socket.getfqdn()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
