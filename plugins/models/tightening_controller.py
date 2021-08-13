@@ -20,8 +20,8 @@ class TighteningController(Base):
     line_name = Column(String(1000), nullable=True)
     work_center_code = Column(String(1000), nullable=False)
     work_center_name = Column(String(1000), nullable=True)
-    device_type = relationship('models.device_type.DeviceTypeModel')
-    device_type_id = Column(Integer, ForeignKey('device_type.id'), nullable=False)
+    device_type = relationship('plugins.models.device_type.DeviceTypeModel')
+    device_type_id = Column(Integer, ForeignKey('device_type.id'), nullable=True)
 
     def __init__(self, *args, controller_name=None, line_code=None, line_name=None, work_center_code=None,
                  work_center_name=None, device_type_id=None, **kwargs):
