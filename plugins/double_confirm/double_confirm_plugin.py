@@ -17,6 +17,8 @@ _log = LoggingMixin().log
 class DoubleConfirmView(BaseView):
     route_base = ''
 
+    base_permissions = ['can_double_confirm_task']
+
     @expose('/double-confirm/<string:entity_id>', methods=['POST'])
     @has_access
     def double_confirm_task(self, entity_id):
