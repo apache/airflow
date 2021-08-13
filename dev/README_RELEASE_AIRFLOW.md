@@ -61,7 +61,7 @@ The first step of a release is to work out what is being included. This differs 
 
 For obvious reasons, you can't cherry-pick every change from `main` into the release branch - some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
 
-In general only security fixes, data-loss bugs and regression fixess are essential to bring into a patch release; other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported), it's OK to leave it out.
+In general only security fixes, data-loss bugs and regression fixess are essential to bring into a patch release; other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported), it's OK to leave it out of the release at your sole discretion as the release manager - if you do this, update the milestone in the issue to the "next" minor release.
 
 Many issues will be marked with the target release as their Milestone; this is a good shortlist to start with for what to cherry-pick.
 
