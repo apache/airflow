@@ -633,7 +633,9 @@ class TestPodGenerator(unittest.TestCase):
 
     def test_reconcile_specs_init_containers(self):
         base_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name='base_container1')])
-        client_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name='client_container1')])
+        client_spec = k8s.V1PodSpec(
+            containers=[], init_containers=[k8s.V1Container(name='client_container1')]
+        )
         res = PodGenerator.reconcile_specs(base_spec, client_spec)
         assert res.init_containers == base_spec.init_containers + client_spec.init_containers
 
