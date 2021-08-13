@@ -19,21 +19,17 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <title>Airflow 404 = lots of circles</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
-</head>
-
-<body>
-    <div style="font-family: verdana;">
-        <h1>Airflow 404 = lots of circles</h1>
-        <p>{{ hostname }}</p>
+  <head>
+    <title>Airflow 404</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
+  </head>
+  <body>
+    <div style="font-family: verdana; text-align: center; margin-top: 200px;">
+      <img src="{{ url_for('static', filename='pin_100.png') }}" width="50px" alt="pin-logo" />
+      <h1>Airflow 404</h1>
+      <p>Page cannot be found.</p>
+      <a href="/">Return to the main page</a>
+      <p>{{ hostname }}</p>
     </div>
-    <div id="div_svg"
-         class="centered text-center"
-         style="border: 1px solid #ccc;padding:0;margin:0;">
-        <svg id="circles-svg"></svg>
-    </div>
-    <script src="{{ url_for_asset('circles.js') }}"></script>
-</body>
+  </body>
 </html>

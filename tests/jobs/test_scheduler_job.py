@@ -1250,7 +1250,10 @@ class TestSchedulerJob:
         Test if a a dagrun would be scheduled if max_dag_runs has
         been reached but dagrun_timeout is also reached
         """
-        with dag_maker(dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout') as dag:
+        with dag_maker(
+            dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
+            start_date=DEFAULT_DATE,
+        ) as dag:
             DummyOperator(task_id='dummy')
         dag.max_active_runs = 1
         dag.dagrun_timeout = datetime.timedelta(seconds=60)
@@ -1278,6 +1281,8 @@ class TestSchedulerJob:
         assert orm_dag.next_dagrun_create_after
         # But we should record the date of _what run_ it would be
         assert isinstance(orm_dag.next_dagrun, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_start, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_end, datetime.datetime)
 
         # Should be scheduled as dagrun_timeout has passed
         dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
@@ -1294,6 +1299,8 @@ class TestSchedulerJob:
         assert dr.state == State.FAILED
         session.refresh(orm_dag)
         assert isinstance(orm_dag.next_dagrun, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_start, datetime.datetime)
+        assert isinstance(orm_dag.next_dagrun_data_interval_end, datetime.datetime)
         assert isinstance(orm_dag.next_dagrun_create_after, datetime.datetime)
 
         expected_callback = DagCallbackRequest(
@@ -1572,9 +1579,12 @@ class TestSchedulerJob:
             run_kwargs = {}
 
         dag = self.dagbag.get_dag(dag_id)
+        dagrun_info = dag.next_dagrun_info(None)
+        assert dagrun_info is not None
+
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=dag.next_dagrun_info(None)[0],
+            execution_date=dagrun_info.logical_date,
             state=State.RUNNING,
         )
 
@@ -2801,21 +2811,28 @@ class TestSchedulerJob:
         # Verify that dag_model.next_dagrun is equal to next execution_date
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=1)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.executor = MockExecutor(do_update=False)
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        # Verify a DagRun is created with the correct execution_date
+        # Verify a DagRun is created with the correct dates
         # when Scheduler._do_scheduling is run in the Scheduler Loop
         self.scheduler_job._do_scheduling(session)
         dr1 = dag.get_dagrun(DEFAULT_DATE, session=session)
         assert dr1 is not None
         assert dr1.state == State.RUNNING
+        assert dr1.execution_date == DEFAULT_DATE
+        assert dr1.data_interval_start == DEFAULT_DATE
+        assert dr1.data_interval_end == DEFAULT_DATE + timedelta(minutes=1)
 
-        # Verify that dag_model.next_dagrun is set to next execution_date
+        # Verify that dag_model.next_dagrun is set to next interval
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=2)
 
         # Trigger the Dag externally
         dr = dag.create_dagrun(
@@ -2833,6 +2850,8 @@ class TestSchedulerJob:
         # triggered DagRun.
         dag_model = session.query(DagModel).get(dag.dag_id)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(minutes=1)
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=2)
 
     def test_scheduler_create_dag_runs_check_existing_run(self, dag_maker):
         """
@@ -2887,7 +2906,9 @@ class TestSchedulerJob:
         # Test that this does not raise any error
         self.scheduler_job._create_dag_runs([dag_model], session)
 
-        # Assert dag_model.next_dagrun is set correctly to next execution date
+        # Assert the next dagrun fields are set correctly to next execution date
+        assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE + timedelta(days=1)
+        assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(days=2)
         assert dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         session.rollback()
 
@@ -3311,6 +3332,54 @@ class TestSchedulerJob:
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)) == 1
         # Assert that the other two are queued
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 2
+
+    def test_timeout_triggers(self):
+        """
+        Tests that tasks in the deferred state, but whose trigger timeout
+        has expired, are correctly failed.
+
+        """
+
+        # Create the test DAG and task
+        with DAG(
+            dag_id='test_timeout_triggers',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+            max_active_runs=1,
+        ) as dag:
+            task1 = DummyOperator(task_id='dummy1')
+
+        # Load it into the DagBag
+        session = settings.Session()
+        dagbag = DagBag(
+            dag_folder=os.devnull,
+            include_examples=False,
+            read_dags_from_db=True,
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db(session=session)
+
+        # Create a Task Instance for the task that is allegedly deferred
+        # but past its timeout, and one that is still good.
+        # We don't actually need a linked trigger here; the code doesn't check.
+        ti1 = TaskInstance(task1, DEFAULT_DATE, State.DEFERRED)
+        ti2 = TaskInstance(task1, DEFAULT_DATE + datetime.timedelta(seconds=1), State.DEFERRED)
+        ti1.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        ti2.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=60)
+        session.add(ti1)
+        session.add(ti2)
+        session.flush()
+
+        # Boot up the scheduler and make it check timeouts
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.check_trigger_timeouts(session=session)
+
+        # Make sure that TI1 is now scheduled to fail, and 2 wasn't touched
+        ti1.refresh_from_db()
+        ti2.refresh_from_db()
+        assert ti1.state == State.SCHEDULED
+        assert ti1.next_method == "__fail__"
+        assert ti2.state == State.DEFERRED
 
 
 @pytest.mark.xfail(reason="Work out where this goes")

@@ -190,7 +190,7 @@ amazon = [
 apache_beam = [
     'apache-beam>=2.20.0',
 ]
-asana = ['asana>=0.10', 'cached-property>=1.5.2']
+asana = ['asana>=0.10']
 async_packages = [
     'eventlet>= 0.9.7',
     'gevent>=0.13',
@@ -340,14 +340,6 @@ http = [
     'requests>=2.26.0',
 ]
 http_provider = [
-    # NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
-    #        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
-    #        See https://github.com/psf/requests/pull/5797
-    #        This means that providers that depend on Http and cannot work without it, have to have
-    #        explicit dependency on `apache-airflow-providers-http` which needs to be pulled in for them.
-    #        Other cross-provider-dependencies are optional (usually cross-provider dependencies only enable
-    #        some features of providers and majority of those providers works). They result with an extra,
-    #        not with the `install-requires` dependency.
     'apache-airflow-providers-http',
 ]
 influxdb = ['influxdb-client>=1.19.0']
@@ -383,7 +375,7 @@ mssql = [
     'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
-    'mysql-connector-python>=8.0.11, <=8.0.22',
+    'mysql-connector-python>=8.0.11, <9',
     'mysqlclient>=1.3.6,<3',
 ]
 neo4j = ['neo4j>=4.2.1']
@@ -395,6 +387,9 @@ oracle = [
 ]
 pagerduty = [
     'pdpyras>=4.1.2,<5',
+]
+pandas = [
+    'pandas>=0.17.1, <2.0',
 ]
 papermill = [
     'papermill[all]>=1.2.1',
@@ -521,6 +516,7 @@ devel = [
     'pygithub',
     'pysftp',
     'pytest~=6.0',
+    'pytest-asyncio',
     'pytest-cov',
     'pytest-instafail',
     'pytest-rerunfailures~=9.1',
@@ -535,7 +531,7 @@ devel = [
     'yamllint',
 ]
 
-devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
+devel_minreq = cgroups + devel + doc + kubernetes + mysql + pandas + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
@@ -637,6 +633,7 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'kerberos': kerberos,
     'ldap': ldap,
     'leveldb': leveldb,
+    'pandas': pandas,
     'password': password,
     'rabbitmq': rabbitmq,
     'sentry': sentry,
@@ -767,7 +764,7 @@ _all_requirements = list({req for extras_reqs in EXTRAS_REQUIREMENTS.values() fo
 EXTRAS_REQUIREMENTS["all"] = _all_requirements
 
 # All db user extras here
-EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs
+EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs + pandas
 
 # This can be simplified to devel_hadoop + _all_requirements due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.

@@ -56,7 +56,8 @@ def test_home(capture_templates, admin_client):
         resp = admin_client.get('home', follow_redirects=True)
         check_content_in_response('DAGs', resp)
         val_state_color_mapping = (
-            'const STATE_COLOR = {"failed": "red", '
+            'const STATE_COLOR = {'
+            '"deferred": "lightseagreen", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
             '"scheduled": "tan", "sensing": "lightseagreen", '
