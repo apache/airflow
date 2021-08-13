@@ -21,7 +21,8 @@
 from functools import partial
 
 from docutils import nodes, utils
-from sphinx.ext.autodoc.importer import import_module, mock
+from sphinx.ext.autodoc.importer import import_module
+from sphinx.ext.autodoc.mock import mock
 
 
 class RoleException(Exception):
