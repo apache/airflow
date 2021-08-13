@@ -19,9 +19,12 @@
 
 from builtins import ImportError as BuiltinImportError
 
+import logging
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class InvalidFernetToken(Exception):
@@ -62,7 +65,6 @@ def get_fernet():
     :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
-    log = LoggingMixin().log
 
     if _fernet:
         return _fernet

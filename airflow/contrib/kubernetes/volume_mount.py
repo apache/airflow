@@ -14,24 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.kubernetes.volume_mount`."""
 
+import warnings
 
-class VolumeMount:
-    """Defines Kubernetes Volume Mount"""
+# pylint: disable=unused-import
+from airflow.kubernetes.volume_mount import VolumeMount   # noqa
 
-    def __init__(self, name, mount_path, sub_path, read_only):
-        """Initialize a Kubernetes Volume Mount. Used to mount pod level volumes to
-        running container.
-        :param name: the name of the volume mount
-        :type name: str
-        :param mount_path:
-        :type mount_path: str
-        :param sub_path: subpath within the volume mount
-        :type sub_path: str
-        :param read_only: whether to access pod with read-only mode
-        :type read_only: bool
-        """
-        self.name = name
-        self.mount_path = mount_path
-        self.sub_path = sub_path
-        self.read_only = read_only
+warnings.warn(
+    "This module is deprecated. Please use `airflow.kubernetes.volume_mount`.",
+    DeprecationWarning, stacklevel=2
+)

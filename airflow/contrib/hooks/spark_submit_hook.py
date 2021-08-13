@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
-    from airflow.contrib.kubernetes import kube_client
+    from airflow.kubernetes import kube_client
 except ImportError:
     pass
 

@@ -14,23 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Classes for using Kubernetes Downward API
-"""
+"""This module is deprecated. Please use `airflow.kubernetes.pod_runtime_info_env`."""
 
+import warnings
 
-class PodRuntimeInfoEnv:
-    """Defines Pod runtime information as environment variable"""
+# pylint: disable=unused-import
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv    # noqa
 
-    def __init__(self, name, field_path):
-        """
-        Adds Kubernetes pod runtime information as environment variables such as namespace, pod IP, pod name.
-        Full list of options can be found in kubernetes documentation.
-
-        :param name: the name of the environment variable
-        :type: name: str
-        :param field_path: path to pod runtime info. Ex: metadata.namespace | status.podIP
-        :type: field_path: str
-        """
-        self.name = name
-        self.field_path = field_path
+warnings.warn(
+    "This module is deprecated. Please use `airflow.kubernetes.pod_runtime_info_env`.",
+    DeprecationWarning, stacklevel=2
+)

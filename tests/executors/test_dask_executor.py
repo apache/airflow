@@ -50,11 +50,11 @@ pytestmark = pytest.mark.xfail(condition=True, reason="The Dask executor is expe
 class BaseDaskTest(unittest.TestCase):
 
     def assert_tasks_on_executor(self, executor):
+
+        success_command = ['airflow', 'run', '--help']
+        fail_command = ['airflow', 'run', 'false']
         # start the executor
         executor.start()
-
-        success_command = ['true', 'some_parameter']
-        fail_command = ['false', 'some_parameter']
 
         executor.execute_async(key='success', command=success_command)
         executor.execute_async(key='fail', command=fail_command)
@@ -91,6 +91,7 @@ class DaskExecutorTest(BaseDaskTest):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor)
 
+    @pytest.mark.quarantined
     def test_backfill_integration(self):
         """
         Test that DaskExecutor can be used to backfill example dags

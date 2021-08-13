@@ -24,7 +24,7 @@ store.  This data can be edited under the "Admin" admin tab, but sometimes
 it is preferable to use a form that can perform checking and provide a nicer
 interface.
 
-### Adding a new form
+## Adding a new form
 
 1. Create an html template in `templates/variables` folder
 2. Provide an interface for the user to provide input data

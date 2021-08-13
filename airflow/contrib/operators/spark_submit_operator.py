@@ -121,7 +121,7 @@ class SparkSubmitOperator(BaseOperator):
                  application_args=None,
                  env_vars=None,
                  verbose=False,
-                 spark_binary="spark-submit",
+                 spark_binary=None,
                  *args,
                  **kwargs):
         super(SparkSubmitOperator, self).__init__(*args, **kwargs)

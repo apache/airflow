@@ -277,11 +277,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_xcom',
         'can_gantt',
         'can_landing_times',
+        'can_last_dagruns',
         'can_duration',
         'can_blocked',
         'can_rendered',
         'can_pickle_info',
         'can_version',
+        'can_extra_links'
     }
 
     USER_PERMS = {
@@ -291,6 +293,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         'can_add',
         'can_edit',
         'can_delete',
+        'can_failed',
         'can_paused',
         'can_refresh',
         'can_success',

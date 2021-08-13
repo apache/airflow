@@ -46,7 +46,7 @@ def upgrade():
         # versions, check for the function existing.
         try:
             conn.execute("SELECT JSON_VALID(1)").fetchone()
-        except sa.exc.OperationalError:
+        except (sa.exc.OperationalError, sa.exc.ProgrammingError):
             json_type = sa.Text
 
     op.create_table(

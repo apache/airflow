@@ -23,6 +23,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
 import os
 import random
 from typing import List
@@ -34,6 +35,8 @@ from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
+
+log = logging.getLogger(__name__)
 
 
 class BaseHook(LoggingMixin):
@@ -83,7 +86,6 @@ class BaseHook(LoggingMixin):
     def get_connection(cls, conn_id):  # type: (str) -> Connection
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
-            log = LoggingMixin().log
             log.info("Using connection to: %s", conn.log_info())
         return conn
 

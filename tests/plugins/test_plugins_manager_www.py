@@ -22,8 +22,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import unittest
-from mock import MagicMock, PropertyMock
+import six
+from mock import MagicMock, Mock
 
 from flask.blueprints import Blueprint
 from flask_admin.menu import MenuLink, MenuView
@@ -37,19 +37,39 @@ from airflow.www.app import create_app
 
 from tests.plugins.test_plugin import MockPluginA, MockPluginB, MockPluginC
 
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
+
 
 class PluginsTest(unittest.TestCase):
-
     def test_operators(self):
-        from airflow.operators.test_plugin import PluginOperator
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginOperator' from under 'airflow.operators.*'"
+        ):
+            from airflow.operators.test_plugin import PluginOperator
         self.assertTrue(issubclass(PluginOperator, BaseOperator))
 
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginSensorOperator' from under 'airflow.operators.*'"
+        ):
+            from airflow.operators.test_plugin import PluginSensorOperator
+        self.assertTrue(issubclass(PluginSensorOperator, BaseSensorOperator))
+
     def test_sensors(self):
-        from airflow.sensors.test_plugin import PluginSensorOperator
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginSensorOperator' from under 'airflow.sensors.*'"
+        ):
+            from airflow.sensors.test_plugin import PluginSensorOperator
         self.assertTrue(issubclass(PluginSensorOperator, BaseSensorOperator))
 
     def test_hooks(self):
-        from airflow.hooks.test_plugin import PluginHook
+        with self.assertWarnsRegex(
+            FutureWarning, r"'PluginHook' from under 'airflow.hooks.*'"
+        ):
+            from airflow.hooks.test_plugin import PluginHook
         self.assertTrue(issubclass(PluginHook, BaseHook))
 
     def test_executors(self):
@@ -99,11 +119,16 @@ class PluginsTestEntrypointLoad(unittest.TestCase):
         ]
 
     def _build_mock(self, plugin_obj):
-        m = MagicMock(**{
-            'load.return_value': plugin_obj
-        })
-        type(m).name = PropertyMock(return_value='plugin-' + plugin_obj.name)
-        return m
+
+        mock_dist = Mock()
+
+        mock_entrypoint = Mock()
+        mock_entrypoint.name = 'plugin-' + plugin_obj.name
+        mock_entrypoint.group = 'airflow.plugins'
+        mock_entrypoint.load.return_value = plugin_obj
+        mock_dist.entry_points = [mock_entrypoint]
+
+        return (mock_entrypoint, mock_dist)
 
     def test_load_entrypoint_plugins(self):
         self.assertListEqual(

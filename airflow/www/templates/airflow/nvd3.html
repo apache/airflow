@@ -142,7 +142,7 @@ body {
     <script src="{{ url_for('static', filename='nv.d3.js') }}"></script>
     <script>
     function error(msg){
-      $('#error_msg').html(msg);
+      $('#error_msg').text(msg);
       $('#error').show();
       $('#loading').hide();
       $('#chart_section').hide(1000);
@@ -160,9 +160,6 @@ body {
       url = "{{ url_for('airflow.chart_data') }}" + location.search;
       $.getJSON(url, function(payload) {
         $('#loading').hide();
-        if (payload.error !== undefined) {
-          $('#chart_body').html('<div class="alert alert-danger">' + payload.error + '</div>');
-        }
         $("#sql_panel_body").html(payload.sql_html);
         $("#label").text(payload.label);
         if (payload.state == "SUCCESS") {

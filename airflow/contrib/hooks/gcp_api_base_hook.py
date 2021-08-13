@@ -35,11 +35,11 @@ from googleapiclient.errors import HttpError
 import tenacity
 from googleapiclient.http import set_user_agent
 
-from airflow import LoggingMixin, version
+from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
-logger = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 
@@ -234,8 +234,8 @@ class GoogleCloudBaseHook(BaseHook):
             default_kwargs = {
                 'wait': tenacity.wait_exponential(multiplier=1, max=100),
                 'retry': retry_if_temporary_quota(),
-                'before': tenacity.before_log(logger, logging.DEBUG),
-                'after': tenacity.after_log(logger, logging.DEBUG),
+                'before': tenacity.before_log(log, logging.DEBUG),
+                'after': tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
             return tenacity.retry(

@@ -90,21 +90,9 @@ d3.gantt = function() {
   var FIT_TIME_DOMAIN_MODE = "fit";
   var FIXED_TIME_DOMAIN_MODE = "fixed";
   var tip = d3.tip()
-    .attr('class', 'd3-tip')
+    .attr('class', 'tooltip d3-tip')
     .offset([-10, 0])
-    .html(function(d) {
-      var s = ""
-      s += "<div class='row'>";
-      s += "<div class='col-md-3'>start:<br/>end:<br/>duration:<br/>try_number:</div>"
-      s += "<div class='col-md-9'><span style='color: #AAA'> "
-      s += d.isoStart + "<br/>";
-      s += d.isoEnd + "<br/>";
-      s += convertSecsToHumanReadable(d.duration) + "<br/>";
-      s += d.try_number + "<br/>";
-      s += "</span></div>";
-      s += "</div>";
-      return s;
-  })
+    .html(d => tiTooltip(d, { includeTryNumber: true }));
 
   var margin = {
     top : 20,
@@ -118,18 +106,17 @@ d3.gantt = function() {
   var timeDomainEnd = d3.time.hour.offset(new Date(),+3);
   var timeDomainMode = FIT_TIME_DOMAIN_MODE;// fixed or fit
   var taskTypes = [];
-  var taskStatus = [];
   var height = document.body.clientHeight - margin.top - margin.bottom-5;
   var width = $('.gantt').width() - margin.right - margin.left-5;
 
   var tickFormat = "%H:%M";
 
   var keyFunction = function(d) {
-    return d.startDate + d.taskName + d.endDate;
+    return d.start_date + d.task_id + d.end_date;
   };
 
   var rectTransform = function(d) {
-    return "translate(" + (x(d.startDate) + yAxisLeftOffset) + "," + y(d.taskName) + ")";
+    return "translate(" + (x(d.start_date.valueOf()) + yAxisLeftOffset) + "," + y(d.task_id) + ")";
   };
 
   function tickFormater(d) {
@@ -154,14 +141,16 @@ d3.gantt = function() {
         timeDomainEnd = d3.time.hour.offset(new Date(), +3);
         return;
       }
-      tasks.sort(function(a, b) {
-        return a.endDate - b.endDate;
+      tasks.forEach((a) => {
+        if (!(a.start_date instanceof moment)) {
+          a.start_date = moment(a.start_date);
+        }
+        if (!(a.end_date instanceof moment)) {
+          a.end_date = moment(a.end_date);
+        }
       });
-      timeDomainEnd = tasks[tasks.length - 1].endDate;
-      tasks.sort(function(a, b) {
-        return a.startDate - b.startDate;
-      });
-      timeDomainStart = tasks[0].startDate;
+      timeDomainEnd = moment.max(tasks.map((a) => a.end_date)).valueOf()
+      timeDomainStart = moment.min(tasks.map((a) => a.start_date)).valueOf()
     }
   };
 
@@ -196,17 +185,16 @@ d3.gantt = function() {
     .on('mouseover', tip.show)
     .on('mouseout', tip.hide)
     .on('click', function(d) {
-      call_modal(d.taskName, d.executionDate, d.extraLinks);
+      call_modal(d.task_id, d.execution_date, d.extraLinks);
     })
     .attr("class", function(d){
-      if(taskStatus[d.status] == null){ return "null";}
-      return taskStatus[d.status];
+      return d.state || "null";
     })
     .attr("y", 0)
     .attr("transform", rectTransform)
     .attr("height", function(d) { return y.rangeBand(); })
     .attr("width", function(d) {
-      return d3.max([x(d.endDate) - x(d.startDate), 1]);
+      return d3.max([x(d.end_date.valueOf()) - x(d.start_date.valueOf()), 1]);
     });
 
 
@@ -238,15 +226,14 @@ d3.gantt = function() {
     .attr("rx", 5)
     .attr("ry", 5)
     .attr("class", function(d){
-      if(taskStatus[d.status] == null){ return "bar";}
-      return taskStatus[d.status];
+      return d.state || "null";
     })
     .transition()
     .attr("y", 0)
     .attr("transform", rectTransform)
     .attr("height", function(d) { return y.rangeBand(); })
     .attr("width", function(d) {
-      return d3.max([x(d.endDate) - x(d.startDate), 1]);
+      return d3.max([x(d.end_date.valueOf()) - x(d.start_date.valueOf()), 1]);
     });
 
 
@@ -289,13 +276,6 @@ d3.gantt = function() {
     if (!arguments.length)
       return taskTypes;
     taskTypes = value;
-    return gantt;
-  };
-
-  gantt.taskStatus = function(value) {
-    if (!arguments.length)
-      return taskStatus;
-    taskStatus = value;
     return gantt;
   };
 

@@ -70,7 +70,7 @@ class LoggingMixin(object):
         try:
             return self._log
         except AttributeError:
-            self._log = logging.root.getChild(
+            self._log = logging.getLogger(
                 self.__class__.__module__ + '.' + self.__class__.__name__
             )
             return self._log
@@ -94,6 +94,14 @@ class StreamLogWriter(object):
         self.logger = logger
         self.level = level
         self._buffer = str()
+
+    def close(self):
+        """
+        Provide close method, for compatibility with the io.IOBase interface.
+
+        This is a no-op method.
+        """
+        pass
 
     @property
     def closed(self):

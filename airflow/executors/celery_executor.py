@@ -16,7 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""CeleryExecutor
 
+.. seealso::
+    For more information on how the CeleryExecutor works, take a look at the guide:
+    :ref:`executor:CeleryExecutor`
+"""
+import logging
 import math
 import os
 import subprocess
@@ -31,9 +37,10 @@ from airflow.configuration import conf
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.timeout import timeout
+
+log = logging.getLogger(__name__)
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
@@ -61,7 +68,9 @@ app = Celery(
 
 @app.task
 def execute_command(command_to_exec):
-    log = LoggingMixin().log
+    """Executes command."""
+    if command_to_exec[0:2] != ["airflow", "run"]:
+        raise ValueError('The command must start with ["airflow", "run"].')
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
@@ -210,7 +219,14 @@ class CeleryExecutor(BaseExecutor):
             chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
             num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
-            send_pool = Pool(processes=num_processes)
+            def reset_signals():
+                # Since we are run from inside the SchedulerJob, we don't to
+                # inherit the signal handlers that we registered there.
+                import signal
+                signal.signal(signal.SIGINT, signal.SIG_DFL)
+                signal.signal(signal.SIGTERM, signal.SIG_DFL)
+
+            send_pool = Pool(processes=num_processes, initializer=reset_signals)
             key_and_async_results = send_pool.map(
                 send_task_to_executor,
                 task_tuples_to_send,
@@ -222,7 +238,7 @@ class CeleryExecutor(BaseExecutor):
 
             for key, command, result in key_and_async_results:
                 if isinstance(result, ExceptionWithTraceback):
-                    self.log.error(
+                    self.log.error(  # pylint: disable=logging-not-lazy
                         CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
                     )
                 elif result is not None:
@@ -261,7 +277,7 @@ class CeleryExecutor(BaseExecutor):
 
         for key_and_state in task_keys_to_states:
             if isinstance(key_and_state, ExceptionWithTraceback):
-                self.log.error(
+                self.log.error(  # pylint: disable=logging-not-lazy
                     CELERY_FETCH_ERR_MSG_HEADER + ", ignoring it:%s\n%s\n",
                     repr(key_and_state.exception), key_and_state.traceback
                 )

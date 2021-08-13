@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -euo pipefail
 
 # Use this to sign the tar balls generated from
 # python setup.py sdist --formats=gztar
@@ -22,7 +23,12 @@
 # you will still be required to type in your signing key password
 # or it needs to be available in your keychain
 
-NAME="${1}"
+# Which key to sign releases with? This can be a (partial) email address or a
+# key id. By default use any apache.org key
+SIGN_WITH="${SIGN_WITH:-apache.org}"
 
-gpg --armor --output "${NAME}.asc" --detach-sig "${NAME}"
-gpg --print-md SHA512 "${NAME}" > "${NAME}.sha512"
+for name in "${@}"
+do
+    gpg --armor --local-user "$SIGN_WITH" --output "${name}.asc" --detach-sig "${name}"
+    shasum -a 512 "${name}" > "${name}.sha512"
+done

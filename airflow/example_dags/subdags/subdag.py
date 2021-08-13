@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# [START subdag]
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
@@ -36,3 +37,4 @@ def subdag(parent_dag_name, child_dag_name, args):
         )
 
     return dag_subdag
+# [END subdag]

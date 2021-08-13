@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -70,12 +69,11 @@ def pytest_addoption(parser):
         help="Forces database initialization before tests",
     )
     group.addoption(
-        "--integrations",
-        action="store",
+        "--integration",
+        action="append",
         metavar="INTEGRATIONS",
-        help="only run tests matching comma separated integrations: "
-             "[cassandra,mongo,openldap,rabbitmq,redis]. "
-             "Use 'all' to select all integrations.",
+        help="only run tests matching integration specified: "
+             "[cassandra,kerberos,mongo,openldap,rabbitmq,redis]. ",
     )
     group.addoption(
         "--backend",
@@ -84,21 +82,25 @@ def pytest_addoption(parser):
         help="only run tests matching the backend: [sqlite,postgres,mysql].",
     )
     group.addoption(
-        "--runtime",
-        action="store",
-        metavar="RUNTIME",
-        help="only run tests matching the runtime: [kubernetes].",
-    )
-    group.addoption(
-        "--systems",
-        action="store",
+        "--system",
+        action="append",
         metavar="SYSTEMS",
-        help="only run tests matching the systems specified [google.cloud, google.marketing_platform]",
+        help="only run tests matching the system specified [google.cloud, google.marketing_platform]",
     )
     group.addoption(
         "--include-long-running",
         action="store_true",
-        help="Includes long running tests (marked with long_running) marker ",
+        help="Includes long running tests (marked with long_running marker). They are skipped by default.",
+    )
+    group.addoption(
+        "--include-quarantined",
+        action="store_true",
+        help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
+    )
+    group.addoption(
+        "--include-heisentests",
+        action="store_true",
+        help="Includes heisentests (marked with heisentests marker). They are skipped by default.",
     )
 
 
@@ -170,13 +172,16 @@ def pytest_configure(config):
         "markers", "backend(name): mark test to run with named backend"
     )
     config.addinivalue_line(
-        "markers", "runtime(name): mark test to run with named runtime"
-    )
-    config.addinivalue_line(
         "markers", "system(name): mark test to run with named system"
     )
     config.addinivalue_line(
-        "markers", "long_running(name): mark test that run for a long time (many minutes)"
+        "markers", "long_running: mark test that run for a long time (many minutes)"
+    )
+    config.addinivalue_line(
+        "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
+    )
+    config.addinivalue_line(
+        "markers", "heisentests: mark test that should be run in isolation due to resource consumption"
     )
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
@@ -205,16 +210,6 @@ def skip_if_not_marked_with_backend(selected_backend, item):
                 format(backend=selected_backend, item=item))
 
 
-def skip_if_not_marked_with_runtime(selected_runtime, item):
-    for marker in item.iter_markers(name="runtime"):
-        runtime_name = marker.args[0]
-        if runtime_name == selected_runtime:
-            return
-    pytest.skip("The test is skipped because it has not been selected via --runtime switch. "
-                "Only tests marked with pytest.mark.runtime('{runtime}') are run: {item}".
-                format(runtime=selected_runtime, item=item))
-
-
 def skip_if_not_marked_with_system(selected_systems, item):
     for marker in item.iter_markers(name="system"):
         systems_name = marker.args[0]
@@ -229,7 +224,7 @@ def skip_if_not_marked_with_system(selected_systems, item):
 def skip_system_test(item):
     for marker in item.iter_markers(name="system"):
         pytest.skip("The test is skipped because it has system marker. "
-                    "System tests are only run when --systems flag "
+                    "System tests are only run when --system flag "
                     "with the right system ({system}) is passed to pytest. {item}".
                     format(system=marker.args[0], item=item))
 
@@ -237,8 +232,21 @@ def skip_system_test(item):
 def skip_long_running_test(item):
     for _ in item.iter_markers(name="long_running"):
         pytest.skip("The test is skipped because it has long_running marker. "
-                    "And system tests are only run when --long-lasting flag "
-                    "is passed to pytest. {item}".
+                    "And --include-long-running flag is not passed to pytest. {item}".
+                    format(item=item))
+
+
+def skip_quarantined_test(item):
+    for _ in item.iter_markers(name="quarantined"):
+        pytest.skip("The test is skipped because it has quarantined marker. "
+                    "And --include-quarantined flag is passed to pytest. {item}".
+                    format(item=item))
+
+
+def skip_heisen_test(item):
+    for _ in item.iter_markers(name="heisentests"):
+        pytest.skip("The test is skipped because it has heisentests marker. "
+                    "And --include-heisentests flag is passed to pytest. {item}".
                     format(item=item))
 
 
@@ -253,19 +261,6 @@ def skip_if_integration_disabled(marker, item):
                     ": {item}".
                     format(name=environment_variable_name, value=environment_variable_value,
                            integration_name=integration_name, item=item))
-
-
-def skip_if_runtime_disabled(marker, item):
-    runtime_name = marker.args[0]
-    environment_variable_name = "RUNTIME"
-    environment_variable_value = os.environ.get(environment_variable_name)
-    if not environment_variable_value or environment_variable_value != runtime_name:
-        pytest.skip("The test requires {runtime_name} integration started and "
-                    "{name} environment variable to be set to true (it is '{value}')."
-                    " It can be set by specifying '--environment {runtime_name}' at breeze startup"
-                    ": {item}".
-                    format(name=environment_variable_name, value=environment_variable_value,
-                           runtime_name=runtime_name, item=item))
 
 
 def skip_if_wrong_backend(marker, item):
@@ -291,11 +286,13 @@ def skip_if_credential_file_missing(item):
 
 
 def pytest_runtest_setup(item):
-    selected_integrations = item.config.getoption("--integrations")
-    selected_integrations_list = selected_integrations.split(",") if selected_integrations else []
-    selected_systems = item.config.getoption("--systems")
-    selected_systems_list = selected_systems.split(",") if selected_systems else []
+    selected_integrations_list = item.config.getoption("--integration")
+    selected_systems_list = item.config.getoption("--system")
+
     include_long_running = item.config.getoption("--include-long-running")
+    include_quarantined = item.config.getoption("--include-quarantined")
+    include_heisentests = item.config.getoption("--include-heisentests")
+
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
     if selected_integrations_list:
@@ -309,11 +306,10 @@ def pytest_runtest_setup(item):
     selected_backend = item.config.getoption("--backend")
     if selected_backend:
         skip_if_not_marked_with_backend(selected_backend, item)
-    for marker in item.iter_markers(name="runtime"):
-        skip_if_runtime_disabled(marker, item)
-    selected_runtime = item.config.getoption("--runtime")
-    if selected_runtime:
-        skip_if_not_marked_with_runtime(selected_runtime, item)
     if not include_long_running:
         skip_long_running_test(item)
+    if not include_quarantined:
+        skip_quarantined_test(item)
+    if not include_heisentests:
+        skip_heisen_test(item)
     skip_if_credential_file_missing(item)

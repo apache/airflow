@@ -24,6 +24,7 @@ from __future__ import unicode_literals
 
 from functools import wraps
 
+import logging
 import os
 import contextlib
 import json
@@ -32,9 +33,8 @@ from sqlalchemy import text
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
 

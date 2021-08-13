@@ -19,6 +19,7 @@
 
 import inspect
 import os
+import six
 import shutil
 import textwrap
 import unittest
@@ -26,15 +27,20 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile, mkdtemp
 
 from mock import patch, ANY
+from freezegun import freeze_time
 
 from airflow import models
 from airflow.configuration import conf
 from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.models import DagModel, DagBag, TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.utils.dates import timezone as tz
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import utc
+from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER, DEFAULT_DATE
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 import airflow.example_dags
 
@@ -650,3 +656,74 @@ class DagBagTest(unittest.TestCase):
         # clean up
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
+
+    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    def test_get_dag_with_dag_serialization(self):
+        """
+        Test that Serialized DAG is updated in DagBag when it is updated in
+        Serialized DAG table after 'min_serialized_dag_fetch_interval' seconds are passed.
+        """
+
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)):
+            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+            dag_bag = DagBag(store_serialized_dags=True)
+            ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+            ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            self.assertEqual(example_bash_op_dag.tags, ser_dag_1.tags)
+            self.assertEqual(ser_dag_1_update_time, tz.datetime(2020, 1, 5, 0, 0, 0))
+
+        # Check that if min_serialized_dag_fetch_interval has not passed we do not fetch the DAG
+        # from DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
+            with assert_queries_count(0):
+                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+
+        # Make a change in the DAG and write Serialized DAG to the DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
+            example_bash_op_dag.tags += ["new_tag"]
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
+        # fetches the Serialized DAG from DB
+        with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 8)):
+            with assert_queries_count(2):
+                updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
+                updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+
+        six.assertCountEqual(self, updated_ser_dag_1.tags, ["example", "new_tag"])
+        self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
+
+    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
+    def test_cluster_policy_violation(self):
+        """test that file processing results in import error when task does not
+        obey cluster policy.
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
+
+        dagbag = DagBag(dag_folder=dag_file)
+        self.assertEqual(set(), set(dagbag.dag_ids))
+        expected_import_errors = {
+            dag_file: (
+                "DAG policy violation (DAG ID: test_missing_owner, Path: {}):\n"
+                "Notices:\n"
+                " * Task must have non-None non-default owner. Current value: airflow".format(dag_file)
+            )
+        }
+        self.maxDiff = None
+        self.assertEqual(expected_import_errors, dagbag.import_errors)
+
+    @patch("airflow.settings.policy", cluster_policies.cluster_policy)
+    def test_cluster_policy_obeyed(self):
+        """test that dag successfully imported without import errors when tasks
+        obey cluster policy.
+        """
+        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_with_non_default_owner.py")
+
+        dagbag = DagBag(dag_folder=dag_file)
+        self.assertEqual({"test_with_non_default_owner"}, set(dagbag.dag_ids))
+
+        self.assertEqual({}, dagbag.import_errors)

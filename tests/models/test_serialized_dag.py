@@ -19,6 +19,7 @@
 
 """Unit tests for SerializedDagModel."""
 
+import six
 import unittest
 
 from airflow import example_dags as example_dags_module
@@ -74,6 +75,35 @@ class SerializedDagModelTest(unittest.TestCase):
                 self.assertTrue(result.fileloc == dag.full_filepath)
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
+
+    def test_serialized_dag_is_updated_only_if_dag_is_changed(self):
+        """Test Serialized DAG is updated if DAG is changed"""
+
+        example_dags = make_example_dags(example_dags_module)
+        example_bash_op_dag = example_dags.get("example_bash_operator")
+        SDM.write_dag(dag=example_bash_op_dag)
+
+        with db.create_session() as session:
+            s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
+            # column is not updated
+            SDM.write_dag(dag=example_bash_op_dag)
+            s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            self.assertEqual(s_dag_1.dag_hash, s_dag.dag_hash)
+            self.assertEqual(s_dag.last_updated, s_dag_1.last_updated)
+
+            # Update DAG
+            example_bash_op_dag.tags += ["new_tag"]
+            six.assertCountEqual(self, example_bash_op_dag.tags, ["example", "new_tag"])
+
+            SDM.write_dag(dag=example_bash_op_dag)
+            s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
+
+            self.assertNotEqual(s_dag.last_updated, s_dag_2.last_updated)
+            self.assertNotEqual(s_dag.dag_hash, s_dag_2.dag_hash)
+            self.assertEqual(s_dag_2.data["dag"]["tags"], ["example", "new_tag"])
 
     def test_read_dags(self):
         """DAGs can be read from database."""

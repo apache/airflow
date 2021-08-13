@@ -141,7 +141,7 @@ variable in the global namespace. This is easily done in python using the
 ``globals()`` function for the standard library, which behaves like a
 simple dictionary.
 
-.. code:: python
+.. code-block:: python
 
     def create_dag(dag_id):
         """
@@ -205,8 +205,11 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 How to reduce airflow dag scheduling latency in production?
 -----------------------------------------------------------
 
-- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value (e.g numbers of cpus where scheduler runs - 1) in production.
-- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value (e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+- ``parsing_processes``: Scheduler will spawn multiple threads in parallel to parse dags.
+  This is controlled by ``parsing_processes`` with default value of 2.
+  User should increase this value to a larger value (e.g numbers of cpus where scheduler runs + 1) in production.
+- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value (e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat
+  and updates the job's entry in database.
 
 Why next_ds or prev_ds might not contain expected values?
 ---------------------------------------------------------
@@ -220,3 +223,11 @@ How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
 
 Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
+
+Why did the pause dag toggle turn red?
+--------------------------------------
+
+If pausing or unpausing a dag fails for any reason, the dag toggle will
+revert to its previous state and turn red. If you observe this behavior,
+try pausing the dag again, or check the console or server logs if the
+issue recurs.

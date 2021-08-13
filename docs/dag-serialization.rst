@@ -27,7 +27,7 @@ DAG Serialization and DB Persistence.
 .. image:: img/dag_serialization.png
 
 Without DAG Serialization & persistence in DB, the Webserver and the Scheduler both
-needs access to the DAG files. Both the scheduler and webserver parses the DAG files.
+need access to the DAG files. Both the scheduler and webserver parse the DAG files.
 
 With **DAG Serialization** we aim to decouple the webserver from DAG parsing
 which would make the Webserver very light-weight.
@@ -57,16 +57,23 @@ Add the following settings in ``airflow.cfg``:
 
     [core]
     store_serialized_dags = True
+    store_dag_code = True
+
+    # You can also update the following default configurations based on your needs
     min_serialized_dag_update_interval = 30
+    min_serialized_dag_fetch_interval = 10
 
 *   ``store_serialized_dags``: This flag decides whether to serialise DAGs and persist them in DB.
     If set to True, Webserver reads from DB instead of parsing DAG files
-*   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
-    the serialized DAG in DB should be updated. This helps in reducing database write rate.
 *   ``store_dag_code``: This flag decides whether to persist DAG files code in DB.
     If set to True, Webserver reads file contents from DB instead of trying to access files in a DAG folder.
+*   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
+    the serialized DAG in DB should be updated. This helps in reducing database write rate.
+*   ``min_serialized_dag_fetch_interval``: This flag controls how often a SerializedDAG will be re-fetched
+    from the DB when it's already loaded in the DagBag in the Webserver. Setting this higher will reduce
+    load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
 
-If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
+If you are updating Airflow from <1.10.7, please do not forget to run ``airflow upgradedb``.
 
 
 Limitations
@@ -89,7 +96,7 @@ Using a different JSON Library
 To use a different JSON library instead of the standard ``json`` library like ``ujson``, you need to
 define a ``json`` variable in local Airflow settings (``airflow_local_settings.py``) file as follows:
 
-.. code:: python
+.. code-block:: python
 
     import ujson
     json = ujson

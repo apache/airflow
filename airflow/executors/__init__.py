@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import sys
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor # noqa
@@ -26,6 +25,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
 DEFAULT_EXECUTOR = None
+log = logging.getLogger(__name__)
 
 
 def _integrate_plugins():
@@ -47,7 +47,6 @@ def get_default_executor():
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 
-    log = LoggingMixin().log
     log.info("Using executor %s", executor_name)
 
     return DEFAULT_EXECUTOR
@@ -83,7 +82,7 @@ def _get_executor(executor_name):
         from airflow.contrib.executors.mesos_executor import MesosExecutor
         return MesosExecutor()
     elif executor_name == Executors.KubernetesExecutor:
-        from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+        from airflow.executors.kubernetes_executor import KubernetesExecutor
         return KubernetesExecutor()
     elif executor_name == Executors.DebugExecutor:
         from airflow.executors.debug_executor import DebugExecutor

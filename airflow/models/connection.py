@@ -109,6 +109,8 @@ class Connection(Base, LoggingMixin):
         ('grpc', 'GRPC Connection'),
         ('rabbitmq', 'AMQP Connection(rabbitmq)'),
         ('kafka', 'Kafka'),
+        ('yandexcloud', 'Yandex Cloud'),
+        ('spark', 'Spark'),
     ]
 
     def __init__(

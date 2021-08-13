@@ -27,6 +27,11 @@ section of the configuration file.
 
 .. toctree::
     :maxdepth: 1
-    :glob:
 
-    *
+    sequential
+    debug
+    local
+    dask
+    celery
+    kubernetes
+    mesos

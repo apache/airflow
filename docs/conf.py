@@ -132,6 +132,7 @@ extensions = [
     'exampleinclude',
     'docroles',
     'removemarktransform',
+    'sphinx_copybutton',
 ]
 
 autodoc_default_options = {
@@ -185,13 +186,15 @@ release = airflow.__version__
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = [
-    '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
     '_api/airflow/config_templates',
     '_api/airflow/configuration',
     '_api/airflow/contrib/auth',
     '_api/airflow/contrib/example_dags',
+    '_api/airflow/contrib/executors/index.rst',
+    '_api/airflow/contrib/executors/kubernetes_executor/index.rst',
+    '_api/airflow/contrib/executors/mesos_executor/index.rst',
     '_api/airflow/contrib/index.rst',
     '_api/airflow/contrib/kubernetes',
     '_api/airflow/contrib/task_runner',
@@ -199,9 +202,9 @@ exclude_patterns = [
     '_api/airflow/dag',
     '_api/airflow/default_login',
     '_api/airflow/example_dags',
-    '_api/airflow/exceptions',
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
+    '_api/airflow/kubernetes_deprecated',
     '_api/airflow/lineage',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
@@ -213,12 +216,17 @@ exclude_patterns = [
     '_api/airflow/sentry',
     '_api/airflow/stats',
     '_api/airflow/task',
+    '_api/airflow/typing_compat',
+    '_api/airflow/kubernetes',
     '_api/airflow/ti_deps',
+    '_api/airflow/upgrade',
     '_api/airflow/utils',
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/airflow/www_rbac',
+    '_api/kubernetes_executor',
     '_api/main',
+    '_api/mesos_executor',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -250,7 +258,7 @@ keep_warnings = True
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
-    'mongodb': ('https://api.mongodb.com/python/current/', None),
+    'mongodb': ('https://pymongo.readthedocs.io/en/stable/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
     'requests': ('https://requests.readthedocs.io/en/master/', None),
@@ -478,6 +486,7 @@ autoapi_ignore = [
     '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/kubernetes/kubernetes_request_factory/*',
 
     '*/node_modules/*',
     '*/migrations/*',
@@ -522,4 +531,17 @@ if airflow_theme_is_available:
         'github_version': 'master',
         'display_github': 'master',
         'suffix': '.rst',
+    }
+
+    html_theme_options = {
+        'hide_website_buttons': False,
+        'navbar_links': [
+            {'href': '/community/', 'text': 'Community'},
+            {'href': '/meetups/', 'text': 'Meetups'},
+            {'href': '/docs/', 'text': 'Documentation'},
+            {'href': '/use-cases/', 'text': 'Use-cases'},
+            {'href': '/announcements/', 'text': 'Announcements'},
+            {'href': '/blog/', 'text': 'Blog'},
+            {'href': '/ecosystem/', 'text': 'Ecosystem'},
+        ]
     }

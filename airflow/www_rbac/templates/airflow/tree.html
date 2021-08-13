@@ -21,10 +21,20 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/tree.css') }}">
+<style type="text/css">
+  {% for state, state_color in state_color_mapping.items() %}
+    rect.{{state}} {
+      fill: {{state_color}};
+    }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
+{% if doc_md %}
+{{ doc_md }}
+{% endif %}
 <div style="float: left" class="form-inline">
   <form method="get" style="float:left;">
     Base date: {{ form.base_date(class_="form-control") }}
@@ -41,22 +51,10 @@
 <div>
   <div class="legend_item" style="border: none;">no_status</div>
   <div class="square" style="background: white;"></div>
-  <div class="legend_item" style="border: none;">queued</div>
-  <div class="square" style="background: grey;"></div>
-  <div class="legend_item" style="border: none;">up_for_retry</div>
-  <div class="square" style="background: gold;"></div>
-  <div class="legend_item" style="border: none;">up_for_reschedule</div>
-  <div class="square" style="background: turquoise;"></div>
-  <div class="legend_item" style="border: none;">upstream_failed</div>
-  <div class="square" style="background: orange;"></div>
-  <div class="legend_item" style="border: none;">skipped</div>
-  <div class="square" style="background: pink;"></div>
-  <div class="legend_item" style="border: none;">failed</div>
-  <div class="square" style="background: red;"></div>
-  <div class="legend_item" style="border: none;">running</div>
-  <div class="square" style="background: lime;"></div>
-  <div class="legend_item" style="border: none;">success</div>
-  <div class="square" style="background: green;"></div>
+  {% for state, state_color in state_color_mapping.items() %}
+    <div class="legend_item" style="border: none;">{{state}}</div>
+    <div class="square" style="background: {{state_color}};"></div>
+  {% endfor %}
   {% for op in operators %}
   <div class="legend_circle" style="background:{{ op.ui_color }};">
   </div>
@@ -88,7 +86,7 @@ function ts_to_dtstr(ts) {
 }
 
 function is_dag_run(d) {
-  return d.operator === undefined;
+  return d.run_id != undefined;
 }
 
 var now_ts = Date.now()/1000;
@@ -135,7 +133,7 @@ function populate_taskinstance_properties(node) {
 
 var devicePixelRatio = window.devicePixelRatio || 1;
 // JSON.parse is faster for large payloads than an object literal (because the JSON grammer is simpler!)
-var data = JSON.parse('{{ data }}');
+var data = JSON.parse({{ data|tojson }});
 var barHeight = 20;
 var axisHeight = 40;
 var square_x = parseInt(500 * devicePixelRatio);

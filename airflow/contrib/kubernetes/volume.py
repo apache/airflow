@@ -14,20 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.kubernetes.volume`."""
 
+import warnings
 
-class Volume:
-    """Defines Kubernetes Volume"""
+# pylint: disable=unused-import
+from airflow.kubernetes.volume import Volume   # noqa
 
-    def __init__(self, name, configs):
-        """ Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
-        and Persistent Volumes
-        :param name: the name of the volume mount
-        :type name: str
-        :param configs: dictionary of any features needed for volume.
-        We purposely keep this vague since there are multiple volume types with changing
-        configs.
-        :type configs: dict
-        """
-        self.name = name
-        self.configs = configs
+warnings.warn(
+    "This module is deprecated. Please use `airflow.kubernetes.volume`.",
+    DeprecationWarning, stacklevel=2
+)

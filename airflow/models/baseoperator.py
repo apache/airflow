@@ -45,6 +45,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
@@ -227,9 +228,9 @@ class BaseOperator(LoggingMixin):
 
             MyOperator(...,
                 executor_config={
-                "KubernetesExecutor":
-                    {"image": "myCustomDockerImage"}
-                    }
+                    "KubernetesExecutor":
+                        {"image": "myCustomDockerImage"}
+                }
             )
 
     :type executor_config: dict
@@ -428,8 +429,8 @@ class BaseOperator(LoggingMixin):
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []  # type: Iterable[DataSet]
-        self.outlets = []  # type: Iterable[DataSet]
+        self.inlets = []   # type: List[DataSet]
+        self.outlets = []  # type: List[DataSet]
         self.lineage_data = None
 
         self._inlets = {
@@ -546,7 +547,8 @@ class BaseOperator(LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+            dag.add_task(self)
         self._dag = dag
 
     def has_dag(self):
@@ -574,6 +576,7 @@ class BaseOperator(LoggingMixin):
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
+            NotPreviouslySkippedDep(),
         }
 
     @property
@@ -584,7 +587,7 @@ class BaseOperator(LoggingMixin):
         schedule_interval as it may not be attached to a DAG.
         """
         if self.has_dag():
-            return self.dag._schedule_interval
+            return self.dag.normalized_schedule_interval
         else:
             return self._schedule_interval
 
@@ -873,14 +876,11 @@ class BaseOperator(LoggingMixin):
             tasks += [
                 t.task_id for t in self.get_flat_relatives(upstream=False)]
 
-        qry = qry.filter(TI.task_id.in_(tasks))
-
-        count = qry.count()
-
-        clear_task_instances(qry.all(), session, dag=self.dag)
-
+        qry = qry.filter(TaskInstance.task_id.in_(tasks))
+        results = qry.all()
+        count = len(results)
+        clear_task_instances(results, session, dag=self.dag)
         session.commit()
-
         return count
 
     @provide_session

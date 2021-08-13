@@ -19,7 +19,11 @@
 #
 # flake8: noqa: E402
 import inspect
+
+import markdown
 from future import standard_library
+from markupsafe import Markup
+
 standard_library.install_aliases()  # noqa: E402
 from builtins import str, object
 
@@ -486,3 +490,12 @@ class UtcFilterConverter(sqlafilters.FilterConverter):
     @filters.convert('utcdatetime')
     def conv_utcdatetime(self, column, name, **kwargs):
         return [f(column, name, **kwargs) for f in self.utcdatetime_filters]
+
+
+def wrapped_markdown(s, css_class=None):
+    if s is None:
+        return None
+
+    return Markup(
+        '<div class="rich_doc {css_class}" >'.format(css_class=css_class) + markdown.markdown(s) + "</div>"
+    )

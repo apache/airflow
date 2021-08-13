@@ -66,7 +66,7 @@ run_this = PythonOperator(
 # You can also access the DagRun object in templates
 bash_task = BashOperator(
     task_id="bash_task",
-    bash_command='echo "Here is the message: '
-                 '{{ dag_run.conf["message"] if dag_run else "" }}" ',
+    bash_command='echo "Here is the message: $message"',
+    env={'message': '{{ dag_run.conf["message"] if dag_run else "" }}'},
     dag=dag,
 )

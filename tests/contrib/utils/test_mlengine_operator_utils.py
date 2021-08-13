@@ -22,6 +22,8 @@ from __future__ import print_function
 import datetime
 import unittest
 
+import six
+
 from airflow import DAG
 from airflow.contrib.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
@@ -152,25 +154,25 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             'dag': dag,
         }
 
-        with self.assertRaisesRegexp(AirflowException, 'Missing model origin'):
+        with six.assertRaisesRegex(self, AirflowException, 'Missing model origin'):
             mlengine_operator_utils.create_evaluate_ops(**other_params_but_models)
 
-        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
+        with six.assertRaisesRegex(self, AirflowException, 'Ambiguous model origin'):
             mlengine_operator_utils.create_evaluate_ops(model_uri='abc', model_name='cde',
                                                         **other_params_but_models)
 
-        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
+        with six.assertRaisesRegex(self, AirflowException, 'Ambiguous model origin'):
             mlengine_operator_utils.create_evaluate_ops(model_uri='abc', version_name='vvv',
                                                         **other_params_but_models)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     '`metric_fn` param must be callable'):
+        with six.assertRaisesRegex(self, AirflowException,
+                                   '`metric_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['metric_fn_and_keys'] = (None, ['abc'])
             mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)
 
-        with self.assertRaisesRegexp(AirflowException,
-                                     '`validate_fn` param must be callable'):
+        with six.assertRaisesRegex(self, AirflowException,
+                                   '`validate_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
             mlengine_operator_utils.create_evaluate_ops(model_uri='gs://blah', **params)

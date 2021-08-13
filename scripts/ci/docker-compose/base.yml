@@ -19,48 +19,19 @@ version: "2.2"
 services:
   airflow:
     image: ${AIRFLOW_IMAGE}
-    init: true
-    entrypoint: ["/bin/bash", "-c"]
     environment:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
-      - HADOOP_DISTRO=cdh
-      - HADOOP_HOME=/opt/hadoop-cdh
-      - HADOOP_OPTS=-D/opt/krb5.conf
-      - HIVE_HOME=/opt/hive
-      - MINICLUSTER_HOME=/opt/minicluster
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
-      - BACKEND
-      - CI
-      - SOURCE_BRANCH
-      - TRAVIS
-      - TRAVIS_BRANCH
-      - TRAVIS_BUILD_DIR
-      - TRAVIS_BUILD_ID
-      - TRAVIS_JOB_ID
-      - TRAVIS_JOB_NUMBER
-      - TRAVIS_PULL_REQUEST
-      - TRAVIS_COMMIT
-      - TRAVIS_REPO_SLUG
-      - TRAVIS_PULL_REQUEST_BRANCH
-      - TRAVIS_PULL_REQUEST_SLUG
-      - TRAVIS_OS_NAME
-      - TRAVIS_TAG
-      - RUN_TESTS
-      - VERBOSE
-      - VEROSE_COMMANDS
-      - AIRFLOW_CI_IMAGE
-      - RUNTIME
-      - ENABLE_KIND_CLUSTER
-      - ENABLED_INTEGRATIONS
-      - RUN_INTEGRATION_TESTS
-      - BREEZE
-      - INSTALL_AIRFLOW_VERSION
-      - DB_RESET
-      - ENABLED_SYSTEMS
-      - RUN_SYSTEM_TESTS
-      - PYTHON_MAJOR_MINOR_VERSION
+      - KUBECONFIG=/files/.kube/config
+      - HOST_AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+      - HOST_HOME=${HOME}
+    env_file:
+      - _docker.env
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+    ports:
+      - "${WEBSERVER_HOST_PORT}:8080"
+      - "${FLOWER_HOST_PORT}:5555"

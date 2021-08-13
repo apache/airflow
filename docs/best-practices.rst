@@ -89,13 +89,13 @@ It can result in a lot of open connections.
 
 The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template synaxt to do this is:
 
-.. code::
+.. code-block::
 
     {{ var.value.<variable_name> }}
 
 or if you need to deserialize a json object from the variable :
 
-.. code::
+.. code-block::
 
     {{ var.json.<variable_name> }}
 
@@ -117,7 +117,7 @@ DAG Loader Test
 This test should ensure that your DAG does not contain a piece of code that raises error while loading.
 No additional code needs to be written by the user to run this test.
 
-.. code::
+.. code-block::
 
  python your-dag-file.py
 
@@ -132,7 +132,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
 
 **Unit test for loading a DAG:**
 
-.. code::
+.. code-block::
 
  from airflow.models import DagBag
  import unittest
@@ -148,9 +148,31 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
         self.assertIsNotNone(dag)
         self.assertEqual(len(dag.tasks), 1)
 
+**Unit test a DAG structure:**
+This is an example test want to verify the structure of a code-generated DAG against a dict object
+
+.. code-block::
+
+ import unittest
+ class testClass(unittest.TestCase):
+     def assertDagDictEqual(self,source,dag):
+         self.assertEqual(dag.task_dict.keys(),source.keys())
+         for task_id,downstream_list in source.items():
+             self.assertTrue(dag.has_task(task_id), msg="Missing task_id: {} in dag".format(task_id))
+             task = dag.get_task(task_id)
+             self.assertEqual(task.downstream_task_ids, set(downstream_list),
+                              msg="unexpected downstream link in {}".format(task_id))
+     def test_dag(self):
+         self.assertDagDictEqual({
+           "DummyInstruction_0": ["DummyInstruction_1"],
+           "DummyInstruction_1": ["DummyInstruction_2"],
+           "DummyInstruction_2": ["DummyInstruction_3"],
+           "DummyInstruction_3": []
+         },dag)
+
 **Unit test for custom operator:**
 
-.. code::
+.. code-block::
 
  import unittest
  from airflow.utils.state import State
@@ -183,7 +205,7 @@ make sure that the partition is created in S3 and perform some simple checks to 
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.sensors.http_sensor.HttpSensor`.
 
-.. code::
+.. code-block::
 
  task = PushToS3(...)
  check = S3KeySensor(
@@ -205,7 +227,7 @@ Do not hard code values inside the DAG and then change them manually according t
 
 You can use environment variables  to parameterize the DAG.
 
-.. code::
+.. code-block::
 
  import os
 
@@ -230,7 +252,7 @@ If you want to run Airflow in production, make sure you :doc:`configure the back
 
 You can change the backend using the following config
 
-.. code:: ini
+.. code-block:: ini
 
  [core]
  sql_alchemy_conn = my_conn_string
@@ -239,15 +261,15 @@ Once you have changed the backend, airflow needs to create all the tables requir
 Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
 Once that is done, you can run -
 
-.. code::
+.. code-block:: bash
 
- airflow db upgrade
+ airflow upgradedb
 
 ``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
 
 .. note::
 
- Do not use ``airflow db init`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
+ Do not use ``airflow initdb`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
 
 
 Multi-Node Cluster
@@ -283,13 +305,26 @@ Airflow comes bundles with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
 e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}__{KEY}``
 
-.. code::
+.. code-block:: bash
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
 Some configurations such as Airflow Backend connection URI can be derived from bash commands as well:
 
-.. code::
+.. code-block:: ini
 
  sql_alchemy_conn_cmd = bash_command_to_run
+
+
+Scheduler Uptime
+-----------------
+
+Airflow users have for a long time been affected by a
+`core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
+that causes the scheduler to hang without a trace.
+
+Until fully resolved, you can mitigate a few ways:
+
+* Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
+* Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.

@@ -55,10 +55,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param variables_path: Specifies the path of the secret to read to get Variables.
         (default: 'variables')
     :type variables_path: str
+    :param config_path: Specifies the path of the secret to read Airflow Configurations
+        (default: 'config').
+    :type config_path: str
     :param url: Base URL for the Vault instance being addressed.
     :type url: str
     :param auth_type: Authentication Type for Vault (one of 'token', 'ldap', 'userpass', 'approle',
-        'github', 'gcp). Default is ``token``.
+        'github', 'gcp', 'kubernetes'). Default is ``token``.
     :type auth_type: str
     :param mount_point: The "path" the secret engine was mounted on. (Default: ``secret``)
     :type mount_point: str
@@ -73,6 +76,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :type password: str
     :param role_id: Role ID for Authentication (for ``approle`` auth_type)
     :type role_id: str
+    :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
+    :type kubernetes_role: str
+    :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, deafult:
+        ``/var/run/secrets/kubernetes.io/serviceaccount/token``)
+    :type kubernetes_jwt_path: str
     :param secret_id: Secret ID for Authentication (for ``approle`` auth_type)
     :type secret_id: str
     :param gcp_key_path: Path to GCP Credential JSON file (for ``gcp`` auth_type)
@@ -84,6 +92,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self,
         connections_path='connections',  # type: str
         variables_path='variables',  # type: str
+        config_path='config',  # type: str
         url=None,  # type: Optional[str]
         auth_type='token',  # type: str
         mount_point='secret',  # type: str
@@ -92,14 +101,17 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         username=None,  # type: Optional[str]
         password=None,  # type: Optional[str]
         role_id=None,  # type: Optional[str]
+        kubernetes_role=None,  # type: Optional[str]
+        kubernetes_jwt_path='/var/run/secrets/kubernetes.io/serviceaccount/token',  # type: str
         secret_id=None,  # type: Optional[str]
         gcp_key_path=None,  # type: Optional[str]
         gcp_scopes=None,  # type: Optional[str]
         **kwargs
     ):
-        super(VaultBackend, self).__init__(**kwargs)
+        super(VaultBackend, self).__init__()
         self.connections_path = connections_path.rstrip('/')
         self.variables_path = variables_path.rstrip('/')
+        self.config_path = config_path.rstrip('/')
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
@@ -107,6 +119,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         self.username = username
         self.password = password
         self.role_id = role_id
+        self.kubernetes_role = kubernetes_role
+        self.kubernetes_jwt_path = kubernetes_jwt_path
         self.secret_id = secret_id
         self.mount_point = mount_point
         self.kv_engine_version = kv_engine_version
@@ -132,6 +146,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             _client.auth_userpass(username=self.username, password=self.password)
         elif self.auth_type == "approle":
             _client.auth_approle(role_id=self.role_id, secret_id=self.secret_id)
+        elif self.auth_type == "kubernetes":
+            if not self.kubernetes_role:
+                raise VaultError("kubernetes_role cannot be None for auth_type='kubernetes'")
+            with open(self.kubernetes_jwt_path) as f:
+                jwt = f.read()
+                _client.auth_kubernetes(role=self.kubernetes_role, jwt=jwt)
         elif self.auth_type == "github":
             _client.auth.github.login(token=self.token)
         elif self.auth_type == "gcp":
@@ -164,7 +184,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     def get_variable(self, key):
         # type: (str) -> Optional[str]
         """
-        Get Airflow Variable from Environment Variable
+        Get Airflow Variable
 
         :param key: Variable Key
         :return: Variable Value
@@ -198,3 +218,16 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return_data = response["data"] if self.kv_engine_version == 1 else response["data"]["data"]
         return return_data
+
+    def get_config(self, key):
+        # type: (str) -> Optional[str]
+        """
+        Get Airflow Configuration
+
+        :param key: Configuration Option Key
+        :type key: str
+        :rtype: str
+        :return: Configuration Option Value retrieved from the vault
+        """
+        response = self._get_secret(self.config_path, key)
+        return response.get("value") if response else None

@@ -75,6 +75,15 @@ class TestJSONFormatter(unittest.TestCase):
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
 
+    def test_uses_time(self):
+        """
+        Test usesTime method from JSONFormatter
+        """
+        json_fmt_asctime = JSONFormatter(json_fields=["asctime", "label"])
+        json_fmt_no_asctime = JSONFormatter(json_fields=["label"])
+        self.assertTrue(json_fmt_asctime.usesTime())
+        self.assertFalse(json_fmt_no_asctime.usesTime())
+
     def test_format(self):
         """
         Test format method from JSONFormatter

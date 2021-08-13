@@ -22,6 +22,8 @@ from moto import mock_ssm
 
 from airflow.contrib.secrets.aws_systems_manager import SystemsManagerParameterStoreBackend
 from tests.compat import mock
+from airflow.secrets import initialize_secrets_backends
+from tests.test_utils.config import conf_vars
 
 
 class TestSystemsManagerParameterStoreBackend(unittest.TestCase):
@@ -81,6 +83,18 @@ class TestSystemsManagerParameterStoreBackend(unittest.TestCase):
         self.assertEqual('world', returned_uri)
 
     @mock_ssm
+    def test_get_variable_secret_string(self):
+        param = {
+            'Name': '/airflow/variables/hello',
+            'Type': 'SecureString',
+            'Value': 'world'
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+        returned_uri = ssm_backend.get_variable('hello')
+        self.assertEqual('world', returned_uri)
+
+    @mock_ssm
     def test_get_variable_non_existent_key(self):
         """
         Test that if Variable key is not present in SSM,
@@ -96,3 +110,19 @@ class TestSystemsManagerParameterStoreBackend(unittest.TestCase):
         ssm_backend.client.put_parameter(**param)
 
         self.assertIsNone(ssm_backend.get_variable("test_mysql"))
+
+    @conf_vars({
+        ('secrets', 'backend'): 'airflow.contrib.secrets.aws_systems_manager.'
+                                'SystemsManagerParameterStoreBackend',
+        ('secrets', 'backend_kwargs'): '{"use_ssl": false}'
+    })
+    @mock.patch("airflow.contrib.secrets.aws_systems_manager.boto3.Session.client")
+    def test_passing_client_kwargs(self, mock_ssm_client):
+        backends = initialize_secrets_backends()
+        systems_manager = [
+            backend for backend in backends
+            if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
+        ][0]
+
+        systems_manager.client
+        mock_ssm_client.assert_called_once_with('ssm', use_ssl=False)

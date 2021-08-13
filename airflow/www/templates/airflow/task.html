@@ -39,14 +39,11 @@
                 </tr>
             {% endfor %}
         </table>
-        {% if html_code is defined %}
-            {{ html_code|safe }}
-        {% endif %}
     </div>
     <div>
         {% for attr, value in special_attrs_rendered.items() %}
             <h5>Attribute: {{ attr }}</h5>
-            {{ value|safe }}
+            {{ value }}
         {% endfor %}
         <h5>Task Instance Attributes</h5>
         <table class="table table-striped table-bordered">
@@ -74,8 +71,5 @@
                 </tr>
             {% endfor %}
         </table>
-        {% if html_code is defined %}
-            {{ html_code|safe }}
-        {% endif %}
     </div>
 {% endblock %}

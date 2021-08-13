@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import airflow.api
 
 from airflow.api.common.experimental import pool as pool_api
@@ -26,7 +27,6 @@ from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
@@ -35,7 +35,7 @@ from airflow.utils.db import create_session
 
 from flask import g, Blueprint, jsonify, request, url_for
 
-_log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
@@ -72,7 +72,7 @@ def trigger_dag(dag_id):
                 'Given execution date, {}, could not be identified '
                 'as a date. Example date format: 2015-11-16T14:34:15+00:00'
                 .format(execution_date))
-            _log.info(error_message)
+            log.info(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
 
@@ -85,13 +85,13 @@ def trigger_dag(dag_id):
     try:
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
     if getattr(g, 'user', None):
-        _log.info("User {} created {}".format(g.user, dr))
+        log.info("User {} created {}".format(g.user, dr))
 
     response = jsonify(
         message="Created {}".format(dr),
@@ -115,7 +115,7 @@ def dag_runs(dag_id):
         state = request.args.get('state')
         dagruns = get_dag_runs(dag_id, state)
     except AirflowException as err:
-        _log.info(err)
+        log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = 400
         return response
@@ -136,7 +136,7 @@ def get_dag_code(dag_id):
     try:
         return get_code(dag_id)
     except AirflowException as err:
-        _log.info(err)
+        log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -149,7 +149,7 @@ def task_info(dag_id, task_id):
     try:
         info = get_task(dag_id, task_id)
     except AirflowException as err:
-        _log.info(err)
+        log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -213,7 +213,7 @@ def task_instance_info(dag_id, execution_date, task_id):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
             .format(execution_date))
-        _log.info(error_message)
+        log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 
@@ -222,7 +222,7 @@ def task_instance_info(dag_id, execution_date, task_id):
     try:
         info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
-        _log.info(err)
+        log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -254,7 +254,7 @@ def dag_run_status(dag_id, execution_date):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
                 execution_date))
-        _log.info(error_message)
+        log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
 
@@ -263,7 +263,7 @@ def dag_run_status(dag_id, execution_date):
     try:
         info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
-        _log.info(err)
+        log.info(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -298,7 +298,7 @@ def get_pool(name):
     try:
         pool = pool_api.get_pool(name=name)
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -313,7 +313,7 @@ def get_pools():
     try:
         pools = pool_api.get_pools()
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -330,7 +330,7 @@ def create_pool():
     try:
         pool = pool_api.create_pool(**params)
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
@@ -346,7 +346,7 @@ def delete_pool(name):
     try:
         pool = pool_api.delete_pool(name=name)
     except AirflowException as err:
-        _log.error(err)
+        log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response

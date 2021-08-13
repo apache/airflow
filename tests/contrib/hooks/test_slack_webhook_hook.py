@@ -40,7 +40,8 @@ class TestSlackWebhookHook(unittest.TestCase):
         'icon_emoji': ':hankey:',
         'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
-        'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
+        'proxy': 'https://my-horrible-proxy.proxyist.com:8080',
+        'extra_options': {"verify": True}
     }
     expected_message_dict = {
         'channel': _config['channel'],

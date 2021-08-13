@@ -35,7 +35,9 @@ import six
 from flask._compat import PY2
 
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils import timezone
 from airflow.utils.db import create_session
+from parameterized import parameterized
 from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
@@ -1001,6 +1003,7 @@ class TestRenderedView(unittest.TestCase):
                 resp.data.decode('utf-8'))
 
 
+@pytest.mark.quarantined
 class TestTriggerDag(unittest.TestCase):
 
     def setUp(self):
@@ -1070,6 +1073,79 @@ class TestTriggerDag(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn('Trigger DAG: {}'.format(test_dag_id), resp.data.decode('utf-8'))
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    def test_trigger_dag(self, mock_dagrun):
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.assertIn(
+            'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
+
+    @mock.patch('airflow.models.dag.DAG.create_dagrun')
+    @mock.patch('airflow.utils.dag_processing.os.path.isfile')
+    @conf_vars({("core", "store_serialized_dags"): "True"})
+    def test_trigger_serialized_dag(self, mock_os_isfile, mock_dagrun):
+        mock_os_isfile.return_value = False
+
+        test_dag_id = "example_bash_operator"
+        execution_date = timezone.utcnow()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+        mock_dagrun.return_value = DagRun(
+            dag_id=test_dag_id, run_id=run_id,
+            execution_date=execution_date, start_date=datetime(2020, 1, 1, 1, 1, 1),
+            external_trigger=True,
+            conf={},
+            state="running"
+        )
+
+        response = self.app.post(
+            '/admin/airflow/trigger?dag_id={}'.format(test_dag_id), data={}, follow_redirects=True)
+        self.assertIn(
+            'Triggered example_bash_operator, it should start any moment now.',
+            response.data.decode('utf-8'))
+
+    @parameterized.expand([
+        ("javascript:alert(1)", "/admin/"),
+        ("http://google.com", "/admin/"),
+        ("36539'%3balert(1)%2f%2f166", "/admin/"),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
+            "/admin/",
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator"
+            "&dag_id=example_bash_operator';alert(33)//",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Ftree%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/tree?dag_id=example_bash_operator"
+        ),
+        (
+            "%2Fadmin%2Fairflow%2Fgraph%3Fdag_id%3Dexample_bash_operator&dag_id=example_bash_operator",
+            "/admin/airflow/graph?dag_id=example_bash_operator"
+        ),
+    ])
+    def test_trigger_dag_form_origin_url(self, test_origin, expected_origin):
+        test_dag_id = "example_bash_operator"
+        response = self.app.get(
+            '/admin/airflow/trigger?dag_id={}&origin={}'.format(test_dag_id, test_origin))
+        self.assertIn(
+            '<button class="btn" onclick="location.href = \'{}\'; return false">'.format(
+                expected_origin),
+            response.data.decode('utf-8'))
 
 
 class HelpersTest(unittest.TestCase):
@@ -1263,6 +1339,8 @@ class TestTaskStats(unittest.TestCase):
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
+        self.assertEqual(set(stats['example_bash_operator'][0].keys()),
+                         {'state', 'count'})
 
     def test_selected_dags(self):
         resp = self.app.get(
@@ -1284,6 +1362,13 @@ class TestTaskStats(unittest.TestCase):
         self.assertIn('example_bash_operator', stats)
         self.assertIn('example_xcom', stats)
         self.assertNotIn('example_subdag_operator', stats)
+
+    def test_dag_stats(self):
+        resp = self.app.get('/admin/airflow/dag_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(set(list(stats.items())[0][1][0].keys()),
+                         {'state', 'count'})
 
 
 if __name__ == '__main__':

@@ -17,16 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import errno
 import io
 
 import logging
 import os
+
+import kubernetes
+
+from airflow.configuration import conf
+from parameterized import parameterized
 from six import StringIO, PY2
 import sys
 
 from datetime import datetime, timedelta, time
-from mock import patch, Mock, MagicMock
-from time import sleep
+from mock import patch, MagicMock
+from time import sleep, time as timetime
 import psutil
 import pytz
 import subprocess
@@ -34,18 +40,24 @@ import pytest
 from argparse import Namespace
 from airflow import settings
 import airflow.bin.cli as cli
-from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow.bin.cli import run, get_dag
 from airflow.models import TaskInstance
 from airflow.utils import timezone
+from airflow.utils.file import TemporaryDirectory
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
+from airflow.version import version as airflow_version
 from tests.compat import mock
+from tests.test_utils.config import conf_vars
+
 if PY2:
     # Need `assertWarns` back-ported from unittest2
     import unittest2 as unittest
+    from backports import tempfile
 else:
     import unittest
+    import tempfile
 
 if PY2:
     @contextlib.contextmanager
@@ -129,6 +141,8 @@ def create_mock_args(
     args.ignore_dependencies = ignore_dependencies
     args.force = force
     args.interactive = interactive
+    # Needed for CLI deprecation warning decorator
+    args.subcommand = "fake-group"
     return args
 
 
@@ -147,39 +161,6 @@ class TestCLI(unittest.TestCase):
     def setUpClass(cls):
         cls.dagbag = models.DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
-
-    def setUp(self):
-        self.gunicorn_master_proc = Mock(pid=None)
-        self.children = MagicMock()
-        self.child = MagicMock()
-        self.process = MagicMock()
-
-    def test_ready_prefix_on_cmdline(self):
-        self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
-        self.process.children.return_value = [self.child]
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 1)
-
-    def test_ready_prefix_on_cmdline_no_children(self):
-        self.process.children.return_value = []
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
-
-    def test_ready_prefix_on_cmdline_zombie(self):
-        self.child.cmdline.return_value = []
-        self.process.children.return_value = [self.child]
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
-
-    def test_ready_prefix_on_cmdline_dead_process(self):
-        self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
-        self.process.children.return_value = [self.child]
-
-        with patch('psutil.Process', return_value=self.process):
-            self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
@@ -206,6 +187,7 @@ class TestCLI(unittest.TestCase):
         p.terminate()
         p.wait()
 
+    @pytest.mark.quarantined
     def test_local_run(self):
         args = create_mock_args(
             task_id='print_the_context',
@@ -246,6 +228,7 @@ class TestCLI(unittest.TestCase):
         finally:
             sys.stdout = saved_stdout
 
+    @pytest.mark.quarantined
     def test_next_execution(self):
         # A scaffolding function
         def reset_dr_db(dag_id):
@@ -311,6 +294,21 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(stdout[-1], expected_output[i])
 
             reset_dr_db(dag_id)
+
+    def test_generate_pod_template(self):
+
+        from airflow.kubernetes.pod_generator import PodGenerator
+        with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
+            d = directory
+            print(d)
+            cli.generate_pod_template(self.parser.parse_args(
+                ['generate_pod_template', '-o', directory]))
+            self.assertTrue(os.path.isdir(directory))
+            self.assertTrue(os.path.isfile(os.path.join(directory, 'airflow_template.yml')))
+
+            # ensure that a valid pod is created from YAML
+            result = PodGenerator.deserialize_model_file(os.path.join(directory, 'airflow_template.yml'))
+            self.assertIsNotNone(result)
 
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
@@ -523,6 +521,98 @@ class TestCLI(unittest.TestCase):
         )
 
 
+class TestLogsfromTaskRunCommand(unittest.TestCase):
+
+    def setUp(self):
+        self.dag_id = "test_logging_dag"
+        self.task_id = "test_task"
+        reset(self.dag_id)
+        self.execution_date_str = timezone.make_aware(datetime(2017, 1, 1)).isoformat()
+        self.log_dir = conf.get('core', 'base_log_folder')
+        self.log_filename = "{}/{}/{}/1.log".format(self.dag_id, self.task_id, self.execution_date_str)
+        self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
+        self.parser = cli.CLIFactory.get_parser()
+        try:
+            os.remove(self.ti_log_file_path)
+        except OSError:
+            pass
+
+    def tearDown(self):
+        reset(self.dag_id)
+        try:
+            os.remove(self.ti_log_file_path)
+        except OSError:
+            pass
+
+    def assert_log_line(self, text, logs_list, expect_from_logging_mixin=False):
+        """
+        Get Log Line and assert only 1 Entry exists with the given text. Also check that
+        "logging_mixin" line does not appear in that log line to avoid duplicate loggigng as below:
+        [2020-06-24 16:47:23,537] {logging_mixin.py:91} INFO - [2020-06-24 16:47:23,536] {python.py:135}
+        """
+        log_lines = [log for log in logs_list if text in log]
+        self.assertEqual(len(log_lines), 1)
+        log_line = log_lines[0]
+        if not expect_from_logging_mixin:
+            # Logs from print statement still show with logging_mixing as filename
+            # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
+            self.assertNotIn("logging_mixin.py", log_line)
+        return log_line
+
+    @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
+    def test_logging_with_run_task(self):
+        #  We are not using self.assertLogs as we want to verify what actually is stored in the Log file
+        # as that is what gets displayed
+
+        with conf_vars({('core', 'dags_folder'): os.path.join(TEST_DAG_FOLDER, self.dag_id)}):
+            cli.run(self.parser.parse_args([
+                'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
+
+        with open(self.ti_log_file_path) as l_file:
+            logs = l_file.read()
+
+        print(logs)     # In case of a test failures this line would show detailed log
+        logs_list = logs.splitlines()
+
+        self.assertIn("INFO - Started process", logs)
+        self.assertIn("Subtask {}".format(self.task_id), logs)
+        self.assertIn("standard_task_runner.py", logs)
+        self.assertIn("INFO - Running: ['airflow', 'run', '{}', "
+                      "'{}', '{}',".format(self.dag_id, self.task_id, self.execution_date_str), logs)
+
+        self.assert_log_line("Log from DAG Logger", logs_list)
+        self.assert_log_line("Log from TI Logger", logs_list)
+        self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
+
+        self.assertIn("INFO - Marking task as SUCCESS.dag_id={}, task_id={}, "
+                      "execution_date=20170101T000000".format(self.dag_id, self.task_id), logs)
+
+    @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
+    def test_logging_with_run_task_subprocess(self):
+        # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
+        # as that is what gets displayed
+        with conf_vars({('core', 'dags_folder'): os.path.join(TEST_DAG_FOLDER, self.dag_id)}):
+            cli.run(self.parser.parse_args([
+                'run', self.dag_id, self.task_id, '--local', self.execution_date_str]))
+
+        with open(self.ti_log_file_path) as l_file:
+            logs = l_file.read()
+
+        print(logs)     # In case of a test failures this line would show detailed log
+        logs_list = logs.splitlines()
+
+        self.assertIn("Subtask {}".format(self.task_id), logs)
+        self.assertIn("base_task_runner.py", logs)
+        self.assert_log_line("Log from DAG Logger", logs_list)
+        self.assert_log_line("Log from TI Logger", logs_list)
+        self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
+
+        self.assertIn("INFO - Running: ['airflow', 'run', '{}', "
+                      "'{}', '{}',".format(self.dag_id, self.task_id, self.execution_date_str), logs)
+        self.assertIn("INFO - Marking task as SUCCESS.dag_id={}, task_id={}, "
+                      "execution_date=20170101T000000".format(self.dag_id, self.task_id), logs)
+
+
 @pytest.mark.integration("redis")
 @pytest.mark.integration("rabbitmq")
 class TestWorkerServeLogs(unittest.TestCase):
@@ -593,3 +683,468 @@ class TestWorkerStart(unittest.TestCase):
             hostname=celery_hostname,
             loglevel=mock.ANY,
         )
+
+
+class TestCliConfig(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    @mock.patch("airflow.bin.cli.cli_utils.should_use_colors", return_value=False)
+    @mock.patch("airflow.bin.cli.io.StringIO")
+    @mock.patch("airflow.bin.cli.conf")
+    def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio, mock_should_use_colors):
+        cli.config(self.parser.parse_args(['config']))
+        mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
+
+    @conf_vars({
+        ('core', 'testkey'): 'test_value'
+    })
+    def test_cli_show_config_should_display_key(self):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.config(self.parser.parse_args(['config', '--color=off']))
+        self.assertIn('[core]', temp_stdout.getvalue())
+        self.assertIn('testkey = test_value', temp_stdout.getvalue())
+
+
+class TestPiiAnonymizer(unittest.TestCase):
+    def setUp(self):
+        self.instance = cli.PiiAnonymizer()
+
+    def test_should_remove_pii_from_path(self):
+        home_path = os.path.expanduser("~/airflow/config")
+        self.assertEqual("${HOME}/airflow/config", self.instance.process_path(home_path))
+
+    @parameterized.expand(
+        [
+            (
+                "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+                "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow",
+            ),
+            (
+                "postgresql+psycopg2://postgres@postgres/airflow",
+                "postgresql+psycopg2://p...s@postgres/airflow",
+            ),
+            (
+                "postgresql+psycopg2://:airflow@postgres/airflow",
+                "postgresql+psycopg2://:PASSWORD@postgres/airflow",
+            ),
+            ("postgresql+psycopg2://postgres/airflow", "postgresql+psycopg2://postgres/airflow",),
+        ]
+    )
+    def test_should_remove_pii_from_url(self, before, after):
+        self.assertEqual(after, self.instance.process_url(before))
+
+
+class TestAirflowInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        text = str(cli.AirflowInfo(cli.NullAnonymizer()))
+
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), text)
+
+
+class TestSystemInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        self.assertTrue(str(cli.SystemInfo(cli.NullAnonymizer())))
+
+
+class TestPathsInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        self.assertTrue(str(cli.PathsInfo(cli.NullAnonymizer())))
+
+
+class TestConfigInfo(unittest.TestCase):
+    @conf_vars(
+        {
+            ("core", "executor"): "TEST_EXECUTOR",
+            ("core", "dags_folder"): "TEST_DAGS_FOLDER",
+            ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
+            ("core", "base_log_folder"): "TEST_LOG_FOLDER",
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    def test_should_read_config(self):
+        instance = cli.ConfigInfo(cli.NullAnonymizer())
+        text = str(instance)
+        self.assertIn("TEST_EXECUTOR", text)
+        self.assertIn("TEST_DAGS_FOLDER", text)
+        self.assertIn("TEST_PLUGINS_FOLDER", text)
+        self.assertIn("TEST_LOG_FOLDER", text)
+        self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", text)
+
+
+class TestToolsInfo(unittest.TestCase):
+    def test_should_be_string(self):
+        self.assertTrue(str(cli.ToolsInfo(cli.NullAnonymizer())))
+
+
+class TestShowInfo(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.get_parser()
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    def test_show_info(self):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.info(self.parser.parse_args(["info"]))
+
+        output = temp_stdout.getvalue()
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn("postgresql+psycopg2://postgres:airflow@postgres/airflow", output)
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    def test_show_info_anonymize(self):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.info(self.parser.parse_args(["info", "--anonymize"]))
+
+        output = temp_stdout.getvalue()
+        self.assertIn("Apache Airflow [{}]".format(airflow_version), output)
+        self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", output)
+
+    @conf_vars(
+        {
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+        }
+    )
+    @mock.patch(  # type: ignore
+        "airflow.bin.cli.requests",
+        **{
+            "post.return_value.ok": True,
+            "post.return_value.json.return_value": {
+                "success": True,
+                "key": "f9U3zs3I",
+                "link": "https://file.io/TEST",
+                "expiry": "14 days",
+            },
+        }
+    )
+    def test_show_info_anonymize_fileio(self, mock_requests):
+        temp_stdout = StringIO()
+        with mock.patch("sys.stdout", temp_stdout):
+            cli.info(self.parser.parse_args(["info", "--file-io"]))
+
+        self.assertIn("https://file.io/TEST", temp_stdout.getvalue())
+        content = mock_requests.post.call_args[1]["files"]["file"][1]
+        self.assertIn("postgresql+psycopg2://p...s:PASSWORD@postgres/airflow", content)
+
+
+class TestGunicornMonitor(unittest.TestCase):
+
+    def setUp(self):
+        self.monitor = cli.GunicornMonitor(
+            gunicorn_master_pid=1,
+            num_workers_expected=4,
+            master_timeout=60,
+            worker_refresh_interval=60,
+            worker_refresh_batch_size=2,
+            reload_on_plugin_change=True,
+        )
+        mock.patch.object(self.monitor, '_generate_plugin_state', return_value={}).start()
+        mock.patch.object(self.monitor, '_get_num_ready_workers_running', return_value=4).start()
+        mock.patch.object(self.monitor, '_get_num_workers_running', return_value=4).start()
+        mock.patch.object(self.monitor, '_spawn_new_workers', return_value=None).start()
+        mock.patch.object(self.monitor, '_kill_old_workers', return_value=None).start()
+        mock.patch.object(self.monitor, '_reload_gunicorn', return_value=None).start()
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_wait_for_workers_to_start(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 0
+        self.monitor._get_num_workers_running.return_value = 4
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_kill_excess_workers(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 10
+        self.monitor._get_num_workers_running.return_value = 10
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_start_new_workers_when_missing(self, mock_sleep):
+        self.monitor._get_num_ready_workers_running.return_value = 2
+        self.monitor._get_num_workers_running.return_value = 2
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_start_new_workers_when_refresh_interval_has_passed(self, mock_sleep):
+        self.monitor._last_refresh_time -= 200
+        self.monitor._check_workers()
+        self.monitor._spawn_new_workers.assert_called_once_with(2)  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+        self.assertAlmostEqual(self.monitor._last_refresh_time, timetime(), delta=5)
+
+    @mock.patch('airflow.bin.cli.time.sleep')
+    def test_should_reload_when_plugin_has_been_changed(self, mock_sleep):
+        self.monitor._generate_plugin_state.return_value = {'AA': 12}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_not_called()  # pylint: disable=no-member
+
+        self.monitor._generate_plugin_state.return_value = {'AA': 32}
+
+        self.monitor._check_workers()
+
+        self.monitor._spawn_new_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._kill_old_workers.assert_not_called()  # pylint: disable=no-member
+        self.monitor._reload_gunicorn.assert_called_once_with()  # pylint: disable=no-member
+        self.assertAlmostEqual(self.monitor._last_refresh_time, timetime(), delta=5)
+
+
+class TestGunicornMonitorGeneratePluginState(unittest.TestCase):
+    @staticmethod
+    def _prepare_test_file(filepath, size):
+        try:
+            os.makedirs(os.path.dirname(filepath))
+        except OSError as e:
+            # be happy if someone already created the path
+            if e.errno != errno.EEXIST:
+                raise
+        with open(filepath, "w") as file:
+            file.write("A" * size)
+            file.flush()
+
+    def test_should_detect_changes_in_directory(self):
+        with TemporaryDirectory(prefix="tmp") as tempdir, \
+                mock.patch("airflow.bin.cli.settings.PLUGINS_FOLDER", tempdir):
+            self._prepare_test_file("{}/file1.txt".format(tempdir), 100)
+            self._prepare_test_file("{}/nested/nested/nested/nested/file2.txt".format(tempdir), 200)
+            self._prepare_test_file("{}/file3.txt".format(tempdir), 300)
+
+            monitor = cli.GunicornMonitor(
+                gunicorn_master_pid=1,
+                num_workers_expected=4,
+                master_timeout=60,
+                worker_refresh_interval=60,
+                worker_refresh_batch_size=2,
+                reload_on_plugin_change=True,
+            )
+
+            # When the files have not changed, the result should be constant
+            state_a = monitor._generate_plugin_state()
+            state_b = monitor._generate_plugin_state()
+
+            self.assertEqual(state_a, state_b)
+            self.assertEqual(3, len(state_a))
+
+            # Should detect new file
+            self._prepare_test_file("{}/file4.txt".format(tempdir), 400)
+
+            state_c = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_b, state_c)
+            self.assertEqual(4, len(state_c))
+
+            # Should detect changes in files
+            self._prepare_test_file("{}/file4.txt".format(tempdir), 450)
+
+            state_d = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_c, state_d)
+            self.assertEqual(4, len(state_d))
+
+            # Should support large files
+            self._prepare_test_file("{}/file4.txt".format(tempdir), 4000000)
+
+            state_d = monitor._generate_plugin_state()
+
+            self.assertNotEqual(state_c, state_d)
+            self.assertEqual(4, len(state_d))
+
+
+class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.get_parser()
+
+    def setUp(self):
+        self.gunicorn_master_proc = mock.Mock(pid=2137)
+        self.children = mock.MagicMock()
+        self.child = mock.MagicMock()
+        self.process = mock.MagicMock()
+        self.monitor = cli.GunicornMonitor(
+            gunicorn_master_pid=1,
+            num_workers_expected=4,
+            master_timeout=60,
+            worker_refresh_interval=60,
+            worker_refresh_batch_size=2,
+            reload_on_plugin_change=True,
+        )
+
+    def test_ready_prefix_on_cmdline(self):
+        self.child.cmdline.return_value = [settings.GUNICORN_WORKER_READY_PREFIX]
+        self.process.children.return_value = [self.child]
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 1)
+
+    def test_ready_prefix_on_cmdline_no_children(self):
+        self.process.children.return_value = []
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
+
+    def test_ready_prefix_on_cmdline_zombie(self):
+        self.child.cmdline.return_value = []
+        self.process.children.return_value = [self.child]
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
+
+    def test_ready_prefix_on_cmdline_dead_process(self):
+        self.child.cmdline.side_effect = psutil.NoSuchProcess(11347)
+        self.process.children.return_value = [self.child]
+
+        with mock.patch('psutil.Process', return_value=self.process):
+            self.assertEqual(self.monitor._get_num_ready_workers_running(), 0)
+
+
+class TestCleanUpPodsCommand(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.get_parser()
+
+    @mock.patch('kubernetes.client.CoreV1Api.delete_namespaced_pod')
+    def test_delete_pod(self, delete_namespaced_pod):
+        cli._delete_pod('dummy', 'awesome-namespace')
+        delete_namespaced_pod.assert_called_with(body=mock.ANY, name='dummy', namespace='awesome-namespace')
+
+    @mock.patch('airflow.bin.cli._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('airflow.kubernetes.kube_client.config.load_incluster_config')
+    def test_running_pods_are_not_cleaned(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy'
+        pod1.status.phase = 'Running'
+        pod1.status.reason = None
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        cli.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        delete_pod.assert_not_called()
+        load_incluster_config.assert_called_once_with()
+
+    @mock.patch('airflow.bin.cli._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('airflow.kubernetes.kube_client.config.load_incluster_config')
+    def test_cleanup_succeeded_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy'
+        pod1.status.phase = 'Succeeded'
+        pod1.status.reason = None
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        cli.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        delete_pod.assert_called_with('dummy', 'awesome-namespace')
+        load_incluster_config.assert_called_once_with()
+
+    @mock.patch('airflow.bin.cli._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
+    def test_no_cleanup_failed_pods_wo_restart_policy_never(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy2'
+        pod1.status.phase = 'Failed'
+        pod1.status.reason = None
+        pod1.spec.restart_policy = 'Always'
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        cli.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        delete_pod.assert_not_called()
+        load_incluster_config.assert_called_once_with()
+
+    @mock.patch('airflow.bin.cli._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
+    def test_cleanup_failed_pods_w_restart_policy_never(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy3'
+        pod1.status.phase = 'Failed'
+        pod1.status.reason = None
+        pod1.spec.restart_policy = 'Never'
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        cli.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        delete_pod.assert_called_with('dummy3', 'awesome-namespace')
+        load_incluster_config.assert_called_once_with()
+
+    @mock.patch('airflow.bin.cli._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
+    def test_cleanup_evicted_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy4'
+        pod1.status.phase = 'Failed'
+        pod1.status.reason = 'Evicted'
+        pod1.spec.restart_policy = 'Never'
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        cli.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        delete_pod.assert_called_with('dummy4', 'awesome-namespace')
+        load_incluster_config.assert_called_once_with()
+
+    @mock.patch('airflow.bin.cli._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
+    def test_cleanup_api_exception_continue(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        delete_pod.side_effect = kubernetes.client.rest.ApiException(status=0)
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy'
+        pod1.status.phase = 'Succeeded'
+        pod1.status.reason = None
+        pods = list_namespaced_pod()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        cli.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        load_incluster_config.assert_called_once_with()

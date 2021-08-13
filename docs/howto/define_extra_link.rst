@@ -29,6 +29,11 @@ will be available on the task page:
 
 The following code shows how to add extra links to an operator:
 
+  .. note::
+
+    In order for extra links to be rendered you must be using the
+    ``RBAC UI``, *NOT* the ``Flask UI``.
+
 .. code-block:: python
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink

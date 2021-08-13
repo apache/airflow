@@ -21,6 +21,9 @@ import sys
 import os
 from airflow.models import BaseOperator  # noqa: F401
 
+
+PY37 = sys.version_info >= (3, 7)
+
 # ------------------------------------------------------------------------
 #
 # #TODO #FIXME Airflow 2.0
@@ -101,9 +104,14 @@ if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
 
 def _integrate_plugins():
     """Integrate plugins to the context"""
-    from airflow.plugins_manager import operators_modules, register_inbuilt_operator_links
+    from airflow.plugins_manager import operators_modules
     for operators_module in operators_modules:
+
         sys.modules[operators_module.__name__] = operators_module
+        if not PY37:
+            from pep562 import Pep562
+            operators_module = Pep562(operators_module.__name__)
+
         globals()[operators_module._name] = operators_module
 
         ##########################################################
@@ -121,5 +129,3 @@ def _integrate_plugins():
                     "import from 'airflow.operators.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
                     "entirely in Airflow 2.0.".format(i=operator_name))
-
-    register_inbuilt_operator_links()

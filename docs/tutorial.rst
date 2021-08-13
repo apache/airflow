@@ -127,7 +127,7 @@ otherwise Airflow will raise an exception.
 Templating with Jinja
 ---------------------
 Airflow leverages the power of
-`Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  and provides
+`Jinja Templating <https://jinja.palletsprojects.com/>`_  and provides
 the pipeline author
 with a set of built-in parameters and macros. Airflow also provides
 hooks for the pipeline author to define their own parameters, macros and
@@ -191,7 +191,7 @@ Setting up Dependencies
 We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
-.. code:: python
+.. code-block:: python
 
     t1.set_downstream(t2)
 

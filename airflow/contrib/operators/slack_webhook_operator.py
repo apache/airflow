@@ -57,10 +57,12 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type link_names: bool
     :param proxy: Proxy to use to make the Slack webhook call
     :type proxy: str
+    :param extra_options: Extra options for http hook
+    :type extra_options: dict
     """
 
     template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
-                       'username', 'proxy', ]
+                       'username', 'proxy', 'extra_options', ]
 
     @apply_defaults
     def __init__(self,
@@ -74,6 +76,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  icon_emoji=None,
                  icon_url=None,
                  link_names=False,
+                 extra_options=None,
                  proxy=None,
                  *args,
                  **kwargs):
@@ -92,6 +95,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.link_names = link_names
         self.proxy = proxy
         self.hook = None
+        self.extra_options = extra_options
 
     def execute(self, context):
         """
@@ -108,6 +112,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
             self.icon_emoji,
             self.icon_url,
             self.link_names,
-            self.proxy
+            self.proxy,
+            self.extra_options
         )
         self.hook.execute()

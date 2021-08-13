@@ -14,106 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.kubernetes.refresh_config`."""
 
-"""
-NOTE: this module can be removed once upstream client supports token refresh
-see: https://github.com/kubernetes-client/python/issues/741
-"""
+import warnings
 
-import calendar
-import logging
-import os
-import time
-from datetime import datetime
+# pylint: disable=unused-import
+from airflow.kubernetes.refresh_config import (   # noqa
+    RefreshConfiguration, RefreshKubeConfigLoader, load_kube_config
+)
 
-import yaml
-from kubernetes.client import Configuration
-from kubernetes.config.exec_provider import ExecProvider
-from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
-
-
-class RefreshKubeConfigLoader(KubeConfigLoader):
-    """
-    Patched KubeConfigLoader, this subclass takes expirationTimestamp into
-    account and sets api key refresh callback hook in Configuration object
-    """
-    def __init__(self, *args, **kwargs):
-        KubeConfigLoader.__init__(self, *args, **kwargs)
-        self.api_key_expire_ts = None
-
-    def _load_from_exec_plugin(self):
-        """
-        We override _load_from_exec_plugin method to also read and store
-        expiration timestamp for aws-iam-authenticator. It will be later
-        used for api token refresh.
-        """
-        if 'exec' not in self._user:
-            return None
-        try:
-            status = ExecProvider(self._user['exec']).run()
-            if 'token' not in status:
-                logging.error('exec: missing token field in plugin output')
-                return None
-            self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
-            ts_str = status.get('expirationTimestamp')
-            if ts_str:
-                self.api_key_expire_ts = calendar.timegm(
-                    datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple(),
-                )
-            return True
-        except Exception as e:  # pylint: disable=W0703
-            logging.error(str(e))
-
-    def refresh_api_key(self, client_configuration):
-        """
-        Refresh API key if expired
-        """
-        if self.api_key_expire_ts and time.time() >= self.api_key_expire_ts:
-            self.load_and_set(client_configuration)
-
-    def load_and_set(self, client_configuration):
-        KubeConfigLoader.load_and_set(self, client_configuration)
-        client_configuration.refresh_api_key = self.refresh_api_key
-
-
-class RefreshConfiguration(Configuration):
-    """
-    Patched Configuration, this subclass taskes api key refresh callback hook
-    into account
-    """
-    def __init__(self, *args, **kwargs):
-        Configuration.__init__(self, *args, **kwargs)
-        self.refresh_api_key = None
-
-    def get_api_key_with_prefix(self, identifier):
-        if self.refresh_api_key:
-            self.refresh_api_key(self)  # pylint: disable=E1102
-        return Configuration.get_api_key_with_prefix(self, identifier)
-
-
-def _get_kube_config_loader_for_yaml_file(filename, **kwargs):
-    """
-    Adapted from the upstream _get_kube_config_loader_for_yaml_file function, changed
-    KubeConfigLoader to RefreshKubeConfigLoader
-    """
-    with open(filename) as f:
-        return RefreshKubeConfigLoader(
-            config_dict=yaml.safe_load(f),
-            config_base_path=os.path.abspath(os.path.dirname(filename)),
-            **kwargs)
-
-
-def load_kube_config(client_configuration, config_file=None, context=None):
-    """
-    Adapted from the upstream load_kube_config function, changes:
-        - removed persist_config argument since it's not being used
-        - remove `client_configuration is None` branch since we always pass
-        in client configuration
-    """
-    if config_file is None:
-        config_file = os.path.expanduser(KUBE_CONFIG_DEFAULT_LOCATION)
-
-    loader = _get_kube_config_loader_for_yaml_file(
-        config_file, active_context=context, config_persister=None)
-
-    loader.load_and_set(client_configuration)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.kubernetes.refresh_config`.",
+    DeprecationWarning, stacklevel=2
+)

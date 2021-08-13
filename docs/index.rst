@@ -85,6 +85,7 @@ Content
     profiling
     scheduler
     executor/index
+    dag-run
     plugins
     security
     timezone
@@ -95,8 +96,10 @@ Content
     kubernetes
     lineage
     dag-serialization
+    backport-providers
     changelog
     best-practices
+    production-deployment
     faq
     privacy_notice
 

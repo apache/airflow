@@ -22,6 +22,7 @@ import json
 import unittest
 
 import numpy as np
+import six
 
 from airflow.utils import json as utils_json
 
@@ -76,11 +77,11 @@ class TestAirflowJsonEncoder(unittest.TestCase):
         )
 
     def test_encode_raises(self):
-        self.assertRaisesRegexp(TypeError,
-                                "^.*is not JSON serializable$",
-                                json.dumps,
-                                Exception,
-                                cls=utils_json.AirflowJsonEncoder)
+        six.assertRaisesRegex(self, TypeError,
+                              "^.*is not JSON serializable$",
+                              json.dumps,
+                              Exception,
+                              cls=utils_json.AirflowJsonEncoder)
 
 
 if __name__ == '__main__':

@@ -22,12 +22,19 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/graph.css') }}">
+<style type="text/css">
+  {% for state, state_color in state_color_mapping.items() %}
+    g.node.{{state}} rect {
+      stroke: {{state_color}};
+    }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
 {% if doc_md %}
-<div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
+{{ doc_md }}
 {% endif %}
 <div class="form-inline">
   <form method="get" style="float:left;">
@@ -35,9 +42,9 @@
     Base date: {{ form.base_date(class_="form-control") }}
     Number of runs: {{ form.num_runs(class_="form-control") }}
     Run:
-    {{ form.execution_date(class_="form-control") | safe }}
+    {{ form.execution_date(class_="form-control") }}
     Layout:
-    {{ form.arrange(class_="form-control") | safe }}
+    {{ form.arrange(class_="form-control") }}
     <input type="hidden" name="root" value="{{ root }}">
     <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
@@ -58,14 +65,9 @@
 
   <div>
     <div class="legend_item state" style="border-color:white;">no_status</div>
-    <div class="legend_item state" style="border-color:grey;">queued</div>
-    <div class="legend_item state" style="border-color:gold;">up_for_retry</div>
-    <div class="legend_item state" style="border-color:turquoise;">up_for_reschedule</div>
-    <div class="legend_item state" style="border-color:orange;">upstream_failed</div>
-    <div class="legend_item state" style="border-color:pink;">skipped</div>
-    <div class="legend_item state" style="border-color:red;">failed</div>
-    <div class="legend_item state" style="border-color:lime;">running</div>
-    <div class="legend_item state" style="border-color:green;">success</div>
+  {% for state, state_color in state_color_mapping.items() %}
+    <div class="legend_item state" style="border-color:{{state_color}};">{{state}}</div>
+  {% endfor %}
   </div>
   <div style="clear:both;"></div>
 </div>
@@ -73,7 +75,7 @@
   <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
   <span id="error_msg">Oops.</span>
 </div>
-<hr style="margin-bottom: 0px;"/>
+<hr style="margin-bottom:0;"/>
 <button class="btn btn-default pull-right" id="refresh_button">
   <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
 </button>
@@ -104,14 +106,14 @@
     var initialStrokeWidth = '3px';
     var highlightStrokeWidth = '5px';
 
-    var nodes = {{ nodes|tojson|safe }};
-    var edges = {{ edges|tojson|safe }};
+    var nodes = {{ nodes|tojson }};
+    var edges = {{ edges|tojson }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
 
     // Below variables are being used in dag.js
-    var tasks = {{ tasks|tojson|safe }};
-    var task_instances = {{ task_instances|tojson|safe }};
+    var tasks = {{ tasks|tojson }};
+    var task_instances = {{ task_instances|tojson }};
     var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
       "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
       encodeURIComponent(execution_date);
@@ -205,24 +207,42 @@
     });
 
 
-    function highlight_nodes(nodes, color) {
+    function highlight_nodes(nodes, color, stroke_width) {
         nodes.forEach (function (nodeid) {
             my_node = d3.select('[id="' + nodeid + '"]').node().parentNode;
-            d3.select(my_node).selectAll("rect").style("stroke", color) ;
+            d3.select(my_node)
+                .selectAll("rect")
+                .style("stroke", color)
+                .style("stroke-width", stroke_width) ;
         })
     }
 
     d3.selectAll("g.node").on("mouseover", function(d){
         d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color);
-        highlight_nodes(g.successors(d), downstream_color)
-
+        highlight_nodes(g.predecessors(d), upstream_color, highlightStrokeWidth);
+        highlight_nodes(g.successors(d), downstream_color, highlightStrokeWidth)
+        adjacent_node_names = [d, ...g.predecessors(d), ...g.successors(d)]
+        d3.selectAll("g.nodes g.node")
+            .filter(x => !adjacent_node_names.includes(x))
+            .style("opacity", 0.2);
+        adjacent_edges = g.nodeEdges(d)
+        d3.selectAll("g.edgePath")[0]
+            .filter(x => !adjacent_edges.includes(x.__data__))
+            .forEach(function(x) {
+                d3.select(x).style('opacity', .2)
+            })
     });
 
     d3.selectAll("g.node").on("mouseout", function(d){
         d3.select(this).selectAll("rect").style("stroke", null) ;
-        highlight_nodes(g.predecessors(d), null)
-        highlight_nodes(g.successors(d), null)
+        highlight_nodes(g.predecessors(d), null, initialStrokeWidth)
+        highlight_nodes(g.successors(d), null, initialStrokeWidth)
+        d3.selectAll("g.node")
+            .style("opacity", 1);
+        d3.selectAll("g.node rect")
+            .style("stroke-width", initialStrokeWidth);
+        d3.selectAll("g.edgePath")
+            .style("opacity", 1);
     });
 
 

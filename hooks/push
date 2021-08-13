@@ -20,11 +20,6 @@
 # and it is difficult to pass list of the built images from the build to push phase
 set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-echo "My dir: ${MY_DIR}"
-
-
 echo
 echo "Skip pushing the image. All images were built and pushed in the build hook already!"
 echo
