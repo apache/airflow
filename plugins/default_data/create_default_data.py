@@ -117,11 +117,20 @@ class LoadDefaultDataPlugin(AirflowPlugin):
     @classmethod
     def on_load(cls, *args, **kwargs):
         # create_default_users()
-        if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
-            create_default_error_tags()
+        try:
+            if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
+                create_default_error_tags()
+        except Exception as e:
+            log.error(e)
 
-        if conf.getboolean('core', 'LOAD_DEFAULT_DEVICE_TYPE', fallback=True):
-            create_device_type_support()
+        try:
+            if conf.getboolean('core', 'LOAD_DEFAULT_DEVICE_TYPE', fallback=True):
+                create_device_type_support()
+        except Exception as e:
+            log.error(e)
 
-        factory_code = get_factory_code()
-        load_default_controller(factory_code)
+        try:
+            factory_code = get_factory_code()
+            load_default_controller(factory_code)
+        except Exception as e:
+            log.error(e)

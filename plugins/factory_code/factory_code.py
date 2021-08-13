@@ -11,4 +11,4 @@ def get_factory_code():
     for key, values in factory_code_map.items():
         if code in values:
             return key
-    return None
+    return code

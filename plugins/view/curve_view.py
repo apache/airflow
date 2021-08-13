@@ -17,6 +17,8 @@ _logger = logging.getLogger(__name__)
 class CurveView(BaseView):
     route_base = ''
 
+    base_permissions = ['can_view_curve_page']
+
     @expose('/view_curve/<string:entity_id>')
     @has_access
     def view_curve_page(self, entity_id: str):
@@ -50,9 +52,7 @@ class CurveView(BaseView):
         error_tags = ErrorTag.get_all()
         ENV_CURVE_GRAPH_SHOW_RANGE = os.environ.get('CURVE_GRAPH_SHOW_RANGE')
         show_range = (ENV_CURVE_GRAPH_SHOW_RANGE is True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
-        can_verify = _has_access('set_final_state_ok', 'TaskInstanceModelView') \
-                     and _has_access('set_final_state_nok', 'TaskInstanceModelView')
-
+        can_verify = _has_access('can_double_confirm_task', 'DoubleConfirmView')
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')
