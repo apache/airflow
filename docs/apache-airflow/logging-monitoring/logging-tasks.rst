@@ -119,4 +119,4 @@ Most task handlers send logs upon completion of a task. In order to view the log
 The server is running on the port specified by ``worker_log_server_port`` option in ``celery`` section. By default, it is ``8793``.
 Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``webserver`` section. You must ensure that the key matches so that communication can take place without problems.
 
-We are using `Gunicorm <https://gunicorn.org/>`__ as WSGI server and that the configuration options can be overridden by ``GUNiCORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__
+We are using `Gunicorm <https://gunicorn.org/>`__ as WSGI server. Its configuration options can be overridden by ``GUNiCORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__
