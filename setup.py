@@ -340,14 +340,6 @@ http = [
     'requests>=2.26.0',
 ]
 http_provider = [
-    # NOTE ! The HTTP provider is NOT preinstalled by default when Airflow is installed - because it
-    #        depends on `requests` library and until `chardet` is mandatory dependency of `requests`
-    #        See https://github.com/psf/requests/pull/5797
-    #        This means that providers that depend on Http and cannot work without it, have to have
-    #        explicit dependency on `apache-airflow-providers-http` which needs to be pulled in for them.
-    #        Other cross-provider-dependencies are optional (usually cross-provider dependencies only enable
-    #        some features of providers and majority of those providers works). They result with an extra,
-    #        not with the `install-requires` dependency.
     'apache-airflow-providers-http',
 ]
 jdbc = [
