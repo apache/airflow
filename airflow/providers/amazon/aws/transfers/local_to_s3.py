@@ -94,8 +94,13 @@ class LocalFilesystemToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
+<<<<<<< HEAD
         if 's3://' in self.dest_key and self.dest_bucket is not None:
             raise TypeError('dest_bucket should be None when dest_key is provided as a full s3:// file path.')
+=======
+        if "s3://" in self.dest_key and self.dest_bucket is not None:
+            raise TypeError("dest_bucket should be None when dest_key is a full s3:// url.")
+>>>>>>> 2c604073f (Add exception when incompatible parameters are given to Operator)
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
