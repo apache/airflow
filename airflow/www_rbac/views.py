@@ -2601,9 +2601,6 @@ class DagRunModelView(AirflowModelView):
     base_permissions = ['can_list', 'can_add']
 
     add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
-<<<<<<< HEAD
-    list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger']
-    search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger']
     label_columns = {
         'state': lazy_gettext('State'),
         'dag_id': lazy_gettext('Dag Id'),
@@ -2611,11 +2608,9 @@ class DagRunModelView(AirflowModelView):
         'run_id': lazy_gettext('Run Id'),
         'external_trigger': lazy_gettext('External Trigger')
     }
-=======
     list_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
     search_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
 
->>>>>>> 1.10.15
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
