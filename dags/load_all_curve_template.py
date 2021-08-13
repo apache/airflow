@@ -13,7 +13,7 @@ from plugins.models.curve_template import CurveTemplateModel
 import asyncio
 from plugins.entities.redis import ClsRedisConnection
 from plugins.utils.utils import parse_template_name
-from airflow.hooks.cas_plugin import CasHook
+from plugins.cas.cas_plugin import CasHook
 
 CURVE_MODE_MAP = {
     'OK': 0,

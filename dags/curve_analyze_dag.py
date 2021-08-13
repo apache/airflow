@@ -5,7 +5,7 @@ from datetime import timedelta
 import pendulum
 from plugins.utils.logger import generate_logger
 from distutils.util import strtobool
-from airflow.operators.trigger_analyze_plugin import TriggerAnalyzeOperator
+from plugins.trigger_analyze.trigger_analyze_plugin import TriggerAnalyzeOperator
 
 _logger = generate_logger(__name__)
 

@@ -340,5 +340,4 @@ class PublishResultOperator(BaseOperator):
 # Defining the plugin class
 class PublishResultPlugin(AirflowPlugin):
     name = "publish_result_plugin"
-    operators = [PublishResultOperator]
     hooks = [PublishResultHook]

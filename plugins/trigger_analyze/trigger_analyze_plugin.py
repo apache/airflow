@@ -229,6 +229,5 @@ def put_analyze_result():
 # Defining the plugin class
 class TriggerAnalyzePlugin(AirflowPlugin):
     name = "trigger_analyze_plugin"
-    operators = [TriggerAnalyzeOperator]
     hooks = [TriggerAnalyzeHook]
     flask_blueprints = [csrf.exempt(bp)]
