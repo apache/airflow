@@ -99,3 +99,15 @@ class Client(api_client.Client):
         url = urljoin(self._api_base_url, endpoint)
         data = self._request(url, method='GET')
         return data['message']
+
+    def get_dag_runs(self, dag_id: str):
+        endpoint = f'/api/experimental/dags/{dag_id}/dag_runs'
+        url = urljoin(self._api_base_url, endpoint)
+        data = self._request(url, method='GET')
+        return data
+
+    def get_dag_run(self, dag_id: str, execution_date: str):
+        endpoint = f'/api/experimental/dags/{dag_id}/dag_runs/{execution_date}'
+        url = urljoin(self._api_base_url, endpoint)
+        data = self._request(url, method='GET')
+        return data
