@@ -107,3 +107,16 @@ External Links
 When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
 
 Some external systems require specific configuration in Airflow for redirection to work but others do not.
+
+Serving logs from workers
+-------------------------
+
+Most task handlers send logs upon completion of a task. In order to view the log in real time, airflow starts the server serving the log in the following cases:
+
+- If ``SchedulerExecutor`` or ``LocalExecutor`` is used, then after running the ``airflow scheduler`` command.
+- If ``CeleryExecutor`` is used, then after running the ``airflow worker`` command.
+
+The server is running on the port specified by ``worker_log_server_port`` option in ``celery`` section. By default, it is ``8793``.
+Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``webserver`` section. You must ensure that the key matches so that communication can take place without problems.
+
+We are using `Gunicorm <https://gunicorn.org/>`__ as WSGI server and that the configuration options can be overridden by ``GUNiCORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__
