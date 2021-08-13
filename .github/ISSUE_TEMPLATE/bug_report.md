@@ -62,4 +62,5 @@ Any relevant logs to include? Put them here inside fenced
 This is absolutely not required, but we are happy to guide you in contribution process
 especially if you already have a good understanding of how to implement the fix.
 Airflow is a community-managed project and we love to bring new contributors in.
+Find us in #airflow-how-to-pr on Slack!
  -->
