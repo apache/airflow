@@ -59,7 +59,7 @@ Any relevant logs to include? Put them here inside fenced
 **Are you willing to submit a PR?**
 
 <!---
-This is not required, but we are happy to guide you in contribution process
+This is absolutely not required, but we are happy to guide you in contribution process
 especially if you already have a good understanding of how to implement the fix.
 Airflow is a community-managed project and we love to bring new contributors in.
  -->
