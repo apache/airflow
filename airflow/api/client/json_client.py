@@ -32,7 +32,7 @@ class Client(api_client.Client):
         if json is not None:
             params['json'] = json
         resp = getattr(self._session, method.lower())(**params)
-        if not resp.ok:
+        if resp.is_error:
             # It is justified here because there might be many resp types.
             try:
                 data = resp.json()

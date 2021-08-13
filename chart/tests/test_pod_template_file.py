@@ -439,6 +439,24 @@ class PodTemplateFileTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.initContainers[-1]", docs[0])
 
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.containers[-1]", docs[0])
+
     def test_should_add_pod_labels(self):
         docs = render_chart(
             values={"labels": {"label1": "value1", "label2": "value2"}},

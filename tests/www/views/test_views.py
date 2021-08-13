@@ -116,6 +116,23 @@ def test_task_start_date_filter(admin_client, url, content):
 
 
 @pytest.mark.parametrize(
+    "url, content",
+    [
+        (
+            "/taskinstance/list/?_flt_3_dag_id=test_dag",
+            "List Task Instance",
+        )
+    ],
+    ids=["instance"],
+)
+def test_task_dag_id_equals_filter(admin_client, url, content):
+    resp = admin_client.get(url)
+    # We aren't checking the logic of the dag_id filter itself (that is built
+    # in to FAB) but simply that dag_id filter was run
+    check_content_in_response(content, resp)
+
+
+@pytest.mark.parametrize(
     "test_url, expected_url",
     [
         ("", "/home"),

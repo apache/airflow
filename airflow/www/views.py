@@ -93,7 +93,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, SerializedDagNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -410,11 +410,11 @@ def dag_edges(dag):
 ######################################################################################
 
 
-def circles(error):
-    """Show Circles on screen for any error in the Webserver"""
+def not_found(error):
+    """Show Not Found on screen for any error in the Webserver"""
     return (
         render_template(
-            'airflow/circles.html',
+            'airflow/not_found.html',
             hostname=socket.getfqdn()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
@@ -1761,7 +1761,10 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            dag = current_app.dag_bag.get_dag(dag_id)
+            try:
+                dag = current_app.dag_bag.get_dag(dag_id)
+            except SerializedDagNotFound:
+                dag = None
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -3898,6 +3901,8 @@ class TaskInstanceModelView(AirflowModelView):
         'start_date',
         'end_date',
     ]
+
+    add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]
 
     edit_form = TaskInstanceEditForm
 

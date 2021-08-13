@@ -73,6 +73,19 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### `pandas` is now an optional dependency
+
+Previously `pandas` was a core requirement so when you run `pip install apache-airflow` it looked for `pandas`
+library and installed it if it does not exist.
+
+If you want to install `pandas` compatible with Airflow, you can use `[pandas]` extra while
+installing Airflow, example for Python 3.8 and Airflow 2.1.2:
+
+```shell
+pip install -U "apache-airflow[pandas]==2.1.2" \
+  --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.8.txt"
+```
+
 ### Dummy trigger rule has been deprecated
 
 `TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.

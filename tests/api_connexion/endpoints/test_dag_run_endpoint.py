@@ -20,7 +20,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models import DagModel, DagRun
+from airflow.models import DAG, DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -96,7 +96,8 @@ class TestDagRunEndpoint:
         dag_instance = DagModel(dag_id=dag_id)
         with create_session() as session:
             session.add(dag_instance)
-            session.commit()
+        dag = DAG(dag_id=dag_id, schedule_interval=None)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
 
     def _create_test_dag_run(self, state='running', extra_dag=False, commit=True):
         dag_runs = []

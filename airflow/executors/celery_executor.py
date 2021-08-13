@@ -183,13 +183,17 @@ def on_celery_import_modules(*args, **kwargs):
     doesn't matter, but for short tasks this starts to be a noticeable impact.
     """
     import jinja2.ext  # noqa: F401
-    import numpy  # noqa: F401
 
     import airflow.jobs.local_task_job
     import airflow.macros
     import airflow.operators.bash
     import airflow.operators.python
     import airflow.operators.subdag  # noqa: F401
+
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        pass
 
     try:
         import kubernetes.client  # noqa: F401
