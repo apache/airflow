@@ -75,7 +75,7 @@ running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB i
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-Starting with Airflow 2.1.2, Airflow is tested with tested with Python 3.6, 3.7, 3.8, and 3.9.
+Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.9.
 
 Installation tools
 ''''''''''''''''''
