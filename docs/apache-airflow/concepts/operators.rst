@@ -58,7 +58,7 @@ But there are many, many more - you can see the list of those in our :doc:`apach
 
 Jinja Templating
 ----------------
-Airflow leverages the power of `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a powerful tool to use in combination with :doc:`macros </macros-ref>`.
+Airflow leverages the power of `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a powerful tool to use in combination with :ref:`macros <templates-ref>`.
 
 For example, say you want to pass the execution date as an environment variable to a Bash script using the ``BashOperator``:
 
@@ -73,7 +73,7 @@ For example, say you want to pass the execution date as an environment variable 
       env={"EXECUTION_DATE": date},
   )
 
-Here, ``{{ ds }}`` is a macro, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the execution date will be available as an environment variable named ``EXECUTION_DATE`` in your Bash script.
+Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the execution date will be available as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 
 You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
 

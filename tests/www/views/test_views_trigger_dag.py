@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import datetime
 import json
 
 import pytest
@@ -100,7 +101,7 @@ def test_trigger_dag_wrong_execution_date(admin_client):
     assert run is None
 
 
-def test_trigger_dag_execution_date(admin_client):
+def test_trigger_dag_execution_date_data_interval(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
@@ -112,6 +113,12 @@ def test_trigger_dag_execution_date(admin_client):
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
     assert run.execution_date == exec_date
+
+    # Since example_bash_operator runs once per day, the data interval should be
+    # between midnight yesterday and midnight today.
+    today_midnight = exec_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    assert run.data_interval_start == (today_midnight - datetime.timedelta(days=1))
+    assert run.data_interval_end == today_midnight
 
 
 def test_trigger_dag_form(admin_client):

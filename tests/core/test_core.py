@@ -269,11 +269,13 @@ class TestCore:
         op.resolve_template_files()
 
     def test_task_get_template(self):
-        TI = TaskInstance
-        ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         self.dag_bash.create_dagrun(
-            run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
         )
         ti.run(ignore_ti_state=True)
         context = ti.get_template_context()
@@ -282,23 +284,35 @@ class TestCore:
         assert context['ds'] == '2015-01-01'
         assert context['ds_nodash'] == '20150101'
 
-        # next_ds is 2015-01-02 as the dag interval is daily
+        # next_ds is 2015-01-02 as the dag schedule is daily.
         assert context['next_ds'] == '2015-01-02'
         assert context['next_ds_nodash'] == '20150102'
-
-        # prev_ds is 2014-12-31 as the dag interval is daily
-        assert context['prev_ds'] == '2014-12-31'
-        assert context['prev_ds_nodash'] == '20141231'
 
         assert context['ts'] == '2015-01-01T00:00:00+00:00'
         assert context['ts_nodash'] == '20150101T000000'
         assert context['ts_nodash_with_tz'] == '20150101T000000+0000'
 
-        assert context['yesterday_ds'] == '2014-12-31'
-        assert context['yesterday_ds_nodash'] == '20141231'
+        assert context['data_interval_start'].isoformat() == '2015-01-01T00:00:00+00:00'
+        assert context['data_interval_end'].isoformat() == '2015-01-02T00:00:00+00:00'
 
-        assert context['tomorrow_ds'] == '2015-01-02'
-        assert context['tomorrow_ds_nodash'] == '20150102'
+        # Test deprecated fields.
+        expected_deprecated_fields = [
+            ("prev_ds", "2014-12-31"),
+            ("prev_ds_nodash", "20141231"),
+            ("yesterday_ds", "2014-12-31"),
+            ("yesterday_ds_nodash", "20141231"),
+            ("tomorrow_ds", "2015-01-02"),
+            ("tomorrow_ds_nodash", "20150102"),
+        ]
+        for key, expected_value in expected_deprecated_fields:
+            message = (
+                f"Accessing {key!r} from the template is deprecated and "
+                f"will be removed in a future version."
+            )
+            with pytest.deprecated_call() as recorder:
+                value = str(context[key])  # Simulate template evaluation to trigger warning.
+            assert value == expected_value
+            assert [str(m.message) for m in recorder] == [message]
 
     def test_local_task_job(self):
         TI = TaskInstance
@@ -412,12 +426,9 @@ class TestCore:
         ti = TI(task=task, execution_date=execution_date)
         context = ti.get_template_context()
 
-        # next_ds/prev_ds should be the execution date for manually triggered runs
+        # next_ds should be the execution date for manually triggered runs
         assert context['next_ds'] == execution_ds
         assert context['next_ds_nodash'] == execution_ds_nodash
-
-        assert context['prev_ds'] == execution_ds
-        assert context['prev_ds_nodash'] == execution_ds_nodash
 
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.

@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
+from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -94,10 +95,15 @@ class TaskGroup(TaskMixin):
             self.used_group_ids: Set[Optional[str]] = set()
             self._parent_group = None
         else:
-            if not isinstance(group_id, str):
-                raise ValueError("group_id must be str")
-            if not group_id:
-                raise ValueError("group_id must not be empty")
+            if prefix_group_id:
+                # If group id is used as prefix, it should not contain spaces nor dots
+                # because it is used as prefix in the task_id
+                validate_group_key(group_id)
+            else:
+                if not isinstance(group_id, str):
+                    raise ValueError("group_id must be str")
+                if not group_id:
+                    raise ValueError("group_id must not be empty")
 
             dag = dag or DagContext.get_current_dag()
 

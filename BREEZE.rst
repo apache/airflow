@@ -1315,8 +1315,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,google_auth,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,
-                 slack,ssh,statsd,virtualenv
+                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
           Additional tag in the image.
@@ -1914,8 +1914,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,google_auth,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,
-                 slack,ssh,statsd,virtualenv
+                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
           Additional tag in the image.
@@ -2501,8 +2501,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,google_auth,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,
-                 slack,ssh,statsd,virtualenv
+                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
           Additional tag in the image.
