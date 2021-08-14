@@ -23,14 +23,11 @@ from azure.identity import ClientSecretCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
-    Dataset,
     DatasetResource,
     Factory,
-    LinkedService,
     LinkedServiceResource,
     PipelineResource,
     PipelineRun,
-    Trigger,
     TriggerResource,
 )
 
@@ -52,22 +49,36 @@ def provide_targeted_factory(func: Callable) -> Callable:
         bound_args = signature.bind(*args, **kwargs)
 
         def bind_argument(arg, default_key):
-            if arg not in bound_args.arguments:
+            # Check if arg was not included in the function signature or, if it is, that the value is not
+            # provided.
+            if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
                 conn = self.get_connection(self.conn_id)
                 default_value = conn.extra_dejson.get(default_key)
-
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
 
                 bound_args.arguments[arg] = conn.extra_dejson[default_key]
 
-        bind_argument("resource_group_name", "resourceGroup")
-        bind_argument("factory_name", "factory")
+        bind_argument("resource_group_name", "extra__azure_data_factory__resource_group_name")
+        bind_argument("factory_name", "extra__azure_data_factory__factory_name")
 
         return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
+
+
+class AzureDataFactoryPipelineRunStatus:
+    """Azure Data Factory pipeline operation statuses."""
+
+    QUEUED = "Queued"
+    IN_PROGRESS = "InProgress"
+    SUCCEEDED = "Succeeded"
+    FAILED = "Failed"
+    CANCELING = "Canceling"
+    CANCELLED = "Cancelled"
+
+    TERMINAL_STATUSES = {CANCELLED, FAILED, SUCCEEDED}
 
 
 class AzureDataFactoryHook(BaseHook):
@@ -97,32 +108,22 @@ class AzureDataFactoryHook(BaseHook):
             "extra__azure_data_factory__subscriptionId": StringField(
                 lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
             ),
+            "extra__azure_data_factory__resource_group_name": StringField(
+                lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()
+            ),
+            "extra__azure_data_factory__factory_name": StringField(
+                lazy_gettext('Factory Name'), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
-        import json
-
         return {
-            "hidden_fields": ['schema', 'port', 'host'],
+            "hidden_fields": ['schema', 'port', 'host', 'extra'],
             "relabeling": {
                 'login': 'Azure Client ID',
                 'password': 'Azure Secret',
-                'extra': 'Extra (optional)',
-            },
-            "placeholders": {
-                'extra': json.dumps(
-                    {
-                        "resourceGroup": "azure resource group name",
-                        "factory": "azure data factory name",
-                    },
-                    indent=1,
-                ),
-                'login': 'client id',
-                'password': 'secret',
-                'extra__azure_data_factory__tenantId': 'tenant id',
-                'extra__azure_data_factory__subscriptionId': 'subscription id',
             },
         }
 
@@ -136,12 +137,8 @@ class AzureDataFactoryHook(BaseHook):
             return self._conn
 
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId') or conn.extra_dejson.get(
-            'tenantId'
-        )
-        subscription_id = conn.extra_dejson.get(
-            'extra__azure_data_factory__subscriptionId'
-        ) or conn.extra_dejson.get('subscriptionId')
+        tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
+        subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
         self._conn = DataFactoryManagementClient(
             credential=ClientSecretCredential(
@@ -273,7 +270,7 @@ class AzureDataFactoryHook(BaseHook):
     def update_linked_service(
         self,
         linked_service_name: str,
-        linked_service: LinkedService,
+        linked_service: LinkedServiceResource,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
@@ -300,7 +297,7 @@ class AzureDataFactoryHook(BaseHook):
     def create_linked_service(
         self,
         linked_service_name: str,
-        linked_service: LinkedService,
+        linked_service: LinkedServiceResource,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
@@ -375,7 +372,7 @@ class AzureDataFactoryHook(BaseHook):
     def update_dataset(
         self,
         dataset_name: str,
-        dataset: Dataset,
+        dataset: DatasetResource,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
@@ -402,7 +399,7 @@ class AzureDataFactoryHook(BaseHook):
     def create_dataset(
         self,
         dataset_name: str,
-        dataset: Dataset,
+        dataset: DatasetResource,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
@@ -633,7 +630,7 @@ class AzureDataFactoryHook(BaseHook):
     def update_trigger(
         self,
         trigger_name: str,
-        trigger: Trigger,
+        trigger: TriggerResource,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,
@@ -660,7 +657,7 @@ class AzureDataFactoryHook(BaseHook):
     def create_trigger(
         self,
         trigger_name: str,
-        trigger: Trigger,
+        trigger: TriggerResource,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **config: Any,

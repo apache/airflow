@@ -49,10 +49,10 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "tenantId": "tenantId",
-                "subscriptionId": "subscriptionId",
-                "resourceGroup": DEFAULT_RESOURCE_GROUP,
-                "factory": DEFAULT_FACTORY,
+                "extra__azure_data_factory__tenantId": "tenantId",
+                "extra__azure_data_factory__subscriptionId": "subscriptionId",
+                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
             }
         ),
     )
@@ -100,8 +100,14 @@ def test_provide_targeted_factory():
     conn.extra_dejson = {}
     assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, FACTORY) == (RESOURCE_GROUP, FACTORY)
 
-    conn.extra_dejson = {"resourceGroup": DEFAULT_RESOURCE_GROUP, "factory": DEFAULT_FACTORY}
+    conn.extra_dejson = {
+        "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+        "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+    }
     assert provide_targeted_factory(echo)(hook) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
+    assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, None) == (RESOURCE_GROUP, DEFAULT_FACTORY)
+    assert provide_targeted_factory(echo)(hook, None, FACTORY) == (DEFAULT_RESOURCE_GROUP, FACTORY)
+    assert provide_targeted_factory(echo)(hook, None, None) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
 
     with pytest.raises(AirflowException):
         conn.extra_dejson = {}

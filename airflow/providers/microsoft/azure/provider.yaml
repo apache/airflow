@@ -97,6 +97,9 @@ operators:
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.operators.wasb_delete_blob
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.azure_data_factory
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -105,6 +108,9 @@ sensors:
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.sensors.wasb
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.azure_data_factory
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
