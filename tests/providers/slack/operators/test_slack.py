@@ -209,6 +209,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
 
         import os
+
         # Look for your absolute directory path
         absolute_path = os.path.dirname(os.path.abspath(__file__))
         # Or: file_path = os.path.join(absolute_path, 'folder', 'my_file.py')
