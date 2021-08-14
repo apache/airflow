@@ -101,18 +101,11 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app):
 # cd = re.sub("<", "<a href=\"", cd)
 # cd = re.sub(">", "\">[site]</a>", cd)
 def test_should_list_providers_on_page_with_details(admin_client):
-    pm = ProvidersManager()
     resp = admin_client.get('/provider')
-
-    for pi in pm.providers.values():
-        check_content_in_response("<td>" + pi.version + "</td>", resp)
-        check_content_in_response("<td>" + pi[1]["package-name"] + "</td>", resp)
-        cd = re.sub(
-            ">",
-            "\">[site]</a>",
-            re.sub("<", "<a href=\"", re.sub("[`_]", "", pi[1]["description"].strip(" \n.").strip("\""))),
-        )
-        check_content_in_response("<td>" + cd + "</td>", resp)
+    beam_package = "<td>apache-airflow-providers-apache-beam</td>"
+    beam_description = "<a href=\"https://beam.apache.org/\">Apache Beam</a>"
+    check_content_in_response(beam_package, resp)
+    check_content_in_response(beam_description, resp)
     check_content_in_response("Providers", resp)
 
 

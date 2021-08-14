@@ -26,6 +26,7 @@ import re
 import socket
 import sys
 import traceback
+import markupsafe
 from collections import defaultdict
 from datetime import timedelta
 from json import JSONDecodeError
@@ -3400,11 +3401,16 @@ class ProviderView(AirflowBaseView):
         )
 
     def _clean_description(self, description):
-        cd = re.sub("[`_]", "", description.strip(" \n.").strip("\""))
-        cd = re.sub("<", "<a href=\"", cd)
-        cd = re.sub(">", "\">[site]</a>", cd)
-        return cd
 
+        def _build_link(match_obj):
+            text = match_obj.group(1)
+            url = match_obj.group(2)
+            return markupsafe.Markup(f'<a href="{url}">{text}</a>')
+
+        cd = markupsafe.escape(description)
+        cd = re.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
+        cd = re.sub(r"\n", r"<br>", cd)
+        return markupsafe.Markup(cd)
 
 class PoolModelView(AirflowModelView):
     """View to show records from Pool table"""
