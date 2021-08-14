@@ -40,8 +40,8 @@ class TestSecretsManagerBackend(TestCase):
 
         param = {
             'SecretId': secret_id,
-            'SecretString': '{"user": "airflow", "pass": "airflow", "host": "host", "port": 5432, "schema": "airflow",'
-            ' "engine": "postgresql",}',
+            'SecretString': '{"user": "airflow", "pass": "airflow", "host": "host", '
+                            '"port": 5432, "schema": "airflow", "engine": "postgresql",}',
         }
 
         secrets_manager_backend = SecretsManagerBackend()
