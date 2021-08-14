@@ -50,6 +50,6 @@ bash ./gen/python.sh ../airflow/api_connexion/openapi/v1.yaml $AIRFLOW_CLIENT_PY
 To generate Java client, run:
 
 ```
-bash ./gen/java.sh ../airflow/api_connexion/openapi/v1.yaml $AIRFLOW_CLIENT_JAVA_REPO_PATH/airflow
+bash ./gen/java.sh ../airflow/api_connexion/openapi/v1.yaml $AIRFLOW_CLIENT_JAVA_REPO_PATH/airflow-client
 ```
 
