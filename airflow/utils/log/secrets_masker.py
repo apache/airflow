@@ -148,7 +148,7 @@ class SecretsMasker(logging.Filter):
         exception.args = (self.redact(v) for v in exception.args)
         if exception.__context__:
             self._redact_exception_with_context(exception.__context__)
-        if exception.__cause__:
+        if exception.__cause__ and exception.__cause__ is not exception.__context__:
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
