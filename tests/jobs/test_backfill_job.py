@@ -955,8 +955,8 @@ class TestBackfillJob:
                 # reached, so it is waiting
                 dag_run_created_cond.wait(timeout=1.5)
                 dagruns = DagRun.find(dag_id=dag_id)
-                dr = dagruns[0]
                 assert 1 == len(dagruns)
+                dr = dagruns[0]
                 assert dr.run_id == run_id
 
                 # allow the backfill to execute
@@ -1330,30 +1330,34 @@ class TestBackfillJob:
 
         session.close()
 
-    def test_dag_get_run_dates(self, dag_maker):
+    def test_dag_dagrun_infos_between(self, dag_maker):
         with dag_maker(
-            dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly"
+            dag_id='dagrun_infos_between', start_date=DEFAULT_DATE, schedule_interval="@hourly"
         ) as test_dag:
             DummyOperator(
                 task_id='dummy',
                 owner='airflow',
             )
 
-        assert [DEFAULT_DATE] == test_dag.get_run_dates(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            align=True,
-        )
+        assert [DEFAULT_DATE] == [
+            info.logical_date
+            for info in test_dag.iter_dagrun_infos_between(
+                earliest=DEFAULT_DATE,
+                latest=DEFAULT_DATE,
+            )
+        ]
         assert [
             DEFAULT_DATE - datetime.timedelta(hours=3),
             DEFAULT_DATE - datetime.timedelta(hours=2),
             DEFAULT_DATE - datetime.timedelta(hours=1),
             DEFAULT_DATE,
-        ] == test_dag.get_run_dates(
-            start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
-            end_date=DEFAULT_DATE,
-            align=True,
-        )
+        ] == [
+            info.logical_date
+            for info in test_dag.iter_dagrun_infos_between(
+                earliest=DEFAULT_DATE - datetime.timedelta(hours=3),
+                latest=DEFAULT_DATE,
+            )
+        ]
 
     def test_backfill_run_backwards(self):
         dag = self.dagbag.get_dag("test_start_date_scheduling")

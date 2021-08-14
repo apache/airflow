@@ -21,6 +21,8 @@ Provider packages
 
 .. contents:: :local:
 
+.. _providers:community-maintained-providers:
+
 Community maintained providers
 ''''''''''''''''''''''''''''''
 
@@ -30,6 +32,9 @@ The core of Airflow scheduling system is delivered as ``apache-airflow`` package
 Those provider packages are separated per-provider (for example ``amazon``, ``google``, ``salesforce``
 etc.). Those packages are available as ``apache-airflow-providers`` packages - separately per each provider
 (for example there is an ``apache-airflow-providers-amazon`` or ``apache-airflow-providers-google`` package).
+
+The full list of community managed providers is available at
+`Providers Index <https://airflow.apache.org/docs/#providers-packages-docs-apache-airflow-providers-index-html>`_.
 
 You can install those provider packages separately in order to interface with a given service. For those
 providers that have corresponding extras, the provider packages (latest version from PyPI) are installed

@@ -217,6 +217,33 @@ class BaseXCom(Base, LoggingMixin):
             session.delete(xcom)
         session.commit()
 
+    @classmethod
+    @provide_session
+    def clear(
+        cls,
+        execution_date: pendulum.DateTime,
+        dag_id: str,
+        task_id: str,
+        session: Session = None,
+    ) -> None:
+        """
+        Clears all XCom data from the database for the task instance
+
+        :param execution_date: Execution date for the task
+        :type execution_date: pendulum.datetime
+        :param dag_id: ID of DAG to clear the XCom for.
+        :type dag_id: str
+        :param task_id: Only XComs from task with matching id will be cleared.
+        :type task_id: str
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
+        """
+        session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.execution_date == execution_date,
+        ).delete()
+
     @staticmethod
     def serialize_value(value: Any):
         """Serialize Xcom value to str or pickled object"""

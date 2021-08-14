@@ -415,6 +415,8 @@ workers:
   safeToEvict: true
 
   # Launch additional containers into worker.
+  # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
+  # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
   # Add additional init containers into workers.
   extraInitContainers: []
@@ -1111,6 +1113,8 @@ config:
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
     principal: '{{ .Values.kerberos.principal }}'
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
+  celery_kubernetes_executor:
+    kubernetes_queue: 'kubernetes'
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'
@@ -1125,8 +1129,8 @@ config:
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
-# `podTemplate` is a string containing the contents of `pod_template_file.yaml` used for KubernetesExecutor
-# workers. The default `podTemplate` will use normal `workers` configuration parameters
+# `podTemplate` is a templated string containing the contents of `pod_template_file.yaml` used for
+# KubernetesExecutor workers. The default `podTemplate` will use normal `workers` configuration parameters
 # (e.g. `workers.resources`). As such, you normally won't need to override this directly, however,
 # you can still provide a completely custom `pod_template_file.yaml` if desired.
 # If not set, a default one is created using `files/pod-template-file.kubernetes-helm-yaml`.
@@ -1143,7 +1147,7 @@ podTemplate: ~
 #     labels:
 #       tier: airflow
 #       component: worker
-#       release: my-release
+#       release: {{ .Release.Name }}
 #   spec:
 #     priorityClassName: high-priority
 #     containers:

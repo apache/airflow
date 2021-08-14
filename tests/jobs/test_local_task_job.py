@@ -273,6 +273,7 @@ class TestLocalTaskJob:
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.5
 
+    @pytest.mark.quarantined
     def test_mark_success_no_kill(self):
         """
         Test that ensures that mark_success in the UI doesn't cause
@@ -733,6 +734,7 @@ class TestLocalTaskJob:
             if scheduler_job.processor_agent:
                 scheduler_job.processor_agent.end()
 
+    @pytest.mark.quarantined
     def test_task_sigkill_works_with_retries(self, dag_maker):
         """
         Test that ensures that tasks are retried when they receive sigkill
@@ -779,6 +781,7 @@ class TestLocalTaskJob:
         assert retry_callback_called.value == 1
         assert task_terminated_externally.value == 1
 
+    @pytest.mark.quarantined
     def test_process_sigterm_works_with_retries(self, dag_maker):
         """
         Test that ensures that task runner sets tasks to retry when they(task runner)

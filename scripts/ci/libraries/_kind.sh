@@ -262,8 +262,8 @@ function kind::build_image_for_kubernetes_tests() {
     if [[ -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
         image_tag="${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
     fi
-    echo "Building ${AIRFLOW_PROD_IMAGE_KUBERNETES}:latest from ${AIRFLOW_PROD_IMAGE}:${image_tag}"
-    docker_v build --tag "${AIRFLOW_PROD_IMAGE_KUBERNETES}:latest" . -f - <<EOF
+    echo "Building ${AIRFLOW_IMAGE_KUBERNETES}:latest from ${AIRFLOW_PROD_IMAGE}:${image_tag}"
+    docker_v build --tag "${AIRFLOW_IMAGE_KUBERNETES}:latest" . -f - <<EOF
 FROM ${AIRFLOW_PROD_IMAGE}:${image_tag}
 
 COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
@@ -271,11 +271,11 @@ COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 COPY airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
 
 EOF
-    echo "The ${AIRFLOW_PROD_IMAGE_KUBERNETES}:${image_tag} is prepared for test kubernetes deployment."
+    echo "The ${AIRFLOW_IMAGE_KUBERNETES}:${image_tag} is prepared for test kubernetes deployment."
 }
 
 function kind::load_image_to_kind_cluster() {
-    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_PROD_IMAGE_KUBERNETES}:latest"
+    kind load docker-image --name "${KIND_CLUSTER_NAME}" "${AIRFLOW_IMAGE_KUBERNETES}:latest"
 }
 
 MAX_NUM_TRIES_FOR_HEALTH_CHECK=12
@@ -343,8 +343,8 @@ function kind::deploy_airflow_with_helm() {
     helm install airflow . \
         --timeout 10m0s \
         --namespace "${HELM_AIRFLOW_NAMESPACE}" \
-        --set "defaultAirflowRepository=${AIRFLOW_PROD_IMAGE_KUBERNETES}" \
-        --set "images.airflow.repository=${AIRFLOW_PROD_IMAGE_KUBERNETES}" \
+        --set "defaultAirflowRepository=${AIRFLOW_IMAGE_KUBERNETES}" \
+        --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.tag=latest" -v 1 \
         --set "defaultAirflowTag=latest" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
@@ -376,8 +376,8 @@ function kind::upgrade_airflow_with_helm() {
     helm repo add stable https://charts.helm.sh/stable/
     helm dep update
     helm upgrade airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
-        --set "defaultAirflowRepository=${AIRFLOW_PROD_IMAGE_KUBERNETES}" \
-        --set "images.airflow.repository=${AIRFLOW_PROD_IMAGE_KUBERNETES}" \
+        --set "defaultAirflowRepository=${AIRFLOW_IMAGE_KUBERNETES}" \
+        --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.tag=latest" -v 1 \
         --set "defaultAirflowTag=latest" -v 1 \
         --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \

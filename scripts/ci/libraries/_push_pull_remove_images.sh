@@ -48,6 +48,7 @@ function push_pull_remove_images::push_image_with_retries() {
 # Should be run with set +e
 # Parameters:
 #   $1 -> image to pull
+#   $2 - fallback image
 function push_pull_remove_images::pull_image_if_not_present_or_forced() {
     local image_to_pull="${1}"
     local image_hash
@@ -62,25 +63,6 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         echo "Pulling the image ${image_to_pull}"
         echo
         docker_v pull "${image_to_pull}"
-        local exit_value="$?"
-        if [[ ${exit_value} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
-            echo
-            echo """
-${COLOR_RED}ERROR: Exiting on docker pull error
-
-If you have authorisation problems, you might want to run:
-
-docker login ${image_to_pull%%\/*}
-
-You need to use generate token as the password, not your personal password.
-You can generate one at https://github.com/settings/tokens
-Make sure to choose 'read:packages' scope.
-${COLOR_RESET}
-"""
-            exit ${exit_value}
-        fi
-        echo
-        return ${exit_value}
     fi
 }
 
@@ -90,7 +72,7 @@ function push_pull_remove_images::check_and_rebuild_python_base_image_if_needed(
    local dockerhub_python_version
    dockerhub_python_version=$(docker run "${PYTHON_BASE_IMAGE}" python -c 'import sys; print(sys.version)')
    local local_python_version
-   local_python_version=$(docker run "${AIRFLOW_PYTHON_BASE_IMAGE}" python -c 'import sys; print(sys.version)')
+   local_python_version=$(docker run "${AIRFLOW_PYTHON_BASE_IMAGE}" python -c 'import sys; print(sys.version)' || true)
    if [[ ${local_python_version} != "${dockerhub_python_version}" ]]; then
        echo
        echo "There is a new Python Base image updated!"
@@ -102,6 +84,10 @@ function push_pull_remove_images::check_and_rebuild_python_base_image_if_needed(
             docker_v build \
                 --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
                 -t "${AIRFLOW_PYTHON_BASE_IMAGE}" -
+  else
+      echo
+      echo "Not rebuilding the base python image - the image has the same python version ${dockerhub_python_version}"
+      echo
   fi
 }
 
@@ -116,10 +102,10 @@ function push_pull_remove_images::check_and_rebuild_python_base_image_if_needed(
 #     it will pull the right image using the specified suffix
 function push_pull_remove_images::pull_base_python_image() {
     echo
-    echo "Docker pulling base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
+    echo "Docker pull base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}"
     echo
     if [[ -n ${DETECTED_TERMINAL=} ]]; then
-        echo -n "Docker pulling base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}
+        echo -n "Docker pull base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}
 " > "${DETECTED_TERMINAL}"
     fi
     if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
@@ -132,8 +118,14 @@ function push_pull_remove_images::pull_base_python_image() {
             return 1
         fi
     else
+        set +e
         push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PYTHON_BASE_IMAGE}"
-        if [[ ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" ]] ; then
+        local res="$?"
+        set -e
+        if [[ ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" || ${res} != "0" ]] ; then
+            # Rebuild the base python image using DockerHub - either when we explicitly want it
+            # or when there is no image available yet in ghcr.io (usually when you build it for the
+            # first time in your repository
             push_pull_remove_images::check_and_rebuild_python_base_image_if_needed
         fi
     fi
@@ -151,8 +143,26 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
         fi
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
+        set +e
         push_pull_remove_images::pull_image_if_not_present_or_forced \
             "${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        local res="$?"
+        set -e
+        if [[ ${res} != "0" ]]; then
+            if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} == "latest" ]] ; then
+                echo
+                echo "The CI image cache does not exist. This is likely the first time you build the image"
+                echo "Switching to 'local' cache for docker images"
+                echo
+                DOCKER_CACHE="local"
+            else
+                echo
+                echo "The CI image cache does not exist and we want to pull tag ${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+                echo "Failing as we have to pull the tagged image in order to continue"
+                echo
+                return "${res}"
+            fi
+        fi
     fi
 }
 
@@ -169,12 +179,33 @@ function push_pull_remove_images::pull_prod_images_if_needed() {
         fi
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
+        set +e
         # "Build" segment of production image
         push_pull_remove_images::pull_image_if_not_present_or_forced \
             "${AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        # "Main" segment of production image
-        push_pull_remove_images::pull_image_if_not_present_or_forced \
-            "${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        local res="$?"
+        if [[ ${res} == "0" ]]; then
+            # "Main" segment of production image
+            push_pull_remove_images::pull_image_if_not_present_or_forced \
+                "${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+            res="$?"
+        fi
+        set -e
+        if [[ ${res} != "0" ]]; then
+            if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} == "latest" ]] ; then
+                echo
+                echo "The PROD image cache does not exist. This is likely the first time you build the image"
+                echo "Switching to 'local' cache for docker images"
+                echo
+                DOCKER_CACHE="local"
+            else
+                echo
+                echo "The PROD image cache does not exist and we want to pull tag ${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+                echo "Failing as we have to pull the tagged image in order to continue"
+                echo
+                return "${res}"
+            fi
+        fi
     fi
 }
 
@@ -203,16 +234,11 @@ function push_pull_remove_images::push_ci_images_to_github() {
     local airflow_ci_tagged_image="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker_v tag "${AIRFLOW_CI_IMAGE}" "${airflow_ci_tagged_image}"
     push_pull_remove_images::push_image_with_retries "${airflow_ci_tagged_image}"
+    # Also push ci manifest image if GITHUB_REGISTRY_PUSH_IMAGE_TAG is "latest"
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} == "latest" ]]; then
-        local airflow_ci_manifest_tagged_image="${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+        local airflow_ci_manifest_tagged_image="${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}:latest"
         docker_v tag "${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" "${airflow_ci_manifest_tagged_image}"
         push_pull_remove_images::push_image_with_retries "${airflow_ci_manifest_tagged_image}"
-    fi
-    if [[ -n ${GITHUB_SHA=} ]]; then
-        # Also push image to GitHub registry with commit SHA
-        local airflow_ci_sha_image="${AIRFLOW_CI_IMAGE}:${COMMIT_SHA}"
-        docker_v tag "${AIRFLOW_CI_IMAGE}" "${airflow_ci_sha_image}"
-        push_pull_remove_images::push_image_with_retries "${airflow_ci_sha_image}"
     fi
 }
 
@@ -222,19 +248,18 @@ function push_pull_remove_images::push_ci_images_to_github() {
 #     "${COMMIT_SHA}" - in case of pull-request triggered 'workflow_run' builds
 #     "latest"        - in case of push builds
 function push_pull_remove_images::push_prod_images_to_github () {
+    if [[ "${PUSH_PYTHON_BASE_IMAGE=}" != "false" ]]; then
+        push_pull_remove_images::push_python_image_to_github
+    fi
     local airflow_prod_tagged_image="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
     docker_v tag "${AIRFLOW_PROD_IMAGE}" "${airflow_prod_tagged_image}"
     push_pull_remove_images::push_image_with_retries "${airflow_prod_tagged_image}"
-    if [[ -n ${COMMIT_SHA=} ]]; then
-        # Also push image to GitHub registry with commit SHA
-        local airflow_prod_sha_image="${AIRFLOW_PROD_IMAGE}:${COMMIT_SHA}"
-        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${airflow_prod_sha_image}"
-        push_pull_remove_images::push_image_with_retries "${airflow_prod_sha_image}"
+    # Also push prod build image if GITHUB_REGISTRY_PUSH_IMAGE_TAG is "latest"
+    if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} == "latest" ]]; then
+        local airflow_prod_build_tagged_image="${AIRFLOW_PROD_BUILD_IMAGE}:latest"
+        docker_v tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${airflow_prod_build_tagged_image}"
+        push_pull_remove_images::push_image_with_retries "${airflow_prod_build_tagged_image}"
     fi
-    # Also push prod build image
-    local airflow_prod_build_tagged_image="${AIRFLOW_PROD_BUILD_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-    docker_v tag "${AIRFLOW_PROD_BUILD_IMAGE}" "${airflow_prod_build_tagged_image}"
-    push_pull_remove_images::push_image_with_retries "${airflow_prod_build_tagged_image}"
 }
 
 # waits for an image to be available in GitHub Container Registry. Should be run with `set +e`
@@ -253,12 +278,18 @@ function push_pull_remove_images::check_image_manifest() {
 }
 
 # waits for an image to be available in the GitHub registry
+# Remove the fallback on 7th of August 2021
 function push_pull_remove_images::wait_for_image() {
     set +e
-    echo " Waiting for github registry image: " "$1"
+    echo " Waiting for github registry image: $1 with $2 fallback"
     while true
     do
         if push_pull_remove_images::check_image_manifest "$1"; then
+            export IMAGE_AVAILABLE="$1"
+            break
+        fi
+        if push_pull_remove_images::check_image_manifest "$2"; then
+            export IMAGE_AVAILABLE="$2"
             break
         fi
         sleep 30

@@ -110,7 +110,7 @@ unit of work and continuity.
 
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-and-env-variables-ref>
-    Macros <macros-ref>
+    Templates <templates-ref>
     Python API <python-api-ref>
     Stable REST API <stable-rest-api-ref>
     deprecated-rest-api-ref

@@ -47,6 +47,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"  # One or more upstream deps failed
     SKIPPED = "skipped"  # Skipped by branching or some other mechanism
     SENSING = "sensing"  # Smart sensor offloaded to the sensor DAG
+    DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
     def __str__(self) -> str:  # pylint: disable=invalid-str-returned
         return self.value
@@ -91,6 +92,7 @@ class State:
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
     SKIPPED = TaskInstanceState.SKIPPED
     SENSING = TaskInstanceState.SENSING
+    DEFERRED = TaskInstanceState.DEFERRED
 
     task_states: Tuple[Optional[TaskInstanceState], ...] = (None,) + tuple(TaskInstanceState)
 
@@ -116,6 +118,7 @@ class State:
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
         TaskInstanceState.SENSING: 'lightseagreen',
+        TaskInstanceState.DEFERRED: 'lightseagreen',
     }
     state_color.update(STATE_COLORS)  # type: ignore
 
@@ -132,7 +135,9 @@ class State:
             return 'white'
         return 'black'
 
-    running: FrozenSet[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.SENSING])
+    running: FrozenSet[TaskInstanceState] = frozenset(
+        [TaskInstanceState.RUNNING, TaskInstanceState.SENSING, TaskInstanceState.DEFERRED]
+    )
     """
     A list of states indicating that a task is being executed.
     """
@@ -165,6 +170,7 @@ class State:
             TaskInstanceState.RESTARTING,
             TaskInstanceState.UP_FOR_RETRY,
             TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.DEFERRED,
         ]
     )
     """

@@ -22,6 +22,11 @@ import jinja2.sandbox
 class SandboxedEnvironment(jinja2.sandbox.SandboxedEnvironment):
     """SandboxedEnvironment for Airflow task templates."""
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.filters.update(FILTERS)
+
     def is_safe_attribute(self, obj, attr, value):
         """
         Allow access to ``_`` prefix vars (but not ``__``).
@@ -30,3 +35,32 @@ class SandboxedEnvironment(jinja2.sandbox.SandboxedEnvironment):
         ``_``) whilst still blocking internal or truely private attributes (``__`` prefixed ones).
         """
         return not jinja2.sandbox.is_internal_attribute(obj, attr)
+
+
+def ds_filter(value):
+    return value.strftime('%Y-%m-%d')
+
+
+def ds_nodash_filter(value):
+    return value.strftime('%Y%m%d')
+
+
+def ts_filter(value):
+    return value.isoformat()
+
+
+def ts_nodash_filter(value):
+    return value.strftime('%Y%m%dT%H%M%S')
+
+
+def ts_nodash_with_tz_filter(value):
+    return value.isoformat().replace('-', '').replace(':', '')
+
+
+FILTERS = {
+    'ds': ds_filter,
+    'ds_nodash': ds_nodash_filter,
+    'ts': ts_filter,
+    'ts_nodash': ts_nodash_filter,
+    'ts_nodash_with_tz': ts_nodash_with_tz_filter,
+}
