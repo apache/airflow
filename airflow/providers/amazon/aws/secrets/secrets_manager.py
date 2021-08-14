@@ -19,6 +19,7 @@
 
 import ast
 from typing import Optional
+from urllib.parse import urlencode
 
 import boto3
 
@@ -97,9 +98,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """
-        Create a Secrets Manager client
-        """
+        """Create a Secrets Manager client"""
         session = boto3.session.Session(profile_name=self.profile_name)
 
         return session.client(service_name="secretsmanager", **self.kwargs)
@@ -107,8 +106,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     def _get_extra(self, secret, conn_string):
         if 'extra' in secret:
             extra_dict = secret['extra']
-            kvs = "&".join([f"{key}={value}" for key, value in extra_dict.items()])
-            return f"{conn_string}?{kvs}"
+            conn_string = f"{conn_string}?{urlencode(extra_dict)}"
+            return conn_string
 
         return conn_string
 
@@ -203,6 +202,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 "An error occurred (ResourceNotFoundException) when calling the "
                 "get_secret_value operation: "
                 "Secret %s not found.",
-                secret_id
+                secret_id,
             )
             return None
