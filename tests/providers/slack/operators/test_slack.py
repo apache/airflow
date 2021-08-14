@@ -208,8 +208,16 @@ class TestSlackAPIFileOperator(unittest.TestCase):
     def test_api_call_params_with_file_args(self, mock_hook):
         test_slack_conn_id = 'test_slack_conn_id'
 
+        import os
+        # Look for your absolute directory path
+        absolute_path = os.path.dirname(os.path.abspath(__file__))
+        # Or: file_path = os.path.join(absolute_path, 'folder', 'my_file.py')
+        file_path = absolute_path + '/test.csv'
+
+        print(f"full path ${file_path}")
+
         slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack', slack_conn_id=test_slack_conn_id, file='./test.csv', filetype='csv'
+            task_id='slack', slack_conn_id=test_slack_conn_id, file=file_path, filetype='csv'
         )
 
         slack_api_post_operator.execute()
@@ -217,7 +225,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         expected_api_params = {
             'channels': '#general',
             'initial_comment': 'No message has been set!',
-            'filename': './test.csv',
+            'filename': file_path,
             'filetype': 'csv',
         }
         assert expected_api_params == slack_api_post_operator.api_params
