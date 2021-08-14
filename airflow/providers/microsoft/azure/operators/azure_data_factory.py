@@ -61,9 +61,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         enabled to wait for a long-running pipeline execution using the
         ``AzureDataFactoryPipelineRunStatusSensor`` rather than this operator.
     :type do_asynchronous_wait: bool
-    :param status_check_timeout: Time in seconds to wait for a pipeline to reach a terminal status for
+    :param timeout: Time in seconds to wait for a pipeline to reach a terminal status for
         non-asynchronous waits. Use only if ``do_asynchronous_wait`` is False.
-    :type status_check_timeout: int
+    :type timeout: int
     :param poke_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits. Use
         only if ``do_asynchronous_wait`` is False.
     :type poke_interval: int
@@ -91,7 +91,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         start_from_failure: Optional[bool] = None,
         parameters: Optional[Dict[str, Any]] = None,
         do_asynchronous_wait: Optional[bool] = False,
-        status_check_timeout: Optional[int] = 60 * 60 * 5,
+        timeout: Optional[int] = 60 * 60 * 5,
         poke_interval: Optional[int] = 30,
         **kwargs,
     ) -> None:
@@ -106,7 +106,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.start_from_failure = start_from_failure
         self.parameters = parameters
         self.do_asynchronous_wait = do_asynchronous_wait
-        self.status_check_timeout = status_check_timeout
+        self.timeout = timeout
         self.poke_interval = poke_interval
 
     def execute(self, context: Dict) -> None:
@@ -133,12 +133,11 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
             start_time = time.monotonic()
             pipeline_run_status = None
             while pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
-                # Check to see if the pipeline-run duration has exceeded the ``status_check_timeout``
-                # configured.
-                if start_time + self.status_check_timeout < time.monotonic():
+                # Check to see if the pipeline-run duration has exceeded the ``timeout`` configured.
+                if start_time + self.timeout < time.monotonic():
                     raise AirflowException(
                         f"Pipeline run {self.run_id} has not reached a terminal status after "
-                        + f"{self.status_check_timeout} seconds."
+                        + f"{self.timeout} seconds."
                     )
 
                 # Wait to check the status of the pipeline based on the ``poke_interval`` configured.

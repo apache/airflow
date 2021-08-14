@@ -49,8 +49,7 @@ def provide_targeted_factory(func: Callable) -> Callable:
         bound_args = signature.bind(*args, **kwargs)
 
         def bind_argument(arg, default_key):
-            # Check if arg was not included in the function signature or, if it is, that the value is not
-            # provided.
+            # Check if arg was not included in the function signature or, if it is, the value is not provided.
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
                 conn = self.get_connection(self.conn_id)
