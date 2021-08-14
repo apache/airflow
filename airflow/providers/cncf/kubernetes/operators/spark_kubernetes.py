@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from typing import Optional
 
 from airflow.models import BaseOperator
@@ -67,12 +68,18 @@ class SparkKubernetesOperator(BaseOperator):
     def execute(self, context):
         self.log.info("Creating sparkApplication")
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        with open(self.application_file, 'r', encoding='utf-8') as app_file:
-            response = hook.create_custom_object(
-                group=self.api_group,
-                version=self.api_version,
-                plural="sparkapplications",
-                body=app_file.read(),
-                namespace=self.namespace,
-                )
-            return response
+        
+        try:
+            with open(self.application_file, encoding='utf-8') as app_file:
+                content = app_file.read()
+        except FileNotFoundError:
+            content = self.application_file
+        
+        response = hook.create_custom_object(
+            group=self.api_group,
+            version=self.api_version,
+            plural="sparkapplications",
+            body=content,
+            namespace=self.namespace,
+        )
+        return response
