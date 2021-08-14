@@ -41,13 +41,13 @@ Manager, as follow:
 
 You must, however, use some of the following words for each kind of field:
 
-- For storing passwords, valid key names are password, pass and key
-- Users: user, username, login, user_name
-- Host: host, remote_host, server
-- Port: port
-- You should also specify the type of connection, which can be done naming the key as conn_type, conn_id,
-connection_type or engine. Valid values for this field are postgres, mysql, snowflake, google_cloud, mongo...
-- For the extra value of the connections, you can store a dictionary.
+* For storing passwords, valid key names are password, pass and key
+* Users: user, username, login, user_name
+* Host: host, remote_host, server
+* Port: port
+* You should also specify the type of connection, which can be done naming the key as conn_type, conn_id,
+  connection_type or engine. Valid values for this field are postgres, mysql, snowflake, google_cloud, mongo...
+* For the extra value of the connections, you have to type a dictionary.
 
 For example, if you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
 you would want to store your connection at ``airflow/connections/smtp_default``. This can be done through the AWS web
