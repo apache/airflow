@@ -32,7 +32,7 @@ Airflow has a very extensive set of operators available, with some built-in to t
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
 
-For a list of all core operators, see: :doc:`Core Operators and Hooks Reference <operators-and-hooks-ref>`.
+For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.
 
 If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
 
