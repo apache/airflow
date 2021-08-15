@@ -25,6 +25,7 @@ PyGithub==1.54.1
 PyHive==0.6.4
 PyJWT==1.7.1
 PyNaCl==1.4.0
+PySmbClient==0.1.5
 PyYAML==5.4.1
 Pygments==2.9.0
 SQLAlchemy-JSONField==1.0.0
