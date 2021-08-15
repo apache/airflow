@@ -44,8 +44,8 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     running_tis = (
         session.query(models.TaskInstance.state)
         .filter(models.TaskInstance.dag_id == dag_id)
-        .filter(models.TaskInstance.state.in_(State.unfinished))
-        .first()
+        .filter(models.TaskInstance.state == State.RUNNING)
+        .limit(1)
     )
     if running_tis:
         raise AirflowException("TaskInstances still running")
