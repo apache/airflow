@@ -54,3 +54,18 @@ class TestProviderManager(unittest.TestCase):
         provider_manager = ProvidersManager()
         extra_link_class_names = list(provider_manager.extra_links_class_names)
         assert len(extra_link_class_names) > 5
+
+    def test_logging(self):
+        provider_manager = ProvidersManager()
+        logging_class_names = list(provider_manager.logging_class_names)
+        assert len(logging_class_names) > 5
+
+    def test_secrets_backends(self):
+        provider_manager = ProvidersManager()
+        secrets_backends_class_names = list(provider_manager.secrets_backend_class_names)
+        assert len(secrets_backends_class_names) > 4
+
+    def test_auth_backends(self):
+        provider_manager = ProvidersManager()
+        auth_backend_module_names = list(provider_manager.auth_backend_module_names)
+        assert len(auth_backend_module_names) > 0
