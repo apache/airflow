@@ -73,6 +73,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### `worker_log_server_port` configuration has been moved to the ``logging`` section.
+
+The `worker_log_server_port` configuration option has been moved from `[celery]` section to `[logging]` section to allow for re-use between different executors.
+
 ### `pandas` is now an optional dependency
 
 Previously `pandas` was a core requirement so when you run `pip install apache-airflow` it looked for `pandas`
