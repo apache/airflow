@@ -202,7 +202,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
-        file: str = None,
+        filename: str = None,
         filetype: str = None,
         content: str = None,
         **kwargs,
@@ -210,7 +210,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.method = 'files.upload'
         self.channel = channel
         self.initial_comment = initial_comment
-        self.file = file
+        self.filename = filename
         self.filetype = filetype
         self.content = content
         self.file_params = {}
@@ -232,13 +232,13 @@ class SlackAPIFileOperator(SlackAPIOperator):
             }
             slack.call(self.method, data=self.api_params)
         # If file name is passed.
-        elif self.file is not None:
+        elif self.filename is not None:
             self.api_params = {
                 'channels': self.channel,
-                'filename': self.file,
+                'filename': self.filename,
                 'filetype': self.filetype,
                 'initial_comment': self.initial_comment,
             }
-            with open(self.file, "rb") as file_name:
-                slack.call(self.method, data=self.api_params, files={'file': file_name})
-                file_name.close()
+            with open(self.filename, "rb") as file_handle:
+                slack.call(self.method, data=self.api_params, files={'file': file_handle})
+                file_handle.close()
