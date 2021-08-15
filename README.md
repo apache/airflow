@@ -142,14 +142,14 @@ them to appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install apache-airflow==2.1.2 \
+pip install 'apache-airflow==2.1.2' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install apache-airflow[postgres,google]==2.1.2 \
+pip install 'apache-airflow[postgres,google]==2.1.2' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.7.txt"
 ```
 
@@ -241,7 +241,7 @@ packages:
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
   versions for the chart are independent from the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
-  only work starting from specific Airlfow releases. We might however limit the Helm
+  only work starting from specific Airflow releases. We might however limit the Helm
   Chart to depend on minimal Airflow version.
 * **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR version of Airflow.
   The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
@@ -280,7 +280,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
    in terms of "smoke tests" in CI PRs which are run using this default version and default reference
-   image available. Currently ``apache/airflow:latest`` and ``apache/airflow:2.1.2` images
+   image available. Currently `apache/airflow:latest` and `apache/airflow:2.1.2` images
    are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
    become Python 3.7 images.
 

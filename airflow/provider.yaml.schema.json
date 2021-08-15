@@ -66,6 +66,7 @@
             "items": {
               "type": "string",
               "enum": [
+                "alibaba",
                 "apache",
                 "aws",
                 "azure",

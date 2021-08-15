@@ -19,11 +19,6 @@
 import logging
 from typing import Optional
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
 from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException
@@ -121,10 +116,10 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         if project_id:
             self.project_id = project_id
 
-    @cached_property
+    @property
     def client(self) -> _SecretManagerClient:
         """
-        Cached property returning secret client.
+        Property returning secret client.
 
         :return: Secrets client
         """

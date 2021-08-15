@@ -18,6 +18,8 @@
 import unittest
 from unittest import mock
 
+from parameterized import parameterized
+
 from airflow import configuration
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -30,27 +32,31 @@ class TestAwsGlueJobOperator(unittest.TestCase):
         configuration.load_test_config()
 
         self.glue_hook_mock = glue_hook_mock
-        some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
-        self.glue = AwsGlueJobOperator(
-            task_id='test_glue_operator',
-            job_name='my_test_job',
-            script_location=some_script,
-            aws_conn_id='aws_default',
-            region_name='us-west-2',
-            s3_bucket='some_bucket',
-            iam_role_name='my_test_role',
-        )
 
+    @parameterized.expand(
+        [
+            "s3://glue-examples/glue-scripts/sample_aws_glue_job.py",
+            "/glue-examples/glue-scripts/sample_aws_glue_job.py",
+        ]
+    )
     @mock.patch.object(AwsGlueJobHook, 'get_job_state')
     @mock.patch.object(AwsGlueJobHook, 'initialize_job')
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     @mock.patch.object(S3Hook, "load_file")
     def test_execute_without_failure(
-        self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state
+        self, script_location, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state
     ):
+        glue = AwsGlueJobOperator(
+            task_id='test_glue_operator',
+            job_name='my_test_job',
+            script_location=script_location,
+            aws_conn_id='aws_default',
+            region_name='us-west-2',
+            s3_bucket='some_bucket',
+            iam_role_name='my_test_role',
+        )
         mock_initialize_job.return_value = {'JobRunState': 'RUNNING', 'JobRunId': '11111'}
         mock_get_job_state.return_value = 'SUCCEEDED'
-        self.glue.execute(None)
-
+        glue.execute(None)
         mock_initialize_job.assert_called_once_with({})
-        assert self.glue.job_name == 'my_test_job'
+        assert glue.job_name == 'my_test_job'

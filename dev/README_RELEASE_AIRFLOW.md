@@ -20,6 +20,8 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
+  - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
@@ -46,6 +48,24 @@
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md).
+
+# Selecting what to put into the release
+
+The first step of a release is to work out what is being included. This differs based on whether it is a major/minor or a patch release.
+
+- For a *major* or *minor* release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
+
+- For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+
+## Selecting what to cherry-pick
+
+For obvious reasons, you can't cherry-pick every change from `main` into the release branch - some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
+
+In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release; other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported), it's OK to leave it out of the release at your sole discretion as the release manager - if you do this, update the milestone in the issue to the "next" minor release.
+
+Many issues will be marked with the target release as their Milestone; this is a good shortlist to start with for what to cherry-pick.
+
+When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch. You'll move them over to be on `vX-Y-stable` once the release is cut.
 
 # Prepare the Apache Airflow Package RC
 
