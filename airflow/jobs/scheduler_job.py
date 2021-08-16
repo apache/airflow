@@ -290,6 +290,45 @@ class SchedulerJob(BaseJob):
         return dag_map, task_map
 
     @provide_session
+    def _remove_finished_tis_without_dagrun(self, session: Session = None) -> None:
+        """
+        Remove all TaskInstances for which the DagRun is missing but the task instances are in
+        finished state. Possibly the dag went missing and the task instances were failed.
+        """
+        TI = models.TaskInstance
+        query = (
+            session.query(TI)
+            .outerjoin(TI.dag_run)
+            .filter(TI.state.in_(State.finished))
+            .filter(DR.run_id.is_(None))
+        )
+
+        try:
+            count = query.count()
+            if count == 0:
+                return
+        except Exception:
+            # We want to catch any error and log it.
+            # This is to avoid the task-runner from failing.
+            self.log.error(
+                "Could not remove failed tasks for dag_id: %s",
+                ", ".join({str(ti.dag_id) for ti in query}),
+            )
+            return
+
+        query = with_row_locks(query, of=TI, session=session, **skip_locked(session=session)).all()
+        dag_ids = {ti.dag_id for ti in query}
+        if len(query) > 0:
+            session.query(TI).filter(TI.task_id.in_([ti.task_id for ti in query])).delete(
+                synchronize_session=False
+            )
+            self.log.warning(
+                "Deleted %s task instances in finished state without DagRun. " "Affected DAGs: %s",
+                count,
+                dag_ids,
+            )
+
+    @provide_session
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
@@ -299,6 +338,9 @@ class SchedulerJob(BaseJob):
         :type max_tis: int
         :return: list[airflow.models.TaskInstance]
         """
+        # Before searching for tasks, remove TIs in finished state without dagrun
+        self._remove_finished_tis_without_dagrun(session=session)
+
         executable_tis: List[TI] = []
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
@@ -325,6 +367,7 @@ class SchedulerJob(BaseJob):
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
+            .filter(TI.end_date.is_(None))
             .options(selectinload('dag_model'))
             .order_by(-TI.priority_weight, TI.execution_date)
         )
