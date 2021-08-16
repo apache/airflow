@@ -33,7 +33,7 @@ with DAG(
         slack_conn_id="slack",
         channel="#general",
         initial_comment="Hello World!",
-        file="/files/dags/test.txt",
+        filename="/files/dags/test.txt",
         filetype="txt",
     )
 
