@@ -353,8 +353,7 @@ class KubernetesPodOperator(BaseOperator):
             pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector)
 
             if len(pod_list.items) > 1 and self.reattach_on_restart:
-                self.log.info("Please set is_delete_operator_pod=True \
-+                    when you instantiate KubernetesPodOperator in your dag to fix the problem")
+                self.log.info("Please set reattach_on_restart=False to fix the problem")
                 raise AirflowException(
                     f'More than one pod running with labels: {label_selector}'
                 )
