@@ -107,6 +107,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         assert csargs == (mock_obj,)
         assert cskwargs['labels'] == {'name': 'airflow__adhoc_airflow__unittest'}
         assert cskwargs['name'].startswith('airflow-')
+        assert cskwargs['mode'] == types.ServiceMode(mode="replicated", replicas=3)
         assert client_mock.tasks.call_count == 5
         client_mock.remove_service.assert_called_once_with('some_id')
 
