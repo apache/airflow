@@ -304,7 +304,7 @@ jsonschema==3.2.0
 jupyter-client==6.1.12
 jupyter-core==4.7.1
 jwcrypto==1.0
-keyring==23.0.1
+keyring==23.1.0
 kombu==4.6.11
 kubernetes==11.0.0
 kylinpy==2.8.4
