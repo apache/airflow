@@ -131,7 +131,7 @@ class SSHOperator(BaseOperator):
         return self.ssh_hook
 
     def get_ssh_client(self) -> SSHClient:
-        # Remember to call close_ssh_client on this when done!
+        # Remember to use context manager or call .close() on this when done
         self.log.info('Creating ssh_client')
         return self.get_hook().get_conn()
 
@@ -205,21 +205,15 @@ class SSHOperator(BaseOperator):
         self.raise_for_status(exit_status, agg_stderr)
         return agg_stdout
 
-    def close_ssh_client(self, ssh_client: SSHClient) -> None:
-        self.log.info('Closing ssh_client')
-        ssh_client.close()
-
     def execute(self, context=None) -> Union[bytes, str]:
         result = None
-        ssh_client = self.get_ssh_client()
         if self.command is None:
-            raise AirflowException("SSH command not specified. Aborting.")
+            raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
         try:
-            result = self.run_ssh_client_command(ssh_client, self.command)
+            with self.get_ssh_client() as ssh_client:
+                result = self.run_ssh_client_command(ssh_client, self.command)
         except Exception as e:
             raise AirflowException(f"SSH operator error: {str(e)}")
-        finally:
-            self.close_ssh_client(ssh_client)
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if not enable_pickling:
             result = b64encode(result).decode('utf-8')

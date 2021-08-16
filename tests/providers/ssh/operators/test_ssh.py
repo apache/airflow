@@ -37,13 +37,15 @@ DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
 
+
 class SSHClientSideEffect:
     def __init__(self, hook):
-        self.ssh_client = hook.get_conn()
+        self.hook = hook
 
     def __call__(self):
-        self.return_value = self.ssh_client
+        self.return_value = self.hook.get_conn()
         return self.return_value
+
 
 class TestSSHOperator:
     def setup_method(self):
@@ -51,12 +53,13 @@ class TestSSHOperator:
 
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
+        self.dag = DAG('ssh_test', default_args={'start_date': DEFAULT_DATE})
         self.hook = hook
 
     def test_hook_created_correctly_with_timeout(self):
         timeout = 20
         ssh_id = "ssh_default"
-        with DAG('unit_tests_ssh_test_op_arg_checking', default_args={'start_date': DEFAULT_DATE}):
+        with self.dag:
             task = SSHOperator(task_id="test", command=COMMAND, timeout=timeout, ssh_conn_id="ssh_default")
         task.execute(None)
         assert timeout == task.ssh_hook.conn_timeout
@@ -66,7 +69,7 @@ class TestSSHOperator:
         conn_timeout = 20
         cmd_timeout = 45
         ssh_id = 'ssh_default'
-        with DAG('unit_tests_ssh_test_op_arg_checking', default_args={'start_date': DEFAULT_DATE}):
+        with self.dag:
             task = SSHOperator(
                 task_id="test",
                 command=COMMAND,
@@ -137,10 +140,8 @@ class TestSSHOperator:
 
     @unittest.mock.patch('os.environ', {'AIRFLOW_CONN_' + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})
     def test_arg_checking(self):
-        dag = DAG('unit_tests_ssh_test_op_arg_checking', default_args={'start_date': DEFAULT_DATE})
-
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided.
-        task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=dag)
+        task_0 = SSHOperator(task_id="test", command=COMMAND, timeout=TIMEOUT, dag=self.dag)
         with pytest.raises(AirflowException, match="Cannot operate without ssh_hook or ssh_conn_id."):
             task_0.execute(None)
 
@@ -151,7 +152,7 @@ class TestSSHOperator:
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
             timeout=TIMEOUT,
-            dag=dag,
+            dag=self.dag,
         )
         try:
             task_1.execute(None)
@@ -164,7 +165,7 @@ class TestSSHOperator:
             ssh_conn_id=TEST_CONN_ID,  # No ssh_hook provided.
             command=COMMAND,
             timeout=TIMEOUT,
-            dag=dag,
+            dag=self.dag,
         )
         try:
             task_2.execute(None)
@@ -179,7 +180,7 @@ class TestSSHOperator:
             ssh_conn_id=TEST_CONN_ID,
             command=COMMAND,
             timeout=TIMEOUT,
-            dag=dag,
+            dag=self.dag,
         )
         task_3.execute(None)
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
@@ -211,7 +212,6 @@ class TestSSHOperator:
         ],
     )
     def test_get_pyt_set_correctly(self, command, get_pty_in, get_pty_out):
-        dag = DAG('unit_tests_ssh_test_op_arg_checking', default_args={'start_date': DEFAULT_DATE})
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -219,7 +219,7 @@ class TestSSHOperator:
             conn_timeout=TIMEOUT,
             cmd_timeout=TIMEOUT,
             get_pty=get_pty_in,
-            dag=dag,
+            dag=self.dag,
         )
         if command is None:
             with pytest.raises(AirflowException) as ctx:
@@ -240,14 +240,13 @@ class TestSSHOperator:
         )
 
         se = SSHClientSideEffect(self.hook)
-        with unittest.mock.patch.object(task, 'get_ssh_client') as mock_get, unittest.mock.patch.object(
-            task, 'close_ssh_client'
+        with unittest.mock.patch.object(task, 'get_ssh_client') as mock_get, unittest.mock.patch(
+            'paramiko.client.SSHClient.close'
         ) as mock_close:
             mock_get.side_effect = se
-            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-            ti.run()
+            task.execute()
             mock_get.assert_called_once()
-            mock_close.assert_called_once_with(se.return_value)
+            mock_close.assert_called_once()
 
     def test_one_ssh_client_many_commands(self):
         # Ensure we can run multiple commands with one client
@@ -255,26 +254,22 @@ class TestSSHOperator:
 
         class CustomSSHOperator(SSHOperator):
             def execute(self, context=None):
-                ssh_client = self.get_ssh_client()
                 success = False
-                try:
+                with self.get_ssh_client() as ssh_client:
                     for c in many_commands:
                         self.run_ssh_client_command(ssh_client, c)
                     success = True
-                finally:
-                    self.close_ssh_client(ssh_client)
                 return success
 
         task = CustomSSHOperator(task_id="test", ssh_hook=self.hook, dag=self.dag)
         se = SSHClientSideEffect(self.hook)
         with unittest.mock.patch.object(task, 'get_ssh_client') as mock_get, unittest.mock.patch.object(
             task, 'run_ssh_client_command'
-        ) as mock_run_cmd, unittest.mock.patch.object(task, 'close_ssh_client') as mock_close:
+        ) as mock_run_cmd, unittest.mock.patch('paramiko.client.SSHClient.close') as mock_close:
             mock_get.side_effect = se
-            ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-            ti.run()
+            task.execute()
             mock_get.assert_called_once()
-            mock_close.assert_called_once_with(se.return_value)
+            mock_close.assert_called_once()
 
             ssh_client = se.return_value
             calls = [unittest.mock.call(ssh_client, c) for c in many_commands]
