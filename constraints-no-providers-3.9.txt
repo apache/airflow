@@ -1,4 +1,4 @@
-# Editable install with no version control (apache-airflow==2.1.2)
+# Editable install with no version control (apache-airflow==2.1.3)
 Authlib==0.15.4
 Babel==2.9.1
 Flask-AppBuilder==3.3.2
