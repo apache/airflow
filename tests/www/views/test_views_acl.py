@@ -766,7 +766,7 @@ def user_no_roles(acl_app):
     user = create_user(
         acl_app,
         username="no_roles_user",
-        role_name="User",
+        role_name="no_roles_user_role",
     )
     user.roles = []
     return user

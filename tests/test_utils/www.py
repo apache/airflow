@@ -24,7 +24,6 @@ def client_with_login(app, **kwargs):
         client = app.test_client()
         resp = client.post("/login/", data=kwargs)
         assert resp.status_code == 302
-        assert resp.headers["location"] == "http://localhost/"
     return client
 
 
