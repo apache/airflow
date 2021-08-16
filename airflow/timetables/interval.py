@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 from pendulum import DateTime
 
-from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.schedules import CronSchedule, Delta, DeltaSchedule, Schedule
 
 
@@ -42,6 +42,13 @@ class _DataIntervalTimetable(Timetable):
 
     def validate(self) -> None:
         self._schedule.validate()
+
+    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+        # Get the last complete period before run_after, e.g. if a DAG run is
+        # scheduled at each midnight, the data interval of a manually triggered
+        # run at 1am 25th is between 0am 24th and 0am 25th.
+        end = self._schedule.get_prev(self._schedule.align(run_after))
+        return DataInterval(start=self._schedule.get_prev(end), end=end)
 
     def next_dagrun_info(
         self,

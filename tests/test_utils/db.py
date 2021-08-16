@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import (
     Connection,
     DagModel,
@@ -28,6 +29,7 @@ from airflow.models import (
     TaskFail,
     TaskInstance,
     TaskReschedule,
+    Trigger,
     Variable,
     XCom,
     errors,
@@ -40,6 +42,8 @@ from airflow.utils.session import create_session
 
 def clear_db_runs():
     with create_session() as session:
+        session.query(TriggererJob).delete()
+        session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
 

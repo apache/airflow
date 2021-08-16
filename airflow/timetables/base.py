@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterator, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 from pendulum import DateTime
 
@@ -23,13 +23,15 @@ from airflow.typing_compat import Protocol
 
 
 class DataInterval(NamedTuple):
-    """A data interval for a DagRun to operate over.
-
-    The represented interval is ``[start, end)``.
-    """
+    """A data interval for a DagRun to operate over."""
 
     start: DateTime
     end: DateTime
+
+    @classmethod
+    def exact(cls, at: DateTime) -> "DagRunInfo":
+        """Represent an "interval" containing only an exact time."""
+        return cls(start=at, end=at)
 
 
 class TimeRestriction(NamedTuple):
@@ -62,12 +64,12 @@ class DagRunInfo(NamedTuple):
     """The earliest time this DagRun is created and its tasks scheduled."""
 
     data_interval: DataInterval
-    """The data interval this DagRun to operate over, if applicable."""
+    """The data interval this DagRun to operate over."""
 
     @classmethod
     def exact(cls, at: DateTime) -> "DagRunInfo":
         """Represent a run on an exact time."""
-        return cls(run_after=at, data_interval=DataInterval(at, at))
+        return cls(run_after=at, data_interval=DataInterval.exact(at))
 
     @classmethod
     def interval(cls, start: DateTime, end: DateTime) -> "DagRunInfo":
@@ -79,6 +81,15 @@ class DagRunInfo(NamedTuple):
         """
         return cls(run_after=end, data_interval=DataInterval(start, end))
 
+    @property
+    def logical_date(self) -> DateTime:
+        """Infer the logical date to represent a DagRun.
+
+        This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
+        essentially the same, just a different name.
+        """
+        return self.data_interval.start
+
 
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
@@ -87,6 +98,14 @@ class Timetable(Protocol):
         """Validate the timetable is correctly specified.
 
         This should raise AirflowTimetableInvalid on validation failure.
+        """
+        raise NotImplementedError()
+
+    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+        """When a DAG run is manually triggered, infer a data interval for it.
+
+        This is used for e.g. manually-triggered runs, where ``run_after`` would
+        be when the user triggers the run.
         """
         raise NotImplementedError()
 
@@ -108,26 +127,3 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         raise NotImplementedError()
-
-    def iter_between(
-        self,
-        start: DateTime,
-        end: DateTime,
-        *,
-        align: bool,
-    ) -> Iterator[DateTime]:
-        """Get schedules between the *start* and *end*."""
-        if start > end:
-            raise ValueError(f"start ({start}) > end ({end})")
-        between = TimeRestriction(start, end, catchup=True)
-
-        if align:
-            next_info = self.next_dagrun_info(None, between)
-        else:
-            yield start
-            next_info = self.next_dagrun_info(start, between)
-
-        while next_info is not None:
-            dagrun_start = next_info.data_interval.start
-            yield dagrun_start
-            next_info = self.next_dagrun_info(dagrun_start, between)

@@ -129,7 +129,10 @@ class DbApiHook(BaseHook):
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         :type kwargs: dict
         """
-        from pandas.io import sql as psql
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise Exception("pandas library not installed, run: pip install 'apache-airflow[pandas]'.")
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)

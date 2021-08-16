@@ -85,7 +85,7 @@ function updateModalUrls() {
   }
 
   updateButtonUrl(buttons.ti, {
-    flt1_dag_id_equals: dagId,
+    _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: executionDate,
   });
