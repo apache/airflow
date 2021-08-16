@@ -18,7 +18,7 @@ Markdown==3.3.4
 MarkupSafe==1.1.1
 PyJWT==1.7.1
 PyYAML==5.4.1
-Pygments==2.9.0
+Pygments==2.10.0
 SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.37.8
 SQLAlchemy==1.3.24
@@ -75,7 +75,7 @@ httpx==0.18.2
 humanize==3.11.0
 idna==3.2
 immutables==0.16
-importlib-metadata==4.6.3
+importlib-metadata==4.6.4
 importlib-resources==1.5.0
 inflection==0.5.1
 iso8601==0.1.16
