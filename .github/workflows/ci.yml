@@ -1145,10 +1145,18 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      # Rebuild images before push using the latest constraints (just pushed) without
+      # eager upgrade. Do not wait for images, but rebuild them, but always check if
+      # there is a new Python base image to pull and rebuild. This way, when latest python
+      # is not pushed, we will re-use the last cache to start from and when there is
+      # a new python image, we will rebuild it from scratch (same as during the "build-images.ci")
       GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
       GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
       PUSH_PYTHON_BASE_IMAGE: "true"
+      FORCE_PULL_IMAGES: "true"
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: "true"
+      GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
+      UPGRADE_TO_NEWER_DEPENDENCIES: "false"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
@@ -1164,6 +1172,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Prepare PROD image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:latest"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        env:
+          VERSION_SUFFIX_FOR_PYPI: ".dev0"
       - name: "Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest"
         run: ./scripts/ci/images/ci_push_ci_images.sh
       - name: "Push PROD images ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest"
