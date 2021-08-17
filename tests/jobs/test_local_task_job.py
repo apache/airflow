@@ -864,34 +864,6 @@ class TestLocalTaskJob:
         session.refresh(dr)
         assert dr.state == State.SUCCESS
 
-    def test_task_exit_should_update_state_of_finished_dagruns_with_dag_paused(self, dag_maker):
-        """Test that with DAG paused, DagRun state will update when the tasks finishes the run"""
-        with dag_maker(dag_id='test_dags') as dag:
-            op1 = PythonOperator(task_id='dummy', python_callable=lambda: True)
-
-        session = settings.Session()
-        dagmodel = dag_maker.dag_model
-        dagmodel.next_dagrun_create_after = dag.following_schedule(DEFAULT_DATE)
-        dagmodel.is_paused = True
-        session.merge(dagmodel)
-        session.flush()
-
-        # Write Dag to DB
-        dagbag = DagBag(dag_folder="/dev/null", include_examples=False, read_dags_from_db=False)
-        dagbag.bag_dag(dag, root_dag=dag)
-        dagbag.sync_to_db()
-
-        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-
-        assert dr.state == State.RUNNING
-        ti = TaskInstance(op1, dr.execution_date)
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
-        job1.task_runner = StandardTaskRunner(job1)
-        job1.run()
-        session.add(dr)
-        session.refresh(dr)
-        assert dr.state == State.SUCCESS
-
 
 @pytest.fixture()
 def clean_db_helper():
