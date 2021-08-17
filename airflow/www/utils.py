@@ -536,6 +536,6 @@ class ErrorTagField(StringField):
 # subclass) so we have no other option than to edit the converstion table in
 # place
 FieldConverter.conversion_table = (
-    ('is_errortag', ErrorTagField, Select2Widget) +
+    ('is_errortag', ErrorTagField, Select2Widget),
     ('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
 ) + FieldConverter.conversion_table

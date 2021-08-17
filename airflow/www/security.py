@@ -324,11 +324,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         #TODO: 关于工具和二次确认的权限的设定
         {
             'role': '工段长',
-            'perms': VIEWER_PERMISSIONS | READ_DAG_PERMS,
+            'perms': VIEWER_PERMISSIONS,
         },
         {
             'role': 'ME工程师',
-            'perms': VIEWER_PERMISSIONS | READ_DAG_PERMS,
+            'perms': VIEWER_PERMISSIONS,
         },
         {
             'role': '运维人员',
