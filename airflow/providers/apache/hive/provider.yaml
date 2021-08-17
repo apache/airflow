@@ -83,3 +83,11 @@ hook-class-names:
   - airflow.providers.apache.hive.hooks.hive.HiveCliHook
   - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
   - airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveCliHook
+    connection-type: hive_cli
+  - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
+    connection-type: hiveserver2
+  - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook
+    connection-type: hive_metastore

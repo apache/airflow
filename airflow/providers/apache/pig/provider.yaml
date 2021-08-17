@@ -47,3 +47,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.apache.pig.hooks.pig.PigCliHook
+
+connection-types:
+  - connection-type: pig_cli
+    hook-class-name: airflow.providers.apache.pig.hooks.pig.PigCliHook

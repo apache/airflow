@@ -47,3 +47,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.vertica.hooks.vertica.VerticaHook
+
+connection-types:
+  - hook-class-name: airflow.providers.vertica.hooks.vertica.VerticaHook
+    connection-type: vertica

@@ -50,3 +50,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.ssh.hooks.ssh.SSHHook
+
+connection-types:
+  - hook-class-name: airflow.providers.ssh.hooks.ssh.SSHHook
+    connection-type: ssh

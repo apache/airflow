@@ -63,3 +63,7 @@ transfers:
 
 hook-class-names:
   - airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
+
+connection-types:
+  - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
+    connection-type: snowflake

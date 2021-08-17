@@ -54,3 +54,7 @@ sensors:
 
 hook-class-names:
   - airflow.providers.airbyte.hooks.airbyte.AirbyteHook
+
+connection-types:
+  - hook-class-name: airflow.providers.airbyte.hooks.airbyte.AirbyteHook
+    connection-type: airbyte

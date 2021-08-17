@@ -67,3 +67,7 @@ transfers:
 
 hook-class-names:
   - airflow.providers.mysql.hooks.mysql.MySqlHook
+
+connection-types:
+  - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
+    connection-type: mysql

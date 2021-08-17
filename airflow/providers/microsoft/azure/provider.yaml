@@ -166,6 +166,32 @@ hook-class-names:
   - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
   - airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook
 
+connection-types:
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
+    connection-type: azure
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
+    connection-type: azure_data_explorer
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook
+    connection-type: azure_batch
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook
+    connection-type: azure_cosmos
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_data_lake.AzureDataLakeHook
+    connection-type: azure_data_lake
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_fileshare.AzureFileShareHook
+    connection-type: azure_fileshare
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_container_volume.AzureContainerVolumeHook
+    connection-type: azure_container_volume
+  - hook-class-name: >-
+      airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook
+    connection-type: azure_container_instance
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.wasb.WasbHook
+    connection-type: wasb
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
+    connection-type: azure_data_factory
+  - hook-class-name: >-
+      airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook
+    connection-type: azure_container_registry
+
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
 
