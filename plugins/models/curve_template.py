@@ -3,7 +3,6 @@ from typing import Any, List
 from plugins.models.base import Base
 from sqlalchemy import Column, Integer, String, Text, Boolean
 from airflow.utils.db import provide_session
-from airflow.secrets import get_variable
 from airflow.plugins_manager import AirflowPlugin
 from airflow import settings
 
@@ -36,7 +35,8 @@ class CurveTemplateModel(Base):
         default_var=__NO_DEFAULT_SENTINEL,  # type: Any
         deserialize_json=False  # type: bool
     ):
-        var_val = get_variable(key=key)
+        from airflow.models.variable import Variable
+        var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
