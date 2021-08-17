@@ -26,7 +26,6 @@ import re
 import socket
 import sys
 import traceback
-import markupsafe
 from collections import defaultdict
 from datetime import timedelta
 from json import JSONDecodeError
@@ -35,6 +34,7 @@ from typing import Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
+import markupsafe
 import nvd3
 import sqlalchemy as sqla
 from flask import (
@@ -3401,7 +3401,6 @@ class ProviderView(AirflowBaseView):
         )
 
     def _clean_description(self, description):
-
         def _build_link(match_obj):
             text = match_obj.group(1)
             url = match_obj.group(2)
@@ -3411,6 +3410,7 @@ class ProviderView(AirflowBaseView):
         cd = re.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
         cd = re.sub(r"\n", r"<br>", cd)
         return markupsafe.Markup(cd)
+
 
 class PoolModelView(AirflowModelView):
     """View to show records from Pool table"""
