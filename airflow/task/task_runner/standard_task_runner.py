@@ -110,7 +110,6 @@ class StandardTaskRunner(BaseTaskRunner):
             return
 
         # Reap the child process - it may already be finished
-        _ = self.return_code(timeout=0)
 
         if self.process and self.process.is_running():
             rcs = reap_process_group(self.process.pid, self.log)

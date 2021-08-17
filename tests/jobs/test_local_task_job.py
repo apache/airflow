@@ -347,41 +347,24 @@ class TestLocalTaskJob:
 
         session.close()
 
-    @pytest.mark.quarantined
-    def test_localtaskjob_maintain_heart_rate(self):
+    @patch.object(StandardTaskRunner, 'return_code')
+    def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
 
-        dag = self.dagbag.dags.get('test_localtaskjob_double_trigger')
-        task = dag.get_task('test_localtaskjob_double_trigger_task')
-
-        session = settings.Session()
-
-        dag.clear()
-        dag.create_dagrun(
-            run_id="test",
-            state=State.SUCCESS,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-        )
+        _, task = create_dummy_dag('test_localtaskjob_double_trigger')
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
 
+        time_start = time.time()
+
         # this should make sure we only heartbeat once and exit at the second
         # loop in _execute()
-        return_codes = [None, 0]
+        mock_return_code.side_effect = [None, 0]
 
-        def multi_return_code():
-            return return_codes.pop(0)
-
-        time_start = time.time()
-        with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_start:
-            with patch.object(StandardTaskRunner, 'return_code') as mock_ret_code:
-                mock_ret_code.side_effect = multi_return_code
-                job1.run()
-                assert mock_start.call_count == 1
-                assert mock_ret_code.call_count == 2
+        with timeout(10):
+            job1.run()
+        assert mock_return_code.call_count == 2
         time_end = time.time()
 
         assert self.mock_base_job_sleep.call_count == 1
@@ -392,7 +375,7 @@ class TestLocalTaskJob:
         #
         # We already make sure patched sleep call is only called once
         assert time_end - time_start < job1.heartrate
-        session.close()
+        assert "Task exited with return code 0" in caplog.text
 
     def test_mark_failure_on_failure_callback(self, dag_maker):
         """
