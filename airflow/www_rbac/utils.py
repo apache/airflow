@@ -46,8 +46,6 @@ from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 from airflow.www_rbac.widgets import AirflowDateTimePickerWidget
 
-AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
-
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
     'secret',

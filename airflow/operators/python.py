@@ -30,7 +30,6 @@ import dill
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
-from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -437,35 +436,3 @@ class PythonVirtualenvOperator(PythonOperator):
         memo[id(self.pickling_library)] = self.pickling_library
         return super().__deepcopy__(memo)
 
-
-def get_current_context() -> Dict[str, Any]:
-    """
-    Obtain the execution context for the currently executing operator without
-    altering user method's signature.
-    This is the simplest method of retrieving the execution context dictionary.
-
-    **Old style:**
-
-    .. code:: python
-
-        def my_task(**context):
-            ti = context["ti"]
-
-    **New style:**
-
-    .. code:: python
-
-        from airflow.operators.python import get_current_context
-        def my_task():
-            context = get_current_context()
-            ti = context["ti"]
-
-    Current context will only have value if this method was called after an operator
-    was starting to execute.
-    """
-    if not _CURRENT_CONTEXT:
-        raise AirflowException(
-            "Current context was requested but no context was found! "
-            "Are you running within an airflow task?"
-        )
-    return _CURRENT_CONTEXT[-1]

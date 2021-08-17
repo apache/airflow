@@ -89,6 +89,39 @@ _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
 
 
+def get_current_context() -> Dict[str, Any]:
+    """
+    Obtain the execution context for the currently executing operator without
+    altering user method's signature.
+    This is the simplest method of retrieving the execution context dictionary.
+
+    **Old style:**
+
+    .. code:: python
+
+        def my_task(**context):
+            ti = context["ti"]
+
+    **New style:**
+
+    .. code:: python
+
+        from airflow.operators.python import get_current_context
+        def my_task():
+            context = get_current_context()
+            ti = context["ti"]
+
+    Current context will only have value if this method was called after an operator
+    was starting to execute.
+    """
+    if not _CURRENT_CONTEXT:
+        raise AirflowException(
+            "Current context was requested but no context was found! "
+            "Are you running within an airflow task?"
+        )
+    return _CURRENT_CONTEXT[-1]
+
+
 @contextlib.contextmanager
 def set_current_context(context: Context):
     """

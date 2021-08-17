@@ -50,7 +50,6 @@ dag = DAG(
 
 
 publish_task = PublishResultOperator(
-    provide_context=True,
     task_id='publish_result_task',
     dag=dag
 )

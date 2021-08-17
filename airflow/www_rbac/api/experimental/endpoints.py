@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
-from airflow.www_rbac.app import csrf
+from airflow.www.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
 

@@ -107,8 +107,8 @@ def get_result_args():
 
 
 def get_kafka_consumer_args(connection_key: str = 'qcos_kafka_consumer'):
-    from airflow.utils.db import get_connection
-    kafka_conn = get_connection(connection_key)
+    from airflow.models.connection import Connection
+    kafka_conn = Connection.get_connection_from_secrets(connection_key)
     extra = kafka_conn.extra_dejson if kafka_conn else {}
     return {
         "bootstrap_servers": extra.get('bootstrap_servers', 'localhost:9092'),
@@ -120,8 +120,8 @@ def get_kafka_consumer_args(connection_key: str = 'qcos_kafka_consumer'):
 
 
 def get_curve_args(connection_key='qcos_minio'):
-    from airflow.utils.db import get_connection
-    oss = get_connection(connection_key)
+    from airflow.models.connection import Connection
+    oss = Connection.get_connection_from_secrets(connection_key)
     extra = oss.extra_dejson if oss else {}
     return {
         "bucket": extra.get('bucket', 'desoutter'),
@@ -156,7 +156,7 @@ def trigger_push_result_to_mq(data_type, result, entity_id, verify_error, curve_
         'verify_error': verify_error,
         'curve_mode': curve_mode,
     }
-    from airflow.hooks.publish_result_plugin import PublishResultHook
+    from plugins.publish_result.publish_result_plugin import PublishResultHook
     PublishResultHook.trigger_publish(data_type, push_result)
 
 

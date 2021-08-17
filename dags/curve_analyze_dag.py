@@ -40,7 +40,6 @@ dag = DAG(
 
 
 trigger_anay_task = TriggerAnalyzeOperator(
-            provide_context=True,
             task_id='trigger_anay_task',
             dag=dag,
             priority_weight=9
@@ -50,8 +49,8 @@ trigger_anay_task = TriggerAnalyzeOperator(
 # https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
 if __name__ == '__main__':
     from tests.curve_dags.test_trigger import body
-    from airflow.hooks.result_storage_plugin import ResultStorageHook
+    from plugins.result_storage.result_storage_plugin import ResultStorageHook
 
     params = ResultStorageHook.on_curve_receive(body.get('conf'))
-    dag.clear(reset_dag_runs=True)
+    dag.clear()
     dag.run(conf=params)

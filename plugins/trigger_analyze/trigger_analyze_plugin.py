@@ -11,7 +11,7 @@ from distutils.util import strtobool
 from flask import jsonify, request, Blueprint
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www_rbac.app import csrf
+from airflow.www.app import csrf
 from plugins.utils.utils import trigger_push_result_to_mq
 import json
 from airflow.utils.db import provide_session
@@ -38,7 +38,7 @@ class TriggerAnalyzeHook(BaseHook, ABC):
     @staticmethod
     def trigger_push_result_dag(params):
         _logger.info('pushing result to mq...')
-        from airflow.hooks.publish_result_plugin import PublishResultHook
+        from plugins.publish_result.publish_result_plugin import PublishResultHook
         PublishResultHook.trigger_publish('tightening_result', params)
 
     @staticmethod
@@ -103,7 +103,7 @@ class TriggerAnalyzeHook(BaseHook, ABC):
         should_skip_analysis = TriggerAnalyzeHook.should_skip_analysis(params)
         if should_skip_analysis:
             return
-        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        from plugins.result_storage.result_storage_plugin import ResultStorageHook
         entity_id = params.get('entity_id', None)
         ResultStorageHook.bind_analyze_task(
             entity_id,
@@ -113,7 +113,7 @@ class TriggerAnalyzeHook(BaseHook, ABC):
         )
         new_param = TriggerAnalyzeHook.prepare_trigger_params(params)
         TriggerAnalyzeHook.trigger_push_result_dag(new_param)
-        from airflow.hooks.cas_plugin import CasHook
+        from plugins.cas.cas_plugin import CasHook
         cas = CasHook(role='analysis')
         loop = asyncio.get_event_loop()
         result = loop.run_until_complete(cas.trigger_analyze(new_param))
@@ -132,7 +132,7 @@ class TriggerAnalyzeOperator(BaseOperator):
     def execute(self, context):
         params = context['dag_run'].conf
         task_instance = context['task_instance']
-        from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
+        from plugins.trigger_analyze.trigger_analyze_plugin import TriggerAnalyzeHook
         TriggerAnalyzeHook.do_trigger_analyze(params, task_instance)
 
 
@@ -203,7 +203,7 @@ def put_analyze_result():
             extra['error_tag'] = json.dumps([])
         extra['verify_error'] = int(data.get('verify_error'))  # OK, NOK
 
-        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        from plugins.result_storage.result_storage_plugin import ResultStorageHook
         ResultStorageHook.save_analyze_result(
             entity_id,
             result,

@@ -13,10 +13,10 @@ _logger = generate_logger(__name__)
 
 
 def on_curve_receive(**kwargs):
-    from airflow.hooks.result_storage_plugin import ResultStorageHook
+    from plugins.result_storage.result_storage_plugin import ResultStorageHook
     params = getattr(kwargs.get('dag_run'), 'conf')
     params = ResultStorageHook.on_curve_receive(params)
-    from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
+    from plugins.trigger_analyze.trigger_analyze_plugin import TriggerAnalyzeHook
     TriggerAnalyzeHook.trigger_analyze(params)
 
 

@@ -27,8 +27,8 @@ class ClsResultMQ(ClsEntity):
 
     @staticmethod
     def get_result_mq_args(key='qcos_rabbitmq'):
-        from airflow.utils.db import get_connection
-        mq = get_connection(key)
+        from airflow.models.connection import Connection
+        mq = Connection.get_connection_from_secrets(key)
         if mq is None:
             _logger.error('连接"{}"未配置'.format(key))
             return {

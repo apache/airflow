@@ -332,7 +332,7 @@ class PublishResultOperator(BaseOperator):
 
     def execute(self, context):
         params = context['dag_run'].conf
-        from airflow.hooks.publish_result_plugin import PublishResultHook
+        from plugins.publish_result.publish_result_plugin import PublishResultHook
         data_type, data = PublishResultOperator.verify_params(params)
         PublishResultHook.do_publish(data_type, data)
 

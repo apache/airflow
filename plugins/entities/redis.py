@@ -65,7 +65,7 @@ class ClsRedisConnection(ClsEntity):
         _logger.debug("storing templates...")
         # _logger.info("Template Data: {}".format(pprint.pformat(templates, indent=4)))
         # 触发模板推送到rabbit mq
-        from airflow.hooks.publish_result_plugin import PublishResultHook
+        from plugins.publish_result.publish_result_plugin import PublishResultHook
         PublishResultHook.trigger_publish('curve_templates_dict', templates)
         with self.pipeline as p:
             for key, val in templates.items():

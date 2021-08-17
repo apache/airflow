@@ -95,7 +95,7 @@ def do_trigger_training(result, final_state):
     }
     data.update(task_param)
     data.update(curve_params)
-    from airflow.hooks.cas_plugin import CasHook
+    from plugins.cas.cas_plugin import CasHook
     cas = CasHook(role='training')
     cas.trigger_training(data)
 
@@ -129,7 +129,7 @@ def trigger_training_task(task_instance, **kwargs):
     else:
         _logger.info('training skipped, saving error tag')
 
-    from airflow.hooks.result_storage_plugin import ResultStorageHook
+    from plugins.result_storage.result_storage_plugin import ResultStorageHook
     ResultStorageHook.save_final_state(
         entity_id,
         final_state,

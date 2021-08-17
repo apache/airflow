@@ -13,7 +13,7 @@ CAS_TRAINING_BASE_URL = os.environ.get("CAS_TRAINING_BASE_URL", "http://localhos
 
 class CasHook(BaseHook):
     def __init__(self, role='all'):
-        super(CasHook, self).__init__(source='cas')
+        super(CasHook, self).__init__()
         if role == 'analysis':
             conn_id = 'cas_analysis'
         elif role == 'training':
@@ -24,7 +24,8 @@ class CasHook(BaseHook):
         self.conn_id = conn_id
 
         try:
-            self.connection = self.get_connection(conn_id)
+            from airflow.models.connection import Connection
+            self.connection = Connection.get_connection_from_secrets(conn_id)
         except Exception as e:
             self.log.error(e)
             self.connection = None

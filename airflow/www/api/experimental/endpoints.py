@@ -73,7 +73,7 @@ api_experimental.after_request(add_deprecation_headers)
 
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
-@requires_authentication
+# @requires_authentication
 def trigger_dag(dag_id):
     """
     Trigger a new dag run for a Dag with an execution date of now unless

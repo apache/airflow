@@ -8,7 +8,7 @@ from airflow.configuration import conf
 import os
 from flask import jsonify, request, Blueprint
 from airflow.plugins_manager import AirflowPlugin
-from airflow.www_rbac.app import csrf
+from airflow.www.app import csrf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 

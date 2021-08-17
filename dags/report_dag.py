@@ -9,7 +9,6 @@ from airflow.operators.email_operator import EmailOperator
 from airflow.models import Variable
 from airflow.operators.python_operator import PythonOperator
 import errno
-from airflow.utils.db import get_connection
 
 file_ok_report = "ok_report.pdf"
 file_task = "task.pdf"
@@ -60,7 +59,8 @@ dag = DAG(dag_id, description=u'日报表推送',
 
 
 def do_load_file(**kwargs):
-    report = get_connection('qcos_report')
+    from airflow.models.connection import Connection
+    report = Connection.get_connection_from_secrets('qcos_report')
     reporter_url = '{}:{}'.format(report.host, report.port) if report else ''
     grafana_token = report.get_password() if report else ''
 

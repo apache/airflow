@@ -35,9 +35,10 @@ from airflow.operators.python import (
     BranchPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
-    ShortCircuitOperator,
-    get_current_context,
+    ShortCircuitOperator
 )
+from airflow.models.taskinstance import get_current_context
+
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session

@@ -40,9 +40,9 @@ def curve_data_handler(msg):
                 'conf': msg
             }
         }
-        from airflow.hooks.result_storage_plugin import ResultStorageHook
+        from plugins.result_storage.result_storage_plugin import ResultStorageHook
         params = ResultStorageHook.on_curve_receive(True, data)
-        from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
+        from plugins.trigger_analyze.trigger_analyze_plugin import TriggerAnalyzeHook
         TriggerAnalyzeHook.trigger_analyze(params)
     except Exception as e:
         _logger.error(repr(e))
@@ -50,7 +50,7 @@ def curve_data_handler(msg):
 
 def get_kafka_config():
     key = 'qcos_kafka'
-    conn: Connection = Connection.get_connection_from_secrets('qcos_kafka')
+    conn: Connection = Connection.get_connection_from_secrets(key)
     if conn is None:
         raise AirflowConfigException(f'缺少kafka配置：{key}')
     data = {
