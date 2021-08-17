@@ -640,14 +640,14 @@ class TestShortCircuitOperator(unittest.TestCase):
             # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
             (
                 False,
-                False,
+                "soft",
                 TriggerRule.ALL_SUCCESS,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
             ),
             # Skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream task
             (
                 False,
-                False,
+                "soft",
                 TriggerRule.ALL_DONE,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
