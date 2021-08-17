@@ -44,7 +44,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.timetables.base import DagRunInfo
 from airflow.utils import helpers, timezone
-from airflow.utils.configuration import tmp_configuration_copy
+from airflow.utils.configuration import conf as airflow_conf, tmp_configuration_copy
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -423,6 +423,8 @@ class BackfillJob(BaseJob):
         """
         executed_run_dates = []
 
+        is_unit_test = airflow_conf.getboolean('core', 'unit_test_mode')
+
         while (len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and len(ti_status.deadlocked) == 0:
             self.log.debug("*** Clearing out not_ready list ***")
             ti_status.not_ready.clear()
@@ -601,8 +603,8 @@ class BackfillJob(BaseJob):
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
+            self.heartbeat(only_if_necessary=is_unit_test)
             # execute the tasks in the queue
-            self.heartbeat()
             executor.heartbeat()
 
             # If the set of tasks that aren't ready ever equals the set of
