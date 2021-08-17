@@ -539,9 +539,10 @@ class DAG(LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        current = pendulum.instance(dttm)
-        between = TimeRestriction(earliest=None, latest=None, catchup=True)
-        next_info = self.timetable.next_dagrun_info(current, between)
+        next_info = self.timetable.next_dagrun_info(
+            last_automated_dagrun=pendulum.instance(dttm),
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+        )
         if next_info is None:
             return None
         return next_info.data_interval.start
@@ -585,8 +586,8 @@ class DAG(LoggingMixin):
         # and someone is passing datetime.datetime into this function. We should
         # fix whatever is doing that.
         return self.timetable.next_dagrun_info(
-            timezone.coerce_datetime(date_last_automated_dagrun),
-            self._time_restriction,
+            last_automated_dagrun=timezone.coerce_datetime(date_last_automated_dagrun),
+            restriction=self._time_restriction,
         )
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
@@ -657,7 +658,7 @@ class DAG(LoggingMixin):
         if self.is_subdag:
             align = False
 
-        info = self.timetable.next_dagrun_info(None, restriction)
+        info = self.timetable.next_dagrun_info(last_automated_dagrun=None, restriction=restriction)
         if info is None:
             # No runs to be scheduled between the user-supplied timeframe. But
             # if align=False, "invent" a data interval for the timeframe itself.
@@ -673,7 +674,10 @@ class DAG(LoggingMixin):
         # Generate naturally according to schedule.
         while info is not None:
             yield info
-            info = self.timetable.next_dagrun_info(info.logical_date, restriction)
+            info = self.timetable.next_dagrun_info(
+                last_automated_dagrun=info.logical_date,
+                restriction=restriction,
+            )
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -2132,7 +2136,9 @@ class DAG(LoggingMixin):
             )
 
         if run_type == DagRunType.MANUAL and data_interval is None and execution_date is not None:
-            data_interval = self.timetable.infer_data_interval(timezone.coerce_datetime(execution_date))
+            data_interval = self.timetable.infer_data_interval(
+                run_after=timezone.coerce_datetime(execution_date),
+            )
 
         run = DagRun(
             dag_id=self.dag_id,

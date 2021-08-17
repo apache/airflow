@@ -44,7 +44,7 @@ class _TrivialTimetable(Timetable):
     def serialize(self) -> Dict[str, Any]:
         return {}
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval.exact(run_after)
 
 
@@ -60,6 +60,7 @@ class NullTimetable(_TrivialTimetable):
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
@@ -78,6 +79,7 @@ class OnceTimetable(_TrivialTimetable):
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:

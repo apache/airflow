@@ -67,6 +67,7 @@ class _DataIntervalTimetable(Timetable):
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
@@ -213,12 +214,12 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             return new_start
         return max(new_start, earliest)
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is
         # scheduled at each midnight, the data interval of a manually triggered
         # run at 1am 25th is between 0am 24th and 0am 25th.
-        end = self._schedule.get_prev(self._schedule.align(run_after))
-        return DataInterval(start=self._schedule.get_prev(end), end=end)
+        end = self._get_prev(self._align(run_after))
+        return DataInterval(start=self._get_prev(end), end=end)
 
 
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):

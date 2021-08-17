@@ -148,7 +148,7 @@ class Timetable(Protocol):
         """
         return type(self).__name__
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """When a DAG run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
@@ -159,6 +159,7 @@ class Timetable(Protocol):
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
