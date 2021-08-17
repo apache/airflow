@@ -261,3 +261,7 @@ class TaskDeferred(BaseException):
 
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
+
+
+class CMDExecutionError(AirflowException):
+    """Raise in case of error during cmd execution"""
