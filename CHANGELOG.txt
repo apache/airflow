@@ -1,3 +1,63 @@
+Airflow 2.1.3, 2021-08-23
+-------------------------
+
+Bug Fixes
+"""""""""
+
+- Fix task retries when they receive ``sigkill`` and have retries and properly handle ``sigterm`` (#16301)
+- Fix redacting secrets in context exceptions. (#17618)
+- Fix race condition with dagrun callbacks (#16741)
+- Add 'queued' to DagRunState (#16854)
+- Add 'queued' state to DagRun (#16401)
+- Fix external elasticsearch logs link (#16357)
+- Add proper warning message when recorded PID is different from current PID (#17411)
+- Fix running tasks with ``default_impersonation`` config (#17229)
+- Rescue if a DagRun's DAG was removed from db (#17544)
+- Fixed broken json_client (#17529)
+- Handle and log exceptions raised during task callback (#17347)
+- Fix CLI ``kubernetes cleanup-pods`` which fails on invalid label key (#17298)
+- Show serialization exceptions in DAG parsing log (#17277)
+- Fix: ``TaskInstance`` does not show ``queued_by_job_id`` & ``external_executor_id`` (#17179)
+- Adds more explanatory message when ``SecretsMasker`` is not configured (#17101)
+- Enable the use of ``__init_subclass__`` in subclasses of ``BaseOperator`` (#17027)
+- Fix task instance retrieval in XCom view (#16923)
+- Validate type of ``priority_weight`` during parsing (#16765)
+- Correctly handle custom ``deps` and ``task_group`` during DAG Serialization (#16734)
+- Fix slow (cleared) tasks being be adopted by Celery worker. (#16718)
+- Fix calculating duration in tree view (#16695)
+- Fix ``AttributeError``: ``datetime.timezone`` object has no attribute ``name`` (#16599)
+- Redact conn secrets in webserver logs (#16579)
+- Change graph focus to top of view instead of center (#16484)
+- Fail tasks in scheduler when executor reports they failed (#15929)
+- fix(smart_sensor): Unbound variable errors (#14774)
+- Add back missing permissions to ``UserModelView`` controls. (#17431)
+- Better diagnostics and self-healing of docker-compose (#17484)
+- Improve diagnostics message when users have ``secret_key`` mis-configured (#17410)
+- Stop checking ``execution_date`` in ``task_instance.refresh_from_db`` (#16809)
+
+Improvements
+""""""""""""
+
+- Run mini scheduler in ``LocalTaskJob`` during task exit (#16289)
+- Remove ``SQLAlchemy<1.4`` constraint (#16630)
+- Bump Jinja2 upper-bound from 2.12.0 to 4.0.0 (#16595)
+- Bump ``dnspython`` (#16698)
+- Updates to ``FlaskAppBuilder`` 3.3.2+ (#17208)
+- Add State types for tasks and DAGs (#15285)
+- Set Process title for Worker when using ``LocalExecutor`` (#16623)
+- Move ``DagFileProcessor`` and ``DagFileProcessorProcess`` out of ``scheduler_job.py`` (#16581)
+
+Doc only changes
+""""""""""""""""
+
+- Fix inconsistencies in configuration docs (#17317)
+- Fix docs link for using SQLite as Metadata DB (#17308)
+
+Misc
+""""
+
+- Switch back http provider after requests removes LGPL dependency (#16974)
+
 Airflow 2.1.2, 2021-07-14
 -------------------------
 
