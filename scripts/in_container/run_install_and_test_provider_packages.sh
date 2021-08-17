@@ -171,6 +171,51 @@ function discover_all_field_behaviours() {
     group_end
 }
 
+function discover_all_logging_handlers() {
+    group_start "Listing available logging handlers via 'airflow providers logging'"
+    COLUMNS=180 airflow providers logging
+
+    local actual_number_of_logging
+    actual_number_of_logging=$(airflow providers logging --output table | grep -c ^airflow.providers | xargs)
+    if (( actual_number_of_logging < 6 )); then
+        echo
+        echo  "${COLOR_RED}ERROR: Number of logging handlers registered is wrong: ${actual_number_of_logging}  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+function discover_all_secrets_backends() {
+    group_start "Listing available secrets backends via 'airflow providers secrets'"
+    COLUMNS=180 airflow providers secrets
+
+    local actual_number_of_secrets
+    actual_number_of_secrets=$(airflow providers logging --output table | grep -c ^airflow.providers | xargs)
+    if (( actual_number_of_secrets < 5 )); then
+        echo
+        echo  "${COLOR_RED}ERROR: Number of secrets backends registered is wrong: ${actual_number_of_secrets}  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+function discover_all_auth_backends() {
+    group_start "Listing available API auth backends via 'airflow providers auth'"
+    COLUMNS=180 airflow providers auth
+
+    local actual_number_of_auth
+    actual_number_of_auth=$(airflow providers logging --output table | grep -c ^airflow.providers | xargs)
+    if (( actual_number_of_auth < 1 )); then
+        echo
+        echo  "${COLOR_RED}ERROR: Number of auth backends registered is wrong: ${actual_number_of_auth}  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
@@ -182,3 +227,6 @@ discover_all_hooks
 discover_all_connection_form_widgets
 discover_all_field_behaviours
 discover_all_extra_links
+discover_all_logging_handlers
+discover_all_secrets_backends
+discover_all_auth_backends

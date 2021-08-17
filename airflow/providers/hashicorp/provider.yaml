@@ -43,3 +43,6 @@ hooks:
 
 hook-class-names:
   - airflow.providers.hashicorp.hooks.vault.VaultHook
+
+secrets-backends:
+  - airflow.providers.hashicorp.secrets.vault.VaultBackend

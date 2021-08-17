@@ -399,3 +399,11 @@ hook-class-names:
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
+
+secrets-backends:
+  - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+  - airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
+
+logging:
+  - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
+  - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
