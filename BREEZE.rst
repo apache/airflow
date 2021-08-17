@@ -799,7 +799,7 @@ Constraints are generated separately for each python version and there are separ
 
 In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
 pushes changed to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#mnully-generating-constraint-files>`_ which utilises
+the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
 multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
