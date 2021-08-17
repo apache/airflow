@@ -1523,6 +1523,14 @@ class Airflow(AirflowBaseView):
         except DagFileExists:
             flash(f"Dag id {dag_id} is still in DagBag. Remove the DAG file first.", 'error')
             return redirect(request.referrer)
+        except AirflowException:
+            flash(
+                f"Cannot delete DAG with id {dag_id} because some task instances of the DAG "
+                "are still running. Please mark the  task instances as "
+                "failed/succeeded before deleting the DAG",
+                "error",
+            )
+            return redirect(request.referrer)
 
         flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
