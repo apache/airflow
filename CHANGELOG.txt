@@ -18,7 +18,6 @@ Bug Fixes
 - Fix CLI 'kubernetes cleanup-pods' which fails on invalid label key (#17298)
 - Show serialization exceptions in DAG parsing log (#17277)
 - Fix: ``TaskInstance`` does not show ``queued_by_job_id`` & ``external_executor_id`` (#17179)
-- Adds more explanatory message when SecretsMasker is not configured (#17101)
 - Enable the use of __init_subclass__ in subclasses of BaseOperator (#17027)
 - Fix task instance retrieval in XCom view (#16923)
 - Validate type of `priority_weight` during parsing (#16765)
@@ -31,14 +30,14 @@ Bug Fixes
 - Fail tasks in scheduler when executor reports they failed (#15929)
 - fix(smart_sensor): Unbound variable errors (#14774)
 - Add back missing permissions to UserModelView controls. (#17431)
-- Better diagnostics and self-healing of docker-compose (#17484)
-- Improve diagnostics message when users have secret_key misconfigured (#17410)
-- Add SSH_PORT variable
+- Run mini scheduler in LocalTaskJob during task exit (#16289)
 
 Misc
 """"
 
-- Run mini scheduler in LocalTaskJob during task exit (#16289)
+- Adds more explanatory message when SecretsMasker is not configured (#17101)
+- Better diagnostics and self-healing of docker-compose (#17484)
+- Improve diagnostics message when users have secret_key misconfigured (#17410)
 
 
 Airflow 2.1.2, 2021-07-14
