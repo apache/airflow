@@ -398,8 +398,9 @@ class Connection(Base, LoggingMixin):
                     return conn
             except Exception:  # pylint: disable=broad-except
                 log.exception(
-                    'Unable to retrieve connection from alternative secrets backend. '
-                    'Checking default secrets backends.'
+                    'Unable to retrieve connection from secrets backend (%s). '
+                    'Checking subsequent secrets backend.',
+                    type(secrets_backend).__name__,
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")

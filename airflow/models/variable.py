@@ -207,7 +207,8 @@ class Variable(Base, LoggingMixin):
                     return var_val
             except Exception:  # pylint: disable=broad-except
                 log.exception(
-                    'Unable to retrieve variable from alternative secrets backend. '
-                    'Checking default secrets backends.'
+                    'Unable to retrieve variable from secrets backend (%s). '
+                    'Checking subsequent secrets backend.',
+                    type(secrets_backend).__name__,
                 )
         return None
