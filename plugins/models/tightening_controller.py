@@ -1,5 +1,4 @@
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship
 from airflow.utils.db import provide_session
 from sqlalchemy import Column, String, Integer
 from airflow.plugins_manager import AirflowPlugin
@@ -20,8 +19,8 @@ class TighteningController(Base):
     line_name = Column(String(1000), nullable=True)
     work_center_code = Column(String(1000), nullable=False)
     work_center_name = Column(String(1000), nullable=True)
-    device_type = relationship('plugins.models.device_type.DeviceTypeModel')
-    device_type_id = Column(Integer, ForeignKey('device_type.id'), nullable=True)
+    device_type_id = Column(Integer, ForeignKey('device_type.id', onupdate='CASCADE', ondelete='SET NULL'),
+                            nullable=True)
 
     def __init__(self, *args, controller_name=None, line_code=None, line_name=None, work_center_code=None,
                  work_center_name=None, device_type_id=None, **kwargs):
@@ -47,6 +46,7 @@ class TighteningController(Base):
         if obj is None:
             return {}
         return {
+            'id': obj.id,
             'controller_name': obj.controller_name,
             'line_code': obj.line_code,
             'line_name': obj.line_name,
@@ -74,6 +74,13 @@ class TighteningController(Base):
             work_center_name=work_center_name,
             device_type_id=device_type_id
         ))
+
+    @staticmethod
+    def get_line_code_by_controller_name(controller_name):
+        controller_data = TighteningController.find_controller(controller_name)
+        if not controller_data:
+            raise Exception('未找到控制器数据: {}'.format(controller_name))
+        return controller_data.get('line_code', None), controller_data.get('id')
 
 
 # Defining the plugin class

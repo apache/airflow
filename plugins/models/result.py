@@ -7,8 +7,10 @@ from airflow.plugins_manager import AirflowPlugin
 from plugins.models.base import Base
 from airflow import settings
 from distutils.util import strtobool
-from sqlalchemy import text
+from sqlalchemy import text, ForeignKey, sql
 import os
+
+
 ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
 
 
@@ -27,7 +29,7 @@ class ResultModel(Base):
     __tablename__ = "result"
 
     pk = Column(Integer, primary_key=True, autoincrement=True)
-    id = Column(Integer)
+    id = Column(Integer)  # rush id
     entity_id = Column(String(256), unique=True)
     tool_sn = Column(String(256))
     angle_max = Column(Integer)
@@ -57,8 +59,6 @@ class ResultModel(Base):
     torque_min = Column(Integer)
     torque_target = Column(Integer)
     torque_threshold = Column(Integer)
-    # TODO: 将时间类型类型改为TIMESTAMP
-    # update_time = Column(String(256))
     update_time = Column(UtcDateTime())
     user_id = Column(Integer)
     workorder_id = Column(Integer)
@@ -81,6 +81,9 @@ class ResultModel(Base):
     training_task_id = Column(String(250))
     training_dag_id = Column(String(250))
     training_execution_date = Column(UtcDateTime)
+    controller_id = Column(Integer,
+                           ForeignKey('tightening_controller.id', onupdate='CASCADE', ondelete='RESTRICT'),
+                           nullable=True, default=sql.null())
 
     def as_dict(self):
         v: dict = self.__dict__

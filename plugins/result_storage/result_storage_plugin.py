@@ -20,17 +20,6 @@ RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 class ResultStorageHook(BaseHook, ABC):
 
     @staticmethod
-    def get_line_code_by_controller_name(controller_name):
-        from plugins.models.tightening_controller import TighteningController
-        controller_data = TighteningController.find_controller(controller_name)
-        if not controller_data:
-            raise Exception('未找到控制器数据: {}'.format(controller_name))
-        controller = '{}@{}/{}'.format(controller_data.get('controller_name'),
-                                       controller_data.get('work_center_code'),
-                                       controller_data.get('work_center_name'))
-        return controller_data.get('line_code', None), controller
-
-    @staticmethod
     def save_result(entity_id, result, **extra):
         _logger.info('start pushing result...')
         st = ClsResultStorage()
@@ -107,12 +96,14 @@ class ResultStorageHook(BaseHook, ABC):
         if should_store:
             entity_id = params.get('entity_id')
             try:
-                line_code, full_name = ResultStorageHook.get_line_code_by_controller_name(controller_name)
+                from plugins.models.tightening_controller import TighteningController
+                line_code, controller_id = TighteningController.get_line_code_by_controller_name(controller_name)
             except Exception as e:
                 _logger.error(e)
                 line_code = None
+                controller_id = None
 
-            from airflow.hooks.trigger_analyze_plugin import TriggerAnalyzeHook
+            from plugins.trigger_analyze.trigger_analyze_plugin import TriggerAnalyzeHook
             ResultStorageHook.save_result(
                 entity_id,
                 result,
@@ -122,7 +113,8 @@ class ResultStorageHook(BaseHook, ABC):
                 bolt_number=bolt_number,
                 device_type=result.get('device_type', 'tightening'),
                 type=TriggerAnalyzeHook.get_result_type(params),
-                craft_type=craft_type
+                craft_type=craft_type,
+                controller_id=controller_id
             )
 
             ResultStorageHook.save_curve(params)
