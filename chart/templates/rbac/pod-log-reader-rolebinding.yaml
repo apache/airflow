@@ -48,6 +48,6 @@ roleRef:
   name: {{ .Release.Name }}-pod-log-reader-role
 subjects:
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-webserver
+    name: {{ include "webserver.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
