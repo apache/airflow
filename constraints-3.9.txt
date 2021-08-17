@@ -220,11 +220,11 @@ gevent==21.8.0
 gitdb==4.0.7
 github3.py==2.0.0
 google-ads==13.0.0
-google-api-core==1.31.1
+google-api-core==1.31.2
 google-api-python-client==1.12.8
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.5
-google-auth==1.34.0
+google-auth==1.35.0
 google-cloud-appengine-logging==0.1.4
 google-cloud-audit-log==0.1.0
 google-cloud-automl==2.4.2
@@ -328,7 +328,7 @@ mypy-extensions==0.4.3
 mypy==0.770
 mysql-connector-python==8.0.22
 mysqlclient==2.0.3
-nbclient==0.5.3
+nbclient==0.5.4
 nbformat==5.1.3
 neo4j==4.3.4
 nest-asyncio==1.5.1
@@ -513,7 +513,7 @@ websocket-client==1.2.1
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.2
-yandexcloud==0.102.1
+yandexcloud==0.103.0
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
