@@ -19,7 +19,7 @@ import os
 import shlex
 import subprocess
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, CMDExecutionError
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -60,6 +60,34 @@ class LoggingCommandExecutor(LoggingMixin):
                     f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
                 )
             return output
+
+
+class CMDExecutor(LoggingCommandExecutor):
+    """Use this class if you need to raise the exception in case of error during cmd execution"""
+
+    def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
+        if silent:
+            self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            with open(os.devnull, 'w') as dev_null:
+                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT, env=env, cwd=cwd)
+        else:
+            self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            with subprocess.Popen(
+                args=cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                cwd=cwd,
+                env=env,
+            ) as process:
+                output, err = process.communicate()
+                retcode = process.poll()
+                if retcode:
+                    raise CMDExecutionError(
+                        f"Error when executing '{' '.join(cmd)}' with stdout: {output}, stderr: {err}"
+                    )
+                self.log.info("Stdout: %s", output)
+                self.log.info("Stderr: %s", err)
 
 
 def get_executor() -> LoggingCommandExecutor:
