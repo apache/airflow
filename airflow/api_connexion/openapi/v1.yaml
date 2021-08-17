@@ -1873,9 +1873,10 @@ components:
           nullable: true
           description: Whether the DAG is paused.
         is_active:
-          type: boolean
-          nullable: true
           description: Whether the DAG is currently seen by the scheduler(s).
+          nullable: true
+          readOnly: true
+          type: boolean
         is_subdag:
           description: Whether the DAG is SubDAG.
           type: boolean
