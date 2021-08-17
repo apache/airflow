@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: CI Build
+name: Tests
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
@@ -55,7 +55,7 @@ env:
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
   #
-  # a) Using images build in the separate "Build Image" workflow:
+  # a) Using images build in the separate "Build Images" workflow:
   #
   #  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
   #

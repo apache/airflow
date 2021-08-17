@@ -307,7 +307,7 @@ jobs:
   cancel-on-ci-build:
     permissions:
       actions: write
-    name: "Cancel 'CI Build' jobs on workflow failed/cancelled"
+    name: "Cancel `Tests` jobs on workflow failed/cancelled"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     if: failure() || cancelled()
     needs: [build-ci-images, build-prod-images]
@@ -315,7 +315,7 @@ jobs:
       branch: ${{ github.event.pull_request.head.ref }}
       thisRun: ${{ github.run_id }}
     steps:
-      - name: Find running CI Build jobs for ${{ env.TARGET_COMMIT_SHA }}
+      - name: "Find running `Tests` jobs for ${{ env.TARGET_COMMIT_SHA }}"
         run: |
           if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
             event_filter="event=pull_request&"
