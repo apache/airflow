@@ -1,0 +1,6 @@
+{
+  "builder": "test_builder.py",
+  "id": "2",
+  "command": "sleep 10",
+  "schedule": "*/20 * * * *"
+}

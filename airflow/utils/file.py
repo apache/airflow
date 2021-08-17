@@ -182,6 +182,9 @@ def list_py_file_paths(
     return file_paths
 
 
+VALID_FILE_EXTENSIONS = ['.py', '.yml', '.yaml', '.json']
+
+
 def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) -> List[str]:
     """Finds file paths of all DAG files."""
     file_paths = []
@@ -191,7 +194,7 @@ def find_dag_file_paths(directory: Union[str, "pathlib.Path"], safe_mode: bool) 
             if not os.path.isfile(file_path):
                 continue
             _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-            if file_ext != '.py' and not zipfile.is_zipfile(file_path):
+            if file_ext not in VALID_FILE_EXTENSIONS and not zipfile.is_zipfile(file_path):
                 continue
             if not might_contain_dag(file_path, safe_mode):
                 continue
@@ -217,10 +220,14 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
     """
     if not safe_mode:
         return True
+
     if zip_file:
         with zip_file.open(file_path) as current_file:
             content = current_file.read()
     else:
+        # skip safe_mode check for JSON/YAML files
+        if not file_path.endswith('.py'):
+            return True
         if zipfile.is_zipfile(file_path):
             return True
         with open(file_path, 'rb') as dag_file:

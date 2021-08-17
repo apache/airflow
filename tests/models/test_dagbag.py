@@ -144,7 +144,7 @@ class TestDagBag:
         """
         test that we're able to parse file that contains multi-byte char
         """
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(suffix='.py') as f:
             f.write('\u3042'.encode())  # write multi-byte char (hiragana)
             f.flush()
 
@@ -165,8 +165,8 @@ class TestDagBag:
             my_dag = my_flow()  # noqa
 
         source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
-        with NamedTemporaryFile("w+", encoding="utf8") as tf_1, NamedTemporaryFile(
-            "w+", encoding="utf8"
+        with NamedTemporaryFile("w+", encoding="utf8", suffix='.py') as tf_1, NamedTemporaryFile(
+            "w+", encoding="utf8", suffix='.py'
         ) as tf_2:
             tf_1.writelines(source_lines)
             tf_2.writelines(source_lines)
@@ -207,6 +207,16 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
         assert sys.path == syspath_before  # sys.path doesn't change
+
+    def test_yaml_json(self):
+        """
+        test the loading of a DAG from yaml and json files
+        """
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_yaml_dag.yaml"))
+        assert dagbag.get_dag("generated_dag_1")
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_json_dag.json"))
+        assert dagbag.get_dag("generated_dag_2")
 
     def test_process_file_cron_validity_check(self):
         """
@@ -300,6 +310,37 @@ class TestDagBag:
         assert 2 == dagbag.process_file_calls
 
     @patch.object(DagModel, "get_current")
+    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": airflow.example_dags.__path__[0]})
+    def test_refresh_yaml_dag(self, mock_dagmodel):
+        """
+        Test that we can refresh a YAML dag
+        """
+        example_dags_folder = airflow.example_dags.__path__[0]
+
+        dag_id = "example_yaml_dag_1"
+        fileloc = os.path.realpath(os.path.join(example_dags_folder, "example_yaml_dag.yaml"))
+
+        mock_dagmodel.return_value = DagModel()
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.fileloc = fileloc
+
+        class _TestDagBag(DagBag):
+            process_file_calls = 0
+
+            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+                if filepath == fileloc:
+                    _TestDagBag.process_file_calls += 1
+                return super().process_file(filepath, only_if_updated, safe_mode)
+
+        dagbag = _TestDagBag(dag_folder=self.empty_dir, include_examples=True)
+
+        assert 1 == dagbag.process_file_calls
+        dag = dagbag.get_dag(dag_id)
+        assert dag is not None
+        assert dag_id == dag.dag_id
+        assert 2 == dagbag.process_file_calls
+
+    @patch.object(DagModel, "get_current")
     def test_refresh_packaged_dag(self, mock_dagmodel):
         """
         Test that we can refresh a packaged DAG
@@ -359,7 +400,7 @@ class TestDagBag:
         """
         # write source to file
         source = textwrap.dedent(''.join(inspect.getsource(create_dag).splitlines(True)[1:-1]))
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile(suffix='.py') as f:
             f.write(source.encode('utf8'))
             f.flush()
 

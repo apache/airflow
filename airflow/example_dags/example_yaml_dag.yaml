@@ -1,0 +1,4 @@
+builder: example_yaml_builder.py
+id: 1
+command: sleep 5
+schedule: "* */2 * * *"
