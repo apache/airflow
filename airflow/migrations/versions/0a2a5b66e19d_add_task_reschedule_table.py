@@ -41,19 +41,19 @@ INDEX_NAME = 'idx_' + TABLE_NAME + '_dag_task_date'
 # For Microsoft SQL Server, TIMESTAMP is a row-id type,
 # having nothing to do with date-time.  DateTime() will
 # be sufficient.
-def mssql_timestamp():
+def mssql_timestamp():  # noqa: D103
     return sa.DateTime()
 
 
-def mysql_timestamp():
+def mysql_timestamp():  # noqa: D103
     return mysql.TIMESTAMP(fsp=6)
 
 
-def sa_timestamp():
+def sa_timestamp():  # noqa: D103
     return sa.TIMESTAMP(timezone=True)
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     # See 0e2a74e0fc9f_add_time_zone_awareness
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
@@ -85,6 +85,6 @@ def upgrade():
     op.create_index(INDEX_NAME, TABLE_NAME, ['dag_id', 'task_id', 'execution_date'], unique=False)
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     op.drop_index(INDEX_NAME, table_name=TABLE_NAME)
     op.drop_table(TABLE_NAME)

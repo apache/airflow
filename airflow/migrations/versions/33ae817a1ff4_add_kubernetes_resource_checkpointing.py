@@ -36,7 +36,7 @@ depends_on = None
 RESOURCE_TABLE = "kube_resource_version"
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
 
@@ -60,7 +60,7 @@ def upgrade():
         op.bulk_insert(table, [{"resource_version": ""}])
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
 

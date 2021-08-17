@@ -37,7 +37,7 @@ branch_labels = None
 depends_on = None
 
 
-def prefix_individual_dag_permissions(session):
+def prefix_individual_dag_permissions(session):  # noqa: D103
     dag_perms = ['can_dag_read', 'can_dag_edit']
     prefix = "DAG:"
     permission_view_menus = (
@@ -55,7 +55,7 @@ def prefix_individual_dag_permissions(session):
     session.commit()
 
 
-def get_or_create_dag_resource(session):
+def get_or_create_dag_resource(session):  # noqa: D103
     dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
     if dag_resource:
         return dag_resource
@@ -68,7 +68,7 @@ def get_or_create_dag_resource(session):
     return dag_resource
 
 
-def get_or_create_action(session, action_name):
+def get_or_create_action(session, action_name):  # noqa: D103
     action = get_action_query(session, action_name).first()
     if action:
         return action
@@ -81,28 +81,28 @@ def get_or_create_action(session, action_name):
     return action
 
 
-def get_resource_query(session, resource_name):
+def get_resource_query(session, resource_name):  # noqa: D103
     return session.query(ViewMenu).filter(ViewMenu.name == resource_name)
 
 
-def get_action_query(session, action_name):
+def get_action_query(session, action_name):  # noqa: D103
     return session.query(Permission).filter(Permission.name == action_name)
 
 
-def get_pv_with_action_query(session, action):
+def get_pv_with_action_query(session, action):  # noqa: D103
     return session.query(PermissionView).filter(PermissionView.permission == action)
 
 
-def get_pv_with_resource_query(session, resource):
+def get_pv_with_resource_query(session, resource):  # noqa: D103
     return session.query(PermissionView).filter(PermissionView.view_menu_id == resource.id)
 
 
-def update_pv_action(session, pv_query, action):
+def update_pv_action(session, pv_query, action):  # noqa: D103
     pv_query.update({PermissionView.permission_id: action.id}, synchronize_session=False)
     session.commit()
 
 
-def get_pv(session, resource, action):
+def get_pv(session, resource, action):  # noqa: D103
     return (
         session.query(PermissionView)
         .filter(PermissionView.view_menu == resource)
@@ -111,9 +111,9 @@ def get_pv(session, resource, action):
     )
 
 
-def update_pv_resource(session, pv_query, resource):
-    for pv in pv_query.all():
-        if not get_pv(session, resource, pv.permission):
+def update_pv_resource(session, pv_query, resource):  # noqa: D103
+    for pv in pv_query.all():  # noqa: D103
+        if not get_pv(session, resource, pv.permission):  # noqa: D103
             pv.view_menu = resource
         else:
             session.delete(pv)
@@ -121,7 +121,7 @@ def update_pv_resource(session, pv_query, resource):
     session.commit()
 
 
-def migrate_to_new_dag_permissions(db):
+def migrate_to_new_dag_permissions(db):  # noqa: D103
     # Prefix individual dag perms with `DAG:`
     prefix_individual_dag_permissions(db.session)
 
@@ -158,7 +158,7 @@ def migrate_to_new_dag_permissions(db):
     db.session.commit()
 
 
-def upgrade():
+def upgrade():  # noqa: D103
     db = SQLA()
     db.session = settings.Session
     migrate_to_new_dag_permissions(db)
@@ -166,5 +166,5 @@ def upgrade():
     db.session.close()
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     pass

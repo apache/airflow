@@ -44,10 +44,10 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         json_type = sa.Text
-        op.drop_table(TABLE_NAME)
+        op.drop_table(TABLE_NAME)  # pylint: disable=no-member
 
         op.create_table(
-            TABLE_NAME,
+            TABLE_NAME,  # pylint: disable=no-member
             sa.Column('dag_id', sa.String(length=250), nullable=False),
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('execution_date', mssql.DATETIME2, nullable=False),
@@ -64,10 +64,10 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         json_type = sa.Text
-        op.drop_table(TABLE_NAME)
+        op.drop_table(TABLE_NAME)  # pylint: disable=no-member
 
         op.create_table(
-            TABLE_NAME,
+            TABLE_NAME,  # pylint: disable=no-member
             sa.Column('dag_id', sa.String(length=250), nullable=False),
             sa.Column('task_id', sa.String(length=250), nullable=False),
             sa.Column('execution_date', sa.TIMESTAMP, nullable=False),

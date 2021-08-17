@@ -33,13 +33,13 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
-    conn = op.get_bind()
+def upgrade():  # noqa: D103
+    conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
         op.alter_column(table_name='variable', column_name='val', type_=mysql.MEDIUMTEXT)
 
 
-def downgrade():
-    conn = op.get_bind()
+def downgrade():  # noqa: D103
+    conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
         op.alter_column(table_name='variable', column_name='val', type_=mysql.TEXT)

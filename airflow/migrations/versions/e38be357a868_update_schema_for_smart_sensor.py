@@ -36,19 +36,19 @@ branch_labels = None
 depends_on = None
 
 
-def mssql_timestamp():
+def mssql_timestamp():  # noqa: D103
     return sa.DateTime()
 
 
-def mysql_timestamp():
+def mysql_timestamp():  # noqa: D103
     return mysql.TIMESTAMP(fsp=6)
 
 
-def sa_timestamp():
+def sa_timestamp():  # noqa: D103
     return sa.TIMESTAMP(timezone=True)
 
 
-def upgrade():
+def upgrade():  # noqa: D103
 
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
@@ -89,7 +89,7 @@ def upgrade():
     op.create_index('si_updated_at', 'sensor_instance', ['updated_at'], unique=False)
 
 
-def downgrade():
+def downgrade():  # noqa: D103
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()

@@ -33,15 +33,15 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
-    conn = op.get_bind()
+def upgrade():  # noqa: D103
+    conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
         op.alter_column(
             table_name='dag_code', column_name='source_code', type_=mysql.MEDIUMTEXT, nullable=False
         )
 
 
-def downgrade():
-    conn = op.get_bind()
+def downgrade():  # noqa: D103
+    conn = op.get_bind()  # pylint: disable=no-member
     if conn.dialect.name == "mysql":
         op.alter_column(table_name='dag_code', column_name='source_code', type_=mysql.TEXT, nullable=False)
