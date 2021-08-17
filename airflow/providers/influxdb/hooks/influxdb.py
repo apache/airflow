@@ -95,8 +95,7 @@ class InfluxDBHook(BaseHook):
 
     def query(self, query) -> List[FluxTable]:
         """
-        Function to use the query_api
-        to run the query.
+        Function to to run the query.
         Note: The bucket name
         should be included in the query
         'from(bucket:"my-bucket") |> range(start: -10m)'
@@ -111,8 +110,8 @@ class InfluxDBHook(BaseHook):
 
     def query_to_df(self, query) -> pd.DataFrame:
         """
-        Function to use the query_api
-        to run the query and return a pandas dataframe
+        Function to run the query and
+        return a pandas dataframe
         Note: The bucket name
         should be included in the query
         'from(bucket:"my-bucket") |> range(start: -10m)'
