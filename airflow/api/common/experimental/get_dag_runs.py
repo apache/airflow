@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG runs APIs."""
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from flask import url_for
 
@@ -25,8 +24,7 @@ from airflow.api.common.experimental import check_and_get_dag
 from airflow.models import DagRun
 
 
-def get_dag_runs(dag_id, state=None, run_url_route='Airflow.graph'):
-    # type: (str, Optional[str], str) -> List[Dict[str, Any]]
+def get_dag_runs(dag_id: str, state: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Returns a list of Dag Runs for a specific DAG ID.
 
@@ -37,19 +35,19 @@ def get_dag_runs(dag_id, state=None, run_url_route='Airflow.graph'):
     """
     check_and_get_dag(dag_id=dag_id)
 
-    dag_runs = list()
+    dag_runs = []
     state = state.lower() if state else None
     for run in DagRun.find(dag_id=dag_id, state=state):
-        dag_runs.append({
-            'id': run.id,
-            'run_id': run.run_id,
-            'state': run.state,
-            'dag_id': run.dag_id,
-            'execution_date': run.execution_date.isoformat(),
-            'start_date': ((run.start_date or '') and
-                           run.start_date.isoformat()),
-            'dag_run_url': url_for(run_url_route, dag_id=run.dag_id,
-                                   execution_date=run.execution_date)
-        })
+        dag_runs.append(
+            {
+                'id': run.id,
+                'run_id': run.run_id,
+                'state': run.state,
+                'dag_id': run.dag_id,
+                'execution_date': run.execution_date.isoformat(),
+                'start_date': ((run.start_date or '') and run.start_date.isoformat()),
+                'dag_run_url': url_for('Airflow.graph', dag_id=run.dag_id, execution_date=run.execution_date),
+            }
+        )
 
     return dag_runs

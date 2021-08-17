@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,12 +18,9 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2019, 12, 1)
 
 dag = DAG(dag_id='test_dag_under_subdir2', start_date=DEFAULT_DATE, schedule_interval=None)
-task = BashOperator(
-    task_id='task1',
-    bash_command='echo "test dag under sub directory subdir2"',
-    dag=dag)
+task = BashOperator(task_id='task1', bash_command='echo "test dag under sub directory subdir2"', dag=dag)

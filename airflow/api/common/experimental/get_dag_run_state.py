@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,14 +22,13 @@ from typing import Dict
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 
 
-def get_dag_run_state(dag_id, execution_date):  # type: (str, datetime) -> Dict[str, str]
-    """Return the task object identified by the given dag_id and task_id.
+def get_dag_run_state(dag_id: str, execution_date: datetime) -> Dict[str, str]:
+    """Return the Dag Run state identified by the given dag_id and execution_date.
 
     :param dag_id: DAG id
     :param execution_date: execution date
     :return: Dictionary storing state of the object
     """
-
     dag = check_and_get_dag(dag_id=dag_id)
 
     dagrun = check_and_get_dagrun(dag, execution_date)

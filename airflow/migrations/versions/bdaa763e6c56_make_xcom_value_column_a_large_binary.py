@@ -23,9 +23,9 @@ Revises: cc1e65623dc7
 Create Date: 2017-08-14 16:06:31.568971
 
 """
-from alembic import op
 import dill
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'bdaa763e6c56'

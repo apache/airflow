@@ -18,20 +18,18 @@
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-    'retries': 3,
-    'start_date': days_ago(2)
-}
+args = {'owner': 'airflow', 'retries': 3, 'start_date': days_ago(2)}
 
 tree_dag = DAG(
-    dag_id='test_tree_view', default_args=args,
+    dag_id='test_tree_view',
+    default_args=args,
     schedule_interval='0 0 * * *',
     default_view='tree',
 )
 
 graph_dag = DAG(
-    dag_id='test_graph_view', default_args=args,
+    dag_id='test_graph_view',
+    default_args=args,
     schedule_interval='0 0 * * *',
     default_view='graph',
 )

@@ -20,18 +20,21 @@ include NOTICE
 include LICENSE
 include CHANGELOG.txt
 include README.md
-graft licenses/
-graft airflow/www/templates
+graft licenses
+graft airflow/www
 graft airflow/www/static
-graft airflow/www_rbac
-graft airflow/www_rbac/static
-graft airflow/www_rbac/templates
-graft airflow/www_rbac/translations
-include airflow/alembic.ini
-include airflow/git_version
-include airflow/serialization/schema.json
+graft airflow/www/templates
 graft scripts/systemd
 graft scripts/upstart
 graft airflow/config_templates
-recursive-exclude airflow/www_rbac/node_modules *
+recursive-exclude airflow/www/node_modules *
 global-exclude __pycache__  *.pyc
+exclude airflow/www/yarn.lock
+exclude airflow/www/*.sh
+include airflow/alembic.ini
+include airflow/api_connexion/openapi/v1.yaml
+include airflow/git_version
+include airflow/provider_info.schema.json
+include airflow/customized_form_field_behaviours.schema.json
+include airflow/serialization/schema.json
+include airflow/utils/python_virtualenv_script.jinja2

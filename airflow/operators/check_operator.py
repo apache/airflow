@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,12 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.operators.sql`."""
+"""This module is deprecated. Please use :mod:`airflow.operators.sql`."""
 
 import warnings
 
 from airflow.operators.sql import (
-    SQLCheckOperator, SQLIntervalCheckOperator, SQLThresholdCheckOperator, SQLValueCheckOperator,
+    SQLCheckOperator,
+    SQLIntervalCheckOperator,
+    SQLThresholdCheckOperator,
+    SQLValueCheckOperator,
+)
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.operators.sql`.", DeprecationWarning, stacklevel=2
 )
 
 
@@ -32,13 +38,14 @@ class CheckOperator(SQLCheckOperator):
     Please use `airflow.operators.sql.SQLCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLCheckOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
-        super(CheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class IntervalCheckOperator(SQLIntervalCheckOperator):
@@ -47,13 +54,14 @@ class IntervalCheckOperator(SQLIntervalCheckOperator):
     Please use `airflow.operators.sql.SQLIntervalCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLIntervalCheckOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
-        super(IntervalCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class ThresholdCheckOperator(SQLThresholdCheckOperator):
@@ -62,13 +70,14 @@ class ThresholdCheckOperator(SQLThresholdCheckOperator):
     Please use `airflow.operators.sql.SQLThresholdCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLThresholdCheckOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
-        super(ThresholdCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
 
 class ValueCheckOperator(SQLValueCheckOperator):
@@ -77,10 +86,11 @@ class ValueCheckOperator(SQLValueCheckOperator):
     Please use `airflow.operators.sql.SQLValueCheckOperator`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.operators.sql.SQLValueCheckOperator`.""",
-            DeprecationWarning, stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
-        super(ValueCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(**kwargs)

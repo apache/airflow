@@ -1,0 +1,54 @@
+# Core
+/airflow/executors/ @kaxil @XD-DENG @ashb @turbaszek
+/airflow/jobs/ @kaxil @ashb @XD-DENG
+/airflow/models/ @kaxil @XD-DENG @ashb @turbaszek
+
+# DAG Serialization
+/airflow/serialization/ @kaxil @ashb
+
+# Kubernetes
+/airflow/kubernetes/ @dimberman
+/airflow/kubernetes_executor_templates/ @dimberman
+/airflow/executors/celery_kubernetes_executor.py @dimberman
+
+# Helm Chart
+/chart/ @dimberman @ashb @kaxil
+
+
+# Docs
+/docs/ @mik-laj @vikramkoka
+
+# Docs (without Providers)
+/docs/apache-airflow @kaxil
+/docs/docker-stack @kaxil
+/docs/helm-chart @kaxil
+/docs/*.py @kaxil
+
+# API
+/airflow/api/ @mik-laj @kaxil
+/airflow/api_connexion/ @mik-laj @kaxil @ephraimbuddy
+
+# UI
+/airflow/ui/ @ryanahamilton @ashb
+
+# WWW
+/airflow/www/ @ryanahamilton @ashb
+
+# Security/Permissions
+/airflow/security/permissions.py @jhtimmins
+/airflow/www/security.py @jhtimmins
+/airflow/api_connexion/security.py @jhtimmins
+
+# Providers
+/airflow/providers/google/ @turbaszek
+/airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
+
+# Dev tools
+/.github/workflows/ @potiuk @ashb @kaxil
+breeze @potiuk
+breeze-complete @potiuk
+Dockerfile @potiuk @ashb
+Dockerfile.ci @potiuk @ashb
+/dev/ @potiuk @ashb @kaxil
+/provider_packages/ @potiuk @ashb
+/scripts/ @potiuk @ashb

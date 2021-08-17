@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,48 +30,37 @@ from airflow.typing_compat import Protocol
 
 class Validator(Protocol):
     """
-    This class is only used for TypeChecking (for IDEs, mypy, pylint, etc)
+    This class is only used for TypeChecking (for IDEs, mypy, etc)
     due to the way ``Draft7Validator`` is created. They are created or do not inherit
     from proper classes. Hence you can not have ``type: Draft7Validator``.
     """
 
-    # pylint: disable=unused-argument
-    def is_valid(self, instance):
-        # type: (...) -> bool
+    def is_valid(self, instance) -> bool:
         """Check if the instance is valid under the current schema"""
-        pass
+        ...
 
-    def validate(self, instance):
-        # type: (...) -> bool
+    def validate(self, instance) -> None:
         """Check if the instance is valid under the current schema, raising validation error if not"""
-        pass
+        ...
 
-    def iter_errors(self, instance):
-        # type: (...)  -> Iterable[jsonschema.exceptions.ValidationError]
+    def iter_errors(self, instance) -> Iterable[jsonschema.exceptions.ValidationError]:
         """Lazily yield each of the validation errors in the given instance"""
-        pass
+        ...
 
 
-def load_dag_schema_dict():
-    # type: () -> dict
-    """
-    Load & return Json Schema for DAG as Python dict
-    """
+def load_dag_schema_dict() -> dict:
+    """Load & return Json Schema for DAG as Python dict"""
     schema_file_name = 'schema.json'
     schema_file = pkgutil.get_data(__name__, schema_file_name)
 
     if schema_file is None:
-        raise AirflowException("Schema file {} does not exists".format(schema_file_name))
+        raise AirflowException(f"Schema file {schema_file_name} does not exists")
 
     schema = json.loads(schema_file.decode())
     return schema
 
 
-def load_dag_schema():
-    # type: () -> Validator
-    """
-    Load & Validate Json Schema for DAG
-    """
+def load_dag_schema() -> Validator:
+    """Load & Validate Json Schema for DAG"""
     schema = load_dag_schema_dict()
-    jsonschema.Draft7Validator.check_schema(schema)
     return jsonschema.Draft7Validator(schema)

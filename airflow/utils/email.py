@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,55 +16,70 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from past.builtins import basestring
-try:
-    from collections.abc import Iterable as CollectionIterable
-except ImportError:
-    from collections import Iterable as CollectionIterable
-
-import importlib
+import collections.abc
 import logging
 import os
 import smtplib
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import warnings
 from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Iterable, List, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowException
 
 log = logging.getLogger(__name__)
 
 
-def send_email(to, subject, html_content,
-               files=None, dryrun=False, cc=None, bcc=None,
-               mime_subtype='mixed', mime_charset='us-ascii', **kwargs):
-    """
-    Send email using backend specified in EMAIL_BACKEND.
-    """
-    path, attr = conf.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
-    module = importlib.import_module(path)
-    backend = getattr(module, attr)
-    to = get_email_address_list(to)
-    to = ", ".join(to)
+def send_email(
+    to: Union[List[str], Iterable[str]],
+    subject: str,
+    html_content: str,
+    files: Optional[List[str]] = None,
+    dryrun: bool = False,
+    cc: Optional[Union[str, Iterable[str]]] = None,
+    bcc: Optional[Union[str, Iterable[str]]] = None,
+    mime_subtype: str = 'mixed',
+    mime_charset: str = 'utf-8',
+    conn_id: Optional[str] = None,
+    **kwargs,
+):
+    """Send email using backend specified in EMAIL_BACKEND."""
+    backend = conf.getimport('email', 'EMAIL_BACKEND')
+    backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
+    to_list = get_email_address_list(to)
+    to_comma_separated = ", ".join(to_list)
 
-    return backend(to, subject, html_content, files=files,
-                   dryrun=dryrun, cc=cc, bcc=bcc,
-                   mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
+    return backend(
+        to_comma_separated,
+        subject,
+        html_content,
+        files=files,
+        dryrun=dryrun,
+        cc=cc,
+        bcc=bcc,
+        mime_subtype=mime_subtype,
+        mime_charset=mime_charset,
+        conn_id=backend_conn_id,
+        **kwargs,
+    )
 
 
-def send_email_smtp(to, subject, html_content, files=None,
-                    dryrun=False, cc=None, bcc=None,
-                    mime_subtype='mixed', mime_charset='us-ascii',
-                    **kwargs):
+def send_email_smtp(
+    to: Union[str, Iterable[str]],
+    subject: str,
+    html_content: str,
+    files: Optional[List[str]] = None,
+    dryrun: bool = False,
+    cc: Optional[Union[str, Iterable[str]]] = None,
+    bcc: Optional[Union[str, Iterable[str]]] = None,
+    mime_subtype: str = 'mixed',
+    mime_charset: str = 'utf-8',
+    conn_id: str = "smtp_default",
+    **kwargs,
+):
     """
     Send an email with html content
 
@@ -73,11 +87,55 @@ def send_email_smtp(to, subject, html_content, files=None,
     """
     smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
 
+    msg, recipients = build_mime_message(
+        mail_from=smtp_mail_from,
+        to=to,
+        subject=subject,
+        html_content=html_content,
+        files=files,
+        cc=cc,
+        bcc=bcc,
+        mime_subtype=mime_subtype,
+        mime_charset=mime_charset,
+    )
+
+    send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
+
+
+def build_mime_message(
+    mail_from: str,
+    to: Union[str, Iterable[str]],
+    subject: str,
+    html_content: str,
+    files: Optional[List[str]] = None,
+    cc: Optional[Union[str, Iterable[str]]] = None,
+    bcc: Optional[Union[str, Iterable[str]]] = None,
+    mime_subtype: str = 'mixed',
+    mime_charset: str = 'utf-8',
+    custom_headers: Optional[Dict[str, Any]] = None,
+) -> Tuple[MIMEMultipart, List[str]]:
+    """
+    Build a MIME message that can be used to send an email and
+    returns full list of recipients.
+
+    :param mail_from: Email address to set as email's from
+    :param to: List of email addresses to set as email's to
+    :param subject: Email's subject
+    :param html_content: Content of email in HTML format
+    :param files: List of paths of files to be attached
+    :param cc: List of email addresses to set as email's CC
+    :param bcc: List of email addresses to set as email's BCC
+    :param mime_subtype: Can be used to specify the subtype of the message. Default = mixed
+    :param mime_charset: Email's charset. Default = UTF-8.
+    :param custom_headers: Additional headers to add to the MIME message.
+        No validations are run on these values and they should be able to be encoded.
+    :return: Email as MIMEMultipart and list of recipients' addresses.
+    """
     to = get_email_address_list(to)
 
     msg = MIMEMultipart(mime_subtype)
     msg['Subject'] = subject
-    msg['From'] = smtp_mail_from
+    msg['From'] = mail_from
     msg['To'] = ", ".join(to)
     recipients = to
     if cc:
@@ -96,58 +154,98 @@ def send_email_smtp(to, subject, html_content, files=None,
 
     for fname in files or []:
         basename = os.path.basename(fname)
-        with open(fname, "rb") as f:
-            part = MIMEApplication(
-                f.read(),
-                Name=basename
-            )
-            part['Content-Disposition'] = 'attachment; filename="%s"' % basename
-            part['Content-ID'] = '<%s>' % basename
+        with open(fname, "rb") as file:
+            part = MIMEApplication(file.read(), Name=basename)
+            part['Content-Disposition'] = f'attachment; filename="{basename}"'
+            part['Content-ID'] = f'<{basename}>'
             msg.attach(part)
 
-    send_MIME_email(smtp_mail_from, recipients, msg, dryrun)
+    if custom_headers:
+        for header_key, header_value in custom_headers.items():
+            msg[header_key] = header_value
+
+    return msg, recipients
 
 
-def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
+def send_mime_email(
+    e_from: str, e_to: List[str], mime_msg: MIMEMultipart, conn_id: str = "smtp_default", dryrun: bool = False
+) -> None:
+    """Send MIME email."""
+    smtp_host = conf.get('smtp', 'SMTP_HOST')
+    smtp_port = conf.getint('smtp', 'SMTP_PORT')
+    smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
+    smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
+    smtp_retry_limit = conf.getint('smtp', 'SMTP_RETRY_LIMIT')
+    smtp_timeout = conf.getint('smtp', 'SMTP_TIMEOUT')
+    smtp_user = None
+    smtp_password = None
 
-    SMTP_HOST = conf.get('smtp', 'SMTP_HOST')
-    SMTP_PORT = conf.getint('smtp', 'SMTP_PORT')
-    SMTP_STARTTLS = conf.getboolean('smtp', 'SMTP_STARTTLS')
-    SMTP_SSL = conf.getboolean('smtp', 'SMTP_SSL')
-    SMTP_USER = None
-    SMTP_PASSWORD = None
+    smtp_user, smtp_password = None, None
+    if conn_id is not None:
+        try:
+            from airflow.hooks.base import BaseHook
 
-    try:
-        SMTP_USER = conf.get('smtp', 'SMTP_USER')
-        SMTP_PASSWORD = conf.get('smtp', 'SMTP_PASSWORD')
-    except AirflowConfigException:
-        log.debug("No user/password found for SMTP, so logging in with no authentication.")
+            conn = BaseHook.get_connection(conn_id)
+            smtp_user = conn.login
+            smtp_password = conn.password
+        except AirflowException:
+            pass
+    if smtp_user is None or smtp_password is None:
+        warnings.warn(
+            "Fetching SMTP credentials from configuration variables will be deprecated in a future "
+            "release. Please set credentials using a connection instead.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        try:
+            smtp_user = conf.get('smtp', 'SMTP_USER')
+            smtp_password = conf.get('smtp', 'SMTP_PASSWORD')
+        except AirflowConfigException:
+            log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
-        s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) if SMTP_SSL else smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-        if SMTP_STARTTLS:
-            s.starttls()
-        if SMTP_USER and SMTP_PASSWORD:
-            s.login(SMTP_USER, SMTP_PASSWORD)
-        log.info("Sent an alert email to %s", e_to)
-        s.sendmail(e_from, e_to, mime_msg.as_string())
-        s.quit()
+        for attempt in range(1, smtp_retry_limit + 1):
+            log.info("Email alerting: attempt %s", str(attempt))
+            try:
+                conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
+            except smtplib.SMTPServerDisconnected:
+                if attempt < smtp_retry_limit:
+                    continue
+                raise
+
+            if smtp_starttls:
+                conn.starttls()
+            if smtp_user and smtp_password:
+                conn.login(smtp_user, smtp_password)
+            log.info("Sent an alert email to %s", e_to)
+            conn.sendmail(e_from, e_to, mime_msg.as_string())
+            conn.quit()
+            break
 
 
-def get_email_address_list(addresses):  # type: (Union[str, Iterable[str]]) -> List[str]
-    if isinstance(addresses, basestring):
+def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
+    """Get list of email addresses."""
+    if isinstance(addresses, str):
         return _get_email_list_from_str(addresses)
 
-    elif isinstance(addresses, CollectionIterable):
-        if not all(isinstance(item, basestring) for item in addresses):
+    elif isinstance(addresses, collections.abc.Iterable):
+        if not all(isinstance(item, str) for item in addresses):
             raise TypeError("The items in your iterable must be strings.")
         return list(addresses)
 
     received_type = type(addresses).__name__
-    raise TypeError("Unexpected argument type: Received '{}'.".format(received_type))
+    raise TypeError(f"Unexpected argument type: Received '{received_type}'.")
 
 
-def _get_email_list_from_str(addresses):  # type: (str) -> List[str]
+def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
+    return (
+        smtplib.SMTP_SSL(host=host, port=port, timeout=timeout)
+        if with_ssl
+        else smtplib.SMTP(host=host, port=port, timeout=timeout)
+    )
+
+
+def _get_email_list_from_str(addresses: str) -> List[str]:
     delimiters = [",", ";"]
     for delimiter in delimiters:
         if delimiter in addresses:

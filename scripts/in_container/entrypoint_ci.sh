@@ -19,15 +19,6 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
-function disable_rbac_if_requested() {
-    if [[ ${DISABLE_RBAC:="false"} == "true" ]]; then
-        export AIRFLOW__WEBSERVER__RBAC="False"
-    else
-        export AIRFLOW__WEBSERVER__RBAC="True"
-    fi
-}
-
-
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
@@ -39,7 +30,6 @@ chmod 1777 /tmp
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
 PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.6}
-BACKEND=${BACKEND:=sqlite}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -57,63 +47,42 @@ echo
 
 RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
-INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
+USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
 
-if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
-    # Create links for useful CLI tools
-    # shellcheck source=scripts/in_container/run_cli_tool.sh
-    source <(bash scripts/in_container/run_cli_tool.sh)
-fi
-
-if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+if [[ ${AIRFLOW_VERSION} == *1.10* || ${USE_AIRFLOW_VERSION} == *1.10* ]]; then
     export RUN_AIRFLOW_1_10="true"
 else
     export RUN_AIRFLOW_1_10="false"
 fi
 
-if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
+if [[ -z ${USE_AIRFLOW_VERSION=} ]]; then
+    export PYTHONPATH=${AIRFLOW_SOURCES}
     echo
     echo "Using already installed airflow version"
     echo
-    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/node_modules" ]]; then
-        echo
-        echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
-        echo
-        pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
-        yarn install --frozen-lockfile
-        echo
-        popd &>/dev/null || exit 1
-    fi
-    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
-        pushd "${AIRFLOW_SOURCES}/airflow/www_rbac/" &>/dev/null || exit 1
-        echo
-        echo "Building production version of JavaScript files (Sources mounted from Host)"
-        echo
-        echo
-        yarn run prod
-        echo
-        echo
-        popd &>/dev/null || exit 1
+    if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
+        pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
+        ./ask_for_recompile_assets_if_needed.sh
+        popd >/dev/null
     fi
     # Cleanup the logs, tmp when entering the environment
     sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-    export PYTHONPATH=${AIRFLOW_SOURCES}
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
     echo
     echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
     echo
     uninstall_airflow_and_providers
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
     echo
     echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
     echo
     uninstall_airflow_and_providers
     install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
     echo
     echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
     echo
@@ -122,19 +91,19 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
     uninstall_providers
 else
     echo
-    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+    echo "Install airflow from PyPI without extras"
     echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+    install_released_airflow_version "${USE_AIRFLOW_VERSION}"
 fi
-if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
+if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
     echo
     echo "Install all packages from dist folder"
-    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
         echo "(except apache-airflow)"
     fi
     if [[ ${PACKAGE_FORMAT} == "both" ]]; then
         echo
-        echo "${COLOR_RED_ERROR}You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
+        echo "${COLOR_RED}ERROR:You can only specify 'wheel' or 'sdist' as PACKAGE_FORMAT not 'both'${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -142,7 +111,7 @@ if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     installable_files=()
     for file in /dist/*.{whl,tar.gz}
     do
-        if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+        if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
             # Skip Apache Airflow package - it's just been installed above with extras
             echo "Skipping ${file}"
             continue
@@ -172,6 +141,9 @@ unset AIRFLOW__CORE__UNIT_TEST_MODE
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
+# Change the default worker_concurrency for tests
+export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
+
 set +e
 "${IN_CONTAINER_DIR}/check_environment.sh"
 ENVIRONMENT_EXIT_CODE=$?
@@ -181,24 +153,6 @@ if [[ ${ENVIRONMENT_EXIT_CODE} != 0 ]]; then
     echo "Error: check_environment returned ${ENVIRONMENT_EXIT_CODE}. Exiting."
     echo
     exit ${ENVIRONMENT_EXIT_CODE}
-fi
-
-
-if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
-    set +e
-    setup_kerberos
-    RES=$?
-    set -e
-
-    if [[ ${RES} != 0 ]]; then
-        echo
-        echo "ERROR !!!!Kerberos initialisation requested, but failed"
-        echo
-        echo "I will exit now, and you need to run 'breeze --integration kerberos restart'"
-        echo "to re-enter breeze and restart kerberos."
-        echo
-        exit 1
-    fi
 fi
 
 # Create symbolic link to fix possible issues with kubectl config cmd-path
@@ -231,10 +185,14 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 # shellcheck source=scripts/in_container/run_init_script.sh
 . "${IN_CONTAINER_DIR}/run_init_script.sh"
 
-# shellcheck source=scripts/in_container/run_tmux.sh
-. "${IN_CONTAINER_DIR}/run_tmux.sh"
-
 cd "${AIRFLOW_SOURCES}"
+
+if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+    export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+    # shellcheck source=scripts/in_container/bin/run_tmux
+    exec run_tmux
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -243,76 +201,130 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
 
-if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
-    EXTRA_PYTEST_ARGS=(
-        "--verbosity=0"
-        "--strict-markers"
-        "--durations=100"
-        "--cov=airflow/"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage.xml"
-        "--color=yes"
-        "--maxfail=50"
-        "--pythonwarnings=ignore::DeprecationWarning"
-        "--pythonwarnings=ignore::PendingDeprecationWarning"
-        "--junitxml=${RESULT_LOG_FILE}"
-        # timeouts in seconds for individual tests
-        "--setup-timeout=20"
-        "--execution-timeout=60"
-        "--teardown-timeout=20"
-        # Only display summary for non-expected case
-        # f - failed
-        # E - error
-        # X - xpassed (passed even if expected to fail)
-        # The following cases are not displayed:
-        # s - skipped
-        # x - xfailed (expected to fail and failed)
-        # p - passed
-        # P - passed with output
-        "-rfEX"
+EXTRA_PYTEST_ARGS=(
+    "--verbosity=0"
+    "--strict-markers"
+    "--durations=100"
+    "--cov=airflow/"
+    "--cov-config=.coveragerc"
+    "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
+    "--color=yes"
+    "--maxfail=50"
+    "--pythonwarnings=ignore::DeprecationWarning"
+    "--pythonwarnings=ignore::PendingDeprecationWarning"
+    "--junitxml=${RESULT_LOG_FILE}"
+    # timeouts in seconds for individual tests
+    "--setup-timeout=20"
+    "--execution-timeout=60"
+    "--teardown-timeout=20"
+    # Only display summary for non-expected case
+    # f - failed
+    # E - error
+    # X - xpassed (passed even if expected to fail)
+    # The following cases are not displayed:
+    # s - skipped
+    # x - xfailed (expected to fail and failed)
+    # p - passed
+    # P - passed with output
+    "-rfEX"
+)
+
+if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    # Enable parallelism
+    EXTRA_PYTEST_ARGS+=(
+        "-n" "auto"
     )
-    if [[ "${TEST_TYPE}" != "Helm" ]]; then
-        EXTRA_PYTEST_ARGS+=(
-        "--with-db-init"
-        )
-    fi
 else
-    EXTRA_PYTEST_ARGS=(
-        "-rfEX"
+    EXTRA_PYTEST_ARGS+=(
+        "--with-db-init"
     )
 fi
 
-declare -a SELECTED_TESTS CORE_TESTS ALL_TESTS
+declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
+    ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
+
+# Finds all directories that are not on the list of tests
+# - so that we do not skip any in the future if new directories are added
+function find_all_other_tests() {
+    local all_tests_dirs
+    all_tests_dirs=$(find "tests" -type d)
+    all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
+    all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
+    local path
+    for path in "${ALL_PRESELECTED_TESTS[@]}"
+    do
+        escaped_path="${path//\//\\\/}"
+        all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/${escaped_path}/d" )
+    done
+    for path in ${all_tests_dirs}
+    do
+        ALL_OTHER_TESTS+=("${path}")
+    done
+}
 
 if [[ ${#@} -gt 0 && -n "$1" ]]; then
     SELECTED_TESTS=("${@}")
 else
+    CLI_TESTS=("tests/cli")
+    API_TESTS=("tests/api" "tests/api_connexion")
+    PROVIDERS_TESTS=("tests/providers")
+    ALWAYS_TESTS=("tests/always")
     CORE_TESTS=(
-        "tests"
+        "tests/core"
+        "tests/executors"
+        "tests/jobs"
+        "tests/models"
+        "tests/serialization"
+        "tests/ti_deps"
+        "tests/utils"
     )
-    ALL_TESTS=("${CORE_TESTS[@]}")
+    WWW_TESTS=("tests/www")
     HELM_CHART_TESTS=("chart/tests")
+    ALL_TESTS=("tests")
+    ALL_PRESELECTED_TESTS=(
+        "${CLI_TESTS[@]}"
+        "${API_TESTS[@]}"
+        "${PROVIDERS_TESTS[@]}"
+        "${CORE_TESTS[@]}"
+        "${ALWAYS_TESTS[@]}"
+        "${WWW_TESTS[@]}"
+    )
 
-    if [[ ${TEST_TYPE:=""} == "Core" ]]; then
+    if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
+        SELECTED_TESTS=("${CLI_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "API" ]]; then
+        SELECTED_TESTS=("${API_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Providers" ]]; then
+        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Core" ]]; then
         SELECTED_TESTS=("${CORE_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
+        SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
+        SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
+        find_all_other_tests
+        SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
+            ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
-            ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
+            ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
         echo
-        echo  "${COLOR_RED_ERROR} Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
 
 fi
-readonly SELECTED_TESTS CORE_TESTS ALL_TESTS
+readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
+    ALL_TESTS ALL_PRESELECTED_TESTS
 
 if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
     # Integration tests
@@ -324,11 +336,6 @@ elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
-    )
-elif [[ ${TEST_TYPE:=""} == "Heisentests" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "-m" "heisentests"
-        "--include-heisentests"
     )
 elif [[ ${TEST_TYPE:=""} == "Postgres" ]]; then
     EXTRA_PYTEST_ARGS+=(

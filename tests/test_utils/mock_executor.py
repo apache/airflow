@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,13 +19,14 @@
 from collections import defaultdict
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstance import TaskInstanceKey
+from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.db import create_session
 
 
 class MockExecutor(BaseExecutor):
     """
-    MockExecutor is used for unit testing purposes.
+    TestExecutor is used for unit testing purposes.
     """
 
     def __init__(self, do_update=True, *args, **kwargs):
@@ -43,7 +43,7 @@ class MockExecutor(BaseExecutor):
         # So we should pass self.success instead of lambda.
         self.mock_task_results = defaultdict(self.success)
 
-        super(MockExecutor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def success(self):
         return State.SUCCESS
@@ -60,17 +60,17 @@ class MockExecutor(BaseExecutor):
             def sort_by(item):
                 key, val = item
                 (dag_id, task_id, date, try_number) = key
-                (cmd, prio, queue, sti) = val
+                (_, prio, _, _) = val
                 # Sort by priority (DESC), then date,task, try
                 return -prio, date, dag_id, task_id, try_number
 
             open_slots = self.parallelism - len(self.running)
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
             for index in range(min((open_slots, len(sorted_queue)))):
-                (key, (_, _, _, simple_ti)) = sorted_queue[index]
+                (key, (_, _, _, ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
+                ti._try_number += 1
                 state = self.mock_task_results[key]
-                ti = simple_ti.construct_task_instance(session=session, lock_for_update=True)
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
 
@@ -80,11 +80,11 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state):
-        super(MockExecutor, self).change_state(key, state)
+    def change_state(self, key, state, info=None):
+        super().change_state(key, state, info=info)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
-        self.sorted_tasks.append((key, state))
+        self.sorted_tasks.append((key, (state, info)))
 
     def mock_task_fail(self, dag_id, task_id, date, try_number=1):
         """
@@ -94,4 +94,4 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[(dag_id, task_id, date, try_number)] = State.FAILED
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED

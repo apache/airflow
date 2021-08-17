@@ -24,8 +24,8 @@ Create Date: 2019-06-07 07:46:04.262275
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '004c1210f153'
@@ -45,9 +45,7 @@ def upgrade():
 
 
 def downgrade():
-    """
-    Revert column size from 256 to 50 characters, might result in data loss.
-    """
+    """Revert column size from 256 to 50 characters, might result in data loss."""
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table('task_instance') as batch_op:
         batch_op.alter_column('queue', type_=sa.String(50))

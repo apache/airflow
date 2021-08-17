@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Boolean, Column, String, Index, Text
+from sqlalchemy import Boolean, Column, Index, String, Text
 
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -29,20 +28,18 @@ class SlaMiss(Base):
     It is used to keep track of SLA failures over time and to avoid double
     triggering alert emails.
     """
+
     __tablename__ = "sla_miss"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(UtcDateTime)
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
 
-    __table_args__ = (
-        Index('sm_dag', dag_id, unique=False),
-    )
+    __table_args__ = (Index('sm_dag', dag_id, unique=False),)
 
     def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
+        return str((self.dag_id, self.task_id, self.execution_date.isoformat()))

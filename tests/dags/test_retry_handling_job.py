@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,8 +18,8 @@
 
 from datetime import datetime, timedelta
 
-from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.models.dag import DAG
+from airflow.operators.bash import BashOperator
 
 default_args = {
     'owner': 'airflow',
@@ -35,7 +34,4 @@ default_args = {
 
 dag = DAG('test_retry_handling_job', default_args=default_args, schedule_interval='@once')
 
-task1 = BashOperator(
-    task_id='test_retry_handling_op',
-    bash_command='exit 1',
-    dag=dag)
+task1 = BashOperator(task_id='test_retry_handling_op', bash_command='exit 1', dag=dag)

@@ -37,3 +37,6 @@
 .idea/
 *.tmproj
 bin
+
+# We do not want to include our Python Helm Chart Unit test files
+tests

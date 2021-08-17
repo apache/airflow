@@ -26,6 +26,8 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
+    "logging",
+    "metrics",
     'secrets',
     'cli',
     'debug',
@@ -38,27 +40,22 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'email',
     'smtp',
     'sentry',
+    'celery_kubernetes_executor',
     'celery',
     'celery_broker_transport_options',
     'dask',
     'scheduler',
-    'ldap',
-    'mesos',
     'kerberos',
     'github_enterprise',
-    'admin',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
-    'kubernetes_node_selectors',
-    'kubernetes_annotations',
-    'kubernetes_environment_variables',
-    'kubernetes_secrets',
-    'kubernetes_labels'
+    'smart_sensor',
 ]
 
 DEFAULT_TEST_SECTIONS = [
     'core',
+    "logging",
     'cli',
     'api',
     'operators',
@@ -67,32 +64,40 @@ DEFAULT_TEST_SECTIONS = [
     'email',
     'smtp',
     'celery',
-    'mesos',
     'scheduler',
-    'admin',
     'elasticsearch',
     'elasticsearch_configs',
-    'kubernetes'
+    'kubernetes',
 ]
 
 
 class TestAirflowCfg(unittest.TestCase):
-    @parameterized.expand([
-        ("default_airflow.cfg",),
-        ("default_test.cfg",),
-    ])
-    def test_should_be_ascii_file(self, filename):
+    @parameterized.expand(
+        [
+            ("default_airflow.cfg",),
+            ("default_test.cfg",),
+        ]
+    )
+    def test_should_be_ascii_file(self, filename: str):
         with open(os.path.join(CONFIG_TEMPLATES_FOLDER, filename), "rb") as f:
             content = f.read().decode("ascii")
-        self.assertTrue(content)
+        assert content
 
-    @parameterized.expand([
-        ("default_airflow.cfg", DEFAULT_AIRFLOW_SECTIONS,),
-        ("default_test.cfg", DEFAULT_TEST_SECTIONS,),
-    ])
-    def test_should_be_ini_file(self, filename, expected_sections):
+    @parameterized.expand(
+        [
+            (
+                "default_airflow.cfg",
+                DEFAULT_AIRFLOW_SECTIONS,
+            ),
+            (
+                "default_test.cfg",
+                DEFAULT_TEST_SECTIONS,
+            ),
+        ]
+    )
+    def test_should_be_ini_file(self, filename: str, expected_sections):
         filepath = os.path.join(CONFIG_TEMPLATES_FOLDER, filename)
         config = configparser.ConfigParser()
         config.read(filepath)
 
-        self.assertEqual(expected_sections, config.sections())
+        assert expected_sections == config.sections()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,31 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 
-class DagUnpausedDepTest(unittest.TestCase):
-
+class TestDagUnpausedDep(unittest.TestCase):
     def test_concurrency_reached(self):
         """
         Test paused DAG should fail dependency
         """
-        dag = Mock(is_paused=True)
+        dag = Mock(**{'get_is_paused.return_value': True})
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
-        self.assertFalse(DagUnpausedDep().is_met(ti=ti))
+        assert not DagUnpausedDep().is_met(ti=ti)
 
     def test_all_conditions_met(self):
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(is_paused=False)
+        dag = Mock(**{'get_is_paused.return_value': False})
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
-        self.assertTrue(DagUnpausedDep().is_met(ti=ti))
+        assert DagUnpausedDep().is_met(ti=ti)

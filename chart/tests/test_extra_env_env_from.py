@@ -29,29 +29,29 @@ RELEASE_NAME = "TEST-EXTRA-ENV-ENV-FROM"
 # Test Params: k8s object key and paths with expected env / envFrom
 PARAMS = [
     (
-        ("Job", "{}-create-user".format(RELEASE_NAME)),
+        ("Job", f"{RELEASE_NAME}-create-user"),
         ("spec.template.spec.containers[0]",),
     ),
     (
-        ("Job", "{}-run-airflow-migrations".format(RELEASE_NAME)),
+        ("Job", f"{RELEASE_NAME}-run-airflow-migrations"),
         ("spec.template.spec.containers[0]",),
     ),
     (
-        ("Deployment", "{}-scheduler".format(RELEASE_NAME)),
+        ("Deployment", f"{RELEASE_NAME}-scheduler"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("StatefulSet", "{}-worker".format(RELEASE_NAME)),
+        ("StatefulSet", f"{RELEASE_NAME}-worker"),
         (
             "spec.template.spec.initContainers[0]",
             "spec.template.spec.containers[0]",
         ),
     ),
     (
-        ("Deployment", "{}-webserver".format(RELEASE_NAME)),
+        ("Deployment", f"{RELEASE_NAME}-webserver"),
         ("spec.template.spec.initContainers[0]", "spec.template.spec.containers[0]"),
     ),
 ]
@@ -79,39 +79,39 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
             """
         )
         values = yaml.safe_load(values_str)
-        cls.k8s_objects = render_chart(RELEASE_NAME, values=values)  # type: ignore
-        cls.k8s_objects_by_key = prepare_k8s_lookup_dict(cls.k8s_objects)  # type: ignore
+        cls.k8s_objects = render_chart(RELEASE_NAME, values=values)
+        cls.k8s_objects_by_key = prepare_k8s_lookup_dict(cls.k8s_objects)
 
     @parameterized.expand(PARAMS)
     def test_extra_env(self, k8s_obj_key, env_paths):
         expected_env_as_str = textwrap.dedent(
-            """
+            f"""
             - name: PLATFORM
               value: FR
             - name: TEST
               valueFrom:
                 secretKeyRef:
                   key: connection
-                  name: {}-some-secret
-            """.format(RELEASE_NAME)
+                  name: {RELEASE_NAME}-some-secret
+            """
         ).lstrip()
         k8s_object = self.k8s_objects_by_key[k8s_obj_key]
         for path in env_paths:
-            env = jmespath.search("{}.env".format(path), k8s_object)
-            self.assertIn(expected_env_as_str, yaml.dump(env))
+            env = jmespath.search(f"{path}.env", k8s_object)
+            assert expected_env_as_str in yaml.dump(env)
 
     @parameterized.expand(PARAMS)
     def test_extra_env_from(self, k8s_obj_key, env_from_paths):
         expected_env_from_as_str = textwrap.dedent(
-            """
+            f"""
             - secretRef:
-                name: {}-airflow-connections
+                name: {RELEASE_NAME}-airflow-connections
             - configMapRef:
-                name: {}-airflow-variables
-            """.format(RELEASE_NAME, RELEASE_NAME)
+                name: {RELEASE_NAME}-airflow-variables
+            """
         ).lstrip()
 
         k8s_object = self.k8s_objects_by_key[k8s_obj_key]
         for path in env_from_paths:
-            env_from = jmespath.search("{}.envFrom".format(path), k8s_object)
-            self.assertIn(expected_env_from_as_str, yaml.dump(env_from))
+            env_from = jmespath.search(f"{path}.envFrom", k8s_object)
+            assert expected_env_from_as_str in yaml.dump(env_from)

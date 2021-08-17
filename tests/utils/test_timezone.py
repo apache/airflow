@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,54 +17,56 @@
 # under the License.
 
 import datetime
-import pendulum
 import unittest
+
+import pendulum
+import pytest
 
 from airflow.utils import timezone
 
-CET = pendulum.timezone("Europe/Paris")
-EAT = pendulum.timezone('Africa/Nairobi')  # Africa/Nairobi
-ICT = pendulum.timezone('Asia/Bangkok')  # Asia/Bangkok
+CET = pendulum.tz.timezone("Europe/Paris")
+EAT = pendulum.tz.timezone('Africa/Nairobi')  # Africa/Nairobi
+ICT = pendulum.tz.timezone('Asia/Bangkok')  # Asia/Bangkok
 UTC = timezone.utc
 
 
-class TimezoneTest(unittest.TestCase):
+class TestTimezone(unittest.TestCase):
     def test_is_aware(self):
-        self.assertTrue(timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)))
-        self.assertFalse(timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30)))
+        assert timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
+        assert not timezone.is_localized(datetime.datetime(2011, 9, 1, 13, 20, 30))
 
     def test_is_naive(self):
-        self.assertFalse(timezone.is_naive(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)))
-        self.assertTrue(timezone.is_naive(datetime.datetime(2011, 9, 1, 13, 20, 30)))
+        assert not timezone.is_naive(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
+        assert timezone.is_naive(datetime.datetime(2011, 9, 1, 13, 20, 30))
 
     def test_utcnow(self):
         now = timezone.utcnow()
-        self.assertTrue(timezone.is_localized(now))
-        self.assertEqual(now.replace(tzinfo=None), now.astimezone(UTC).replace(tzinfo=None))
+        assert timezone.is_localized(now)
+        assert now.replace(tzinfo=None) == now.astimezone(UTC).replace(tzinfo=None)
 
     def test_convert_to_utc(self):
         naive = datetime.datetime(2011, 9, 1, 13, 20, 30)
         utc = datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=UTC)
-        self.assertEqual(utc, timezone.convert_to_utc(naive))
+        assert utc == timezone.convert_to_utc(naive)
 
         eat = datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT)
         utc = datetime.datetime(2011, 9, 1, 10, 20, 30, tzinfo=UTC)
-        self.assertEqual(utc, timezone.convert_to_utc(eat))
+        assert utc == timezone.convert_to_utc(eat)
 
     def test_make_naive(self):
-        self.assertEqual(
-            timezone.make_naive(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT),
-            datetime.datetime(2011, 9, 1, 13, 20, 30))
-        self.assertEqual(
-            timezone.make_naive(datetime.datetime(2011, 9, 1, 17, 20, 30, tzinfo=ICT), EAT),
-            datetime.datetime(2011, 9, 1, 13, 20, 30))
+        assert timezone.make_naive(
+            datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT
+        ) == datetime.datetime(2011, 9, 1, 13, 20, 30)
+        assert timezone.make_naive(
+            datetime.datetime(2011, 9, 1, 17, 20, 30, tzinfo=ICT), EAT
+        ) == datetime.datetime(2011, 9, 1, 13, 20, 30)
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             timezone.make_naive(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT)
 
     def test_make_aware(self):
-        self.assertEqual(
-            timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT),
-            datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
-        with self.assertRaises(ValueError):
+        assert timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT) == datetime.datetime(
+            2011, 9, 1, 13, 20, 30, tzinfo=EAT
+        )
+        with pytest.raises(ValueError):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,18 +17,18 @@
 # under the License.
 
 import datetime
+import importlib
 import unittest
-from tests.compat import Mock, MagicMock
-from freezegun import freeze_time
+from unittest.mock import MagicMock, Mock
 
+from freezegun import freeze_time
 from sentry_sdk import configure_scope
 
 from airflow.models import TaskInstance
 from airflow.settings import Session
-from airflow.sentry import ConfiguredSentry
 from airflow.utils import timezone
 from airflow.utils.state import State
-
+from tests.test_utils.config import conf_vars
 
 EXECUTION_DATE = timezone.utcnow()
 DAG_ID = "test_dag"
@@ -37,7 +36,6 @@ TASK_ID = "test_task"
 OPERATOR = "test_operator"
 TRY_NUMBER = 1
 STATE = State.SUCCESS
-DURATION = None
 TEST_SCOPE = {
     "dag_id": DAG_ID,
     "task_id": TASK_ID,
@@ -49,7 +47,7 @@ TASK_DATA = {
     "task_id": TASK_ID,
     "state": STATE,
     "operator": OPERATOR,
-    "duration": DURATION,
+    "duration": None,
 }
 
 CRUMB_DATE = datetime.datetime(2019, 5, 15)
@@ -63,9 +61,12 @@ CRUMB = {
 
 
 class TestSentryHook(unittest.TestCase):
+    @conf_vars({('sentry', 'sentry_on'): 'True'})
     def setUp(self):
+        from airflow import sentry
 
-        self.sentry = ConfiguredSentry()
+        importlib.reload(sentry)
+        self.sentry = sentry.ConfiguredSentry()
 
         # Mock the Dag
         self.dag = Mock(dag_id=DAG_ID, params=[])
@@ -90,7 +91,7 @@ class TestSentryHook(unittest.TestCase):
         self.sentry.add_tagging(task_instance=self.ti)
         with configure_scope() as scope:
             for key, value in scope._tags.items():
-                self.assertEqual(TEST_SCOPE[key], value)
+                assert TEST_SCOPE[key] == value
 
     @freeze_time(CRUMB_DATE.isoformat())
     def test_add_breadcrumbs(self):
@@ -102,4 +103,4 @@ class TestSentryHook(unittest.TestCase):
 
         with configure_scope() as scope:
             test_crumb = scope._breadcrumbs.pop()
-            self.assertEqual(CRUMB, test_crumb)
+            assert CRUMB == test_crumb

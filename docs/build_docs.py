@@ -15,278 +15,520 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import atexit
+import argparse
+import multiprocessing
 import os
-import re
-import shlex
-import shutil
 import sys
-from subprocess import run
-from contextlib import suppress
-from glob import glob
-from tempfile import NamedTemporaryFile
-from typing import NamedTuple, List, Set, Optional
+from collections import defaultdict
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
-if __name__ != "__main__":
-    raise Exception(
+from rich.console import Console
+from tabulate import tabulate
+
+from airflow.utils.helpers import partition
+from docs.exts.docs_build import dev_index_generator, lint_checks
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
+from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
+from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
+from docs.exts.docs_build.fetch_inventories import fetch_inventories
+from docs.exts.docs_build.github_action_utils import with_group
+from docs.exts.docs_build.package_filter import process_package_filters
+from docs.exts.docs_build.spelling_checks import SpellingError, display_spelling_error_summary
+
+TEXT_RED = '\033[31m'
+TEXT_RESET = '\033[0m'
+
+if __name__ not in ("__main__", "__mp_main__"):
+    raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         "To run this script, run the ./build_docs.py command"
     )
 
+CHANNEL_INVITATION = """\
+If you need help, write to #documentation channel on Airflow's Slack.
+Channel link: https://apache-airflow.slack.com/archives/CJ1LVREHX
+Invitation link: https://s.apache.org/airflow-slack\
+"""
 
-class DocBuildError(NamedTuple):
-    file_path: Optional[str]
-    line_no: Optional[int]
-    message: str
+ERRORS_ELIGIBLE_TO_REBUILD = [
+    'failed to reach any of the inventories with the following issues',
+    'undefined label:',
+    'unknown document:',
+]
 
+ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
 
-build_errors: List[DocBuildError] = []
-
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-ROOT_PROJECT_DIR = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
-ROOT_PACKAGE_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
-
-
-def clean_files() -> None:
-    print("Removing content of the _build and _api folders")
-    with suppress(FileNotFoundError):
-        for filename in glob("_build/*"):
-            shutil.rmtree(f"_build/{filename}")
-    with suppress(FileNotFoundError):
-        for filename in glob("_api/*"):
-            shutil.rmtree(f"_api/{filename}")
-    print("Removed content of the _build and _api folders")
+console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
 
-def prepare_directories() -> None:
-    if os.path.exists("/.dockerenv"):
-        # This script can be run both - in container and outside of it.
-        # Here we are inside the container which means that we should (when the host is Linux)
-        # fix permissions of the _build and _api folders via sudo.
-        # Those files are mounted from the host via docs folder and we might not have permissions to
-        # write to those directories (and remove the _api folder).
-        # We know we have sudo capabilities inside the container.
-        print("Creating the _build and _api folders in case they do not exist")
-        run(["sudo", "mkdir", "-pv", "_build"], check=True)
-        run(["sudo", "mkdir", "-pv", "_api"], check=True)
-        print("Created the _build and _api folders in case they do not exist")
+def _promote_new_flags():
+    console.print()
+    console.print("[yellow]Still tired of waiting for documentation to be built?[/]")
+    console.print()
+    if ON_GITHUB_ACTIONS:
+        console.print("You can quickly build documentation locally with just one command.")
+        console.print("    [blue]./breeze build-docs[/]")
+        console.print()
+        console.print("[yellow]Still too slow?[/]")
+        console.print()
+    console.print("You can only build one documentation package:")
+    console.print("    [blue]./breeze build-docs -- --package-filter <PACKAGE-NAME>[/]")
+    console.print()
+    console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
+    console.print()
+    console.print("You can also use other extra flags to iterate faster:")
+    console.print("   [blue]--docs-only       - Only build documentation[/]")
+    console.print("   [blue]--spellcheck-only - Only perform spellchecking[/]")
+    console.print()
+    console.print("For more info:")
+    console.print("   [blue]./breeze build-docs --help[/]")
+    console.print()
 
-        def restore_ownership() -> None:
-            # We are inside the container which means that we should fix back the permissions of the
-            # _build and _api folder files, so that they can be accessed by the host user
-            # The _api folder should be deleted by then but just in case we should change the ownership
-            host_user_id = os.environ["HOST_USER_ID"]
-            host_group_id = os.environ["HOST_GROUP_ID"]
-            print(f"Changing ownership of docs/_build folder back to {host_user_id}:{host_group_id}")
-            run(["sudo", "chown", "-R", f'{host_user_id}:{host_group_id}', "_build"], check=True)
-            if os.path.exists("_api"):
-                run(["sudo", "chown", "-R", f'{host_user_id}:{host_group_id}', "_api"], check=True)
 
-            print(f"Changed ownership of docs/_build folder back to {host_user_id}:{host_group_id}")
+def _get_parser():
+    available_packages_list = " * " + "\n * ".join(get_available_packages())
+    parser = argparse.ArgumentParser(
+        description='Builds documentation and runs spell checking',
+        epilog=f"List of supported documentation packages:\n{available_packages_list}",
+    )
+    parser.formatter_class = argparse.RawTextHelpFormatter
+    parser.add_argument(
+        '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
+    )
+    parser.add_argument(
+        "--package-filter",
+        action="append",
+        help=(
+            "Filter specifying for which packages the documentation is to be built. Wildcard are supported."
+        ),
+    )
+    parser.add_argument('--docs-only', dest='docs_only', action='store_true', help='Only build documentation')
+    parser.add_argument(
+        '--spellcheck-only', dest='spellcheck_only', action='store_true', help='Only perform spellchecking'
+    )
+    parser.add_argument(
+        '--for-production',
+        dest='for_production',
+        action='store_true',
+        help='Builds documentation for official release i.e. all links point to stable version',
+    )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        dest='jobs',
+        type=int,
+        default=0,
+        help=(
+            """\
+        Number of parallel processes that will be spawned to build the docs.
 
-        atexit.register(restore_ownership)
+        If passed 0, the value will be determined based on the number of CPUs.
+        """
+        ),
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest='verbose',
+        action='store_true',
+        help=(
+            'Increases the verbosity of the script i.e. always displays a full log of '
+            'the build process, not just when it encounters errors'
+        ),
+    )
 
+    return parser
+
+
+class BuildSpecification(NamedTuple):
+    """Specification of single build."""
+
+    package_name: str
+    for_production: bool
+    verbose: bool
+
+
+class BuildDocsResult(NamedTuple):
+    """Result of building documentation."""
+
+    package_name: str
+    log_file_name: str
+    errors: List[DocBuildError]
+
+
+class SpellCheckResult(NamedTuple):
+    """Result of spellcheck."""
+
+    package_name: str
+    log_file_name: str
+    errors: List[SpellingError]
+
+
+def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
+    """Performs single package docs build."""
+    builder = AirflowDocsBuilder(
+        package_name=build_specification.package_name, for_production=build_specification.for_production
+    )
+    console.print(f"[blue]{build_specification.package_name:60}:[/] Building documentation")
+    result = BuildDocsResult(
+        package_name=build_specification.package_name,
+        errors=builder.build_sphinx_docs(
+            verbose=build_specification.verbose,
+        ),
+        log_file_name=builder.log_build_filename,
+    )
+    return result
+
+
+def perform_spell_check_for_single_package(build_specification: BuildSpecification) -> SpellCheckResult:
+    """Performs single package spell check."""
+    builder = AirflowDocsBuilder(
+        package_name=build_specification.package_name, for_production=build_specification.for_production
+    )
+    console.print(f"[blue]{build_specification.package_name:60}:[/] Checking spelling started")
+    result = SpellCheckResult(
+        package_name=build_specification.package_name,
+        errors=builder.check_spelling(
+            verbose=build_specification.verbose,
+        ),
+        log_file_name=builder.log_spelling_filename,
+    )
+    console.print(f"[blue]{build_specification.package_name:60}:[/] Checking spelling completed")
+    return result
+
+
+def build_docs_for_packages(
+    current_packages: List[str],
+    docs_only: bool,
+    spellcheck_only: bool,
+    for_production: bool,
+    jobs: int,
+    verbose: bool,
+) -> Tuple[Dict[str, List[DocBuildError]], Dict[str, List[SpellingError]]]:
+    """Builds documentation for all packages and combines errors."""
+    all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
+    all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
+    with with_group("Cleaning documentation files"):
+        for package_name in current_packages:
+            console.print(f"[blue]{package_name:60}:[/] Cleaning files")
+            builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
+            builder.clean_files()
+    if jobs > 1:
+        run_in_parallel(
+            all_build_errors,
+            all_spelling_errors,
+            current_packages,
+            docs_only,
+            for_production,
+            jobs,
+            spellcheck_only,
+            verbose,
+        )
     else:
-        # We are outside the container so we simply make sure that the directories exist
-        print("Creating the _build and _api folders in case they do not exist")
-        run(["mkdir", "-pv", "_build"], check=True)
-        run(["mkdir", "-pv", "_api"], check=True)
-        print("Creating the _build and _api folders in case they do not exist")
-
-
-def display_errors_summary() -> None:
-    for warning_no, error in enumerate(sorted(build_errors), 1):
-        print("=" * 20, f"Error {warning_no:3}", "=" * 20)
-        print(error.message)
-        print()
-        if error.file_path and error.line_no:
-            print(f"File path: {error.file_path} ({error.line_no})")
-            print()
-            print(prepare_code_snippet(error.file_path, error.line_no))
-        elif error.file_path:
-            print(f"File path: {error.file_path}")
-
-    print("=" * 50)
-
-
-def check_file_not_contains(file_path: str, pattern: str, message: str) -> None:
-    with open(file_path, "rb", 0) as doc_file:
-        pattern_compiled = re.compile(pattern)
-
-        for num, line in enumerate(doc_file, 1):
-            line_decode = line.decode()
-            if re.search(pattern_compiled, line_decode):
-                build_errors.append(DocBuildError(file_path=file_path, line_no=num, message=message))
-
-
-def filter_file_list_by_pattern(file_paths: List[str], pattern: str) -> List[str]:
-    output_paths = []
-    pattern_compiled = re.compile(pattern)
-    for file_path in file_paths:
-        with open(file_path, "rb", 0) as text_file:
-            text_file_content = text_file.read().decode()
-            if re.findall(pattern_compiled, text_file_content):
-                output_paths.append(file_path)
-    return output_paths
-
-
-def find_modules(deprecated_only: bool = False) -> Set[str]:
-    file_paths_src = glob(f"{ROOT_PACKAGE_DIR}/**/*.py", recursive=True)
-    # Exclude __init__.py
-    file_paths = list(f for f in file_paths_src if not f.endswith("__init__.py"))
-    if deprecated_only:
-        file_paths = filter_file_list_by_pattern(file_paths, r"This module is deprecated.")
-    # Make path relative
-    file_paths = list(os.path.relpath(f, ROOT_PROJECT_DIR) for f in file_paths)
-    # Convert filename to module
-    modules_names = {file_path.rpartition(".")[0].replace("/", ".") for file_path in file_paths}
-    return modules_names
-
-
-def assert_file_not_contains(file_path: str, pattern: str, message: str) -> None:
-    with open(file_path, "rb", 0) as doc_file:
-        pattern_compiled = re.compile(pattern)
-
-        for num, line in enumerate(doc_file, 1):
-            line_decode = line.decode()
-            if re.search(pattern_compiled, line_decode):
-                build_errors.append(DocBuildError(file_path=file_path, line_no=num, message=message))
-
-
-def check_exampleinclude_for_example_dags():
-    all_docs_files = glob("**/*rst", recursive=True)
-
-    for doc_file in all_docs_files:
-        check_file_not_contains(
-            file_path=doc_file,
-            pattern=r"literalinclude::.+example_dags",
-            message=(
-                "literalinclude directive is is prohibited for example DAGs. \n"
-                "You should use a exampleinclude directive to include example DAGs."
-            )
+        run_sequentially(
+            all_build_errors,
+            all_spelling_errors,
+            current_packages,
+            docs_only,
+            for_production,
+            spellcheck_only,
+            verbose,
         )
+    return all_build_errors, all_spelling_errors
 
 
-def check_enforce_code_block():
-    all_docs_files = glob("**/*rst", recursive=True)
-
-    for doc_file in all_docs_files:
-        assert_file_not_contains(
-            file_path=doc_file,
-            pattern=r"^.. code::",
-            message=(
-                "We recommend using the code-block directive instead of the code directive. "
-                "The code-block directive is more feature-full."
+def run_sequentially(
+    all_build_errors,
+    all_spelling_errors,
+    current_packages,
+    docs_only,
+    for_production,
+    spellcheck_only,
+    verbose,
+):
+    """Run both - spellcheck and docs build sequentially without multiprocessing"""
+    if not spellcheck_only:
+        for package_name in current_packages:
+            build_result = perform_docs_build_for_single_package(
+                build_specification=BuildSpecification(
+                    package_name=package_name,
+                    for_production=for_production,
+                    verbose=verbose,
+                )
             )
+            if build_result.errors:
+                all_build_errors[package_name].extend(build_result.errors)
+                print_build_output(build_result)
+    if not docs_only:
+        for package_name in current_packages:
+            spellcheck_result = perform_spell_check_for_single_package(
+                build_specification=BuildSpecification(
+                    package_name=package_name,
+                    for_production=for_production,
+                    verbose=verbose,
+                )
+            )
+            if spellcheck_result.errors:
+                all_spelling_errors[package_name].extend(spellcheck_result.errors)
+                print_spelling_output(spellcheck_result)
+
+
+def run_in_parallel(
+    all_build_errors,
+    all_spelling_errors,
+    current_packages,
+    docs_only,
+    for_production,
+    jobs,
+    spellcheck_only,
+    verbose,
+):
+    """Run both - spellcheck and docs build sequentially without multiprocessing"""
+    with multiprocessing.Pool(processes=jobs) as pool:
+        if not spellcheck_only:
+            run_docs_build_in_parallel(
+                all_build_errors=all_build_errors,
+                for_production=for_production,
+                current_packages=current_packages,
+                verbose=verbose,
+                pool=pool,
+            )
+        if not docs_only:
+            run_spell_check_in_parallel(
+                all_spelling_errors=all_spelling_errors,
+                for_production=for_production,
+                current_packages=current_packages,
+                verbose=verbose,
+                pool=pool,
+            )
+
+
+def print_build_output(result: BuildDocsResult):
+    """Prints output of docs build job."""
+    with with_group(f"{TEXT_RED}Output for documentation build {result.package_name}{TEXT_RESET}"):
+        console.print()
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+        with open(result.log_file_name) as output:
+            for line in output.read().splitlines():
+                console.print(f"{result.package_name:60} {line}")
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+
+
+def run_docs_build_in_parallel(
+    all_build_errors: Dict[str, List[DocBuildError]],
+    for_production: bool,
+    current_packages: List[str],
+    verbose: bool,
+    pool,
+):
+    """Runs documentation building in parallel."""
+    doc_build_specifications: List[BuildSpecification] = []
+    with with_group("Scheduling documentation to build"):
+        for package_name in current_packages:
+            console.print(f"[blue]{package_name:60}:[/] Scheduling documentation to build")
+            doc_build_specifications.append(
+                BuildSpecification(
+                    package_name=package_name,
+                    for_production=for_production,
+                    verbose=verbose,
+                )
+            )
+    with with_group("Running docs building"):
+        console.print()
+        result_list = pool.map(perform_docs_build_for_single_package, doc_build_specifications)
+    for result in result_list:
+        if result.errors:
+            all_build_errors[result.package_name].extend(result.errors)
+            print_build_output(result)
+
+
+def print_spelling_output(result: SpellCheckResult):
+    """Prints output of spell check job."""
+    with with_group(f"{TEXT_RED}Output for spelling check: {result.package_name}{TEXT_RESET}"):
+        console.print()
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+        with open(result.log_file_name) as output:
+            for line in output.read().splitlines():
+                console.print(f"{result.package_name:60} {line}")
+        console.print(f"[blue]{result.package_name:60}: " + "#" * 80)
+        console.print()
+
+
+def run_spell_check_in_parallel(
+    all_spelling_errors: Dict[str, List[SpellingError]],
+    for_production: bool,
+    current_packages: List[str],
+    verbose: bool,
+    pool,
+):
+    """Runs spell check in parallel."""
+    spell_check_specifications: List[BuildSpecification] = []
+    with with_group("Scheduling spell checking of documentation"):
+        for package_name in current_packages:
+            console.print(f"[blue]{package_name:60}:[/] Scheduling spellchecking")
+            spell_check_specifications.append(
+                BuildSpecification(package_name=package_name, for_production=for_production, verbose=verbose)
+            )
+    with with_group("Running spell checking of documentation"):
+        console.print()
+        result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
+    for result in result_list:
+        if result.errors:
+            all_spelling_errors[result.package_name].extend(result.errors)
+            print_spelling_output(result)
+
+
+def display_packages_summary(
+    build_errors: Dict[str, List[DocBuildError]], spelling_errors: Dict[str, List[SpellingError]]
+):
+    """Displays a summary that contains information on the number of errors in each packages"""
+    packages_names = {*build_errors.keys(), *spelling_errors.keys()}
+    tabular_data = [
+        {
+            "Package name": f"[blue]{package_name}[/]",
+            "Count of doc build errors": len(build_errors.get(package_name, [])),
+            "Count of spelling errors": len(spelling_errors.get(package_name, [])),
+        }
+        for package_name in sorted(packages_names, key=lambda k: k or '')
+    ]
+    console.print("#" * 20, " Packages errors summary ", "#" * 20)
+    console.print(tabulate(tabular_data=tabular_data, headers="keys"))
+    console.print("#" * 50)
+
+
+def print_build_errors_and_exit(
+    build_errors: Dict[str, List[DocBuildError]],
+    spelling_errors: Dict[str, List[SpellingError]],
+) -> None:
+    """Prints build errors and exists."""
+    if build_errors or spelling_errors:
+        if build_errors:
+            display_errors_summary(build_errors)
+            console.print()
+        if spelling_errors:
+            display_spelling_error_summary(spelling_errors)
+            console.print()
+        console.print("The documentation has errors.")
+        display_packages_summary(build_errors, spelling_errors)
+        console.print()
+        console.print(CHANNEL_INVITATION)
+        sys.exit(1)
+    else:
+        console.print("[green]Documentation build is successful[/]")
+
+
+def main():
+    """Main code"""
+    args = _get_parser().parse_args()
+    available_packages = get_available_packages()
+    docs_only = args.docs_only
+    spellcheck_only = args.spellcheck_only
+    disable_checks = args.disable_checks
+    package_filters = args.package_filter
+    for_production = args.for_production
+
+    with with_group("Available packages"):
+        for pkg in sorted(available_packages):
+            console.print(f" - {pkg}")
+
+    if package_filters:
+        console.print("Current package filters: ", package_filters)
+    current_packages = process_package_filters(available_packages, package_filters)
+
+    with with_group("Fetching inventories"):
+        # Inventories that could not be retrieved should be built first. This may mean this is a
+        # new package.
+        packages_without_inventories = fetch_inventories()
+    normal_packages, priority_packages = partition(
+        lambda d: d in packages_without_inventories, current_packages
+    )
+    normal_packages, priority_packages = list(normal_packages), list(priority_packages)
+    jobs = args.jobs if args.jobs != 0 else os.cpu_count()
+
+    with with_group(
+        f"Documentation will be built for {len(current_packages)} package(s) with {jobs} parallel jobs"
+    ):
+        for pkg_no, pkg in enumerate(current_packages, start=1):
+            console.print(f"{pkg_no}. {pkg}")
+
+    all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
+    all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
+    if priority_packages:
+        # Build priority packages
+        package_build_errors, package_spelling_errors = build_docs_for_packages(
+            current_packages=priority_packages,
+            docs_only=docs_only,
+            spellcheck_only=spellcheck_only,
+            for_production=for_production,
+            jobs=jobs,
+            verbose=args.verbose,
         )
+        if package_build_errors:
+            all_build_errors.update(package_build_errors)
+        if package_spelling_errors:
+            all_spelling_errors.update(package_spelling_errors)
+
+    # Build normal packages
+    # If only one inventory is missing, the remaining packages are correct. If we are missing
+    # two or more inventories, it is better to try to build for all packages as the previous packages
+    # may have failed as well.
+    package_build_errors, package_spelling_errors = build_docs_for_packages(
+        current_packages=current_packages if len(priority_packages) > 1 else normal_packages,
+        docs_only=docs_only,
+        spellcheck_only=spellcheck_only,
+        for_production=for_production,
+        jobs=jobs,
+        verbose=args.verbose,
+    )
+    if package_build_errors:
+        all_build_errors.update(package_build_errors)
+    if package_spelling_errors:
+        all_spelling_errors.update(package_spelling_errors)
+
+    # Build documentation for some packages again if it can help them.
+    to_retry_packages = [
+        package_name
+        for package_name, errors in package_build_errors.items()
+        if any(any((m in e.message) for m in ERRORS_ELIGIBLE_TO_REBUILD) for e in errors)
+    ]
+    if to_retry_packages:
+        for package_name in to_retry_packages:
+            if package_name in all_build_errors:
+                del all_build_errors[package_name]
+            if package_name in all_spelling_errors:
+                del all_spelling_errors[package_name]
+
+        package_build_errors, package_spelling_errors = build_docs_for_packages(
+            current_packages=to_retry_packages,
+            docs_only=docs_only,
+            spellcheck_only=spellcheck_only,
+            for_production=for_production,
+            jobs=jobs,
+            verbose=args.verbose,
+        )
+        if package_build_errors:
+            all_build_errors.update(package_build_errors)
+        if package_spelling_errors:
+            all_spelling_errors.update(package_spelling_errors)
+
+    if not disable_checks:
+        general_errors = lint_checks.run_all_check()
+        if general_errors:
+            all_build_errors[None] = general_errors
+
+    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
+
+    if not package_filters:
+        _promote_new_flags()
+
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
+
+    print_build_errors_and_exit(
+        all_build_errors,
+        all_spelling_errors,
+    )
 
 
-def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
-    def guess_lexer_for_filename(filename):
-        from pygments.util import ClassNotFound
-        from pygments.lexers import get_lexer_for_filename
-
-        try:
-            lexer = get_lexer_for_filename(filename)
-        except ClassNotFound:
-            from pygments.lexers.special import TextLexer
-            lexer = TextLexer()
-        return lexer
-
-    with open(file_path) as text_file:
-        # Highlight code
-        code = text_file.read()
-        with suppress(ImportError):
-            import pygments
-
-            from pygments.formatters.terminal import TerminalFormatter
-            code = pygments.highlight(
-                code=code, formatter=TerminalFormatter(), lexer=guess_lexer_for_filename(file_path)
-            )
-
-        code_lines = code.split("\n")
-        # Prepend line number
-        code_lines = [f"{line_no:4} | {line}" for line_no, line in enumerate(code_lines, 1)]
-        # # Cut out the snippet
-        start_line_no = max(0, line_no - context_lines_count)
-        end_line_no = line_no + context_lines_count
-        code_lines = code_lines[start_line_no:end_line_no]
-        # Join lines
-        code = "\n".join(code_lines)
-    return code
-
-
-def parse_sphinx_warnings(warning_text: str) -> List[DocBuildError]:
-    sphinx_build_errors = []
-    for sphinx_warning in warning_text.split("\n"):
-        if not sphinx_warning:
-            continue
-        warning_parts = sphinx_warning.split(":", 2)
-        if len(warning_parts) == 3:
-            try:
-                sphinx_build_errors.append(
-                    DocBuildError(
-                        file_path=warning_parts[0], line_no=int(warning_parts[1]), message=warning_parts[2]
-                    )
-                )
-            except Exception:  # pylint: disable=broad-except
-                # If an exception occurred while parsing the warning message, display the raw warning message.
-                sphinx_build_errors.append(
-                    DocBuildError(
-                        file_path=None, line_no=None, message=sphinx_warning
-                    )
-                )
-        else:
-            sphinx_build_errors.append(DocBuildError(file_path=None, line_no=None, message=sphinx_warning))
-    return sphinx_build_errors
-
-
-def build_sphinx_docs() -> None:
-    with NamedTemporaryFile() as tmp_file:
-        build_cmd = [
-            "sphinx-build",
-            "-b",
-            "html",
-            "-d",
-            "_build/doctrees",
-            "--color",
-            "-w",
-            tmp_file.name,
-            ".",
-            "_build/html",
-        ]
-        print("Executing cmd: ", " ".join([shlex.quote(c) for c in build_cmd]))
-
-        completed_proc = run(build_cmd)
-        if completed_proc.returncode != 0:
-            build_errors.append(
-                DocBuildError(
-                    file_path=None,
-                    line_no=None,
-                    message=f"Sphinx returned non-zero exit status: {completed_proc.returncode}.",
-                )
-            )
-        tmp_file.seek(0)
-        warning_text = tmp_file.read().decode()
-        # Remove 7-bit C1 ANSI escape sequences
-        warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
-        sphinx_build_errors = parse_sphinx_warnings(warning_text)
-        build_errors.extend(sphinx_build_errors)
-
-
-print("Current working directory: ", os.getcwd())
-
-prepare_directories()
-clean_files()
-
-check_enforce_code_block()
-check_exampleinclude_for_example_dags()
-
-build_sphinx_docs()
-
-if build_errors:
-    display_errors_summary()
-    print()
-    print("The documentation has errors.")
-    sys.exit(1)
+if __name__ == "__main__":
+    main()

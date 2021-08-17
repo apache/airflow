@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,43 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-import signal
 import os
+import signal
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class timeout(LoggingMixin):
-    """
-    To be used in a ``with`` block and timeout its content.
-    """
+    """To be used in a ``with`` block and timeout its content."""
 
     def __init__(self, seconds=1, error_message='Timeout'):
+        super().__init__()
         self.seconds = seconds
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 
     def handle_timeout(self, signum, frame):
+        """Logs information and raises AirflowTaskTimeout."""
         self.log.error("Process timed out, PID: %s", str(os.getpid()))
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
-            signal.alarm(self.seconds)
-        except ValueError as e:
-            self.log.warning("timeout can't be used in the current context")
-            self.log.exception(e)
+            signal.setitimer(signal.ITIMER_REAL, self.seconds)
+        except ValueError:
+            self.log.warning("timeout can't be used in the current context", exc_info=True)
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         try:
-            signal.alarm(0)
-        except ValueError as e:
-            self.log.warning("timeout can't be used in the current context")
-            self.log.exception(e)
+            signal.setitimer(signal.ITIMER_REAL, 0)
+        except ValueError:
+            self.log.warning("timeout can't be used in the current context", exc_info=True)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,17 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import unittest
 from datetime import datetime
-from mock import Mock
+from unittest.mock import Mock
 
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
 
-class TaskConcurrencyDepTest(unittest.TestCase):
-
+class TestTaskConcurrencyDep(unittest.TestCase):
     def _get_task(self, **kwargs):
         return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)
 
@@ -35,20 +35,20 @@ class TaskConcurrencyDepTest(unittest.TestCase):
         task = self._get_task(start_date=datetime(2016, 1, 1))
         dep_context = DepContext()
         ti = Mock(task=task, execution_date=datetime(2016, 1, 1))
-        self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_not_reached_concurrency(self):
         task = self._get_task(start_date=datetime(2016, 1, 1), task_concurrency=1)
         dep_context = DepContext()
         ti = Mock(task=task, execution_date=datetime(2016, 1, 1))
         ti.get_num_running_task_instances = lambda x: 0
-        self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)
 
     def test_reached_concurrency(self):
         task = self._get_task(start_date=datetime(2016, 1, 1), task_concurrency=2)
         dep_context = DepContext()
         ti = Mock(task=task, execution_date=datetime(2016, 1, 1))
         ti.get_num_running_task_instances = lambda x: 1
-        self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)
         ti.get_num_running_task_instances = lambda x: 2
-        self.assertFalse(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
+        assert not TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context)

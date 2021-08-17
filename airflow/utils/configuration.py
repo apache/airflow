@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import unicode_literals
-from __future__ import absolute_import
 
-import os
 import json
+import os
 from tempfile import mkstemp
 
 from airflow.configuration import conf
 
 
-def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
+def tmp_configuration_copy(chmod=0o600):
     """
     Returns a path for a temporary file including a full copy of the configuration
     settings.

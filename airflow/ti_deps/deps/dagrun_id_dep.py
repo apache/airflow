@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,18 +18,16 @@
 
 """This module defines dep for DagRun ID validation"""
 
-from re import match
-
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
+from airflow.utils.types import DagRunType
 
 
 class DagrunIdDep(BaseTIDep):
-    """
-    Dep for valid DagRun ID to schedule from scheduler
-    """
+    """Dep for valid DagRun ID to schedule from scheduler"""
+
     NAME = "Dagrun run_id is not backfill job ID"
-    IGNOREABLE = True
+    IGNORABLE = True
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
@@ -45,14 +42,14 @@ class DagrunIdDep(BaseTIDep):
         :type dep_context: DepContext
         :return: True if DagRun ID is valid for scheduling from scheduler.
         """
-        from airflow.jobs import BackfillJob  # To avoid a circular dependency
         dagrun = ti.get_dagrun(session)
 
-        if not dagrun or not dagrun.run_id or not match(BackfillJob.ID_PREFIX + '.*', dagrun.run_id):
+        if not dagrun or not dagrun.run_id or dagrun.run_type != DagRunType.BACKFILL_JOB:
             yield self._passing_status(
-                reason="Task's DagRun doesn't exist or the run_id is either NULL "
-                       "or doesn't start with {}".format(BackfillJob.ID_PREFIX))
+                reason=f"Task's DagRun doesn't exist or run_id is either NULL "
+                f"or run_type is not {DagRunType.BACKFILL_JOB}"
+            )
         else:
             yield self._failing_status(
-                reason="Task's DagRun run_id is not NULL "
-                       "and starts with {}".format(BackfillJob.ID_PREFIX))
+                reason=f"Task's DagRun run_id is not NULL " f"and run type is {DagRunType.BACKFILL_JOB}"
+            )

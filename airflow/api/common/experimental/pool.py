@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 """Pool APIs."""
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 @provide_session
@@ -30,7 +29,7 @@ def get_pool(name, session=None):
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:
-        raise PoolNotFound("Pool '%s' doesn't exist" % name)
+        raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
     return pool
 
@@ -50,7 +49,12 @@ def create_pool(name, slots, description, session=None):
     try:
         slots = int(slots)
     except ValueError:
-        raise AirflowBadRequest("Bad value for `slots`: %s" % slots)
+        raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
+
+    # Get the length of the pool column
+    pool_name_length = Pool.pool.property.columns[0].type.length
+    if len(name) > pool_name_length:
+        raise AirflowBadRequest("Pool name can't be more than %d characters" % pool_name_length)
 
     session.expire_on_commit = False
     pool = session.query(Pool).filter_by(pool=name).first()
@@ -77,7 +81,7 @@ def delete_pool(name, session=None):
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:
-        raise PoolNotFound("Pool '%s' doesn't exist" % name)
+        raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
     session.delete(pool)
     session.commit()

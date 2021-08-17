@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,8 +33,7 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index('idx_job_state_heartbeat', 'job',
-                    ['state', 'latest_heartbeat'], unique=False)
+    op.create_index('idx_job_state_heartbeat', 'job', ['state', 'latest_heartbeat'], unique=False)
 
 
 def downgrade():

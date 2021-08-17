@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,70 +15,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import re
 import unittest
-import mock
-import six
+from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowConfigException
 from airflow.utils import net
 from tests.test_utils.config import conf_vars
-from airflow.exceptions import AirflowConfigException
-import re
 
 
 def get_hostname():
     return 'awesomehostname'
 
 
-class GetHostname(unittest.TestCase):
+class TestGetHostname(unittest.TestCase):
+    @mock.patch('socket.getfqdn', return_value='first')
+    @conf_vars({('core', 'hostname_callable'): None})
+    def test_get_hostname_unset(self, mock_getfqdn):
+        assert 'first' == net.get_hostname()
 
-    @mock.patch('airflow.utils.net.socket')
-    @mock.patch('airflow.utils.net.conf')
-    def test_get_hostname_unset(self, patched_conf, patched_socket):
-        patched_conf.get = mock.Mock(return_value=None)
-        patched_socket.getfqdn = mock.Mock(return_value='first')
-        self.assertTrue(net.get_hostname() == 'first')
-
-    @mock.patch('airflow.utils.net.conf')
-    def test_get_hostname_set(self, patched_conf):
-        patched_conf.get = mock.Mock(
-            return_value='tests.utils.test_net:get_hostname'
-        )
-        self.assertTrue(net.get_hostname() == 'awesomehostname')
+    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net.get_hostname'})
+    def test_get_hostname_set(self):
+        assert 'awesomehostname' == net.get_hostname()
 
     @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net'})
     def test_get_hostname_set_incorrect(self):
-        with self.assertRaises(TypeError):
-            net.get_hostname()
-
-    @mock.patch('airflow.utils.net.conf')
-    def test_get_hostname_set_missing(self, patched_conf):
-        patched_conf.get = mock.Mock(
-            return_value='tests.utils.test_net:missing_func'
-        )
-        with self.assertRaises(AttributeError):
-            net.get_hostname()
-
-    @mock.patch('socket.getfqdn', return_value='first')
-    @conf_vars({('core', 'hostname_callable'): None})
-    def test_get_hostname_unset_2_0(self, mock_getfqdn):
-        self.assertEqual('first', net.get_hostname())
-
-    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net.get_hostname'})
-    def test_get_hostname_set_2_0(self):
-        self.assertEqual('awesomehostname', net.get_hostname())
-
-    @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net'})
-    def test_get_hostname_set_incorrect_2_0(self):
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             net.get_hostname()
 
     @conf_vars({('core', 'hostname_callable'): 'tests.utils.test_net.missing_func'})
-    def test_get_hostname_set_missing_2_0(self):
-        with six.assertRaisesRegex(
-            self,
+    def test_get_hostname_set_missing(self):
+        with pytest.raises(
             AirflowConfigException,
-            re.escape(
+            match=re.escape(
                 'The object could not be loaded. Please check "hostname_callable" key in "core" section. '
                 'Current value: "tests.utils.test_net.missing_func"'
             ),

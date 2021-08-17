@@ -1,4 +1,4 @@
 # This line is to avoid accidental commits of example dags for integration testing
 # In order to test example dags easily we often create symbolic links in this directory
-# this line prevents accidental commiting of such symbolic links
+# this line prevents accidental committing of such symbolic links.
 example_*

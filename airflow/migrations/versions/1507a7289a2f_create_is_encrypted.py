@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,8 +23,8 @@ Revises: e3a246e0dc1
 Create Date: 2015-08-18 18:57:51.927315
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
@@ -35,10 +34,7 @@ branch_labels = None
 depends_on = None
 
 connectionhelper = sa.Table(
-    'connection',
-    sa.MetaData(),
-    sa.Column('id', sa.Integer, primary_key=True),
-    sa.Column('is_encrypted')
+    'connection', sa.MetaData(), sa.Column('id', sa.Integer, primary_key=True), sa.Column('is_encrypted')
 )
 
 
@@ -56,14 +52,10 @@ def upgrade():
         if 'is_encrypted' in col_names:
             return
 
-    op.add_column(
-        'connection',
-        sa.Column('is_encrypted', sa.Boolean, unique=False, default=False))
+    op.add_column('connection', sa.Column('is_encrypted', sa.Boolean, unique=False, default=False))
 
     conn = op.get_bind()
-    conn.execute(
-        connectionhelper.update().values(is_encrypted=False)
-    )
+    conn.execute(connectionhelper.update().values(is_encrypted=False))
 
 
 def downgrade():

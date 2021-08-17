@@ -31,14 +31,14 @@ function run_check_license() {
 
     echo "Running license checks. This can take a while."
     # We mount ALL airflow files for the licence check. We want to check them all!
-    if ! docker run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
+    if ! docker_v run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
             --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
-            apache/airflow:apache-rat-2020.07.10-0.13 \
+            apache/airflow-ci:apache-rat-2021.04.28-0.13 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
         echo
-        echo  "${COLOR_RED_ERROR} RAT exited abnormally  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: RAT exited abnormally  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -49,13 +49,13 @@ function run_check_license() {
     set -e
     if test ! -z "${errors}"; then
         echo
-        echo  "${COLOR_RED_ERROR} Could not find Apache license headers in the following files:  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: Could not find Apache license headers in the following files:  ${COLOR_RESET}"
         echo
         echo "${errors}"
         exit 1
     else
         echo
-        echo "${COLOR_GREEN_OK} RAT checks passed.  ${COLOR_RESET}"
+        echo "${COLOR_GREEN}OK. RAT checks passed.  ${COLOR_RESET}"
         echo
     fi
 }

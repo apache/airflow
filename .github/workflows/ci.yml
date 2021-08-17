@@ -93,4 +93,3 @@ jobs:
 
           export IMAGE="ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}"
           envsubst < deploy_services/airflow.yaml | ./kubectl apply -f -
-

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,7 +21,7 @@ from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.dagcode import DagCode
 
 
-def get_code(dag_id):  # type (str) -> str
+def get_code(dag_id: str) -> str:
     """Return python code of a given dag_id.
 
     :param dag_id: DAG id
@@ -33,5 +32,5 @@ def get_code(dag_id):  # type (str) -> str
     try:
         return DagCode.get_code_by_fileloc(dag.fileloc)
     except (OSError, DagCodeNotFound) as exception:
-        error_message = "Error {} while reading Dag id {} Code".format(str(exception), dag_id)
+        error_message = f"Error {str(exception)} while reading Dag id {dag_id} Code"
         raise AirflowException(error_message, exception)

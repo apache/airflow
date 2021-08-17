@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -41,24 +40,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """Kerberos authentication module"""
-
-from future.standard_library import install_aliases
-
 import logging
 import os
-
 from functools import wraps
 from socket import getfqdn
-
-from flask import Response
-# noinspection PyProtectedMember
-from flask import _request_ctx_stack as stack  # type: ignore
-from flask import make_response
-from flask import request
-from flask import g
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
 
 import kerberos
-
+from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
@@ -66,13 +55,12 @@ from airflow.configuration import conf
 log = logging.getLogger(__name__)
 
 
-install_aliases()
-# pylint: disable=c-extension-no-member
-CLIENT_AUTH = HTTPKerberosAuth(service='airflow')
+CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = HTTPKerberosAuth(service='airflow')
 
 
-class KerberosService:  # pylint: disable=too-few-public-methods
-    """Class to keep information about the Kerberos Service initialized """
+class KerberosService:
+    """Class to keep information about the Kerberos Service initialized"""
+
     def __init__(self):
         self.service_name = None
 
@@ -83,7 +71,6 @@ _KERBEROS_SERVICE = KerberosService()
 
 def init_app(app):
     """Initializes application with kerberos"""
-
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()
@@ -91,7 +78,7 @@ def init_app(app):
 
     service = 'airflow'
 
-    _KERBEROS_SERVICE.service_name = "{}@{}".format(service, hostname)
+    _KERBEROS_SERVICE.service_name = f"{service}@{hostname}"
 
     if 'KRB5_KTNAME' not in os.environ:
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
@@ -139,8 +126,12 @@ def _gssapi_authenticate(token):
             kerberos.authGSSServerClean(state)
 
 
-def requires_authentication(function):
+T = TypeVar("T", bound=Callable)
+
+
+def requires_authentication(function: T):
     """Decorator for functions that require authentication with Kerberos"""
+
     @wraps(function)
     def decorated(*args, **kwargs):
         header = request.headers.get("Authorization")
@@ -153,11 +144,11 @@ def requires_authentication(function):
                 response = function(*args, **kwargs)
                 response = make_response(response)
                 if ctx.kerberos_token is not None:
-                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate',
-                                                                     ctx.kerberos_token])
+                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate', ctx.kerberos_token])
 
                 return response
             if return_code != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
-    return decorated
+
+    return cast(T, decorated)

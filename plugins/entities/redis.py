@@ -1,5 +1,5 @@
 from redis import Redis
-from airflow.contrib.hooks.redis_hook import RedisHook
+from airflow.providers.redis.hooks.redis import RedisHook
 from typing import Dict
 from plugins.entities.entity import ClsEntity
 from plugins.utils.logger import generate_logger

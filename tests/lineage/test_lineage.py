@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,94 +16,145 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest import mock
 
-from airflow.lineage import apply_lineage, prepare_lineage
-from airflow.lineage.datasets import File
+from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
+from airflow.lineage.backend import LineageBackend
+from airflow.lineage.entities import File
 from airflow.models import DAG, TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from tests.compat import mock
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
+class CustomLineageBackend(LineageBackend):
+    def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+        pass
+
+
 class TestLineage(unittest.TestCase):
+    def test_lineage(self):
+        dag = DAG(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE)
 
-    @mock.patch("airflow.lineage._get_backend")
-    def test_lineage(self, _get_backend):
-        backend = mock.Mock()
-        send_mock = mock.Mock()
-        backend.send_lineage = send_mock
-
-        _get_backend.return_value = backend
-
-        dag = DAG(
-            dag_id='test_prepare_lineage',
-            start_date=DEFAULT_DATE
-        )
-
-        f1 = File("/tmp/does_not_exist_1")
-        f2 = File("/tmp/does_not_exist_2")
-        f3 = File("/tmp/does_not_exist_3")
+        f1s = "/tmp/does_not_exist_1-{}"
+        f2s = "/tmp/does_not_exist_2-{}"
+        f3s = "/tmp/does_not_exist_3"
+        file1 = File(f1s.format("{{ execution_date }}"))
+        file2 = File(f2s.format("{{ execution_date }}"))
+        file3 = File(f3s)
 
         with dag:
-            op1 = DummyOperator(task_id='leave1',
-                                inlets={"datasets": [f1, ]},
-                                outlets={"datasets": [f2, ]})
+            op1 = DummyOperator(
+                task_id='leave1',
+                inlets=file1,
+                outlets=[
+                    file2,
+                ],
+            )
             op2 = DummyOperator(task_id='leave2')
-            op3 = DummyOperator(task_id='upstream_level_1',
-                                inlets={"auto": True},
-                                outlets={"datasets": [f3, ]})
+            op3 = DummyOperator(task_id='upstream_level_1', inlets=AUTO, outlets=file3)
             op4 = DummyOperator(task_id='upstream_level_2')
-            op5 = DummyOperator(task_id='upstream_level_3',
-                                inlets={"task_ids": ["leave1", "upstream_level_1"]})
+            op5 = DummyOperator(task_id='upstream_level_3', inlets=["leave1", "upstream_level_1"])
 
             op1.set_downstream(op3)
             op2.set_downstream(op3)
             op3.set_downstream(op4)
             op4.set_downstream(op5)
 
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE)}
-        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE)}
-        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE)}
-        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE)}
+        dag.clear()
+
+        # execution_date is set in the context in order to avoid creating task instances
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+
+        # prepare with manual inlets and outlets
+        op1.pre_execute(ctx1)
+
+        assert len(op1.inlets) == 1
+        assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
+
+        assert len(op1.outlets) == 1
+        assert op1.outlets[0].url == f2s.format(DEFAULT_DATE)
+
+        # post process with no backend
+        op1.post_execute(ctx1)
+
+        op2.pre_execute(ctx2)
+        assert len(op2.inlets) == 0
+        op2.post_execute(ctx2)
+
+        op3.pre_execute(ctx3)
+        assert len(op3.inlets) == 1
+        assert op3.inlets[0].url == f2s.format(DEFAULT_DATE)
+        assert op3.outlets[0] == file3
+        op3.post_execute(ctx3)
+
+        # skip 4
+
+        op5.pre_execute(ctx5)
+        assert len(op5.inlets) == 2
+        op5.post_execute(ctx5)
+
+    def test_lineage_render(self):
+        # tests inlets / outlets are rendered if they are added
+        # after initialization
+        dag = DAG(dag_id='test_lineage_render', start_date=DEFAULT_DATE)
+
+        with dag:
+            op1 = DummyOperator(task_id='task1')
+
+        f1s = "/tmp/does_not_exist_1-{}"
+        file1 = File(f1s.format("{{ execution_date }}"))
+
+        op1.inlets.append(file1)
+        op1.outlets.append(file1)
+
+        # execution_date is set in the context in order to avoid creating task instances
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+
+        op1.pre_execute(ctx1)
+        assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
+        assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
+
+    @mock.patch("airflow.lineage.get_backend")
+    def test_lineage_is_sent_to_backend(self, mock_get_backend):
+        class TestBackend(LineageBackend):
+            def send_lineage(self, operator, inlets=None, outlets=None, context=None):
+                assert len(inlets) == 1
+                assert len(outlets) == 1
 
         func = mock.Mock()
         func.__name__ = 'foo'
 
-        # prepare with manual inlets and outlets
+        mock_get_backend.return_value = TestBackend()
+
+        dag = DAG(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE)
+
+        with dag:
+            op1 = DummyOperator(task_id='task1')
+
+        file1 = File("/tmp/some_file")
+
+        op1.inlets.append(file1)
+        op1.outlets.append(file1)
+
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+
         prep = prepare_lineage(func)
         prep(op1, ctx1)
-
-        self.assertEqual(len(op1.inlets), 1)
-        self.assertEqual(op1.inlets[0], f1)
-
-        self.assertEqual(len(op1.outlets), 1)
-        self.assertEqual(op1.outlets[0], f2)
-
-        # post process with no backend
         post = apply_lineage(func)
         post(op1, ctx1)
-        self.assertEqual(send_mock.call_count, 1)
-        send_mock.reset_mock()
 
-        prep(op2, ctx2)
-        self.assertEqual(len(op2.inlets), 0)
-        post(op2, ctx2)
-        self.assertEqual(send_mock.call_count, 1)
-        send_mock.reset_mock()
+    def test_empty_lineage_backend(self):
+        backend = get_backend()
+        assert backend is None
 
-        prep(op3, ctx3)
-        self.assertEqual(len(op3.inlets), 1)
-        self.assertEqual(op3.inlets[0].qualified_name, f2.qualified_name)
-        post(op3, ctx3)
-        self.assertEqual(send_mock.call_count, 1)
-        send_mock.reset_mock()
-
-        # skip 4
-
-        prep(op5, ctx5)
-        self.assertEqual(len(op5.inlets), 2)
-        post(op5, ctx5)
-        self.assertEqual(send_mock.call_count, 1)
-        send_mock.reset_mock()
+    @conf_vars({("lineage", "backend"): "tests.lineage.test_lineage.CustomLineageBackend"})
+    def test_resolve_lineage_class(self):
+        backend = get_backend()
+        assert issubclass(backend.__class__, LineageBackend)
+        assert isinstance(backend, CustomLineageBackend)

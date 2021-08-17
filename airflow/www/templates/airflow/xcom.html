@@ -18,23 +18,21 @@
 #}
 
 {% extends "airflow/task_instance.html" %}
-{% block title %}Airflow - DAGs{% endblock %}
+{% block title %}DAGs - {{ appbuilder.app_name }}{% endblock %}
 
-{% block body %}
-    {{ super() }}
-    <h4>{{ title }}</h4>
-    <div>
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Key</th>
-                <th>Value</th>
-            </tr>
-            {% for attr, value in attributes %}
-                <tr>
-                    <td>{{ attr }}</td>
-                    <td class='code'>{{ value }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-    </div>
+{% block content %}
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  <table class="table table-striped table-bordered">
+    <tr>
+      <th>Key</th>
+      <th>Value</th>
+    </tr>
+    {% for attr, value in attributes %}
+      <tr>
+        <td>{{ attr }}</td>
+        <td class="code">{{ value }}</td>
+      </tr>
+    {% endfor %}
+  </table>
 {% endblock %}

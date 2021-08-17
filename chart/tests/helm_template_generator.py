@@ -18,6 +18,7 @@
 import subprocess
 import sys
 from functools import lru_cache
+from io import StringIO
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Tuple
 
@@ -29,11 +30,14 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.12.9"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master/v1.14.0"
+
+crd_lookup = {
+    'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
+}
 
 
-@lru_cache(maxsize=None)
-def create_validator(api_version, kind):
+def get_schema_k8s(api_version, kind):
     api_version = api_version.lower()
     kind = kind.lower()
 
@@ -46,6 +50,24 @@ def create_validator(api_version, kind):
     request = requests.get(url)
     request.raise_for_status()
     schema = request.json()
+    return schema
+
+
+def get_schema_crd(api_version, kind):
+    url = crd_lookup.get(f"{api_version}::{kind}")
+    if not url:
+        return None
+    response = requests.get(url)
+    yaml_schema = response.content.decode('utf-8')
+    schema = yaml.safe_load(StringIO(yaml_schema))
+    return schema
+
+
+@lru_cache(maxsize=None)
+def create_validator(api_version, kind):
+    schema = get_schema_crd(api_version, kind)
+    if not schema:
+        schema = get_schema_k8s(api_version, kind)
     jsonschema.Draft7Validator.check_schema(schema)
     validator = jsonschema.Draft7Validator(schema)
     return validator
@@ -61,25 +83,25 @@ def validate_k8s_object(instance):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None, validate_schema=True):
+def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=None):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
     values = values or {}
+    chart_dir = chart_dir or sys.path[0]
     with NamedTemporaryFile() as tmp_file:
         content = yaml.dump(values)
         tmp_file.write(content.encode())
         tmp_file.flush()
-        command = ["helm", "template", name, sys.path[0], '--values', tmp_file.name]
+        command = ["helm", "template", name, chart_dir, '--values', tmp_file.name]
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
-        templates = subprocess.check_output(command)
-        k8s_objects = yaml.load_all(templates)
+        templates = subprocess.check_output(command, stderr=subprocess.PIPE)
+        k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
-        if validate_schema:
-            for k8s_object in k8s_objects:
-                validate_k8s_object(k8s_object)
+        for k8s_object in k8s_objects:
+            validate_k8s_object(k8s_object)
         return k8s_objects
 
 
@@ -98,4 +120,4 @@ def render_k8s_object(obj, type_to_render):
     """
     Function that renders dictionaries into k8s objects. For helm chart testing only.
     """
-    return api_client._ApiClient__deserialize_model(obj, type_to_render)  # pylint: disable=W0212
+    return api_client._ApiClient__deserialize_model(obj, type_to_render)

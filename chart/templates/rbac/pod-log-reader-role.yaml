@@ -18,7 +18,7 @@
 ################################
 ## Airflow Pod Reader Role
 #################################
-{{- if and .Values.rbacEnabled .Values.webserver.allowPodLogReading }}
+{{- if and .Values.rbac.create .Values.webserver.allowPodLogReading }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRole
 {{- else }}
@@ -53,4 +53,5 @@ rules:
       - "pods/log"
     verbs:
       - "get"
+      - "list"
 {{- end }}

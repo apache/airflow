@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,14 +18,18 @@
 #
 import datetime
 import unittest
+from unittest import mock
+
+import pytest
+from parameterized import parameterized
+from sqlalchemy.exc import StatementError
 
 from airflow import settings
 from airflow.models import DAG
 from airflow.settings import Session
+from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
-
-from sqlalchemy.exc import StatementError
 
 
 class TestSqlAlchemyUtils(unittest.TestCase):
@@ -64,14 +67,14 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             session=self.session,
         )
 
-        self.assertEqual(execution_date, run.execution_date)
-        self.assertEqual(start_date, run.start_date)
+        assert execution_date == run.execution_date
+        assert start_date == run.start_date
 
-        self.assertEqual(execution_date.utcoffset().total_seconds(), 0.0)
-        self.assertEqual(start_date.utcoffset().total_seconds(), 0.0)
+        assert execution_date.utcoffset().total_seconds() == 0.0
+        assert start_date.utcoffset().total_seconds() == 0.0
 
-        self.assertEqual(iso_date, run.run_id)
-        self.assertEqual(run.start_date.isoformat(), run.run_id)
+        assert iso_date == run.run_id
+        assert run.start_date.isoformat() == run.run_id
 
         dag.clear()
 
@@ -86,15 +89,139 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=start_date)
         dag.clear()
 
-        with self.assertRaises((ValueError, StatementError)):
+        with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
                 run_id=start_date.isoformat,
                 state=State.NONE,
                 execution_date=start_date,
                 start_date=start_date,
-                session=self.session
+                session=self.session,
             )
         dag.clear()
+
+    @parameterized.expand(
+        [
+            (
+                "postgresql",
+                True,
+                {'skip_locked': True},
+            ),
+            (
+                "mysql",
+                False,
+                {},
+            ),
+            (
+                "mysql",
+                True,
+                {'skip_locked': True},
+            ),
+            (
+                "sqlite",
+                False,
+                {'skip_locked': True},
+            ),
+        ]
+    )
+    def test_skip_locked(self, dialect, supports_for_update_of, expected_return_value):
+        session = mock.Mock()
+        session.bind.dialect.name = dialect
+        session.bind.dialect.supports_for_update_of = supports_for_update_of
+        assert skip_locked(session=session) == expected_return_value
+
+    @parameterized.expand(
+        [
+            (
+                "postgresql",
+                True,
+                {'nowait': True},
+            ),
+            (
+                "mysql",
+                False,
+                {},
+            ),
+            (
+                "mysql",
+                True,
+                {'nowait': True},
+            ),
+            (
+                "sqlite",
+                False,
+                {
+                    'nowait': True,
+                },
+            ),
+        ]
+    )
+    def test_nowait(self, dialect, supports_for_update_of, expected_return_value):
+        session = mock.Mock()
+        session.bind.dialect.name = dialect
+        session.bind.dialect.supports_for_update_of = supports_for_update_of
+        assert nowait(session=session) == expected_return_value
+
+    @parameterized.expand(
+        [
+            ("postgresql", True, True, True),
+            ("postgresql", True, False, False),
+            ("mysql", False, True, False),
+            ("mysql", False, False, False),
+            ("mysql", True, True, True),
+            ("mysql", True, False, False),
+            ("sqlite", False, True, True),
+        ]
+    )
+    def test_with_row_locks(
+        self, dialect, supports_for_update_of, use_row_level_lock_conf, expected_use_row_level_lock
+    ):
+        query = mock.Mock()
+        session = mock.Mock()
+        session.bind.dialect.name = dialect
+        session.bind.dialect.supports_for_update_of = supports_for_update_of
+        with mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", use_row_level_lock_conf):
+            returned_value = with_row_locks(query=query, session=session, nowait=True)
+
+        if expected_use_row_level_lock:
+            query.with_for_update.assert_called_once_with(nowait=True)
+        else:
+            assert returned_value == query
+            query.with_for_update.assert_not_called()
+
+    def test_prohibit_commit(self):
+        with prohibit_commit(self.session) as guard:
+            self.session.execute('SELECT 1')
+            with pytest.raises(RuntimeError):
+                self.session.commit()
+            self.session.rollback()
+
+            self.session.execute('SELECT 1')
+            guard.commit()
+
+            # Check the expected_commit is reset
+            with pytest.raises(RuntimeError):
+                self.session.execute('SELECT 1')
+                self.session.commit()
+
+    def test_prohibit_commit_specific_session_only(self):
+        """
+        Test that "prohibit_commit" applies only to the given session object,
+        not any other session objects that may be used
+        """
+
+        # We _want_ another session. By default this would be the _same_
+        # session we already had
+        other_session = Session.session_factory()
+        assert other_session is not self.session
+
+        with prohibit_commit(self.session):
+            self.session.execute('SELECT 1')
+            with pytest.raises(RuntimeError):
+                self.session.commit()
+            self.session.rollback()
+
+            other_session.execute('SELECT 1')
+            other_session.commit()
 
     def tearDown(self):
         self.session.close()

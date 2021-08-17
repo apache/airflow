@@ -15,37 +15,42 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
+import sys
 import unittest
-from os import remove
-from os.path import dirname, realpath
-from shutil import copyfile
+from shutil import copyfile, copytree
+from tempfile import TemporaryDirectory
 
 import jmespath
+import pytest
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-ROOT_FOLDER = realpath(dirname(realpath(__file__)) + "/..")
-
 
 class PodTemplateFileTest(unittest.TestCase):
-    def setUp(self):
-        copyfile(
-            ROOT_FOLDER + "/files/pod-template-file.kubernetes-helm-yaml",
-            ROOT_FOLDER + "/templates/pod-template-file.yaml",
-        )
-
-    def tearDown(self):
-        remove(ROOT_FOLDER + "/templates/pod-template-file.yaml")
+    @classmethod
+    @pytest.fixture(autouse=True, scope="class")
+    def isolate_chart(cls):
+        with TemporaryDirectory() as tmp_dir:
+            cls.temp_chart_dir = tmp_dir + "/chart"
+            copytree(sys.path[0], cls.temp_chart_dir)
+            copyfile(
+                cls.temp_chart_dir + "/files/pod-template-file.kubernetes-helm-yaml",
+                cls.temp_chart_dir + "/templates/pod-template-file.yaml",
+            )
+            yield
 
     def test_should_work(self):
         docs = render_chart(
             values={},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertRegex(docs[0]["kind"], "Pod")
-        self.assertIsNotNone(jmespath.search("spec.containers[0].image", docs[0]))
-        self.assertEqual("base", jmespath.search("spec.containers[0].name", docs[0]))
+        assert re.search("Pod", docs[0]["kind"])
+        assert jmespath.search("spec.containers[0].image", docs[0]) is not None
+        assert "base" == jmespath.search("spec.containers[0].name", docs[0])
 
     def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
@@ -54,7 +59,7 @@ class PodTemplateFileTest(unittest.TestCase):
                     "gitSync": {
                         "repository": "test-registry/test-repo",
                         "tag": "test-tag",
-                        "pullPolicy": "Allways",
+                        "pullPolicy": "Always",
                     }
                 },
                 "dags": {
@@ -77,30 +82,81 @@ class PodTemplateFileTest(unittest.TestCase):
                 },
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertRegex(docs[0]["kind"], "Pod")
-        self.assertEqual(
-            {
-                "name": "git-sync-test",
-                "securityContext": {"runAsUser": 65533},
-                "image": "test-registry/test-repo:test-tag",
-                "imagePullPolicy": "Allways",
-                "env": [
-                    {"name": "GIT_SYNC_REV", "value": "HEAD"},
-                    {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                    {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                    {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                    {"name": "GIT_SYNC_ROOT", "value": "/git-root"},
-                    {"name": "GIT_SYNC_DEST", "value": "test-dest"},
-                    {"name": "GIT_SYNC_ADD_USER", "value": "true"},
-                    {"name": "GIT_SYNC_WAIT", "value": "66"},
-                    {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
-                    {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
-                ],
-                "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
+        assert re.search("Pod", docs[0]["kind"])
+        assert {
+            "name": "git-sync-test",
+            "securityContext": {"runAsUser": 65533},
+            "image": "test-registry/test-repo:test-tag",
+            "imagePullPolicy": "Always",
+            "env": [
+                {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {"name": "GIT_SYNC_DEPTH", "value": "1"},
+                {"name": "GIT_SYNC_ROOT", "value": "/git-root"},
+                {"name": "GIT_SYNC_DEST", "value": "test-dest"},
+                {"name": "GIT_SYNC_ADD_USER", "value": "true"},
+                {"name": "GIT_SYNC_WAIT", "value": "66"},
+                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
+            ],
+            "volumeMounts": [{"mountPath": "/git-root", "name": "dags"}],
+        } == jmespath.search("spec.initContainers[0]", docs[0])
+
+    def test_should_not_add_init_container_if_dag_persistence_is_true(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "persistence": {"enabled": True},
+                    "gitSync": {"enabled": True},
+                }
             },
-            jmespath.search("spec.initContainers[0]", docs[0]),
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.initContainers", docs[0]) is None
+
+    @parameterized.expand(
+        [
+            ({"gitSync": {"enabled": True}},),
+            ({"persistence": {"enabled": True}},),
+            (
+                {
+                    "gitSync": {"enabled": True},
+                    "persistence": {"enabled": True},
+                },
+            ),
+        ]
+    )
+    def test_dags_mount(self, dag_values):
+        docs = render_chart(
+            values={"dags": dag_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
+            "spec.containers[0].volumeMounts", docs[0]
+        )
+
+    def test_dags_mount_with_gitsync_and_persistence(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {"enabled": True},
+                    "persistence": {"enabled": True},
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"mountPath": "/opt/airflow/dags", "name": "dags", "readOnly": True} in jmespath.search(
+            "spec.containers[0].volumeMounts", docs[0]
         )
 
     def test_validate_if_ssh_params_are_added(self):
@@ -117,23 +173,51 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertIn(
-            {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"},
-            jmespath.search("spec.initContainers[0].env", docs[0]),
+        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
         )
-        self.assertIn(
-            {"name": "GIT_SYNC_SSH", "value": "true"}, jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
         )
-        self.assertIn(
-            {"name": "GIT_KNOWN_HOSTS", "value": "false"},
-            jmespath.search("spec.initContainers[0].env", docs[0]),
+        assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
         )
-        self.assertIn(
-            {"name": "git-sync-ssh-key", "secret": {"secretName": "ssh-secret", "defaultMode": 288}},
-            jmespath.search("spec.volumes", docs[0]),
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.volumes", docs[0])
+
+    def test_validate_if_ssh_known_hosts_are_added(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": "github.com ssh-rsa AAAABdummy",
+                        "branch": "test-branch",
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
+        assert {"name": "GIT_KNOWN_HOSTS", "value": "true"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
+        assert {
+            "name": "git-sync-known-hosts",
+            "configMap": {"defaultMode": 288, "name": "RELEASE-NAME-airflow-config"},
+        } in jmespath.search("spec.volumes", docs[0])
+        assert {
+            "name": "git-sync-known-hosts",
+            "mountPath": "/etc/git-secret/known_hosts",
+            "subPath": "known_hosts",
+        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
@@ -147,64 +231,85 @@ class PodTemplateFileTest(unittest.TestCase):
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertIn(
-            {
-                "name": "GIT_SYNC_USERNAME",
-                "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-            },
-            jmespath.search("spec.initContainers[0].env", docs[0]),
-        )
-        self.assertIn(
-            {
-                "name": "GIT_SYNC_PASSWORD",
-                "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-            },
-            jmespath.search("spec.initContainers[0].env", docs[0]),
-        )
+        assert {
+            "name": "GIT_SYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {
+            "name": "GIT_SYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
 
-    def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
+    def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
             values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertIn(
-            {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}},
-            jmespath.search("spec.volumes", docs[0]),
+        assert {"name": "dags", "persistentVolumeClaim": {"claimName": "test-claim"}} in jmespath.search(
+            "spec.volumes", docs[0]
         )
+
+    def test_should_use_empty_dir_for_gitsync_without_persistence(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.volumes", docs[0])
+
+    @parameterized.expand(
+        [
+            ({"enabled": False}, {"emptyDir": {}}),
+            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "RELEASE-NAME-logs"}}),
+            (
+                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistentVolumeClaim": {"claimName": "test-claim"}},
+            ),
+        ]
+    )
+    def test_logs_persistence_changes_volume(self, log_persistence_values, expected):
+        docs = render_chart(
+            values={"logs": {"persistence": log_persistence_values}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "logs", **expected} in jmespath.search("spec.volumes", docs[0])
 
     def test_should_set_a_custom_image_in_pod_template(self):
         docs = render_chart(
             values={"images": {"pod_template": {"repository": "dummy_image", "tag": "latest"}}},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertRegex(docs[0]["kind"], "Pod")
-        self.assertEqual("dummy_image:latest", jmespath.search("spec.containers[0].image", docs[0]))
-        self.assertEqual("base", jmespath.search("spec.containers[0].name", docs[0]))
+        assert re.search("Pod", docs[0]["kind"])
+        assert "dummy_image:latest" == jmespath.search("spec.containers[0].image", docs[0])
+        assert "base" == jmespath.search("spec.containers[0].name", docs[0])
 
     def test_mount_airflow_cfg(self):
         docs = render_chart(
             values={},
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertRegex(docs[0]["kind"], "Pod")
-        self.assertDictEqual(
-            {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'},
-            jmespath.search("spec.volumes[1]", docs[0]),
+        assert re.search("Pod", docs[0]["kind"])
+        assert {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'} == jmespath.search(
+            "spec.volumes[1]", docs[0]
         )
-        self.assertDictEqual(
-            {
-                'name': 'config',
-                'mountPath': '/opt/airflow/airflow.cfg',
-                'subPath': 'airflow.cfg',
-                'readOnly': True,
-            },
-            jmespath.search("spec.containers[0].volumeMounts[1]", docs[0]),
-        )
+        assert {
+            'name': 'config',
+            'mountPath': '/opt/airflow/airflow.cfg',
+            'subPath': 'airflow.cfg',
+            'readOnly': True,
+        } == jmespath.search("spec.containers[0].volumeMounts[1]", docs[0])
 
     def test_should_create_valid_affinity_and_node_selector(self):
         docs = render_chart(
@@ -228,31 +333,97 @@ class PodTemplateFileTest(unittest.TestCase):
                 "nodeSelector": {"diskType": "ssd"},
             },
             show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
         )
 
-        self.assertRegex(docs[0]["kind"], "Pod")
-        self.assertEqual(
-            "foo",
-            jmespath.search(
-                "spec.affinity.nodeAffinity."
-                "requiredDuringSchedulingIgnoredDuringExecution."
-                "nodeSelectorTerms[0]."
-                "matchExpressions[0]."
-                "key",
-                docs[0],
-            ),
+        assert re.search("Pod", docs[0]["kind"])
+        assert "foo" == jmespath.search(
+            "spec.affinity.nodeAffinity."
+            "requiredDuringSchedulingIgnoredDuringExecution."
+            "nodeSelectorTerms[0]."
+            "matchExpressions[0]."
+            "key",
+            docs[0],
         )
-        self.assertEqual(
-            "ssd",
-            jmespath.search(
-                "spec.nodeSelector.diskType",
-                docs[0],
-            ),
+        assert "ssd" == jmespath.search(
+            "spec.nodeSelector.diskType",
+            docs[0],
         )
-        self.assertEqual(
-            "dynamic-pods",
-            jmespath.search(
-                "spec.tolerations[0].key",
-                docs[0],
-            ),
+        assert "dynamic-pods" == jmespath.search(
+            "spec.tolerations[0].key",
+            docs[0],
         )
+
+    def test_should_add_fsgroup_to_the_pod_template(self):
+        docs = render_chart(
+            values={"gid": 5000},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        self.assertEqual(5000, jmespath.search("spec.securityContext.fsGroup", docs[0]))
+
+    def test_should_create_valid_volume_mount_and_volume(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
+                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "test-volume" == jmespath.search(
+            "spec.volumes[2].name",
+            docs[0],
+        )
+        assert "test-volume" == jmespath.search(
+            "spec.containers[0].volumeMounts[2].name",
+            docs[0],
+        )
+
+    def test_should_add_env_for_gitsync(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "env": [{"name": "FOO", "value": "bar"}],
+                    }
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "FOO", "value": "bar"} in jmespath.search("spec.initContainers[0].env", docs[0])
+
+    def test_no_airflow_local_settings_by_default(self):
+        docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
+        volume_mounts = jmespath.search("spec.containers[0].volumeMounts", docs[0])
+        assert "airflow_local_settings.py" not in str(volume_mounts)
+
+    def test_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# Well hello!"},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+            "subPath": "airflow_local_settings.py",
+            "readOnly": True,
+        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
+
+    def test_airflow_pod_annotations(self):
+        docs = render_chart(
+            values={"airflowPodAnnotations": {"my_annotation": "annotated!"}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert "my_annotation" in annotations
+        assert "annotated!" in annotations["my_annotation"]

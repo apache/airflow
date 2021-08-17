@@ -18,6 +18,8 @@ airflow/www_rbac/static/coverage/
 airflow/www_rbac/static/dist/
 
 logs/
+
+/logs/
 airflow-webserver.pid
 
 # Byte-compiled / optimized / DLL files
@@ -64,7 +66,7 @@ htmlcov/
 .coverage.*
 .cache
 nosetests.xml
-coverage.xml
+coverage*.xml
 *,cover
 .hypothesis/
 .pytest_cache
@@ -87,7 +89,9 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/_api/
+docs/_doctrees/
+docs/_inventory_cache/
+docs/*/_api/
 
 # PyBuilder
 target/
@@ -187,10 +191,10 @@ dmypy.json
 /.inputrc
 log.txt*
 
-
-build-qcos-airflow/dags/
-build-qcos-airflow/plugins/
-/backport_packages/CHANGELOG.txt
+# Provider-related ignores
+/provider_packages/CHANGELOG.txt
+/provider_packages/MANIFEST.in
+/airflow/providers/__init__.py
 
 # Docker context files
 /docker-context-files
@@ -213,3 +217,9 @@ Chart.lock
 pip-wheel-metadata
 
 .pypirc
+
+/.docs-venv
+
+# Dev files
+/dev/packages.txt
+/dev/Dockerfile.pmc

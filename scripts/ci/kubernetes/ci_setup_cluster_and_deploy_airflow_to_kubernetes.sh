@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+export SKIP_BUILDING_PROD_IMAGE="true"
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-set -euo pipefail
 
 traps::add_trap "kind::dump_kind_logs" EXIT HUP INT TERM
 

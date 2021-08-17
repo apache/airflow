@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,111 +16,109 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-try:
-    from contextdecorator import ContextDecorator
-except ImportError:
-    from contextlib import ContextDecorator
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+from unittest import TestCase
 
-from shutil import move
-from tempfile import mkdtemp
-from unittest import SkipTest, TestCase
-
-from airflow import AirflowException, models, settings
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
-from airflow.utils import db
+from airflow.exceptions import AirflowException
+from airflow.models.dagbag import DagBag
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.logging_command_executor import get_executor
 
-DEFAULT_DAG_FOLDER = "example_dags"
-
-SKIP_SYSTEM_TEST_WARNING = """Skipping system test.
-To allow system test set ENABLE_SYSTEM_TESTS=true.
-"""
+DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
 
-def resolve_dags_folder():
+def resolve_logs_folder() -> str:
     """
-    Returns DAG folder specified in current Airflow config.
+    Returns LOGS folder specified in current Airflow config.
     """
     config_file = get_airflow_config(AIRFLOW_HOME)
     conf = AirflowConfigParser()
     conf.read(config_file)
     try:
-        dags = conf.get("core", "dags_folder")
+        logs = conf.get("logging", "base_log_folder")
     except AirflowException:
-        dags = os.path.join(AIRFLOW_HOME, 'dags')
-    return dags
-
-
-class empty_dags_directory(  # pylint:disable=invalid-name
-    ContextDecorator, LoggingMixin
-):
-    """
-    Context manager that temporally removes DAGs from provided directory.
-    """
-
-    def __init__(self, dag_directory):
-        super(empty_dags_directory, self).__init__()
-        self.dag_directory = dag_directory
-        self.temp_dir = mkdtemp()
-
-    def __enter__(self):
-        self._store_dags_to_temporary_directory(self.dag_directory, self.temp_dir)
-        return self.temp_dir
-
-    def __exit__(self, *args, **kwargs):
-        self._restore_dags_from_temporary_directory(self.dag_directory, self.temp_dir)
-
-    def _store_dags_to_temporary_directory(
-        self, dag_folder, temp_dir
-    ):
-        self.log.info(
-            "Storing DAGS from %s to temporary directory %s", dag_folder, temp_dir
-        )
         try:
-            os.mkdir(dag_folder)
-        except OSError:
-            pass
-        for file in os.listdir(dag_folder):
-            move(os.path.join(dag_folder, file), os.path.join(temp_dir, file))
-
-    def _restore_dags_from_temporary_directory(
-        self, dag_folder, temp_dir
-    ):
-        self.log.info(
-            "Restoring DAGS to %s from temporary directory %s", dag_folder, temp_dir
-        )
-        for file in os.listdir(temp_dir):
-            move(os.path.join(temp_dir, file), os.path.join(dag_folder, file))
+            logs = conf.get("core", "base_log_folder")
+        except AirflowException:
+            logs = os.path.join(AIRFLOW_HOME, 'logs')
+    return logs
 
 
 class SystemTest(TestCase, LoggingMixin):
-    def run(self, result=None):
-        if os.environ.get('ENABLE_SYSTEM_TESTS') != 'true':
-            raise SkipTest(SKIP_SYSTEM_TEST_WARNING)
-        return super(SystemTest, self).run(result)
+    @staticmethod
+    def execute_cmd(*args, **kwargs):
+        executor = get_executor()
+        return executor.execute_cmd(*args, **kwargs)
 
-    def setUp(self):
+    @staticmethod
+    def check_output(*args, **kwargs):
+        executor = get_executor()
+        return executor.check_output(*args, **kwargs)
+
+    def setUp(self) -> None:
         """
         We want to avoid random errors while database got reset - those
         Are apparently triggered by parser trying to parse DAGs while
         The tables are dropped. We move the dags temporarily out of the dags folder
-        and move them back after reset
+        and move them back after reset.
+
+        We also remove all logs from logs directory to have a clear log state and see only logs from this
+        test.
         """
-        dag_folder = resolve_dags_folder()
-        with empty_dags_directory(dag_folder):
-            db.resetdb(settings.RBAC)
-        super(SystemTest, self).setUp()
+        print()
+        print("Removing all log files except previous_runs")
+        print()
+        logs_folder = resolve_logs_folder()
+        files = os.listdir(logs_folder)
+        for file in files:
+            file_path = os.path.join(logs_folder, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+            elif os.path.isdir(file) and not file == "previous_runs":
+                shutil.rmtree(file_path, ignore_errors=True)
+        super().setUp()
+
+    def tearDown(self) -> None:
+        """
+        We save the logs to a separate directory so that we can see them later.
+        """
+        date_str = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        logs_folder = resolve_logs_folder()
+        print()
+        print(f"Saving all log files to {logs_folder}/previous_runs/{date_str}")
+        print()
+        target_dir = os.path.join(logs_folder, "previous_runs", date_str)
+        Path(target_dir).mkdir(parents=True, exist_ok=True, mode=0o755)
+        files = os.listdir(logs_folder)
+        for file in files:
+            if file != "previous_runs":
+                file_path = os.path.join(logs_folder, file)
+                shutil.move(file_path, target_dir)
+        super().tearDown()
 
     @staticmethod
-    def _create_path_to_dags(path):
-        """
-        Creates relative path to DAGs folder `{$AIRFLOWHOME}/path`.
-        Accepts both formats `my/dags/folder` and `my.dags.folder`.
-        """
-        path = path.replace(".", "/")
-        return os.path.join(AIRFLOW_HOME, path)
+    def _print_all_log_files():
+        print()
+        print("Printing all log files")
+        print()
+        logs_folder = resolve_logs_folder()
+        for dirpath, _, filenames in os.walk(logs_folder):
+            if "/previous_runs" not in dirpath:
+                for name in filenames:
+                    filepath = os.path.join(dirpath, name)
+                    print()
+                    print(f" ================ Content of {filepath} ===============================")
+                    print()
+                    with open(filepath) as f:
+                        print(f.read())
 
-    def run_dag(self, dag_id, dag_folder=DEFAULT_DAG_FOLDER):
+    def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
         """
         Runs example dag by it's ID.
 
@@ -130,10 +127,16 @@ class SystemTest(TestCase, LoggingMixin):
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
         :type dag_folder: str
         """
-        dag_folder_path = self._create_path_to_dags(dag_folder)
-
-        self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder_path)
-        dag_bag = models.DagBag(dag_folder=dag_folder_path, include_examples=False)
+        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
+            # For system tests purpose we are changing airflow/providers
+            # to side packages path of the installed providers package
+            python = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            dag_folder = dag_folder.replace(
+                "/opt/airflow/airflow/providers",
+                f"/usr/local/lib/{python}/site-packages/airflow/providers",
+            )
+        self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
+        dag_bag = DagBag(dag_folder=dag_folder, include_examples=False)
         dag = dag_bag.get_dag(dag_id)
         if dag is None:
             raise AirflowException(
@@ -141,11 +144,35 @@ class SystemTest(TestCase, LoggingMixin):
                 "wrong dag_id or DAG is not in provided dag_folder."
                 "The content of the {dag_folder} folder is {content}".format(
                     dag_id=dag_id,
-                    dag_folder=dag_folder_path,
-                    content=os.listdir(dag_folder_path),
+                    dag_folder=dag_folder,
+                    content=os.listdir(dag_folder),
                 )
             )
 
         self.log.info("Attempting to run DAG: %s", dag_id)
-        dag.clear(reset_dag_runs=True)
-        dag.run(ignore_first_depends_on_past=True, verbose=True)
+        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
+            dag.clear()
+        else:
+            dag.clear(dag_run_state=State.NONE)
+        try:
+            dag.run(ignore_first_depends_on_past=True, verbose=True)
+        except Exception:
+            self._print_all_log_files()
+            raise
+
+    @staticmethod
+    def create_dummy_file(filename, dir_path="/tmp"):
+        os.makedirs(dir_path, exist_ok=True)
+        full_path = os.path.join(dir_path, filename)
+        with open(full_path, "wb") as f:
+            f.write(os.urandom(1 * 1024 * 1024))
+
+    @staticmethod
+    def delete_dummy_file(filename, dir_path):
+        full_path = os.path.join(dir_path, filename)
+        try:
+            os.remove(full_path)
+        except FileNotFoundError:
+            pass
+        if dir_path != "/tmp":
+            shutil.rmtree(dir_path, ignore_errors=True)

@@ -44,7 +44,7 @@ def print_all_cases(xunit_test_file_path):
     :param xunit_test_file_path: path of the xunit file
     :return: None
     """
-    with open(xunit_test_file_path, "r") as file:
+    with open(xunit_test_file_path) as file:
         text = file.read()
 
     root = ElementTree.fromstring(text)
@@ -71,6 +71,6 @@ def print_all_cases(xunit_test_file_path):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Please provide name of xml unit file as first parameter")
-        exit(1)
+        sys.exit(1)
     file_name = sys.argv[1]
     print_all_cases(file_name)

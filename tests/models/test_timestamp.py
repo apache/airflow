@@ -20,9 +20,9 @@ import pytest
 from freezegun import freeze_time
 
 from airflow.models import DAG, Log, TaskInstance
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -38,8 +38,7 @@ def clear_db(session=None):
 
 
 def add_log(execdate, session, timezone_override=None):
-    dag = DAG(dag_id='logging',
-              default_args={'start_date': execdate})
+    dag = DAG(dag_id='logging', default_args={'start_date': execdate})
     task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
     task_instance = TaskInstance(task=task, execution_date=execdate, state='success')
     session.merge(task_instance)

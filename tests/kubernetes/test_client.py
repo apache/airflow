@@ -15,14 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import socket
 import unittest
+from unittest import mock
 
-from airflow.kubernetes.kube_client import RefreshConfiguration, get_kube_client
-from tests.compat import mock
+from kubernetes.client import Configuration
+from urllib3.connection import HTTPConnection, HTTPSConnection
+
+from airflow.kubernetes.kube_client import (
+    RefreshConfiguration,
+    _disable_verify_ssl,
+    _enable_tcp_keepalive,
+    get_kube_client,
+)
 
 
 class TestClient(unittest.TestCase):
-
     @mock.patch('airflow.kubernetes.kube_client.config')
     def test_load_cluster_config(self, _):
         client = get_kube_client(in_cluster=True)
@@ -33,3 +41,27 @@ class TestClient(unittest.TestCase):
     def test_load_file_config(self, _, _2):
         client = get_kube_client(in_cluster=False)
         assert isinstance(client.api_client.configuration, RefreshConfiguration)
+
+    def test_enable_tcp_keepalive(self):
+        socket_options = [
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6),
+        ]
+        expected_http_connection_options = HTTPConnection.default_socket_options + socket_options
+        expected_https_connection_options = HTTPSConnection.default_socket_options + socket_options
+
+        _enable_tcp_keepalive()
+
+        assert HTTPConnection.default_socket_options == expected_http_connection_options
+        assert HTTPSConnection.default_socket_options == expected_https_connection_options
+
+    def test_disable_verify_ssl(self):
+        configuration = Configuration()
+        self.assertTrue(configuration.verify_ssl)
+
+        _disable_verify_ssl()
+
+        configuration = Configuration()
+        self.assertFalse(configuration.verify_ssl)

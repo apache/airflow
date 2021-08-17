@@ -35,19 +35,21 @@
 """Various security-related utils."""
 import re
 import socket
+from typing import List, Optional
 
 from airflow.utils.net import get_hostname
 
 
-def get_components(principal):
+def get_components(principal) -> Optional[List[str]]:
     """
-    get_components(principal) -> (short name, instance (FQDN), realm)
+    Returns components retrieved from the kerberos principal.
+    -> (short name, instance (FQDN), realm)
 
-    ``principal`` is the kerberos principal to parse.
+    ``principal`` .
     """
     if not principal:
         return None
-    return re.split(r'[\/@]', str(principal))
+    return re.split(r'[/@]', str(principal))
 
 
 def replace_hostname_pattern(components, host=None):
@@ -55,7 +57,7 @@ def replace_hostname_pattern(components, host=None):
     fqdn = host
     if not fqdn or fqdn == '0.0.0.0':
         fqdn = get_hostname()
-    return '%s/%s@%s' % (components[0], fqdn.lower(), components[2])
+    return f'{components[0]}/{fqdn.lower()}@{components[2]}'
 
 
 def get_fqdn(hostname_or_ip=None):
@@ -67,7 +69,7 @@ def get_fqdn(hostname_or_ip=None):
                 fqdn = get_hostname()
         else:
             fqdn = get_hostname()
-    except IOError:
+    except OSError:
         fqdn = hostname_or_ip
 
     return fqdn
@@ -76,6 +78,6 @@ def get_fqdn(hostname_or_ip=None):
 def principal_from_username(username, realm):
     """Retrieves principal from the user name and realm."""
     if ('@' not in username) and realm:
-        username = "{}@{}".format(username, realm)
+        username = f"{username}@{realm}"
 
     return username

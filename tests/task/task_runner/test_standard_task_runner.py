@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,24 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import getpass
-import mock
+import logging
 import os
-import psutil
 import time
-import unittest
+from logging.config import dictConfig
+from unittest import mock
+
+import psutil
+import pytest
 
 from airflow import models, settings
-from airflow.jobs import LocalTaskJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import TaskInstance as TI
-from airflow.task.task_runner import StandardTaskRunner
+from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
+from airflow.utils.platform import getuser
 from airflow.utils.state import State
-
-from logging.config import dictConfig
-
-from tests.core.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
+
+TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -41,37 +41,34 @@ LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'airflow.task': {
-            'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
-        },
+        'airflow.task': {'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'},
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        }
+            'stream': 'ext://sys.stdout',
+        },
     },
-    'loggers': {
-        'airflow': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False
-        }
-    }
+    'loggers': {'airflow': {'handlers': ['console'], 'level': 'INFO', 'propagate': True}},
 }
 
 
-class TestStandardTaskRunner(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+class TestStandardTaskRunner:
+    @pytest.fixture(autouse=True, scope="class")
+    def logging_and_db(self):
+        """
+        This fixture sets up logging to have a different setup on the way in
+        (as the test environment does not have enough context for the normal
+        way to run) and ensures they reset back to normal on the way out.
+        """
         dictConfig(LOGGING_CONFIG)
-
-    @classmethod
-    def tearDownClass(cls):
+        yield
+        airflow_logger = logging.getLogger('airflow')
+        airflow_logger.handlers = []
         try:
             clear_db_runs()
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             # It might happen that we lost connection to the server here so we need to ignore any errors here
             pass
 
@@ -80,7 +77,12 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow', 'test', 'test_on_kill', 'task1', '2016-01-01'
+            'airflow',
+            'tasks',
+            'test',
+            'test_on_kill',
+            'task1',
+            '2016-01-01',
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -88,24 +90,29 @@ class TestStandardTaskRunner(unittest.TestCase):
         time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+        assert pgid > 0
+        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
-        procs = list(self._procs_in_pgroup(pgid))
+        processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
-        for p in procs:
-            self.assertFalse(psutil.pid_exists(p.pid), "{} is still alive".format(p))
+        for process in processes:
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-        self.assertIsNotNone(runner.return_code())
+        assert runner.return_code() is not None
 
     def test_start_and_terminate_run_as_user(self):
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = getpass.getuser()
+        local_task_job.task_instance.run_as_user = getuser()
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow', 'test', 'test_on_kill', 'task1', '2016-01-01'
+            'airflow',
+            'tasks',
+            'test',
+            'test_on_kill',
+            'task1',
+            '2016-01-01',
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -114,17 +121,54 @@ class TestStandardTaskRunner(unittest.TestCase):
         time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+        assert pgid > 0
+        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
-        procs = list(self._procs_in_pgroup(pgid))
+        processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
-        for p in procs:
-            self.assertFalse(psutil.pid_exists(p.pid), "{} is still alive".format(p))
+        for process in processes:
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-        self.assertIsNotNone(runner.return_code())
+        assert runner.return_code() is not None
+
+    def test_early_reap_exit(self, caplog):
+        """
+        Tests that when a child process running a task is killed externally
+        (e.g. by an OOM error, which we fake here), then we get return code
+        -9 and a log message.
+        """
+        # Set up mock task
+        local_task_job = mock.Mock()
+        local_task_job.task_instance = mock.MagicMock()
+        local_task_job.task_instance.run_as_user = getuser()
+        local_task_job.task_instance.command_as_list.return_value = [
+            'airflow',
+            'tasks',
+            'test',
+            'test_on_kill',
+            'task1',
+            '2016-01-01',
+        ]
+
+        # Kick off the runner
+        runner = StandardTaskRunner(local_task_job)
+        runner.start()
+        time.sleep(0.2)
+
+        # Kill the child process externally from the runner
+        # Note that we have to do this from ANOTHER process, as if we just
+        # call os.kill here we're doing it from the parent process and it
+        # won't be the same as an external kill in terms of OS tracking.
+        pgid = os.getpgid(runner.process.pid)
+        os.system(f"kill -s KILL {pgid}")
+        time.sleep(0.2)
+
+        runner.terminate()
+
+        assert runner.return_code() == -9
+        assert "running out of memory" in caplog.text
 
     def test_on_kill(self):
         """
@@ -147,25 +191,28 @@ class TestStandardTaskRunner(unittest.TestCase):
         session = settings.Session()
 
         dag.clear()
-        dag.create_dagrun(run_id="test",
-                          state=State.RUNNING,
-                          execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+        dag.create_dagrun(
+            run_id="test",
+            state=State.RUNNING,
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            session=session,
+        )
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        session.commit()
 
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # Give the task some time to startup
+        # give the task some time to startup
         time.sleep(3)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+        assert pgid > 0
+        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
-        procs = list(self._procs_in_pgroup(pgid))
+        processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
@@ -175,21 +222,17 @@ class TestStandardTaskRunner(unittest.TestCase):
                 break
             time.sleep(2)
 
-        with open(path, "r") as f:
-            self.assertEqual("ON_KILL_TEST", f.readline())
+        with open(path) as f:
+            assert "ON_KILL_TEST" == f.readline()
 
-        for p in procs:
-            self.assertFalse(psutil.pid_exists(p.pid), "{} is still alive".format(p))
+        for process in processes:
+            assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
     @staticmethod
     def _procs_in_pgroup(pgid):
-        for p in psutil.process_iter(attrs=['pid', 'name']):
+        for proc in psutil.process_iter(attrs=['pid', 'name']):
             try:
-                if os.getpgid(p.pid) == pgid and p.pid != 0:
-                    yield p
+                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
+                    yield proc
             except OSError:
                 pass
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
-from mock import Mock, patch
+
+import unittest
+from unittest.mock import Mock, patch
 
 from airflow.models import Pool
-from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep, \
-    STATES_TO_COUNT_AS_RUNNING
-from airflow.utils.db import create_session
+from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
+from airflow.utils.session import create_session
 from tests.test_utils import db
 
 
-class PoolSlotsAvailableDepTest(unittest.TestCase):
+class TestPoolSlotsAvailableDep(unittest.TestCase):
     def setUp(self):
         db.clear_db_pools()
         with create_session() as session:
@@ -39,24 +39,21 @@ class PoolSlotsAvailableDepTest(unittest.TestCase):
         db.clear_db_pools()
 
     @patch('airflow.models.Pool.open_slots', return_value=0)
-    # pylint: disable=unused-argument
     def test_pooled_task_reached_concurrency(self, mock_open_slots):
         ti = Mock(pool='test_pool', pool_slots=1)
-        self.assertFalse(PoolSlotsAvailableDep().is_met(ti=ti))
+        assert not PoolSlotsAvailableDep().is_met(ti=ti)
 
     @patch('airflow.models.Pool.open_slots', return_value=1)
-    # pylint: disable=unused-argument
     def test_pooled_task_pass(self, mock_open_slots):
         ti = Mock(pool='test_pool', pool_slots=1)
-        self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
+        assert PoolSlotsAvailableDep().is_met(ti=ti)
 
     @patch('airflow.models.Pool.open_slots', return_value=0)
-    # pylint: disable=unused-argument
     def test_running_pooled_task_pass(self, mock_open_slots):
-        for state in STATES_TO_COUNT_AS_RUNNING:
+        for state in EXECUTION_STATES:
             ti = Mock(pool='test_pool', state=state, pool_slots=1)
-            self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
+            assert PoolSlotsAvailableDep().is_met(ti=ti)
 
     def test_task_with_nonexistent_pool(self):
         ti = Mock(pool='nonexistent_pool', pool_slots=1)
-        self.assertFalse(PoolSlotsAvailableDep().is_met(ti=ti))
+        assert not PoolSlotsAvailableDep().is_met(ti=ti)

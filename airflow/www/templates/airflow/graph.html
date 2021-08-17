@@ -18,375 +18,120 @@
 #}
 
 {% extends "airflow/dag.html" %}
-{% import 'admin/lib.html' as lib with context %}
-{% import 'admin/static.html' as admin_static with context %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
-{% block title %}Airflow - DAGs{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Graph - {{ appbuilder.app_name }}{% endblock %}
 
-{% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='dagre.css') }}">
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='graph.css') }}">
-<style type="text/css">
-  {% for state, state_color in state_color_mapping.items() %}
-    g.node.{{state}} rect {
-      stroke: {{state_color}};
-    }
-  {% endfor %}
-</style>
+{% block head_meta %}
+  {{ super() }}
+  <meta name="execution_date" content="{{ execution_date }}">
+  <meta name="arrange" content="{{ arrange }}">
+  <meta name="task_instances_url" content="{{ url_for('Airflow.task_instances') }}">
 {% endblock %}
 
-{% block body %}
-{{ super() }}
-{% if doc_md %}
-{{ doc_md }}
-{% endif %}
-<div class="form-inline">
-  <form method="get" style="float:left;">
-    {{ state_token }}
-    Base date: {{ form.base_date(class_="form-control") }}
-    Number of runs: {{ form.num_runs(class_="form-control") }}
-    Run:
-    {{ form.execution_date(class_="form-control") }}
-    Layout:
-    {{ form.arrange(class_="form-control") }}
-    <input type="hidden" name="root" value="{{ root }}">
-    <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    <input type="submit" value="Go" class="btn btn-default">
-  </form>
-  <div class="input-group" style="float: right;">
-    <input type="text" id="searchbox" class="form-control" placeholder="Search for...">
-  </div>
-  <div style="clear: both;"></div>
-</div>
-<hr/>
-<div>
-  {% for op in operators %}
-  <div class="legend_item"
-       style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-    {{ op.task_type }}
-  </div>
-  {% endfor %}
-
-  <div>
-    <div class="legend_item state" style="border-color:white;">no_status</div>
+{% block head_css %}
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('graph.css') }}">
+  <style type="text/css">
     {% for state, state_color in state_color_mapping.items() %}
-      <div class="legend_item state" style="border-color:{{state_color}};">{{state}}</div>
+      g.node.{{state}} rect {
+        stroke: {{state_color}};
+      }
     {% endfor %}
-  </div>
-  <div style="clear:both;"></div>
-</div>
-<div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
-  <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-  <span id="error_msg">Oops.</span>
-</div>
-<hr style="margin-bottom: 0px;"/>
-<button class="btn btn-default pull-right" id="refresh_button">
-  <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
-</button>
-<div id="svg_container">
+  </style>
+{% endblock %}
 
-  <svg width="{{ width }}" height="{{ height }}">
-    <g id='dig' transform="translate(20,20)"></g>
-    <filter id="blur-effect-1">
-      <feGaussianBlur stdDeviation="3"></feGaussianBlur>
-    </filter>
-  </svg>
-  <img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
-</div>
-<hr>
+{% block content %}
+  {{ super() }}
+  <div class="row dag-view-tools">
+    <div class="col-md-10">
+      <form method="get" class="form-inline">
+        <input type="hidden" name="root" value="{{ root }}">
+        <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="sr-only" for="base_date">Base date</label>
+          <div class="input-group">
+            {{ form.base_date(class_="form-control", disabled=not(dag.has_dag_runs())) }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="num_runs">Number of runs</label>
+          <div class="input-group">
+            <div class="input-group-addon">Runs</div>
+            {{ form.num_runs(class_="form-control", disabled=not(dag.has_dag_runs())) }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="execution_date">Run</label>
+          <div class="input-group">
+            <div class="input-group-addon">Run</div>
+            {{ form.execution_date(class_="form-control", disabled=not(dag.has_dag_runs())) }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sr-only" for="arrange">Layout</label>
+          <div class="input-group">
+            <div class="input-group-addon">Layout</div>
+            {{ form.arrange(class_="form-control") }}
+          </div>
+        </div>
+        <button type="submit" class="btn">Update</button>
+        {% if not dag.has_dag_runs() %}<span class="text-warning" style="margin-left:16px;">No DAG runs yet.</span>{% endif %}
+      </form>
+    </div>
+    <div class="col-md-2 text-right">
+      <label class="sr-only" for="searchbox">Search</label>
+      <input type="search" class="form-control" id="searchbox" placeholder="Find Task…">
+    </div>
+  </div>
+
+  <div class="legend-row">
+    <div>
+      {% for op in operators %}<span class="legend-item" style="color: {{ op.ui_fgcolor }};background: {{ op.ui_color }};">
+        {{ op.task_type }}</span>{% endfor %}
+    </div>
+    <div>
+      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--interactive js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
+        {{state}}</span>{% endfor %}<span class="legend-item legend-item--interactive legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
+    </div>
+  </div>
+  <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+    <span class="material-icons" aria-hidden="true">error</span>
+    <span id="error_msg">Oops.</span>
+  </div>
+  <br>
+  <div class="refresh-actions">
+    {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
+    <label class="switch-label">
+      <input class="switch-input" id="auto_refresh" type="checkbox" {% if dag_run_state == 'running' %}checked{% endif %}>
+      <span class="switch" aria-hidden="true"></span>
+      Auto-refresh
+    </label>
+    <button class="btn btn-default btn-sm" id="refresh_button">
+      <span class="material-icons" aria-hidden="true">refresh</span>
+    </button>
+  </div>
+  <div class="svg-wrapper">
+    <div class="graph-svg-wrap">
+      <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
+        <g id="dig" transform="translate(20,20)"></g>
+      </svg>
+    </div>
+  </div>
 {% endblock %}
 
 {% block tail %}
-{{ super() }}
-
-<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-<script src="{{ url_for('static', filename='dagre-d3.js') }}"></script>
-<script>
-
-    var highlight_color = "#000000";
-    var upstream_color = "#2020A0";
-    var downstream_color = "#0000FF";
-
-    var nodes = {{ nodes|tojson }};
-    var edges = {{ edges|tojson }};
-    var tasks = {{ tasks|tojson }};
-    var task_instances = {{ task_instances|tojson }};
-    var execution_date = "{{ execution_date }}";
-    var arrange = "{{ arrange }}";
-    var g = dagreD3.json.decode(nodes, edges);
-    var duration = 500;
-    var stateFocusMap = {
-        'success': false,
-        'running':false,
-        'failed':false,
-        'skipped': false,
-        'upstream_failed': false,
-        'up_for_reschedule': false,
-        'up_for_retry': false,
-        'queued': false,
-        'no_status': false
-    };
-
-
-    var layout = dagreD3.layout().rankDir(arrange).nodeSep(15).rankSep(15);
-    var renderer = new dagreD3.Renderer();
-    renderer.layout(layout).run(g, d3.select("#dig"));
-    inject_node_ids(tasks);
-    update_nodes_states(task_instances);
-
-    d3.selectAll("g.node").on("click", function(d){
-        task = tasks[d];
-        if (d in task_instances)
-            try_number = task_instances[d].try_number;
-        else
-            try_number = 0;
-        if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, try_number, true);
-        else
-            call_modal(d, execution_date, try_number);
-    });
-
-
-    function highlight_nodes(nodes, color) {
-        nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid + ' rect');
-            my_node.style("stroke", color) ;
-        })
-    }
-
-    d3.selectAll("g.node").on("mouseover", function(d){
-        d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color)
-        highlight_nodes(g.successors(d), downstream_color)
-
-    });
-
-    d3.selectAll("g.node").on("mouseout", function(d){
-        d3.select(this).selectAll("rect").style("stroke", null) ;
-        highlight_nodes(g.predecessors(d), null)
-        highlight_nodes(g.successors(d), null)
-    });
-
-
-    {% if blur %}
-    d3.selectAll("text").attr("class", "blur");
-    {% endif %}
-
-    $("g.node").tooltip({
-      html: true,
-      container: "body",
-    });
-
-    d3.selectAll("div.legend_item.state")
-        .style("cursor", "pointer")
-        .on("mouseover", function(){
-            if(!stateIsSet()){
-                state = d3.select(this).text();
-                focusState(state);
-            }
-        })
-        .on("mouseout", function(){
-            if(!stateIsSet()){
-                clearFocus();
-            }
-        });
-
-    d3.selectAll("div.legend_item.state")
-        .on("click", function(){
-            state = d3.select(this).text();
-            color = d3.select(this).style("border-color");
-
-            if (!stateFocusMap[state]){
-                clearFocus();
-                focusState(state, this, color);
-                setFocusMap(state);
-
-            } else {
-                clearFocus();
-                setFocusMap();
-            }
-        });
-
-    d3.select("#searchbox").on("keyup", function(){
-        var s = document.getElementById("searchbox").value;
-        var match = null;
-
-        if (stateIsSet){
-            clearFocus();
-            setFocusMap();
-        }
-
-        d3.selectAll("g.nodes g.node").filter(function(d, i){
-            if (s==""){
-                d3.select("g.edgePaths")
-                    .transition().duration(duration)
-                    .style("opacity", 1);
-                d3.select(this)
-                    .transition().duration(duration)
-                    .style("opacity", 1)
-                    .selectAll("rect")
-                    .style("stroke-width", "2px");
-            }
-            else{
-                d3.select("g.edgePaths")
-                    .transition().duration(duration)
-                    .style("opacity", 0.2);
-                if (d.indexOf(s) > -1) {
-                    if (!match)
-                        match = this;
-                    d3.select(this)
-                        .transition().duration(duration)
-                        .style("opacity", 1)
-                        .selectAll("rect")
-                        .style("stroke-width", "10px");
-                }
-                else {
-                    d3.select(this)
-                        .transition()
-                        .style("opacity", 0.2).duration(duration)
-                        .selectAll("rect")
-                        .style("stroke-width", "2px");
-                }
-            }
-        });
-        if(match) {
-            var transform = d3.transform(d3.select(match).attr("transform"));
-            transform.translate = [
-                -transform.translate[0] + 520,
-                -(transform.translate[1] - 400)
-            ];
-            transform.scale = [1, 1];
-
-            d3.select("g.zoom")
-                .transition()
-                .attr("transform", transform.toString());
-            renderer.zoom_obj.translate(transform.translate);
-            renderer.zoom_obj.scale(1);
-        }
-    });
-
-
-    // Injecting ids to be used for parent/child highlighting
-    // Separated from update_node_states since it must work even
-    // when there is no valid task instance available
-    function inject_node_ids(tasks) {
-        $.each(tasks, function(task_id, task) {
-            $('tspan').filter(function(index) { return $(this).text() === task_id; })
-                    .parent().parent().parent()
-                    .attr("id", task_id);
-        });
-    }
-
-
-    // Assigning css classes based on state to nodes
-    function update_nodes_states(task_instances) {
-        $.each(task_instances, function(task_id, ti) {
-          $('tspan').filter(function(index) { return $(this).text() === task_id; })
-            .parent().parent().parent()
-            .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
-            .attr("data-toggle", "tooltip")
-            .attr("data-original-title", function(d) {
-              // Tooltip
-              task = tasks[task_id];
-              tt = "";
-              if(ti.task_id != undefined){
-                tt +=  "Task_id: " + escapeHtml(ti.task_id) + "<br>";
-              }
-              tt += "Run: " + escapeHtml(ti.execution_date) + "<br>";
-              if(ti.run_id != undefined){
-                tt += "run_id: <nobr>" + escapeHtml(ti.run_id) + "</nobr><br>";
-              }
-              tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
-              tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
-              tt += "Ended: " + escapeHtml(ti.end_date) + "<br>";
-              tt += "Duration: " + escapeHtml(convertSecsToHumanReadable(ti.duration)) + "<br>";
-              tt += "State: " + escapeHtml(ti.state) + "<br>";
-              return tt;
-            });
-        });
-    }
-
-    function clearFocus(){
-        d3.selectAll("g.node")
-            .transition(duration)
-            .style("opacity", 1);
-        d3.selectAll("g.node rect")
-            .transition(duration)
-            .style("stroke-width", "2px");
-        d3.select("g.edgePaths")
-            .transition().duration(duration)
-            .style("opacity", 1);
-        d3.selectAll("div.legend_item.state")
-            .style("background-color", null);
-    }
-
-    function focusState(state, node, color){
-        d3.selectAll("g.node")
-            .transition(duration)
-            .style("opacity", 0.2);
-        d3.selectAll("g.node."+state)
-            .transition(duration)
-            .style("opacity", 1);
-        d3.selectAll("g.node." + state + " rect")
-            .transition(duration)
-            .style("stroke-width", "10px")
-            .style("opacity", 1);
-        d3.select("g.edgePaths")
-            .transition().duration(duration)
-            .style("opacity", 0.2);
-        d3.select(node)
-            .style("background-color", color);
-    }
-
-    function setFocusMap(state){
-        for (var key in stateFocusMap){
-                stateFocusMap[key] = false;
-        }
-        if(state != null){
-            stateFocusMap[state] = true;
-        }
-    }
-
-    function stateIsSet(){
-        for (var key in stateFocusMap){
-            if (stateFocusMap[key]){
-                return true
-            }
-        }
-        return false
-    }
-
-    function error(msg){
-      $('#error_msg').html(msg);
-      $('#error').show();
-      $('#loading').hide();
-      $('#chart_section').hide(1000);
-      $('#datatable_section').hide(1000);
-    }
-
-    d3.select("#refresh_button").on("click",
-        function() {
-            $("#loading").css("display", "block");
-            $("div#svg_container").css("opacity", "0.2");
-            $.get(
-                "{{ url_for('airflow.task_instances') }}",
-                {dag_id : "{{ dag.dag_id }}", execution_date : "{{ execution_date }}"})
-            .done(
-                function(task_instances) {
-                    update_nodes_states(JSON.parse(task_instances));
-                    $("#loading").hide();
-                    $("div#svg_container").css("opacity", "1");
-                    $('#error').hide();
-                }
-            ).fail(function(jqxhr, textStatus, err) {
-                error(textStatus + ': ' + err);
-            });
-        }
-    );
-
-</script>
-
-
+  {{ super() }}
+  <script>
+    const nodes = {{ nodes|tojson }};
+    const edges = {{ edges|tojson }};
+    const tasks = {{ tasks|tojson }};
+    let taskInstances = {{ task_instances|tojson }};
+  </script>
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-shape.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-tip.js') }}"></script>
+  <script src="{{ url_for_asset('graph.js') }}"></script>
 {% endblock %}

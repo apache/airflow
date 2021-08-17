@@ -4,6 +4,7 @@
 .github/*
 .gitignore
 .gitattributes
+.gitrepo
 .airflow_db_initialised
 .airflowignore
 .coverage
@@ -13,6 +14,8 @@
 .eslintignore
 .flake8
 .rat-excludes
+.stylelintignore
+.stylelintrc
 requirements
 requirements.txt
 .*log
@@ -38,6 +41,7 @@ logs
 venv
 files
 airflow.iml
+.gitmodules
 
 # Generated doc files
 .*html
@@ -47,6 +51,9 @@ _images/*
 .buildinfo
 searchindex.js
 _api/*
+
+# the word list for checking spellings
+spelling_wordlist.txt
 
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
@@ -58,8 +65,6 @@ underscore.js
 jquery.dataTables.min.js
 jqClock.min.js
 dagre-d3.min.js
-bootstrap-toggle.min.js
-bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
 node_modules/*
@@ -67,14 +72,16 @@ node_modules/*
 coverage/*
 git_version
 flake8_diff.sh
-coverage.xml
+coverage*.xml
 _sources/*
 
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
 PULL_REQUEST_TEMPLATE.md
-
+PROVIDER_CHANGES*.md
+manifests/*
+redirects.txt
 
 # Locally mounted files
 .*egg-info/*
@@ -88,3 +95,12 @@ input_notebook.ipynb
 # .git might be a file in case of worktree
 .git
 tmp
+
+# Vendored-in code
+_vendor
+
+# generated doc-only-changes.txt
+.latest-doc-only-change.txt
+
+# generated provider_packages
+provider_packages

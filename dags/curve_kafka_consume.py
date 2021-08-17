@@ -1,12 +1,13 @@
 # -*- coding:utf-8 -*-
 import datetime as dt
 from datetime import timedelta
+from airflow.exceptions import AirflowConfigException
 from airflow.models import DAG
+from airflow.models.connection import Connection
 import pendulum
 from airflow.operators.python_operator import PythonOperator
 from plugins.entities.kafka_consumer import ClsKafkaConsumer
 from plugins.utils.logger import generate_logger
-from airflow.utils.db import get_connection
 
 _logger = generate_logger(__name__)
 
@@ -49,9 +50,9 @@ def curve_data_handler(msg):
 
 def get_kafka_config():
     key = 'qcos_kafka'
-    conn = get_connection('qcos_kafka')
+    conn: Connection = Connection.get_connection_from_secrets('qcos_kafka')
     if conn is None:
-        raise Exception('缺少kafka配置：{}'.format(key))
+        raise AirflowConfigException(f'缺少kafka配置：{key}')
     data = {
         "user": conn.login,
         "password": conn.get_password(),
@@ -67,6 +68,7 @@ def watch_kafka_curve(*args, **kwargs):
         **get_kafka_config(),
         handler=curve_data_handler
     )
+    consumer.update_client_id()
     while True:
         try:
             consumer.read()

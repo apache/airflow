@@ -24,8 +24,8 @@ Create Date: 2016-12-07 15:51:37.119478
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '5e7d17757c7a'
@@ -35,8 +35,10 @@ depends_on = None
 
 
 def upgrade():
+    """Add pid column to task_instance table."""
     op.add_column('task_instance', sa.Column('pid', sa.Integer))
 
 
 def downgrade():
+    """Drop pid column from task_instance table."""
     op.drop_column('task_instance', 'pid')

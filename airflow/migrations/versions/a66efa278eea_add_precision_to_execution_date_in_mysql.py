@@ -19,7 +19,7 @@
 """Add Precision to execution_date in RenderedTaskInstanceFields table
 
 Revision ID: a66efa278eea
-Revises: 8f966b9c467a
+Revises: 952da73b5eff
 Create Date: 2020-06-16 21:44:02.883132
 
 """
@@ -42,10 +42,7 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         op.alter_column(
-            table_name=TABLE_NAME,
-            column_name=COLUMN_NAME,
-            type_=mysql.TIMESTAMP(fsp=6),
-            nullable=False
+            table_name=TABLE_NAME, column_name=COLUMN_NAME, type_=mysql.TIMESTAMP(fsp=6), nullable=False
         )
 
 
@@ -54,8 +51,5 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
         op.alter_column(
-            table_name=TABLE_NAME,
-            column_name=COLUMN_NAME,
-            type_=mysql.TIMESTAMP(),
-            nullable=False
+            table_name=TABLE_NAME, column_name=COLUMN_NAME, type_=mysql.TIMESTAMP(), nullable=False
         )

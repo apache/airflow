@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,50 +14,56 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# Dockerfile - kdc-server
+#
+# see docker-compose.yml
 
-FROM debian:buster-slim
+FROM centos:7
 
-ARG AIRFLOW_KRB5KDCSERVER_VERSION
-ARG COMMIT_SHA
+# build environment
+WORKDIR /root/
 
-# environment variables
-ENV DEBIAN_FRONTEND noninteractive
+# Dev stuff
+# hadolint ignore=DL3033
+RUN yum -y install curl wget python36 && yum clean all && \
+    curl "https://bootstrap.pypa.io/get-pip.py" -o /tmp/get-pip.py && \
+    python3 /tmp/get-pip.py && \
+    rm /tmp/get-pip.py && \
+    pip install --no-cache-dir supervisor && \
+    mkdir -p /var/log/supervisord/
 
-# Kerberos server
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    dumb-init \
-    ntp \
-    python-dev \
-    python-pip \
-    python-wheel \
-    python-setuptools \
-    python-pkg-resources \
-    krb5-admin-server \
-    krb5-kdc \
- && rm -rf /var/lib/apt/lists/* \
- && mkdir -p /var/log/supervisord/
+# kerberos server
+# hadolint ignore=DL3033
+RUN yum -y install ntp krb5-server krb5-libs && yum clean all
 
-RUN mkdir /app/
+# kerberos server configuration
+ENV KRB5_CONFIG=/etc/krb5.conf
+ENV KRB5_KDC_PROFILE=/var/kerberos/krb5kdc/kdc.conf
+RUN mkdir -pv /var/kerberos/krb5kdc/
+COPY kdc.conf /var/kerberos/krb5kdc/kdc.conf
+COPY kadm5.acl /var/kerberos/krb5kdc/kadm5.acl
+COPY krb5.conf /etc/krb5.conf
+RUN mkdir -pv /var/log/kerberos/ && \
+    touch /var/log/kerberos/kadmin.log && \
+    touch /var/log/kerberos/krb5lib.log && \
+    touch /var/log/kerberos/krb5.log && \
+    kdb5_util -r EXAMPLE.COM -P krb5 create -s
 
-# Supervisord
-RUN pip install supervisor==3.3.4
+# kerberos utils
+COPY utils /opt/kerberos-utils/
 
-COPY ./krb-conf/server/kdc.conf /etc/krb5kdc/kdc.conf
-COPY ./krb-conf/server/kadm5.acl /etc/krb5kdc/kadm5.acl
-COPY ./krb-conf/client/krb5.conf /etc/krb5.conf
-COPY ./start_kdc.sh /entrypoint
-# supervisord
-COPY ./supervisord.conf /etc/supervisord.conf
+# supervisord configuration
+COPY supervisord.conf /etc/supervisord.conf
 
-WORKDIR /app
+# entrypoint
+COPY entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
-LABEL org.apache.airflow.component="krb5-kdc-server"
-LABEL org.apache.airflow.airflow_krb5_kdc_server.version="${AIRFLOW_KRB5KDCSERVER_VERSION}"
-LABEL org.apache.airflow.commit_sha="${COMMIT_SHA}"
-LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
+LABEL org.apache.airflow.component="krb5-kdc-server" \
+    org.apache.airflow.krb5-kdc-server.core.version="krb5" \
+    org.apache.airflow.airflow-krb5-kdc-server.version="${AIRFLOW_KRB5KDCSERVER_VERSION}" \
+    org.apache.airflow.commit-sha="${COMMIT_SHA}" \
+    maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
-RUN chmod a+x /entrypoint
-
-EXPOSE 88
 # when container is starting
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
+CMD ["/usr/local/bin/supervisord", "-n", "-c", "/etc/supervisord.conf"]

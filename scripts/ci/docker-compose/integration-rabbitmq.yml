@@ -22,10 +22,19 @@ services:
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - rabbitmq-db-volume:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
+
   airflow:
     environment:
       - INTEGRATION_RABBITMQ=true
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+
 volumes:
   rabbitmq-db-volume:

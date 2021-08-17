@@ -24,19 +24,22 @@ Create Date: ${create_date}
 
 """
 
+import sqlalchemy as sa
+from alembic import op
+${imports if imports else ""}
+
 # revision identifiers, used by Alembic.
 revision = ${repr(up_revision)}
 down_revision = ${repr(down_revision)}
 branch_labels = ${repr(branch_labels)}
 depends_on = ${repr(depends_on)}
 
-from alembic import op
-import sqlalchemy as sa
-${imports if imports else ""}
 
 def upgrade():
+    """Apply ${message}"""
     ${upgrades if upgrades else "pass"}
 
 
 def downgrade():
+    """Unapply ${message}"""
     ${downgrades if downgrades else "pass"}

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,25 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-
-import warnings
-
-from .decorators import apply_defaults as _apply_defaults
-
-
-def apply_defaults(func):
-    warnings.warn_explicit(
-        """
-        You are importing apply_defaults from airflow.utils which
-        will be deprecated in a future version.
-        Please use :
-
-        from airflow.utils.decorators import apply_defaults
-        """,
-        category=PendingDeprecationWarning,
-        filename=func.__code__.co_filename,
-        lineno=func.__code__.co_firstlineno + 1
-    )
-    return _apply_defaults(func)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,82 +22,73 @@ Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
+
+isort:skip_file
 """
-from builtins import object
-from typing import Any
 
-from airflow import version
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-__version__ = version.version
+# flake8: noqa: F401
 
 import logging
 import sys
+from typing import Callable, Optional
 
-# flake8: noqa: F401
-# noinspection PyUnresolvedReferences
-from airflow import utils
 from airflow import settings
-from airflow.configuration import conf
-from flask_admin import BaseView
-from importlib import import_module
-from airflow.exceptions import AirflowException
+from airflow import version
+
+__version__ = version.version
+
+__all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39']
+
+# Make `airflow` an namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 settings.initialize()
-# Delay the import of airflow.models to be after the settings initialization to make sure that
-# any reference to a settings' functions (e.g task_instance_mutation_hook) holds the expected implementation
-from airflow.models import DAG  # noqa: E402
 
-login = None  # type: Any
-log = logging.getLogger(__name__)
+login: Optional[Callable] = None
 
-
-def load_login():
-
-    auth_backend = 'airflow.default_login'
-    try:
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            auth_backend = conf.get('webserver', 'auth_backend')
-    except conf.AirflowConfigException:
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            log.warning(
-                "auth_backend not found in webserver config reverting to "
-                "*deprecated*  behavior of importing airflow_login")
-            auth_backend = "airflow_login"
-
-    try:
-        global login
-        login = import_module(auth_backend)
-
-        if hasattr(login, 'login_manager') and not hasattr(login, 'LOGIN_MANAGER'):
-            login.LOGIN_MANAGER = login.login_manager
-    except ImportError as err:
-        log.critical(
-            "Cannot import authentication module %s. "
-            "Please correct your authentication backend or disable authentication: %s",
-            auth_backend, err
-        )
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            raise AirflowException("Failed to import authentication backend")
+PY36 = sys.version_info >= (3, 6)
+PY37 = sys.version_info >= (3, 7)
+PY38 = sys.version_info >= (3, 8)
+PY39 = sys.version_info >= (3, 9)
 
 
-class AirflowViewPlugin(BaseView):
-    pass
+def __getattr__(name):
+    # PEP-562: Lazy loaded attributes on python modules
+    if name == "DAG":
+        from airflow.models.dag import DAG
+
+        return DAG
+    if name == "AirflowException":
+        from airflow.exceptions import AirflowException
+
+        return AirflowException
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
-class AirflowMacroPlugin(object):
-    def __init__(self, namespace):
-        self.namespace = namespace
+if not settings.LAZY_LOAD_PLUGINS:
+    from airflow import plugins_manager
+
+    plugins_manager.ensure_plugins_loaded()
+
+if not settings.LAZY_LOAD_PROVIDERS:
+    from airflow import providers_manager
+
+    providers_manager.ProvidersManager().initialize_providers_manager()
 
 
-from airflow import operators  # noqa: E402
-from airflow import sensors  # noqa: E402
-from airflow import hooks  # noqa: E402
-from airflow import executors  # noqa: E402
-from airflow import macros  # noqa: E402
+# This is never executed, but tricks static analyzers (PyDev, PyCharm,)
+# into knowing the types of these symbols, and what
+# they contain.
+STATICA_HACK = True
+globals()['kcah_acitats'[::-1].upper()] = False
+if STATICA_HACK:  # pragma: no cover
+    from airflow.models.dag import DAG
+    from airflow.exceptions import AirflowException
 
-operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
-hooks._integrate_plugins()
-executors._integrate_plugins()
-macros._integrate_plugins()
+
+if not PY37:
+    from pep562 import Pep562
+
+    Pep562(__name__)

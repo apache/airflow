@@ -17,23 +17,41 @@
  under the License.
 #}
 
-{% extends "airflow/master.html" %}
+{% extends base_template %}
+{% from 'appbuilder/dag_docs.html' import dag_docs %}
 
-{% block body %}
-    {{ super() }}
-    <h2>Trigger DAG: {{ dag_id }}</h2>
-    <form method="POST">
-      <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
-      <input name="dag_id" type="hidden" value="{{ dag_id }}"/>
-      <input name="origin" type="hidden" value="{{ origin }}"/>
-      <div class="form-group">
-        <label for="conf">Configuration JSON (Optional)</label>
-        <textarea class="form-control" name="conf">{{ conf }}</textarea>
-      </div>
-      <p>
-        To access configuration in your DAG use <code>{{ '{{' }} dag_run.conf {{ '}}' }}</code>.
-      </p>
-      <input class="btn btn-primary" type="submit" value="Trigger"/>
-      <button class="btn" onclick="location.href = '{{ origin }}'; return false">bail.</button>
-    </form>
+{% block head_css %}
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('codemirror.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('lint.css') }}">
+{% endblock %}
+
+{% block content %}
+  {{ super() }}
+  <h2>Trigger DAG: {{ dag_id }}</h2>
+  {{ dag_docs(doc_md) }}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="dag_id" value="{{ dag_id }}">
+    <input type="hidden" name="origin" value="{{ origin }}">
+    <div class="form-group">
+      <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
+      <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
+    </div>
+    <p>
+      To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
+    </p>
+    <button type="submit" class="btn btn-primary">Trigger</button>
+    <button type="button" class="btn" onclick="location.href = '{{ origin }}'; return false">Cancel</button>
+  </form>
+{% endblock %}
+
+{% block tail_js %}
+  <script src="{{ url_for_asset('codemirror.js') }}"></script>
+  <script src="{{ url_for_asset('javascript.js') }}"></script>
+  <script src="{{ url_for_asset('lint.js') }}"></script>
+  <script src="{{ url_for_asset('javascript-lint.js') }}"></script>
+  <script src="{{ url_for_asset('jshint.js') }}"></script>
+  <script src="{{ url_for_asset('trigger.js') }}"></script>
+  {{ super() }}
 {% endblock %}

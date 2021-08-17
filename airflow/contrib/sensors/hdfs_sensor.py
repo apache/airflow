@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,59 +15,53 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.sensors.hdfs_sensor import HdfsSensor
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.apache.hdfs.sensors.hdfs`.
+"""
+
+import warnings
+
+from airflow.providers.apache.hdfs.sensors.hdfs import HdfsFolderSensor, HdfsRegexSensor
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.hdfs`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
-class HdfsSensorRegex(HdfsSensor):
-    def __init__(self,
-                 regex,
-                 *args,
-                 **kwargs):
-        super(HdfsSensorRegex, self).__init__(*args, **kwargs)
-        self.regex = regex
+class HdfsSensorFolder(HdfsFolderSensor):
+    """This class is deprecated.
 
-    def poke(self, context):
-        """
-        poke matching files in a directory with self.regex
+    Please use:
+    `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`.
+    """
 
-        :return: Bool depending on the search criteria
-        """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        self.log.info(
-            'Poking for %s to be a directory with files matching %s', self.filepath, self.regex.pattern
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`.""",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
-                  f['file_type'] == 'f' and
-                  self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
-        result = self.filter_for_ignored_ext(result, self.ignored_ext,
-                                             self.ignore_copying)
-        result = self.filter_for_filesize(result, self.file_size)
-        return bool(result)
+        super().__init__(*args, **kwargs)
 
 
-class HdfsSensorFolder(HdfsSensor):
-    def __init__(self,
-                 be_empty=False,
-                 *args,
-                 **kwargs):
-        super(HdfsSensorFolder, self).__init__(*args, **kwargs)
-        self.be_empty = be_empty
+class HdfsSensorRegex(HdfsRegexSensor):
+    """This class is deprecated.
 
-    def poke(self, context):
-        """
-        poke for a non empty directory
+    Please use:
+    `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`.
+    """
 
-        :return: Bool depending on the search criteria
-        """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        result = [f for f in sb.ls([self.filepath], include_toplevel=True)]
-        result = self.filter_for_ignored_ext(result, self.ignored_ext,
-                                             self.ignore_copying)
-        result = self.filter_for_filesize(result, self.file_size)
-        if self.be_empty:
-            self.log.info('Poking for filepath %s to a empty directory', self.filepath)
-            return len(result) == 1 and result[0]['path'] == self.filepath
-        else:
-            self.log.info('Poking for filepath %s to a non empty directory', self.filepath)
-            result.pop(0)
-            return bool(result) and result[0]['file_type'] == 'f'
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

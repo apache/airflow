@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,12 +24,14 @@ Create Date: 2015-08-18 16:35:00.883495
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
+from airflow.models.base import COLLATION_ARGS
+
 revision = 'e3a246e0dc1'
 down_revision = None
 branch_labels = None
@@ -54,7 +55,7 @@ def upgrade():
             sa.Column('password', sa.String(length=500), nullable=True),
             sa.Column('port', sa.Integer(), nullable=True),
             sa.Column('extra', sa.String(length=5000), nullable=True),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('id'),
         )
     if 'dag' not in tables:
         op.create_table(
@@ -70,7 +71,7 @@ def upgrade():
             sa.Column('pickle_id', sa.Integer(), nullable=True),
             sa.Column('fileloc', sa.String(length=2000), nullable=True),
             sa.Column('owners', sa.String(length=2000), nullable=True),
-            sa.PrimaryKeyConstraint('dag_id')
+            sa.PrimaryKeyConstraint('dag_id'),
         )
     if 'dag_pickle' not in tables:
         op.create_table(
@@ -79,7 +80,7 @@ def upgrade():
             sa.Column('pickle', sa.PickleType(), nullable=True),
             sa.Column('created_dttm', sa.DateTime(), nullable=True),
             sa.Column('pickle_hash', sa.BigInteger(), nullable=True),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('id'),
         )
     if 'import_error' not in tables:
         op.create_table(
@@ -88,7 +89,7 @@ def upgrade():
             sa.Column('timestamp', sa.DateTime(), nullable=True),
             sa.Column('filename', sa.String(length=1024), nullable=True),
             sa.Column('stacktrace', sa.Text(), nullable=True),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('id'),
         )
     if 'job' not in tables:
         op.create_table(
@@ -103,43 +104,31 @@ def upgrade():
             sa.Column('executor_class', sa.String(length=500), nullable=True),
             sa.Column('hostname', sa.String(length=500), nullable=True),
             sa.Column('unixname', sa.String(length=1000), nullable=True),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('id'),
         )
-        op.create_index(
-            'job_type_heart',
-            'job',
-            ['job_type', 'latest_heartbeat'],
-            unique=False
-        )
-    if 'known_event_type' not in tables:
-        op.create_table(
-            'known_event_type',
-            sa.Column('id', sa.Integer(), nullable=False),
-            sa.Column('know_event_type', sa.String(length=200), nullable=True),
-            sa.PrimaryKeyConstraint('id')
-        )
+        op.create_index('job_type_heart', 'job', ['job_type', 'latest_heartbeat'], unique=False)
     if 'log' not in tables:
         op.create_table(
             'log',
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('dttm', sa.DateTime(), nullable=True),
-            sa.Column('dag_id', sa.String(length=250), nullable=True),
-            sa.Column('task_id', sa.String(length=250), nullable=True),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=True),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=True),
             sa.Column('event', sa.String(length=30), nullable=True),
             sa.Column('execution_date', sa.DateTime(), nullable=True),
             sa.Column('owner', sa.String(length=500), nullable=True),
-            sa.PrimaryKeyConstraint('id')
+            sa.PrimaryKeyConstraint('id'),
         )
     if 'sla_miss' not in tables:
         op.create_table(
             'sla_miss',
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('email_sent', sa.Boolean(), nullable=True),
             sa.Column('timestamp', sa.DateTime(), nullable=True),
             sa.Column('description', sa.Text(), nullable=True),
-            sa.PrimaryKeyConstraint('task_id', 'dag_id', 'execution_date')
+            sa.PrimaryKeyConstraint('task_id', 'dag_id', 'execution_date'),
         )
     if 'slot_pool' not in tables:
         op.create_table(
@@ -149,13 +138,13 @@ def upgrade():
             sa.Column('slots', sa.Integer(), nullable=True),
             sa.Column('description', sa.Text(), nullable=True),
             sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('pool')
+            sa.UniqueConstraint('pool'),
         )
     if 'task_instance' not in tables:
         op.create_table(
             'task_instance',
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('start_date', sa.DateTime(), nullable=True),
             sa.Column('end_date', sa.DateTime(), nullable=True),
@@ -168,25 +157,12 @@ def upgrade():
             sa.Column('pool', sa.String(length=50), nullable=True),
             sa.Column('queue', sa.String(length=50), nullable=True),
             sa.Column('priority_weight', sa.Integer(), nullable=True),
-            sa.PrimaryKeyConstraint('task_id', 'dag_id', 'execution_date')
+            sa.PrimaryKeyConstraint('task_id', 'dag_id', 'execution_date'),
         )
+        op.create_index('ti_dag_state', 'task_instance', ['dag_id', 'state'], unique=False)
+        op.create_index('ti_pool', 'task_instance', ['pool', 'state', 'priority_weight'], unique=False)
         op.create_index(
-            'ti_dag_state',
-            'task_instance',
-            ['dag_id', 'state'],
-            unique=False
-        )
-        op.create_index(
-            'ti_pool',
-            'task_instance',
-            ['pool', 'state', 'priority_weight'],
-            unique=False
-        )
-        op.create_index(
-            'ti_state_lkp',
-            'task_instance',
-            ['dag_id', 'task_id', 'execution_date', 'state'],
-            unique=False
+            'ti_state_lkp', 'task_instance', ['dag_id', 'task_id', 'execution_date', 'state'], unique=False
         )
 
     if 'user' not in tables:
@@ -196,7 +172,7 @@ def upgrade():
             sa.Column('username', sa.String(length=250), nullable=True),
             sa.Column('email', sa.String(length=500), nullable=True),
             sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('username')
+            sa.UniqueConstraint('username'),
         )
     if 'variable' not in tables:
         op.create_table(
@@ -205,7 +181,7 @@ def upgrade():
             sa.Column('key', sa.String(length=250), nullable=True),
             sa.Column('val', sa.Text(), nullable=True),
             sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('key')
+            sa.UniqueConstraint('key'),
         )
     if 'chart' not in tables:
         op.create_table(
@@ -225,44 +201,27 @@ def upgrade():
             sa.Column('x_is_date', sa.Boolean(), nullable=True),
             sa.Column('iteration_no', sa.Integer(), nullable=True),
             sa.Column('last_modified', sa.DateTime(), nullable=True),
-            sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
-            sa.PrimaryKeyConstraint('id')
-        )
-    if 'known_event' not in tables:
-        op.create_table(
-            'known_event',
-            sa.Column('id', sa.Integer(), nullable=False),
-            sa.Column('label', sa.String(length=200), nullable=True),
-            sa.Column('start_date', sa.DateTime(), nullable=True),
-            sa.Column('end_date', sa.DateTime(), nullable=True),
-            sa.Column('user_id', sa.Integer(), nullable=True),
-            sa.Column('known_event_type_id', sa.Integer(), nullable=True),
-            sa.Column('description', sa.Text(), nullable=True),
-            sa.ForeignKeyConstraint(['known_event_type_id'],
-                                    ['known_event_type.id'], ),
-            sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
-            sa.PrimaryKeyConstraint('id')
+            sa.ForeignKeyConstraint(
+                ['user_id'],
+                ['user.id'],
+            ),
+            sa.PrimaryKeyConstraint('id'),
         )
     if 'xcom' not in tables:
         op.create_table(
             'xcom',
             sa.Column('id', sa.Integer(), nullable=False),
-            sa.Column('key', sa.String(length=512), nullable=True),
+            sa.Column('key', sa.String(length=512, **COLLATION_ARGS), nullable=True),
             sa.Column('value', sa.PickleType(), nullable=True),
-            sa.Column(
-                'timestamp',
-                sa.DateTime(),
-                default=func.now(),
-                nullable=False),
+            sa.Column('timestamp', sa.DateTime(), default=func.now(), nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.PrimaryKeyConstraint('id')
+            sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+            sa.PrimaryKeyConstraint('id'),
         )
 
 
 def downgrade():
-    op.drop_table('known_event')
     op.drop_table('chart')
     op.drop_table('variable')
     op.drop_table('user')
@@ -273,7 +232,6 @@ def downgrade():
     op.drop_table('slot_pool')
     op.drop_table('sla_miss')
     op.drop_table('log')
-    op.drop_table('known_event_type')
     op.drop_index('job_type_heart', table_name='job')
     op.drop_table('job')
     op.drop_table('import_error')

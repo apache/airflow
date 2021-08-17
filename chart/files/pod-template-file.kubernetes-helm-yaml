@@ -19,10 +19,14 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: dummy-name
+  {{- if .Values.airflowPodAnnotations }}
+  annotations:
+  {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+  {{- end }}
 spec:
-{{- if .Values.dags.gitSync.enabled }}
+{{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
   initContainers:
-{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 8 }}
+{{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | indent 4 }}
 {{- end }}
   containers:
     - args: []
@@ -40,12 +44,12 @@ spec:
       ports: []
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
-          name: airflow-logs
+          name: logs
         - name: config
           mountPath: {{ template "airflow_config_path" . }}
           subPath: airflow.cfg
           readOnly: true
-{{- if .Values.scheduler.airflowLocalSettings }}
+{{- if .Values.airflowLocalSettings }}
         - name: config
           mountPath: {{ template "airflow_local_setting_path" . }}
           subPath: airflow_local_settings.py
@@ -53,7 +57,7 @@ spec:
 {{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
         - mountPath: /etc/git-secret/known_hosts
-          name: {{ .Values.dags.gitSync.knownHosts }}
+          name: git-sync-known-hosts
           subPath: known_hosts
 {{- end }}
 {{- if .Values.dags.gitSync.sshKeySecret }}
@@ -65,9 +69,9 @@ spec:
         - mountPath: {{ include "airflow_dags_mount_path" . }}
           name: dags
           readOnly: true
-{{- if .Values.dags.persistence.enabled }}
-          subPath: {{.Values.dags.gitSync.dest }}/{{ .Values.dags.gitSync.subPath }}
 {{- end }}
+{{- if .Values.workers.extraVolumeMounts }}
+{{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
 {{- end }}
   hostNetwork: false
   {{- if or .Values.registry.secretName .Values.registry.connection }}
@@ -77,10 +81,11 @@ spec:
   restartPolicy: Never
   securityContext:
     runAsUser: {{ .Values.uid }}
+    fsGroup: {{ .Values.gid }}
   nodeSelector: {{ toYaml .Values.nodeSelector | nindent 4 }}
   affinity: {{ toYaml .Values.affinity | nindent 4 }}
   tolerations: {{ toYaml .Values.tolerations | nindent 4 }}
-  serviceAccountName: '{{ .Release.Name }}-worker'
+  serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}
   - name: dags
@@ -93,8 +98,14 @@ spec:
   {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
 {{- include "git_sync_ssh_key_volume" . | indent 2 }}
   {{- end }}
+{{- if .Values.logs.persistence.enabled }}
+  - name: logs
+    persistentVolumeClaim:
+      claimName: {{ template "airflow_logs_volume_claim" . }}
+{{- else }}
   - emptyDir: {}
-    name: airflow-logs
+    name: logs
+{{- end }}
 {{- if .Values.dags.gitSync.knownHosts }}
   - configMap:
       defaultMode: 288
@@ -104,3 +115,6 @@ spec:
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
+{{- if .Values.workers.extraVolumes }}
+{{ toYaml .Values.workers.extraVolumes | indent 2 }}
+{{- end }}

@@ -1,0 +1,7 @@
+**/*{.,-}min.js
+**/*.sh
+**/*.py
+jqClock.min.js
+coverage/**
+static/dist/*
+static/docs/*

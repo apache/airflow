@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable, Union
+
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
-
-import six
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -36,10 +35,10 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 
 
 class SkipMixin(LoggingMixin):
+    """A Mixin to skip Tasks Instances"""
+
     def _set_state_to_skipped(self, dag_run, execution_date, tasks, session):
-        """
-        Used internally to set state of task instances to skipped from the same dag run.
-        """
+        """Used internally to set state of task instances to skipped from the same dag run."""
         task_ids = [d.task_id for d in tasks]
         now = timezone.utcnow()
 
@@ -57,7 +56,8 @@ class SkipMixin(LoggingMixin):
                 synchronize_session=False,
             )
         else:
-            assert execution_date is not None, "Execution date is None and no dag run"
+            if execution_date is None:
+                raise ValueError("Execution date is None and no dag run")
 
             self.log.warning("No DAG RUN present this should not happen")
             # this is defensive against dag runs that are not complete
@@ -70,7 +70,11 @@ class SkipMixin(LoggingMixin):
 
     @provide_session
     def skip(
-        self, dag_run, execution_date, tasks, session=None,
+        self,
+        dag_run,
+        execution_date,
+        tasks,
+        session=None,
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -105,12 +109,10 @@ class SkipMixin(LoggingMixin):
                 task_id=task_id,
                 dag_id=dag_run.dag_id,
                 execution_date=dag_run.execution_date,
-                session=session
+                session=session,
             )
 
-    def skip_all_except(
-        self, ti, branch_task_ids
-    ):
+    def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[str, Iterable[str]]):
         """
         This method implements the logic for a branching operator; given a single
         task ID or list of task IDs to follow, this skips all other tasks
@@ -120,8 +122,9 @@ class SkipMixin(LoggingMixin):
         newly added tasks should be skipped when they are cleared.
         """
         self.log.info("Following branch %s", branch_task_ids)
-        if isinstance(branch_task_ids, six.string_types):
+        if isinstance(branch_task_ids, str):
             branch_task_ids = {branch_task_ids}
+
         branch_task_ids = set(branch_task_ids)
 
         dag_run = ti.get_dagrun()
@@ -144,25 +147,15 @@ class SkipMixin(LoggingMixin):
             #       task1
             #
             for branch_task_id in list(branch_task_ids):
-                branch_task_ids.update(
-                    dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False)
-                )
+                branch_task_ids.update(dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False))
 
-            skip_tasks = [
-                t
-                for t in downstream_tasks
-                if t.task_id not in branch_task_ids
-            ]
+            skip_tasks = [t for t in downstream_tasks if t.task_id not in branch_task_ids]
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_ids]
 
             self.log.info("Skipping tasks %s", [t.task_id for t in skip_tasks])
             with create_session() as session:
-                self._set_state_to_skipped(
-                    dag_run, ti.execution_date, skip_tasks, session=session
-                )
+                self._set_state_to_skipped(dag_run, ti.execution_date, skip_tasks, session=session)
                 # For some reason, session.commit() needs to happen before xcom_push.
                 # Otherwise the session is not committed.
                 session.commit()
-                ti.xcom_push(
-                    key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}
-                )
+                ti.xcom_push(key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids})

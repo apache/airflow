@@ -66,6 +66,12 @@
         "maxProperties": 1
       }
     },
+    "dag_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
     "dag": {
       "type": "object",
       "properties": {
@@ -96,7 +102,16 @@
         "_default_view": { "type" : "string"},
         "_access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
-        "tags": { "type": "array" }
+        "has_on_success_callback":  { "type": "boolean" },
+        "has_on_failure_callback":  { "type": "boolean" },
+        "render_template_as_native_obj":  { "type": "boolean" },
+        "tags": { "type": "array" },
+        "_task_group": {"anyOf": [
+          { "type": "null" },
+          { "$ref": "#/definitions/task_group" }
+        ]},
+        "edge_info": { "$ref": "#/definitions/edge_info" },
+        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
       },
       "required": [
         "_dag_id",
@@ -125,6 +140,7 @@
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
+        "label": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -138,6 +154,7 @@
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
+        "max_retry_delay": { "$ref": "#/definitions/timedelta" },
         "params": { "$ref": "#/definitions/dict" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
@@ -153,9 +170,77 @@
         "_downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }
-        }
+        },
+        "_is_dummy": { "type": "boolean" },
+        "deps": {
+          "description": "list of dep classes -- if non-standard",
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "doc":  { "type": "string" },
+        "doc_md":  { "type": "string" },
+        "doc_json":  { "type": "string" },
+        "doc_yaml":  { "type": "string" },
+        "doc_rst":  { "type": "string" }
       },
       "additionalProperties": true
+    },
+    "task_group": {
+      "$comment": "A TaskGroup containing tasks",
+      "type": "object",
+      "required": [
+        "_group_id",
+        "prefix_group_id",
+        "children",
+        "tooltip",
+        "ui_color",
+        "ui_fgcolor",
+        "upstream_group_ids",
+        "downstream_group_ids",
+        "upstream_task_ids",
+        "downstream_task_ids"
+      ],
+      "properties": {
+        "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "prefix_group_id": { "type": "boolean" },
+        "children":  { "$ref": "#/definitions/dict" },
+        "tooltip": { "type": "string" },
+        "ui_color": { "type": "string" },
+        "ui_fgcolor": { "type": "string" },
+        "upstream_group_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "downstream_group_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "upstream_task_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "downstream_task_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "edge_info": {
+      "$comment": "Metadata about DAG edges",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "label": { "type": "string" }
+          },
+          "required": ["label"],
+          "additionalProperties": false
+        }
+      }
     }
   },
 

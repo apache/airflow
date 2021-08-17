@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Objects relating to sourcing connections from environment variables
-"""
+"""Objects relating to sourcing connections from environment variables"""
 
 import os
 from typing import Optional
@@ -29,22 +27,18 @@ VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 
 
 class EnvironmentVariablesBackend(BaseSecretsBackend):
-    """
-    Retrieves Connection object from environment variable.
-    """
+    """Retrieves Connection object and Variable from environment variable."""
 
-    # pylint: disable=missing-docstring
-    def get_conn_uri(self, conn_id):
-        # type: (str) -> Optional[str]
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         return environment_uri
 
-    def get_variable(self, key):
-        # type: (str) -> Optional[str]
+    def get_variable(self, key: str) -> Optional[str]:
         """
         Get Airflow Variable from Environment Variable
 
         :param key: Variable Key
+        :type key: str
         :return: Variable Value
         """
         return os.environ.get(VAR_ENV_PREFIX + key.upper())

@@ -15,17 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.compat import MagicMock
+from typing import Optional
+from unittest import mock
 
 
 class MockDBConnection:
     def __init__(self, extra_dejson=None, *args, **kwargs):
         self.extra_dejson = extra_dejson
-        self.get_records = MagicMock(return_value=[['test_record']])
+        self.get_records = mock.MagicMock(return_value=[['test_record']])
 
         output = kwargs.get('output', ['' for _ in range(10)])
-        self.readline = MagicMock(
-            side_effect=[line.encode() for line in output])
+        self.readline = mock.MagicMock(side_effect=[line.encode() for line in output])
 
     def status(self, *args, **kwargs):
         return True
@@ -34,14 +34,13 @@ class MockDBConnection:
 class MockStdOut:
     def __init__(self, *args, **kwargs):
         output = kwargs.get('output', ['' for _ in range(10)])
-        self.readline = MagicMock(
-            side_effect=[line.encode() for line in output])
+        self.readline = mock.MagicMock(side_effect=[line.encode() for line in output])
 
 
 class MockSubProcess:
     PIPE = -1
     STDOUT = -2
-    returncode = None
+    returncode: Optional[int] = None
 
     def __init__(self, *args, **kwargs):
         self.stdout = MockStdOut(*args, **kwargs)
@@ -53,8 +52,10 @@ class MockSubProcess:
 class MockConnectionCursor:
     def __init__(self, *args, **kwargs):
         self.arraysize = None
-        self.description = [('hive_server_hook.a', 'INT_TYPE', None, None, None, None, True),
-                            ('hive_server_hook.b', 'INT_TYPE', None, None, None, None, True)]
+        self.description = [
+            ('hive_server_hook.a', 'INT_TYPE', None, None, None, None, True),
+            ('hive_server_hook.b', 'INT_TYPE', None, None, None, None, True),
+        ]
         self.iterable = [(1, 1), (2, 2)]
         self.conn_exists = kwargs.get('exists', True)
 
@@ -83,5 +84,4 @@ class MockConnectionCursor:
         return self.iterable
 
     def __iter__(self):
-        for i in self.iterable:
-            yield i
+        yield from self.iterable

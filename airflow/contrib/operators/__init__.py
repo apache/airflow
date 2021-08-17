@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,37 +16,4 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
-# Contrib operators are not imported by default. They should be accessed
-# directly: from airflow.contrib.operators.operator_module import Operator
-
-
-import sys
-import os as _os
-
-# ------------------------------------------------------------------------
-#
-# #TODO #FIXME Airflow 2.0
-#
-# Old import machinary below.
-#
-# This is deprecated but should be kept until Airflow 2.0
-# for compatibility.
-#
-# ------------------------------------------------------------------------
-_operators = {
-    'ssh_operator': ['SSHOperator'],
-    'winrm_operator': ['WinRMOperator'],
-    'vertica_operator': ['VerticaOperator'],
-    'vertica_to_hive': ['VerticaToHiveTransfer'],
-    'qubole_operator': ['QuboleOperator'],
-    'spark_submit_operator': ['SparkSubmitOperator'],
-    'file_to_wasb': ['FileToWasbOperator'],
-    'fs_operator': ['FileSensor'],
-    'hive_to_dynamodb': ['HiveToDynamoDBTransferOperator']
-}
-
-if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-    from airflow.utils.helpers import AirflowImporter
-    airflow_importer = AirflowImporter(sys.modules[__name__], _operators)
+"""This package is deprecated. Please use `airflow.operators` or `airflow.providers.*.operators`."""

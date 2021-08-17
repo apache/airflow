@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.www_rbac.security import AirflowSecurityManager
+from airflow.www.security import AirflowSecurityManager
 
 
 class MockSecurityManager(AirflowSecurityManager):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,27 +17,39 @@
 # under the License.
 
 """Unit tests for stringified DAGs."""
-from glob import glob
+
+import importlib
+import importlib.util
 import multiprocessing
 import os
 import unittest
+from datetime import datetime, timedelta, timezone
+from glob import glob
+from unittest import mock
 
-import six
-
-from tests.compat import mock
-from datetime import datetime, timedelta
-
+import pytest
+from dateutil.relativedelta import FR, relativedelta
+from kubernetes.client import models as k8s
 from parameterized import parameterized
-from dateutil.relativedelta import relativedelta, FR
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
+from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.tests import CustomOperator, CustomOpLink, GoogleLink
+from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
+executor_config_pod = k8s.V1Pod(
+    metadata=k8s.V1ObjectMeta(name="my-name"),
+    spec=k8s.V1PodSpec(
+        containers=[
+            k8s.V1Container(name="base", volume_mounts=[k8s.V1VolumeMount(name="my-vol", mount_path="/vol/")])
+        ]
+    ),
+)
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -48,15 +59,27 @@ serialized_simple_dag_ground_truth = {
             "__var": {
                 "depends_on_past": False,
                 "retries": 1,
-                "retry_delay": {
-                    "__type": "timedelta",
-                    "__var": 300.0
-                }
-            }
+                "retry_delay": {"__type": "timedelta", "__var": 300.0},
+                "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
+                "sla": {"__type": "timedelta", "__var": 100.0},
+            },
         },
         "start_date": 1564617600.0,
+        '_task_group': {
+            '_group_id': None,
+            'prefix_group_id': True,
+            'children': {'bash_task': ('operator', 'bash_task'), 'custom_task': ('operator', 'custom_task')},
+            'tooltip': '',
+            'ui_color': 'CornflowerBlue',
+            'ui_fgcolor': '#000',
+            'upstream_group_ids': [],
+            'downstream_group_ids': [],
+            'upstream_task_ids': [],
+            'downstream_task_ids': [],
+        },
         "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
+        "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "tasks": [
             {
@@ -64,33 +87,51 @@ serialized_simple_dag_ground_truth = {
                 "owner": "airflow",
                 "retries": 1,
                 "retry_delay": 300.0,
+                "max_retry_delay": 600.0,
+                "sla": 100.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_is_dummy": False,
+                "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
                 "template_fields": ['bash_command', 'env'],
+                "template_fields_renderers": {'bash_command': 'bash', 'env': 'json'},
                 "bash_command": "echo {{ task.task_id }}",
+                'label': 'bash_task',
                 "_task_type": "BashOperator",
-                "_task_module": "airflow.operators.bash_operator",
+                "_task_module": "airflow.operators.bash",
+                "pool": "default_pool",
+                "executor_config": {
+                    '__type': 'dict',
+                    '__var': {
+                        "pod_override": {
+                            '__type': 'k8s.V1Pod',
+                            '__var': PodGenerator.serialize_pod(executor_config_pod),
+                        }
+                    },
+                },
+                "doc_md": "### Task Tutorial Documentation",
             },
             {
                 "task_id": "custom_task",
                 "retries": 1,
                 "retry_delay": 300.0,
+                "max_retry_delay": 600.0,
+                "sla": 100.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
-                "_operator_extra_links": [{"airflow.utils.tests.CustomOpLink": {}}],
+                "_inlets": [],
+                "_is_dummy": False,
+                "_outlets": [],
+                "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": ['bash_command'],
+                "template_fields_renderers": {},
                 "_task_type": "CustomOperator",
-                "_task_module": "airflow.utils.tests",
+                "_task_module": "tests.test_utils.mock_operators",
+                "pool": "default_pool",
+                'label': 'custom_task',
             },
         ],
         "timezone": "UTC",
@@ -99,13 +140,12 @@ serialized_simple_dag_ground_truth = {
             "__var": {
                 "test_role": {
                     "__type": "set",
-                    "__var": [
-                        "can_dag_read",
-                        "can_dag_edit"
-                    ]
+                    "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
                 }
-            }
-        }
+            },
+        },
+        "edge_info": {},
+        "dag_dependencies": [],
     },
 }
 
@@ -127,22 +167,31 @@ def make_simple_dag():
         default_args={
             "retries": 1,
             "retry_delay": timedelta(minutes=5),
+            "max_retry_delay": timedelta(minutes=10),
             "depends_on_past": False,
+            "sla": timedelta(seconds=100),
         },
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
-        access_control={
-            "test_role": {"can_dag_read", "can_dag_edit"}
-        }
+        access_control={"test_role": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+        doc_md="### DAG Tutorial Documentation",
     ) as dag:
         CustomOperator(task_id='custom_task')
-        BashOperator(task_id='bash_task', bash_command='echo {{ task.task_id }}', owner='airflow')
-    return {'simple_dag': dag}
+        BashOperator(
+            task_id='bash_task',
+            bash_command='echo {{ task.task_id }}',
+            owner='airflow',
+            executor_config={"pod_override": executor_config_pod},
+            doc_md="### Task Tutorial Documentation",
+        )
+        return {'simple_dag': dag}
 
 
 def make_user_defined_macro_filter_dag():
-    """ Make DAGs with user defined macros and filters using locally defined methods.
+    """Make DAGs with user defined macros and filters using locally defined methods.
+
     For Webserver, we do not include ``user_defined_macros`` & ``user_defined_filters``.
+
     The examples here test:
         (1) functions can be successfully displayed on UI;
         (2) templates with function macros have been rendered before serialization.
@@ -151,21 +200,17 @@ def make_user_defined_macro_filter_dag():
     def compute_next_execution_date(dag, execution_date):
         return dag.following_schedule(execution_date)
 
-    default_args = {
-        'start_date': datetime(2019, 7, 10)
-    }
+    default_args = {'start_date': datetime(2019, 7, 10)}
     dag = DAG(
         'user_defined_macro_filter_dag',
         default_args=default_args,
         user_defined_macros={
             'next_execution_date': compute_next_execution_date,
         },
-        user_defined_filters={
-            'hello': lambda name: 'Hello %s' % name
-        },
-        catchup=False
+        user_defined_filters={'hello': lambda name: f'Hello {name}'},
+        catchup=False,
     )
-    _ = BashOperator(
+    BashOperator(
         task_id='echo',
         bash_command='echo "{{ next_execution_date(dag, execution_date) }}"',
         dag=dag,
@@ -187,10 +232,11 @@ def collect_dags(dag_folder=None):
     else:
         patterns = [
             "airflow/example_dags",
-            "airflow/contrib/example_dags",
+            "airflow/providers/*/example_dags",
+            "airflow/providers/*/*/example_dags",
         ]
     for pattern in patterns:
-        for directory in glob(ROOT_FOLDER + "/" + pattern):
+        for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
             dags.update(make_example_dags(directory))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
@@ -210,17 +256,22 @@ class TestStringifiedDAGs(unittest.TestCase):
     """Unit tests for stringified DAGs."""
 
     def setUp(self):
+        super().setUp()
         BaseHook.get_connection = mock.Mock(
             return_value=Connection(
-                extra=('{'
-                       '"project_id": "mock", '
-                       '"location": "mock", '
-                       '"instance": "mock", '
-                       '"database_type": "postgres", '
-                       '"use_proxy": "False", '
-                       '"use_ssl": "False"'
-                       '}')))
-        self.maxDiff = None  # pylint: disable=invalid-name
+                extra=(
+                    '{'
+                    '"project_id": "mock", '
+                    '"location": "mock", '
+                    '"instance": "mock", '
+                    '"database_type": "postgres", '
+                    '"use_proxy": "False", '
+                    '"use_ssl": "False"'
+                    '}'
+                )
+            )
+        )
+        self.maxDiff = None
 
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
@@ -232,26 +283,21 @@ class TestStringifiedDAGs(unittest.TestCase):
             serialized_dags[v.dag_id] = dag
 
         # Compares with the ground truth of JSON string.
-        self.validate_serialized_dag(
-            serialized_dags['simple_dag'],
-            serialized_simple_dag_ground_truth)
+        self.validate_serialized_dag(serialized_dags['simple_dag'], serialized_simple_dag_ground_truth)
 
     def validate_serialized_dag(self, json_dag, ground_truth_dag):
         """Verify serialized DAGs match the ground truth."""
-
-        self.assertTrue(
-            json_dag['dag']['fileloc'].split('/')[-1] == 'test_dag_serialization.py')
+        assert json_dag['dag']['fileloc'].split('/')[-1] == 'test_dag_serialization.py'
         json_dag['dag']['fileloc'] = None
 
-        def sorted_serialized_dag(dag_dict):
+        def sorted_serialized_dag(dag_dict: dict):
             """
             Sorts the "tasks" list and "access_control" permissions in the
             serialised dag python dictionary. This is needed as the order of
             items should not matter but assertEqual would fail if the order of
             items changes in the dag dictionary
             """
-            dag_dict["dag"]["tasks"] = sorted(dag_dict["dag"]["tasks"],
-                                              key=lambda x: sorted(x.keys()))
+            dag_dict["dag"]["tasks"] = sorted(dag_dict["dag"]["tasks"], key=lambda x: sorted(x.keys()))
             dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"] = sorted(
                 dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"]
             )
@@ -266,8 +312,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         # and once here to get a DAG to compare to) we don't want to load all
         # dags.
         queue = multiprocessing.Queue()
-        proc = multiprocessing.Process(
-            target=serialize_subprocess, args=(queue, "airflow/example_dags"))
+        proc = multiprocessing.Process(target=serialize_subprocess, args=(queue, "airflow/example_dags"))
         proc.daemon = True
         proc.start()
 
@@ -277,7 +322,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             if v is None:
                 break
             dag = SerializedDAG.from_json(v)
-            self.assertTrue(isinstance(dag, DAG))
+            assert isinstance(dag, DAG)
             stringified_dags[dag.dag_id] = dag
 
         dags = collect_dags("airflow/example_dags")
@@ -288,10 +333,12 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
     def test_roundtrip_provider_example_dags(self):
-        dags = collect_dags([
-            "airflow/providers/*/example_dags",
-            "airflow/providers/*/*/example_dags",
-        ])
+        dags = collect_dags(
+            [
+                "airflow/providers/*/example_dags",
+                "airflow/providers/*/*/example_dags",
+            ]
+        )
 
         # Verify deserialized DAGs.
         for dag in dags.values():
@@ -306,22 +353,24 @@ class TestStringifiedDAGs(unittest.TestCase):
         fields_to_check = dag.get_serialized_fields() - {
             # Doesn't implement __eq__ properly. Check manually
             'timezone',
-
             # Need to check fields in it, to exclude functions
             'default_args',
+            "_task_group",
         }
         for field in fields_to_check:
-            assert getattr(serialized_dag, field) == getattr(dag, field), \
-                '{}.{} does not match'.format(dag.dag_id, field)
+            assert getattr(serialized_dag, field) == getattr(
+                dag, field
+            ), f'{dag.dag_id}.{field} does not match'
 
         if dag.default_args:
             for k, v in dag.default_args.items():
                 if callable(v):
-                    # Check we stored _someting_.
+                    # Check we stored _something_.
                     assert k in serialized_dag.default_args
                 else:
-                    assert v == serialized_dag.default_args[k], \
-                        '{}.default_args[{}] does not match'.format(dag.dag_id, k)
+                    assert (
+                        v == serialized_dag.default_args[k]
+                    ), f'{dag.dag_id}.default_args[{k}] does not match'
 
         assert serialized_dag.timezone.name == dag.timezone.name
 
@@ -332,7 +381,11 @@ class TestStringifiedDAGs(unittest.TestCase):
         # and is equal to fileloc
         assert serialized_dag.full_filepath == dag.fileloc
 
-    def validate_deserialized_task(self, serialized_task, task,):
+    def validate_deserialized_task(
+        self,
+        serialized_task,
+        task,
+    ):
         """Verify non-airflow operators are casted to BaseOperator."""
         assert isinstance(serialized_task, SerializedBaseOperator)
         assert not isinstance(task, SerializedBaseOperator)
@@ -340,17 +393,16 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         fields_to_check = task.get_serialized_fields() - {
             # Checked separately
-            '_task_type', 'subdag',
-
-            # Type is exluded, so don't check it
+            '_task_type',
+            'subdag',
+            # Type is excluded, so don't check it
             '_log',
-
             # List vs tuple. Check separately
             'template_fields',
-
             # We store the string, real dag has the actual code
-            'on_failure_callback', 'on_success_callback', 'on_retry_callback',
-
+            'on_failure_callback',
+            'on_success_callback',
+            'on_retry_callback',
             # Checked separately
             'resources',
         }
@@ -362,8 +414,9 @@ class TestStringifiedDAGs(unittest.TestCase):
         assert serialized_task.downstream_task_ids == task.downstream_task_ids
 
         for field in fields_to_check:
-            assert getattr(serialized_task, field) == getattr(task, field), \
-                '{}.{}.{} does not match'.format(task.dag.dag_id, task.task_id, field)
+            assert getattr(serialized_task, field) == getattr(
+                task, field
+            ), f'{task.dag.dag_id}.{task.task_id}.{field} does not match'
 
         if serialized_task.resources is None:
             assert task.resources is None or task.resources == []
@@ -378,15 +431,22 @@ class TestStringifiedDAGs(unittest.TestCase):
         else:
             assert serialized_task.subdag is None
 
-    @parameterized.expand([
-        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 2)),
-        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 8, 1)),
-    ])
-    def test_deserialization_start_date(self,
-                                        dag_start_date,
-                                        task_start_date,
-                                        expected_task_start_date):
+    @parameterized.expand(
+        [
+            (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+            (
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+                datetime(2019, 8, 2, tzinfo=timezone.utc),
+                datetime(2019, 8, 2, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+                datetime(2019, 7, 30, tzinfo=timezone.utc),
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+            ),
+        ]
+    )
+    def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
         dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
         BaseOperator(task_id='simple_task', dag=dag, start_date=task_start_date)
 
@@ -394,45 +454,59 @@ class TestStringifiedDAGs(unittest.TestCase):
         if not task_start_date or dag_start_date >= task_start_date:
             # If dag.start_date > task.start_date -> task.start_date=dag.start_date
             # because of the logic in dag.add_task()
-            self.assertNotIn("start_date", serialized_dag["dag"]["tasks"][0])
+            assert "start_date" not in serialized_dag["dag"]["tasks"][0]
         else:
-            self.assertIn("start_date", serialized_dag["dag"]["tasks"][0])
+            assert "start_date" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
-        self.assertEqual(simple_task.start_date, expected_task_start_date)
+        assert simple_task.start_date == expected_task_start_date
 
-    @parameterized.expand([
-        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 1)),
-        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 7, 30)),
-    ])
-    def test_deserialization_end_date(self,
-                                      dag_end_date,
-                                      task_end_date,
-                                      expected_task_end_date):
-        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1),
-                  end_date=dag_end_date)
+    def test_deserialization_with_dag_context(self):
+        with DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1, tzinfo=timezone.utc)) as dag:
+            BaseOperator(task_id='simple_task')
+            # should not raise RuntimeError: dictionary changed size during iteration
+            SerializedDAG.to_dict(dag)
+
+    @parameterized.expand(
+        [
+            (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+            (
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+                datetime(2019, 8, 2, tzinfo=timezone.utc),
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+            ),
+            (
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+                datetime(2019, 7, 30, tzinfo=timezone.utc),
+                datetime(2019, 7, 30, tzinfo=timezone.utc),
+            ),
+        ]
+    )
+    def test_deserialization_end_date(self, dag_end_date, task_end_date, expected_task_end_date):
+        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1), end_date=dag_end_date)
         BaseOperator(task_id='simple_task', dag=dag, end_date=task_end_date)
 
         serialized_dag = SerializedDAG.to_dict(dag)
         if not task_end_date or dag_end_date <= task_end_date:
             # If dag.end_date < task.end_date -> task.end_date=dag.end_date
             # because of the logic in dag.add_task()
-            self.assertNotIn("end_date", serialized_dag["dag"]["tasks"][0])
+            assert "end_date" not in serialized_dag["dag"]["tasks"][0]
         else:
-            self.assertIn("end_date", serialized_dag["dag"]["tasks"][0])
+            assert "end_date" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
-        self.assertEqual(simple_task.end_date, expected_task_end_date)
+        assert simple_task.end_date == expected_task_end_date
 
-    @parameterized.expand([
-        (None, None, None),
-        ("@weekly", "@weekly", "0 0 * * 0"),
-        ("@once", "@once", None),
-        ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1), timedelta(days=1)),
-    ])
+    @parameterized.expand(
+        [
+            (None, None, None),
+            ("@weekly", "@weekly", "0 0 * * 0"),
+            ("@once", "@once", None),
+            ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1), timedelta(days=1)),
+        ]
+    )
     def test_deserialization_schedule_interval(
         self, serialized_schedule_interval, expected_schedule_interval, expected_n_schedule_interval
     ):
@@ -452,28 +526,32 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         dag = SerializedDAG.from_dict(serialized)
 
-        self.assertEqual(dag.schedule_interval, expected_schedule_interval)
-        self.assertEqual(dag.normalized_schedule_interval, expected_n_schedule_interval)
+        assert dag.schedule_interval == expected_schedule_interval
+        assert dag.normalized_schedule_interval == expected_n_schedule_interval
 
-    @parameterized.expand([
-        (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
-        (relativedelta(month=1, days=-1), {"__type": "relativedelta", "__var": {"month": 1, "days": -1}}),
-        # Every friday
-        (relativedelta(weekday=FR), {"__type": "relativedelta", "__var": {"weekday": [4]}}),
-        # Every second friday
-        (relativedelta(weekday=FR(2)), {"__type": "relativedelta", "__var": {"weekday": [4, 2]}})
-    ])
+    @parameterized.expand(
+        [
+            (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
+            (relativedelta(month=1, days=-1), {"__type": "relativedelta", "__var": {"month": 1, "days": -1}}),
+            # Every friday
+            (relativedelta(weekday=FR), {"__type": "relativedelta", "__var": {"weekday": [4]}}),
+            # Every second friday
+            (relativedelta(weekday=FR(2)), {"__type": "relativedelta", "__var": {"weekday": [4, 2]}}),
+        ]
+    )
     def test_roundtrip_relativedelta(self, val, expected):
         serialized = SerializedDAG._serialize(val)
-        self.assertDictEqual(serialized, expected)
+        assert serialized == expected
 
         round_tripped = SerializedDAG._deserialize(serialized)
-        self.assertEqual(val, round_tripped)
+        assert val == round_tripped
 
-    @parameterized.expand([
-        (None, {}),
-        ({"param_1": "value_1"}, {"param_1": "value_1"}),
-    ])
+    @parameterized.expand(
+        [
+            (None, {}),
+            ({"param_1": "value_1"}, {"param_1": "value_1"}),
+        ]
+    )
     def test_dag_params_roundtrip(self, val, expected_val):
         """
         Test that params work both on Serialized DAGs & Tasks
@@ -483,36 +561,37 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         serialized_dag = SerializedDAG.to_dict(dag)
         if val:
-            self.assertIn("params", serialized_dag["dag"])
+            assert "params" in serialized_dag["dag"]
         else:
-            self.assertNotIn("params", serialized_dag["dag"])
+            assert "params" not in serialized_dag["dag"]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
-        self.assertEqual(expected_val, deserialized_dag.params)
-        self.assertEqual(expected_val, deserialized_simple_task.params)
+        assert expected_val == deserialized_dag.params
+        assert expected_val == deserialized_simple_task.params
 
-    @parameterized.expand([
-        (None, {}),
-        ({"param_1": "value_1"}, {"param_1": "value_1"}),
-    ])
+    @parameterized.expand(
+        [
+            (None, {}),
+            ({"param_1": "value_1"}, {"param_1": "value_1"}),
+        ]
+    )
     def test_task_params_roundtrip(self, val, expected_val):
         """
         Test that params work both on Serialized DAGs & Tasks
         """
         dag = DAG(dag_id='simple_dag')
-        BaseOperator(task_id='simple_task', dag=dag, params=val,
-                     start_date=datetime(2019, 8, 1))
+        BaseOperator(task_id='simple_task', dag=dag, params=val, start_date=datetime(2019, 8, 1))
 
         serialized_dag = SerializedDAG.to_dict(dag)
         if val:
-            self.assertIn("params", serialized_dag["dag"]["tasks"][0])
+            assert "params" in serialized_dag["dag"]["tasks"][0]
         else:
-            self.assertNotIn("params", serialized_dag["dag"]["tasks"][0])
+            assert "params" not in serialized_dag["dag"]["tasks"][0]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
-        self.assertEqual(expected_val, deserialized_simple_task.params)
+        assert expected_val == deserialized_simple_task.params
 
     def test_extra_serialized_field_and_operator_links(self):
         """
@@ -531,36 +610,34 @@ class TestStringifiedDAGs(unittest.TestCase):
         CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
 
         serialized_dag = SerializedDAG.to_dict(dag)
-        self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
+        assert "bash_command" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
-        self.assertEqual(getattr(simple_task, "bash_command"), "true")
+        assert getattr(simple_task, "bash_command") == "true"
 
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
         # Check Serialized version of operator link only contains the inbuilt Op Link
-        self.assertEqual(
-            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
-            [{'airflow.utils.tests.CustomOpLink': {}}]
-        )
+        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+            {'tests.test_utils.mock_operators.CustomOpLink': {}}
+        ]
 
         # Test all the extra_links are set
-        six.assertCountEqual(self, simple_task.extra_links, ['Google Custom', 'airflow', 'github', 'google'])
+        assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
         ti = TaskInstance(task=simple_task, execution_date=test_date)
         ti.xcom_push('search_query', "dummy_value_1")
 
         # Test Deserialized inbuilt link
         custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
-        self.assertEqual('http://google.com/custom_base_link?search=dummy_value_1', custom_inbuilt_link)
+        assert 'http://google.com/custom_base_link?search=dummy_value_1' == custom_inbuilt_link
 
         # Test Deserialized link registered via Airflow Plugin
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
-        self.assertEqual("https://www.google.com", google_link_from_plugin)
+        assert "https://www.google.com" == google_link_from_plugin
 
-    @unittest.skipIf(six.PY2, 'self.assertLogs not available for Python 2')
     def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
@@ -569,6 +646,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         class TaskStateLink(BaseOperatorLink):
             """OperatorLink not registered via Plugins nor a built-in OperatorLink"""
+
             name = 'My Link'
 
             def get_link(self, operator, dttm):
@@ -576,6 +654,7 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         class MyOperator(BaseOperator):
             """Just a DummyOperator using above defined Extra Operator Link"""
+
             operator_extra_links = [TaskStateLink()]
 
             def execute(self, context):
@@ -612,42 +691,44 @@ class TestStringifiedDAGs(unittest.TestCase):
         CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
 
         serialized_dag = SerializedDAG.to_dict(dag)
-        self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
+        assert "bash_command" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
-        self.assertEqual(getattr(simple_task, "bash_command"), ["echo", "true"])
+        assert getattr(simple_task, "bash_command") == ["echo", "true"]
 
         #########################################################
         # Verify Operator Links work with Serialized Operator
         #########################################################
         # Check Serialized version of operator link only contains the inbuilt Op Link
-        self.assertEqual(
-            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
-            [
-                {'airflow.utils.tests.CustomBaseIndexOpLink': {'index': 0}},
-                {'airflow.utils.tests.CustomBaseIndexOpLink': {'index': 1}},
-            ]
-        )
+        assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == [
+            {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 0}},
+            {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 1}},
+        ]
 
         # Test all the extra_links are set
-        six.assertCountEqual(self, simple_task.extra_links, [
-            'BigQuery Console #1', 'BigQuery Console #2', 'airflow', 'github', 'google'])
+        assert set(simple_task.extra_links) == {
+            'BigQuery Console #1',
+            'BigQuery Console #2',
+            'airflow',
+            'github',
+            'google',
+        }
 
         ti = TaskInstance(task=simple_task, execution_date=test_date)
         ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
 
         # Test Deserialized inbuilt link #1
         custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
-        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_1', custom_inbuilt_link)
+        assert 'https://console.cloud.google.com/bigquery?j=dummy_value_1' == custom_inbuilt_link
 
         # Test Deserialized inbuilt link #2
         custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #2")
-        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_2', custom_inbuilt_link)
+        assert 'https://console.cloud.google.com/bigquery?j=dummy_value_2' == custom_inbuilt_link
 
         # Test Deserialized link registered via Airflow Plugin
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
-        self.assertEqual("https://www.google.com", google_link_from_plugin)
+        assert "https://www.google.com" == google_link_from_plugin
 
     class ClassWithCustomAttributes:
         """
@@ -659,7 +740,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 setattr(self, key, value)
 
         def __str__(self):
-            return "{}({})".format(self.__class__.__name__, str(sorted(self.__dict__)))
+            return f"{self.__class__.__name__}({str(self.__dict__)})"
 
         def __repr__(self):
             return self.__str__()
@@ -670,44 +751,48 @@ class TestStringifiedDAGs(unittest.TestCase):
         def __ne__(self, other):
             return not self.__eq__(other)
 
-    @parameterized.expand([
-        (None, None),
-        ([], []),
-        ({}, {}),
-        ("{{ task.task_id }}", "{{ task.task_id }}"),
-        (["{{ task.task_id }}", "{{ task.task_id }}"]),
-        ({"foo": "{{ task.task_id }}"}, {"foo": "{{ task.task_id }}"}),
-        ({"foo": {"bar": "{{ task.task_id }}"}}, {"foo": {"bar": "{{ task.task_id }}"}}),
-        (
-            [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
-            [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
-        ),
-        (
-            {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}},
-            {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}}),
-        (
-            ClassWithCustomAttributes(
-                att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]),
-            str(ClassWithCustomAttributes(
-                att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]))
-        ),
-        (
-            ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="{{ task.task_id }}",
-                                                                        att2="{{ task.task_id }}",
-                                                                        template_fields=["att1"]),
-                                      nested2=ClassWithCustomAttributes(att3="{{ task.task_id }}",
-                                                                        att4="{{ task.task_id }}",
-                                                                        template_fields=["att3"]),
-                                      template_fields=["nested1"]),
-            str(ClassWithCustomAttributes(nested1=ClassWithCustomAttributes(att1="{{ task.task_id }}",
-                                                                            att2="{{ task.task_id }}",
-                                                                            template_fields=["att1"]),
-                                          nested2=ClassWithCustomAttributes(att3="{{ task.task_id }}",
-                                                                            att4="{{ task.task_id }}",
-                                                                            template_fields=["att3"]),
-                                          template_fields=["nested1"]))
-        ),
-    ])
+    @parameterized.expand(
+        [
+            (None, None),
+            ([], []),
+            ({}, {}),
+            ("{{ task.task_id }}", "{{ task.task_id }}"),
+            (["{{ task.task_id }}", "{{ task.task_id }}"]),
+            ({"foo": "{{ task.task_id }}"}, {"foo": "{{ task.task_id }}"}),
+            ({"foo": {"bar": "{{ task.task_id }}"}}, {"foo": {"bar": "{{ task.task_id }}"}}),
+            (
+                [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
+                [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
+            ),
+            (
+                {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}},
+                {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}},
+            ),
+            (
+                ClassWithCustomAttributes(
+                    att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
+                ),
+                "ClassWithCustomAttributes("
+                "{'att1': '{{ task.task_id }}', 'att2': '{{ task.task_id }}', 'template_fields': ['att1']})",
+            ),
+            (
+                ClassWithCustomAttributes(
+                    nested1=ClassWithCustomAttributes(
+                        att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
+                    ),
+                    nested2=ClassWithCustomAttributes(
+                        att3="{{ task.task_id }}", att4="{{ task.task_id }}", template_fields=["att3"]
+                    ),
+                    template_fields=["nested1"],
+                ),
+                "ClassWithCustomAttributes("
+                "{'nested1': ClassWithCustomAttributes({'att1': '{{ task.task_id }}', "
+                "'att2': '{{ task.task_id }}', 'template_fields': ['att1']}), "
+                "'nested2': ClassWithCustomAttributes({'att3': '{{ task.task_id }}', 'att4': "
+                "'{{ task.task_id }}', 'template_fields': ['att3']}), 'template_fields': ['nested1']})",
+            ),
+        ]
+    )
     def test_templated_fields_exist_in_serialized_dag(self, templated_field, expected_field):
         """
         Test that templated_fields exists for all Operators in Serialized DAG
@@ -723,27 +808,34 @@ class TestStringifiedDAGs(unittest.TestCase):
         serialized_dag = SerializedDAG.to_dict(dag)
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_test_task = deserialized_dag.task_dict["test"]
-        self.assertEqual(expected_field, getattr(deserialized_test_task, "bash_command"))
+        assert expected_field == getattr(deserialized_test_task, "bash_command")
 
     def test_dag_serialized_fields_with_schema(self):
         """
         Additional Properties are disabled on DAGs. This test verifies that all the
         keys in DAG.get_serialized_fields are listed in Schema definition.
         """
-        dag_schema = load_dag_schema_dict()["definitions"]["dag"]["properties"]
+        dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
 
         # The parameters we add manually in Serialization needs to be ignored
-        ignored_keys = {"is_subdag", "tasks"}
-        dag_params = set(dag_schema.keys()) - ignored_keys
-        self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
+        ignored_keys: set = {
+            "is_subdag",
+            "tasks",
+            "has_on_success_callback",
+            "has_on_failure_callback",
+            "dag_dependencies",
+        }
+        dag_params: set = set(dag_schema.keys()) - ignored_keys
+        assert set(DAG.get_serialized_fields()) == dag_params
 
     def test_operator_subclass_changing_base_defaults(self):
-        assert BaseOperator(task_id='dummy').do_xcom_push is True, \
-            "Precondition check! If this fails the test won't make sense"
+        assert (
+            BaseOperator(task_id='dummy').do_xcom_push is True
+        ), "Precondition check! If this fails the test won't make sense"
 
         class MyOperator(BaseOperator):
             def __init__(self, do_xcom_push=False, **kwargs):
-                super(MyOperator, self).__init__(**kwargs)
+                super().__init__(**kwargs)
                 self.do_xcom_push = do_xcom_push
 
         op = MyOperator(task_id='dummy')
@@ -761,47 +853,55 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         base_operator = BaseOperator(task_id="10")
         fields = base_operator.__dict__
-        self.assertEqual({'_downstream_task_ids': set(),
-                          '_inlets': {"auto": False, "datasets": [], "task_ids": []},
-                          '_log': base_operator.log,
-                          '_outlets': {'datasets': []},
-                          '_schedule_interval': None,
-                          '_upstream_task_ids': set(),
-                          'depends_on_past': False,
-                          'do_xcom_push': True,
-                          'email': None,
-                          'email_on_failure': True,
-                          'email_on_retry': True,
-                          'end_date': None,
-                          'execution_timeout': None,
-                          'executor_config': {},
-                          'inlets': [],
-                          'lineage_data': None,
-                          'max_retry_delay': None,
-                          'on_failure_callback': None,
-                          'on_retry_callback': None,
-                          'on_success_callback': None,
-                          'outlets': [],
-                          'owner': 'airflow',
-                          'params': {},
-                          'pool': 'default_pool',
-                          'pool_slots': 1,
-                          'priority_weight': 1,
-                          'queue': 'default',
-                          'resources': None,
-                          'retries': 0,
-                          'retry_delay': timedelta(0, 300),
-                          'retry_exponential_backoff': False,
-                          'run_as_user': None,
-                          'sla': None,
-                          'start_date': None,
-                          'subdag': None,
-                          'task_concurrency': None,
-                          'task_id': '10',
-                          'trigger_rule': 'all_success',
-                          'wait_for_downstream': False,
-                          'weight_rule': 'downstream'}, fields,
-                         """
+        assert {
+            '_BaseOperator__instantiated': True,
+            '_dag': None,
+            '_downstream_task_ids': set(),
+            '_inlets': [],
+            '_log': base_operator.log,
+            '_outlets': [],
+            '_upstream_task_ids': set(),
+            'depends_on_past': False,
+            'do_xcom_push': True,
+            'doc': None,
+            'doc_json': None,
+            'doc_md': None,
+            'doc_rst': None,
+            'doc_yaml': None,
+            'email': None,
+            'email_on_failure': True,
+            'email_on_retry': True,
+            'end_date': None,
+            'execution_timeout': None,
+            'executor_config': {},
+            'inlets': [],
+            'label': '10',
+            'max_retry_delay': None,
+            'on_execute_callback': None,
+            'on_failure_callback': None,
+            'on_retry_callback': None,
+            'on_success_callback': None,
+            'outlets': [],
+            'owner': 'airflow',
+            'params': {},
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 1,
+            'queue': 'default',
+            'resources': None,
+            'retries': 0,
+            'retry_delay': timedelta(0, 300),
+            'retry_exponential_backoff': False,
+            'run_as_user': None,
+            'sla': None,
+            'start_date': None,
+            'subdag': None,
+            'task_concurrency': None,
+            'task_id': '10',
+            'trigger_rule': 'all_success',
+            'wait_for_downstream': False,
+            'weight_rule': 'downstream',
+        } == fields, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY
@@ -814,8 +914,237 @@ class TestStringifiedDAGs(unittest.TestCase):
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                          """
-                         )
+
+    def test_task_group_serialization(self):
+        """
+        Test TaskGroup serialization/deserialization.
+        """
+        from airflow.operators.dummy import DummyOperator
+        from airflow.utils.task_group import TaskGroup
+
+        execution_date = datetime(2020, 1, 1)
+        with DAG("test_task_group_serialization", start_date=execution_date) as dag:
+            task1 = DummyOperator(task_id="task1")
+            with TaskGroup("group234") as group234:
+                _ = DummyOperator(task_id="task2")
+
+                with TaskGroup("group34") as group34:
+                    _ = DummyOperator(task_id="task3")
+                    _ = DummyOperator(task_id="task4")
+
+            task5 = DummyOperator(task_id="task5")
+            task1 >> group234
+            group34 >> task5
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+
+        assert serialized_dag.task_group.children
+        assert serialized_dag.task_group.children.keys() == dag.task_group.children.keys()
+
+        def check_task_group(node):
+            try:
+                children = node.children.values()
+            except AttributeError:
+                # Round-trip serialization and check the result
+                expected_serialized = SerializedBaseOperator.serialize_operator(dag.get_task(node.task_id))
+                expected_deserialized = SerializedBaseOperator.deserialize_operator(expected_serialized)
+                expected_dict = SerializedBaseOperator.serialize_operator(expected_deserialized)
+                assert node
+                assert SerializedBaseOperator.serialize_operator(node) == expected_dict
+                return
+
+            for child in children:
+                check_task_group(child)
+
+        check_task_group(serialized_dag.task_group)
+
+    def test_edge_info_serialization(self):
+        """
+        Tests edge_info serialization/deserialization.
+        """
+        from airflow.operators.dummy import DummyOperator
+        from airflow.utils.edgemodifier import Label
+
+        with DAG("test_edge_info_serialization", start_date=datetime(2020, 1, 1)) as dag:
+            task1 = DummyOperator(task_id="task1")
+            task2 = DummyOperator(task_id="task2")
+            task1 >> Label("test label") >> task2
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+
+        assert serialized_dag.edge_info == dag.edge_info
+
+    @parameterized.expand(
+        [
+            ("poke", False),
+            ("reschedule", True),
+        ]
+    )
+    def test_serialize_sensor(self, mode, expect_custom_deps):
+        from airflow.sensors.base import BaseSensorOperator
+
+        class DummySensor(BaseSensorOperator):
+            def poke(self, context):
+                return False
+
+        op = DummySensor(task_id='dummy', mode=mode, poke_interval=23)
+
+        blob = SerializedBaseOperator.serialize_operator(op)
+
+        if expect_custom_deps:
+            assert "deps" in blob
+        else:
+            assert "deps" not in blob
+
+        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+
+        assert op.deps == serialized_op.deps
+
+    @parameterized.expand(
+        [
+            ({"on_success_callback": lambda x: print("hi")}, True),
+            ({}, False),
+        ]
+    )
+    def test_dag_on_success_callback_roundtrip(self, passed_success_callback, expected_value):
+        """
+        Test that when on_success_callback is passed to the DAG, has_on_success_callback is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_on_success_callback is set to True.
+
+        When the callback is not set, has_on_success_callback should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        dag = DAG(dag_id='test_dag_on_success_callback_roundtrip', **passed_success_callback)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if expected_value:
+            assert "has_on_success_callback" in serialized_dag["dag"]
+        else:
+            assert "has_on_success_callback" not in serialized_dag["dag"]
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        assert deserialized_dag.has_on_success_callback is expected_value
+
+    @parameterized.expand(
+        [
+            ({"on_failure_callback": lambda x: print("hi")}, True),
+            ({}, False),
+        ]
+    )
+    def test_dag_on_failure_callback_roundtrip(self, passed_failure_callback, expected_value):
+        """
+        Test that when on_failure_callback is passed to the DAG, has_on_failure_callback is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_on_failure_callback is set to True.
+
+        When the callback is not set, has_on_failure_callback should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        dag = DAG(dag_id='test_dag_on_failure_callback_roundtrip', **passed_failure_callback)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if expected_value:
+            assert "has_on_failure_callback" in serialized_dag["dag"]
+        else:
+            assert "has_on_failure_callback" not in serialized_dag["dag"]
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+
+        assert deserialized_dag.has_on_failure_callback is expected_value
+
+    @parameterized.expand(
+        [
+            (
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+            ),
+            (
+                {'task_1', 'task_5', 'task_2', 'task_4'},
+                ['task_1', 'task_2', 'task_4', 'task_5'],
+            ),
+            (
+                ('task_1', 'task_5', 'task_2', 'task_4'),
+                ['task_1', 'task_5', 'task_2', 'task_4'],
+            ),
+            (
+                {
+                    "staging_schema": [
+                        {"key:": "foo", "value": "bar"},
+                        {"key:": "this", "value": "that"},
+                        "test_conf",
+                    ]
+                },
+                {
+                    "staging_schema": [
+                        {"__type": "dict", "__var": {"key:": "foo", "value": "bar"}},
+                        {
+                            "__type": "dict",
+                            "__var": {"key:": "this", "value": "that"},
+                        },
+                        "test_conf",
+                    ]
+                },
+            ),
+            (
+                {"task3": "test3", "task2": "test2", "task1": "test1"},
+                {"task1": "test1", "task2": "test2", "task3": "test3"},
+            ),
+            (
+                ('task_1', 'task_5', 'task_2', 3, ["x", "y"]),
+                ['task_1', 'task_5', 'task_2', 3, ["x", "y"]],
+            ),
+        ]
+    )
+    def test_serialized_objects_are_sorted(self, object_to_serialized, expected_output):
+        """Test Serialized Sets are sorted while list and tuple preserve order"""
+        serialized_obj = SerializedDAG._serialize(object_to_serialized)
+        if isinstance(serialized_obj, dict) and "__type" in serialized_obj:
+            serialized_obj = serialized_obj["__var"]
+        assert serialized_obj == expected_output
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_kubernetes_optional():
+    """Serialisation / deserialisation continues to work without kubernetes installed"""
+
+    def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
+        if level == 0 and name.partition('.')[0] == 'kubernetes':
+            raise ImportError("No module named 'kubernetes'")
+        return importlib.__import__(name, globals=globals_, locals=locals_, fromlist=fromlist, level=level)
+
+    with mock.patch('builtins.__import__', side_effect=mock__import__) as import_mock:
+        # load module from scratch, this does not replace any already imported
+        # airflow.serialization.serialized_objects module in sys.modules
+        spec = importlib.util.find_spec("airflow.serialization.serialized_objects")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        # if we got this far, the module did not try to load kubernetes, but
+        # did it try to access airflow.kubernetes.*?
+        imported_airflow = {
+            c.args[0].split('.', 2)[1] for c in import_mock.call_args_list if c.args[0].startswith("airflow.")
+        }
+        assert "kubernetes" not in imported_airflow
+
+        # pod loading is not supported when kubernetes is not available
+        pod_override = {
+            '__type': 'k8s.V1Pod',
+            '__var': PodGenerator.serialize_pod(executor_config_pod),
+        }
+
+        with pytest.raises(RuntimeError):
+            module.BaseSerialization.from_dict(pod_override)
+
+        # basic serialization should succeed
+        module.SerializedDAG.to_dict(make_simple_dag()["simple_dag"])

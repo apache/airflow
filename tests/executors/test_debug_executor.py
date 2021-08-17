@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.compat import MagicMock, mock
+from unittest import mock
+from unittest.mock import MagicMock
 
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.utils.state import State
@@ -36,7 +37,7 @@ class TestDebugExecutor:
         assert not executor.tasks_to_run
         run_task_mock.assert_has_calls([mock.call(ti1), mock.call(ti2)])
 
-    @mock.patch("airflow.models.TaskInstance")
+    @mock.patch("airflow.executors.debug_executor.TaskInstance")
     def test_run_task(self, task_instance_mock):
         ti_key = "key"
         job_id = " job_id"
@@ -44,7 +45,7 @@ class TestDebugExecutor:
         task_instance_mock.job_id = job_id
 
         executor = DebugExecutor()
-        executor.running = {ti_key: task_instance_mock}
+        executor.running = {ti_key}
         succeeded = executor._run_task(task_instance_mock)
 
         assert succeeded
@@ -85,7 +86,7 @@ class TestDebugExecutor:
 
         executor = DebugExecutor()
         executor.tasks_to_run = [ti]
-        executor.running = {ti.key: mock.MagicMock}
+        executor.running = {ti.key}
         executor.end()
 
         ti.set_state.assert_called_once_with(State.UPSTREAM_FAILED)

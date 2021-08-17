@@ -22,9 +22,18 @@ codebase easier.
 """
 
 try:
-    # Protocol is only added to typing module starting from python 3.8
-    # we can safely remove this shim import after Airflow drops support for
-    # <3.8
-    from typing import Protocol  # noqa # pylint: disable=unused-import
+    # Protocol and TypedDict are only added to typing module starting from
+    # python 3.8 we can safely remove this shim import after Airflow drops
+    # support for <3.8
+    from typing import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore
 except ImportError:
-    from typing_extensions import Protocol  # type: ignore # noqa
+    from typing_extensions import Literal, Protocol, TypedDict, runtime_checkable  # type: ignore # noqa
+
+
+# Before Py 3.7, there is no re.Pattern class
+try:
+    from re import Pattern as RePatternType  # type: ignore
+except ImportError:
+    import re
+
+    RePatternType = type(re.compile('', 0))

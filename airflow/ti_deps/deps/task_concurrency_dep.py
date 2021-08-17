@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,15 +17,14 @@
 # under the License.
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class TaskConcurrencyDep(BaseTIDep):
-    """
-    This restricts the number of running task instances for a particular task.
-    """
+    """This restricts the number of running task instances for a particular task."""
+
     NAME = "Task Concurrency"
-    IGNOREABLE = True
+    IGNORABLE = True
     IS_TASK_DEP = True
 
     @provide_session
@@ -36,10 +34,8 @@ class TaskConcurrencyDep(BaseTIDep):
             return
 
         if ti.get_num_running_task_instances(session) >= ti.task.task_concurrency:
-            yield self._failing_status(reason="The max task concurrency "
-                                              "has been reached.")
+            yield self._failing_status(reason="The max task concurrency has been reached.")
             return
         else:
-            yield self._passing_status(reason="The max task concurrency "
-                                              "has not been reached.")
+            yield self._passing_status(reason="The max task concurrency has not been reached.")
             return

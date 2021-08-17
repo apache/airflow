@@ -15,10 +15,48 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
+import inspect
+import os
+from typing import Any, Optional
 
-def prepare_code_snippet(file_path, line_no, context_lines_count=5):
+from pygments.formatters.terminal import TerminalFormatter
+from pygments.formatters.terminal256 import Terminal256Formatter
+
+
+def get_python_source(x: Any) -> Optional[str]:
+    """Helper function to get Python source (or not), preventing exceptions"""
+    if isinstance(x, str):
+        return x
+
+    if x is None:
+        return None
+
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = f'No source code available for {type(x)}'
+    return source_code
+
+
+def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
     """
-    Prepare code snippet with line numbers and a specific line marked.
+    Prepare code snippet with line numbers and  a specific line marked.
 
     :param file_path: File nam
     :param line_no: Line number
@@ -31,8 +69,7 @@ def prepare_code_snippet(file_path, line_no, context_lines_count=5):
         code_lines = code.split("\n")
         # Prepend line number
         code_lines = [
-            ">{lno:3} | {line}".format(lno=lno, line=line)
-            if line_no == lno else "{lno:4} | {line}".format(lno=lno, line=line)
+            f">{lno:3} | {line}" if line_no == lno else f"{lno:4} | {line}"
             for lno, line in enumerate(code_lines, 1)
         ]
         # # Cut out the snippet
@@ -42,3 +79,12 @@ def prepare_code_snippet(file_path, line_no, context_lines_count=5):
         # Join lines
         code = "\n".join(code_lines)
     return code
+
+
+def get_terminal_formatter(**opts):
+    """Returns the best formatter available in the current terminal."""
+    if '256' in os.environ.get('TERM', ''):
+        formatter = Terminal256Formatter(**opts)
+    else:
+        formatter = TerminalFormatter(**opts)
+    return formatter

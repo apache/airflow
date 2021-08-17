@@ -20,6 +20,6 @@
 
 build_images::prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed_with_group
 
 runs::run_docs "${@}"

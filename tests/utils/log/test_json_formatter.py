@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,59 +20,24 @@
 Module for all tests airflow.utils.log.json_formatter.JSONFormatter
 """
 import json
+import sys
 import unittest
 from logging import makeLogRecord
 
-from airflow.utils.log.json_formatter import JSONFormatter, merge_dicts
+from airflow.utils.log.json_formatter import JSONFormatter
 
 
 class TestJSONFormatter(unittest.TestCase):
     """
     TestJSONFormatter class combine all tests for JSONFormatter
     """
+
     def test_json_formatter_is_not_none(self):
         """
         JSONFormatter instance  should return not none
         """
         json_fmt = JSONFormatter()
-        self.assertIsNotNone(json_fmt)
-
-    def test_merge_dicts(self):
-        """
-        Test _merge method from JSONFormatter
-        """
-        dict1 = {'a': 1, 'b': 2, 'c': 3}
-        dict2 = {'a': 1, 'b': 3, 'd': 42}
-        merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
-
-    def test_merge_dicts_recursive_overlap_l1(self):
-        """
-        Test merge_dicts with recursive dict; one level of nesting
-        """
-        dict1 = {'a': 1, 'r': {'a': 1, 'b': 2}}
-        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
-        merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': 0, 'c': 3}})
-
-    def test_merge_dicts_recursive_overlap_l2(self):
-        """
-        Test merge_dicts with recursive dict; two levels of nesting
-        """
-
-        dict1 = {'a': 1, 'r': {'a': 1, 'b': {'a': 1}}}
-        dict2 = {'a': 1, 'r': {'c': 3, 'b': {'b': 1}}}
-        merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': {'a': 1, 'b': 1}, 'c': 3}})
-
-    def test_merge_dicts_recursive_right_only(self):
-        """
-        Test merge_dicts with recursive when dict1 doesn't have any nested dict
-        """
-        dict1 = {'a': 1}
-        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
-        merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
+        assert json_fmt is not None
 
     def test_uses_time(self):
         """
@@ -81,8 +45,8 @@ class TestJSONFormatter(unittest.TestCase):
         """
         json_fmt_asctime = JSONFormatter(json_fields=["asctime", "label"])
         json_fmt_no_asctime = JSONFormatter(json_fields=["label"])
-        self.assertTrue(json_fmt_asctime.usesTime())
-        self.assertFalse(json_fmt_no_asctime.usesTime())
+        assert json_fmt_asctime.usesTime()
+        assert not json_fmt_no_asctime.usesTime()
 
     def test_format(self):
         """
@@ -90,7 +54,7 @@ class TestJSONFormatter(unittest.TestCase):
         """
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"])
-        self.assertEqual(json_fmt.format(log_record), '{"label": "value"}')
+        assert json_fmt.format(log_record) == '{"label": "value"}'
 
     def test_format_with_extras(self):
         """
@@ -99,5 +63,21 @@ class TestJSONFormatter(unittest.TestCase):
         log_record = makeLogRecord({"label": "value"})
         json_fmt = JSONFormatter(json_fields=["label"], extras={'pod_extra': 'useful_message'})
         # compare as a dicts to not fail on sorting errors
-        self.assertDictEqual(json.loads(json_fmt.format(log_record)),
-                             {"label": "value", "pod_extra": "useful_message"})
+        assert json.loads(json_fmt.format(log_record)) == {"label": "value", "pod_extra": "useful_message"}
+
+    def test_format_with_exception(self):
+        """
+        Test exception is included in the message when using JSONFormatter
+        """
+        try:
+            raise RuntimeError("message")
+        except RuntimeError:
+            exc_info = sys.exc_info()
+
+        log_record = makeLogRecord({"exc_info": exc_info, "message": "Some msg"})
+        json_fmt = JSONFormatter(json_fields=["message"])
+
+        log_fmt = json.loads(json_fmt.format(log_record))
+        assert "message" in log_fmt
+        assert "Traceback (most recent call last)" in log_fmt["message"]
+        assert 'raise RuntimeError("message")' in log_fmt["message"]

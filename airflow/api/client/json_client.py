@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,79 +15,69 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""JSON API Client"""
-
-from future.moves.urllib.parse import urljoin
-import requests
-
-from airflow.api.client import api_client
+"""Client for all the API clients."""
+import httpx
 
 
-class Client(api_client.Client):
-    """Json API client implementation."""
+class Client:
+    """Base API client for all API clients."""
 
-    def _request(self, url, method='GET', json=None):
-        params = {
-            'url': url,
-            'auth': self._auth,
-        }
-        if json is not None:
-            params['json'] = json
-
-        resp = getattr(requests, method.lower())(**params)  # pylint: disable=not-callable
-        if not resp.ok:
-            # It is justified here because there might be many resp types.
-            # noinspection PyBroadException
-            try:
-                data = resp.json()
-            except Exception:  # pylint: disable=broad-except
-                data = {}
-            raise IOError(data.get('error', 'Server error'))
-
-        return resp.json()
+    def __init__(self, api_base_url, auth=None, session=None):
+        self._api_base_url = api_base_url
+        self._session: httpx.Client = session or httpx.Client()
+        if auth:
+            self._session.auth = auth
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
-        endpoint = '/api/experimental/dags/{}/dag_runs'.format(dag_id)
-        url = urljoin(self._api_base_url, endpoint)
-        data = self._request(url, method='POST',
-                             json={
-                                 "run_id": run_id,
-                                 "conf": conf,
-                                 "execution_date": execution_date,
-                             })
-        return data['message']
+        """Create a dag run for the specified dag.
+
+        :param dag_id:
+        :param run_id:
+        :param conf:
+        :param execution_date:
+        :return:
+        """
+        raise NotImplementedError()
 
     def delete_dag(self, dag_id):
-        endpoint = '/api/experimental/dags/{}'.format(dag_id)
-        url = urljoin(self._api_base_url, endpoint)
-        data = self._request(url, method='DELETE')
-        return data['message']
+        """Delete all DB records related to the specified dag.
+
+        :param dag_id:
+        """
+        raise NotImplementedError()
 
     def get_pool(self, name):
-        endpoint = '/api/experimental/pools/{}'.format(name)
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url)
-        return pool['pool'], pool['slots'], pool['description']
+        """Get pool.
+
+        :param name: pool name
+        """
+        raise NotImplementedError()
 
     def get_pools(self):
-        endpoint = '/api/experimental/pools'
-        url = urljoin(self._api_base_url, endpoint)
-        pools = self._request(url)
-        return [(p['pool'], p['slots'], p['description']) for p in pools]
+        """Get all pools."""
+        raise NotImplementedError()
 
     def create_pool(self, name, slots, description):
-        endpoint = '/api/experimental/pools'
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url, method='POST',
-                             json={
-                                 'name': name,
-                                 'slots': slots,
-                                 'description': description,
-                             })
-        return pool['pool'], pool['slots'], pool['description']
+        """Create a pool.
+
+        :param name: pool name
+        :param slots: pool slots amount
+        :param description: pool description
+        """
+        raise NotImplementedError()
 
     def delete_pool(self, name):
-        endpoint = '/api/experimental/pools/{}'.format(name)
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url, method='DELETE')
-        return pool['pool'], pool['slots'], pool['description']
+        """Delete pool.
+
+        :param name: pool name
+        """
+        raise NotImplementedError()
+
+    def get_lineage(self, dag_id: str, execution_date: str):
+        """
+        Return the lineage information for the dag on this execution date
+        :param dag_id:
+        :param execution_date:
+        :return:
+        """
+        raise NotImplementedError()

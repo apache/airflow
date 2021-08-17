@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ from datetime import datetime
 from textwrap import dedent
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -40,7 +39,10 @@ test_command = dedent(
         echo current user is not {user}!
         exit 1
     fi
-    """.format(user=run_as_user))
+    """.format(
+        user=run_as_user
+    )
+)
 
 task = BashOperator(
     task_id='test_impersonated_user',

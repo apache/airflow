@@ -1,0 +1,88 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+{% macro locale_menu(languages) %}
+  {% set locale = session['locale'] %}
+  {% if not locale %}
+      {% set locale = 'en' %}
+  {% endif %}
+  <li class="dropdown">
+    <a class="dropdown-toggle" href="javascript:void(0)">
+       <div class="f16"><i class="flag {{languages[locale].get('flag')}}"></i><b class="caret"></b></div>
+    </a>
+    {% if languages.keys()|length > 1 %}
+      <ul class="dropdown-menu">
+        <li class="dropdown">
+          {% for lang in languages %}
+            {% if lang != locale %}
+              <a href="{{appbuilder.get_url_for_locale(lang)}}">
+                <div class="f16"><i class="flag {{languages[lang].get('flag')}}"></i> - {{languages[lang].get('name')}}
+              </div></a>
+            {% endif %}
+          {% endfor %}
+        </li>
+      </ul>
+    {% endif %}
+  </li>
+{% endmacro %}
+
+{# clock and timezone menu #}
+<li class="dropdown" id="timezone-dropdown">
+  <a class="dropdown-toggle" style="display:none" href="#">
+    <time id="clock" class="js-tooltip"></time>
+    <b class="caret"></b>
+  </a>
+  <ul class="dropdown-menu" id="timezone-menu">
+    <li id="timezone-utc"><a data-timezone="UTC" href="#">UTC</a></li>
+    <li id="timezone-server" style="display: none;"><a data-timezone="{{ server_timezone }}" href="#">{{ server_timezone }}</a></li>
+    <li id="timezone-local"><a href="#">Local</a></li>
+    <li id="timezone-manual" style="display: none"><a data-timezone="" href="#"></a></li>
+    <li role="separator" class="divider"></li>
+    <li>
+      <form>
+        <label for="timezone-other">Other</label>
+        <input id="timezone-other" placeholder="Select Timezone name" autocomplete="off" tabindex="-1">
+      </form>
+    </li>
+  </ul>
+</li>
+
+{% if not current_user.is_anonymous %}
+  <li class="dropdown">
+    <a class="dropdown-toggle" href="#">
+       <span class="navbar-user-icon" title="{{g.user.get_full_name()}}">
+         {% if current_user.first_name and current_user.last_name %}
+           <span>{{ (current_user.first_name[0] + current_user.last_name[0]).upper() }}</span>
+         {% else %}
+          <span class="material-icons">person</span>
+         {% endif %}
+       </span>
+       <b class="caret"></b>
+    </a>
+    <ul class="dropdown-menu">
+      <li><a href="{{appbuilder.get_url_for_userinfo}}"><span class="material-icons">account_circle</span>{{_("Your Profile")}}</a></li>
+      <li role="separator" class="divider"></li>
+      <li><a href="{{appbuilder.get_url_for_logout}}"><span class="material-icons">exit_to_app</span>{{_("Log Out")}}</a></li>
+    </ul>
+  </li>
+{% else %}
+  <li>
+    <a href="{{appbuilder.get_url_for_login}}"><span class="material-icons">login</span>{{_("Log In")}}</a>
+  </li>
+{% endif %}

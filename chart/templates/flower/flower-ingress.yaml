@@ -18,6 +18,7 @@
 ################################
 ## Airflow Flower Ingress
 #################################
+{{- if .Values.flower.enabled }}
 {{- if and .Values.ingress.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
@@ -29,10 +30,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-  annotations:
-    {{- range $key, $value := .Values.ingress.flower.annotations }}
-    {{ $key }}: {{ $value | quote }}
-    {{- end }}
+  {{- if .Values.ingress.flower.annotations }}
+  annotations: {{ toYaml .Values.ingress.flower.annotations | nindent 4 }}
+  {{- end }}
 spec:
   {{- if .Values.ingress.flower.tls.enabled }}
   tls:
@@ -43,9 +43,14 @@ spec:
   rules:
     - http:
         paths:
-          - path: {{ .Values.ingress.flower.path }}
-            backend:
+          - backend:
               serviceName: {{ .Release.Name }}-flower
               servicePort: flower-ui
+            {{- if .Values.ingress.flower.path }}
+            path: {{ .Values.ingress.flower.path }}
+            {{- end }}
+      {{- if .Values.ingress.flower.host }}
       host: {{ .Values.ingress.flower.host }}
+      {{- end }}
+{{- end }}
 {{- end }}

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-# flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -32,19 +30,440 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 """Configuration of Airflow Docs"""
+import glob
+import json
 import os
 import sys
-from typing import Dict
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
-import airflow
-from airflow.configuration import default_config_yaml
+import yaml
 
 try:
-    import sphinx_airflow_theme  # pylint: disable=unused-import
-    airflow_theme_is_available = True
+    from yaml import CSafeLoader as SafeLoader
 except ImportError:
-    airflow_theme_is_available = False
+    from yaml import SafeLoader  # type: ignore[misc]
 
+import airflow
+from airflow.configuration import AirflowConfigParser, default_config_yaml
+from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
+
+CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+INVENTORY_CACHE_DIR = os.path.join(CONF_DIR, '_inventory_cache')
+ROOT_DIR = os.path.abspath(os.path.join(CONF_DIR, os.pardir))
+FOR_PRODUCTION = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
+
+# By default (e.g. on RTD), build docs for `airflow` package
+PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
+PACKAGE_DIR: Optional[str]
+if PACKAGE_NAME == 'apache-airflow':
+    PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
+    PACKAGE_VERSION = airflow.__version__
+elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+    from provider_yaml_utils import load_package_data
+
+    ALL_PROVIDER_YAMLS = load_package_data()
+    try:
+        CURRENT_PROVIDER = next(
+            provider_yaml
+            for provider_yaml in ALL_PROVIDER_YAMLS
+            if provider_yaml['package-name'] == PACKAGE_NAME
+        )
+    except StopIteration:
+        raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
+    PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
+    PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
+elif PACKAGE_NAME == 'helm-chart':
+    PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
+    PACKAGE_VERSION = 'devel'  # TODO do we care? probably
+else:
+    PACKAGE_DIR = None
+    PACKAGE_VERSION = 'devel'
+# Adds to environment variables for easy access from other plugins like airflow_intersphinx.
+os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
+if PACKAGE_DIR:
+    os.environ['AIRFLOW_PACKAGE_DIR'] = PACKAGE_DIR
+os.environ['AIRFLOW_PACKAGE_VERSION'] = PACKAGE_VERSION
+
+# Hack to allow changing for piece of the code to behave differently while
+# the docs are being built. The main objective was to alter the
+# behavior of the utils.apply_default that was hiding function headers
+os.environ['BUILDING_AIRFLOW_DOCS'] = 'TRUE'
+
+# == Sphinx configuration ======================================================
+
+# -- Project information -------------------------------------------------------
+# See: https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+
+# General information about the project.
+project = PACKAGE_NAME
+# # The version info for the project you're documenting
+version = PACKAGE_VERSION
+# The full version, including alpha/beta/rc tags.
+release = PACKAGE_VERSION
+
+rst_epilog = f"""
+.. |version| replace:: {version}
+"""
+
+# -- General configuration -----------------------------------------------------
+# See: https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+# Add any Sphinx extension module names here, as strings. They can be
+# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
+# ones.
+extensions = [
+    'provider_init_hack',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinxarg.ext',
+    'sphinx.ext.intersphinx',
+    'exampleinclude',
+    'docroles',
+    'removemarktransform',
+    'sphinx_copybutton',
+    'airflow_intersphinx',
+    "sphinxcontrib.spelling",
+    'sphinx_airflow_theme',
+    'redirects',
+    'substitution_extensions',
+]
+if PACKAGE_NAME == 'apache-airflow':
+    extensions.extend(
+        [
+            'sphinxcontrib.jinja',
+            'sphinx.ext.graphviz',
+            'sphinxcontrib.httpdomain',
+            'sphinxcontrib.httpdomain',
+            'extra_files_with_substitutions',
+            # First, generate redoc
+            'sphinxcontrib.redoc',
+            # Second, update redoc script
+            "sphinx_script_update",
+        ]
+    )
+
+if PACKAGE_NAME == "apache-airflow-providers":
+    extensions.extend(
+        [
+            'operators_and_hooks_ref',
+            'providers_packages_ref',
+        ]
+    )
+elif PACKAGE_NAME == "helm-chart":
+    extensions.append("sphinxcontrib.jinja")
+elif PACKAGE_NAME == "docker-stack":
+    # No extra extensions
+    pass
+else:
+    extensions.append('autoapi.extension')
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+exclude_patterns: List[str]
+if PACKAGE_NAME == 'apache-airflow':
+    exclude_patterns = [
+        # We only link to selected subpackages.
+        '_api/airflow/index.rst',
+        'README.rst',
+    ]
+elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+    exclude_patterns = ['operators/_partials']
+else:
+    exclude_patterns = []
+
+
+def _get_rst_filepath_from_path(filepath: str):
+    if os.path.isdir(filepath):
+        result = filepath
+    elif os.path.isfile(filepath) and filepath.endswith('/__init__.py'):
+        result = filepath.rpartition("/")[0]
+    else:
+        result = filepath.rpartition(".")[0]
+    result += "/index.rst"
+
+    result = f"_api/{os.path.relpath(result, ROOT_DIR)}"
+    return result
+
+
+if PACKAGE_NAME == 'apache-airflow':
+    # Exclude top-level packages
+    # do not exclude these top-level modules from the doc build:
+    _allowed_top_level = ("exceptions.py",)
+
+    for path in glob.glob(f"{ROOT_DIR}/airflow/*"):
+        name = os.path.basename(path)
+        if os.path.isfile(path) and not path.endswith(_allowed_top_level):
+            exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
+        browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models", "secrets"]
+        if os.path.isdir(path) and name not in browsable_packages:
+            exclude_patterns.append(f"_api/airflow/{name}")
+else:
+    exclude_patterns.extend(
+        _get_rst_filepath_from_path(f) for f in glob.glob(f"{PACKAGE_DIR}/**/example_dags/**/*.py")
+    )
+
+# Add any paths that contain templates here, relative to this directory.
+templates_path = ['templates']
+
+# If true, keep warnings as "system message" paragraphs in the built documents.
+keep_warnings = True
+
+# -- Options for HTML output ---------------------------------------------------
+# See: https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes.
+html_theme = 'sphinx_airflow_theme'
+
+# The name for this set of Sphinx documents.  If None, it defaults to
+# "<project> v<release> documentation".
+if PACKAGE_NAME == 'apache-airflow':
+    html_title = "Airflow Documentation"
+else:
+    html_title = f"{PACKAGE_NAME} Documentation"
+# A shorter title for the navigation bar.  Default is the same as html_title.
+html_short_title = ""
+
+#  given, this must be the name of an image file (path relative to the
+#  configuration directory) that is the favicon of the docs. Modern browsers
+#  use this as the icon for tabs, windows and bookmarks. It should be a
+#  Windows-style icon file (.ico), which is 16x16 or 32x32 pixels large.
+html_favicon = "../airflow/www/static/pin_32.png"
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+if PACKAGE_NAME == 'apache-airflow':
+    html_static_path = ['apache-airflow/static']
+else:
+    html_static_path = []
+# A list of JavaScript filename. The entry must be a filename string or a
+# tuple containing the filename string and the attributes dictionary. The
+# filename must be relative to the html_static_path, or a full URI with
+# scheme like http://example.org/script.js.
+if PACKAGE_NAME == 'apache-airflow':
+    html_js_files = ['jira-links.js']
+else:
+    html_js_files = []
+if PACKAGE_NAME == 'apache-airflow':
+    html_extra_path = [
+        f"{ROOT_DIR}/docs/apache-airflow/start/airflow.sh",
+    ]
+    html_extra_with_substitutions = [
+        f"{ROOT_DIR}/docs/apache-airflow/start/docker-compose.yaml",
+    ]
+    # Replace "|version|" in links
+    manual_substitutions_in_generated_html = [
+        "installation.html",
+    ]
+
+if PACKAGE_NAME == 'docker-stack':
+    # Replace "|version|" inside ```` quotes
+    manual_substitutions_in_generated_html = ["build.html"]
+
+# -- Theme configuration -------------------------------------------------------
+# Custom sidebar templates, maps document names to template names.
+html_sidebars = {
+    '**': [
+        'version-selector.html',
+        'searchbox.html',
+        'globaltoc.html',
+    ]
+    if FOR_PRODUCTION
+    else [
+        'searchbox.html',
+        'globaltoc.html',
+    ]
+}
+
+# If false, no index is generated.
+html_use_index = True
+
+# If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
+html_show_copyright = False
+
+# Theme configuration
+html_theme_options: Dict[str, Any] = {
+    'hide_website_buttons': True,
+}
+if FOR_PRODUCTION:
+    html_theme_options['navbar_links'] = [
+        {'href': '/community/', 'text': 'Community'},
+        {'href': '/meetups/', 'text': 'Meetups'},
+        {'href': '/docs/', 'text': 'Documentation'},
+        {'href': '/use-cases/', 'text': 'Use-cases'},
+        {'href': '/announcements/', 'text': 'Announcements'},
+        {'href': '/blog/', 'text': 'Blog'},
+        {'href': '/ecosystem/', 'text': 'Ecosystem'},
+    ]
+
+# A dictionary of values to pass into the template engine’s context for all pages.
+html_context = {
+    # Google Analytics ID.
+    # For more information look at:
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
+    'theme_analytics_id': 'UA-140539454-1',
+    # Variables used to build a button for editing the source code
+    #
+    # The path is created according to the following template:
+    #
+    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+    # {{ pagename }}{{ suffix }}
+    #
+    # More information:
+    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+    # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
+    #
+    'theme_vcs_pageview_mode': 'edit',
+    'conf_py_path': f'/docs/{PACKAGE_NAME}/',
+    'github_user': 'apache',
+    'github_repo': 'airflow',
+    'github_version': 'main',
+    'display_github': 'main',
+    'suffix': '.rst',
+}
+
+# == Extensions configuration ==================================================
+
+# -- Options for sphinxcontrib.jinjac ------------------------------------------
+# See: https://github.com/tardyp/sphinx-jinja
+
+# Jinja context
+if PACKAGE_NAME == 'apache-airflow':
+    deprecated_options: Dict[str, Dict[str, Tuple[str, str, str]]] = defaultdict(dict)
+    for (section, key), (
+        (deprecated_section, deprecated_key, since_version)
+    ) in AirflowConfigParser.deprecated_options.items():
+        deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
+
+    configs = default_config_yaml()
+
+    # We want the default/example we show in the docs to reflect the value _after_
+    # the config has been templated, not before
+    # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
+    keys_to_format = ["default", "example"]
+    for conf_section in configs:
+        for option in conf_section["options"]:
+            for key in keys_to_format:
+                if option[key] and "{{" in option[key]:
+                    option[key] = option[key].replace("{{", "{").replace("}}", "}")
+
+    jinja_contexts = {
+        'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
+        'quick_start_ctx': {
+            'doc_root_url': f'https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/'
+            if FOR_PRODUCTION
+            else (
+                'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
+            )
+        },
+    }
+elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+
+    def _load_config():
+        templates_dir = os.path.join(PACKAGE_DIR, 'config_templates')
+        file_path = os.path.join(templates_dir, "config.yml")
+        if not os.path.exists(file_path):
+            return {}
+
+        with open(file_path) as f:
+            return yaml.load(f, SafeLoader)
+
+    config = _load_config()
+    if config:
+        jinja_contexts = {'config_ctx': {"configs": config}}
+        extensions.append('sphinxcontrib.jinja')
+elif PACKAGE_NAME == 'helm-chart':
+
+    def _str_representer(dumper, data):
+        style = "|" if "\n" in data else None  # show as a block scalar if we have more than 1 line
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style)
+
+    yaml.add_representer(str, _str_representer)
+
+    def _format_default(value: Any) -> str:
+        if value == "":
+            return '""'
+        if value is None:
+            return '~'
+        return str(value)
+
+    def _format_examples(param_name: str, schema: dict) -> Optional[str]:
+        if not schema.get("examples"):
+            return None
+
+        # Nicer to have the parameter name shown as well
+        out = ""
+        for ex in schema["examples"]:
+            if schema["type"] == "array":
+                ex = [ex]
+            out += yaml.dump({param_name: ex})
+        return out
+
+    def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") -> List[dict]:
+        """
+        Given an jsonschema objects properties dict, return a flattened list of all parameters
+        from that object and any nested objects
+        """
+        # TODO: handle arrays? probably missing more cases too
+        out = []
+        for param_name, schema in root_schema.items():
+            prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
+            section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
+            if section_name and schema["description"] and "default" in schema:
+                out.append(
+                    {
+                        "section": section_name,
+                        "name": prefixed_name,
+                        "description": schema["description"],
+                        "default": _format_default(schema["default"]),
+                        "examples": _format_examples(param_name, schema),
+                    }
+                )
+            if schema.get("properties"):
+                out += _get_params(schema["properties"], prefixed_name, section_name)
+        return out
+
+    schema_file = os.path.join(PACKAGE_DIR, "values.schema.json")  # type: ignore
+    with open(schema_file) as config_file:
+        chart_schema = json.load(config_file)
+
+    params = _get_params(chart_schema["properties"])
+
+    # Now, split into sections
+    sections: Dict[str, List[Dict[str, str]]] = {}
+    for param in params:
+        if param["section"] not in sections:
+            sections[param["section"]] = []
+
+        sections[param["section"]].append(param)
+
+    # and order each section
+    for section in sections.values():  # type: ignore
+        section.sort(key=lambda i: i["name"])  # type: ignore
+
+    # and finally order the sections!
+    ordered_sections = []
+    for name in chart_schema["x-docsSectionOrder"]:
+        if name not in sections:
+            raise ValueError(f"Unable to find any parameters for section: {name}")
+        ordered_sections.append({"name": name, "params": sections.pop(name)})
+
+    if sections:
+        raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
+
+    jinja_contexts = {"params_ctx": {"sections": ordered_sections}}
+
+
+# -- Options for sphinx.ext.autodoc --------------------------------------------
+# See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
+
+# This value contains a list of modules to be mocked up. This is useful when some external dependencies
+# are not met at build time and break the building process.
 autodoc_mock_imports = [
     'MySQLdb',
     'adal',
@@ -52,6 +471,7 @@ autodoc_mock_imports = [
     'azure',
     'azure.cosmos',
     'azure.datalake',
+    'azure.kusto',
     'azure.mgmt',
     'boto3',
     'botocore',
@@ -74,7 +494,6 @@ autodoc_mock_imports = [
     'jenkins',
     'jira',
     'kubernetes',
-    'mesos',
     'msrestazure',
     'pandas',
     'pandas_gbq',
@@ -90,407 +509,108 @@ autodoc_mock_imports = [
     'qds_sdk',
     'redis',
     'simple_salesforce',
-    'slackclient',
+    'slack_sdk',
     'smbclient',
     'snowflake',
     'sshtunnel',
+    'telegram',
     'tenacity',
     'vertica_python',
     'winrm',
     'zdesk',
 ]
 
-# Hack to allow changing for piece of the code to behave differently while
-# the docs are being built. The main objective was to alter the
-# behavior of the utils.apply_default that was hiding function headers
-os.environ['BUILDING_AIRFLOW_DOCS'] = 'TRUE'
+# The default options for autodoc directives. They are applied to all autodoc directives automatically.
+autodoc_default_options = {'show-inheritance': True, 'members': True}
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
+# -- Options for sphinx.ext.intersphinx ----------------------------------------
+# See: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
-
-# -- General configuration ------------------------------------------------
-
-# If your documentation needs a minimal Sphinx version, state it here.
-# needs_sphinx = '1.0'
-
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
-extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.coverage',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.graphviz',
-    'sphinxarg.ext',
-    'sphinxcontrib.httpdomain',
-    'sphinxcontrib.jinja',
-    'sphinx.ext.intersphinx',
-    'autoapi.extension',
-    'exampleinclude',
-    'docroles',
-    'removemarktransform',
-    'sphinx_copybutton',
-]
-
-autodoc_default_options = {
-    'show-inheritance': True,
-    'members': True
+# This config value contains names of other projects that should
+# be linked to in this documentation.
+# Inventories are only downloaded once by docs/exts/docs_build/fetch_inventories.py.
+intersphinx_mapping = {
+    pkg_name: (f"{THIRD_PARTY_INDEXES[pkg_name]}/", (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',))
+    for pkg_name in [
+        'boto3',
+        'celery',
+        'docker',
+        'hdfs',
+        'jinja2',
+        'mongodb',
+        'pandas',
+        'python',
+        'requests',
+        'sqlalchemy',
+    ]
 }
+if PACKAGE_NAME in ('apache-airflow-providers-google', 'apache-airflow'):
+    intersphinx_mapping.update(
+        {
+            pkg_name: (
+                f"{THIRD_PARTY_INDEXES[pkg_name]}/",
+                (f'{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv',),
+            )
+            for pkg_name in [
+                'google-api-core',
+                'google-cloud-automl',
+                'google-cloud-bigquery',
+                'google-cloud-bigquery-datatransfer',
+                'google-cloud-bigquery-storage',
+                'google-cloud-bigtable',
+                'google-cloud-container',
+                'google-cloud-core',
+                'google-cloud-datacatalog',
+                'google-cloud-datastore',
+                'google-cloud-dlp',
+                'google-cloud-kms',
+                'google-cloud-language',
+                'google-cloud-monitoring',
+                'google-cloud-pubsub',
+                'google-cloud-redis',
+                'google-cloud-spanner',
+                'google-cloud-speech',
+                'google-cloud-storage',
+                'google-cloud-tasks',
+                'google-cloud-texttospeech',
+                'google-cloud-translate',
+                'google-cloud-videointelligence',
+                'google-cloud-vision',
+            ]
+        }
+    )
 
-jinja_contexts = {
-    'config_ctx': {"configs": default_config_yaml()}
-}
+# -- Options for sphinx.ext.viewcode -------------------------------------------
+# See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
 
+# If this is True, viewcode extension will emit viewcode-follow-imported event to resolve the name of
+# the module by other extensions. The default is True.
 viewcode_follow_imported_members = True
 
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ['templates']
-
-# The suffix of source filenames.
-source_suffix = '.rst'
-
-# The encoding of source files.
-# source_encoding = 'utf-8-sig'
-
-# The master toctree document.
-master_doc = 'index'
-
-# General information about the project.
-project = u'Airflow'
-# copyright = u''
-
-# The version info for the project you're documenting, acts as replacement for
-# |version| and |release|, also used in various other places throughout the
-# built documents.
-#
-# The short X.Y version.
-# version = '1.0.0'
-version = airflow.__version__
-# The full version, including alpha/beta/rc tags.
-# release = '1.0.0'
-release = airflow.__version__
-
-# The language for content autogenerated by Sphinx. Refer to documentation
-# for a list of supported languages.
-# language = None
-
-# There are two options for replacing |today|: either, you set today to some
-# non-false value, then it is used:
-# today = ''
-# Else, today_fmt is used as the format for a strftime call.
-# today_fmt = '%B %d, %Y'
-
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-exclude_patterns = [
-    '_api/airflow/api',
-    '_api/airflow/bin',
-    '_api/airflow/config_templates',
-    '_api/airflow/configuration',
-    '_api/airflow/contrib/auth',
-    '_api/airflow/contrib/example_dags',
-    '_api/airflow/contrib/executors/index.rst',
-    '_api/airflow/contrib/executors/kubernetes_executor/index.rst',
-    '_api/airflow/contrib/executors/mesos_executor/index.rst',
-    '_api/airflow/contrib/index.rst',
-    '_api/airflow/contrib/kubernetes',
-    '_api/airflow/contrib/task_runner',
-    '_api/airflow/contrib/utils',
-    '_api/airflow/dag',
-    '_api/airflow/default_login',
-    '_api/airflow/example_dags',
-    '_api/airflow/index.rst',
-    '_api/airflow/jobs',
-    '_api/airflow/kubernetes_deprecated',
-    '_api/airflow/lineage',
-    '_api/airflow/logging_config',
-    '_api/airflow/macros',
-    '_api/airflow/migrations',
-    '_api/airflow/plugins_manager',
-    '_api/airflow/security',
-    '_api/airflow/serialization',
-    '_api/airflow/settings',
-    '_api/airflow/sentry',
-    '_api/airflow/stats',
-    '_api/airflow/task',
-    '_api/airflow/typing_compat',
-    '_api/airflow/kubernetes',
-    '_api/airflow/ti_deps',
-    '_api/airflow/upgrade',
-    '_api/airflow/utils',
-    '_api/airflow/version',
-    '_api/airflow/www',
-    '_api/airflow/www_rbac',
-    '_api/kubernetes_executor',
-    '_api/main',
-    '_api/mesos_executor',
-    'autoapi_templates',
-    'howto/operator/gcp/_partials',
-]
-
-# The reST default role (used for this markup: `text`) to use for all
-# documents.
-# default_role = None
-
-# If true, '()' will be appended to :func: etc. cross-reference text.
-# add_function_parentheses = True
-
-# If true, the current module name will be prepended to all description
-# unit titles (such as .. function::).
-# add_module_names = True
-
-# If true, sectionauthor and moduleauthor directives will be shown in the
-# output. They are ignored by default.
-# show_authors = False
-
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
-
-# A list of ignored prefixes for module index sorting.
-# modindex_common_prefix = []
-
-# If true, keep warnings as "system message" paragraphs in the built documents.
-keep_warnings = True
-
-
-intersphinx_mapping = {
-    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
-    'mongodb': ('https://pymongo.readthedocs.io/en/stable/', None),
-    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
-    'python': ('https://docs.python.org/3/', None),
-    'requests': ('https://requests.readthedocs.io/en/master/', None),
-    'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
-    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
-    # google-cloud-python
-    'google-cloud-automl': ('https://googleapis.dev/python/automl/latest', None),
-    'google-cloud-bigquery': ('https://googleapis.dev/python/bigquery/latest', None),
-    'google-cloud-bigquery-datatransfer': ('https://googleapis.dev/python/bigquerydatatransfer/latest', None),
-    'google-cloud-bigquery-storage': ('https://googleapis.dev/python/bigquerystorage/latest', None),
-    'google-cloud-bigtable': ('https://googleapis.dev/python/bigtable/latest', None),
-    'google-cloud-container': ('https://googleapis.dev/python/container/latest', None),
-    'google-cloud-core': ('https://googleapis.dev/python/google-cloud-core/latest', None),
-    'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest', None),
-    'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
-    'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
-    'google-cloud-language': ('https://googleapis.dev/python/language/latest', None),
-    'google-cloud-pubsub': ('https://googleapis.dev/python/pubsub/latest', None),
-    'google-cloud-redis': ('https://googleapis.dev/python/redis/latest', None),
-    'google-cloud-spanner': ('https://googleapis.dev/python/spanner/latest', None),
-    'google-cloud-speech': ('https://googleapis.dev/python/speech/latest', None),
-    'google-cloud-storage': ('https://googleapis.dev/python/storage/latest', None),
-    'google-cloud-tasks': ('https://googleapis.dev/python/cloudtasks/latest', None),
-    'google-cloud-texttospeech': ('https://googleapis.dev/python/texttospeech/latest', None),
-    'google-cloud-translate': ('https://googleapis.dev/python/translation/latest', None),
-    'google-cloud-videointelligence': ('https://googleapis.dev/python/videointelligence/latest', None),
-    'google-cloud-vision': ('https://googleapis.dev/python/vision/latest', None),
-}
-
-# -- Options for HTML output ----------------------------------------------
-
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
-
-if airflow_theme_is_available:
-    html_theme = 'sphinx_airflow_theme'
-
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-# html_theme_options = {}
-
-# Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = []
-import sphinx_rtd_theme  # pylint: disable=wrong-import-position,wrong-import-order
-
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-
-# The name for this set of Sphinx documents.  If None, it defaults to
-# "<project> v<release> documentation".
-html_title = "Airflow Documentation"
-
-# A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = ""
-
-# The name of an image file (relative to this directory) to place at the top
-# of the sidebar.
-# html_logo = None
-
-html_favicon = "../airflow/www/static/pin_32.png"
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static']
-
-# Add any extra paths that contain custom files (such as robots.txt or
-# .htaccess) here, relative to this directory. These files are copied
-# directly to the root of the documentation.
-# html_extra_path = []
-
-# A list of JavaScript filename. The entry must be a filename string or a
-# tuple containing the filename string and the attributes dictionary. The
-# filename must be relative to the html_static_path, or a full URI with
-# scheme like http://example.org/script.js.
-html_js_files = ['jira-links.js']
-
-# If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
-# using the given strftime format.
-# html_last_updated_fmt = '%b %d, %Y'
-
-# If true, SmartyPants will be used to convert quotes and dashes to
-# typographically correct entities.
-# html_use_smartypants = True
-
-# Custom sidebar templates, maps document names to template names.
-if airflow_theme_is_available:
-    html_sidebars = {
-        '**': [
-            'version-selector.html',
-            'searchbox.html',
-            'globaltoc.html',
-        ]
-    }
-
-# Additional templates that should be rendered to pages, maps page names to
-# template names.
-# html_additional_pages = {}
-
-# If false, no module index is generated.
-# html_domain_indices = True
-
-# If false, no index is generated.
-html_use_index = True
-
-# If true, the index is split into individual pages for each letter.
-# html_split_index = False
-
-# If true, links to the reST sources are added to the pages.
-# html_show_sourcelink = True
-
-# If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
-# html_show_sphinx = True
-
-# If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-html_show_copyright = False
-
-# If true, an OpenSearch description file will be output, and all pages will
-# contain a <link> tag referring to it.  The value of this option must be the
-# base URL from which the finished HTML is served.
-# html_use_opensearch = ''
-
-# This is the file name suffix for HTML files (e.g. ".xhtml").
-# html_file_suffix = None
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = 'Airflowdoc'
-
-# -- Options for LaTeX output ---------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    # 'preamble': '',
-}  # type: Dict[str,str]
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    ('index', 'Airflow.tex', u'Airflow Documentation',
-     u'Apache Airflow', 'manual'),
-]
-
-# The name of an image file (relative to this directory) to place at the top of
-# the title page.
-# latex_logo = None
-
-# For "manual" documents, if this is true, then toplevel headings are parts,
-# not chapters.
-# latex_use_parts = False
-
-# If true, show page references after internal links.
-# latex_show_pagerefs = False
-
-# If true, show URL addresses after external links.
-# latex_show_urls = False
-
-# Documents to append as an appendix to all manuals.
-# latex_appendices = []
-
-# If false, no module index is generated.
-# latex_domain_indices = True
-
-
-# -- Options for manual page output ---------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    ('index', 'airflow', u'Airflow Documentation',
-     [u'Apache Airflow'], 1)
-]
-
-# If true, show URL addresses after external links.
-# man_show_urls = False
-
-
-# -- Options for Texinfo output -------------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [(
-    'index', 'Airflow', u'Airflow Documentation',
-    u'Apache Airflow', 'Airflow',
-    'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
-    'Miscellaneous'
-), ]
-
-# Documents to append as an appendix to all manuals.
-# texinfo_appendices = []
-
-# If false, no module index is generated.
-# texinfo_domain_indices = True
-
-# How to display URL addresses: 'footnote', 'no', or 'inline'.
-# texinfo_show_urls = 'footnote'
-
-# If true, do not generate a @detailmenu in the "Top" node's menu.
-# texinfo_no_detailmenu = False
-
-# sphinx-autoapi configuration
-# See:
-# https://sphinx-autoapi.readthedocs.io/en/latest/config.html
+# -- Options for sphinx-autoapi ------------------------------------------------
+# See: https://sphinx-autoapi.readthedocs.io/en/latest/config.html
 
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
 autoapi_dirs = [
-    os.path.abspath('../airflow'),
+    PACKAGE_DIR,
 ]
 
 # A directory that has user-defined templates to override our default templates.
-autoapi_template_dir = 'autoapi_templates'
+if PACKAGE_NAME == 'apache-airflow':
+    autoapi_template_dir = 'autoapi_templates'
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    # These modules are backcompat shims, don't build docs for them
-    '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
-    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
-    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
-    '*/airflow/kubernetes/kubernetes_request_factory/*',
-
+    'airflow/configuration/',
+    '*/example_dags/*',
+    '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',
+    '*/contrib/*',
 ]
+if PACKAGE_NAME == 'apache-airflow':
+    autoapi_ignore.append('*/airflow/providers/*')
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True
@@ -499,49 +619,37 @@ autoapi_keep_files = True
 # anywhere in your documentation hierarchy.
 autoapi_root = '_api'
 
-# -- Options for examole include ------------------------------------------
+# Whether to insert the generated documentation into the TOC tree. If this is False, the default AutoAPI
+# index page is not generated and you will need to include the generated documentation in a
+# TOC tree entry yourself.
+autoapi_add_toctree_entry = False
+
+# -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
 
-# -- Additional HTML Context variable
-html_context = {
-    # Google Analytics ID.
-    # For more information look at:
-    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
-    'theme_analytics_id': 'UA-140539454-1',
-}
-if airflow_theme_is_available:
-    html_context = {
-        # Variables used to build a button for editing the source code
-        #
-        # The path is created according to the following template:
-        #
-        # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
-        # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
-        # {{ pagename }}{{ suffix }}
-        #
-        # More information:
-        # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
-        # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
-        # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
-        #
-        'theme_vcs_pageview_mode': 'edit',
-        'conf_py_path': '/docs/',
-        'github_user': 'apache',
-        'github_repo': 'airflow',
-        'github_version': 'master',
-        'display_github': 'master',
-        'suffix': '.rst',
-    }
+# -- Options for ext.redirects -------------------------------------------------
+redirects_file = 'redirects.txt'
 
-    html_theme_options = {
-        'hide_website_buttons': False,
-        'navbar_links': [
-            {'href': '/community/', 'text': 'Community'},
-            {'href': '/meetups/', 'text': 'Meetups'},
-            {'href': '/docs/', 'text': 'Documentation'},
-            {'href': '/use-cases/', 'text': 'Use-cases'},
-            {'href': '/announcements/', 'text': 'Announcements'},
-            {'href': '/blog/', 'text': 'Blog'},
-            {'href': '/ecosystem/', 'text': 'Ecosystem'},
-        ]
-    }
+# -- Options for sphinxcontrib-spelling ----------------------------------------
+spelling_word_list_filename = [os.path.join(CONF_DIR, 'spelling_wordlist.txt')]
+
+# -- Options for sphinxcontrib.redoc -------------------------------------------
+# See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
+if PACKAGE_NAME == 'apache-airflow':
+    OPENAPI_FILE = os.path.join(
+        os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+    )
+    redoc = [
+        {
+            'name': 'Airflow REST API',
+            'page': 'stable-rest-api-ref',
+            'spec': OPENAPI_FILE,
+            'opts': {
+                'hide-hostname': True,
+                'no-auto-auth': True,
+            },
+        },
+    ]
+
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"

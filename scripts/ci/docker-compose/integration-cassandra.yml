@@ -22,10 +22,19 @@ services:
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - cassandra-db-volume:/var/lib/cassandra
+    healthcheck:
+      test: "[ $$(nodetool statusgossip) = running ]"
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
+
   airflow:
     environment:
       - INTEGRATION_CASSANDRA=true
     depends_on:
-      - cassandra
+      cassandra:
+        condition: service_healthy
+
 volumes:
   cassandra-db-volume:

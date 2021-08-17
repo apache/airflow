@@ -37,15 +37,16 @@ import socket
 import subprocess
 import sys
 import time
+from typing import Optional
 
 from airflow.configuration import conf
 
-NEED_KRB181_WORKAROUND = None
+NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 
 log = logging.getLogger(__name__)
 
 
-def renew_from_kt(principal, keytab):
+def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab
 
@@ -55,38 +56,43 @@ def renew_from_kt(principal, keytab):
     """
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
+    renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
-    renewal_lifetime = "%sm" % conf.getint('kerberos', 'reinit_frequency')
-
-    cmd_principal = principal or conf.get('kerberos', 'principal').replace(
-        "_HOST", socket.getfqdn()
-    )
+    cmd_principal = principal or conf.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
 
     cmdv = [
         conf.get('kerberos', 'kinit_path'),
-        "-r", renewal_lifetime,
+        "-r",
+        renewal_lifetime,
         "-k",  # host ticket
-        "-t", keytab,  # specify keytab
-        "-c", conf.get('kerberos', 'ccache'),  # specify credentials cache
-        cmd_principal
+        "-t",
+        keytab,  # specify keytab
+        "-c",
+        conf.get('kerberos', 'ccache'),  # specify credentials cache
+        cmd_principal,
     ]
     log.info("Re-initialising kerberos from keytab: %s", " ".join(cmdv))
 
-    subp = subprocess.Popen(cmdv,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            close_fds=True,
-                            bufsize=-1,
-                            universal_newlines=True)
-    subp.wait()
-    if subp.returncode != 0:
-        log.error(
-            "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
-            subp.returncode,
-            "\n".join(subp.stdout.readlines() if subp.stdout else []),
-            "\n".join(subp.stderr.readlines() if subp.stderr else [])
-        )
-        sys.exit(subp.returncode)
+    with subprocess.Popen(
+        cmdv,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True,
+        bufsize=-1,
+        universal_newlines=True,
+    ) as subp:
+        subp.wait()
+        if subp.returncode != 0:
+            log.error(
+                "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
+                subp.returncode,
+                "\n".join(subp.stdout.readlines() if subp.stdout else []),
+                "\n".join(subp.stderr.readlines() if subp.stderr else []),
+            )
+            if exit_on_fail:
+                sys.exit(subp.returncode)
+            else:
+                return subp.returncode
 
     global NEED_KRB181_WORKAROUND
     if NEED_KRB181_WORKAROUND is None:
@@ -95,23 +101,34 @@ def renew_from_kt(principal, keytab):
         # (From: HUE-640). Kerberos clock have seconds level granularity. Make sure we
         # renew the ticket after the initial valid time.
         time.sleep(1.5)
-        perform_krb181_workaround(principal)
+        ret = perform_krb181_workaround(principal)
+        if exit_on_fail and ret != 0:
+            sys.exit(ret)
+        else:
+            return ret
+    return 0
 
 
-def perform_krb181_workaround(principal):
-    cmdv = [conf.get('kerberos', 'kinit_path'),
-            "-c", conf.get('kerberos', 'ccache'),
-            "-R"]  # Renew ticket_cache
+def perform_krb181_workaround(principal: str):
+    """
+    Workaround for Kerberos 1.8.1.
 
-    log.info(
-        "Renewing kerberos ticket to work around kerberos 1.8.1: %s", " ".join(cmdv)
-    )
+    :param principal: principal name
+    :return: None
+    """
+    cmdv = [
+        conf.get('kerberos', 'kinit_path'),
+        "-c",
+        conf.get('kerberos', 'ccache'),
+        "-R",
+    ]  # Renew ticket_cache
+
+    log.info("Renewing kerberos ticket to work around kerberos 1.8.1: %s", " ".join(cmdv))
 
     ret = subprocess.call(cmdv, close_fds=True)
 
     if ret != 0:
-        principal = "%s/%s" % (principal or conf.get('kerberos', 'principal'),
-                               socket.getfqdn())
+        principal = f"{principal or conf.get('kerberos', 'principal')}/{socket.getfqdn()}"
         princ = principal
         ccache = conf.get('kerberos', 'principal')
         log.error(
@@ -119,12 +136,15 @@ def perform_krb181_workaround(principal):
             "the ticket for '%s' is still renewable:\n  $ kinit -f -c %s\nIf the 'renew until' date is the "
             "same as the 'valid starting' date, the ticket cannot be renewed. Please check your KDC "
             "configuration, and the ticket renewal policy (maxrenewlife) for the '%s' and `krbtgt' "
-            "principals.", princ, ccache, princ
+            "principals.",
+            princ,
+            ccache,
+            princ,
         )
-        sys.exit(ret)
+    return ret
 
 
-def detect_conf_var():
+def detect_conf_var() -> bool:
     """Return true if the ticket cache contains "conf" information as is found
     in ticket caches of Kerberos 1.8.1 or later. This is incompatible with the
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
@@ -132,12 +152,12 @@ def detect_conf_var():
     """
     ticket_cache = conf.get('kerberos', 'ccache')
 
-    with open(ticket_cache, 'rb') as f:
+    with open(ticket_cache, 'rb') as file:
         # Note: this file is binary, so we check against a bytearray.
-        return b'X-CACHECONF:' in f.read()
+        return b'X-CACHECONF:' in file.read()
 
 
-def run(principal, keytab):
+def run(principal: str, keytab: str):
     """
     Run the kerbros renewer.
 

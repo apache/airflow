@@ -1,0 +1,54 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+import {{ pickling_library }}
+import sys
+
+# Check whether Airflow is available in the environment.
+# If it is, we'll want to ensure that we integrate any macros that are being provided
+# by plugins prior to unpickling the task context.
+if sys.version_info.major >= 3 and sys.version_info.minor >= 6:
+    try:
+        from airflow.plugins_manager import integrate_macros_plugins
+        integrate_macros_plugins()
+    except ImportError:
+        # Airflow is not available in this environment, therefore we won't
+        # be able to integrate any plugin macros.
+        pass
+
+# Read args
+{% if op_args or op_kwargs %}
+with open(sys.argv[1], "rb") as file:
+    arg_dict = {{ pickling_library }}.load(file)
+{% else %}
+arg_dict = {"args": [], "kwargs": {}}
+{% endif %}
+
+# Read string args
+with open(sys.argv[3], "r") as file:
+    virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
+
+# Script
+{{ python_callable_source }}
+res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
+
+# Write output
+with open(sys.argv[2], "wb") as file:
+    if res:
+        {{ pickling_library }}.dump(res, file)

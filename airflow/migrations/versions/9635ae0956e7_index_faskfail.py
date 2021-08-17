@@ -32,9 +32,9 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index('idx_task_fail_dag_task_date',
-                    'task_fail',
-                    ['dag_id', 'task_id', 'execution_date'], unique=False)
+    op.create_index(
+        'idx_task_fail_dag_task_date', 'task_fail', ['dag_id', 'task_id', 'execution_date'], unique=False
+    )
 
 
 def downgrade():

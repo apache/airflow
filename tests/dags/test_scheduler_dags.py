@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,31 +19,17 @@
 from datetime import datetime, timedelta
 
 from airflow.models import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
+
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
-dag1 = DAG(
-    dag_id='test_start_date_scheduling',
-    start_date=datetime.utcnow() + timedelta(days=1))
-dag1_task1 = DummyOperator(
-    task_id='dummy',
-    dag=dag1,
-    owner='airflow')
+dag1 = DAG(dag_id='test_start_date_scheduling', start_date=datetime.utcnow() + timedelta(days=1))
+dag1_task1 = DummyOperator(task_id='dummy', dag=dag1, owner='airflow')
 
-dag2 = DAG(
-    dag_id='test_task_start_date_scheduling',
-    start_date=DEFAULT_DATE
-)
+dag2 = DAG(dag_id='test_task_start_date_scheduling', start_date=DEFAULT_DATE)
 dag2_task1 = DummyOperator(
-    task_id='dummy1',
-    dag=dag2,
-    owner='airflow',
-    start_date=DEFAULT_DATE + timedelta(days=3)
+    task_id='dummy1', dag=dag2, owner='airflow', start_date=DEFAULT_DATE + timedelta(days=3)
 )
-dag2_task2 = DummyOperator(
-    task_id='dummy2',
-    dag=dag2,
-    owner='airflow'
-)
+dag2_task2 = DummyOperator(task_id='dummy2', dag=dag2, owner='airflow')

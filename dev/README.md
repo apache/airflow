@@ -15,25 +15,6 @@
  KIND, either express or implied.  See the License for the
  specific language governing permissions and limitations
  under the License.
- -->
-
-README.md<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
 -->
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -41,6 +22,7 @@ under the License.
 
 - [Apache Airflow source releases](#apache-airflow-source-releases)
   - [Apache Airflow Package](#apache-airflow-package)
+  - [Provider packages](#provider-packages)
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
   - [Upload Public keys to id.apache.org](#upload-public-keys-to-idapacheorg)
   - [Configure PyPI uploads](#configure-pypi-uploads)
@@ -53,22 +35,22 @@ under the License.
 The Apache Airflow releases are one of the two types:
 
 * Releases of the Apache Airflow package
-* Releases of the Backport Providers Packages
+* Releases of the Providers Packages
 
 ## Apache Airflow Package
 
 This package contains sources that allow the user building fully-functional Apache Airflow 2.0 package.
 They contain sources for:
 
-* "apache-airflow" python package that installs "airflow" Python package and includes
-  all the assets required to release the webserver UI coming with Apache Airflow
-* Dockerfile and corresponding scripts that build and use an official DockerImage
-* Breeze development environment that helps with building images and testing locally
-  apache airflow built from sources
+ * "apache-airflow" python package that installs "airflow" Python package and includes
+   all the assets required to release the webserver UI coming with Apache Airflow
+ * Dockerfile and corresponding scripts that build and use an official DockerImage
+ * Breeze development environment that helps with building images and testing locally
+   apache airflow built from sources
+ * Provider packages - containing Airflow's providers - separate package per each service Airflow integrates
+   with.
 
-In the future (Airflow 2.0) this package will be split into separate "core" and "providers" packages that
-will be distributed separately, following the mechanisms introduced in Backport Package Providers. We also
-plan to release the official Helm Chart sources that will allow the user to install Apache Airflow
+We also plan to release the official Helm Chart sources that will allow the user to install Apache Airflow
 via helm 3.0 chart in a distributed fashion.
 
 The Source releases are the only "official" Apache Software Foundation releases, and they are distributed
@@ -86,6 +68,44 @@ details about it in the [ASF Release Policy](http://www.apache.org/legal/release
 
 Detailed instruction of releasing Provider Packages can be found in the
 [README_RELEASE_AIRFLOW.md](README_RELEASE_AIRFLOW.md)
+
+## Provider packages
+
+The Provider packages are packages (per provider) that make it possible to easily install Hooks,
+Operators, Sensors, and Secrets for different providers (external services used by Airflow).
+
+Once you release the packages, you can simply install them with:
+
+```
+pip install apache-airflow-providers-<PROVIDER>[<EXTRAS>]
+```
+
+Where `<PROVIDER>` is the provider id and `<EXTRAS>` are optional extra packages to install.
+You can find the provider packages dependencies and extras in the README.md files in each provider
+package (in `airflow/providers/<PROVIDER>` folder) as well as in the PyPI installation page.
+
+The sources released in SVN allow to build all the provider packages by the user, following the
+instructions and scripts provided. Those are also "official_source releases" as described in the
+[ASF Release Policy](http://www.apache.org/legal/release-policy.html) and they are available
+via [Official Apache Download for providers](https://downloads.apache.org/airflow/providers/).
+
+The full provider's list can be found here:
+[Provider Packages Reference](https://s.apache.org/airflow-docs)
+
+There are also convenience packages released as "apache-airflow-providers"separately in PyPI.
+[PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers)
+
+We also have legacy backport providers available for Airflow 1.10.* series:
+[Official Apache Download for backport-providers](https://downloads.apache.org/airflow/backport-providers/)
+
+And available in PyPI:
+[PyPI query for backport providers](https://pypi.org/search/?q=apache-airflow-backport-providers).
+
+Note that Backport Providers for Airflow 1.10.* series are not released any more. The last release
+of Backport Providers was done  on March 17, 2021.
+
+Detailed instruction of releasing Provider Packages can be found in the
+[README_RELEASE_PROVIDER_PACKAGES.md](README_RELEASE_PROVIDER_PACKAGES.md)
 
 # Prerequisites for the release manager preparing the release
 
@@ -168,7 +188,7 @@ pip install twine
 (more details [here](https://peterdowns.com/posts/first-time-with-pypi.html).)
 
 - Set proper permissions for the pypirc file:
-  `$ chmod 600 ~/.pypirc`
+`$ chmod 600 ~/.pypirc`
 
 
 ## Hardware used to prepare and verify the packages

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import unicode_literals
 
-from builtins import object
 from typing import Set
 
 
-class TriggerRule(object):
+class TriggerRule:
+    """Class with task's trigger rules."""
+
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
     ALL_DONE = 'all_done'
@@ -34,14 +32,16 @@ class TriggerRule(object):
     NONE_SKIPPED = 'none_skipped'
     DUMMY = 'dummy'
 
-    _ALL_TRIGGER_RULES = set()  # type: Set[str]
+    _ALL_TRIGGER_RULES: Set[str] = set()
 
     @classmethod
     def is_valid(cls, trigger_rule):
+        """Validates a trigger rule."""
         return trigger_rule in cls.all_triggers()
 
     @classmethod
     def all_triggers(cls):
+        """Returns all trigger rules."""
         if not cls._ALL_TRIGGER_RULES:
             cls._ALL_TRIGGER_RULES = {
                 getattr(cls, attr)

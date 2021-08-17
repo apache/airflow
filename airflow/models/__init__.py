@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,31 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-from airflow.models.base import ID_LEN, Base  # noqa: F401
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink  # noqa: F401
-from airflow.models.connection import Connection  # noqa: F401
-from airflow.models.dag import DAG, DagModel, DagTag  # noqa: F401
-from airflow.models.dagbag import DagBag  # noqa: F401
-from airflow.models.dagpickle import DagPickle  # noqa: F401
-from airflow.models.dagrun import DagRun  # noqa: F401
-from airflow.models.errors import ImportError  # noqa: F401, pylint: disable=redefined-builtin
-from airflow.models.log import Log  # noqa: F401
-from airflow.models.pool import Pool  # noqa: F401
-from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
-from airflow.models.skipmixin import SkipMixin  # noqa: F401
-from airflow.models.slamiss import SlaMiss  # noqa: F401
-from airflow.models.taskfail import TaskFail  # noqa: F401
-from airflow.models.taskinstance import TaskInstance, clear_task_instances  # noqa: F401
-from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
-from airflow.models.variable import Variable  # noqa: F401
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401
-
-try:
-    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
-except ImportError:
-    pass
-
-# Classes that are removed in 2.0
-from airflow.models.knownevent import KnownEvent, KnownEventType  # noqa: F401
-from airflow.models.user import User  # noqa: F401
-from airflow.models.chart import Chart  # noqa: F401
+from airflow.models.base import ID_LEN, Base
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG, DagModel, DagTag
+from airflow.models.dagbag import DagBag
+from airflow.models.dagpickle import DagPickle
+from airflow.models.dagrun import DagRun
+from airflow.models.errors import ImportError
+from airflow.models.log import Log
+from airflow.models.pool import Pool
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.models.sensorinstance import SensorInstance  # noqa: F401
+from airflow.models.skipmixin import SkipMixin
+from airflow.models.slamiss import SlaMiss
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.variable import Variable
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom

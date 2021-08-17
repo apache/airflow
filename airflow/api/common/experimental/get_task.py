@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ from airflow.api.common.experimental import check_and_get_dag
 from airflow.models import TaskInstance
 
 
-def get_task(dag_id, task_id):  # type: (str, str) -> TaskInstance
+def get_task(dag_id: str, task_id: str) -> TaskInstance:
     """Return the task object identified by the given dag_id and task_id."""
     dag = check_and_get_dag(dag_id, task_id)
 

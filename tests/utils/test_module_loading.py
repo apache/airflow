@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,19 +18,19 @@
 
 import unittest
 
-import six
+import pytest
 
 from airflow.utils.module_loading import import_string
 
 
-class ModuleImportTestCase(unittest.TestCase):
+class TestModuleImport(unittest.TestCase):
     def test_import_string(self):
         cls = import_string('airflow.utils.module_loading.import_string')
-        self.assertEqual(cls, import_string)
+        assert cls == import_string
 
         # Test exceptions raised
-        with self.assertRaises(ImportError):
+        with pytest.raises(ImportError):
             import_string('no_dots_in_path')
         msg = 'Module "airflow.utils" does not define a "nonexistent" attribute'
-        with six.assertRaisesRegex(self, ImportError, msg):
+        with pytest.raises(ImportError, match=msg):
             import_string('airflow.utils.nonexistent')

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,12 +20,11 @@
 An Action Logger module. Singleton pattern has been applied into this module
 so that registered callbacks can be used all through the same python process.
 """
-from __future__ import absolute_import
 
 import logging
-from typing import List, Callable
+from typing import Callable, List
 
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 
 
 def register_pre_exec_callback(action_logger):
@@ -66,11 +64,11 @@ def on_pre_execution(**kwargs):
     :return: None
     """
     logging.debug("Calling callbacks: %s", __pre_exec_callbacks)
-    for cb in __pre_exec_callbacks:
+    for callback in __pre_exec_callbacks:
         try:
-            cb(**kwargs)
+            callback(**kwargs)
         except Exception:
-            logging.exception('Failed on pre-execution callback using %s', cb)
+            logging.exception('Failed on pre-execution callback using %s', callback)
 
 
 def on_post_execution(**kwargs):
@@ -84,11 +82,11 @@ def on_post_execution(**kwargs):
     :return: None
     """
     logging.debug("Calling callbacks: %s", __post_exec_callbacks)
-    for cb in __post_exec_callbacks:
+    for callback in __post_exec_callbacks:
         try:
-            cb(**kwargs)
+            callback(**kwargs)
         except Exception:
-            logging.exception('Failed on post-execution callback using %s', cb)
+            logging.exception('Failed on post-execution callback using %s', callback)
 
 
 def default_action_log(log, **_):

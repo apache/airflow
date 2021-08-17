@@ -59,33 +59,42 @@
   </thead>
 {% endblock %}
 
-    {% block begin_loop_values %}
-        {% for item in value_columns %}
-            {% set pk = pks[loop.index-1] %}
-            <tr>
-                {% if actions %}
-                <td>
-                    <input id="{{pk}}" class="action_check" name="rowid" value="{{pk}}" type="checkbox">
-                </td>
-                {% endif %}
-                {% if can_show or can_edit or can_delete %}
-                    <td><center>
-                    {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
-                    </center></td>
-                {% endif %}
-                {% for value in include_columns %}
-                    {% set formatter = formatters_columns.get(value) %}
-                    {% if formatter and formatter(item) %}
-                        <td>{{ formatter(item) }}</td>
-                    {% elif item[value] != None %}
-                        <td>{{ item[value] }}</td>
-                    {% else %}
-                        <td></td>
-                    {% endif %}
-                {% endfor %}
-            </tr>
-        {% endfor %}
-    {% endblock %}
+{% block begin_loop_values %}
+  {% for item in value_columns %}
+    {% set pk = pks[loop.index-1] %}
+    <tr>
+      {% if actions %}
+        <td>
+          <input id="{{ pk }}" class="action_check" name="rowid" value="{{ pk }}" type="checkbox">
+        </td>
+      {% endif %}
+      {% if can_show or can_edit or can_delete %}
+        <td>
+          <center>
+            {{ lib.btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) }}
+          </center>
+          {% if modelview_name=='CurveTemplateView' %}
+            <a href="{{url_for('CurveTemplateView.view_curve_template',bolt_no=item.key.split('@@')[0].split('/')[0],craft_type=item.key.split('@@')[0].split('/')[1])}}" target="_blank" style="display:block">查看曲线模板</a>
+            <a href="{{url_for('CurvesView.view_curves',bolt_no=item.key.split('@@')[0].split('/')[0],craft_type=item.key.split('@@')[0].split('/')[1])}}" target="_blank" style="display:block">查看相关曲线</a>
+          {% endif %}
+        </td>
+      {% endif %}
+      {% for value in include_columns %}
+        {% set formatter = formatters_columns.get(value) %}
+        {% if formatter and formatter(item) %}
+          <td><p style="text-overflow:ellipsis;overflow:auto;line-height:2rem;max-height:10rem;padding:3px;margin:0;">
+            {{ formatter(item) }}
+          </p>
+          </td>
+        {% elif item[value] != None %}
+          <td>{{ item[value]|safe }}</td>
+        {% else %}
+          <td></td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+  {% endfor %}
+{% endblock %}
 
 {% block end_content scoped %}
   </table>

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,13 +18,10 @@
 
 from airflow.exceptions import AirflowException
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class ValidStateDep(BaseTIDep):
-    NAME = "Task Instance State"
-    IGNOREABLE = True
-
     """
     Ensures that the task instance's state is in a given set of valid states.
 
@@ -34,16 +30,19 @@ class ValidStateDep(BaseTIDep):
     :type valid_states: set(str)
     :return: whether or not the task instance's state is valid
     """
+
+    NAME = "Task Instance State"
+    IGNORABLE = True
+
     def __init__(self, valid_states):
-        super(ValidStateDep, self).__init__()
+        super().__init__()
 
         if not valid_states:
-            raise AirflowException(
-                'ValidStatesDep received an empty set of valid states.')
+            raise AirflowException('ValidStatesDep received an empty set of valid states.')
         self._valid_states = valid_states
 
     def __eq__(self, other):
-        return type(self) == type(other) and self._valid_states == other._valid_states
+        return isinstance(self, type(other)) and self._valid_states == other._valid_states
 
     def __hash__(self):
         return hash((type(self), tuple(self._valid_states)))
@@ -51,15 +50,14 @@ class ValidStateDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         if dep_context.ignore_ti_state:
-            yield self._passing_status(
-                reason="Context specified that state should be ignored.")
+            yield self._passing_status(reason="Context specified that state should be ignored.")
             return
 
         if ti.state in self._valid_states:
-            yield self._passing_status(reason="Task state {} was valid.".format(ti.state))
+            yield self._passing_status(reason=f"Task state {ti.state} was valid.")
             return
 
         yield self._failing_status(
-            reason="Task is in the '{0}' state which is not a valid state for "
-                   "execution. The task must be cleared in order to be run.".format(
-                       ti.state))
+            reason="Task is in the '{}' state which is not a valid state for "
+            "execution. The task must be cleared in order to be run.".format(ti.state)
+        )

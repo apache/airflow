@@ -68,9 +68,6 @@ $(document).ready(function () {
         'login': 'user',
         'schema': 'topic',
       },
-    spark: {
-      hidden_fields: ['schema', 'login', 'password'],
-      relabeling: {},
     },
   };
 

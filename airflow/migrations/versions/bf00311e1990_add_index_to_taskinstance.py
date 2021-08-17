@@ -34,12 +34,7 @@ depends_on = None
 
 
 def upgrade():
-    op.create_index(
-        'ti_dag_date',
-        'task_instance',
-        ['dag_id', 'execution_date'],
-        unique=False
-    )
+    op.create_index('ti_dag_date', 'task_instance', ['dag_id', 'execution_date'], unique=False)
 
 
 def downgrade():

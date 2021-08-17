@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,45 +19,30 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.subdag_operator import SubDagOperator
-from airflow.operators.bash_operator import BashOperator
-from airflow.executors import SequentialExecutor
-
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
+from airflow.operators.subdag import SubDagOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
-default_args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
-    'run_as_user': 'airflow_test_user'
-}
+default_args = {'owner': 'airflow', 'start_date': DEFAULT_DATE, 'run_as_user': 'airflow_test_user'}
 
 dag = DAG(dag_id='impersonation_subdag', default_args=default_args)
 
 
 def print_today():
-    print('Today is {}'.format(datetime.utcnow()))
+    print(f'Today is {datetime.utcnow()}')
 
 
-subdag = DAG('impersonation_subdag.test_subdag_operation',
-             default_args=default_args)
+subdag = DAG('impersonation_subdag.test_subdag_operation', default_args=default_args)
 
 
-PythonOperator(
-    python_callable=print_today,
-    task_id='exec_python_fn',
-    dag=subdag)
+PythonOperator(python_callable=print_today, task_id='exec_python_fn', dag=subdag)
 
 
-BashOperator(
-    task_id='exec_bash_operator',
-    bash_command='echo "Running within SubDag"',
-    dag=subdag
+BashOperator(task_id='exec_bash_operator', bash_command='echo "Running within SubDag"', dag=subdag)
+
+
+subdag_operator = SubDagOperator(
+    task_id='test_subdag_operation', subdag=subdag, mode='reschedule', poke_interval=1, dag=dag
 )
-
-
-subdag_operator = SubDagOperator(task_id='test_subdag_operation',
-                                 subdag=subdag,
-                                 executor=SequentialExecutor(),
-                                 dag=dag)

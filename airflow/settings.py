@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,140 +15,67 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import atexit
+import functools
 import json
 import logging
 import os
 import sys
 import warnings
-from typing import Any
+from typing import Optional
 
 import pendulum
 from sqlalchemy import create_engine, exc
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
-from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
-from airflow.utils.sqlalchemy import setup_event_handlers
+from airflow.utils.orm_event_handlers import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
-RBAC = conf.getboolean('webserver', 'rbac')
 
-TIMEZONE = pendulum.timezone('UTC')
+TIMEZONE = pendulum.tz.timezone('UTC')
 try:
     tz = conf.get("core", "default_timezone")
     if tz == "system":
-        TIMEZONE = pendulum.local_timezone()
+        TIMEZONE = pendulum.tz.local_timezone()
     else:
-        TIMEZONE = pendulum.timezone(tz)
+        TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
     pass
-log.info("Configured default timezone %s" % TIMEZONE)
+log.info("Configured default timezone %s", TIMEZONE)
 
 
-class DummyStatsLogger(object):
-    @classmethod
-    def incr(cls, stat, count=1, rate=1):
-        pass
-
-    @classmethod
-    def decr(cls, stat, count=1, rate=1):
-        pass
-
-    @classmethod
-    def gauge(cls, stat, value, rate=1, delta=False):
-        pass
-
-    @classmethod
-    def timing(cls, stat, dt):
-        pass
-
-
-class AllowListValidator:
-
-    def __init__(self, allow_list=None):
-        if allow_list:
-            self.allow_list = tuple([item.strip().lower() for item in allow_list.split(',')])
-        else:
-            self.allow_list = None
-
-    def test(self, stat):
-        if self.allow_list is not None:
-            return stat.strip().lower().startswith(self.allow_list)
-        else:
-            return True  # default is all metrics allowed
-
-
-class SafeStatsdLogger:
-
-    def __init__(self, statsd_client, allow_list_validator=AllowListValidator()):
-        self.statsd = statsd_client
-        self.allow_list_validator = allow_list_validator
-
-    def incr(self, stat, count=1, rate=1):
-        if self.allow_list_validator.test(stat):
-            return self.statsd.incr(stat, count, rate)
-
-    def decr(self, stat, count=1, rate=1):
-        if self.allow_list_validator.test(stat):
-            return self.statsd.decr(stat, count, rate)
-
-    def gauge(self, stat, value, rate=1, delta=False):
-        if self.allow_list_validator.test(stat):
-            return self.statsd.gauge(stat, value, rate, delta)
-
-    def timing(self, stat, dt):
-        if self.allow_list_validator.test(stat):
-            return self.statsd.timing(stat, dt)
-
-
-Stats = DummyStatsLogger  # type: Any
-
-if conf.getboolean('scheduler', 'statsd_on'):
-    from statsd import StatsClient
-
-    statsd = StatsClient(
-        host=conf.get('scheduler', 'statsd_host'),
-        port=conf.getint('scheduler', 'statsd_port'),
-        prefix=conf.get('scheduler', 'statsd_prefix'))
-
-    allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
-
-    Stats = SafeStatsdLogger(statsd, allow_list_validator)
-else:
-    Stats = DummyStatsLogger
-
-HEADER = '\n'.join([
-    r'  ____________       _____________',
-    r' ____    |__( )_________  __/__  /________      __',
-    r'____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /',
-    r'___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /',
-    r' _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/',
-])
+HEADER = '\n'.join(
+    [
+        r'  ____________       _____________',
+        r' ____    |__( )_________  __/__  /________      __',
+        r'____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /',
+        r'___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /',
+        r' _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/',
+    ]
+)
 
 LOGGING_LEVEL = logging.INFO
 
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
-LOG_FORMAT = conf.get('core', 'log_format')
-SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
+LOG_FORMAT = conf.get('logging', 'log_format')
+SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
-SQL_ALCHEMY_CONN = None
-DAGS_FOLDER = None
-PLUGINS_FOLDER = None
-LOGGING_CLASS_PATH = None
+SQL_ALCHEMY_CONN: Optional[str] = None
+PLUGINS_FOLDER: Optional[str] = None
+LOGGING_CLASS_PATH: Optional[str] = None
+DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-engine = None
-Session = None
+engine: Optional[Engine] = None
+Session: Optional[SASession] = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -169,13 +95,37 @@ STATE_COLORS = {
 }
 
 
-def policy(task):
+@functools.lru_cache(maxsize=None)
+def _get_rich_console(file):
+    # Delay imports until we need it
+    import rich.console
+
+    return rich.console.Console(file=file)
+
+
+def custom_show_warning(message, category, filename, lineno, file=None, line=None):
+    """Custom function to print rich and visible warnings"""
+    # Delay imports until we need it
+    from rich.markup import escape
+
+    msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
+    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
+    write_console = _get_rich_console(file or sys.stderr)
+    write_console.print(msg, soft_wrap=True)
+
+
+warnings.showwarning = custom_show_warning
+
+
+def task_policy(task) -> None:
     """
     This policy setting allows altering tasks after they are loaded in
-    the DagBag. It allows administrator to rewire some task parameters.
+    the DagBag. It allows administrator to rewire some task's parameters.
+    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
+    to stop DAG from being executed.
 
     To define policy, add a ``airflow_local_settings`` module
-    to your PYTHONPATH that defines this ``policy`` function.
+    to your PYTHONPATH that defines this ``task_policy`` function.
 
     Here are a few examples of how this can be useful:
 
@@ -184,7 +134,29 @@ def policy(task):
         tasks get wired to the right workers
     * You could enforce a task timeout policy, making sure that no tasks run
         for more than 48 hours
-    * ...
+
+    :param task: task to be mutated
+    :type task: airflow.models.baseoperator.BaseOperator
+    """
+
+
+def dag_policy(dag) -> None:
+    """
+    This policy setting allows altering DAGs after they are loaded in
+    the DagBag. It allows administrator to rewire some DAG's parameters.
+    Alternatively you can raise ``AirflowClusterPolicyViolation`` exception
+    to stop DAG from being executed.
+
+    To define policy, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``dag_policy`` function.
+
+    Here are a few examples of how this can be useful:
+
+    * You could enforce default user for DAGs
+    * Check if every DAG has configured tags
+
+    :param dag: dag to be mutated
+    :type dag: airflow.models.dag.DAG
     """
 
 
@@ -197,6 +169,9 @@ def task_instance_mutation_hook(task_instance):
     to your PYTHONPATH that defines this ``task_instance_mutation_hook`` function.
 
     This could be used, for instance, to modify the task instance during retries.
+
+    :param task_instance: task instance to be mutated
+    :type task_instance: airflow.models.taskinstance.TaskInstance
     """
 
 
@@ -216,21 +191,21 @@ def pod_mutation_hook(pod):
 
 
 def configure_vars():
+    """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-    PLUGINS_FOLDER = conf.get(
-        'core',
-        'plugins_folder',
-        fallback=os.path.join(AIRFLOW_HOME, 'plugins')
-    )
+    PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
 
 
 def configure_orm(disable_connection_pool=False):
-    log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
+    """Configure ORM using SQLAlchemy"""
+    from airflow.utils.log.secrets_masker import mask_secret
+
+    log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
     engine_args = prepare_engine_args(disable_connection_pool)
@@ -239,23 +214,25 @@ def configure_orm(disable_connection_pool=False):
     # to utf-8 so jobs & users with non-latin1 characters can still use us.
     engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
 
-    # For Python2 we get back a newstr and need a str
-    engine_args['encoding'] = engine_args['encoding'].__str__()
-
     if conf.has_option('core', 'sql_alchemy_connect_args'):
         connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
     else:
         connect_args = {}
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
+
+    mask_secret(engine.url.password)
+
     setup_event_handlers(engine)
 
-    Session = scoped_session(sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=engine,
-        expire_on_commit=False,
-    ))
+    Session = scoped_session(
+        sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=engine,
+            expire_on_commit=False,
+        )
+    )
 
 
 def prepare_engine_args(disable_connection_pool=False):
@@ -265,7 +242,7 @@ def prepare_engine_args(disable_connection_pool=False):
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
-    elif 'sqlite' not in SQL_ALCHEMY_CONN:
+    elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
@@ -296,17 +273,32 @@ def prepare_engine_args(disable_connection_pool=False):
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
-        log.debug("settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
-                  "pool_recycle=%d, pid=%d", pool_size, max_overflow, pool_recycle, os.getpid())
+        log.debug(
+            "settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
+            "pool_recycle=%d, pid=%d",
+            pool_size,
+            max_overflow,
+            pool_recycle,
+            os.getpid(),
+        )
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
         engine_args['pool_pre_ping'] = pool_pre_ping
         engine_args['max_overflow'] = max_overflow
+
+    # The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
+    # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
+    # 'READ COMMITTED' is the default value for PostgreSQL.
+    # More information here:
+    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
+    if SQL_ALCHEMY_CONN.startswith('mysql'):
+        engine_args['isolation_level'] = 'READ COMMITTED'
+
     return engine_args
 
 
 def dispose_orm():
-    """ Properly close pooled database connections """
+    """Properly close pooled database connections"""
     log.debug("Disposing DB connection pool (PID %s)", os.getpid())
     global engine
     global Session
@@ -320,26 +312,32 @@ def dispose_orm():
 
 
 def configure_adapters():
-    from pendulum import Pendulum
+    """Register Adapters and DB Converters"""
+    from pendulum import DateTime as Pendulum
+
     try:
         from sqlite3 import register_adapter
+
         register_adapter(Pendulum, lambda val: val.isoformat(' '))
     except ImportError:
         pass
     try:
         import MySQLdb.converters
+
         MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
     except ImportError:
         pass
     try:
         import pymysql.converters
+
         pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
     except ImportError:
         pass
 
 
 def validate_session():
-    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
+    """Validate ORM Session"""
+    worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:
@@ -364,10 +362,7 @@ def configure_action_logging():
 
 
 def prepare_syspath():
-    """
-    Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
-    """
-
+    """Ensures that certain subfolders of AIRFLOW_HOME are on the classpath"""
     if DAGS_FOLDER not in sys.path:
         sys.path.append(DAGS_FOLDER)
 
@@ -412,6 +407,7 @@ def get_session_lifetime_config():
 
 
 def import_local_settings():
+    """Import airflow_local_settings.py files to allow overriding any configs in settings.py file"""
     try:
         import airflow_local_settings
 
@@ -423,12 +419,24 @@ def import_local_settings():
                 if not k.startswith("__"):
                     globals()[k] = v
 
-        log.info("Loaded airflow_local_settings from " + airflow_local_settings.__file__ + ".")
+        # TODO: Remove once deprecated
+        if "policy" in globals() and "task_policy" not in globals():
+            warnings.warn(
+                "Using `policy` in airflow_local_settings.py is deprecated. "
+                "Please rename your `policy` to `task_policy`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            globals()["task_policy"] = globals()["policy"]
+            del globals()["policy"]
+
+        log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ImportError:
         log.debug("Failed to import airflow_local_settings.", exc_info=True)
 
 
 def initialize():
+    """Initialize Airflow with all the settings from this file"""
     configure_vars()
     prepare_syspath()
     import_local_settings()
@@ -439,7 +447,7 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
-    # Ensure we close DB connections at scheduler and gunicon worker terminations
+    # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
 
 
@@ -447,30 +455,20 @@ def initialize():
 
 KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
-WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
-              'LIGHTORANGE': '#FF9933'}
+WEB_COLORS = {'LIGHTBLUE': '#4d9de0', 'LIGHTORANGE': '#FF9933'}
 
-# Used by DAG context_managers
-CONTEXT_MANAGER_DAG = None
-
-# If store_serialized_dags is True, scheduler writes serialized DAGs to DB, and webserver
-# reads DAGs from DB instead of importing from files.
-STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallback=False)
 
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
-MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
-    'core', 'min_serialized_dag_update_interval', fallback=30)
+MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_update_interval', fallback=30)
 
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
-MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint(
-    'core', 'min_serialized_dag_fetch_interval', fallback=10)
+MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
 
 # Whether to persist DAG files code in DB. If set to True, Webserver reads file contents
 # from DB instead of trying to access files in a DAG folder.
-# Defaults to same as the store_serialized_dags setting.
-STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIALIZED_DAGS)
+STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=True)
 
 # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
 # If the flag is set to False, we remove all handlers from the root logger
@@ -478,3 +476,39 @@ STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=STORE_SERIAL
 # to get all the logs from the print & log statements in the DAG files before a task is run
 # The handlers are restored after the task completes execution.
 DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
+
+CAN_FORK = hasattr(os, "fork")
+
+EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
+    'core',
+    'execute_tasks_new_python_interpreter',
+    fallback=False,
+)
+
+ALLOW_FUTURE_EXEC_DATES = conf.getboolean('scheduler', 'allow_trigger_in_future', fallback=False)
+
+# Whether or not to check each dagrun against defined SLAs
+CHECK_SLAS = conf.getboolean('core', 'check_slas', fallback=True)
+
+USE_JOB_SCHEDULE = conf.getboolean('scheduler', 'use_job_schedule', fallback=True)
+
+# By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
+# if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
+LAZY_LOAD_PLUGINS = conf.getboolean('core', 'lazy_load_plugins', fallback=True)
+
+# By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
+# Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+# loaded from module.
+LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallback=True)
+
+# Determines if the executor utilizes Kubernetes
+IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
+    executor_constants.KUBERNETES_EXECUTOR,
+    executor_constants.CELERY_KUBERNETES_EXECUTOR,
+}
+
+HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')
+
+# By default this is off, but is automatically configured on when running task
+# instances
+MASK_SECRETS_IN_LOGS = False

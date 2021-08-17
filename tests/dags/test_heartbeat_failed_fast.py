@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -29,7 +28,4 @@ args = {
 }
 
 dag = DAG(dag_id='test_heartbeat_failed_fast', default_args=args)
-task = BashOperator(
-    task_id='test_heartbeat_failed_fast_op',
-    bash_command='sleep 5',
-    dag=dag)
+task = BashOperator(task_id='test_heartbeat_failed_fast_op', bash_command='sleep 7', dag=dag)

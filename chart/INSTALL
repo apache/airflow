@@ -1,0 +1,14 @@
+## INSTALL / BUILD instructions for Apache Airflow Chart
+
+# The Assumption here is that you have a running Kubernetes cluster
+# and helm installed & configured to talk with the cluster
+
+# Run `helm install` Command
+helm install airflow .
+
+# If you want to install in a particular namespace
+## Create that namespace (example 'airflow' here, change it as needed)
+kubectl create namespace airflow
+
+## Install the chart in that namespace
+helm install airflow -n airflow .

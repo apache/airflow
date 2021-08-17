@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import datetime
+import unittest
 
-from airflow.models import TaskInstance as TI, DAG, DagRun
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.operators.branch import BaseBranchOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
@@ -41,21 +41,21 @@ class ChooseBranchOneTwo(BaseBranchOperator):
         return ['branch_1', 'branch_2']
 
 
-class BranchOperatorTest(unittest.TestCase):
+class TestBranchOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super(BranchOperatorTest, cls).setUpClass()
+        super().setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
 
     def setUp(self):
-        self.dag = DAG('branch_operator_test',
-                       default_args={
-                           'owner': 'airflow',
-                           'start_date': DEFAULT_DATE},
-                       schedule_interval=INTERVAL)
+        self.dag = DAG(
+            'branch_operator_test',
+            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL,
+        )
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
@@ -63,7 +63,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_op = None
 
     def tearDown(self):
-        super(BranchOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -79,19 +79,16 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             for ti in tis:
                 if ti.task_id == 'make_choice':
-                    self.assertEqual(ti.state, State.SUCCESS)
+                    assert ti.state == State.SUCCESS
                 elif ti.task_id == 'branch_1':
                     # should exist with state None
-                    self.assertEqual(ti.state, State.NONE)
+                    assert ti.state == State.NONE
                 elif ti.task_id == 'branch_2':
-                    self.assertEqual(ti.state, State.SKIPPED)
+                    assert ti.state == State.SKIPPED
                 else:
                     raise Exception
 
@@ -107,10 +104,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
-            )
+            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
 
             expected = {
                 "make_choice": State.SUCCESS,
@@ -121,7 +115,7 @@ class BranchOperatorTest(unittest.TestCase):
 
             for ti in tis:
                 if ti.task_id in expected:
-                    self.assertEqual(ti.state, expected[ti.task_id])
+                    assert ti.state == expected[ti.task_id]
                 else:
                     raise Exception
 
@@ -132,10 +126,10 @@ class BranchOperatorTest(unittest.TestCase):
         self.dag.clear()
 
         dagrun = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -143,11 +137,11 @@ class BranchOperatorTest(unittest.TestCase):
         tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
+                assert ti.state == State.SKIPPED
             else:
                 raise Exception
 
@@ -158,10 +152,10 @@ class BranchOperatorTest(unittest.TestCase):
         self.dag.clear()
 
         dagrun = self.dag.create_dagrun(
-            run_id="manual__",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
-            state=State.RUNNING
+            state=State.RUNNING,
         )
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -169,10 +163,31 @@ class BranchOperatorTest(unittest.TestCase):
         tis = dagrun.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
+                assert ti.state == State.SUCCESS
             elif ti.task_id == 'branch_1':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.NONE)
+                assert ti.state == State.NONE
             else:
                 raise Exception
+
+    def test_xcom_push(self):
+        self.branch_op = ChooseBranchOne(task_id='make_choice', dag=self.dag)
+
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING,
+        )
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'

@@ -19,6 +19,6 @@
 DOCS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 readonly DOCS_DIR
 
-(cd "${DOCS_DIR}"/_build/html || exit;
+(cd "${DOCS_DIR}"/_build || exit;
     python -m http.server 8000
 )

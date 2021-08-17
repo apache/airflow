@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,35 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-json_formatter module stores all related to ElasticSearch specific logger classes
-"""
+"""json_formatter module stores all related to ElasticSearch specific logger classes"""
 
-import logging
 import json
+import logging
 
-
-def merge_dicts(dict1, dict2):
-    """
-    Merge two dicts recursively, returning new dict (input dict is not mutated).
-
-    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
-    """
-    merged = dict1.copy()
-    for k, v in dict2.items():
-        if k in merged and isinstance(v, dict):
-            merged[k] = merge_dicts(merged.get(k, {}), v)
-        else:
-            merged[k] = v
-    return merged
+from airflow.utils.helpers import merge_dicts
 
 
 class JSONFormatter(logging.Formatter):
-    """
-    JSONFormatter instances are used to convert a log record to json.
-    """
-    def __init__(self, fmt=None, datefmt=None, json_fields=None, extras=None):
-        super(JSONFormatter, self).__init__(fmt, datefmt)
+    """JSONFormatter instances are used to convert a log record to json."""
+
+    def __init__(self, fmt=None, datefmt=None, style='%', json_fields=None, extras=None):
+        super().__init__(fmt, datefmt, style)
         if extras is None:
             extras = {}
         if json_fields is None:
@@ -57,8 +40,18 @@ class JSONFormatter(logging.Formatter):
         return self.json_fields.count('asctime') > 0
 
     def format(self, record):
-        super(JSONFormatter, self).format(record)
-        record_dict = {label: getattr(record, label, None)
-                       for label in self.json_fields}
+        super().format(record)
+        record_dict = {label: getattr(record, label, None) for label in self.json_fields}
+        if "message" in self.json_fields:
+            msg = record_dict["message"]
+            if record.exc_text:
+                if msg[-1:] != "\n":
+                    msg = msg + "\n"
+                msg = msg + record.exc_text
+            if record.stack_info:
+                if msg[-1:] != "\n":
+                    msg = msg + "\n"
+                msg = msg + self.formatStack(record.stack_info)
+            record_dict["message"] = msg
         merged_record = merge_dicts(record_dict, self.extras)
         return json.dumps(merged_record)

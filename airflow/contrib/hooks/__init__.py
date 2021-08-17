@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,54 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`."""
 
+import warnings
 
-# Contrib hooks are not imported by default. They should be accessed
-# directly: from airflow.contrib.hooks.hook_module import Hook
-
-
-import sys
-import os as _os
-
-# ------------------------------------------------------------------------
-#
-# #TODO #FIXME Airflow 2.0
-#
-# Old import machinary below.
-#
-# This is deprecated but should be kept until Airflow 2.0
-# for compatibility.
-#
-# ------------------------------------------------------------------------
-_hooks = {
-    'docker_hook': ['DockerHook'],
-    'ftp_hook': ['FTPHook'],
-    'ftps_hook': ['FTPSHook'],
-    'vertica_hook': ['VerticaHook'],
-    'ssh_hook': ['SSHHook'],
-    'winrm_hook': ['WinRMHook'],
-    'sftp_hook': ['SFTPHook'],
-    'bigquery_hook': ['BigQueryHook'],
-    'qubole_hook': ['QuboleHook'],
-    'gcs_hook': ['GoogleCloudStorageHook'],
-    'datastore_hook': ['DatastoreHook'],
-    'gcp_cloudml_hook': ['CloudMLHook'],
-    'redshift_hook': ['RedshiftHook'],
-    'gcp_dataproc_hook': ['DataProcHook'],
-    'gcp_dataflow_hook': ['DataFlowHook'],
-    'spark_submit_operator': ['SparkSubmitOperator'],
-    'cloudant_hook': ['CloudantHook'],
-    'fs_hook': ['FSHook'],
-    'wasb_hook': ['WasbHook'],
-    'gcp_pubsub_hook': ['PubSubHook'],
-    'jenkins_hook': ['JenkinsHook'],
-    'aws_dynamodb_hook': ['AwsDynamoDBHook'],
-    'azure_data_lake_hook': ['AzureDataLakeHook'],
-    'azure_fileshare_hook': ['AzureFileShareHook'],
-}
-
-
-if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-    from airflow.utils.helpers import AirflowImporter
-
-    airflow_importer = AirflowImporter(sys.modules[__name__], _hooks)
+warnings.warn(
+    "This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

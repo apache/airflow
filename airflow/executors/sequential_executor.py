@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 SequentialExecutor
 
@@ -24,10 +22,11 @@ SequentialExecutor
     For more information on how the SequentialExecutor works, take a look at the guide:
     :ref:`executor:SequentialExecutor`
 """
-from builtins import str
 import subprocess
+from typing import Any, Optional
 
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -40,16 +39,22 @@ class SequentialExecutor(BaseExecutor):
     Since we want airflow to work out of the box, it defaults to this
     SequentialExecutor alongside sqlite as you first install it.
     """
+
     def __init__(self):
-        super(SequentialExecutor, self).__init__()
+        super().__init__()
         self.commands_to_run = []
 
-    def execute_async(self, key, command, queue=None, executor_config=None):
-        if command[0:2] != ["airflow", "run"]:
-            raise ValueError('The command must start with ["airflow", "run"].')
-        self.commands_to_run.append((key, command,))
+    def execute_async(
+        self,
+        key: TaskInstanceKey,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None,
+    ) -> None:
+        self.validate_command(command)
+        self.commands_to_run.append((key, command))
 
-    def sync(self):
+    def sync(self) -> None:
         for key, command in self.commands_to_run:
             self.log.info("Executing command: %s", command)
 
@@ -63,4 +68,8 @@ class SequentialExecutor(BaseExecutor):
         self.commands_to_run = []
 
     def end(self):
+        """End the executor."""
         self.heartbeat()
+
+    def terminate(self):
+        """Terminate the executor is not doing anything."""

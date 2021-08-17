@@ -17,9 +17,10 @@
  under the License.
 #}
 
-{% extends 'airflow/model_create.html' %}
+{% extends 'appbuilder/general/model/add.html' %}
 
 {% block tail %}
   {{ super() }}
-    <script src="{{ url_for('static', filename='connection_form.js') }}"></script>
+  <script src="{{ url_for_asset('connectionForm.js') }}"></script>
+  <script id="field_behaviours" type="text/json">{{ widgets["add"].field_behaviours }}</script>
 {% endblock %}
