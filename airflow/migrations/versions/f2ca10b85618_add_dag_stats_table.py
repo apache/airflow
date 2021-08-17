@@ -33,7 +33,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     op.create_table(
         'dag_stats',
         sa.Column('dag_id', sa.String(length=250), nullable=False),
@@ -44,5 +44,5 @@ def upgrade():  # noqa: D103
     )
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_table('dag_stats')

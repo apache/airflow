@@ -37,7 +37,7 @@ depends_on = None
 def upgrade():
     """Upgrade version."""
     json_type = sa.JSON
-    conn = op.get_bind()  # pylint: disable=no-member
+    conn = op.get_bind()
 
     if conn.dialect.name != "postgresql":
         # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
@@ -48,7 +48,7 @@ def upgrade():
             json_type = sa.Text
 
     op.create_table(
-        'serialized_dag',  # pylint: disable=no-member
+        'serialized_dag',
         sa.Column('dag_id', sa.String(length=250), nullable=False),
         sa.Column('fileloc', sa.String(length=2000), nullable=False),
         sa.Column('fileloc_hash', sa.Integer(), nullable=False),
@@ -56,7 +56,7 @@ def upgrade():
         sa.Column('last_updated', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('dag_id'),
     )
-    op.create_index('idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])  # pylint: disable=no-member
+    op.create_index('idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
 
     if conn.dialect.name == "mysql":
         conn.execute("SET time_zone = '+00:00'")
@@ -65,7 +65,7 @@ def upgrade():
         if res[0][0] == 0:
             raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
 
-        op.alter_column(  # pylint: disable=no-member
+        op.alter_column(
             table_name="serialized_dag",
             column_name="last_updated",
             type_=mysql.TIMESTAMP(fsp=6),
@@ -81,7 +81,7 @@ def upgrade():
         if conn.dialect.name == "postgresql":
             conn.execute("set timezone=UTC")
 
-        op.alter_column(  # pylint: disable=no-member
+        op.alter_column(
             table_name="serialized_dag",
             column_name="last_updated",
             type_=sa.TIMESTAMP(timezone=True),
@@ -90,4 +90,4 @@ def upgrade():
 
 def downgrade():
     """Downgrade version."""
-    op.drop_table('serialized_dag')  # pylint: disable=no-member
+    op.drop_table('serialized_dag')

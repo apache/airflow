@@ -33,9 +33,9 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     op.add_column('dag_run', sa.Column('conf', sa.PickleType(), nullable=True))
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_column('dag_run', 'conf')

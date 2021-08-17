@@ -21,7 +21,6 @@ from logging.config import fileConfig
 from alembic import context
 
 from airflow import models, settings
-from airflow.models.serialized_dag import SerializedDagModel  # pylint: disable=unused-import # noqa
 
 
 def include_object(_, name, type_, *args):
@@ -102,7 +101,7 @@ def run_migrations_online():
             if connection.dialect.name == 'mysql' and connection.dialect.server_version_info >= (5, 6):
                 connection.execute("select GET_LOCK('alembic',1800);")
             if connection.dialect.name == 'postgresql':
-                context.get_context()._ensure_version_table()  # pylint: disable=protected-access
+                context.get_context()._ensure_version_table()
                 connection.execute("LOCK TABLE alembic_version IN ACCESS EXCLUSIVE MODE")
             context.run_migrations()
             if connection.dialect.name == 'mysql' and connection.dialect.server_version_info >= (5, 6):
