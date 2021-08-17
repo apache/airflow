@@ -14,25 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-################################
-## Elasticsearch Secret
-#################################
-{{- if (and .Values.elasticsearch.enabled (not .Values.elasticsearch.secretName)) }}
-kind: Secret
-apiVersion: v1
-metadata:
-  name: {{ .Release.Name }}-elasticsearch
-  labels:
-    release: {{ .Release.Name }}
-    chart: {{ .Chart.Name }}
-    heritage: {{ .Release.Service }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
-{{- end }}
-type: Opaque
-data:
-  {{- with .Values.elasticsearch.connection }}
-  connection: {{ urlJoin (dict "scheme" "http" "userinfo" (printf "%s:%s" (.user | urlquery) (.pass | urlquery)) "host" (printf "%s:%s" .host ((default 80 .port) | toString) ) ) | b64enc | quote }}
-  {{- end }}
-{{- end }}

@@ -83,6 +83,10 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
+    # until we have support for ARM images, we set docker default platform to AMD
+    # so that all breeze commands use emulation
+    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+
     # Default port numbers for forwarded ports
     export SSH_PORT=${SSH_PORT:="12322"}
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}

@@ -26,16 +26,17 @@ An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, tha
 
         ping >> email
 
-Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers, like:
+Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers. Some popular operators from core include:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
-- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
-- :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` - SQLite DB operator
 
-If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`apache-airflow-providers:index`. Some popular operators from here include:
+For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.
 
+If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
+
+- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator`
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
 - :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
 - :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
@@ -47,7 +48,7 @@ If the operator you need isn't installed with Airflow by default, you can probab
 - :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
-But there are many, many more - you can see the list of those in our :doc:`apache-airflow-providers:index` documentation.
+But there are many, many more - you can see the list of those in our :doc:`providers packages <apache-airflow-providers:operators-and-hooks-ref/index>` documentation.
 
 .. note::
 

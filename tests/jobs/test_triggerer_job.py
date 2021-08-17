@@ -73,6 +73,21 @@ def test_is_alive():
 
 
 @pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
+def test_is_needed(session):
+    """Checks the triggerer-is-needed logic"""
+    # No triggers, no need
+    triggerer_job = TriggererJob(None, heartrate=10, state=State.RUNNING)
+    assert triggerer_job.is_needed() is False
+    # Add a trigger, it's needed
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    trigger_orm = Trigger.from_object(trigger)
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+    session.commit()
+    assert triggerer_job.is_needed() is True
+
+
+@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_capacity_decode():
     """
     Tests that TriggererJob correctly sets capacity to a valid value passed in as a CLI arg,
