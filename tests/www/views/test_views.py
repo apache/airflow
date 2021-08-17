@@ -23,8 +23,6 @@ import pytest
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 
-from airflow.providers_manager import ProvidersManager
-
 from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
