@@ -216,6 +216,12 @@ function discover_all_auth_backends() {
     group_end
 }
 
+function ver() {
+  # convert SemVer number to comparable string (strips pre-release version)
+  # shellcheck disable=SC2086,SC2183
+  printf "%04d%04d%04d%.0s" ${1//[.-]/ }
+}
+
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
@@ -227,6 +233,13 @@ discover_all_hooks
 discover_all_connection_form_widgets
 discover_all_field_behaviours
 discover_all_extra_links
-discover_all_logging_handlers
-discover_all_secrets_backends
-discover_all_auth_backends
+
+# The commands below are available only for airflow version 2.2.0+
+airflow_version=$(airflow version)
+airflow_version_comparable=$(ver "${airflow_version}")
+min_airflow_version_comparable=$(ver "2.2.0")
+if (( airflow_version_comparable >= min_airflow_version_comparable )); then
+    discover_all_logging_handlers
+    discover_all_secrets_backends
+    discover_all_auth_backends
+fi
