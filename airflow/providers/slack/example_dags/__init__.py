@@ -14,35 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-hashicorp
-name: Hashicorp
-description: |
-    Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
-
-versions:
-  - 2.0.0
-  - 1.0.2
-  - 1.0.1
-  - 1.0.0
-
-additional-dependencies:
-  - apache-airflow>=2.1.0
-
-integrations:
-  - integration-name: Hashicorp Vault
-    external-doc-url: https://www.vaultproject.io/
-    logo: /integration-logos/hashicorp/Hashicorp-Vault.png
-    tags: [software]
-
-hooks:
-  - integration-name: Hashicorp Vault
-    python-modules:
-      - airflow.providers.hashicorp.hooks.vault
-
-hook-class-names:
-  - airflow.providers.hashicorp.hooks.vault.VaultHook
-
-secrets-backends:
-  - airflow.providers.hashicorp.secrets.vault.VaultBackend
