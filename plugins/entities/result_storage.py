@@ -33,6 +33,7 @@ class ClsResultStorage(ClsEntity):
                 session.add(result)
         except Exception as e:
             _logger.error("Error: {}".format(e))
+            raise e
 
     def update(self, **data):
         try:
@@ -42,6 +43,7 @@ class ClsResultStorage(ClsEntity):
                     .update(data)
         except Exception as e:
             _logger.error("Error: {}".format(e))
+            raise e
 
     def _filter(self, params) -> list:
         try:
