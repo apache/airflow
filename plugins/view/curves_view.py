@@ -274,7 +274,7 @@ class CurvesView(AirflowModelView):
                             'curve': curve
                         })
                 except Exception as e:
-                    _log.debug(e)
+                    _logger.debug(e)
                     curves.append({
                         'entity_id': entity_id,
                         'curve': []
