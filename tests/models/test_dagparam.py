@@ -15,9 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from datetime import timedelta
-
 from airflow.decorators import task
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -25,13 +22,6 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
 class TestDagParamRuntime:
-    DEFAULT_ARGS = {
-        "owner": "test",
-        "depends_on_past": True,
-        "start_date": timezone.utcnow(),
-        "retries": 1,
-        "retry_delay": timedelta(minutes=1),
-    }
     VALUE = 42
     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -48,7 +38,7 @@ class TestDagParamRuntime:
 
     def test_dag_param_resolves(self, dag_maker):
         """Test dagparam resolves on operator execution"""
-        with dag_maker(dag_id="test_xcom_pass_to_op", default_args=self.DEFAULT_ARGS) as dag:
+        with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
             value = dag.param('value', default=self.VALUE)
 
             @task
@@ -62,14 +52,14 @@ class TestDagParamRuntime:
             start_date=timezone.utcnow(),
         )
 
-        xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
+        xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
     def test_dag_param_overwrite(self, dag_maker):
         """Test dag param is overwritten from dagrun config"""
-        with dag_maker(dag_id="test_xcom_pass_to_op", default_args=self.DEFAULT_ARGS) as dag:
+        with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
             value = dag.param('value', default=self.VALUE)
 
             @task
@@ -86,16 +76,14 @@ class TestDagParamRuntime:
             conf={'value': new_value},
         )
 
-        xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
+        xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
     def test_dag_param_default(self, dag_maker):
         """Test dag param is overwritten from dagrun config"""
-        with dag_maker(
-            dag_id="test_xcom_pass_to_op", default_args=self.DEFAULT_ARGS, params={'value': 'test'}
-        ) as dag:
+        with dag_maker(dag_id="test_xcom_pass_to_op", params={'value': 'test'}) as dag:
             value = dag.param('value')
 
             @task
@@ -106,7 +94,7 @@ class TestDagParamRuntime:
 
         dr = dag_maker.create_dagrun(run_id=DagRunType.MANUAL.value, start_date=timezone.utcnow())
 
-        xcom_arg.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
+        xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == 'test'

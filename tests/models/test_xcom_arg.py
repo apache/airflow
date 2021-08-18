@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
-
 import pytest
 
 from airflow.models.xcom_arg import XComArg
@@ -23,14 +21,6 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
-
-DEFAULT_ARGS = {
-    "owner": "test",
-    "depends_on_past": True,
-    "start_date": datetime.today(),
-    "retries": 1,
-    "retry_delay": timedelta(minutes=1),
-}
 
 VALUE = 42
 
@@ -44,7 +34,7 @@ def build_python_op(dag_maker):
     def f(task_id):
         return f"OP:{task_id}"
 
-    with dag_maker(dag_id="test_xcom_dag", default_args=DEFAULT_ARGS):
+    with dag_maker(dag_id="test_xcom_dag"):
         operator = PythonOperator(
             python_callable=f,
             task_id="test_xcom_op",
@@ -90,7 +80,7 @@ class TestXComArgBuild:
         )
 
     def test_set_downstream(self, dag_maker):
-        with dag_maker("test_set_downstream", default_args=DEFAULT_ARGS):
+        with dag_maker("test_set_downstream"):
             op_a = BashOperator(task_id="a", bash_command="echo a")
             op_b = BashOperator(task_id="b", bash_command="echo b")
             bash_op1 = BashOperator(task_id="c", bash_command="echo c")
@@ -105,7 +95,7 @@ class TestXComArgBuild:
         assert bash_op2 in op_b.downstream_list
 
     def test_set_upstream(self, dag_maker):
-        with dag_maker("test_set_upstream", default_args=DEFAULT_ARGS):
+        with dag_maker("test_set_upstream"):
             op_a = BashOperator(task_id="a", bash_command="echo a")
             op_b = BashOperator(task_id="b", bash_command="echo b")
             bash_op1 = BashOperator(task_id="c", bash_command="echo c")
@@ -120,7 +110,7 @@ class TestXComArgBuild:
         assert bash_op2 in op_b.upstream_list
 
     def test_xcom_arg_property_of_base_operator(self, dag_maker):
-        with dag_maker("test_xcom_arg_property_of_base_operator", default_args=DEFAULT_ARGS):
+        with dag_maker("test_xcom_arg_property_of_base_operator"):
             op_a = BashOperator(task_id="a", bash_command="echo a")
         dag_maker.create_dagrun()
 
@@ -138,7 +128,7 @@ class TestXComArgBuild:
 class TestXComArgRuntime:
     @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_pass_to_op(self, dag_maker):
-        with dag_maker(dag_id="test_xcom_pass_to_op", default_args=DEFAULT_ARGS) as dag:
+        with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
             operator = PythonOperator(
                 python_callable=lambda: VALUE,
                 task_id="return_value_1",
@@ -159,7 +149,7 @@ class TestXComArgRuntime:
             ti = context["task_instance"]
             ti.xcom_push(key, value)
 
-        with dag_maker(dag_id="test_xcom_push_and_pass", default_args=DEFAULT_ARGS) as dag:
+        with dag_maker(dag_id="test_xcom_push_and_pass") as dag:
             op1 = PythonOperator(
                 python_callable=push_xcom_value,
                 task_id="push_xcom_value",
