@@ -45,9 +45,11 @@ from sqlalchemy import (
     String,
     and_,
     func,
+    inspect,
     or_,
 )
 from sqlalchemy.orm import reconstructor, relationship
+from sqlalchemy.orm.attributes import NO_VALUE
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import tuple_
@@ -469,7 +471,17 @@ class TaskInstance(Base, LoggingMixin):
     def run_id(self):
         """Fetches the run_id from the associated DagRun"""
         # TODO: Remove this once run_id is added as a column in TaskInstance
-        return self.get_dagrun().run_id
+
+        # IF we have pre-loaded it, just use that
+        info = inspect(self)
+        if info.attrs.dag_run.loaded_value is not NO_VALUE:
+            return self.dag_un.run_id
+        # _Don't_ use provide/create_session here, as we do not want to commit on this session (as this is
+        # called from the scheduler critical section)!
+        dag_run = self.get_dagrun(session=settings.Session())
+
+        if dag_run:
+            return dag_run.run_id
 
     def command_as_list(
         self,
@@ -513,7 +525,8 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstance.generate_command(
             self.dag_id,
             self.task_id,
-            self.run_id,
+            run_id=self.run_id,
+            execution_date=self.execution_date,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
@@ -532,7 +545,8 @@ class TaskInstance(Base, LoggingMixin):
     def generate_command(
         dag_id: str,
         task_id: str,
-        run_id: str,
+        run_id: str = None,
+        execution_date: datetime = None,
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -548,6 +562,8 @@ class TaskInstance(Base, LoggingMixin):
     ) -> List[str]:
         """
         Generates the shell command required to execute this task instance.
+
+        One of run_id or execution_date must be passed
 
         :param dag_id: DAG ID
         :type dag_id: str
@@ -586,7 +602,13 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         :rtype: list[str]
         """
-        cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
+        cmd = ["airflow", "tasks", "run", dag_id, task_id]
+        if run_id:
+            cmd.append(run_id)
+        elif execution_date:
+            cmd.append(execution_date.isoformat())
+        else:
+            raise ValueError("One of run_id and execution_date must be provided")
         if mark_success:
             cmd.extend(["--mark-success"])
         if pickle_id:
