@@ -21,18 +21,6 @@
 {% block page_title %}{{ dag.dag_id }} - Tree - {{ appbuilder.app_name }}{% endblock %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
-{% block head_css %}
-  {{ super() }}
-  <link rel="stylesheet" type="text/css" href="{{ url_for_asset('tree.css') }}">
-  <style type="text/css">
-    {% for state, state_color in state_color_mapping.items() %}
-      rect.{{state}} {
-        fill: {{state_color}};
-      }
-    {% endfor %}
-  </style>
-{% endblock %}
-
 {% block head_meta %}
   {{ super() }}
   <meta name="num_runs" content="{{ num_runs }}">
@@ -66,12 +54,7 @@
     </div>
   </div>
   <div class="legend-row">
-    <div>
-      {% for op in operators %}<span class="legend-item legend-item--no-border">
-        <span class="legend-item__swatch legend-item__swatch--circle" style="background: {{ op.ui_color }};"></span>
-        {{ op.task_type }}
-      </span>{% endfor %}
-    </div>
+    <div></div>
     <div>
       {% for state, state_color in state_color_mapping.items() %}
         <span class="legend-item legend-item--no-border">
@@ -86,34 +69,18 @@
     </div>
   </div>
   <hr>
-  <div id="svg_container">
-    <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
-    <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
-      <span class="material-icons" aria-hidden="true">error</span>
-      <span id="error_msg">Oops.</span>
-    </div>
-    <div class="refresh-actions">
-      {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
-      <label class="switch-label">
-        <input class="switch-input" id="auto_refresh" type="checkbox">
-        <span class="switch" aria-hidden="true"></span>
-        Auto-refresh
-      </label>
-      <button class="btn btn-default btn-sm" id="refresh_button">
-        <span class="material-icons" aria-hidden="true">refresh</span>
-      </button>
-    </div>
-    <svg id="tree-svg" class='tree' width="100%"></svg>
+  <div id="root">
+    <div id="react-container"></div>
+    {{ loading_dots(id='react-loading') }}
   </div>
 {% endblock %}
 
 {% block tail_js %}
   {{ super() }}
-  <script src="{{ url_for_asset('d3.min.js') }}"></script>
-  <script src="{{ url_for_asset('d3-tip.js') }}"></script>
-  <script src="{{ url_for_asset('tree.js') }}"></script>
   <script>
     const treeData = {{ data|tojson }};
+    const stateColors = {{ state_color_mapping|tojson }};
     const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>
+  <script src="{{ url_for_asset('tree.js') }}"></script>
 {% endblock %}

@@ -36,8 +36,8 @@
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
-  {%
-    if dag_model is defined and dag_model.next_dagrun_create_after is defined and dag_model.next_dagrun_create_after is not none %}
+  <meta name="is_paused" content="{{ dag.is_paused }}">
+  {% if dag_model is defined and dag_model.next_dagrun_create_after is defined and dag_model.next_dagrun_create_after is not none %}
     <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
     <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
     <meta name="next_dagrun_data_interval_end" content="{{ dag_model.next_dagrun_data_interval_end }}">
