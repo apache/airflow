@@ -126,6 +126,40 @@ Note: An AWS IAM role with the following permissions is required:
     :start-after: [START howto_operator_eks_create_cluster_with_nodegroup]
     :end-before: [END howto_operator_eks_create_cluster_with_nodegroup]
 
+Manage AWS Fargate Profiles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/operator:EKSCreateFargateProfileOperator:
+
+Create an AWS Fargate Profile
+"""""""""""""""""""""""""""""
+
+To create an AWS Fargate Profile you can use
+:class:`~airflow.providers.amazon.aws.operators.eks.EKSCreateFargateProfileOperator`.
+
+Note:  An AWS IAM role with the following permissions is required:
+  ``ec2.amazon.aws.com`` must be in the Trusted Relationships
+  ``AmazonEC2ContainerRegistryReadOnly`` IAM Policy must be attached
+  ``AmazonEKSWorkerNodePolicy`` IAM Policy must be attached
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
+    :language: python
+    :start-after: [START howto_operator_eks_create_fargate_profile]
+    :end-before: [END howto_operator_eks_create_fargate_profile]
+
+.. _howto/operator:EKSDeleteFargateProfileOperator:
+
+Delete an AWS Fargate Profile
+"""""""""""""""""""""""""""""
+
+To delete an existing AWS Fargate Profile you can use
+:class:`~airflow.providers.amazon.aws.operators.eks.EKSDeleteFargateProfileOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
+    :language: python
+    :start-after: [START howto_operator_eks_delete_fargate_profile]
+    :end-before: [END howto_operator_eks_delete_fargate_profile]
+
 .. _howto/operator:EKSPodOperator:
 
 Perform a Task on an Amazon EKS Cluster
