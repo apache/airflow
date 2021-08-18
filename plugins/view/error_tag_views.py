@@ -20,6 +20,7 @@ from plugins.models.error_tag import ErrorTag
 from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import pprint
+from airflow.security import permissions
 
 _logger = logging.getLogger(__name__)
 
@@ -57,6 +58,24 @@ class ErrorTagModelView(AirflowModelView):
     label_columns = {
         'value': lazy_gettext('Value'), 'label': lazy_gettext('Label')
 
+    }
+
+    class_permission_name = permissions.RESOURCE_ERROR_TAG
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_ACCESS_MENU,
+        permissions.ACTION_CAN_DELETE
+    ]
+
+    method_permission_name = {
+        'action_export_error_tag_statistics': 'read',
+        'action_muldelete': 'delete',
+        'list': 'read',
+        'show': 'read',
+        'add': 'create',
     }
     base_order = ('id', 'asc')
 

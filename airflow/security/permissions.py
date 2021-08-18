@@ -52,6 +52,19 @@ RESOURCE_VIEW_MENU = "View Menus"
 RESOURCE_WEBSITE = "Website"
 RESOURCE_XCOM = "XComs"
 
+# curve resources
+RESOURCE_CURVE_TEMPLATE = 'Curve Template'
+RESOURCE_CURVE = 'Curve'
+RESOURCE_CURVES = 'Curves'
+RESOURCE_RESULT = 'Results'
+RESOURCE_ERROR_TAG = 'Error Tag'
+RESOURCE_CONTROLLER = 'Controller'
+RESOURCE_DEVICE_TYPE = 'Device Type'
+
+# curve menus
+RESOURCE_MASTER_DATA_MANAGEMENT = 'Master Data Management'
+RESOURCE_ANALYSIS = 'Analysis'
+
 
 # Action Constants
 ACTION_CAN_CREATE = "can_create"

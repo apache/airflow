@@ -1,7 +1,7 @@
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from airflow.plugins_manager import AirflowPlugin
 import logging
-from flask_appbuilder import BaseView, expose, has_access
+from flask_appbuilder import BaseView, expose
 from airflow.models import Variable
 from plugins.utils.utils import get_curve, get_result
 from plugins.models.error_tag import ErrorTag
@@ -10,7 +10,7 @@ from datetime import datetime
 import os
 from airflow.settings import TIMEZONE
 from flask_login import current_user
-
+from airflow.security import permissions
 _logger = logging.getLogger(__name__)
 
 
@@ -19,8 +19,17 @@ class CurveView(BaseView):
 
     base_permissions = ['can_view_curve_page']
 
+    class_permission_name = permissions.RESOURCE_CURVE
+
+    method_permission_name = {
+        'view_curve_page': 'read'
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ
+    ]
+
     @expose('/view_curve/<string:entity_id>')
-    @has_access
     def view_curve_page(self, entity_id: str):
         entity_id = entity_id.replace('@', '/')
 

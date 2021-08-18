@@ -24,6 +24,7 @@ from flask_appbuilder.fieldwidgets import (
     BS3TextFieldWidget, Select2Widget,
 )
 from flask_appbuilder.forms import DynamicForm
+from airflow.security import permissions
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
@@ -76,8 +77,6 @@ class TighteningControllerView(AirflowModelView):
     from plugins.models.tightening_controller import TighteningController
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
 
-    base_permissions = ['can_show', 'can_add', 'can_list', 'can_edit', 'can_delete', 'can_controllerimport']
-
     extra_fields = []
     list_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code', 'work_center_name', 'device_type']
     add_columns = edit_columns = ['controller_name', 'line_code', 'line_name', 'work_center_code',
@@ -94,6 +93,25 @@ class TighteningControllerView(AirflowModelView):
         'work_center_name': lazy_gettext('Work Center Name'),
         'device_type_id': lazy_gettext('Device Type'),
     }
+
+    method_permission_name = {
+        'list': 'read',
+        'show': 'read',
+        'add': 'create',
+        'action_muldelete': 'delete',
+        'controllerimport': 'create',
+        'action_controllerexport': 'read'
+    }
+
+    class_permission_name = permissions.RESOURCE_CONTROLLER
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU
+    ]
 
     base_order = ('id', 'asc')
 

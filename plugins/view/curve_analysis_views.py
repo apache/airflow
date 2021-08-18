@@ -8,6 +8,7 @@ from airflow.www import utils as wwwutils
 from flask_appbuilder.models.sqla.filters import BaseFilter
 
 from airflow.plugins_manager import AirflowPlugin
+from airflow.security import permissions
 
 
 class CurveAnalysisListWidget(AirflowModelListWidget):
@@ -27,14 +28,22 @@ class BoltNoNotNullFilter(BaseFilter):
         return query.filter(result.bolt_number.isnot(None)).distinct(result.bolt_number).group_by(result)
 
 
-class CurveAnalysisControllerView(TighteningControllerView):
+class CurveAnalysisControllerView(AirflowModelView):
     route_base = '/curves_analysis_controller'
-
+    from plugins.models.tightening_controller import TighteningController
+    datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
     list_title = lazy_gettext("Analysis Via Controller")
+    page_size = PAGE_SIZE
+    class_permission_name = permissions.RESOURCE_CURVES
+    method_permission_name = {
+        'list': 'read',
+        'show': 'read'
+    }
 
-    # list_columns = ['controller_name']
-
-    base_permissions = ['can_show', 'can_list']
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU
+    ]
 
 
 class CurveAnalysisTrackNoView(AirflowModelView):
@@ -44,7 +53,16 @@ class CurveAnalysisTrackNoView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    base_permissions = ['can_list', 'can_show']
+    class_permission_name = permissions.RESOURCE_CURVES
+    method_permission_name = {
+        'list': 'read',
+        'show': 'read'
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU
+    ]
 
     list_widget = CurveAnalysisListWidget
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List
 from flask import Response
 from flask import send_file
-from flask_appbuilder import expose, has_access
+from flask_appbuilder import expose
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from airflow.configuration import conf
@@ -26,6 +26,7 @@ from airflow.plugins_manager import AirflowPlugin
 from plugins import AirflowModelView
 from flask import jsonify, request
 from airflow.exceptions import AirflowException
+from airflow.security import permissions
 
 _logger = logging.getLogger(__name__)
 
@@ -47,6 +48,20 @@ class CurvesView(AirflowModelView):
     }
 
     download_static_folder = os.path.join(AIRFLOW_HOME, 'downloads/contents')
+    class_permission_name = permissions.RESOURCE_CURVES
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    method_permission_name = {
+        'view_curves_analysis': 'read',
+        'download': 'read',
+        'view_curves': 'read',
+        'get_curves_by_entity_id': 'read',
+        'get_curves': 'read'
+    }
 
     def __init__(self, *args, **kwargs):
         ret = super(CurvesView, self).__init__(**kwargs)
@@ -140,7 +155,6 @@ class CurvesView(AirflowModelView):
                                     widgets=widgets)
 
     @expose('/analysis')
-    @has_access
     def view_curves_analysis(self):
         track_no = request.args.get('track_no', default=None)
         bolt_no = request.args.get('bolt_no', default=None)
@@ -211,7 +225,6 @@ class CurvesView(AirflowModelView):
             return False
 
     @expose('/download/<string:entity_ids>')
-    @has_access
     def download(self, entity_ids: str):
         if not entity_ids or entity_ids == 'None':
             return Response(status=http.HTTPStatus.OK)
@@ -236,7 +249,6 @@ class CurvesView(AirflowModelView):
                          as_attachment=True)
 
     @expose('/<string:bolt_no>/<string:craft_type>')
-    @has_access
     def view_curves(self, bolt_no, craft_type):
         ret = self.do_render(bolt_no=bolt_no, craft_type=craft_type)
         return ret
@@ -244,7 +256,6 @@ class CurvesView(AirflowModelView):
     @expose(
         '/curves',
         methods=['GET'])
-    @has_access
     def get_curves_by_entity_id(self):
         try:
             curves = []
@@ -277,7 +288,6 @@ class CurvesView(AirflowModelView):
             return response
 
     @expose('/curve-entities', methods=['GET'])
-    @has_access
     def get_curves(self):
         try:
             craft_type = request.args.get('craft_type')

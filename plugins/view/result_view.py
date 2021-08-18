@@ -6,15 +6,15 @@ from flask_babel import lazy_gettext
 from airflow.plugins_manager import AirflowPlugin
 from plugins.models.error_tag import ErrorTag
 from airflow.configuration import conf
+from airflow.security import permissions
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+
 
 class ResultModelView(AirflowModelView):
     route_base = '/results'
 
     datamodel = AirflowModelView.CustomSQLAInterface(ResultModel)
-
-    base_permissions = ['can_list']
 
     page_size = PAGE_SIZE
 
@@ -29,6 +29,20 @@ class ResultModelView(AirflowModelView):
     }
 
     base_order = ('update_time', 'desc')
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_ACCESS_MENU
+    ]
+
+    method_permission_name = {
+        'list': 'read',
+        'show': 'read',
+        'edit': 'edit_all',
+    }
+
+    class_permission_name = permissions.RESOURCE_RESULT
 
     # base_filters = [['dag_id', DagFilter, lambda: []]]
 
@@ -63,8 +77,8 @@ class ResultModelView(AirflowModelView):
 
 result_view = ResultModelView()
 result_view_package = {"name": gettext("Results"),
-                     "category": gettext("Analysis"),
-                     "view": result_view}
+                       "category": gettext("Analysis"),
+                       "view": result_view}
 
 
 class ResultViewPlugin(AirflowPlugin):

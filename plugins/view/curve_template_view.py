@@ -5,7 +5,7 @@ from airflow.plugins_manager import AirflowPlugin
 from flask_login import current_user
 from airflow.settings import TIMEZONE
 from datetime import datetime
-from flask_appbuilder import expose, has_access
+from flask_appbuilder import expose
 from jinja2.utils import htmlsafe_json_dumps  # type: ignore
 from airflow.exceptions import AirflowNotFoundException
 from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
@@ -18,6 +18,7 @@ from flask_appbuilder.actions import action
 from airflow.www.decorators import action_logging
 from flask_babel import gettext
 from flask._compat import PY2
+from airflow.security import permissions
 from flask import (
     Markup, flash, make_response, redirect, request
 )
@@ -84,7 +85,22 @@ class CurveTemplateView(AirflowModelView):
     add_columns = ['key', 'val', 'active']
     edit_columns = ['key', 'val', 'active']
     search_columns = ['key', 'val', 'active']
-
+    class_permission_name = permissions.RESOURCE_CURVE_TEMPLATE
+    method_permission_name = {
+        'view_curve_template': 'read',
+        'remove_curve_template': 'edit',
+        'list': 'read',
+        'action_muldelete': 'delete',
+        'action_varexport': 'read',
+        'varimport': 'create',
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU
+    ]
     label_columns = {
         'key': gettext('Key'),
         'val': gettext('Val'),
@@ -106,12 +122,11 @@ class CurveTemplateView(AirflowModelView):
     }
 
     @expose('/<string:bolt_no>/<string:craft_type>')
-    @has_access
     def view_curve_template(self, bolt_no, craft_type):
         curve_template = CurveTemplateModel.get_fuzzy_active('{}/{}'.format(bolt_no, craft_type),
-                                                         deserialize_json=True,
-                                                         default_var=None
-                                                         )[1]
+                                                             deserialize_json=True,
+                                                             default_var=None
+                                                             )[1]
         _has_access = self.appbuilder.sm.has_access
         can_delete = _has_access('can_edit', 'CurveTemplateView') and _has_access('can_remove_curve_template',
                                                                                   'Airflow')
@@ -144,7 +159,6 @@ class CurveTemplateView(AirflowModelView):
                                     craft_type=craft_type, device_type=device_type, cur_key_map=cur_key_map)
 
     @expose('/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
-    @has_access
     def remove_curve_template(self, bolt_no, craft_type):
         _has_access = self.appbuilder.sm.has_access
         can_delete = _has_access('can_edit', 'CurveTemplateView')
@@ -169,7 +183,6 @@ class CurveTemplateView(AirflowModelView):
             return {'error': str(e)}
 
     @expose("/list/")
-    @has_access
     def list(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
@@ -241,7 +254,6 @@ class CurveTemplateView(AirflowModelView):
         return response
 
     @expose('/varimport', methods=["POST"])
-    @has_access
     @action_logging
     def varimport(self):
         try:

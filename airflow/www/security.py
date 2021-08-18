@@ -241,8 +241,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
@@ -296,6 +294,32 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
     ]
 
+    CURVE_VIEW_PERMISSIONS = [
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_MASTER_DATA_MANAGEMENT),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ANALYSIS),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CURVE_TEMPLATE),
+        # (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CURVE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CURVES),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_RESULT),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ERROR_TAG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONTROLLER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DEVICE_TYPE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CURVE_TEMPLATE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CURVE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CURVES),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_RESULT),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ERROR_TAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONTROLLER),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DEVICE_TYPE),
+
+    ]
+
+    CURVE_ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CURVE_TEMPLATE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CURVE_TEMPLATE),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CURVE_TEMPLATE)
+    ]
+
     # global view-menu for dag-level access
     DAG_VMS = {permissions.RESOURCE_DAG}
 
@@ -311,24 +335,25 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
         {
             'role': 'User',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS,
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + CURVE_VIEW_PERMISSIONS,
         },
         {
             'role': 'Op',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + CURVE_VIEW_PERMISSIONS,
         },
         {
             'role': 'Admin',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS
+                     + CURVE_VIEW_PERMISSIONS + CURVE_ADMIN_PERMISSIONS,
         },
-        #TODO: 关于工具和二次确认的权限的设定
+        # TODO: 关于工具和二次确认的权限的设定
         {
             'role': '工段长',
-            'perms': VIEWER_PERMISSIONS,
+            'perms': VIEWER_PERMISSIONS + CURVE_VIEW_PERMISSIONS,
         },
         {
             'role': 'ME工程师',
-            'perms': VIEWER_PERMISSIONS,
+            'perms': VIEWER_PERMISSIONS + CURVE_VIEW_PERMISSIONS + CURVE_ADMIN_PERMISSIONS,
         },
         {
             'role': '运维人员',
