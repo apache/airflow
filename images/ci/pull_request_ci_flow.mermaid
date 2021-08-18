@@ -17,12 +17,12 @@
 
 sequenceDiagram
     Note over Airflow Repo: pull request
-    Note over CI Build: pull_request<br>[Read Token]
+    Note over Tests: pull_request<br>[Read Token]
     Note over Build Images: pull_request_target<br>[Write Token]
     activate Airflow Repo
-    Airflow Repo -->> CI Build: Trigger 'pull_request'
-    activate CI Build
-    CI Build -->> Build Images: Trigger 'pull_request_target'
+    Airflow Repo -->> Tests: Trigger 'pull_request'
+    activate Tests
+    Tests -->> Build Images: Trigger 'pull_request_target'
     activate Build Images
     Note over Build Images: Build info
     par 3.6, [3.7, 3.8, 3.9]
@@ -32,13 +32,13 @@ sequenceDiagram
         Note over Build Images: Build CI Images<br>[COMMIT_SHA]
     end
     par No CI image
-        Note over CI Build: Build info<br>Which tests?<br>Which Python?
+        Note over Tests: Build info<br>Which tests?<br>Which Python?
     and
-        Note over CI Build: OpenAPI client gen
+        Note over Tests: OpenAPI client gen
     and
-        Note over CI Build: Test UI
+        Note over Tests: Test UI
     and
-        Note over CI Build: Test examples<br>PROD image building
+        Note over Tests: Test examples<br>PROD image building
     end
     par 3.6, [3.7, 3.8, 3.9]
         activate GitHub Registry
@@ -51,38 +51,38 @@ sequenceDiagram
     end
     loop Wait for CI images
         par 3.6, [3.7, 3.8, 3.9]
-            CI Build ->> CI Build: Check CI Images
-            Note over CI Build: Wait for<br>[COMMIT_SHA]
+            Tests ->> Tests: Check CI Images
+            Note over Tests: Wait for<br>[COMMIT_SHA]
         end
     end
     par 3.6, [3.7, 3.8, 3.9]
-        GitHub Registry ->> CI Build: Pull CI Image
-        Note over CI Build: Verify CI Image
+        GitHub Registry ->> Tests: Pull CI Image
+        Note over Tests: Verify CI Image
     end
     deactivate GitHub Registry
     par 3.6, [3.7, 3.8, 3.9]
         opt Needed?
-            Note over CI Build: Run static checks
+            Note over Tests: Run static checks
         end
     and
         opt Needed?
-            Note over CI Build: Run basic <br>static checks
+            Note over Tests: Run basic <br>static checks
         end
     and
         opt Needed?
-            Note over CI Build: Build docs
+            Note over Tests: Build docs
         end
     and
         opt Needed?
-            Note over CI Build: Tests
+            Note over Tests: Tests
         end
     and
         opt Needed?
-            Note over CI Build: Test provider <br>packages build
+            Note over Tests: Test provider <br>packages build
         end
     and
         opt Needed?
-            Note over CI Build: Helm tests
+            Note over Tests: Helm tests
         end
     end
     par 3.6, [3.7, 3.8, 3.9]
@@ -93,24 +93,24 @@ sequenceDiagram
     Note over GitHub Registry: Tagged PROD Images<br>[COMMIT_SHA]
     loop Wait for PROD images
         par 3.6, [3.7, 3.8, 3.9]
-            CI Build ->> CI Build: Check PROD Images
-            Note over CI Build: Wait for<br>[COMMIT_SHA]
+            Tests ->> Tests: Check PROD Images
+            Note over Tests: Wait for<br>[COMMIT_SHA]
         end
     end
     par 3.6, [3.7, 3.8, 3.9]
-        GitHub Registry ->> CI Build: Pull PROD Image
-        Note over CI Build: Verify PROD Image
+        GitHub Registry ->> Tests: Pull PROD Image
+        Note over Tests: Verify PROD Image
     end
     deactivate GitHub Registry
     par 3.6, [3.7, 3.8, 3.9]
         opt Needed?
-            Note over CI Build: Run Kubernetes <br>tests
+            Note over Tests: Run Kubernetes <br>tests
         end
     and
         opt Needed?
-            Note over CI Build: Run Kubernetes <br>upgrade tests
+            Note over Tests: Run Kubernetes <br>upgrade tests
         end
     end
-    CI Build -->> Airflow Repo: Status update
+    Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
-    deactivate CI Build
+    deactivate Tests
