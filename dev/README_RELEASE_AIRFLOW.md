@@ -115,11 +115,17 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
-
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
     ./breeze prepare-airflow-packages --package-format both
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
+    ```
+
+- If you aren't using Breeze for packaging, build the distribution and wheel files directly
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
     ```
 
