@@ -785,6 +785,10 @@ flower:
     #     port: 8080
     #     targetPort: flower-ui
     loadBalancerIP: ~
+    ## Limit load balancer source ips to list of CIDRs
+    # loadBalancerSourceRanges:
+    #   - "143.231.0.0/16"
+    loadBalancerSourceRanges: []
 
   # Launch additional containers into the flower pods.
   extraContainers: []
