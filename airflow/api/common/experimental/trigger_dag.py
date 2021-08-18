@@ -67,7 +67,7 @@ def _trigger_dag(
                 )
             )
 
-    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date, dag_timezone=dag.timezone)
     dag_run = DagRun.find(dag_id=dag_id, run_id=run_id)
 
     if dag_run:

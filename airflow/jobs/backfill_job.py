@@ -335,7 +335,7 @@ class BackfillJob(BaseJob):
 
         # explicitly mark as backfill and running
         run.state = State.RUNNING
-        run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date)
+        run.run_id = run.generate_run_id(DagRunType.BACKFILL_JOB, run_date, dag_timezone=dag.timezone)
         run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
         return run

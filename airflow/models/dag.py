@@ -2105,8 +2105,8 @@ class DAG(LoggingMixin):
         elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
                 raise ValueError(f"`run_type` expected to be a DagRunType is {type(run_type)}")
-            run_id = DagRun.generate_run_id(run_type, execution_date)
-        else:
+            run_id = DagRun.generate_run_id(run_type, execution_date, dag_timezone=self.timezone)
+        elif not run_id:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )

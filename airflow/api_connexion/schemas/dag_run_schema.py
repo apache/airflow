@@ -91,7 +91,8 @@ class DAGRunSchema(SQLAlchemySchema):
         if "dag_run_id" not in data:
             try:
                 data["dag_run_id"] = DagRun.generate_run_id(
-                    DagRunType.MANUAL, timezone.parse(data["logical_date"])
+                    DagRunType.MANUAL, timezone.parse(data["logical_date"]),
+                    dag_timezone=data['timezone']
                 )
             except (ParserError, TypeError) as err:
                 raise BadRequest("Incorrect datetime argument", detail=str(err))
