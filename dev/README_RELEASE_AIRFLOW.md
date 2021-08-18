@@ -126,6 +126,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     python setup.py compile_assets sdist bdist_wheel
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
     ```
 
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
