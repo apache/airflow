@@ -207,10 +207,9 @@ class TighteningControllerView(AirflowModelView):
         return super(TighteningControllerView, self).list()
 
 
-class DeviceTypeView(ModelView):
+class DeviceTypeView(AirflowModelView):
     from plugins.models.device_type import DeviceTypeModel
     datamodel = AirflowModelView.CustomSQLAInterface(DeviceTypeModel)
-    related_views = [TighteningControllerView]
 
 
 tightening_controller_view = TighteningControllerView()
