@@ -342,11 +342,7 @@ class DagRun(Base, LoggingMixin):
         local_run_id = conf.getboolean("core", "localize_dag_run_id", fallback=False)
         if local_run_id:
             local_time = pendulum.instance(execution_date).astimezone(tz=settings.TIMEZONE)
-            is_dst = local_time.is_dst()
-            if is_dst:
-                return f"{run_type}__{local_time.isoformat()}__DST"
-            else:
-                return f"{run_type}__{local_time.isoformat()}"
+            return f"{run_type}__{local_time.isoformat()}"
         else:
             return f"{run_type}__{execution_date.isoformat()}"
 
