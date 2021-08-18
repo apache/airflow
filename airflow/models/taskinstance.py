@@ -393,7 +393,6 @@ class TaskInstance(Base, LoggingMixin):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.task = task
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
@@ -759,6 +758,7 @@ class TaskInstance(Base, LoggingMixin):
         :param pool_override: Use the pool_override instead of task's pool
         :type pool_override: str
         """
+        self.task = task
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
