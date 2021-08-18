@@ -760,3 +760,44 @@ def test_refresh_failure_for_viewer(viewer_client):
     # viewer role can't refresh
     resp = viewer_client.post('refresh?dag_id=example_bash_operator')
     check_content_in_response('Redirecting', resp, resp_code=302)
+
+
+@pytest.fixture(scope="module")
+def user_no_roles(acl_app):
+    user = create_user(
+        acl_app,
+        username="no_roles_user",
+        role_name="no_roles_user_role",
+    )
+    user.roles = []
+    return user
+
+
+@pytest.fixture()
+def client_no_roles(acl_app, user_no_roles):
+    return client_with_login(
+        acl_app,
+        username="no_roles_user",
+        password="no_roles_user",
+    )
+
+
+@pytest.fixture()
+def client_anonymous(acl_app):
+    return acl_app.test_client()
+
+
+@pytest.mark.parametrize(
+    "client, url, expected_content",
+    [
+        ["client_no_roles", "/home", "Your user has no roles!"],
+        ["client_no_roles", "/no_roles", "Your user has no roles!"],
+        ["client_all_dags", "/home", "DAGs - Airflow"],
+        ["client_all_dags", "/no_roles", "DAGs - Airflow"],
+        ["client_anonymous", "/home", "Sign In"],
+        ["client_anonymous", "/no_roles", "Sign In"],
+    ],
+)
+def test_no_roles_redirect(request, client, url, expected_content):
+    resp = request.getfixturevalue(client).get(url, follow_redirects=True)
+    check_content_in_response(expected_content, resp)
